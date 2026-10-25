@@ -48,6 +48,10 @@ func registerProbe() {
 			Mode:      "offline",
 			Section:   registry.SectionTest,
 		})
+		// Every le area publishes a table, or Dispatch refuses to start
+		// (D-P3-tablecheck). The probe reads its own words, as a
+		// pass-through area's program does.
+		leroot.RegisterForwarding(probeRoot, "the dispatch probe")
 	})
 }
 

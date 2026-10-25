@@ -170,7 +170,7 @@ func isActionNode(words []string, areas map[string]bool) bool {
 	if !declared {
 		return false
 	}
-	_, held := list.UsageText(words[len(words)-1])
+	_, held := list.ActionPage("le", words[len(words)-1])
 	return held
 }
 
@@ -186,7 +186,8 @@ func checkActionLine(t *testing.T, words []string, node *command.Node) {
 		return
 	}
 	line := []string{}
-	for _, def := range node.ArgDefs {
+	for index := range node.ArgDefs {
+		def := &node.ArgDefs[index]
 		line = append(line, def.Name())
 		switch def.Kind() {
 		case command.ArgFlag:
@@ -197,10 +198,30 @@ func checkActionLine(t *testing.T, words []string, node *command.Node) {
 		case command.ArgString, command.ArgUnion:
 			line = append(line, sampleValue(list, verb, def.Name()))
 		}
+		// A pair keyword takes a second value after the first (`hunks <path>
+		// <patch-file>`), so the line a reader completes types both.
+		if takesPair(list, verb, def.Name()) {
+			line = append(line, "x")
+		}
 	}
 	if err := list.Accepts(verb, line); err != nil {
 		t.Errorf("le %s %s %s: the completed line is refused: %v", area, verb, strings.Join(line, " "), err)
 	}
+}
+
+// takesPair reports whether the verb's keyword declares a second value.
+func takesPair(list leaction.List, verb, keyword string) bool {
+	for _, row := range list.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		for _, parameter := range row.Parameters {
+			if parameter.Keyword == keyword {
+				return parameter.Pair != ""
+			}
+		}
+	}
+	return false
 }
 
 // sampleValue answers a value the keyword's declared kind accepts.

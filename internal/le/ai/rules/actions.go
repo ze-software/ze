@@ -76,7 +76,7 @@ var actions = leaction.New(area,
 		Why:    "which blocking rule matched this session's edited file types but was never read",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print less"},
+			{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print one line, and only when the coverage changed since the last report; the record is still written"},
 			{Keyword: "transcript", Kind: leaction.KindPath, Help: "the session transcript to read", Value: "path", Requirement: leaction.Optional},
 			{Keyword: "session", Kind: leaction.KindLabel, Help: "the session id whose transcript is read", Value: "id", Requirement: leaction.Optional},
 			{Keyword: "rules-dir", Kind: leaction.KindPath, Help: "the rules directory to judge against", Value: "path", Requirement: leaction.Optional},

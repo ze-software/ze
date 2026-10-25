@@ -43,13 +43,24 @@ import (
 // le's exit code.
 // The answer carries no payload, because the harness writes its own output.
 //
-// The command MUST be registered as forwarding (leroot.RegisterForwarding), so
-// a trailing help word reaches run and the harness prints its own help.
+// The command MUST be registered as forwarding (leroot.RegisterForwarding, to
+// Helper), so a trailing help word reaches run and the harness prints its own
+// help.
 func Answer(run func([]string) int) leroot.Answer {
 	return func(args []string) (any, int) {
 		return nil, run(args)
 	}
 }
+
+// The programs a harness command hands its words to, as help names them
+// (leroot.RegisterForwarding). A command built on SuiteAnswer or RunnerAnswer
+// passes them to Runner; one built on Answer passes them to Helper.
+const (
+	// Runner is the functional test runner (internal/test/runner).
+	Runner = "the functional test runner"
+	// Helper is the helper program one harness command runs.
+	Helper = "the test helper this command runs"
+)
 
 // Meta answers the help metadata of a harness command.
 func Meta(shortHelp string) registry.Meta {

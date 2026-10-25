@@ -23,6 +23,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc, because ONE of the three answers is a document rather than a
 	// row set: the contract result carries the YANG commands, the handlers, the

@@ -12,13 +12,16 @@ import (
 )
 
 func init() {
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	actions := table()
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "a spec citing a sibling spec absent on disk fails, unless the" +
-			" target is grandfathered in plan/.citation-baseline; a path:line citation" +
-			" whose backtick-quoted token drifted off that line warns",
-		Mode:    "offline",
-		Section: registry.SectionTest,
+		ShortHelp: shortHelp,
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  actions.Subs,
 	})
+	leroot.RegisterActions(name, actions.Actions)
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 }

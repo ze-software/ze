@@ -15,10 +15,15 @@ import (
 const commandName = "spec wip"
 
 func init() {
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	table := spec.WIPArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.WIP, registry.Meta{
 		ShortHelp: "the in-progress specs, against the work-in-progress cap",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
+		SubsFunc:  table.Subs,
 	})
+	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // captureStderr runs fn with os.Stderr replaced by a pipe and answers what fn
@@ -46,30 +47,6 @@ func captureStderr(t *testing.T, fn func()) string {
 	captured := <-done
 	read.Close() //nolint:errcheck // read to EOF
 	return captured
-}
-
-// VALIDATES: a value typed after an argument-less command is refused, the
-// message names the command and quotes what was typed, and the usage line says
-// what may follow.
-// PREVENTS: fourteen hand-written copies of this refusal disagreeing about what
-// a developer may type, which is the reason it is stated once.
-func TestRefuseArgumentNamesTheCommandAndWhatWasTyped(t *testing.T) {
-	var code int
-	captured := captureStderr(t, func() { code = RefuseArgument("arch iface-resolution", "internal") })
-
-	if code != 1 {
-		t.Errorf("the refusal answers %d, want 1", code)
-	}
-	lines := strings.Split(strings.TrimSuffix(captured, "\n"), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("the refusal wrote %d lines, want the message and the usage: %q", len(lines), captured)
-	}
-	if lines[0] != `error: arch iface-resolution takes no arguments, got "internal"` {
-		t.Errorf("the message is %q", lines[0])
-	}
-	if lines[1] != "usage: le arch iface-resolution [| json | yaml | table]" {
-		t.Errorf("the usage line is %q", lines[1])
-	}
 }
 
 // VALIDATES: Run expands `| save` in the caller's local process, writes the
@@ -126,4 +103,32 @@ func TestRunAllowsLocalSave(t *testing.T) {
 	if !strings.HasPrefix(stderr.String(), wantErrorPrefix) {
 		t.Errorf("save failure = %q, want prefix %q", stderr.String(), wantErrorPrefix)
 	}
+}
+
+// TestAnAreaWithoutATableStopsLeNamingIt proves AC-16 (D-P3-tablecheck): an
+// area that registered no action table stops le before its first answer, and
+// the stop names the area and the call that fixes it. An area holding a table
+// passes the same check.
+// VALIDATES: requireEveryAreaHasATable, run once by Dispatch and Tree.
+// PREVENTS: an area publishing no grammar, which the manifest, help and the
+// dispatch guard would each answer for from nothing.
+func TestAnAreaWithoutATableStopsLeNamingIt(t *testing.T) {
+	tabled := "zz-tablecheck-tabled"
+	setActions(tabled, func() leaction.List {
+		return leaction.New(tabled, leaction.Action{Verb: "run", Why: "w", Answer: func() (any, int) { return nil, 0 }}).Actions()
+	})
+	requireEveryAreaHasATable([]string{tabled})
+
+	missing := "zz-tablecheck-missing"
+	defer func() {
+		stop, _ := recover().(string)
+		if !strings.Contains(stop, `"`+missing+`"`) {
+			t.Fatalf("the stop does not name the area %q: %q", missing, stop)
+		}
+		if !strings.Contains(stop, `leroot.RegisterActions("`+missing+`", Actions)`) {
+			t.Fatalf("the stop does not name the call that fixes it: %q", stop)
+		}
+	}()
+	requireEveryAreaHasATable([]string{tabled, missing})
+	t.Fatal("an area with no action table passed the check")
 }

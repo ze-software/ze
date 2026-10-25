@@ -4,10 +4,11 @@ package specstatus
 
 import (
 	"context"
-	"fmt"
-	"os"
+	"errors"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -19,25 +20,84 @@ const (
 	closureCheck
 )
 
-// Answer is the command. Its bare form is the inventory. The closure actions
-// preserve the detector's list and single-spec contracts.
+// The verbs and keywords of `le spec status`. The closure spellings are the
+// ones the Stop hook and ze-close type, kept until the rename phase of
+// plan/post-release/engineering/spec-le-cli-usability.md.
+const (
+	name           = "spec status"
+	verbReport     = "report"
+	verbClosure    = "closure"
+	keywordList    = "list"
+	keywordCheck   = "check"
+	keywordSpec    = "spec"
+	closureGrammar = "spec status closure takes list, or check spec <name>"
+)
+
+// table declares the whole command surface. It is built on each call because
+// the closure body refuses through it, and a package-level table that its own
+// body names is an initialization cycle.
+func table() leaction.Area {
+	return leaction.New(name,
+		leaction.Action{
+			Verb:   verbReport,
+			Why:    "the spec inventory: release bucket, status and stale-skeleton flag for every spec",
+			Answer: answerReport,
+		},
+		leaction.Action{
+			Verb: verbClosure,
+			Why:  "the closure detector: every spec whose closure is owed, or whether one spec may close",
+			Parameters: []leaction.Parameter{
+				{Keyword: keywordList, Kind: leaction.KindSwitch, Help: "list every spec whose closure is owed"},
+				{Keyword: keywordCheck, Kind: leaction.KindSwitch, Help: "check the one spec that spec names"},
+				{
+					Keyword: keywordSpec, Kind: leaction.KindLabel, Value: "name",
+					Help: "the spec check judges", Requirement: leaction.Optional,
+				},
+			},
+			AnswerArgs: answerClosure,
+		},
+	)
+}
+
+// Answer is the command. Its bare form is the inventory, which hooks and
+// ze-status call bare; every other line is the table's.
 func Answer(args []string) (any, int) {
+	if len(args) == 0 {
+		return table().Answer([]string{verbReport})
+	}
+	return table().Answer(args)
+}
+
+// answerReport is the inventory. It REPORTS; it does not gate.
+func answerReport() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
 		return nil, 1
 	}
-	if len(args) == 0 {
-		inventory, err := Collect(context.Background(), root, time.Now(), warnToStderr)
-		if err != nil {
-			reportError(err)
-			return nil, 1
-		}
-		// The inventory REPORTS; it does not gate. A tree full of blocked specs is
-		// not a failure, so the code is 0 whenever the population was read.
-		return inventory, 0
+	inventory, err := Collect(context.Background(), root, time.Now(), warnToStderr)
+	if err != nil {
+		reportError(err)
+		return nil, 1
 	}
-	action, spec := parseClosureAction(args)
+	// A tree full of blocked specs is not a failure, so the code is 0 whenever
+	// the population was read.
+	return inventory, 0
+}
+
+// answerClosure runs the closure action the parsed line selects. A line that
+// selects none, or both, is refused with the action's usage and 2. The
+// closure actions preserve the detector's list and single-spec contracts.
+func answerClosure(args leaction.Arguments) (any, int) {
+	action, spec := closureActionOf(args)
+	if action == closureUnspecified {
+		return nil, table().Refuse(verbClosure, errors.New(closureGrammar))
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		reportError(err)
+		return nil, 1
+	}
 	switch action {
 	case closureList:
 		report, malformed, err := closureInventory(root)
@@ -59,28 +119,25 @@ func Answer(args []string) (any, int) {
 		}
 		return report, 0
 	case closureUnspecified:
-		return nil, refuseStatus(args[0])
+		panic("BUG: an unspecified closure action passed its refusal")
 	default:
 		panic("BUG: invalid spec closure action")
 	}
 }
 
-func parseClosureAction(args []string) (closureAction, string) {
-	if len(args) == 2 {
-		if args[0] == "closure" {
-			if args[1] == "list" {
-				return closureList, ""
-			}
+// closureActionOf answers the closure action a parsed line selects: `list`
+// alone, or `check` with `spec <name>`. Any other line selects none.
+func closureActionOf(args leaction.Arguments) (closureAction, string) {
+	list, check, spec := args.Has(keywordList), args.Has(keywordCheck), args.Has(keywordSpec)
+	if list {
+		if check || spec {
+			return closureUnspecified, ""
 		}
-		return closureUnspecified, ""
+		return closureList, ""
 	}
-	if len(args) == 4 {
-		if args[0] == "closure" {
-			if args[1] == "check" {
-				if args[2] == "spec" {
-					return closureCheck, args[3]
-				}
-			}
+	if check {
+		if spec {
+			return closureCheck, args.One(keywordSpec)
 		}
 	}
 	return closureUnspecified, ""
@@ -88,7 +145,9 @@ func parseClosureAction(args []string) (closureAction, string) {
 
 func reportMalformedJournals(paths []string) {
 	for _, path := range paths {
-		fmt.Fprintf(os.Stderr, "warning: malformed journal row in %s (run `./le spec journal report`)\n", path) //nolint:errcheck // CLI output
+		var tb textbuf.Buffer
+		tb.Str("warning: malformed journal row in ").Str(path).
+			Str(" (run `./le spec journal report`)\n").StdErr() //nolint:errcheck // CLI output
 	}
 }
 
@@ -96,15 +155,12 @@ func reportMalformedJournals(paths []string) {
 // side channel rather than part of the payload: the record for such a spec is
 // still published, carrying the status `unparsed`.
 func warnToStderr(line string) {
-	fmt.Fprintln(os.Stderr, line) //nolint:errcheck // CLI output
+	var tb textbuf.Buffer
+	tb.Str(line).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // reportError writes one failure line in the spelling every ported le tool uses.
 func reportError(err error) {
-	fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // CLI output
-}
-
-func refuseStatus(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec status [closure list|closure check spec <name>] (got %q)\n", got) //nolint:errcheck // CLI output
-	return 2
+	var tb textbuf.Buffer
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }

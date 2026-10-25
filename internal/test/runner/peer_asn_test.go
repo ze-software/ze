@@ -482,7 +482,7 @@ func TestDeclarePeerASClassifiesConfigConsumers(t *testing.T) {
 // TestDeclarePeerASConfigurationCarriers proves that selection follows each
 // supported daemon input, including extension-independent file and reload paths.
 func TestDeclarePeerASConfigurationCarriers(t *testing.T) {
-	leroot.RegisterForwarding("test peer-asn-config-probe")
+	leroot.RegisterForwarding("test peer-asn-config-probe", "the probe helper")
 	for _, carrier := range []string{"daemon file", "daemon stdin", "wrapped stdin", "option file tmpfs", "reload source"} {
 		t.Run(carrier, func(t *testing.T) {
 			config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))

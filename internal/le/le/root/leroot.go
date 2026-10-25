@@ -124,20 +124,42 @@ func toolHandler(answer Answer) command.LocalDataHandler {
 // handler. `le test stress-repro run suite --help` started a multi-hour burn because
 // the only surface holding the grammar was the handler itself.
 //
-// It is a second call beside Register rather than a fifth argument to it: an
-// area that hand-rolls its own dispatch holds no action table yet, and
-// plan/post-release/engineering/spec-le-cli-usability.md migrates them, after
-// which the table stops being optional.
-//
-// How MANY such areas there are is not stated here. It was, as a count of seven,
-// and the count was wrong long before anyone noticed: areasWithoutAnActionTable
-// (internal/le/actions_test.go) holds the set, and the ratchet beside it refuses
-// a new one.
+// It is a second call beside Register rather than a fifth argument to it,
+// because an area's init may run either call first. The table is not optional:
+// Dispatch and Tree refuse to start while any registered area holds none
+// (requireEveryAreaHasATable).
 func RegisterActions(name string, actions func() leaction.List) {
 	if actions == nil {
 		panic("BUG: leroot.RegisterActions: nil actions; see the init frame above for the tool")
 	}
 	setActions(name, actions)
+}
+
+// tablesChecked runs requireEveryAreaHasATable once per process, on the first
+// Dispatch or Tree: every init has run by then, so a table registered after
+// its area's Register call is seen. Safe for concurrent use.
+var tablesChecked sync.Once
+
+// checkEveryAreaHasATable stops le before its first answer when an area
+// registered no action table and no pass-through declaration. MUST run after
+// every init, which the first Dispatch or Tree guarantees.
+func checkEveryAreaHasATable() {
+	tablesChecked.Do(func() { requireEveryAreaHasATable(Owned()) })
+}
+
+// requireEveryAreaHasATable panics naming the first of names that holds no
+// action table. Such an area publishes no grammar, so the manifest, help,
+// completion and the dispatch guard would each answer for it from nothing:
+// a Ze defect only its author can fix, never an operating error.
+func requireEveryAreaHasATable(names []string) {
+	for _, name := range names {
+		if _, declared := ActionsOf(name); declared {
+			continue
+		}
+		panic("BUG: le area \"" + name + "\" registers no action table: call leroot.RegisterActions(\"" +
+			name + "\", Actions), or leroot.RegisterForwarding for an area whose words are another program's, " +
+			"from the area's register.go")
+	}
 }
 
 // actionTables holds the action table of every area that declared one.
@@ -178,38 +200,34 @@ func setActions(name string, actions func() leaction.List) {
 }
 
 // RegisterForwarding records an area whose every word after its name is the
-// command line of another program, handed over verbatim: `le mrt statistics
-// --help` is the MRT analyzer's own `statistics --help`. The area owns no
-// grammar for those words, so it registers no action table, and the dispatcher
-// hands a trailing help word to the program rather than answering it with le's
-// page (asksForUsage). The program's help is the real help.
+// command line of program, handed over verbatim: `le mrt statistics --help` is
+// the MRT analyzer's own `statistics --help`. The area owns no grammar for those
+// words, so the table it registers is the pass-through declaration
+// (leaction.PassesWords): the manifest publishes `passes-words`, help and the
+// derived tree print where the words go, and the dispatcher hands a trailing
+// help word to the program rather than answering it with le's page
+// (asksForUsage). The program's help is the real help, and its exit code is
+// the area's.
 //
 // It is the area-wide form of a forwarding action row (leaction.Action
 // AnswerWords), for an area whose first word is already the program's. A bare
 // invocation still reaches the handler, which lists what the program holds.
-func RegisterForwarding(name string) {
-	forwardingAreas.Lock()
-	defer forwardingAreas.Unlock()
-	if forwardingAreas.byName == nil {
-		forwardingAreas.byName = make(map[string]bool, 8)
-	}
-	forwardingAreas.byName[name] = true
+// program names the program in the words help prints, as "the MRT analyzer".
+func RegisterForwarding(name, program string) {
+	// Built here so a missing program panics at init, not on the first help.
+	leaction.PassesWords(name, program)
+	setActions(name, func() leaction.List { return leaction.PassesWords(name, program) })
 }
 
 // Forwards reports whether an area registered itself as forwarding its words to
-// another program (RegisterForwarding).
+// another program (RegisterForwarding). The answer is read from the table the
+// area registered, so the declaration is held once.
 func Forwards(name string) bool {
-	forwardingAreas.RLock()
-	defer forwardingAreas.RUnlock()
-	return forwardingAreas.byName[name]
-}
-
-// forwardingAreas holds every area that registered as forwarding. Registration
-// runs in init() and help reads it on any goroutine, so the set is guarded.
-// Safe for concurrent use.
-var forwardingAreas struct {
-	sync.RWMutex
-	byName map[string]bool
+	list, declared := ActionsOf(name)
+	if !declared {
+		return false
+	}
+	return list.PassesWords
 }
 
 // RegisterAdmitted records an area whose run takes a slot through the job
@@ -400,23 +418,4 @@ func splitChain(args []string) (toolArgs []string, pipeStr string) {
 		return args[:i:i], tb.Join(args[i+1:], " ").String()
 	}
 	return args, ""
-}
-
-// RefuseArgument reports a value typed after a command that takes none, and
-// answers the code it exits with.
-//
-// Every le tool judges the checkout it is run in, and the rendering is a pipe
-// operator, so a tool that is one gate rather than an area has no argument to
-// take at all (the CLI rule: keyword before value). The refusal is stated here
-// because fourteen such tools owe it, and fourteen hand-written copies is where
-// they begin to disagree about what a developer may type.
-//
-// leaction.refuseValue is the same refusal for an action of an area, where the
-// message must also name the action.
-func RefuseArgument(name, got string) int {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(name).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	tb.Reset()
-	tb.Str("usage: le ").Str(name).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
-	return 1
 }

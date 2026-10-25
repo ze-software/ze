@@ -14,6 +14,7 @@ package leaction
 
 import (
 	"errors"
+	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -194,6 +195,45 @@ type Row struct {
 type List struct {
 	Area    string `json:"area"`
 	Actions []Row  `json:"actions"`
+	// PassesWords publishes that every word after the area's name is another
+	// program's command line, handed over verbatim, so the area declares no
+	// action and the program reads and refuses each word (PassesWords). It is
+	// the area-wide form of Row.Forwards, for an area whose first word is
+	// already the program's: `le mrt statistics --help` is the MRT analyzer's
+	// own `statistics --help`.
+	PassesWords bool `json:"passes-words,omitempty"`
+	// PassesTo names the program PassesWords hands the words to, in the words
+	// help prints. It is set exactly when PassesWords is.
+	PassesTo string `json:"passes-to,omitempty"`
+}
+
+// PassesWords declares the table of an area that forwards every word after its
+// name to program, verbatim. The table holds no action, because no word there
+// is le's, and it says so rather than staying silent: the manifest publishes
+// `passes-words`, the area page and the derived tree print PassesLine, and a
+// trailing help word reaches the program (TrailingWordAsksForHelp), which
+// prints its own help. The program's exit code is the area's.
+//
+// It panics on an empty area or program, because either is a Ze defect at init:
+// help would name no program.
+func PassesWords(area, program string) List {
+	if area == "" {
+		panic("BUG: leaction.PassesWords: an area needs a name")
+	}
+	if program == "" {
+		panic("BUG: leaction.PassesWords: name the program the words pass to, so help can")
+	}
+	return List{Area: area, Actions: []Row{}, PassesWords: true, PassesTo: program}
+}
+
+// PassesLine answers the sentence help and completion print for a
+// pass-through area (PassesWords): where its words go and who answers a help
+// word. It is spelled once here so the area page and the derived tree cannot
+// describe one area two ways.
+func (l List) PassesLine() string {
+	var tb textbuf.Buffer
+	return tb.Str("every word passes to ").Str(l.PassesTo).
+		Str(", which reads and refuses it; a trailing help word asks it for its own help").String()
 }
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -213,61 +253,6 @@ func (a Area) Actions() List {
 	return list
 }
 
-// Text renders the listing for a person, in the shape the Python area printed:
-// the area, then one padded row per action carrying the writes marker and the
-// reason.
-func (l List) Text() string {
-	var tb textbuf.Buffer
-	tb.Str(l.Area).Str(":\n")
-
-	width := 0
-	for _, row := range l.Actions {
-		if len(row.Verb) > width {
-			width = len(row.Verb)
-		}
-	}
-
-	// "writes" and "checks" are the two words the Python listing printed for
-	// this fact, and they are the whole reason a reader can pick an action
-	// without opening the code behind it.
-	for _, row := range l.Actions {
-		mark := "checks"
-		if row.Writes {
-			mark = "writes"
-		}
-		tb.Str("  ").PadRight(row.Verb, width).Str("  ").Str(mark).Str("  ").Str(row.Why).Byte('\n')
-	}
-
-	return tb.String()
-}
-
-// UsageText renders one action's whole grammar: the invocation line, then the
-// purpose the action declared. It answers false for a verb this listing does
-// not hold.
-//
-// The grammar is rendered from the LISTING rather than from the action table,
-// so the dispatcher renders the same two lines from the listing an area
-// registered, without calling that area's handler (internal/le/le/root).
-func (l List) UsageText(verb string) (string, bool) {
-	for _, row := range l.Actions {
-		if row.Verb != verb {
-			continue
-		}
-		var tb textbuf.Buffer
-		tb.Str("usage: le ").Str(l.Area).Byte(' ').Str(row.Verb)
-		for _, parameter := range row.Parameters {
-			tb.Byte(' ').Str(parameterForm(parameter))
-		}
-		if row.Forwards {
-			tb.Str(" [<words>...]")
-		}
-		tb.Str(" [| json | yaml | table]").Byte('\n')
-		tb.Str("  ").Str(row.Why).Byte('\n')
-		return tb.String(), true
-	}
-	return "", false
-}
-
 // Accepts reports whether verb's own parser takes args, the words after the
 // verb, without running the action. It is the check the derived command tree's
 // test asks of every line it completes, so completion cannot offer a line
@@ -283,13 +268,29 @@ func (l List) Accepts(verb string, args []string) error {
 	return errors.New("le " + l.Area + " holds no action " + verb)
 }
 
-// TrailingWordIsValue reports whether the LAST word of an invocation is the
-// value a declared keyword introduced. args starts at the verb, so
-// `replace file <path> old beta new help` answers true: `help` is what `new`
-// takes, and the operator typed it as data. The same line ending in `--help`
-// answers false. A dash-leading word is an option, and no value slot holds one
-// (IsOption). The caller then renders usage for a help spelling, and
-// parseArguments refuses every other option and answers 2.
+// Parse reads args, the words after verb, through that action's declared
+// grammar, exactly as Answer does before it runs the action, and runs nothing.
+// An area whose body turns the keywords into its own typed request reads them
+// here, so the table stays the only parser of its line. A verb this area does
+// not hold is refused.
+func (a Area) Parse(verb string, args []string) (Arguments, error) {
+	for _, act := range a.actions {
+		if a.verbOf(act) != verb {
+			continue
+		}
+		return parseArguments(Program()+" "+a.name+" "+verb, act.Parameters, args)
+	}
+	return nil, errors.New(Program() + " " + a.name + " holds no action " + verb)
+}
+
+// TrailingWordAsksForHelp reports whether the LAST word of an invocation is a
+// help spelling asking what the action takes. args starts at the verb, so
+// `replace file <path> old beta new help` answers false: `help` is what `new`
+// takes, and the operator typed it as data. `replace file <path> --help`
+// answers true: the option stands where the next keyword would. `test
+// stress-repro run suite -help` answers false: a dash-leading word in a value
+// slot is an option where a value is expected, and parseArguments refuses it by
+// name and answers 2 (trailingAsksForHelp).
 //
 // That holds for every slot of an area that DISPATCHES through its table. An
 // area that declares one and parses the line itself never reaches
@@ -305,20 +306,27 @@ func (l List) Accepts(verb string, args []string) error {
 // than waiting for the next probe
 // (plan/post-release/engineering/spec-le-cli-usability.md).
 //
-// A forwarding row (Row.Forwards) answers true for every word after its verb:
+// A forwarding row (Row.Forwards) answers false for every word after its verb:
 // those words are another program's command line, so `perf send --help` asks
 // the benchmark program, which prints its own flags. The verb alone answers
-// false, because no word follows it for the program to read.
+// true, because no word follows it for the program to read. A pass-through
+// listing (PassesWords) answers false for every line, the bare help word
+// included: its first word is already the program's.
 //
-// A verb this listing does not hold answers false. The listing is what the area
+// A verb this listing does not hold answers true. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
-// claim (ai/rules/principles.md).
+// claim as data (ai/rules/principles.md).
 //
 // The dispatcher asks it before it renders usage. A help word in a value slot
-// then reaches the handler, and the work the operator asked for runs
-// (internal/le/le/root).
-func (l List) TrailingWordIsValue(args []string) bool {
+// then reaches the handler: the bare word runs the work the operator asked
+// for, and an option is refused (internal/le/le/root).
+func (l List) TrailingWordAsksForHelp(args []string) bool {
 	if len(args) == 0 {
+		return false
+	}
+	// Every word of a pass-through area is the program's, its help word
+	// included, so the program prints its own help (PassesWords).
+	if l.PassesWords {
 		return false
 	}
 	for _, row := range l.Actions {
@@ -326,11 +334,14 @@ func (l List) TrailingWordIsValue(args []string) bool {
 			continue
 		}
 		if row.Forwards {
-			return len(args) > 1
+			return len(args) == 1
 		}
-		return trailingIsValue(row.Parameters, args[1:])
+		if len(args) == 1 {
+			return true
+		}
+		return trailingAsksForHelp(row.Parameters, args[1:])
 	}
-	return false
+	return true
 }
 
 // NestedLeKeyword answers the keyword of verb's parameter whose value is another
@@ -443,20 +454,23 @@ func (a Area) Answer(args []string) (any, int) {
 		if act.AnswerWords != nil {
 			return act.AnswerWords(args[1:])
 		}
-		// A TRAILING help word asks what this action takes, unless the bare
-		// word is the value a keyword introduced: `new help` is the text `new`
-		// takes. To swallow that line is to answer 0 and run nothing, which no
-		// caller can tell from the work it asked for (ai/rules/principles.md).
-		// An option is never that value. One of the four help spellings renders
-		// usage here. Every other one falls through to parseArguments, which
-		// refuses it and answers 2, in this slot and in every earlier one.
-		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
+		// A TRAILING help word asks what this action takes where it stands in
+		// place of the next keyword. In a keyword's value slot it does not: the
+		// bare word `new help` is the text `new` takes, and to swallow that
+		// line is to answer 0 and run nothing, which no caller can tell from
+		// the work it asked for (ai/rules/principles.md). A dash-leading help
+		// spelling in a value slot is an option where a value is expected, so
+		// it falls through to parseArguments, which refuses it by name and
+		// answers 2, as it does every other option in every slot
+		// (trailingAsksForHelp).
+		if len(args) > 1 && trailingAsksForHelp(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
-			parsed, err := parseArguments("le "+a.name+" "+verb, act.Parameters, args[1:])
+			parsed, err := parseArguments(Program()+" "+a.name+" "+verb, act.Parameters, args[1:])
 			if err != nil {
 				ReportError(err)
+				a.writeUsage(verb)
 				return nil, 2
 			}
 			if code := a.admit(act, args); code != 0 {
@@ -487,6 +501,17 @@ func ReportError(err error) {
 	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
+// Refuse reports a line an action's body refused as a usage mistake, such as a
+// required keyword the line left out: the error, then that one action's usage
+// on stderr, as a parse refusal prints them. It answers 2, the code a parse
+// refusal answers, so a caller reads the mistake apart from work that ran and
+// failed.
+func (a Area) Refuse(verb string, err error) int {
+	ReportError(err)
+	a.writeUsage(verb)
+	return 2
+}
+
 // refuseVerb reports an action this area does not hold, and answers the code
 // the Python area answered for the same mistake: 2, which a caller can tell
 // apart from a gate that ran and failed.
@@ -504,21 +529,32 @@ func (a Area) refuseVerb(got string) int {
 func (a Area) refuseValue(verb, got string) int {
 	var tb textbuf.Buffer
 	tb.Str("error: ").Str(a.name).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	tb.Reset()
-	tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
+	a.writeUsage(verb)
 	return 2
 }
 
-// actionUsage prints one action's whole grammar to stderr. A reader who typed
-// the help word asked a question rather than making a mistake, so this
-// answers 0.
-func (a Area) actionUsage(act Action) int {
-	text, declared := a.Actions().UsageText(a.verbOf(act))
+// writeUsage prints one action's usage and keyword lines to stderr, beside the
+// refusal that names what was wrong. Nothing about the area's other actions is
+// printed: the reader typed this one.
+func (a Area) writeUsage(verb string) {
+	page, declared := a.Actions().UsagePage(Program(), verb)
 	if !declared {
 		panic("BUG: leaction: an action is absent from the listing its own area builds")
 	}
-	var tb textbuf.Buffer
-	tb.Str(text).StdErr() //nolint:errcheck // CLI output
+	page.Width = PageWidth(os.Stderr)
+	page.WriteErr()
+}
+
+// actionUsage prints one action's page to stdout. A reader who typed the help
+// word asked a question rather than making a mistake, so the page goes where
+// an answer goes and this answers 0.
+func (a Area) actionUsage(act Action) int {
+	page, declared := a.Actions().ActionPage(Program(), a.verbOf(act))
+	if !declared {
+		panic("BUG: leaction: an action is absent from the listing its own area builds")
+	}
+	page.Width = PageWidth(os.Stdout)
+	page.WriteOut()
 	return 0
 }
 

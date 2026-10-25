@@ -29,7 +29,11 @@ Every harness command is the le command `le test <name>`. Each has its own
 package at `internal/le/test/<name without hyphens>`, whose `register.go` calls
 `leroot.Register`, `leroot.RegisterShape` and `leroot.RegisterForwarding` with
 the answer `harnesstool.Answer` builds for a tool, or `harnesstool.SuiteAnswer`
-for a `.ci` suite from its `CIRunnerConfig`. The command forwards: every word after
+for a `.ci` suite from its `CIRunnerConfig`. `RegisterForwarding` names the
+program the words go to, `harnesstool.Helper` for a tool and
+`harnesstool.Runner` for a suite, and that pass-through declaration is what
+`le help test <name>` and `le | json` (`passes-words`) show. The command
+forwards: every word after
 `test <name>` reaches the handler in `internal/test/cli` or its packages, a
 trailing help word included, and the handler's exit code is le's. No package
 under `internal/test` registers a ze root.

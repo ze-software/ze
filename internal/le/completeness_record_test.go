@@ -53,7 +53,7 @@ var portedProducers = []portedProducer{
 	// Python le under a compatibility verb that preserved the target name
 	// (`le repo ze-tier-selftest`); the native areas do not.
 	{Target: "ze-tier-check", Area: "arch tier", Verb: "check"},
-	{Target: "ze-iface-resolution-check", Area: "arch iface-resolution"},
+	{Target: "ze-iface-resolution-check", Area: "arch iface-resolution", Verb: "check"},
 	{Target: "ze-plugin-boundary-check", Area: "plugin boundary", Verb: "check"},
 	{Target: "ze-config-coercion-check", Area: "config coercion", Verb: "check"},
 	{Target: "ze-ci-dispatch-check", Area: "cli dispatch", Verb: "check"},
@@ -66,14 +66,14 @@ var portedProducers = []portedProducer{
 	{Target: "ze-repository-tracked-build-check", Area: "repo compiles", Verb: "check"},
 	{Target: "ze-repository-check", Area: "repo", Verb: "check"},
 	{Target: "ze-repository-tree-check", Area: "repo", Verb: "tree-check"},
-	{Target: "ze-le-tracked-import-check", Area: "repo bootstraps"},
+	{Target: "ze-le-tracked-import-check", Area: "repo bootstraps", Verb: "check"},
 	{Target: "ze-platform-vet", Area: "go vet-platforms", Verb: "darwin", Note: "the freebsd verb carries the second half the target ran"},
 	{Target: "ze-test-health-check", Area: "test health", Verb: "check"},
 	{Target: "ze-test-health-update", Area: "test health", Verb: "update"},
 	{Target: "ze-test-health-record", Area: "test health", Verb: "record"},
 	{Target: "ze-site-facts-check", Area: "site facts", Verb: "check"},
 	{Target: "ze-site-facts-update", Area: "site facts", Verb: "update"},
-	{Target: "ze-working-tree-check", Area: "repo working-tree"},
+	{Target: "ze-working-tree-check", Area: "repo working-tree", Verb: "report"},
 	{Target: "ze-journal-report", Area: "spec journal", Verb: "report"},
 	{Target: "ze-verify-scope-selector", Area: "repo changed", Verb: "scope"},
 
@@ -99,12 +99,12 @@ var portedProducers = []portedProducer{
 	{Target: "ze-proto-generate", Area: "setup", Verb: "proto-generate"},
 
 	// CLI and documentation gates.
-	{Target: "ze-cli-grammar-check", Area: "cli grammar"},
-	{Target: "ze-cli-grammar-check-json", Area: "cli grammar", Note: "JSON is the `| json` operator on the same action"},
-	{Target: "ze-command-ownership-check", Area: "cli ownership"},
-	{Target: "ze-command-ownership-check-json", Area: "cli ownership", Note: "JSON is the `| json` operator on the same action"},
-	{Target: "ze-config-claims-check", Area: "config claims"},
-	{Target: "ze-config-claims-check-json", Area: "config claims", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-cli-grammar-check", Area: "cli grammar", Verb: "check"},
+	{Target: "ze-cli-grammar-check-json", Area: "cli grammar", Verb: "check", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-command-ownership-check", Area: "cli ownership", Verb: "check"},
+	{Target: "ze-command-ownership-check-json", Area: "cli ownership", Verb: "check", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-config-claims-check", Area: "config claims", Verb: "check"},
+	{Target: "ze-config-claims-check-json", Area: "config claims", Verb: "check", Note: "JSON is the `| json` operator on the same action"},
 	{Target: "ze-command-contract-check", Area: "doc yang-contract", Verb: "command-contract"},
 	{Target: "ze-command-contract-check-json", Area: "doc yang-contract", Verb: "command-contract", Note: "JSON is the `| json` operator on the same action"},
 	{Target: "ze-doc-drift-check", Area: "doc yang-contract", Verb: "doc-drift"},
@@ -116,11 +116,11 @@ var portedProducers = []portedProducer{
 	{Target: "ze-doc-wiring-check", Area: "doc wiring", Verb: "check", Note: "the router is one action: `changed-file <path>` and `dry-run` are its keywords, and the whole-tree form the gate ran is the bare line"},
 	{Target: "ze-doc-index-check", Area: "doc index", Verb: "check"},
 	{Target: "ze-doc-index-update", Area: "doc index", Verb: "write"},
-	{Target: "ze-digest-check", Area: "ai digest"},
-	{Target: "ze-consistency-check", Area: "doc consistency"},
-	{Target: "ze-spec-citation-check", Area: "spec citation"},
-	{Target: "ze-spec-status", Area: "spec status"},
-	{Target: "ze-spec-status-json", Area: "spec status", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-digest-check", Area: "ai digest", Verb: "check"},
+	{Target: "ze-consistency-check", Area: "doc consistency", Verb: "check"},
+	{Target: "ze-spec-citation-check", Area: "spec citation", Verb: "check"},
+	{Target: "ze-spec-status", Area: "spec status", Verb: "report"},
+	{Target: "ze-spec-status-json", Area: "spec status", Verb: "report", Note: "JSON is the `| json` operator on the same action"},
 	{Target: "ze-ste-check", Area: "doc ste", Verb: "check"},
 	{Target: "ze-ste-review", Area: "doc ste", Verb: "review"},
 	{Target: "ze-ste-review-changed", Area: "doc ste", Verb: "review-changed"},
@@ -144,11 +144,11 @@ var portedProducers = []portedProducer{
 	{Target: "ze-rules-router-report-json", Area: "ai rules", Verb: "router-report", Note: "JSON is the `| json` operator on the same action"},
 
 	// Inventories and reports.
-	{Target: "ze-inventory", Area: "repo inventory"},
-	{Target: "ze-inventory-json", Area: "repo inventory", Note: "JSON is the `| json` operator on the same action"},
-	{Target: "ze-command-list", Area: "cli list"},
-	{Target: "ze-command-list-json", Area: "cli list", Note: "JSON is the `| json` operator on the same action"},
-	{Target: "ze-token-economy-report", Area: "ai tokens", Note: "the bare area is the report; its keywords select the store and the caps"},
+	{Target: "ze-inventory", Area: "repo inventory", Verb: "report"},
+	{Target: "ze-inventory-json", Area: "repo inventory", Verb: "report", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-command-list", Area: "cli list", Verb: "report"},
+	{Target: "ze-command-list-json", Area: "cli list", Verb: "report", Note: "JSON is the `| json` operator on the same action"},
+	{Target: "ze-token-economy-report", Area: "ai tokens", Verb: "report", Note: "the bare area is the report; its keywords select the store and the caps"},
 
 	// RFC conformance.
 	{Target: "ze-rfc-check", Area: "rfc", Verb: "check"},
@@ -276,10 +276,10 @@ var portedProducers = []portedProducer{
 	{Target: "ze-scratch-links-ensure", Area: "scratch", Verb: "links-ensure"},
 	{Target: "ze-scratch-migrate", Area: "scratch", Verb: "migrate"},
 	{Target: "ze-session-reap", Area: "session", Verb: "reap"},
-	{Target: "ze-host-build", Area: "build host-driver"},
-	{Target: "ze-setup-build", Area: "build host-driver", Note: "ze-host carries ze_core and ze_setup, and it is the binary that runs `ze appliance ...` on the build host"},
+	{Target: "ze-host-build", Area: "build host-driver", Verb: "run"},
+	{Target: "ze-setup-build", Area: "build host-driver", Verb: "run", Note: "ze-host carries ze_core and ze_setup, and it is the binary that runs `ze appliance ...` on the build host"},
 	{Target: "ze-installer-build", Area: "build installer", Verb: "amd64", Note: "arm64 carries the second half the target ran"},
-	{Target: "ze-gokrazy-gosum-check", Area: "build gosum"},
+	{Target: "ze-gokrazy-gosum-check", Area: "build gosum", Verb: "check"},
 	{Target: "ze-netlab-render-check", Area: "test netlab", Verb: "render-check"},
 	{Target: "ze-perf-suggestion-report", Area: "perf", Verb: "suggest"},
 	{Target: "ze-perf-bench", Area: "perf", Verb: "run", Note: "the action drives the multi-DUT runner that test/perf/run.py was ported into (internal/test/perfrunner.Runner.Execute), which cross-builds a linux le for the sender container, and writes the suggestion marker the target ended on"},
@@ -302,13 +302,13 @@ var portedProducers = []portedProducer{
 	// generic job grammar `le job run label <label> command <argv...>`, which
 	// ai/rules/commands.md names for work no registered action owns. That area
 	// publishes a usage line rather than a verb table, so the row names no verb.
-	{Target: "ze-unit-pkg-test", Area: "job", Note: "command carries `go test` over the one package a developer is working on"},
-	{Target: "ze-unit-reactor-test-race", Area: "job", Note: "command carries `go test -race -count=20 ./internal/component/bgp/reactor/...`"},
-	{Target: "ze-web-golden-check", Area: "job", Note: "command carries the five web and lg golden `go test -run` invocations"},
-	{Target: "ze-web-golden-update", Area: "job", Note: "command carries the same five invocations with -update-golden"},
-	{Target: "ze-chaos-golden-update", Area: "job", Note: "command carries `go test -run TestChaosGoldenOutput ./internal/chaos/web/ -update-golden`"},
-	{Target: "ze-plugin-snapshot-update", Area: "job", Note: "command carries the three plugin-registry snapshot tests with -update"},
-	{Target: "ze-templ-port-check", Area: "job", Note: "command carries the web and lg templ port-fidelity tests with -port-ref"},
+	{Target: "ze-unit-pkg-test", Area: "job", Verb: "run", Note: "command carries `go test` over the one package a developer is working on"},
+	{Target: "ze-unit-reactor-test-race", Area: "job", Verb: "run", Note: "command carries `go test -race -count=20 ./internal/component/bgp/reactor/...`"},
+	{Target: "ze-web-golden-check", Area: "job", Verb: "run", Note: "command carries the five web and lg golden `go test -run` invocations"},
+	{Target: "ze-web-golden-update", Area: "job", Verb: "run", Note: "command carries the same five invocations with -update-golden"},
+	{Target: "ze-chaos-golden-update", Area: "job", Verb: "run", Note: "command carries `go test -run TestChaosGoldenOutput ./internal/chaos/web/ -update-golden`"},
+	{Target: "ze-plugin-snapshot-update", Area: "job", Verb: "run", Note: "command carries the three plugin-registry snapshot tests with -update"},
+	{Target: "ze-templ-port-check", Area: "job", Verb: "run", Note: "command carries the web and lg templ port-fidelity tests with -port-ref"},
 
 	// Tool probes. Each target listed the tools one class of heavy evidence
 	// needs, and exited non-zero on a missing one.

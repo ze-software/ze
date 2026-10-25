@@ -243,10 +243,12 @@ func TestThePageCarriesEachSectionAndItsVerdict(t *testing.T) {
 
 // VALIDATES: the command takes no argument.
 // PREVENTS: a value read as a tree path, which would let a caller point a gate
-// at something other than the checkout it is run in.
+// at something other than the checkout it is run in. The word names no action,
+// so the table refuses it with the usage code 2 (spec-le-cli-usability
+// D-P3-stray).
 func TestTheCommandRefusesAnArgument(t *testing.T) {
-	if _, code := Answer([]string{"internal"}); code != 1 {
-		t.Errorf("a value after the command answers %d, want 1", code)
+	if _, code := Answer([]string{"internal"}); code != 2 {
+		t.Errorf("a value after the command answers %d, want 2", code)
 	}
 }
 

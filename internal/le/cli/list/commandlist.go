@@ -192,16 +192,20 @@ func classifyVerb(path string) string {
 	return "-"
 }
 
-// Answer is the `le cli list` command. It takes no arguments: the registry
-// is the product's own, and the rendering is the operator's to choose with a
-// pipe operator (ai/rules/cli.md).
+// Answer is the `le cli list` command. A bare line runs the report, as the
+// `report` action does, so the line a reader copies keeps printing the table.
+// Every other line is the table's, which refuses a word naming no action with 2.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "error: command-list takes no arguments, got %q\n", args[0]) //nolint:errcheck // CLI output
-		fmt.Fprintln(os.Stderr, "usage: le cli list [| json | yaml | table]")               //nolint:errcheck // CLI output
-		return nil, 1
+	if len(args) == 0 {
+		return table.Answer([]string{reportVerb})
 	}
+	return table.Answer(args)
+}
 
+// answerReport collects the commands. The table has already refused any word
+// after the verb: the registry is the product's own, and the rendering is the
+// operator's to choose with a pipe operator (ai/rules/cli.md).
+func answerReport() (any, int) {
 	commands, err := Collect()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // CLI output

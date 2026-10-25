@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/verify"
 )
 
@@ -160,24 +161,24 @@ func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
 	values := map[string]string{"file": "a.txt", "remove": "a.txt", "file-list": list, "remove-list": list,
 		keywordLedgerCarried: "0123456789abcdef0123456789abcdef01234567 review: a reason"}
 	refused := 0
-	for _, keyword := range slices.Sorted(maps.Keys(createKeywords)) {
-		rule := createKeywords[keyword]
-		if rule.WithAttest || rule.Replacement != "" {
+	for _, parameter := range createParameters {
+		keyword := parameter.Keyword
+		if parameter.Retired != "" || createPolicy[keyword].WithAttest {
 			continue
 		}
 		refused++
 		args := []string{"subject", "the owner attests", keywordAttest, owed, "the owner said yes", "dry-run", keyword}
-		if rule.Value {
+		// A Pair keyword takes two values; hunks is the one that refuses an
+		// attestation.
+		switch {
+		case parameter.Pair != "":
+			args = append(args, "tracked.txt", "a.patch")
+		case parameter.Kind != leaction.KindSwitch:
 			value, named := values[keyword]
 			if !named {
 				value = "a reason"
 			}
 			args = append(args, value)
-		}
-		// A Pair keyword takes two values; hunks is the one that refuses an
-		// attestation.
-		if rule.Pair {
-			args = append(args, "tracked.txt", "a.patch")
 		}
 		options, err := parseCreate(args)
 		if err != nil {
@@ -191,9 +192,11 @@ func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
 		t.Fatal("the create keyword table declares every keyword WithAttest: nothing was judged")
 	}
 
-	extended := maps.Clone(createKeywords)
-	extended["a-keyword-nobody-decided"] = keywordRule{Value: true, Given: func(*Options) bool { return true }}
-	err := refuseUndeclaredWithAttest(&Options{Subject: "the owner attests", Attest: owed, AttestWords: "yes"}, extended)
+	extended := append(slices.Clone(createParameters), leaction.Parameter{Keyword: "a-keyword-nobody-decided",
+		Kind: leaction.KindString, Value: "reason", Requirement: leaction.Optional, Help: "h"})
+	policy := maps.Clone(createPolicy)
+	policy["a-keyword-nobody-decided"] = keywordPolicy{Given: func(*Options) bool { return true }}
+	err := refuseUndeclaredWithAttest(&Options{Subject: "the owner attests", Attest: owed, AttestWords: "yes"}, extended, policy)
 	if err == nil || !strings.Contains(err.Error(), "attest refused with a-keyword-nobody-decided") {
 		t.Fatalf("an undecided keyword answered %v, want it refused by default", err)
 	}
@@ -202,15 +205,16 @@ func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
 // TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven pins the
 // refusal's fail-closed branch: a live keyword the table declares without a
 // Given reader cannot be judged, so the attest refusal names it and refuses
-// rather than waving it through, while a removed keyword (Replacement set),
-// which parsing refuses before Options exists, is still skipped.
+// rather than waving it through, while a retired keyword (Retired set), which
+// parsing refuses before Options exists, is still skipped.
 //
 // MUTATION: skip a rule on Given == nil again and the first case fails.
 func TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven(t *testing.T) {
 	options := &Options{Subject: "the owner attests", Attest: "0123456789abcdef", AttestWords: "yes"}
 
-	live := map[string]keywordRule{"a-live-keyword-without-reader": {Value: true}}
-	err := refuseUndeclaredWithAttest(options, live)
+	live := []leaction.Parameter{{Keyword: "a-live-keyword-without-reader",
+		Kind: leaction.KindString, Value: "reason", Requirement: leaction.Optional, Help: "h"}}
+	err := refuseUndeclaredWithAttest(options, live, map[string]keywordPolicy{})
 	if err == nil {
 		t.Fatal("a live keyword with no Given reader was waved through, want it refused")
 	}
@@ -218,25 +222,33 @@ func TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven(t *testing.T) 
 		t.Errorf("the refusal %q does not name the keyword", err)
 	}
 
-	removed := map[string]keywordRule{"a-removed-keyword": {Replacement: "./le verify worktree"}}
-	if err := refuseUndeclaredWithAttest(options, removed); err != nil {
+	removed := []leaction.Parameter{{Keyword: "a-removed-keyword", Retired: "./le verify worktree"}}
+	if err := refuseUndeclaredWithAttest(options, removed, map[string]keywordPolicy{}); err != nil {
 		t.Errorf("a removed keyword answered %v, want it skipped", err)
 	}
 }
 
 // TestEveryCreateKeywordReadsOptions pins the table's other half: a keyword
 // Create can receive carries the reader that says whether Options holds it, so
-// the derived refusal cannot pass one over for want of a reader. Only a removed
-// keyword, which parsing refuses before Options exists, has none.
+// the derived refusal cannot pass one over for want of a reader. Only a retired
+// keyword, which parsing refuses before Options exists, has none, and the
+// policy names no keyword the table does not declare live.
 //
 // MUTATION: drop the Given of any live keyword and this fails.
 func TestEveryCreateKeywordReadsOptions(t *testing.T) {
-	for keyword, rule := range createKeywords {
-		if rule.Replacement != "" {
+	live := make(map[string]bool, len(createParameters))
+	for _, parameter := range createParameters {
+		if parameter.Retired != "" {
 			continue
 		}
-		if rule.Given == nil {
-			t.Errorf("create keyword %q has no Given reader: an attestation could not tell whether it was given", keyword)
+		live[parameter.Keyword] = true
+		if createPolicy[parameter.Keyword].Given == nil {
+			t.Errorf("create keyword %q has no Given reader: an attestation could not tell whether it was given", parameter.Keyword)
+		}
+	}
+	for keyword := range createPolicy {
+		if !live[keyword] {
+			t.Errorf("createPolicy names %q, which create does not take as a live keyword", keyword)
 		}
 	}
 }

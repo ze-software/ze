@@ -426,14 +426,14 @@ func TestHelpShapeGateRefusesAnEmptyTree(t *testing.T) {
 func TestHelpShapeVerbRegistered(t *testing.T) {
 	found := false
 	for _, a := range actions {
-		if a.verb != "help-shape" {
+		if a.Verb != "help-shape" {
 			continue
 		}
 		found = true
-		if a.why == "" || a.answer == nil {
-			t.Fatalf("the help-shape action is incomplete: why=%q answer=%v", a.why, a.answer != nil)
+		if a.Why == "" || a.Answer == nil {
+			t.Fatalf("the help-shape action is incomplete: why=%q answer=%v", a.Why, a.Answer != nil)
 		}
-		if a.writes {
+		if a.Writes {
 			t.Error("the help shape gate is marked as writing")
 		}
 	}

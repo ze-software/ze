@@ -23,7 +23,7 @@ func TestReviewCommandsAcceptAnyModel(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "session.jsonl"), []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			payload, code := answerReview(root, "session", []string{
+			payload, code := answerReviewLine(t, root, []string{
 				"record", "spec", "demo", "verdict", "clean", "rounds", "1", "file", "pkg/a.go",
 			})
 			if code != 0 {
@@ -33,7 +33,7 @@ func TestReviewCommandsAcceptAnyModel(t *testing.T) {
 			if !ok || artifact.Model != model {
 				t.Fatalf("model metadata = %#v, want %q", payload, model)
 			}
-			payload, code = answerReview(root, "session", []string{
+			payload, code = answerReviewLine(t, root, []string{
 				"check", "spec", "demo", "file", "pkg/a.go",
 			})
 			if code != 0 {

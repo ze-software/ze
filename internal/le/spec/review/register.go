@@ -15,11 +15,15 @@ import (
 const commandName = "spec review"
 
 func init() {
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	table := spec.ReviewArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Review, registry.Meta{
 		ShortHelp: "independent review artifacts: hash, record and check",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
-		Subs:      "hash | record | check",
+		SubsFunc:  table.Subs,
 	})
+	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)
 }

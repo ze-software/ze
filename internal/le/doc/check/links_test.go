@@ -10,22 +10,26 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/doc/citation"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestDocumentActionsCoverNativeOperations(t *testing.T) {
-	want := []ActionRow{
-		{Verb: "links", Why: actions[0].why},
-		{Verb: "verify", Why: actions[1].why},
-		{Verb: "templ-output", Why: actions[2].why},
-		{Verb: "retired-commands", Why: actions[3].why},
+	want := []leaction.Row{
+		{Verb: "links", Why: actions[0].Why},
+		{Verb: "verify", Why: actions[1].Why},
+		{Verb: "templ-output", Why: actions[2].Why},
+		{Verb: "retired-commands", Why: actions[3].Why},
 	}
 	got := Actions().Actions
 	if len(got) != len(want) {
 		t.Fatalf("actions=%v, want %v", got, want)
 	}
 	for index := range want {
-		if got[index] != want[index] {
+		if got[index].Verb != want[index].Verb || got[index].Why != want[index].Why {
 			t.Errorf("action %d=%+v, want %+v", index, got[index], want[index])
+		}
+		if got[index].Writes || len(got[index].Parameters) != 0 || got[index].Forwards {
+			t.Errorf("action %d=%+v: a documentation check writes nothing and takes no value", index, got[index])
 		}
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -30,6 +31,10 @@ const (
 	capKeyword     = "cap"
 	topKeyword     = "top"
 	sessionKeyword = "session"
+
+	// reportVerb is the area's one action. A bare line, and a line that opens
+	// with a keyword, run it.
+	reportVerb = "report"
 )
 
 // Options is what a caller asked for. An empty Root or Project is filled in
@@ -243,9 +248,54 @@ func phaseRows(agents []Agent, subContext int64) []PhaseRow {
 	return rows
 }
 
-// Answer is the `le ai tokens` command.
+// table declares the whole command surface: one report, whose keywords select
+// the store and the caps. It is built on each call because the body refuses
+// through it, and a package-level table that its own body names is an
+// initialization cycle.
+func table() leaction.Area {
+	return leaction.New(area, leaction.Action{
+		Verb: reportVerb,
+		Why:  shortHelp,
+		Parameters: []leaction.Parameter{
+			{
+				Keyword: rootKeyword, Kind: leaction.KindPath, Value: "path",
+				Help: "the transcript store; ~/.claude/projects when absent", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: projectKeyword, Kind: leaction.KindPath, Value: "checkout",
+				Help: "the checkout whose sessions are read; this one when absent", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: capKeyword, Kind: leaction.KindUint, Value: "n",
+				Help: "the context cap of the counterfactual, in tokens", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: topKeyword, Kind: leaction.KindUint, Value: "n",
+				Help: "how many rows each ranked table shows", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: sessionKeyword, Kind: leaction.KindLabel, Value: "prefix",
+				Help: "read only the sessions whose id starts with this prefix", Requirement: leaction.Optional,
+			},
+		},
+		AnswerArgs: answerReport,
+	})
+}
+
+// Answer is the `le ai tokens` command. The report is the area's one job, and
+// callers type its keywords after the area's name (`le ai tokens session
+// <prefix>`), so a line that does not open with the verb is the report's.
 func Answer(args []string) (any, int) {
-	opts, code := ParseOptions(args)
+	actions := table()
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
+	}
+	return actions.Answer(append([]string{reportVerb}, args...))
+}
+
+// answerReport runs the report one parsed line names.
+func answerReport(args leaction.Arguments) (any, int) {
+	opts, code := optionsOf(args)
 	if code != 0 {
 		return nil, code
 	}
@@ -286,44 +336,60 @@ func DefaultProject() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resolved, err := filepath.EvalSymlinks(root); err == nil {
-		root = resolved
-	}
-	return SlugForPath(root), nil
+	return ProjectSlug(root), nil
 }
 
-// ParseOptions reads the keywords this command takes. It answers the options
-// and 0, or the zero options and the exit code of a refusal already printed.
+// ProjectSlug answers the Claude Code project slug of a checkout path.
+//
+// It first makes the path absolute and resolves symlinks, because the harness
+// names the store from its startup directory. The script resolves its own path
+// the same way. A path that does not resolve keeps its absolute spelling.
+func ProjectSlug(checkout string) string {
+	if absolute, err := filepath.Abs(checkout); err == nil {
+		checkout = absolute
+	}
+	if resolved, err := filepath.EvalSymlinks(checkout); err == nil {
+		checkout = resolved
+	}
+	return SlugForPath(checkout)
+}
+
+// ParseOptions reads the words this command takes after its verb through the
+// table, as the report does before it runs. It answers the options and 0, or
+// the zero options and the exit code of a refusal already printed: 2 for a
+// line the grammar refuses, 1 for a number outside the script's bounds.
 func ParseOptions(args []string) (Options, int) {
+	actions := table()
+	parsed, err := actions.Parse(reportVerb, args)
+	if err != nil {
+		return Options{}, actions.Refuse(reportVerb, err)
+	}
+	return optionsOf(parsed)
+}
+
+// optionsOf turns the parsed keywords into the options. A project is named by
+// its checkout path, because every slug begins with a dash and a value never
+// does (ai/rules/cli.md), so the slug is derived here rather than typed.
+func optionsOf(args leaction.Arguments) (Options, int) {
 	opts := Defaults()
-	for index := 0; index < len(args); index += 2 {
-		keyword := args[index]
-		if index+1 >= len(args) {
-			return Options{}, refuse("this keyword takes a value: ", keyword)
+	opts.Root = args.One(rootKeyword)
+	opts.Session = args.One(sessionKeyword)
+	if args.Has(projectKeyword) {
+		opts.Project = ProjectSlug(args.One(projectKeyword))
+	}
+	if args.Has(capKeyword) {
+		number, code := bounded(capKeyword, args.One(capKeyword), CapMin, CapMax)
+		if code != 0 {
+			return Options{}, code
 		}
-		value := args[index+1]
-		switch keyword {
-		case rootKeyword:
-			opts.Root = value
-		case projectKeyword:
-			opts.Project = value
-		case sessionKeyword:
-			opts.Session = value
-		case capKeyword:
-			number, code := bounded(capKeyword, value, CapMin, CapMax)
-			if code != 0 {
-				return Options{}, code
-			}
-			opts.Cap = number
-		case topKeyword:
-			number, code := bounded(topKeyword, value, TopMin, TopMax)
-			if code != 0 {
-				return Options{}, code
-			}
-			opts.Top = number
-		default:
-			return Options{}, refuse("no such keyword: ", keyword)
+		opts.Cap = number
+	}
+	if args.Has(topKeyword) {
+		number, code := bounded(topKeyword, args.One(topKeyword), TopMin, TopMax)
+		if code != 0 {
+			return Options{}, code
 		}
+		opts.Top = number
 	}
 	return opts, 0
 }
@@ -345,12 +411,12 @@ func bounded(keyword, raw string, low, high int) (int, int) {
 	return value, 0
 }
 
-// usageLine is the one line a refusal prints under itself.
+// usageLine is the one line a refusal prints under itself. The grammar is the
+// table's, so the line cannot disagree with what the parser reads.
 func usageLine() string {
+	grammar, _ := table().Actions().Grammar(reportVerb)
 	var tb textbuf.Buffer
-	return tb.Str("usage: le ").Str(area).
-		Str(" [root <path>] [project <slug>] [cap <n>] [top <n>] [session <prefix>]").
-		Str(" [| json | yaml | table]").String()
+	return tb.Str("usage: ").Str(leaction.Program()).Byte(' ').Str(area).Byte(' ').Str(grammar).String()
 }
 
 // refuse prints one refusal and answers its exit code.

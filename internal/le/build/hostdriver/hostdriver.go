@@ -10,7 +10,6 @@ package buildhostdriver
 
 import (
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
-	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 const name = "build host-driver"
@@ -32,11 +31,18 @@ func RuntimeKernelBuild(arch, builder string) string {
 	return build + " --builder " + builder
 }
 
-// Answer is the `le build host-driver` command. There is one host and one
-// output path, so there is nothing to type after the name.
+// Answer is the `le build host-driver` command. A bare line runs the build, as
+// the `run` action does: every QEMU target and CI workflow calls it bare, and a
+// bare listing would answer them 0 with no ze-host built. Every other line is
+// the table's, which refuses a word naming no action with 2.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		return nil, leroot.RefuseArgument(name, args[0])
+	if len(args) == 0 {
+		return table.Answer([]string{runVerb})
 	}
+	return table.Answer(args)
+}
+
+// answerRun builds ze-host at the checkout root.
+func answerRun() (any, int) {
 	return buildcompile.Host()
 }

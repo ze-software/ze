@@ -236,6 +236,11 @@ func commandNames(page string) []string {
 		if !inside {
 			continue
 		}
+		// An entry starts at column two. A deeper line continues the entry
+		// above it, as a wrapped description does, and names no command.
+		if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "   ") {
+			continue
+		}
 		if fields := strings.Fields(line); len(fields) > 0 {
 			names = append(names, fields[0])
 		}
@@ -450,8 +455,9 @@ func buildAndList(ctx context.Context, dest string) ([]string, error) {
 		return nil, errors.New(tb.Str("go build ./cmd/ze le personality: ").Str(strings.TrimSpace(complaint.String())).String())
 	}
 
-	// `help` writes the page to stderr and exits 0, which is what makes it the
-	// cheapest proof that every init() ran.
+	// `help` writes the page and exits 0, which is what makes it the cheapest
+	// proof that every init() ran. A commit before the help pages moved to
+	// stdout wrote it to stderr, so both streams are read.
 	page := exec.CommandContext(ctx, binary, "help") //nolint:gosec // the binary this run just built, at a path it chose
 	page.Dir = dest
 

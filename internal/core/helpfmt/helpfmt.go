@@ -44,6 +44,12 @@ type Page struct {
 	Sections    []HelpSection // groups of entries
 	Examples    []string      // example command lines
 	SeeAlso     []string      // related commands
+	// Width is the column a rendered line stops at. Zero renders every line
+	// whole, which is the page ze has always printed. A positive width wraps the
+	// description, each usage line, and each entry's text at a space, and an
+	// entry's continuation starts under its description column. A word longer
+	// than the room left stays whole on its own line, so no token is ever cut.
+	Width int
 }
 
 // HelpSection is a named group of entries in a help page.
@@ -87,14 +93,20 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 	case p.ShortHelp != "":
 		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(styled(color, styleSummary, p.ShortHelp)).String())
 	default:
-		rw.Line(styled(color, styleCommand, p.Command))
+		// A header with no summary can be a whole usage line, as a refusal's
+		// is, so it wraps as one.
+		for _, part := range wrap(p.Command, p.Width, 0, 6) {
+			rw.Line(styled(color, styleCommand, part))
+		}
 	}
 
 	// The long explanation, indented, keeping the newlines its author wrote.
 	if p.Description != "" {
 		rw.Str("\n")
 		for line := range strings.SplitSeq(p.Description, "\n") {
-			rw.Line(b.Reset().Str("  ").Str(strings.TrimRight(line, " \t")).String())
+			for _, part := range wrap(strings.TrimRight(line, " \t"), p.Width, 2, 2) {
+				rw.Line(part)
+			}
 		}
 	}
 
@@ -103,7 +115,9 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 		rw.Str("\n")
 		rw.Line(styled(color, styleHeader, "Usage:"))
 		for _, u := range p.Usage {
-			rw.Line(b.Reset().Str("  ").Str(highlightArgs(color, u)).String())
+			for _, part := range wrap(u, p.Width, 2, 6) {
+				rw.Line(highlightArgs(color, part))
+			}
 		}
 	}
 
@@ -119,7 +133,27 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 			// Pad based on raw name length, then apply color.
 			// ANSI codes add bytes, so pad the raw name first.
 			padded := b.Reset().PadRight(e.Name, width).String()
-			rw.Line(b.Reset().Str("  ").Str(styleEntry(color, padded)).Byte(' ').Str(e.Desc).String())
+			column := 2 + width + 1
+			// Below the description column plus narrowColumns there is too
+			// little room beside the name, so the description takes its own
+			// lines, indented under the name, and continues at that indent.
+			if p.Width > 0 && p.Width < column+narrowColumns {
+				rw.Line(b.Reset().Str("  ").Str(styleEntry(color, e.Name)).String())
+				if e.Desc == "" {
+					continue
+				}
+				for _, part := range wrap(e.Desc, p.Width, narrowIndent, narrowIndent) {
+					rw.Line(part)
+				}
+				continue
+			}
+			// The first part carries the description column's indent, which
+			// the name already fills, so it is cut off before the name goes on.
+			parts := wrap(e.Desc, p.Width, column, column)
+			rw.Line(b.Reset().Str("  ").Str(styleEntry(color, padded)).Byte(' ').Str(parts[0][column:]).String())
+			for _, part := range parts[1:] {
+				rw.Line(part)
+			}
 		}
 	}
 
@@ -142,6 +176,68 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 	}
 
 	rw.Str("\n")
+}
+
+// narrowColumns is the least room a description is given beside its name. A
+// page narrower than the description column plus this moves each description
+// onto its own lines, indented by narrowIndent.
+const (
+	narrowColumns = 20
+	narrowIndent  = 4
+)
+
+// wrap breaks text at spaces into lines of at most width columns, the first
+// indented by first spaces and every later one by next. A width of zero or less
+// keeps the text on one line, so a page that sets no Width renders as it always
+// has. A word longer than the room left goes on a line of its own, whole.
+func wrap(text string, width, first, next int) []string {
+	var b textbuf.Buffer
+	if width <= 0 {
+		return []string{b.Repeat(" ", first).Str(text).String()}
+	}
+	words := wrapWords(text)
+	if len(words) == 0 {
+		return []string{b.Repeat(" ", first).String()}
+	}
+	lines := make([]string, 0, 2)
+	b.Repeat(" ", first).Str(words[0])
+	used := first + len(words[0])
+	for _, word := range words[1:] {
+		if used+1+len(word) <= width {
+			b.Byte(' ').Str(word)
+			used += 1 + len(word)
+			continue
+		}
+		lines = append(lines, b.String())
+		b.Reset().Repeat(" ", next).Str(word)
+		used = next + len(word)
+	}
+	return append(lines, b.String())
+}
+
+// wrapWords splits text at spaces, except inside brackets: a usage line's
+// `[timeout <duration>]` or `[| json | yaml | table]` is one thing a reader
+// types or skips, so a line never breaks inside it.
+func wrapWords(text string) []string {
+	fields := strings.Fields(text)
+	words := make([]string, 0, len(fields))
+	depth := 0
+	for _, field := range fields {
+		if depth > 0 {
+			words[len(words)-1] += " " + field
+		} else {
+			words = append(words, field)
+		}
+		// A group opens only on a word that starts with a bracket, so a
+		// comparison in prose ("a < b") never glues the rest of a line.
+		if depth == 0 && !strings.HasPrefix(field, "[") && !strings.HasPrefix(field, "<") {
+			continue
+		}
+		depth += strings.Count(field, "[") + strings.Count(field, "<")
+		depth -= strings.Count(field, "]") + strings.Count(field, ">")
+		depth = max(depth, 0)
+	}
+	return words
 }
 
 // WriteError writes a colored error message to w.

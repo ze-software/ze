@@ -22,17 +22,60 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-const usage = "usage: le go extract source <file.go> dest <file.go> symbol <name> [symbol <name> ...]"
+// moveVerb is the one action: moving declarations.
+const moveVerb = "move"
 
-// Answer is the `le go extract` command.
+// The three keywords that carry the whole request.
+const (
+	sourceKeyword = "source"
+	destKeyword   = "dest"
+	symbolKeyword = "symbol"
+)
+
+// actions is the whole command surface, declared once, so the listing, the
+// usage, the help pages and the parse read one grammar (internal/le/le/action).
+var actions = leaction.New("go extract", leaction.Action{
+	Verb:   moveVerb,
+	Why:    "move named declarations from one Go file to another, comments and formatting intact",
+	Writes: true,
+	Parameters: []leaction.Parameter{
+		{Keyword: sourceKeyword, Kind: leaction.KindPath, Value: "file.go", Requirement: leaction.Required,
+			Help: "the file the declarations come out of"},
+		{Keyword: destKeyword, Kind: leaction.KindPath, Value: "file.go", Requirement: leaction.Required,
+			Help: "the file the declarations go into"},
+		{Keyword: symbolKeyword, Kind: leaction.KindString, Value: "name", Requirement: leaction.Required, Repeat: true,
+			Help: "a declaration that moves; give it again for each one"},
+	},
+	AnswerArgs: answerMove,
+})
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return actions.Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return actions.Subs() }
+
+// Answer is the `le go extract` command. A line that does not open with the
+// verb moves, as callers have always typed it (D-P3-bare in
+// spec-le-cli-usability), so the verb is supplied here and the table reads the
+// rest of the line. A refusal the table's parser makes answers 2
+// (D-P3-stray); one the body makes keeps the 1 it answered before.
 func Answer(args []string) (any, int) {
-	req, err := parseRequest(args)
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
+	}
+	return actions.Answer(append([]string{moveVerb}, args...))
+}
+
+// answerMove moves the declarations one parsed line names.
+func answerMove(args leaction.Arguments) (any, int) {
+	req, err := requestOf(args)
 	if err != nil {
-		reportError(err)
-		fmt.Fprintln(os.Stderr, usage) //nolint:errcheck // CLI output
+		leaction.ReportError(err)
 		return nil, 1
 	}
 
@@ -44,46 +87,35 @@ func Answer(args []string) (any, int) {
 	return report, 0
 }
 
-// parseRequest reads the operator's words.
-//
-// The bound is the argument count: each keyword consumes exactly one word
-// beyond itself, and a keyword with nothing after it is a refusal rather than a
-// silent default. A default here would be a file path this tool then writes.
+// parseRequest reads the operator's words through the table and turns them
+// into the request. It moves nothing.
 func parseRequest(args []string) (Request, error) {
-	var req Request
-
-	for index := 0; index < len(args); index++ {
-		word := args[index]
-		if index+1 >= len(args) {
-			var tb textbuf.Buffer
-			return req, errors.New(tb.Str("the keyword ").Quoted(word).Str(" needs a value after it").String())
-		}
-		value := args[index+1]
-		index++
-
-		switch word {
-		case "source":
-			req.Source = value
-		case "dest":
-			req.Dest = value
-		case "symbol":
-			req.Symbols = append(req.Symbols, value)
-		default:
-			var tb textbuf.Buffer
-			return req, errors.New(tb.Str("unknown keyword ").Quoted(word).
-				Str("; say source, dest or symbol").String())
-		}
+	parsed, err := actions.Parse(moveVerb, args)
+	if err != nil {
+		return Request{}, err
 	}
+	return requestOf(parsed)
+}
 
-	switch {
-	case req.Source == "":
+// requestOf turns the parsed keywords into the request. The parser does not
+// yet refuse a missing required keyword (D-P2-required in
+// spec-le-cli-usability), so this does: a default here would be a file path
+// this tool then writes.
+func requestOf(args leaction.Arguments) (Request, error) {
+	req := Request{
+		Source:  args.One(sourceKeyword),
+		Dest:    args.One(destKeyword),
+		Symbols: args.Values(symbolKeyword),
+	}
+	if req.Source == "" {
 		return req, errors.New("say which file the declarations come out of: source <file.go>")
-	case req.Dest == "":
+	}
+	if req.Dest == "" {
 		return req, errors.New("say which file the declarations go into: dest <file.go>")
-	case len(req.Symbols) == 0:
+	}
+	if len(req.Symbols) == 0 {
 		return req, errors.New("say what moves: symbol <name>")
 	}
-
 	return req, nil
 }
 

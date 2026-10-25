@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -99,13 +100,13 @@ func TestListingAndSubsAgreeAboutWhatWrites(t *testing.T) {
 	area, _ := fixture(t)
 
 	text := area.Actions().Text()
-	if !strings.Contains(text, "check  checks") {
+	if !regexp.MustCompile(`\n {2}check +\[checks\] `).MatchString(text) {
 		t.Errorf("the listing does not mark check as read-only:\n%s", text)
 	}
-	if !strings.Contains(text, "write  writes") {
+	if !regexp.MustCompile(`\n {2}write +\[writes\] `).MatchString(text) {
 		t.Errorf("the listing does not mark write as writing:\n%s", text)
 	}
-	if !strings.HasPrefix(text, "web-assets:\n") {
+	if !strings.HasPrefix(text, "le web-assets\n") {
 		t.Errorf("the listing does not open with the area name:\n%s", text)
 	}
 
@@ -559,9 +560,28 @@ func captureStderr(t *testing.T, fn func()) string {
 	if err != nil {
 		t.Fatalf("open a pipe: %v", err)
 	}
-	saved := os.Stderr
-	os.Stderr = write
-	t.Cleanup(func() { os.Stderr = saved })
+	return captureFile(t, &os.Stderr, read, write, fn)
+}
+
+// captureStdout is captureStderr for stdout, where a help page goes.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("open a pipe: %v", err)
+	}
+	return captureFile(t, &os.Stdout, read, write, fn)
+}
+
+// captureFile runs fn with *file replaced by the pipe's write end and answers
+// what fn wrote, read from its read end.
+func captureFile(t *testing.T, file **os.File, read, write *os.File, fn func()) string {
+	t.Helper()
+
+	saved := *file
+	*file = write
+	t.Cleanup(func() { *file = saved })
 
 	done := make(chan string, 1)
 	go func() {
@@ -582,6 +602,20 @@ func captureStderr(t *testing.T, fn func()) string {
 	captured := <-done
 	read.Close() //nolint:errcheck // read to EOF
 	return captured
+}
+
+// usageText renders one action's page as a reader on a pipe sees it. A verb
+// the listing does not hold fails the test, so no caller reads an empty page.
+func usageText(t *testing.T, list List, verb string) string {
+	t.Helper()
+
+	page, held := list.ActionPage("le", verb)
+	if !held {
+		t.Fatalf("the listing holds no %q action", verb)
+	}
+	var out strings.Builder
+	page.WriteTo(&out, false)
+	return out.String()
 }
 
 // grammarArea is an action whose four parameters cover every published shape:
@@ -656,7 +690,7 @@ func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
 	var got Arguments
 	area := grammarArea(&got)
 
-	page := captureStderr(t, func() {
+	page := captureStdout(t, func() {
 		if _, code := area.Answer([]string{"run", "--help"}); code != 0 {
 			t.Errorf("a help word answered %d, want 0", code)
 		}
@@ -665,9 +699,13 @@ func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
 		t.Fatalf("a help word reached the handler with %#v", got)
 	}
 
-	want := "usage: le qemu run command <command> [timeout <duration>]" +
-		" [share <path>]... [keep-alive] [| json | yaml | table]\n" +
-		"  boot a guest\n"
+	want := "le qemu run - boot a guest\n\n  boot a guest\n\nUsage:\n" +
+		"  le qemu run command <command> [timeout <duration>] [share <path>]... [keep-alive]\n" +
+		"      [| json | yaml | table]\n\nKeywords:\n" +
+		"  command <command>  string, required: h\n" +
+		"  timeout <duration> string, optional: h\n" +
+		"  share <path>       string, optional, repeatable: h\n" +
+		"  keep-alive         switch, optional: h\n\n"
 	if page != want {
 		t.Errorf("usage reads\n%q\nwant\n%q", page, want)
 	}
@@ -709,7 +747,7 @@ func TestARepeatableKeywordIsParsedTwiceAndANonRepeatableIsStillRefused(t *testi
 	if got != nil {
 		t.Errorf("a refused invocation reached the handler with %#v", got)
 	}
-	if want := "error: argument keyword \"timeout\" was provided more than once\n"; refusal != want {
+	if want := "error: argument keyword \"timeout\" was provided more than once\nusage: le qemu run "; !strings.HasPrefix(refusal, want) {
 		t.Errorf("the refusal reads %q, want %q", refusal, want)
 	}
 }
@@ -793,7 +831,7 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 	}
 
 	got = nil
-	page := captureStderr(t, func() {
+	page := captureStdout(t, func() {
 		if _, code := area.Answer([]string{"run", "command", "ls", "help"}); code != 0 {
 			t.Errorf("a help word at a keyword position answered %d, want 0", code)
 		}
@@ -801,14 +839,15 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 	if got != nil {
 		t.Errorf("a help word at a keyword position ran the action with %#v", got)
 	}
-	if !strings.HasPrefix(page, "usage: le qemu run") {
+	if !strings.HasPrefix(page, "le qemu run - boot a guest\n") {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
 
 // VALIDATES: the value-slot exemption is drawn at the SPELLING. The bare word
 // `help` in a keyword's value slot reaches the action as its value. A help
-// option in that same TRAILING slot is the question and stops before it.
+// option in that same TRAILING slot is an option where a value is expected:
+// it is refused by name with 2 and the action never runs (D-P3-dash).
 // PREVENTS: a flag spelling read as data. `ai/rules/cli.md` bans a flag from
 // being grammar or a value, so no position turns one into a keyword's value.
 // `le verify status check path --help` ran the check over a path named
@@ -830,15 +869,15 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 	for _, flag := range []string{"-h", "--help", "-help"} {
 		got = nil
 		page := captureStderr(t, func() {
-			if _, code := area.Answer([]string{"run", "timeout", "5s", "command", flag}); code != 0 {
-				t.Errorf("%s in a value slot answered %d, want 0", flag, code)
+			if _, code := area.Answer([]string{"run", "timeout", "5s", "command", flag}); code != 2 {
+				t.Errorf("%s in a value slot answered %d, want 2", flag, code)
 			}
 		})
 		if got != nil {
 			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
 		}
-		if !strings.HasPrefix(page, "usage: le qemu run") {
-			t.Errorf("%s in a value slot printed %q", flag, page)
+		if !strings.Contains(page, `keyword "command" cannot take "`+flag+`"`) {
+			t.Errorf("%s in a value slot was refused with %q, which does not name it", flag, page)
 		}
 	}
 }
@@ -874,8 +913,8 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 		}
 	}
 
-	// The LAST word is a value slot too. A help spelling there asks what the
-	// action takes, and every other option is refused like any other.
+	// The LAST word is a value slot too, and an option there is refused like
+	// any other, a help spelling included (D-P3-dash).
 	got = nil
 	page := captureStderr(t, func() {
 		if _, code := area.Answer([]string{"run", "command", "ls", "timeout", "-xh"}); code != 2 {
@@ -932,7 +971,7 @@ func TestForwardingActionHandsItsWordsOverVerbatim(t *testing.T) {
 	if len(rows) != 1 || !rows[0].Forwards {
 		t.Fatalf("the row does not publish that it forwards: %+v", rows)
 	}
-	if usage, _ := area.Actions().UsageText("send"); !strings.Contains(usage, "<words>...") {
+	if usage := usageText(t, area.Actions(), "send"); !strings.Contains(usage, "<words>...") {
 		t.Errorf("the usage does not say the verb takes words: %q", usage)
 	}
 
@@ -998,7 +1037,7 @@ func TestPositionalParameterRules(t *testing.T) {
 	if got.One("spec") != "plan/x.md" || !got.Has("quiet") {
 		t.Errorf("the positional value was read as %q and quiet as %v", got.One("spec"), got.Has("quiet"))
 	}
-	usage, _ := area.Actions().UsageText("claim")
+	usage := usageText(t, area.Actions(), "claim")
 	if !strings.Contains(usage, "claim <spec> [quiet]") {
 		t.Errorf("usage does not render the positional slot first:\n%s", usage)
 	}
@@ -1060,7 +1099,7 @@ func TestRetiredKeywordIsRefusedNamingItsSuccessor(t *testing.T) {
 	}
 
 	list := area.Actions()
-	usage, _ := list.UsageText("create")
+	usage := usageText(t, list, "create")
 	if strings.Contains(usage, "push") {
 		t.Errorf("usage renders the retired keyword:\n%s", usage)
 	}
@@ -1089,7 +1128,7 @@ func TestPairKeywordUsageIsDerived(t *testing.T) {
 		AnswerArgs: func(args Arguments) (any, int) { got = args; return nil, 0 },
 	})
 
-	usage, _ := area.Actions().UsageText("move")
+	usage := usageText(t, area.Actions(), "move")
 	if !strings.Contains(usage, "move [rename <old> <new>]...") {
 		t.Errorf("usage does not derive the pair form:\n%s", usage)
 	}
@@ -1108,5 +1147,167 @@ func TestPairKeywordUsageIsDerived(t *testing.T) {
 	}
 	if !trailingIsValue(area.actions[0].Parameters, []string{"rename", "a", "help"}) {
 		t.Error("the word in a pair's second slot is not read as its value")
+	}
+}
+
+// wideArea is an area whose two actions carry purposes longer than one line,
+// of several sentences, so a listing has to wrap and to cut.
+func wideArea() Area {
+	answer := func() (any, int) { return nil, 0 }
+	return New("probe", Action{
+		Verb:   "check",
+		Why:    "judge every page the tree holds against the source anchors each one names, and answer a verdict with the first drift. A second sentence the listing never shows.",
+		Answer: answer,
+	}, Action{
+		Verb: "write", Writes: true,
+		Why:    "rewrite the index from the anchors. It never touches a page.",
+		Answer: answer,
+	})
+}
+
+// renderAt renders page at width columns, as a reader of that terminal sees it.
+func renderAt(page helpfmtPage, width int) string {
+	page.Width = width
+	var out strings.Builder
+	page.WriteTo(&out, false)
+	return out.String()
+}
+
+// VALIDATES: AC-10 -- the area page rendered on a pipe (100 columns) keeps every
+// line within 100 columns, and a wrapped purpose continues under the
+// description column.
+// PREVENTS: a listing whose long purpose runs past the terminal, or whose
+// continuation starts at column 0 and reads as a new action.
+func TestListingWrapsUnderTheDescriptionColumn(t *testing.T) {
+	area := New("probe", Action{
+		Verb:   "check",
+		Why:    strings.Repeat("judge the anchors and answer ", 8) + "a verdict",
+		Answer: func() (any, int) { return nil, 0 },
+	})
+	text := renderAt(area.Actions().Page("le"), 100)
+	column := 2 + 16 + 1
+	lines := strings.Split(text, "\n")
+	continued := false
+	for index, line := range lines {
+		if len(line) > 100 {
+			t.Errorf("line of %d columns:\n%s", len(line), line)
+		}
+		if index > 0 && strings.HasPrefix(lines[index-1], "  check") || continued && strings.HasPrefix(line, " ") {
+			if index > 0 && !strings.HasPrefix(lines[index-1], "  check") || strings.HasPrefix(line, "  check") {
+				continue
+			}
+			continued = true
+			if !strings.HasPrefix(line, strings.Repeat(" ", column)) || line[column] == ' ' {
+				t.Errorf("continuation does not start at the description column %d: %q", column, line)
+			}
+		}
+	}
+	if !continued {
+		t.Errorf("the purpose did not wrap:\n%s", text)
+	}
+}
+
+// VALIDATES: AC-50 -- at a terminal of width 20, 80 and 500 no line exceeds the
+// width unless it is one unbreakable token; below the description column plus
+// 20 the description moves to its own indented line.
+// PREVENTS: a page sized for one terminal only.
+func TestListingWrapsAtTheTerminalWidth(t *testing.T) {
+	page := wideArea().Actions().Page("le")
+	for _, width := range []int{20, 80, 500} {
+		text := renderAt(page, width)
+		for line := range strings.SplitSeq(text, "\n") {
+			// A bracket group (`[| json | yaml | table]`) is one token: a
+			// line never breaks inside it.
+			token := strings.TrimSpace(line)
+			group := strings.HasPrefix(token, "[") && strings.HasSuffix(token, "]")
+			if len(line) > width && strings.Contains(token, " ") && !group {
+				t.Errorf("width %d: line of %d columns holds a break it did not take: %q", width, len(line), line)
+			}
+		}
+		narrow := strings.Contains(text, "\n  check\n    [checks] ")
+		if width < 2+16+1+20 && !narrow {
+			t.Errorf("width %d: the description did not move to its own line:\n%s", width, text)
+		}
+		if width >= 2+16+1+20 && narrow {
+			t.Errorf("width %d: the description left its column with room to spare:\n%s", width, text)
+		}
+	}
+	if text := renderAt(page, 500); !strings.Contains(text, "\n  check            [checks] judge every page") {
+		t.Errorf("width 500: the entry is not on one line:\n%s", text)
+	}
+}
+
+// VALIDATES: AC-11 -- the listing shows a purpose's first sentence and the
+// action page shows the whole text.
+// PREVENTS: a listing that wraps a paragraph per action, and an action page
+// that hides the rest of its reason.
+func TestListingShowsTheFirstSentenceAndThePageTheWhole(t *testing.T) {
+	list := wideArea().Actions()
+	listing := renderAt(list.Page("le"), 500)
+	if strings.Contains(listing, "A second sentence") || strings.Contains(listing, "It never touches") {
+		t.Errorf("the listing shows more than each first sentence:\n%s", listing)
+	}
+	if !strings.Contains(listing, "[writes] rewrite the index from the anchors.\n") {
+		t.Errorf("the listing does not show the first sentence whole:\n%s", listing)
+	}
+	page, held := list.ActionPage("le", "check")
+	if !held {
+		t.Fatal("the listing does not hold check")
+	}
+	if text := renderAt(page, 500); !strings.Contains(text, "A second sentence the listing never shows.") {
+		t.Errorf("the action page does not show the whole purpose:\n%s", text)
+	}
+	if got := FirstSentence("no full stop here"); got != "no full stop here" {
+		t.Errorf("FirstSentence of one clause = %q", got)
+	}
+}
+
+// VALIDATES: D-P3-dash -- a dash-leading help spelling as the LAST word, in the
+// value slot a keyword opened, is refused by name with 2 and runs nothing,
+// while `--help` and `-h` standing where the next keyword would still render
+// the action's usage with 0. The listing answers the dispatcher the same way.
+// PREVENTS: `le test stress-repro run suite -help` answering a usage page with
+// 0. `-help` is the cluster `-h -e -l -p` where a value is expected, and
+// `ai/rules/cli.md` says such a token MUST be refused by name.
+func TestATrailingOptionInAValueSlotIsRefusedNotAnswered(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	for _, flag := range []string{"-help", "--help", "-h"} {
+		got = nil
+		var code int
+		stderr := captureStderr(t, func() { _, code = area.Answer([]string{"run", "command", flag}) })
+		if code != 2 {
+			t.Errorf("run command %s answered %d, want 2", flag, code)
+		}
+		if got != nil {
+			t.Errorf("run command %s ran the action with %#v", flag, got)
+		}
+		if !strings.Contains(stderr, `keyword "command" cannot take "`+flag+`"`) {
+			t.Errorf("run command %s was refused with %q, which does not name it", flag, stderr)
+		}
+		if area.Actions().TrailingWordAsksForHelp([]string{"run", "command", flag}) {
+			t.Errorf("the listing reads run command %s as a help question", flag)
+		}
+	}
+
+	for _, flag := range []string{"--help", "-h"} {
+		for _, line := range [][]string{{"run", flag}, {"run", "command", "ls", flag}} {
+			got = nil
+			var code int
+			page := captureStdout(t, func() { _, code = area.Answer(line) })
+			if code != 0 {
+				t.Errorf("%v answered %d, want 0", line, code)
+			}
+			if got != nil {
+				t.Errorf("%v ran the action with %#v", line, got)
+			}
+			if !strings.HasPrefix(page, "le qemu run - boot a guest\n") {
+				t.Errorf("%v printed %q, want the action's usage", line, page)
+			}
+			if !area.Actions().TrailingWordAsksForHelp(line) {
+				t.Errorf("the listing does not read %v as a help question", line)
+			}
+		}
 	}
 }

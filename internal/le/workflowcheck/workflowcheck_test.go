@@ -269,11 +269,13 @@ func actionExists(t *testing.T, identity string) {
 		// A bare command runs when named, so it is judged by registration
 		// alone. Its handler is never called here, because calling it would
 		// run the build or the gate. A command with an action table answers
-		// its bare name with a listing, which no workflow step wants.
+		// its bare name with a listing, which no workflow step wants. A
+		// pass-through table (leaction.PassesWords) holds no action to name:
+		// its bare name hands the words to its program.
 		if leroot.LookupCommand(identity) == nil {
 			t.Fatalf("native command %q is not registered", identity)
 		}
-		if _, declared := leroot.ActionsOf(identity); declared {
+		if list, declared := leroot.ActionsOf(identity); declared && !list.PassesWords {
 			t.Fatalf("native command %q is named without one of its actions", identity)
 		}
 		return
@@ -285,7 +287,10 @@ func actionExists(t *testing.T, identity string) {
 	if handler == nil {
 		t.Fatalf("native root %q is not registered", area)
 	}
-	payload, code := handler(commandtest.Args())
+	// `help` asks every tabled area for its listing. A bare name is no longer
+	// that question: an area with one action runs it bare (D-P3-bare), so a
+	// bare call here would run `build host-driver`.
+	payload, code := handler(commandtest.Args("help"))
 	list, ok := payload.(leaction.List)
 	if !ok {
 		t.Fatalf("native root %q answered %T with code %d, want leaction.List", area, payload, code)

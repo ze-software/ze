@@ -259,9 +259,11 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	}
 }
 
+// TestAnswerRefusesAnArgument: the word names no action, so the table refuses
+// it with the usage code 2 (spec-le-cli-usability D-P3-stray).
 func TestAnswerRefusesAnArgument(t *testing.T) {
 	payload, code := Answer([]string{"gokrazy/"})
-	if payload != nil || code != 1 {
+	if payload != nil || code != 2 {
 		t.Fatalf("Answer took a path argument: payload=%v code=%d", payload, code)
 	}
 }

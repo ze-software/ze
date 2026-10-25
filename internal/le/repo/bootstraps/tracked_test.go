@@ -124,6 +124,30 @@ Reports (read the tree, gate nothing):
   inventory  what ze is made of
 `
 
+// treeHelpPage is the page le prints once its root page is laid out by tree:
+// one block of single-word commands, one per namespace, and a description
+// wrapped onto a continuation line that names no command.
+const treeHelpPage = `le - the Ze repository and development entry point
+
+Usage:
+  le <command> [options] [| json | yaml | table]
+
+Commands:
+  inventory        [report] what ze is made of, a description long enough
+                   to wrap onto a second line
+spec:
+  spec claim       [workflow] claim a spec
+  spec current     [workflow] the spec this session claimed
+`
+
+func TestEverySectionOfATreePageListsCommandsAndNoContinuation(t *testing.T) {
+	got := commandNames(treeHelpPage)
+	want := []string{"inventory", "spec", "spec"}
+	if !slices.Equal(got, want) {
+		t.Errorf("CommandNames = %v, want %v", got, want)
+	}
+}
+
 func TestEverySectionOfAGroupedPageListsCommands(t *testing.T) {
 	got := commandNames(groupedHelpPage)
 	want := []string{"commit", "session", "tier", "tracked", "inventory"}

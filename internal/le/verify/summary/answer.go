@@ -10,53 +10,59 @@ import (
 
 const name = "verify summary"
 
+// The verb and the keywords `append` takes.
+const (
+	appendVerb      = "append"
+	failuresKeyword = "failures"
+	stageKeyword    = "stage"
+	logKeyword      = "log"
+)
+
+// area is the whole command surface. It is built by a function rather than held
+// in a variable because the append's own refusal prints its usage, and a
+// variable whose initializer names a function that reads it is an
+// initialization cycle.
+func area() leaction.Area {
+	return leaction.New(name, leaction.Action{
+		Verb: appendVerb,
+		Why:  "append one stage failure block to the verification failure index",
+		Parameters: []leaction.Parameter{
+			{Keyword: failuresKeyword, Kind: leaction.KindPath, Value: "failures-log", Requirement: leaction.Required,
+				Help: "the verification failure index the block is appended to"},
+			{Keyword: stageKeyword, Kind: leaction.KindLabel, Value: "stage", Requirement: leaction.Required,
+				Help: "the name of the stage that failed"},
+			{Keyword: logKeyword, Kind: leaction.KindPath, Value: "stage-log", Requirement: leaction.Required,
+				Help: "the failed stage's own log, whose failure lines the block carries"},
+		},
+		AnswerArgs: answerAppend,
+	})
+}
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return area().Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return area().Subs() }
+
 // Answer appends one native verification failure summary.
-func Answer(args []string) (any, int) {
-	if len(args) == 0 {
-		return Actions{Actions: []Action{{
-			Action: "append",
-			Usage:  "append failures <failures-log> stage <stage> log <stage-log>",
-		}}}, 0
+func Answer(args []string) (any, int) { return area().Answer(args) }
+
+// answerAppend appends the block one parsed line names. The parser does not
+// yet refuse a missing required keyword (D-P2-required in
+// plan/post-release/engineering/spec-le-cli-usability.md), so the append does,
+// with the 2 a malformed line has always answered here: a block with no index,
+// no stage or no log is a mistake, never a default.
+func answerAppend(args leaction.Arguments) (any, int) {
+	for _, keyword := range []string{failuresKeyword, stageKeyword, logKeyword} {
+		if !args.Has(keyword) {
+			return nil, area().Refuse(appendVerb, errors.New(name+" append needs "+keyword+" and its value"))
+		}
 	}
-	if len(args) != 7 {
-		refuse("usage: le verify summary append failures <failures-log> stage <stage> log <stage-log>")
-		return nil, 2
-	}
-	if args[0] != "append" {
-		refuse("unknown action " + args[0])
-		return nil, 2
-	}
-	if args[1] != "failures" {
-		refuse("expected failures before the failure-index path")
-		return nil, 2
-	}
-	if args[3] != "stage" {
-		refuse("expected stage before the stage name")
-		return nil, 2
-	}
-	if args[5] != "log" {
-		refuse("expected log before the stage-log path")
-		return nil, 2
-	}
-	summary, err := verifyengine.AppendSummary(args[2], args[4], args[6])
+	summary, err := verifyengine.AppendSummary(args.One(failuresKeyword), args.One(stageKeyword), args.One(logKeyword))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	return summary, 0
-}
-
-// Action is one closed command form.
-type Action struct {
-	Action string `json:"action"`
-	Usage  string `json:"usage"`
-}
-
-// Actions is the command inventory.
-type Actions struct {
-	Actions []Action `json:"actions"`
-}
-
-func refuse(message string) {
-	leaction.ReportError(errors.New(name + ": " + message))
 }

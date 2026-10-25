@@ -150,7 +150,7 @@ func TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbor(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	payload, code := answerModel(root, []string{"current", "transcript", same})
+	payload, code := answerModelLine(t, root, []string{"current", "transcript", same})
 	if code != 0 {
 		t.Fatalf("explicit transcript = (%#v, %d)", payload, code)
 	}
@@ -169,7 +169,7 @@ func TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbor(t *testing.T) 
 	if err := os.WriteFile(unknown, []byte("{\"message\":{}}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	payload, code = answerModel(root, []string{"current", "transcript", unknown})
+	payload, code = answerModelLine(t, root, []string{"current", "transcript", unknown})
 	if code != 1 {
 		t.Fatalf("unknown explicit transcript = (%#v, %d)", payload, code)
 	}
@@ -180,7 +180,7 @@ func TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbor(t *testing.T) 
 		{"current", "transcript", filepath.Join(root, "absent.jsonl")},
 		{"current", "transcript", root},
 	} {
-		if _, code := answerModel(root, args); code != 2 {
+		if _, code := answerModelLine(t, root, args); code != 2 {
 			t.Errorf("unsafe transcript args %#v answered %d, want 2", args, code)
 		}
 	}
@@ -214,21 +214,22 @@ func TestReviewCommandUsesTheOwnerAuthorisedKeyword(t *testing.T) {
 		"file", "pkg/a.go", "rounds-reason", "product defect",
 		"owner-authorised", "Thomas approved one more pass", //nolint:misspell // owner-authorised is the keyword under test, not prose; see the note on the case clause in actions.go
 	}
-	record, err := parseReviewRecord(args)
+	record, err := parseReviewRecordLine(args)
 	if err != nil {
-		t.Fatalf("parseReviewRecord: %v", err)
+		t.Fatalf("parse review record: %v", err)
 	}
 	if record.OwnerAuthorised == "" {
 		t.Fatal("owner-authorised value was not mapped") //nolint:misspell // owner-authorised is the keyword under test, not prose; see the note on the case clause in actions.go
 	}
 	args[len(args)-2] = "owner-authorized"
-	if _, err := parseReviewRecord(args); err == nil {
+	if _, err := parseReviewRecordLine(args); err == nil {
 		t.Fatal("American-spelled owner keyword was accepted")
 	}
-	spec, files, err := parseReviewCheck([]string{"spec", "demo", "file", "pkg/a.go"})
+	check, err := ReviewArea().Parse(verbCheck, []string{"spec", "demo", "file", "pkg/a.go"})
 	if err != nil {
-		t.Fatalf("parseReviewCheck: %v", err)
+		t.Fatalf("parse review check: %v", err)
 	}
+	spec, files := check.One(keywordSpec), check.Values(keywordFile)
 	if spec != "demo" {
 		t.Fatalf("review check spec = %q", spec)
 	}
@@ -247,14 +248,14 @@ func TestReviewCommandMapsRecordAndCheck(t *testing.T) {
 	// or consume the resulting review.
 	root := reviewFixture(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "../unreadable")
-	payload, code := answerReview(root, "session", []string{
+	payload, code := answerReviewLine(t, root, []string{
 		"record", "spec", "demo", "verdict", "clean", "rounds", "1",
 		"file", "pkg/a.go",
 	})
 	if code != 0 {
 		t.Fatalf("review record = (%#v, %d)", payload, code)
 	}
-	payload, code = answerReview(root, "session", []string{
+	payload, code = answerReviewLine(t, root, []string{
 		"check", "spec", "demo", "file", "pkg/a.go",
 	})
 	check, ok := payload.(ReviewCheck)

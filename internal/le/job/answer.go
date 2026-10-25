@@ -1,19 +1,17 @@
 // Design: docs/architecture/core-design.md -- job admission as a command
 // Related: job.go -- the admission this command drives
 //
-// `le job run label <label> command <argv...>` restates the command line of
-// internal/le/job/answer.go in the grammar that every other le command uses. This
-// grammar requires a closed keyword before every value (ai/rules/cli.md). The
-// shell accepted its label and command as bare positionals. The port changed
-// only this aspect.
+// `le job run label <label> [quiet] command <argv...>` is declared once, in the
+// action table below, so the listing, the usage, the help pages and the parse
+// all read one grammar (internal/le/le/action). This grammar requires a closed
+// keyword before every value (ai/rules/cli.md). The shell accepted its label
+// and command as bare positionals.
 
 package job
 
 import (
-	"fmt"
-	"os"
+	"errors"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -29,8 +27,33 @@ const (
 	commandKeyword = "command"
 )
 
-// usageLine is what a refusal points at.
-const usageLine = "usage: le job run label <label> [quiet] command <argv...>"
+// area is the whole command surface. It is built by a function rather than held
+// in a variable because the run's own refusals print its usage, and a variable
+// whose initializer names a function that reads it is an initialization cycle.
+func area() leaction.Area {
+	return leaction.New(name, leaction.Action{
+		Verb: runVerb,
+		Why: "admit one heavy job, run it, and answer its exit code. Several sessions share this machine." +
+			" `quiet` before the command keyword writes the child's output to this session's scratch log" +
+			" instead of the terminal, and answers the verdict, that log's path and its failure lines",
+		Parameters: []leaction.Parameter{
+			{Keyword: labelKeyword, Kind: leaction.KindLabel, Value: "label", Requirement: leaction.Required,
+				Help: "the name the job is admitted, logged and attached under"},
+			{Keyword: quietKeyword, Kind: leaction.KindSwitch,
+				Help: "write the child's output to this session's scratch log and answer its summary"},
+			{Keyword: commandKeyword, Kind: leaction.KindArgv, Value: "argv", Requirement: leaction.Required,
+				Help: "the program to run and its arguments: every word after this keyword is that command's"},
+		},
+		AnswerArgs: answerRun,
+	})
+}
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return area().Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return area().Subs() }
 
 // Answer is the command. It admits and runs one job. It reports the result and
 // the job's exit code.
@@ -40,20 +63,16 @@ const usageLine = "usage: le job run label <label> [quiet] command <argv...>"
 // update` exits 1 when the tree holds no ai/ directory and 2 when the tree
 // cannot be read, and a caller that flattened the two could not tell an
 // incomplete scan from a tree with nowhere to write.
-func Answer(args []string) (any, int) {
-	if len(args) == 0 {
-		return actions(), 0
-	}
-	if args[0] != runVerb {
-		return nil, refuse("no such action in job: ", args[0])
-	}
+func Answer(args []string) (any, int) { return area().Answer(args) }
 
-	asked, ok := parseRun(args[1:])
-	if !ok {
+// answerRun runs one parsed `run` line.
+func answerRun(args leaction.Arguments) (any, int) {
+	asked, err := runArgsOf(args)
+	if err != nil {
 		// 2, which is what the shell half's usage answered for a missing
 		// label or an empty command, and what an unknown action answers here.
 		// A caller reads it apart from a job that ran and failed.
-		return nil, 2
+		return nil, area().Refuse(runVerb, err)
 	}
 
 	adm, err := New()
@@ -80,61 +99,42 @@ type runArgs struct {
 	Quiet bool
 }
 
-// parseRun reads `label <label> [quiet] command <argv...>` and reports whether
-// parsing succeeded. If parsing fails, it has already printed a refusal.
+// parseRun reads the words after `run` through the action table and reports
+// whether they name a job. A refused line has already been reported.
 //
 // Everything after the command keyword is the job's argv, regardless of its
-// form. A wrapped recipe passes a make invocation with its own flags. A job
-// flag is not a flag of this command, and neither is a `quiet` the child
-// itself takes: this one is read before the command keyword and nowhere else.
-func parseRun(args []string) (runArgs, bool) {
-	if len(args) < 2 || args[0] != labelKeyword {
-		return refused(labelKeyword, " names the job, and it comes first")
+// form (leaction.KindArgv). A wrapped recipe passes a make invocation with its
+// own flags. A job flag is not a flag of this command, and neither is a `quiet`
+// the child itself takes: this one is read before the command keyword and
+// nowhere else.
+func parseRun(words []string) (runArgs, bool) {
+	parsed, err := area().Parse(runVerb, words)
+	if err != nil {
+		leaction.ReportError(err)
+		return runArgs{}, false
 	}
-	asked := runArgs{Label: args[1]}
-
-	rest := args[2:]
-	if len(rest) > 0 && rest[0] == quietKeyword {
-		asked.Quiet = true
-		rest = rest[1:]
+	asked, err := runArgsOf(parsed)
+	if err != nil {
+		leaction.ReportError(err)
+		return runArgs{}, false
 	}
-
-	if len(rest) < 2 || rest[0] != commandKeyword {
-		return refused(commandKeyword, " names what to run, and everything after it is that command")
-	}
-	asked.Argv = rest[1:]
 	return asked, true
 }
 
-// actions is what a bare `le job` answers: the one thing this command does,
-// as data. It is the shape every le area answers to the same question
-// (internal/le/le/action, List), so a reader who has seen one has seen this.
-func actions() leaction.List {
-	return leaction.List{
-		Area: name,
-		Actions: []leaction.Row{{
-			Verb: runVerb,
-			Why: "admit one heavy job, run it, and answer its exit code. Several sessions share this machine." +
-				" `quiet` before the command keyword writes the child's output to this session's scratch log" +
-				" instead of the terminal, and answers the verdict, that log's path and its failure lines",
-		}},
+// runArgsOf turns the parsed keywords into the run. The parser does not yet
+// refuse a missing required keyword (D-P2-required in
+// plan/post-release/engineering/spec-le-cli-usability.md), so the run does:
+// a job with no name or nothing to run is a mistake, never a default.
+func runArgsOf(args leaction.Arguments) (runArgs, error) {
+	if !args.Has(labelKeyword) {
+		return runArgs{}, errors.New("job run needs label <label>: it names the job")
 	}
-}
-
-// refuse reports a word that this command does not accept. It returns the code
-// that the ported le areas return for the same error: 2. This code distinguishes
-// the error from a job that ran and failed.
-func refuse(what, got string) int {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(what).Str(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine)                       //nolint:errcheck // CLI output
-	return 2
-}
-
-// refused reports a missing keyword, in the shape parseRun answers with.
-func refused(keyword, why string) (runArgs, bool) {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(keyword).Str(why).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine)                          //nolint:errcheck // CLI output
-	return runArgs{}, false
+	if !args.Has(commandKeyword) {
+		return runArgs{}, errors.New("job run needs command <argv...>: everything after it is the command to run")
+	}
+	return runArgs{
+		Label: args.One(labelKeyword),
+		Argv:  args.Values(commandKeyword),
+		Quiet: args.Has(quietKeyword),
+	}, nil
 }

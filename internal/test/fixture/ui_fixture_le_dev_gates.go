@@ -209,18 +209,20 @@ func runLEDevAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if refused.code != 1 {
-		return uiLeDevGatesAnswersFailf("a path argument answered %d", refused.code)
+	// 2: the table's parser refuses a word naming no action (D-P3-stray).
+	if refused.code != 2 {
+		return uiLeDevGatesAnswersFailf("a path argument answered %d, want the parser's refusal 2", refused.code)
 	}
-	if !bytes.Contains(refused.stderr, []byte("takes no arguments")) {
+	if !bytes.Contains(refused.stderr, []byte("no such action in build gosum: gokrazy/")) {
 		return uiLeDevGatesAnswersFailf("the refusal is silent: %q", refused.stderr)
 	}
 	bare, err := le("repo working-tree", "3")
 	if err != nil {
 		return err
 	}
-	if bare.code != 1 {
-		return uiLeDevGatesAnswersFailf("a bare number was accepted as a ceiling")
+	// 2: the table's parser refuses the stray word (D-P3-stray).
+	if bare.code != 2 {
+		return uiLeDevGatesAnswersFailf("a bare number answered %d, want the parser's refusal 2", bare.code)
 	}
 	nonnumeric, err := le("repo working-tree", "max-areas", "many")
 	if err != nil {

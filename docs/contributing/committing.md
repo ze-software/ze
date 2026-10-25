@@ -29,7 +29,13 @@ to an author who had been warned about those exact files minutes beforehand.
 ## The keywords
 
 `./le commit create` takes keywords, not flags. Every one takes a value except
-`append` and `replace`.
+the switches `append`, `replace` and `dry-run`. `./le commit create --help`
+prints the same table from the grammar the command reads.
+
+A value never begins with a dash (`ai/rules/cli.md`): `body "- item"` is
+refused, because `- item` stands where a value goes and reads as an option.
+Write a bullet as `body "* item"`, or put a word before the dash, as in
+`body "Changes: - item"`.
 
 | Keyword | Repeats | Meaning |
 |---------|---------|---------|
@@ -41,15 +47,16 @@ to an author who had been warned about those exact files minutes beforehand.
 | `remove` | yes | One tracked file to delete, named exactly: a directory or a glob is refused at create time, because the script removes one index entry by its literal name. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
 | `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
+| `dry-run` | no | Print the message and the script it would write, and write neither |
 | `append` | no | Add another commit block to a script that already exists. A script an older `./le` prepared, whose blocks do not record the commits they publish, is refused: prepare a fresh one with `replace` |
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
 | `session` | no | The eight-hex commit namespace. `./le commit session` creates or reuses this harness session's |
 | `tag` | no | The block tag inside the script |
-| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the verify it exists to spare. Takes no `no-test`, `review-override`, `rfc-change-ok`, `structural-red-ok`, `broken-head-fix` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create keyword table (`createKeywords`), so a keyword added there is refused with `attest` until it is declared allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
+| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the verify it exists to spare. Takes no `no-test`, `review-override`, `rfc-change-ok`, `structural-red-ok`, `broken-head-fix` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
 | `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
 | `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
-<!-- source: internal/le/commit/actions.go -- createKeywords -->
+<!-- source: internal/le/commit/actions.go -- createParameters, createPolicy -->
 <!-- source: internal/le/commit/prepare.go -- refuseAttestAdmission -->
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the

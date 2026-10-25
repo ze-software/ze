@@ -15,6 +15,7 @@
 package repoworkingtree
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -147,13 +148,47 @@ func Group(paths []string, maxAreas int) Report {
 	return report
 }
 
-// Answer is the `le repo working-tree` command.
-//
-// The one thing it takes is a ceiling, as a keyword and a value. A bare number
-// is refused: `ai/rules/cli.md` puts a keyword before every value, and a tool
-// that guesses at a lone positional is where that rule stops holding.
+// reportVerb is the one action: the width of the uncommitted tree.
+const reportVerb = "report"
+
+// actions is the whole command surface, declared once, so the listing, the
+// usage, the help pages and the parse read one grammar (internal/le/le/action).
+// The one thing the report takes is a ceiling, as a keyword and a value. A bare
+// number is refused: `ai/rules/cli.md` puts a keyword before every value, and a
+// tool that guesses at a lone positional is where that rule stops holding.
+var actions = leaction.New(name, leaction.Action{
+	Verb: reportVerb,
+	Why:  "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
+	Parameters: []leaction.Parameter{
+		{Keyword: ceilingKeyword, Kind: leaction.KindUint, Value: "n", Requirement: leaction.Optional,
+			Help: "the most areas the tree may span; more answers 1"},
+	},
+	AnswerArgs: answerReport,
+})
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return actions.Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return actions.Subs() }
+
+// Answer is the `le repo working-tree` command. A line that does not open with
+// the verb runs the report, as callers have always typed it (D-P3-bare in
+// spec-le-cli-usability), so the verb is supplied here and the table reads the
+// rest of the line: `le repo working-tree max-areas 3` is `report max-areas 3`.
+// A refusal the table's parser makes answers 2 (D-P3-stray).
 func Answer(args []string) (any, int) {
-	maxAreas, code := parseCeiling(args)
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
+	}
+	return actions.Answer(append([]string{reportVerb}, args...))
+}
+
+// answerReport groups the uncommitted paths of the checkout and judges them
+// against the ceiling, when the line names one.
+func answerReport(args leaction.Arguments) (any, int) {
+	maxAreas, code := ceilingOf(args)
 	if code != 0 {
 		return nil, code
 	}
@@ -179,50 +214,23 @@ func Answer(args []string) (any, int) {
 	return report, 0
 }
 
-// parseCeiling reads the one keyword this command takes. It answers the ceiling
-// and 0, or 0 and the exit code of a refusal already printed.
+// ceilingOf reads the ceiling the line named. It answers the ceiling and 0, or
+// 0 and the exit code of a refusal already printed. No ceiling is 0, which
+// Group reads as advisory.
 //
-// A negative ceiling is refused rather than treated as a ceiling of zero. The
-// script this ports read it with argparse and let it through, where every run
-// then failed: a ceiling nothing can satisfy is a caller's mistake, and saying
-// so is what tells them which way to fix it.
-func parseCeiling(args []string) (int, int) {
-	if len(args) == 0 {
+// A negative ceiling never reaches here: the table refuses a dash-leading
+// value by name. A word that is not a number is refused here with 1, the code
+// the hand-rolled parser answered, because the body's refusals keep their
+// codes until Phase 5 (AC-17).
+func ceilingOf(args leaction.Arguments) (int, int) {
+	if !args.Has(ceilingKeyword) {
 		return 0, 0
 	}
-
-	if args[0] != ceilingKeyword {
-		return 0, refuse(usageLine(), "no such keyword: ", args[0])
-	}
-	if len(args) == 1 {
-		return 0, refuse(usageLine(), ceilingKeyword, " takes a number")
-	}
-	if len(args) > 2 {
-		return 0, refuse(usageLine(), ceilingKeyword, " takes one number")
-	}
-
-	ceiling, err := strconv.Atoi(args[1])
+	value := args.One(ceilingKeyword)
+	ceiling, err := strconv.Atoi(value)
 	if err != nil || ceiling < 0 {
-		return 0, refuse(usageLine(), "not a number of areas: ", args[1])
+		leaction.ReportError(errors.New(name + ": not a number of areas: " + value))
+		return 0, 1
 	}
 	return ceiling, 0
-}
-
-// usageLine is the one line a refusal prints under itself.
-func usageLine() string {
-	var tb textbuf.Buffer
-	return tb.Str("usage: le ").Str(name).Byte(' ').Str(ceilingKeyword).
-		Str(" <n> [| json | yaml | table]").String()
-}
-
-// refuse prints one refusal and answers the exit code for it.
-//
-// The message arrives in two pieces, what was wrong and the word it was wrong
-// about, so the caller states the fact rather than handing over a line it
-// formatted itself.
-func refuse(usage, what, word string) int {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(name).Str(": ").Str(what).Str(word).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usage)                                                //nolint:errcheck // CLI output
-	return 1
 }

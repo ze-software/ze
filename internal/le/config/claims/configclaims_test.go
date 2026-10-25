@@ -135,10 +135,12 @@ func TestReportIsStructuredData(t *testing.T) {
 // one.
 // PREVENTS: a path positional creeping in, which would break keyword-before-value
 // and would make the tree the command judges depend on what a caller typed.
+// The word names no action, so the table refuses it with the usage code 2
+// (spec-le-cli-usability D-P3-stray).
 func TestAnswerRefusesAnArgument(t *testing.T) {
 	payload, code := Answer([]string{"internal"})
-	if code != 1 {
-		t.Errorf("a stray argument answers %d, want 1", code)
+	if code != 2 {
+		t.Errorf("a stray argument answers %d, want 2", code)
 	}
 	if payload != nil {
 		t.Errorf("a refused command answered a payload: %#v", payload)

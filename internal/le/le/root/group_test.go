@@ -5,6 +5,7 @@
 package leroot
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -14,38 +15,66 @@ func metaFor(description string) registry.Meta {
 	return registry.Meta{ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
 }
 
-func TestUsageSectionsFollowGroupOrder(t *testing.T) {
+// TestRootPageIsLaidOutByTree checks AC-4: the root page holds one block for
+// the single-word commands and one per namespace, each line carries the purpose
+// tag in brackets and the first sentence of the summary, no group heading line
+// is left, and every area appears exactly once, a single word that is also a
+// namespace token inside its namespace. Method: build the sections over a
+// fixed command set and read each one.
+func TestRootPageIsLaidOutByTree(t *testing.T) {
 	setGroup("probe-suite", GroupSuite)
-	setGroup("probe-workflow", GroupWorkflow)
-	setGroup("probe-gate", GroupGate)
+	setGroup("probe-ns", GroupWorkflow)
+	setGroup("probe-ns alpha", GroupGate)
+	setGroup("probe-ns beta", GroupReport)
 
 	roots := []registry.RootCommand{
+		{Name: "probe-ns", Meta: metaFor("the namespace's own command. More words")},
+		{Name: "probe-ns alpha", Meta: metaFor("a gate probe")},
+		{Name: "probe-ns beta", Meta: metaFor("a report probe")},
 		{Name: "probe-suite", Meta: metaFor("a suite probe")},
-		{Name: "probe-workflow", Meta: metaFor("a workflow probe")},
-		{Name: "probe-gate", Meta: metaFor("a gate probe")},
 	}
 
 	sections := manifestFrom("le", roots).sections()
-	if len(sections) != 3 {
-		t.Fatalf("sections = %d, want 3", len(sections))
+	if len(sections) != 2 {
+		t.Fatalf("sections = %d, want 2 (single words, then probe-ns): %#v", len(sections), sections)
 	}
-	want := []Group{GroupWorkflow, GroupGate, GroupSuite}
-	for index, group := range want {
-		if sections[index].Title != GroupTitle(group) {
-			t.Errorf("section %d title = %q, want %q", index, sections[index].Title, GroupTitle(group))
-		}
-		if len(sections[index].Entries) != 1 {
-			t.Fatalf("section %d holds %d entries, want 1", index, len(sections[index].Entries))
+	if sections[0].Title != "Commands" || len(sections[0].Entries) != 1 || sections[0].Entries[0].Name != "probe-suite" {
+		t.Errorf("the single-word block is %#v", sections[0])
+	}
+	if sections[0].Entries[0].Desc != "[suite] a suite probe" {
+		t.Errorf("a line reads %q, want the tag then the summary", sections[0].Entries[0].Desc)
+	}
+	if sections[1].Title != "probe-ns" || len(sections[1].Entries) != 3 {
+		t.Fatalf("the namespace block is %#v", sections[1])
+	}
+	if got := sections[1].Entries[0]; got.Name != "probe-ns" || got.Desc != "[workflow] the namespace's own command." {
+		t.Errorf("the namespace's own command reads %#v, want its first sentence in its namespace", got)
+	}
+	seen := map[string]int{}
+	for _, section := range sections {
+		for _, entry := range section.Entries {
+			seen[entry.Name]++
 		}
 	}
-	if sections[0].Entries[0].Name != "probe-workflow" {
-		t.Errorf("first section holds %q, want probe-workflow", sections[0].Entries[0].Name)
+	for _, root := range roots {
+		if seen[root.Name] != 1 {
+			t.Errorf("%s appears %d times, want once", root.Name, seen[root.Name])
+		}
+	}
+
+	var page strings.Builder
+	built := manifestFrom("le", roots).page()
+	built.WriteTo(&page, false)
+	for _, heading := range []string{"Workflow (", "Gates (", "Suites (", "Reports ("} {
+		if strings.Contains(page.String(), heading) {
+			t.Errorf("the page still prints the group heading %q:\n%s", heading, page.String())
+		}
 	}
 }
 
 // TestUsageSectionsPrintAnUngroupedCommand covers the command that reached the
-// registry by some route other than Register. Filing it badly is recoverable;
-// leaving it off the help page is not.
+// registry by some route other than Register. Tagging it ungrouped is
+// recoverable; leaving it off the help page is not.
 func TestUsageSectionsPrintAnUngroupedCommand(t *testing.T) {
 	roots := []registry.RootCommand{{Name: "probe-no-group", Meta: metaFor("a probe with no group")}}
 
@@ -53,11 +82,11 @@ func TestUsageSectionsPrintAnUngroupedCommand(t *testing.T) {
 	if len(sections) != 1 {
 		t.Fatalf("sections = %d, want 1", len(sections))
 	}
-	if sections[0].Title != "Ungrouped" {
-		t.Errorf("title = %q, want Ungrouped", sections[0].Title)
-	}
 	if len(sections[0].Entries) != 1 || sections[0].Entries[0].Name != "probe-no-group" {
 		t.Errorf("entries = %#v, want the one ungrouped command", sections[0].Entries)
+	}
+	if desc := sections[0].Entries[0].Desc; desc != "[ungrouped] a probe with no group" {
+		t.Errorf("the line reads %q, want the ungrouped tag", desc)
 	}
 }
 

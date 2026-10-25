@@ -22,6 +22,7 @@ import (
 // the action's live parameters as argument definitions. Safe for concurrent
 // use, because each call builds a new tree from the registry.
 func Tree() *command.Node {
+	checkEveryAreaHasATable()
 	return treeFrom(Commands())
 }
 
@@ -33,6 +34,12 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 		node.ShortHelp = area.Meta.ShortHelp
 		list, declared := ActionsOf(area.Name)
 		if !declared {
+			continue
+		}
+		// A pass-through area has no action to offer, and every word after it
+		// is its program's, so completion offers nothing below it and says why.
+		if list.PassesWords {
+			node.Description = list.PassesLine()
 			continue
 		}
 		for _, row := range list.Actions {
@@ -92,7 +99,8 @@ func argDefOf(parameter leaction.Parameter) command.ArgDef {
 	case leaction.KindUint:
 		def, err = command.NewUintArg(parameter.Keyword, 64, nil, options)
 	case leaction.KindString, leaction.KindList, leaction.KindDuration, leaction.KindPath,
-		leaction.KindRevision, leaction.KindSpec, leaction.KindLabel, leaction.KindArea, leaction.KindWords:
+		leaction.KindRevision, leaction.KindSpec, leaction.KindLabel, leaction.KindArea, leaction.KindWords,
+		leaction.KindArgv:
 		def, err = command.NewStringArg(parameter.Keyword, nil, nil, options)
 	case leaction.KindUnspecified:
 		panic("BUG: leroot.Tree: a live parameter reached the tree with no kind: " + parameter.Keyword)

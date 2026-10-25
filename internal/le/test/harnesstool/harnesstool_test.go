@@ -22,7 +22,7 @@ func TestAnswerForwardsWordsAndExitCode(t *testing.T) {
 		received = args
 		return 7
 	}), Meta("a probe harness command"))
-	leroot.RegisterForwarding(name)
+	leroot.RegisterForwarding(name, Helper)
 
 	if !leroot.Forwards(name) {
 		t.Fatal("test zzprobe does not forward its words")

@@ -26,7 +26,7 @@ const keywordRefresh = "refresh"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "build", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the Pages artifact is written to", Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial", Kind: leaction.KindSwitch, Help: "build part of the site rather than all of it"}, {Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"}}, AnswerArgs: runBuild},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the Pages artifact is written to", Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial", Kind: leaction.KindSwitch, Help: "restage the sources over the existing artifact instead of seeding a fresh one; refused when no full artifact exists yet"}, {Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"}}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Why: "verify that the Pages artifact contains no source-only website inputs",
 		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
 	leaction.Action{Verb: "bundle", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,

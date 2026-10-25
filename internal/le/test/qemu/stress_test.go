@@ -140,7 +140,10 @@ func TestStressScenarioPlaceholderIsTheRegistry(t *testing.T) {
 	if !found {
 		t.Fatal("the stress action declares no scenario keyword")
 	}
-	usage, _ := list.UsageText(stressVerb)
+	page, _ := list.ActionPage("le", stressVerb)
+	var rendered strings.Builder
+	page.WriteTo(&rendered, false)
+	usage := rendered.String()
 	if !strings.Contains(usage, strings.Join(testintegration.StressScenarios(), "|")) {
 		t.Fatalf("usage does not render every registered scenario:\n%s", usage)
 	}

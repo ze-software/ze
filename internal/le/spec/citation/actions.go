@@ -3,40 +3,87 @@
 package speccitation
 
 import (
-	"fmt"
-	"os"
+	"errors"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const name = "spec citation"
 
-// Answer is the `le spec citation` command. Its existing bare form runs the
-// citation gate. `anchors spec <path>` runs the design-document owner audit.
+// The verbs and keyword of `le spec citation`.
+const (
+	verbCheck   = "check"
+	verbAnchors = "anchors"
+	keywordSpec = "spec"
+)
+
+// shortHelp is what the gate judges. The help line and the check action's Why
+// both read it, so the two cannot drift.
+const shortHelp = "a spec citing a sibling spec absent on disk fails, unless the" +
+	" target is grandfathered in plan/.citation-baseline; a path:line citation" +
+	" whose backtick-quoted token drifted off that line warns"
+
+// table declares the whole command surface. It is built on each call because
+// the anchors body refuses through it, and a package-level table that its own
+// body names is an initialization cycle.
+func table() leaction.Area {
+	return leaction.New(name,
+		leaction.Action{
+			Verb:   verbCheck,
+			Why:    shortHelp,
+			Answer: answerCheck,
+		},
+		leaction.Action{
+			Verb: verbAnchors,
+			Why:  "the design documents whose source anchors name a file the spec changes",
+			Parameters: []leaction.Parameter{{
+				Keyword: keywordSpec, Kind: leaction.KindSpec, Value: "bucket/spec-name.md",
+				Help: "the spec whose files are audited", Requirement: leaction.Required,
+			}},
+			AnswerArgs: answerAnchors,
+		},
+	)
+}
+
+// Answer is the `le spec citation` command. A bare line runs the citation
+// gate, as the `check` action does: verify stages call it bare, and a bare
+// listing would answer them 0 with nothing judged. Every other line is the
+// table's.
 func Answer(args []string) (any, int) {
+	if len(args) == 0 {
+		return table().Answer([]string{verbCheck})
+	}
+	return table().Answer(args)
+}
+
+// answerCheck runs the citation gate over the checkout.
+func answerCheck() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
 		return nil, 1
 	}
-	if len(args) == 0 {
-		report, err := Scan(root)
-		if err != nil {
-			reportError(err)
-			return nil, 1
-		}
-		return report, verdict(report)
+	report, err := Scan(root)
+	if err != nil {
+		reportError(err)
+		return nil, 1
 	}
-	if len(args) != 3 {
-		return nil, refuseCitation(firstCitationArgument(args))
+	return report, verdict(report)
+}
+
+// answerAnchors runs the design-document owner audit for one spec.
+func answerAnchors(args leaction.Arguments) (any, int) {
+	if !args.Has(keywordSpec) {
+		return nil, table().Refuse(verbAnchors, errors.New("spec citation anchors needs spec <bucket>/spec-<name>.md"))
 	}
-	if args[0] != "anchors" {
-		return nil, refuseCitation(args[0])
+	root, err := lepath.Root()
+	if err != nil {
+		reportError(err)
+		return nil, 1
 	}
-	if args[1] != "spec" {
-		return nil, refuseCitation(args[1])
-	}
-	report, err := AuditAnchors(root, args[2])
+	report, err := AuditAnchors(root, args.One(keywordSpec))
 	if err != nil {
 		reportError(err)
 		return nil, 2
@@ -48,17 +95,6 @@ func Answer(args []string) (any, int) {
 }
 
 func reportError(err error) {
-	fmt.Fprintf(os.Stderr, "error: spec-citation: %v\n", err) //nolint:errcheck // CLI output
-}
-
-func firstCitationArgument(args []string) string {
-	if len(args) == 0 {
-		return ""
-	}
-	return args[0]
-}
-
-func refuseCitation(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec citation anchors spec <bucket>/spec-<name>.md (got %q)\n", got) //nolint:errcheck // CLI output
-	return 2
+	var tb textbuf.Buffer
+	tb.Str("error: spec-citation: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }

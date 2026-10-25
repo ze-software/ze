@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -62,7 +63,7 @@ func stageProcess(ctx context.Context, words []string) (*exec.Cmd, error) {
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, executable) // #nosec G204 -- this binary, started again with a registered command line.
-	cmd.Args = stageArgv(os.Args[0], leroot.InvocationName(), words)
+	cmd.Args = stageArgv(os.Args[0], leaction.InvocationName(), words)
 	return cmd, nil
 }
 

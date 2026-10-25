@@ -59,6 +59,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
 	_ "github.com/ze-software/ze/internal/le/lab/pin"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	_ "github.com/ze-software/ze/internal/le/mrt"
@@ -194,7 +195,7 @@ func init() {
 // hourly chance to start. A hook never prints and returns nothing, so the
 // command's exit code and output are the dispatch's alone.
 func run(_ *registry.RuntimeContext, args []string) int {
-	program := leroot.InvocationName()
+	program := leaction.InvocationName()
 	ensureCacheLink()
 	activatePatchedGOROOT()
 	leroot.RunBeforeDispatch(program)

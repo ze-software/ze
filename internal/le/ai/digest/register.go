@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -18,14 +19,27 @@ import (
 // name is the word this command is typed as.
 const name = "ai digest"
 
+// checkVerb names the gate, which is also what the bare command line runs.
+const checkVerb = "check"
+
+// table declares the whole command surface. The one action takes no value: the
+// tree is the checkout and the rendering is a pipe operator.
+var table = leaction.New(name, leaction.Action{
+	Verb:   checkVerb,
+	Why:    "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
+	Answer: answerCheck,
+})
+
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		ShortHelp: "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
-		Section: registry.SectionTest,
+		Section:  registry.SectionTest,
+		SubsFunc: table.Subs,
 	})
+	leroot.RegisterActions(name, table.Actions)
 
 	// The answer carries counts beside two row sets, so the any-shape operators
 	// render the whole document rather than being refused.
@@ -37,13 +51,18 @@ func init() {
 
 }
 
-// Answer is the `le ai digest` command. It takes no argument: the tree is the
-// checkout and the rendering is a pipe operator.
+// Answer is the `le ai digest` command. A bare line runs the gate, as the
+// `check` action does: hooks and verify stages call it bare, and a bare listing
+// would answer them 0 with nothing judged. Every other line is the table's.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		return nil, leroot.RefuseArgument(name, args[0])
+	if len(args) == 0 {
+		return table.Answer([]string{checkVerb})
 	}
+	return table.Answer(args)
+}
 
+// answerCheck runs the gate over the checkout.
+func answerCheck() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: digest: %v\n", err) //nolint:errcheck // CLI output

@@ -300,3 +300,40 @@ func TestOutputMatchesLayout(t *testing.T) {
 	// Usage header
 	assert.Equal(t, "Usage:", lines[2])
 }
+
+// TestPageWrapsUnderTheDescriptionColumn checks that a positive Width wraps
+// every entry, the description and the usage line, that a continuation line
+// starts under the entry's description column, and that a word longer than the
+// room stays whole. Method: render one page at width 40 and read each line.
+func TestPageWrapsUnderTheDescriptionColumn(t *testing.T) {
+	page := Page{
+		Command:     "le probe",
+		Description: "one two three four five six seven eight nine ten eleven twelve",
+		Usage:       []string{"le probe run alpha <a> beta <b> gamma <c> delta <d>"},
+		Sections: []HelpSection{{Title: "Actions", Entries: []HelpEntry{
+			{Name: "run", Desc: "first second third fourth fifth sixth seventh"},
+			{Name: "long", Desc: "an-unbreakable-token-wider-than-the-room-left"},
+		}}},
+		Width: 40,
+	}
+	var out strings.Builder
+	page.WriteTo(&out, false)
+	column := strings.Repeat(" ", 2+16+1)
+	for line := range strings.SplitSeq(out.String(), "\n") {
+		if len(line) > 40 && !strings.Contains(line, "an-unbreakable-token") {
+			t.Errorf("line of %d columns exceeds the width: %q", len(line), line)
+		}
+	}
+	if !strings.Contains(out.String(), "\n"+column+"fourth fifth sixth\n") {
+		t.Errorf("the entry continuation does not start under the description column:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "\n      gamma") && !strings.Contains(out.String(), "\n      <c>") {
+		t.Errorf("the usage continuation is not indented under the usage line:\n%s", out.String())
+	}
+	var whole strings.Builder
+	page.Width = 0
+	page.WriteTo(&whole, false)
+	if !strings.Contains(whole.String(), "  run              first second third fourth fifth sixth seventh\n") {
+		t.Errorf("a page with no width must render each entry whole:\n%s", whole.String())
+	}
+}

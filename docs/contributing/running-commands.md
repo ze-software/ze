@@ -15,15 +15,24 @@ as `switch`, `path`, `uint` or `enum`), its `help` line, whether it is
 `required` or may `repeat`, and an enum's `values`. The bar is quoted because a shell
 consumes an unquoted one. `| yaml` and `| table` render the same payload.
 
-`./le` with no argument prints that manifest as the root help page. It writes to
-stdout and exits 0. It wrote to stderr and exited 1 until 2026-09-12, so a
-caller that reads stdout or tests the status now receives the page.
+`./le` with no argument prints that manifest as the root help page, and
+`./le help` and `./le --help` print the same bytes. All three write to stdout
+and exit 0. The page has one block for the single-word commands and one per
+namespace; each line is the name, the area's group as a tag in brackets, and the
+first sentence of its description. Every page wraps to the terminal's width, or
+to 100 columns when stdout is a pipe, so a page read through a pipe is the same
+on every host.
 
-`./le <area> <verb> --help` prints one action's usage line. The dispatcher
+`./le <area> <verb> --help` (or `./le help <area> <verb>`) prints one action's
+page on stdout: its whole purpose, its usage line, and one line per keyword
+giving its kind, whether it is required or repeats, and its help. The dispatcher
 renders it from the registered action table and calls no handler. The help word
-therefore starts no work, whatever the area does with its first argument. A
-required keyword prints bare, an optional one prints inside brackets, and a
-keyword that repeats carries a trailing ellipsis.
+therefore starts no work, whatever the area does with its first argument. In the
+usage line a required keyword prints bare, an optional one prints inside
+brackets, and a keyword that repeats carries a trailing ellipsis.
+`./le help <area> <verb> <keyword>` prints one keyword's page, with the meaning
+of its kind and its values. When a line is refused, stderr carries the error,
+then that one action's usage and keyword lines, never the area's other actions.
 
 The bare word `help` that a declared keyword introduced is that keyword's VALUE,
 and the action runs. `./le repo rewrite replace file <path> old beta new help`
@@ -37,37 +46,36 @@ and `-V`. A dash opens a long option, or a cluster of one-letter short options.
 `-e`, `-l` and `-p`: a help request, then three options le does not declare.
 
 An action that dispatches through its action table refuses a dash-leading word
-in every value slot, and answers 2. `./le verify status check path --help path
-internal` refuses and reads no path. `./le repo rewrite replace file <path>
-old beta new --help apply` refuses and writes nothing. Only the bare word,
-which carries no dash, can be data.
+in every value slot, the last one included, and answers 2. `./le verify status
+check path --help path internal` refuses and reads no path. `./le repo rewrite
+replace file <path> old beta new --help apply` refuses and writes nothing.
+`./le test stress-repro run suite -help` refuses the cluster by name and starts
+no burn. Only the bare word, which carries no dash, can be data.
 
 Four spellings ask for help, and the set is closed: `help`, `--help`, `-h` and
-`-help`. A trailing one of the four asks the question in every area, so
-`./le test stress-repro run suite -help` prints a page and starts no burn.
+`-help`. A trailing one asks the question where it stands in place of the next
+keyword, so `./le test stress-repro run --help` and `./le test stress-repro run
+suite bgp --help` print the action's page and run nothing. Every area declares
+a table, or a pass-through one for an area whose words are another program's:
+le refuses to start while one declares neither, naming the area.
 
-Every other option travels on. An area with a table refuses it. An area
-without one hands it to the child, so `./le job run label x command echo
--html=cover.out` prints `-html=cover.out`.
+Every other option travels on. An area with a table refuses it, except after
+a keyword of kind `argv`, which ends the grammar: every word after it is
+another program's line, handed over as typed. `command <argv...>` is that
+keyword, so `./le job run label x command echo -html=cover.out` prints
+`-html=cover.out`, and `./le job run label encode-list command bin/le test bgp
+encode --list` hands `--list` to the child. A pass-through area
+(`leroot.RegisterForwarding`) hands every word after its name to its program,
+a trailing help spelling included: `./le mrt statistics --help` is the MRT
+analyzer's own `statistics --help`.
 
-A shape rule cannot replace the four words. A table-less area publishes no
-grammar, so le cannot tell its own option from one you forward to a child.
+A shape rule cannot replace the four words. Only the grammar an area publishes
+tells le its own option from one you forward to a child.
 
 <!-- source: internal/le/le/root/manifest.go -- Manifest -->
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch, helpTrailing -->
 <!-- source: internal/le/le/action/parameter.go -- parameterForm, parseArguments -->
-
-An area that hand-rolls its own dispatch registers no table. The manifest then
-carries its description and not its grammar, and `--help` answers its node page.
-A trailing help word is read as a question there, because the dispatcher has no
-grammar to read it against. A value spelled `help`, `--help`, `-h` or `-help` is
-therefore unreachable as the last word of such an area's line.
-`internal/le/actions_test.go` names those areas and refuses a new one.
-
-Any OTHER option reaches such an area, because the dispatcher cannot read it as
-a question and the area's own parser owns the line. That is what `command
-<argv...>` means: `./le job run label encode-list command bin/le test bgp encode
---list` hands `--list` to the child.
+<!-- source: internal/le/le/root/leroot.go -- requireEveryAreaHasATable -->
 
 ## Launcher builds do not overwrite running binaries
 
@@ -1222,7 +1230,8 @@ the admission slot, so one heavy job runs while the peers queue, and it tees the
 child's merged output to the job log.
 
 Everything after the `command` keyword is the child's argv, and `job` passes it
-through unchanged (`parseRun`, `internal/le/job/answer.go`; `Admission.Run`,
+through unchanged (its kind is `argv`, `KindArgv` in
+`internal/le/le/action/kind.go`; `Admission.Run`,
 `internal/le/job/job.go`). The DISPATCHER reads the line first. It answers a
 trailing `help`, `--help`, `-h` or `-help` with a usage page, and it does not
 run the child (`asksForUsage`, `internal/le/le/root/dispatch.go`). Every other

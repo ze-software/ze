@@ -1,0 +1,183 @@
+commit: one golden create line
+
+The first chunk of the body, long enough that the message wraps it at
+seventy-two columns.
+
+A second paragraph.
+--- script ---
+#!/bin/bash
+set -euo pipefail
+cd '<root>'
+
+# ze-commit-script: tmp/commit-0a1b2c3d-golden-<nonce>.sh session=0a1b2c3d
+
+# Commit golden: commit: one golden create line
+# ze-commit-block: tag=golden paths='mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt'
+_ze_index="$PWD"/'tmp/commit-0a1b2c3d-golden-<nonce>.index'
+_ze_message='tmp/commit-msg-0a1b2c3d-golden-<nonce>.txt'
+if [ ! -f "$_ze_message" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not run, and HEAD is unchanged by it.' >&2
+  echo "Its message file $_ze_message is gone. A block deletes it once its commit lands, so this block already published on an earlier run of this script, or the file was cleaned up." >&2
+  echo 'Check whether it landed with: git log --format='"'"'%h %s'"'"' --fixed-strings --grep='"'"'commit: one golden create line'"'"'' >&2
+  echo "Then prepare whatever is still uncommitted again with ./le commit create, rather than running this script again." >&2
+  exit 1
+fi
+_ze_text=$(git stripspace < "$_ze_message")
+if [ -z "$_ze_text" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "Its message file $_ze_message holds no message once blank lines are stripped, and git commit refuses an empty message too." >&2
+  echo "Write the message into that file, then run this script again." >&2
+  exit 1
+fi
+_ze_status=0
+_ze_gpgsign=$(git config --type=bool --get commit.gpgsign) || _ze_status=$?
+if [ "$_ze_status" -gt 1 ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "git config could not read commit.gpgsign as a boolean (its error is above), so whether to sign is unknown; git commit refuses here too." >&2
+  echo "Set it with: git config commit.gpgsign true (or false), then run this script again." >&2
+  exit 1
+fi
+_ze_sign=
+if [ "$_ze_gpgsign" = true ]; then _ze_sign=1; fi
+_ze_parent='9341d427f4d2f1beebd4282b6ae401cf0d50d11b'
+_ze_attempt=1
+while :; do
+_ze_seen=$_ze_parent
+_ze_parent=$(git rev-parse --verify 'HEAD^{commit}')
+_ze_moved=$(git --literal-pathspecs rev-list "$_ze_seen..$_ze_parent" -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt')
+_ze_peer=$(printf '%s\n' "$_ze_moved" | grep -v -x -F -f <(printf '%s\n' ${_ze_own:-}) || [ "$?" -eq 1 ])
+_ze_names=
+if [ -n "$_ze_peer" ]; then
+  _ze_names=$(printf '%s\n' "$_ze_peer" | git --literal-pathspecs -c core.quotePath=false diff-tree --stdin -r --no-renames --name-only --no-commit-id -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt' | sort -u)
+fi
+if [ -n "$_ze_peer" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "A commit that landed after it was prepared changed paths it carries:" >&2
+  printf '%s\n' "$_ze_names" >&2
+  echo "Building on that commit would write content prepared before the change over it." >&2
+  echo "Read the change with: git log -p $_ze_seen..$_ze_parent -- <path>" >&2
+  echo "then fold it into your copy and prepare the commit again with ./le commit create." >&2
+  exit 1
+fi
+rm -f "$_ze_index"
+GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"
+GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'ZE_INDEX_INFO'
+100644 c00ce3727d3ec887c8fa424f606bc729f37b1753 0	docs/listed.md
+100644 351be5bf6e17c59ea560546d69654115ecb2fd8d 0	mine.txt
+100644 e7b9423e2af62b78684f38271350bfd518fb5824 0	pkg/shared.txt
+ZE_INDEX_INFO
+_ze_lost=$(git cat-file --batch-check='%(objectname)' <<'ZE_INDEX_INFO' | sed -n 's/ missing$//p'
+c00ce3727d3ec887c8fa424f606bc729f37b1753
+351be5bf6e17c59ea560546d69654115ecb2fd8d
+e7b9423e2af62b78684f38271350bfd518fb5824
+ZE_INDEX_INFO
+)
+if [ -n "$_ze_lost" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "The content prepared for these paths is gone from the object store, collected by a git gc:" >&2
+  GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | grep -F "$_ze_lost" | while read -r _ze_mode _ze_object _ze_stage _ze_path; do echo "invalid object $_ze_mode $_ze_object for '$_ze_path'"; done >&2
+  echo "The working tree still holds each file. Prepare the commit again with ./le commit create." >&2
+  exit 1
+fi
+_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- 'gone.txt')
+GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- 'gone.txt'
+_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)
+_ze_status=0
+_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?
+if [ "$_ze_status" -ne 0 ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause:" >&2
+  echo "make gpg, or gpg.program, sign with user.signingKey, then run this script again." >&2
+  exit 1
+fi
+_ze_changed=$(git diff-tree -r -z --no-renames --name-only "$_ze_parent" "$_ze_commit" | tr '\0' '\n')
+if [ -z "$_ze_changed" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "HEAD already holds the prepared content of every path it names, so it has nothing to commit." >&2
+  echo "Drop this block, or prepare the commit again from your working tree with ./le commit create." >&2
+  exit 1
+fi
+_ze_stray=$(printf '%s\n' "$_ze_changed" | grep -v -x -F -e 'mine.txt' -e 'docs/listed.md' -e 'pkg/shared.txt' -e 'gone.txt' || [ "$?" -eq 1 ])
+if [ -n "$_ze_stray" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "Its tree changes paths the commit does not name, against its parent $_ze_parent:" >&2
+  printf '%s\n' "$_ze_stray" >&2
+  echo "Publishing it would revert or add work this commit does not own. This is a defect in the" >&2
+  echo "generated script: report it with this script's path, then prepare the commit again with ./le commit create." >&2
+  exit 1
+fi
+if _ze_swap=$(git update-ref -m 'commit: commit: one golden create line' HEAD "$_ze_commit" "$_ze_parent" 2>&1); then
+  _ze_own="${_ze_own:-} $_ze_commit"
+  break
+fi
+_ze_now=$(git rev-parse --verify 'HEAD^{commit}')
+_ze_lock=$(printf '%s\n' "$_ze_swap" | sed -n "s/.*Unable to create '\(.*\.lock\)'.*/\1/p")
+if [ "$_ze_now" = "$_ze_parent" ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "git update-ref refused to move HEAD, which still names the parent the commit was built on:" >&2
+  printf '%s\n' "$_ze_swap" >&2
+  if [ -n "$_ze_lock" ]; then echo "Another git process holds $_ze_lock, or one that stopped left it behind. Run this script again once the other git command finishes; remove $_ze_lock only when no git process is running."; else echo "Fix what git names (a permission, for example), then run this script again."; fi >&2
+  exit 1
+fi
+if [ "$_ze_attempt" -ge 5 ]; then
+  echo 'ERROR: commit golden (commit: one golden create line) was not published, and HEAD is unchanged by it.' >&2
+  echo "HEAD moved under it 5 times in a row while other commits landed." >&2
+  echo "Run this script again once the other sessions' commits have landed." >&2
+  exit 1
+fi
+_ze_attempt=$((_ze_attempt + 1))
+echo "NOTE: HEAD moved while commit golden was being published; building it again on the new HEAD." >&2
+done
+git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"
+rm -f "$_ze_index.now"
+GIT_INDEX_FILE="$_ze_index.now" git add -f -- 'mine.txt' 'docs/listed.md' 2>/dev/null || true
+_ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md'; GIT_INDEX_FILE="$_ze_index" git -c core.quotePath=false ls-files -s -- 'mine.txt' 'docs/listed.md'; } | sort | uniq -u | cut -f2- | sort -u)
+rm -f "$_ze_index.now"
+if [ -n "$_ze_drift" ]; then
+  echo "NOTE: these paths changed on disk after this commit was prepared." >&2
+  echo "The commit carries the prepared content; the difference stays in the working tree." >&2
+  echo "$_ze_drift" >&2
+fi
+rm -f "$_ze_message"
+# Delete each removed path's working-tree copy that git now holds byte for byte.
+_ze_gone=('gone.txt')
+rm -f "$_ze_index.gone"
+for _ze_path in "${_ze_gone[@]}"; do
+  if [ ! -e "$_ze_path" ] && [ ! -L "$_ze_path" ]; then continue; fi
+  if [ -d "$_ze_path" ] && [ ! -L "$_ze_path" ]; then
+    echo "NOTE: kept $_ze_path: a directory is not the content this commit removed." >&2
+    continue
+  fi
+  GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true
+  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs -c core.quotePath=false ls-files -s -- "$_ze_path")
+  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then
+    rm -f -- "$_ze_path"
+  else
+    echo "NOTE: kept $_ze_path: its working-tree copy is not the content this commit removed." >&2
+  fi
+done
+rm -f "$_ze_index.gone"
+# Point the shared index at what was committed. Nothing else in it is touched.
+_ze_waited=0
+until _ze_said=$({ git ls-tree HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | git update-index --index-info && git update-index --force-remove -- 'gone.txt'; } 2>&1); do
+  case "$_ze_said" in
+    *index.lock*)
+      if [ "$_ze_waited" -lt 30 ]; then
+        sleep 1
+        _ze_waited=$((_ze_waited + 1))
+        continue
+      fi
+      ;;
+  esac
+  echo "ERROR: commit $_ze_commit landed, but the shared index could not be pointed at it." >&2
+  echo "git said: $_ze_said" >&2
+  echo "These paths read as staged changes in every session until the repair runs:" >&2
+  printf '%s\n' 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt' >&2
+  echo "Any later commit in this script did not run." >&2
+  printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2
+  echo 'git ls-tree HEAD -- '"'"'mine.txt'"'"' '"'"'docs/listed.md'"'"' '"'"'pkg/shared.txt'"'"' | git update-index --index-info' >&2
+  echo 'git update-index --force-remove -- '"'"'gone.txt'"'"'' >&2
+  echo 'rm -f '"'"'tmp/commit-0a1b2c3d-golden-<nonce>.index'"'"'' >&2
+  exit 1
+done
+rm -f 'tmp/commit-0a1b2c3d-golden-<nonce>.index'

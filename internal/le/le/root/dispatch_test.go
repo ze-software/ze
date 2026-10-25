@@ -237,7 +237,7 @@ func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
 
 	for _, args := range [][]string{{name, "--help"}, {name, "-h"}, {name, "help"}, {"help", name}} {
 		code := 0
-		page := captureStderr(t, func() { code = Dispatch("le", args) })
+		page := captureStdout(t, func() { code = Dispatch("le", args) })
 		if code != 0 {
 			t.Errorf("%v answered %d, want 0", args, code)
 		}
@@ -259,7 +259,7 @@ func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
 	RegisterShape(member, command.ShapeDoc)
 
 	code := 0
-	page := captureStderr(t, func() { code = Dispatch("le", []string{"help-namespace-probe", "--help"}) })
+	page := captureStdout(t, func() { code = Dispatch("le", []string{"help-namespace-probe", "--help"}) })
 	if code != 0 {
 		t.Errorf("namespace help answered %d, want 0", code)
 	}
@@ -360,7 +360,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 		{burner, "run", "--help", "|", "json"},
 	} {
 		code := 1
-		page := captureStderr(t, func() { code = Dispatch("le", args) })
+		page := captureStdout(t, func() { code = Dispatch("le", args) })
 		if code != 0 {
 			t.Errorf("%v answered %d, want 0", args, code)
 		}
@@ -393,7 +393,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	RegisterActions(area.Name(), area.Actions)
 
 	code := 1
-	page := captureStderr(t, func() {
+	page := captureStdout(t, func() {
 		code = Dispatch("le", []string{area.Name(), "run", "scope", "./internal", "--help"})
 	})
 	if code != 0 {
@@ -402,11 +402,13 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	if reached != 0 {
 		t.Errorf("the area's handler ran %d time(s) for a help word", reached)
 	}
-	want := "usage: le trailing-help-grammar-probe run scope <packages>" +
-		" [timeout <duration>] [| json | yaml | table]\n" +
-		"  run the probe over one scope\n"
-	if page != want {
-		t.Errorf("the dispatcher rendered\n%q\nwant the area's own grammar\n%q", page, want)
+	for _, want := range []string{
+		"\n  le trailing-help-grammar-probe run scope <packages> [timeout <duration>] [| json | yaml | table]\n",
+		"\n  run the probe over one scope\n",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the dispatcher rendered\n%q\nwhich lacks the area's own grammar line\n%q", page, want)
+		}
 	}
 }
 
@@ -456,7 +458,7 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 
 	// The same word outside a value slot is the question it has always been.
 	got = nil
-	page := captureStderr(t, func() {
+	page := captureStdout(t, func() {
 		code = Dispatch("le", []string{area.Name(), "replace", "file", "probe.txt", "--help"})
 	})
 	if code != 0 {
@@ -465,19 +467,19 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 	if got != nil {
 		t.Errorf("a help word at a keyword position ran the action with %#v", got)
 	}
-	if !strings.Contains(page, "usage: le trailing-help-value-probe replace") {
+	if !strings.Contains(page, "\n  le trailing-help-value-probe replace file <path>") {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
 
 // VALIDATES: the dispatcher draws the value-slot exemption at the SPELLING. The
 // bare word `help` in a declared keyword's value slot reaches the handler as
-// that keyword's value. `-h` and `--help` in the same slot render usage and
-// reach nothing.
+// that keyword's value. `-h` and `--help` in the same slot are options where a
+// value is expected: refused by name with 2, reaching nothing (D-P3-dash).
 // PREVENTS: `le verify status check path --help` running the check over a path
 // named `--help`. `ai/rules/cli.md` bans a flag from being grammar or a value.
-// A help option is the question in the trailing slot. Every other option is
-// refused (TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine).
+// A help option in the trailing value slot is refused like every other option
+// (TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine).
 func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 	var got leaction.Arguments
 	area := leaction.New("flag-spelling-value-probe", leaction.Action{
@@ -516,14 +518,14 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 		page := captureStderr(t, func() {
 			code = Dispatch("le", []string{area.Name(), "check", "path", flag})
 		})
-		if code != 0 {
-			t.Errorf("%s in a value slot answered %d, want 0", flag, code)
+		if code != 2 {
+			t.Errorf("%s in a value slot answered %d, want 2", flag, code)
 		}
 		if got != nil {
 			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
 		}
-		if !strings.Contains(page, "usage: le flag-spelling-value-probe check") {
-			t.Errorf("%s in a value slot printed %q", flag, page)
+		if !strings.Contains(page, `keyword "path" cannot take "`+flag+`"`) {
+			t.Errorf("%s in a value slot was refused with %q, which does not name it", flag, page)
 		}
 	}
 }
@@ -645,7 +647,7 @@ func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) 
 	// The help question is still the question there, however it is spelled.
 	for _, question := range []string{"--help", "-h", "-help", "help"} {
 		carried = nil
-		page := captureStderr(t, func() {
+		page := captureStdout(t, func() {
 			if code := Dispatch("le", []string{forwarder, "run", "command", "child", question}); code != 0 {
 				t.Errorf("a trailing %s answered %d, want 0", question, code)
 			}
@@ -693,7 +695,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 		}
 	}
 	rowCalls = 0
-	page := captureStderr(t, func() { Dispatch("le", []string{area.Name(), "--help"}) })
+	page := captureStdout(t, func() { Dispatch("le", []string{area.Name(), "--help"}) })
 	if rowCalls != 0 || !strings.Contains(page, "le "+area.Name()) {
 		t.Errorf("the area's own help word reached the program %d time(s) or printed no le page: %q", rowCalls, page)
 	}
@@ -710,7 +712,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 		ShortHelp: "an area that forwards every word",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
-	RegisterForwarding(forwarder)
+	RegisterForwarding(forwarder, "the probe program")
 
 	for _, args := range [][]string{{"--help"}, {"statistics", "--help"}, {"statistics", "-h"}} {
 		areaCalls, areaWords = 0, nil
@@ -724,5 +726,150 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 	}
 	if !Forwards(forwarder) || Forwards(area.Name()) {
 		t.Errorf("Forwards answered %v for the forwarding area and %v for the row area, want true and false", Forwards(forwarder), Forwards(area.Name()))
+	}
+
+	// The pass-through declaration is what help and completion print for the
+	// area: its page names the program, and its tree node offers no word below
+	// it and says why (leaction.List.PassesLine).
+	areaCalls = 0
+	page = captureStdout(t, func() { Dispatch("le", []string{"help", forwarder}) })
+	if areaCalls != 0 || !strings.Contains(page, "every word passes to the probe program") {
+		t.Errorf("`le help %s` reached the program %d time(s) or did not name where its words go: %q", forwarder, areaCalls, page)
+	}
+	node := nodeAt(Tree(), []string{forwarder})
+	if node == nil {
+		t.Fatalf("the derived tree has no node for %q", forwarder)
+	}
+	if len(node.Children) != 0 || !strings.Contains(node.Description, "the probe program") {
+		t.Errorf("the tree node of %q offers %d word(s) and says %q, want none and the program named", forwarder, len(node.Children), node.Description)
+	}
+}
+
+// registerPageProbe registers one area with an action table, under name, whose
+// handler counts the times it ran.
+func registerPageProbe(name string, ran *int) {
+	area := leaction.New(name, leaction.Action{
+		Verb: "create", Why: "create one thing. The rest of the reason.",
+		Parameters: []leaction.Parameter{
+			{Keyword: "subject", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "the one-line subject"},
+			{Keyword: "file", Value: "path", Requirement: leaction.Optional, Repeat: true, Kind: leaction.KindPath, Help: "a file to carry"},
+		},
+		AnswerArgs: func(leaction.Arguments) (any, int) { *ran++; return nil, 0 },
+	})
+	Register(area.Name(), GroupWorkflow, func(args []string) (any, int) {
+		*ran++
+		return area.Answer(args)
+	}, registry.Meta{ShortHelp: "a probe with a table", Mode: "offline", Section: registry.SectionTest})
+	RegisterActions(area.Name(), area.Actions)
+	RegisterShape(area.Name(), command.ShapeDoc)
+}
+
+// VALIDATES: AC-3 and AC-5 -- `le help` and `le --help` on a pipe write the
+// root page to stdout, nothing to stderr, exit 0, the same bytes a bare `le`
+// prints; an area's help word writes its page to stdout too.
+// PREVENTS: help on stderr, which a reader piping it into a pager loses.
+func TestHelpGoesToStdout(t *testing.T) {
+	ran := 0
+	registerPageProbe("help-stdout-probe", &ran)
+	bare := captureStdout(t, func() { Dispatch("le", nil) })
+	for _, word := range []string{"help", "--help"} {
+		code := 1
+		var stderr string
+		stdout := captureStdout(t, func() {
+			stderr = captureStderr(t, func() { code = Dispatch("le", []string{word}) })
+		})
+		if code != 0 || stderr != "" {
+			t.Errorf("le %s answered %d with stderr %q, want 0 and nothing", word, code, stderr)
+		}
+		if stdout != bare {
+			t.Errorf("le %s printed\n%s\nbut bare le prints\n%s", word, stdout, bare)
+		}
+	}
+	var stderr string
+	stdout := captureStdout(t, func() {
+		stderr = captureStderr(t, func() { Dispatch("le", []string{"help-stdout-probe", "--help"}) })
+	})
+	if stderr != "" || !strings.Contains(stdout, "le help-stdout-probe - a probe with a table") {
+		t.Errorf("an area's help went to stderr %q, stdout %q", stderr, stdout)
+	}
+	if ran != 0 {
+		t.Errorf("a help word ran the area %d time(s)", ran)
+	}
+}
+
+// VALIDATES: one renderer serves every page -- `le <area>` and
+// `le <area> --help` list the same action lines, an action page lists typed
+// keywords, and a table-less area's declared grammar is a usage line rather
+// than a nameless entry.
+// PREVENTS: the three page formats the area page, the help page and helpNode's
+// Subs split printed.
+func TestOneRendererForEveryPage(t *testing.T) {
+	ran := 0
+	registerPageProbe("one-renderer-probe", &ran)
+	listing := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-probe"}) })
+	help := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-probe", "--help"}) })
+	line := "\n  create           [checks] create one thing.\n"
+	for name, page := range map[string]string{"bare": listing, "help": help} {
+		if !strings.Contains(page, line) {
+			t.Errorf("the %s page lacks the action line %q:\n%s", name, line, page)
+		}
+	}
+	action := captureStdout(t, func() { Dispatch("le", []string{"help", "one-renderer-probe", "create"}) })
+	for _, want := range []string{
+		"\n  subject <text>   string, required: the one-line subject\n",
+		"\n  file <path>      path, optional, repeatable: a file to carry\n",
+		"create one thing. The rest of the reason.",
+	} {
+		if !strings.Contains(action, want) {
+			t.Errorf("the action page lacks %q:\n%s", want, action)
+		}
+	}
+
+	Register("one-renderer-tableless", GroupReport, func([]string) (any, int) { return nil, 0 }, registry.Meta{
+		ShortHelp: "a table-less probe", Mode: "offline", Section: registry.SectionTest, Subs: "spec <spec> | current",
+	})
+	page := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-tableless", "--help"}) })
+	for _, want := range []string{
+		"\n  le one-renderer-tableless spec <spec> [| json | yaml | table]\n",
+		"\n  le one-renderer-tableless current [| json | yaml | table]\n",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the table-less page lacks the usage line %q:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, "Actions:") {
+		t.Errorf("the table-less page still splits its grammar into nameless entries:\n%s", page)
+	}
+	if ran != 1 {
+		t.Errorf("the bare listing ran the area %d time(s), want once (the listing is its answer)", ran)
+	}
+}
+
+// VALIDATES: AC-8 -- `le help <area> <verb> <keyword>` prints the keyword's
+// kind, required and repeat facts and its help, exit 0; an unknown keyword is
+// refused naming the action's keywords with the usage code.
+// PREVENTS: a keyword question answered with the area page.
+func TestKeywordHelpPage(t *testing.T) {
+	ran := 0
+	registerPageProbe("keyword-help-probe", &ran)
+	code := 1
+	page := captureStdout(t, func() { code = Dispatch("le", []string{"help", "keyword-help-probe", "create", "subject"}) })
+	if code != 0 {
+		t.Errorf("a keyword page answered %d, want 0", code)
+	}
+	for _, want := range []string{"le keyword-help-probe create subject - the one-line subject", "kind: string", "required: yes", "repeat: no"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the keyword page lacks %q:\n%s", want, page)
+		}
+	}
+	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"help", "keyword-help-probe", "create", "nosuch"}) })
+	if code != 2 {
+		t.Errorf("an unknown keyword answered %d, want 2", code)
+	}
+	if !strings.Contains(stderr, "keyword-help-probe create") || !strings.Contains(stderr, "subject <text>") || !strings.Contains(stderr, "file <path>") {
+		t.Errorf("the refusal does not name create's keywords: %q", stderr)
+	}
+	if ran != 0 {
+		t.Errorf("a keyword question ran the area %d time(s)", ran)
 	}
 }

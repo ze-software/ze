@@ -5,6 +5,7 @@
 package leroot
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -28,23 +29,19 @@ func manifestProbeRoots(t *testing.T) []registry.RootCommand {
 	}
 }
 
-// rootHelpToday is what the root help printed for manifestProbeRoots before the
-// manifest existed, captured from helpfmt through the sections builder on
-// 2026-09-12. A reader's page is what this spec preserves, so the bytes are
-// pinned rather than described.
+// rootHelpToday is the root page for manifestProbeRoots on a pipe, laid out by
+// tree (plan/post-release/engineering/spec-le-cli-usability.md, AC-4). A
+// reader's page is what the spec fixes, so the bytes are pinned rather than
+// described.
 const rootHelpToday = "le - the Ze repository and development entry point\n" +
 	"\n" +
 	"Usage:\n" +
 	"  le <command> [options] [| json | yaml | table]\n" +
 	"\n" +
-	"Workflow (you type these while working):\n" +
-	"  manifest-probe-alpha the first probe\n" +
-	"\n" +
-	"Gates (judge the tree, answer a verdict):\n" +
-	"  manifest-probe-gate the second probe\n" +
-	"\n" +
-	"Ungrouped:\n" +
-	"  manifest-probe-loose a probe that named no group\n" +
+	"Commands:\n" +
+	"  manifest-probe-alpha [workflow] the first probe\n" +
+	"  manifest-probe-gate  [gate] the second probe\n" +
+	"  manifest-probe-loose [ungrouped] a probe that named no group\n" +
 	"\n"
 
 func TestManifestTextIsTheRootHelpAReaderSeesToday(t *testing.T) {
@@ -173,7 +170,7 @@ func TestManifestCarriesTypedParameters(t *testing.T) {
 			for field, value := range expected {
 				got, _ := json.Marshal(parameter[field])
 				wanted, _ := json.Marshal(value)
-				if string(got) != string(wanted) {
+				if !bytes.Equal(got, wanted) {
 					t.Errorf("%s.%s = %s, want %s", keyword, field, got, wanted)
 				}
 			}

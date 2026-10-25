@@ -475,16 +475,33 @@ func TestParseOptionsHoldsANumberToTheScriptsBounds(t *testing.T) {
 	}
 }
 
-// TestAProjectSlugBeginningWithAHyphenIsAValue verifies the Go replacement for
-// the script workaround. Absolute paths produce slugs that ALWAYS start with a
-// hyphen. Keyword grammar makes the value unambiguous.
-func TestAProjectSlugBeginningWithAHyphenIsAValue(t *testing.T) {
-	opts, code := ParseOptions([]string{"project", "-home-thomas-Code-ze"})
-	if code != 0 {
-		t.Fatalf("a slug beginning with a hyphen was refused with %d", code)
+// TestAProjectIsNamedByItsCheckoutPathAndASlugIsRefused verifies the Go
+// replacement for the script workaround. Absolute paths produce slugs that
+// ALWAYS start with a hyphen, and a value never begins with a dash
+// (ai/rules/cli.md), so `project` takes the checkout path and the slug is
+// derived from it.
+//
+// VALIDATES: a checkout path selects the slug SlugForPath derives from its
+// resolved absolute form, accepted with 0; a slug typed as the value is
+// refused as a dash-leading token with 2, the table parser's usage code.
+// PREVENTS: a slug value read as an option silently selecting no store, or a
+// path value stored verbatim as though it were a slug.
+func TestAProjectIsNamedByItsCheckoutPathAndASlugIsRefused(t *testing.T) {
+	checkout := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(checkout)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if opts.Project != "-home-thomas-Code-ze" {
-		t.Errorf("the slug reads %q", opts.Project)
+	opts, code := ParseOptions([]string{"project", checkout})
+	if code != 0 {
+		t.Fatalf("a checkout path was refused with %d", code)
+	}
+	if want := SlugForPath(resolved); opts.Project != want {
+		t.Errorf("the slug reads %q, want %q", opts.Project, want)
+	}
+
+	if _, code := ParseOptions([]string{"project", "-home-thomas-Code-ze"}); code != 2 {
+		t.Errorf("a slug typed as the value answered %d, want 2", code)
 	}
 }
 

@@ -18,8 +18,11 @@ func init() {
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
-		Subs:    "source, dest, symbol",
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what the move takes (answer.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions("go extract", Actions)
 
 	// The answer carries one row per declaration that moved, so the row
 	// operators act on those rather than being refused. Declaring it lets the

@@ -177,7 +177,7 @@ func TestRunnerShimsResolveLeToItself(t *testing.T) {
 	}
 
 	const harnessWords = "test shim-probe"
-	leroot.RegisterForwarding(harnessWords)
+	leroot.RegisterForwarding(harnessWords, "the probe harness")
 	rec := &Record{WorkDir: "/scratch/ze-work-1"}
 	if got := r.childWorkingDirectory("le", []string{"test", "shim-probe", "x"}, rec); got != rec.WorkDir {
 		t.Errorf("le %s ran in %q, want the work directory", harnessWords, got)

@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 
 	// The blank import triggers every plugin, YANG and RPC registration, so
 	// the inventory reports the product rather than a subset of it.
@@ -441,16 +442,40 @@ func countGoStats(dir string) (AreaStats, error) {
 	return stats, nil
 }
 
-// Answer is the `le repo inventory` command. It takes no arguments: the tree is the
-// checkout, and the rendering is the operator's to choose with a pipe operator
-// (ai/rules/cli.md).
-func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "error: inventory takes no arguments, got %q\n", args[0]) //nolint:errcheck // CLI output
-		fmt.Fprintln(os.Stderr, "usage: le repo inventory [| json | yaml | table]")      //nolint:errcheck // CLI output
-		return nil, 1
-	}
+// reportVerb is the one action: the inventory of the checkout.
+const reportVerb = "report"
 
+// actions is the whole command surface. The report takes no arguments: the
+// tree is the checkout, and the rendering is the operator's to choose with a
+// pipe operator (ai/rules/cli.md).
+var actions = leaction.New("repo inventory", leaction.Action{
+	Verb:   reportVerb,
+	Why:    "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
+	Answer: answerReport,
+})
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return actions.Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return actions.Subs() }
+
+// Answer is the `le repo inventory` command. A bare line runs the report, as
+// callers have always typed it (D-P3-bare in
+// plan/post-release/engineering/spec-le-cli-usability.md), so the verb is
+// supplied here and the table reads the rest of the line. A word the area
+// declares travels as it stands, so `le repo inventory report` is the same
+// action.
+func Answer(args []string) (any, int) {
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
+	}
+	return actions.Answer(append([]string{reportVerb}, args...))
+}
+
+// answerReport collects the inventory of the checkout.
+func answerReport() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // CLI output

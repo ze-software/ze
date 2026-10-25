@@ -57,14 +57,14 @@ Usage: show sockets [port <N>].";
 func TestUsageContractVerbRegistered(t *testing.T) {
 	found := false
 	for _, a := range actions {
-		if a.verb != "usage-contract" {
+		if a.Verb != "usage-contract" {
 			continue
 		}
 		found = true
-		if a.why == "" || a.answer == nil {
-			t.Fatalf("the usage action is incomplete: why=%q answer=%v", a.why, a.answer != nil)
+		if a.Why == "" || a.Answer == nil {
+			t.Fatalf("the usage action is incomplete: why=%q answer=%v", a.Why, a.Answer != nil)
 		}
-		if a.writes {
+		if a.Writes {
 			t.Error("the usage gate is marked as writing")
 		}
 	}

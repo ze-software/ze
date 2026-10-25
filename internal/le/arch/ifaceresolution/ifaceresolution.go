@@ -29,7 +29,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
-	leroot "github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/population"
 )
 
@@ -314,13 +313,20 @@ func scanFile(path, rel string) (Findings, error) {
 	return findings, scanner.Err()
 }
 
-// Answer is the `le arch iface-resolution` command. The tree is the checkout, so the
-// command takes no argument.
+// Answer is the `le arch iface-resolution` command. A bare line runs the gate,
+// as the `check` action does: hooks and verify stages call it bare, and a bare
+// listing would answer them 0 with nothing judged. Every other line is the
+// table's, which refuses a word naming no action with 2.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		return nil, leroot.RefuseArgument(name, args[0])
+	if len(args) == 0 {
+		return table.Answer([]string{checkVerb})
 	}
+	return table.Answer(args)
+}
 
+// answerCheck runs the gate over what it judges. The table has already refused
+// any word after the verb.
+func answerCheck() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "iface-resolution: %v\n", err) //nolint:errcheck // CLI output

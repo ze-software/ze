@@ -2,8 +2,7 @@
 // Overview: leroot.go -- the registration adapter that takes a group
 //
 // A group is what one le command is FOR, and le has five kinds of command
-// behind one name. Help renders the groups in the order declared here, so a
-// reader meets the commands a person types before the ones a gate runs.
+// behind one name. Help renders the group as each line's purpose tag.
 //
 // The group is declared at the registration site rather than derived, because
 // only the tool knows why it exists. registry.Meta.Section is not that field.
@@ -34,7 +33,10 @@
 
 package leroot
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // Group is the part of le's surface one command belongs to.
 type Group string
@@ -53,30 +55,9 @@ const (
 	GroupReport Group = "report"
 )
 
-// groupOrder is the order help renders the groups in, and the set Register
-// accepts. A group absent from this table is a programming error at init.
+// groupOrder is the set Register accepts, in the order the ladder above reads
+// them. A group absent from this table is a programming error at init.
 var groupOrder = []Group{GroupWorkflow, GroupGate, GroupGenerate, GroupSuite, GroupReport}
-
-// GroupTitle answers the heading a group prints under. The parenthetical says
-// who runs the command, which is the fact that picks the group. An unknown
-// group has no title, and that empty answer is what KnownGroup refuses.
-func GroupTitle(group Group) string {
-	//exhaustive:ignore // Title projection also tests membership: an unregistered group has no heading.
-	switch group {
-	case GroupWorkflow:
-		return "Workflow (you type these while working)"
-	case GroupGate:
-		return "Gates (judge the tree, answer a verdict)"
-	case GroupGenerate:
-		return "Generated artifacts (check one, or rewrite it)"
-	case GroupSuite:
-		return "Suites (tests, proofs and benchmarks, by name)"
-	case GroupReport:
-		return "Reports (read the tree, gate nothing)"
-	default:
-		return ""
-	}
-}
 
 // groups holds the declared group of every registered command. Registration
 // runs in init() and every read happens after it, but help runs on any
@@ -88,7 +69,7 @@ var groups struct {
 
 // KnownGroup reports whether a group is one le renders.
 func KnownGroup(group Group) bool {
-	return GroupTitle(group) != ""
+	return slices.Contains(groupOrder, group)
 }
 
 // Groups answers the render order.

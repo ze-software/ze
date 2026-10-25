@@ -18,8 +18,11 @@ func init() {
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
-		Subs:    "source, dir, channel, confirm, force, resume-from, date-stamp",
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what the update takes (answer.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions("weekly", Actions)
 
 	// The answer carries one row per post, so the row operators act on the
 	// posts rather than being refused. Declaring it lets the engine refuse what

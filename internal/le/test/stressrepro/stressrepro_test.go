@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -64,15 +65,19 @@ func TestActionComesBeforeSuiteAndBareCommandListsGrammar(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("bare command exited %d", code)
 	}
-	listing, ok := payload.(ActionList)
-	if !ok || len(listing.Actions) != 1 || listing.Actions[0].Action != "run" {
+	listing, ok := payload.(leaction.List)
+	if !ok || len(listing.Actions) != 1 || listing.Actions[0].Verb != "run" {
 		t.Fatalf("bare command = %#v", payload)
 	}
+	declared := map[string]bool{}
+	for _, parameter := range listing.Actions[0].Parameters {
+		declared[parameter.Keyword] = true
+	}
 	for _, keyword := range []string{
-		"test", "iterations", "parallel", "burners", "minutes", "timeout", "race", "any-failure", "tags",
+		"suite", "test", "iterations", "parallel", "burners", "minutes", "timeout", "race", "any-failure", "tags",
 	} {
-		if !strings.Contains(listing.Actions[0].Usage, keyword) {
-			t.Errorf("run grammar omits %q: %s", keyword, listing.Actions[0].Usage)
+		if !declared[keyword] {
+			t.Errorf("run grammar omits %q: %#v", keyword, listing.Actions[0].Parameters)
 		}
 	}
 	if _, code := Answer([]string{"bgp"}); code != 2 {

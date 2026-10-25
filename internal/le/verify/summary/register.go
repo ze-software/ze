@@ -11,7 +11,10 @@ func init() {
 		ShortHelp: "append one stage failure block to the verification failure index",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
-		Subs:      "append failures <failures-log> stage <stage> log <stage-log>",
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what `append` takes (answer.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(name, Actions)
 	leroot.RegisterShape(name, command.ShapeDoc)
 }

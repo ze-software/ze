@@ -15,11 +15,15 @@ import (
 const commandName = "spec state"
 
 func init() {
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	table := spec.StateArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.State, registry.Meta{
 		ShortHelp: "the path of a per-spec session state file",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
-		Subs:      "current | latest spec <stem>",
+		SubsFunc:  table.Subs,
 	})
+	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)
 }

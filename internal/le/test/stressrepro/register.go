@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
-// Overview: actions.go -- the closed action and argument grammar
+// Overview: actions.go -- the action table, the one parser of the run line
 //
 // One package, one register.go, one init(). Adding this tool to le also needs
 // one blank import in internal/le/register.go.
@@ -22,5 +22,6 @@ func init() {
 		Section:   registry.SectionTest,
 		SubsFunc:  Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)
 }

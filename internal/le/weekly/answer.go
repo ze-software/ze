@@ -5,8 +5,8 @@
 // the grammar, fills every seam a publisher has from this machine, and answers the
 // engine.
 //
-// The command has ONE action, publishing the weekly update, so every word after
-// it is a modifier and a keyword always comes before a value
+// The command has ONE action, publishing the weekly update, declared in the
+// action table below, so every word after it is a modifier and a keyword always comes before a value
 // (ai/rules/cli.md). A post file named `force.md` therefore cannot be read as
 // the force keyword.
 //
@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -48,21 +49,77 @@ const ArchiveDirRel = "website/changes/discord"
 // in the wrong public place.
 var channels = [...]string{"ze-news", "ze-test"}
 
-const usage = "usage: le weekly [source <path>] [dir <path>] [channel ze-news|ze-test] " +
-	"[confirm] [force] [resume-from <n>] [date-stamp|no-date-stamp]"
+// updateVerb is the one action: publishing the weekly update.
+const updateVerb = "update"
 
-// Answer is the `le weekly` command.
+// The keywords the update takes.
+const (
+	sourceKeyword      = "source"
+	dirKeyword         = "dir"
+	channelKeyword     = "channel"
+	confirmKeyword     = "confirm"
+	forceKeyword       = "force"
+	resumeFromKeyword  = "resume-from"
+	dateStampKeyword   = "date-stamp"
+	noDateStampKeyword = "no-date-stamp"
+)
+
+// actions is the whole command surface, declared once, so the listing, the
+// usage, the help pages and the parse read one grammar (internal/le/le/action).
+var actions = leaction.New("weekly", leaction.Action{
+	Verb: updateVerb,
+	Why: "publish the weekly update to Discord; without confirm it answers what would be published" +
+		" and posts nothing",
+	Writes: true,
+	Parameters: []leaction.Parameter{
+		{Keyword: sourceKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional,
+			Help: "the one post to publish"},
+		{Keyword: dirKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional,
+			Help: "the posts directory a sweep reads; " + PostsDirRel + " when neither source nor dir is given"},
+		{Keyword: channelKeyword, Kind: leaction.KindEnum, Value: "channel", Values: channels[:],
+			Requirement: leaction.Optional, Help: "the channel to post to; ze-test is the rehearsal channel"},
+		{Keyword: confirmKeyword, Kind: leaction.KindSwitch, Help: "publish, rather than answer the plan"},
+		{Keyword: forceKeyword, Kind: leaction.KindSwitch,
+			Help: "publish the one post named by source even when the archive records it"},
+		{Keyword: resumeFromKeyword, Kind: leaction.KindUint, Value: "n", Requirement: leaction.Optional,
+			Help: "the 1-based message of the post named by source to resume from"},
+		{Keyword: dateStampKeyword, Kind: leaction.KindSwitch, Help: "stamp the post with its date"},
+		{Keyword: noDateStampKeyword, Kind: leaction.KindSwitch, Help: "post without the date stamp"},
+	},
+	AnswerArgs: answerUpdate,
+})
+
+// Actions answers the command surface as data, so the listing, the Subs line
+// help renders, and the test that checks them all read one table.
+func Actions() leaction.List { return actions.Actions() }
+
+// Subs is the one-line hint help renders under the command.
+func Subs() string { return actions.Subs() }
+
+// Answer is the `le weekly` command. A line that does not open with the verb
+// is the update, as callers have always typed it (D-P3-bare in
+// spec-le-cli-usability), so the verb is supplied here and the table reads the
+// rest of the line: bare `le weekly` still publishes nothing and answers the
+// plan. A refusal the table's parser makes answers 2 (D-P3-stray); one the
+// body makes keeps the 1 it answered before.
 func Answer(args []string) (any, int) {
+	if len(args) > 0 && actions.Holds(args[0]) {
+		return actions.Answer(args)
+	}
+	return actions.Answer(append([]string{updateVerb}, args...))
+}
+
+// answerUpdate publishes, or plans, the update one parsed line names.
+func answerUpdate(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // CLI output
 		return nil, 1
 	}
 
-	opts, err := parseOptions(args, filepath.Join(root, PostsDirRel))
+	opts, err := optionsOf(args, filepath.Join(root, PostsDirRel))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // CLI output
-		fmt.Fprintln(os.Stderr, usage)             //nolint:errcheck // CLI output
 		return nil, 1
 	}
 
@@ -96,110 +153,51 @@ func today() time.Time {
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// parseOptions reads the operator's words.
-//
-// defaultDir is the posts directory a sweep reads when the operator names none.
-// It is a parameter rather than a lookup, so the grammar is driven by a test
-// with no checkout standing in for one.
-//
-// The bound is the argument count: each keyword consumes at most one word
-// beyond itself.
-func parseOptions(args []string, defaultDir string) (Options, error) {
-	opts := Options{Channel: channels[0]}
-	stampSeen := false
-
-	for index := 0; index < len(args); index++ {
-		word := args[index]
-		switch word {
-		case "confirm":
-			opts.Confirm = true
-			continue
-		case "force":
-			opts.Force = true
-			continue
-		case "date-stamp", "no-date-stamp":
-			if stampSeen {
-				return opts, errors.New("date-stamp and no-date-stamp: say one of them")
-			}
-			stampSeen = true
-			opts.Stamp = StampOn
-			if word == "no-date-stamp" {
-				opts.Stamp = StampOff
-			}
-			continue
+// optionsOf turns the parsed keywords into the options, and refuses a value
+// the table's parser does not judge: a channel outside the closed set, a
+// resume point that is not a 1-based number, and two keywords that contradict
+// each other.
+func optionsOf(args leaction.Arguments, defaultDir string) (Options, error) {
+	opts := Options{
+		Channel: channels[0],
+		Source:  args.One(sourceKeyword),
+		Dir:     args.One(dirKeyword),
+		Confirm: args.Has(confirmKeyword),
+		Force:   args.Has(forceKeyword),
+	}
+	if args.Has(dateStampKeyword) && args.Has(noDateStampKeyword) {
+		return opts, errors.New("date-stamp and no-date-stamp: say one of them")
+	}
+	if args.Has(dateStampKeyword) {
+		opts.Stamp = StampOn
+	}
+	if args.Has(noDateStampKeyword) {
+		opts.Stamp = StampOff
+	}
+	if args.Has(channelKeyword) {
+		value := args.One(channelKeyword)
+		if !known(value) {
+			var tb textbuf.Buffer
+			return opts, errors.New(tb.Str("unknown channel ").Quoted(value).
+				Str("; say ze-news or ze-test").String())
 		}
-
-		// The keyword is checked BEFORE its value is demanded. Otherwise a
-		// bare path -- the mistake this grammar exists to catch -- is reported
-		// as a keyword missing its value, which tells the operator nothing
-		// about what is actually wrong.
-		if !takesValue(word) {
-			return opts, unknownKeyword(word)
-		}
-		value, err := valueFor(args, index)
+		opts.Channel = value
+	}
+	if args.Has(resumeFromKeyword) {
+		value := args.One(resumeFromKeyword)
+		number, err := strconv.Atoi(value)
 		if err != nil {
-			return opts, err
+			var tb textbuf.Buffer
+			return opts, errors.New(tb.Str("resume-from takes a number, got ").Quoted(value).String())
 		}
-		index++
-
-		if err := opts.set(word, value); err != nil {
-			return opts, err
+		if number < 1 {
+			return opts, errors.New("resume-from takes a 1-based message number")
 		}
+		opts.ResumeFrom = number
 	}
 
 	err := opts.settle(defaultDir)
 	return opts, err
-}
-
-// set reads one keyword and its value.
-func (o *Options) set(keyword, value string) error {
-	switch keyword {
-	case "source":
-		o.Source = value
-	case "dir":
-		o.Dir = value
-	case "channel":
-		if !known(value) {
-			var tb textbuf.Buffer
-			return errors.New(tb.Str("unknown channel ").Quoted(value).
-				Str("; say ze-news or ze-test").String())
-		}
-		o.Channel = value
-	case "resume-from":
-		number, err := strconv.Atoi(value)
-		if err != nil {
-			var tb textbuf.Buffer
-			return errors.New(tb.Str("resume-from takes a number, got ").Quoted(value).String())
-		}
-		if number < 1 {
-			return errors.New("resume-from takes a 1-based message number")
-		}
-		o.ResumeFrom = number
-	default:
-		return unknownKeyword(keyword)
-	}
-	return nil
-}
-
-// valued are the keywords that take the word after them. A word outside this
-// list and outside the bare keywords above is not part of the grammar.
-var valued = [...]string{"source", "dir", "channel", "resume-from"}
-
-// takesValue reports whether a keyword is followed by its value.
-func takesValue(word string) bool {
-	for _, keyword := range valued {
-		if word == keyword {
-			return true
-		}
-	}
-	return false
-}
-
-// unknownKeyword says the word is not in the grammar, and where a path goes.
-func unknownKeyword(word string) error {
-	var tb textbuf.Buffer
-	return errors.New(tb.Str("unknown keyword ").Quoted(word).
-		Str("; a path goes after source or dir").String())
 }
 
 // settle decides what the words mean together, and fills the default a sweep
@@ -225,16 +223,6 @@ func (o *Options) settle(defaultDir string) error {
 		o.Dir = defaultDir
 	}
 	return nil
-}
-
-// valueFor answers the word after a keyword, or says which keyword is missing
-// one.
-func valueFor(args []string, index int) (string, error) {
-	if index+1 >= len(args) {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str(args[index]).Str(" takes a value").String())
-	}
-	return args[index+1], nil
 }
 
 // known reports whether a name is one of the channels this tool posts to.

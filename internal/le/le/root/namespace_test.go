@@ -99,19 +99,19 @@ func TestBareNamespaceTokenListsItsMembers(t *testing.T) {
 	// A bare token asks what the namespace holds, so it is answered with the
 	// members and the summary each registered, and exit 0 (AC-31).
 	code := 0
-	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare"}) })
+	page := captureStdout(t, func() { code = Dispatch("le", []string{"probe-bare"}) })
 	if code != 0 {
 		t.Errorf("a bare namespace token answered %d, want 0", code)
 	}
 	for _, want := range []string{"alpha", "beta", "a namespace probe"} {
-		if !strings.Contains(stderr, want) {
-			t.Errorf("the listing does not name %q: %s", want, stderr)
+		if !strings.Contains(page, want) {
+			t.Errorf("the listing does not name %q: %s", want, page)
 		}
 	}
 
 	// A word after the token that names no member is a mistake, not a
 	// question, so it is still refused with the members it could have been.
-	stderr = captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare", "gamma"}) })
+	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare", "gamma"}) })
 	if code != 1 {
 		t.Errorf("a namespace token with an unknown member answered %d, want 1", code)
 	}

@@ -216,11 +216,12 @@ func TestTextCarriesEveryFindingAndTheVerdict(t *testing.T) {
 }
 
 // VALIDATES: the command takes no argument and says so.
-// PREVENTS: a path positional creeping in.
+// PREVENTS: a path positional creeping in. The word names no action, so the
+// table refuses it with the usage code 2 (spec-le-cli-usability D-P3-stray).
 func TestAnswerRefusesAnArgument(t *testing.T) {
 	payload, code := Answer([]string{"cmd/ze"})
-	if code != 1 || payload != nil {
-		t.Errorf("a stray argument answers (%v, %d), want (nil, 1)", payload, code)
+	if code != 2 || payload != nil {
+		t.Errorf("a stray argument answers (%v, %d), want (nil, 2)", payload, code)
 	}
 }
 

@@ -194,7 +194,7 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 func TestAnswerRefusesAValueWithNoKeyword(t *testing.T) {
 	payload, code := Answer([]string{"3"})
 
-	if payload != nil || code != 1 {
+	if payload != nil || code != 2 {
 		t.Fatalf("a bare value was accepted: payload=%v code=%d", payload, code)
 	}
 }
@@ -202,7 +202,7 @@ func TestAnswerRefusesAValueWithNoKeyword(t *testing.T) {
 func TestAnswerRefusesAKeywordWithNoValue(t *testing.T) {
 	payload, code := Answer([]string{"max-areas"})
 
-	if payload != nil || code != 1 {
+	if payload != nil || code != 2 {
 		t.Fatalf("a keyword with no value was accepted: payload=%v code=%d", payload, code)
 	}
 }
@@ -218,7 +218,7 @@ func TestAnswerRefusesACeilingThatIsNotANumber(t *testing.T) {
 func TestAnswerRefusesANegativeCeiling(t *testing.T) {
 	payload, code := Answer([]string{"max-areas", "-1"})
 
-	if payload != nil || code != 1 {
+	if payload != nil || code != 2 {
 		t.Fatalf("a negative ceiling was accepted: payload=%v code=%d", payload, code)
 	}
 }

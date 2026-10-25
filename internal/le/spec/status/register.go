@@ -12,18 +12,23 @@ import (
 )
 
 func init() {
-	leroot.Register("spec status", leroot.GroupReport, Answer, registry.Meta{
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	actions := table()
+	leroot.Register(name, leroot.GroupReport, Answer, registry.Meta{
 		ShortHelp: "the spec inventory: release bucket, status and stale-skeleton flag for every spec",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
-		Section: registry.SectionTest,
+		Section:  registry.SectionTest,
+		SubsFunc: actions.Subs,
 	})
+	leroot.RegisterActions(name, actions.Actions)
 
 	// The answer IS the rows, so the row operators act on the specs. Declaring
 	// the shape lets the engine refuse an operator the answer cannot support
 	// before the tool reads the tree (ai/rules/cli.md).
-	leroot.RegisterShape("spec status", command.ShapeMap)
+	leroot.RegisterShape(name, command.ShapeMap)
 
 	// NO parity.Claim. The retired spec-status Make targets were not part of the
 	// gate census, so this native command must not claim a row the census did not

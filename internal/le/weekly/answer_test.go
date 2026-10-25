@@ -71,7 +71,7 @@ func TestParseOptionsReadsTheWholeGrammar(t *testing.T) {
 	opts, err := parseOptions([]string{
 		"source", "/posts/2026-08-10.md", "channel", "ze-test",
 		"confirm", "resume-from", "3", "force", "date-stamp",
-	}, "/default/dir")
+	})
 	if err != nil {
 		t.Fatalf("parseOptions: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestParseOptionsReadsTheWholeGrammar(t *testing.T) {
 }
 
 func TestTheBareCommandIsASweepThatPublishesNothing(t *testing.T) {
-	opts, err := parseOptions(nil, "/default/dir")
+	opts, err := parseOptions(nil)
 	if err != nil {
 		t.Fatalf("parseOptions: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestTheBareCommandIsASweepThatPublishesNothing(t *testing.T) {
 	if opts.Confirm {
 		t.Error("the bare command publishes; a mistyped invocation would post")
 	}
-	if opts.Dir != "/default/dir" {
+	if opts.Dir != testPostsDir {
 		t.Errorf("dir = %q, want the default", opts.Dir)
 	}
 	if opts.Channel != "ze-news" {
@@ -122,7 +122,7 @@ func TestParseOptionsRefusesWhatTheGrammarDoesNotAllow(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a value with no keyword to type it", []string{"/posts/2026-08-10.md"}, "unknown keyword"},
+		{"a value with no keyword to type it", []string{"/posts/2026-08-10.md"}, "takes no argument keyword"},
 		{"a keyword nobody registered", []string{"publish"}, "publish"},
 		{"a keyword with no value", []string{"source"}, "source"},
 		{"a channel that is not a channel", []string{"channel", "general"}, "general"},
@@ -135,7 +135,7 @@ func TestParseOptionsRefusesWhatTheGrammarDoesNotAllow(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parseOptions(tc.args, "/default/dir")
+			_, err := parseOptions(tc.args)
 
 			if err == nil {
 				t.Fatalf("parseOptions(%q) was accepted", tc.args)
@@ -150,21 +150,23 @@ func TestParseOptionsRefusesWhatTheGrammarDoesNotAllow(t *testing.T) {
 func TestResumeFromIsOneBasedAtItsBoundary(t *testing.T) {
 	// The messages are numbered from 1, so 0 is the off-by-one that would
 	// resend a message already in the channel. 1 is the first valid value and
-	// means the beginning.
+	// means the beginning. -1 never reaches the bound: the table refuses a
+	// dash-leading value by name before the body reads it (the CLI rule).
 	cases := []struct {
 		value  string
 		valid  bool
 		wanted int
+		says   string
 	}{
-		{"-1", false, 0},
-		{"0", false, 0},
-		{"1", true, 1},
-		{"2", true, 2},
+		{"-1", false, 0, "never begins with a dash"},
+		{"0", false, 0, "1-based"},
+		{"1", true, 1, ""},
+		{"2", true, 2, ""},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.value, func(t *testing.T) {
-			opts, err := parseOptions([]string{"source", "/a.md", "resume-from", tc.value}, "/default/dir")
+			opts, err := parseOptions([]string{"source", "/a.md", "resume-from", tc.value})
 
 			if tc.valid != (err == nil) {
 				t.Fatalf("parseOptions(resume-from %s) err = %v, want valid = %v", tc.value, err, tc.valid)
@@ -172,8 +174,8 @@ func TestResumeFromIsOneBasedAtItsBoundary(t *testing.T) {
 			if tc.valid && opts.ResumeFrom != tc.wanted {
 				t.Errorf("resume-from = %d, want %d", opts.ResumeFrom, tc.wanted)
 			}
-			if !tc.valid && !strings.Contains(err.Error(), "1-based") {
-				t.Errorf("the refusal does not say the numbering starts at one: %v", err)
+			if !tc.valid && !strings.Contains(err.Error(), tc.says) {
+				t.Errorf("the refusal of %s does not say %q: %v", tc.value, tc.says, err)
 			}
 		})
 	}
@@ -185,14 +187,14 @@ func TestEveryWordOfTheGrammarIsAClosedKeyword(t *testing.T) {
 	// the keyword before it.
 	bare := []string{"confirm", "force", "date-stamp", "no-date-stamp"}
 	for _, word := range bare {
-		if _, err := parseOptions([]string{word, "source", "/a.md"}, "/default/dir"); err != nil {
+		if _, err := parseOptions([]string{word, "source", "/a.md"}); err != nil {
 			t.Errorf("%q is not accepted as a keyword: %v", word, err)
 		}
 	}
 
 	valued := []string{"source", "dir", "channel", "resume-from"}
 	for _, word := range valued {
-		if _, err := parseOptions([]string{word}, "/default/dir"); err == nil {
+		if _, err := parseOptions([]string{word}); err == nil {
 			t.Errorf("%q was accepted with no value, so a value could sit in an untyped slot", word)
 		}
 	}
@@ -255,4 +257,18 @@ func TestTextRendersAPlanAsTheMessagesAndAPublicationAsOneLine(t *testing.T) {
 	if !strings.Contains(got, "/archive/2026-08-10-weekly.md") {
 		t.Errorf("a finished post does not name its archive:\n%s", got)
 	}
+}
+
+// testPostsDir is the posts directory a sweep reads when the operator names
+// none, fixed so the grammar is driven with no checkout standing in for one.
+const testPostsDir = "/default/dir"
+
+// parseOptions reads the operator's words through the table and turns them
+// into the options, as answerUpdate does, and publishes nothing.
+func parseOptions(args []string) (Options, error) {
+	parsed, err := actions.Parse(updateVerb, args)
+	if err != nil {
+		return Options{}, err
+	}
+	return optionsOf(parsed, testPostsDir)
 }

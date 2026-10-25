@@ -149,7 +149,7 @@ jobs:
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
       - name: Materialize the native runtime kernel
         run: |
-          ./le build host-driver
+          ./le build host-driver run
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
@@ -201,7 +201,7 @@ jobs:
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
       - name: Materialize the native runtime kernel
         run: |
-          ./le build host-driver
+          ./le build host-driver run
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
@@ -262,7 +262,7 @@ jobs:
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
       - name: Materialize the native runtime kernel
         run: |
-          ./le build host-driver
+          ./le build host-driver run
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
@@ -323,7 +323,7 @@ jobs:
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
       - name: Materialize the native runtime kernel
         run: |
-          ./le build host-driver
+          ./le build host-driver run
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
@@ -376,7 +376,7 @@ jobs:
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
       - name: Materialize the native runtime kernel
         run: |
-          ./le build host-driver
+          ./le build host-driver run
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'

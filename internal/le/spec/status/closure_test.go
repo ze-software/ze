@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestClosureTurnsRedOnlyForCommittedExactEvidence(t *testing.T) {
@@ -121,11 +122,11 @@ func TestSpecStatusCommandMapsAnAbsentClosureCheck(t *testing.T) {
 	// closure check and preserves its clean answer for an already-removed spec.
 	// PREVENTS: the Stop hook receiving a usage failure after native cutover.
 	root := t.TempDir()
-	action, spec := parseClosureAction([]string{"closure", "list"})
+	action, spec := closureActionOf(mustParseClosure(t, "list"))
 	if action != closureList || spec != "" {
 		t.Fatalf("closure list mapping = (%d, %q)", action, spec)
 	}
-	action, spec = parseClosureAction([]string{"closure", "check", "spec", "removed"})
+	action, spec = closureActionOf(mustParseClosure(t, "check", "spec", "removed"))
 	if action != closureCheck || spec != "removed" {
 		t.Fatalf("closure check mapping = (%d, %q)", action, spec)
 	}
@@ -165,4 +166,15 @@ func setClosureAnswerRoot(t *testing.T, root string) {
 		}
 		env.ResetCache()
 	})
+}
+
+// mustParseClosure reads the words after `le spec status closure` through the
+// table, as the action does before it runs.
+func mustParseClosure(t *testing.T, words ...string) leaction.Arguments {
+	t.Helper()
+	parsed, err := table().Parse(verbClosure, words)
+	if err != nil {
+		t.Fatalf("spec status closure %v is refused: %v", words, err)
+	}
+	return parsed
 }

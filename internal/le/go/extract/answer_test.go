@@ -63,9 +63,9 @@ func TestParseRequestRefusesWhatItCannotRead(t *testing.T) {
 		says string
 	}{
 		{"no words at all", nil, "source"},
-		{"a bare path", []string{"a.go"}, "needs a value"},
-		{"an unknown keyword", []string{"file", "a.go"}, "unknown keyword"},
-		{"a keyword with no value", []string{"source", "a.go", "dest"}, "needs a value"},
+		{"a bare path", []string{"a.go"}, "takes no argument keyword"},
+		{"an unknown keyword", []string{"file", "a.go"}, "takes no argument keyword"},
+		{"a keyword with no value", []string{"source", "a.go", "dest"}, "requires <file.go>"},
 		{"no source", []string{"dest", "b.go", "symbol", "Beta"}, "source"},
 		{"no dest", []string{"source", "a.go", "symbol", "Beta"}, "dest"},
 		{"no symbol", []string{"source", "a.go", "dest", "b.go"}, "symbol"},

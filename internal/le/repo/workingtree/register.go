@@ -18,10 +18,11 @@ func init() {
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
-		// The one keyword this command takes, so help names it where a
-		// developer reads what to type.
-		Subs: "max-areas <n>",
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what the report takes (workingtree.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(name, Actions)
 
 	// One key holds rows and the others are the counts and the ceiling the
 	// verdict is read against, so the row operators act on the areas.

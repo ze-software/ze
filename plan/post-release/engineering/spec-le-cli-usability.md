@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Developer tooling only: `le` is never shipped (`TestNormalZeLinksNoInternalLe`), so its usability is release-independent engineering work |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 2/7 |
 | Handoff | - |
 | Updated | 2026-10-25 |
 
@@ -382,6 +382,18 @@ exit code.
 - → Decision D-P1-kinds (Phase 1): the set gains `list` (comma-separated items, closed when `Values` are declared: `suites`, `scenarios`, `dut`, `files`) and `words` (a whole le command line). `words` replaces the `leaction.ValueLeWords` Value marker, which is deleted: `NestedLeKeyword` reads `Kind == KindWords`, so the nesting fact is declared once (`ai/rules/no-layering.md`). Enum and closed-list usage renders the members (`<amd64|arm64>`), so no usage line lost the values its old hand-written Value spelled
 - → Decision D-P1-tree (Phase 1): R-10 is proven twice: `TestEveryCompletedWordIsAcceptedByDispatch` (`internal/le/le/root/tree_test.go`) over a probe area, and `TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea` (`internal/le/actions_test.go`) over every linked area, because only `internal/le` links them and a root-package test cannot import it. `command.TreeCompleter` offers an `ArgEnum`'s values at the action node, before any keyword; the Phase 6 callback must offer them only after their keyword. The grammar code moved from `leaction.go` (past 1000 lines) to `internal/le/le/action/parameter.go`
 - → Decision D-groups: the purpose tag set is one declared table in `group.go` (name, tag, one-line meaning), replacing the `GroupTitle` switch; `tool` is added for test-driving helpers. Every area still declares its group at `leroot.Register`, and `internal/le/group_test.go` keeps its meaning
+- → Decision D-P2-required (Phase 2): the parser does NOT refuse a missing Required keyword in Phase 2. 37 Required parameters in 17 areas are answered by their own bodies with their own codes, and Phase 2 keeps exit codes unchanged; that refusal lands with the kind checks in Phase 5. Phase 2 prints the one-action usage on every parse refusal, and `spec claim` refuses missing words in its handler through `leroot.RefuseUsage`. The Phase 2 TDD row is delivered as `TestAParseRefusalOnAPipePrintsOneActionUsage` and `TestClaimWithoutASpecRefusesWithClaimsUsageOnly`; `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` is owed by Phase 5
+- → Decision D-P2-program (Phase 2): the running program's name is set once by `leroot.Dispatch` through `leaction.SetProgram`, default `le`, and every renderer and refusal reads `leaction.Program()`, so `ze le` pages name `ze le`
+- → Decision D-P2-tags (Phase 2): a listing's purpose tag is the area's Group string in brackets, and `[ungrouped]` for an area that declares none
+- → Decision D-P3-stray (Phase 3): a stray or unknown word given to a migrated area exits 2 from the moment it reaches the table, which is D-Q8's usage code brought forward from Phase 5. Reason: the table's dispatch (`TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`) answers 2 for such a word in every tabled area, and a per-action usage-code override would be a second refusal path kept only to preserve a code D-Q8 retires. The three `TestAnswerRefusesAnArgument` tests (build/gosum, arch/ifaceresolution, cli/ownership) change their expected code from 1 to 2 and keep their assertion that the word is refused; every other refusal of a migrated area keeps its code until Phase 5 (AC-17 amended). Widened after batch B: every refusal the table's PARSER makes (stray or unknown word, missing value, repeated keyword, a dash-leading token in a value slot) exits 2 in a migrated area, and a test asserting 1 for one of those changes its expected code to 2 with its refusal assertion kept; a refusal the action's BODY makes keeps its code until Phase 5
+- → Decision D-P3-dash (Phase 3): a dash-leading token in a value slot (`le test stress-repro run suite -help`) is refused by name with exit 2 and starts nothing, even in the trailing position. Reason: `ai/rules/cli.md` says a dash-leading token where a value is expected MUST be refused by name, and `-help` is the cluster `-h -e -l -p`, not `--help`; the trailing-position rule only forbids starting work, which a refusal satisfies. The table parser is fixed to match, and `TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun` stays as it is
+- → Decision D-P3-slug (Phase 3): `le ai tokens project` takes a checkout path, and the transcript-store slug is derived from it with `SlugForPath`; a slug typed as the value is refused as a dash-leading token. Reason: `ai/rules/cli.md` says a value MUST NOT begin with a dash, and every slug begins with one, so the keyword's old meaning cannot be expressed in the grammar; a per-slot exemption would make the dash rule depend on the keyword. `TestAProjectSlugBeginningWithAHyphenIsAValue` asserts the forbidden form, so it is replaced by a test that a path selects its project and a slug value is refused; the replacement needs the owner's weakening approval before it is committed, recorded with the Phase 2 one
+- → Decision D-P3-refuseargument (Phase 3): once the last area migrates, `leroot.RefuseArgument` has no caller and is deleted (`ai/rules/no-layering.md`). AC-30 then holds by construction: the table's parser is the only refusal path for a stray word. `TestRefuseArgumentAndRefuseValueAgree` is replaced in Phase 5 by `TestEveryStrayWordRefusalComesFromTheTable`, which fails if any area answers a stray word outside the table
+- → Decision D-P3-bare (Phase 3): a single-gate area that runs its gate when bare (ai digest, arch iface-resolution, build gosum, cli grammar, cli ownership, config claims, doc consistency and the like) keeps running it when bare, and gains a `check` verb that runs the same gate, following the `doc wiring` precedent. Reason: hooks and verify stages call these bare, and a bare listing would silently turn every such call into exit 0, which `ai/rules/principles.md` forbids. AC-14 is amended to match. A test that asked a tabled area for its listing by calling it bare now asks with `help` (workflowcheck `actionExists`, which otherwise ran `build host-driver`), and the CI workflows name `build host-driver run` rather than the bare area
+- → Decision D-P23-one-commit (Phases 2 and 3): Phase 2 (help pages) and Phase 3 (every area on the action table, batches A to E) land as one commit. Reason: five agents did them in parallel in the shared checkout and their hunks share files (`internal/le/le/action`, `internal/le/le/root`, `internal/le/actions_test.go`, `docs/architecture/core-design.md`, `docs/contributing/running-commands.md`), so no split of the working tree leaves either half compiling and green on its own
+- → Decision D-order-6-before-4 (while the Phase 2+3 commit waits on owner weakening approvals): Phase 6 (completion and `le help ai`) and Phase 7 (menu and prompting) are built before Phase 4 (renames) and Phase 5 (exit codes). Reason: Phases 6 and 7 add new code derived from the tree and change no spelling, while Phase 4 rewrites the rules, skills and docs every session in this shared checkout reads; uncommitted renames there would tell other sessions to type spellings the binary they run does not accept. Phases 4 and 5 run once 2+3 is committed, and Phase 6's completion and help ai pick the renames up through the derived tree with no extra work
+- → Decision D-P3-tablecheck (Phase 3, AC-16): the migration list `areasWithoutAnActionTable` and its exemption branch are deleted, and the first `leroot.Dispatch` or `leroot.Tree` of a process runs `requireEveryAreaHasATable` once, which panics naming the first area with no action table and no pass-through declaration, and the `leroot.RegisterActions` call that fixes it. Reason: `leroot.Register` cannot make the check itself, because an area's init may call `RegisterActions` after `Register` and reordering 164 inits to put the table first is churn with no behaviour; by the first Dispatch every init has run. The test is `TestAnAreaWithoutATableStopsLeNamingIt` (`internal/le/le/root/leroot_test.go`), in place of the planned `TestRegisterWithoutActionsPanics`. A test fixture area that registers without a table now registers its pass-through declaration (verify/dispatch `registerProbe`)
+- → Decision D-P23-push-argv (Phase 3, commit): `commit push "<owner authorisation>"` declares its words as a positional of kind `argv`, the action's only parameter, read as typed (a leading dash included). The positional rule (`checkPositional`: never kind string) and `TestPositionalParameterRules` are unchanged from HEAD. `New` refuses a positional argv beside any other parameter, because every word after the verb is its own. The body still takes exactly one word, so `push a b` is refused as before and the script output is unchanged. The dispatch probe (`probesFor`) sends a positional argv no probe, since every probe line would run the action (a real push preparation); `TestCommitRefusesWhatItsTableRefuses` asserts the bare and two-word refusals
 
 ### Data flow impact
 
@@ -431,10 +443,10 @@ exit code.
 | AC-11 | a `Why` of several sentences | the listing shows its first sentence; the action page shows the whole text |
 | AC-12 | `ze le spec claim` on a pipe | usage names `ze le spec claim`, never `le spec claim` |
 | AC-13 | `le verify --help` | the area description names the namespace's job, not `verify worktree`'s |
-| AC-14 | each of the 30 formerly hand-rolled areas, bare (carried one-table AC-2) | answers its action listing in the shape every tabled area answers |
+| AC-14 | each of the 30 formerly hand-rolled areas, bare (carried one-table AC-2) | answers its action listing in the shape every tabled area answers; a single-gate area runs its gate when bare and lists the same actions under `help` (D-P3-bare) |
 | AC-15 | `le '|' json` (carried one-table AC-3) | names every registered area's actions, none exempt; each forwarding area carries its declared grammar or `passes-words: true` |
-| AC-16 | `internal/le/actions_test.go` (carried one-table AC-4) | `areasWithoutAnActionTable` and its exemption branch are gone; `leroot.Register` of an area with no action table panics naming the area |
-| AC-17 | every refusal case of every migrated area, through Phase 3 (carried one-table AC-5) | the same exit code as before its migration |
+| AC-16 | `internal/le/actions_test.go` (carried one-table AC-4) | `areasWithoutAnActionTable` and its exemption branch are gone; le's first `Dispatch` or `Tree` panics naming any area with no action table and the call that fixes it (D-P3-tablecheck) |
+| AC-17 | every refusal case of every migrated area, through Phase 3 (carried one-table AC-5) | the same exit code as before its migration, except a refusal the table's parser makes, which exits 2 (D-P3-stray, D-P3-dash) |
 | AC-18 | `le test stress-repro run --help` (carried one-table wiring) | renders the run grammar from the registered table |
 | AC-19 | `le help ai commands` for a forwarding area | marks it as forwarding words to its program, with its declared grammar when it has one |
 | AC-20 | `le spec claim <file>` and `le spec claim spec <file>` | the first claims; the second is refused naming `le spec claim <file>`; `le cli grammar` passes |
@@ -447,7 +459,7 @@ exit code.
 | AC-27 | `le ai help`, `le ai --help`, bare `le ai` | the `ai` namespace page; every `le ai hooks <name>` spelling in `.claude/settings.json` still dispatches |
 | AC-28 | a usage error in any area, an unknown command, a namespace non-member (carried one-verb AC-4) | exit 2 |
 | AC-29 | `le rfc check` with its corpus unreadable, and with a real violation (carried one-verb AC-5) | 3 and 1 respectively |
-| AC-30 | the same mistake through `leroot.RefuseArgument` and `leaction.refuseValue` (carried one-verb AC-7) | both exit 2 |
+| AC-30 | the same mistake through `leroot.RefuseArgument` and `leaction.refuseValue` (carried one-verb AC-7) | both exit 2; after D-P3-refuseargument `RefuseArgument` is gone, and every stray-word refusal of every area comes from the table with exit 2 |
 | AC-31 | `le commit review-check` not clean | exit 1 |
 | AC-32 | `le ai hooks <name>` blocking, a forwarding area's program failing, `le test fixture <name>` failing | 2 for the hook; the program's own code for the others; each exemption is listed by `le help ai exit-codes` |
 | AC-33 | bash at a pty after `eval "$(./le completion bash)"` | `./le sp` Tab gives `./le spec `; `./le spec cl` Tab gives `claim`; `./le commit create ` Tab offers live keywords and none of the retired three; `subject` is not offered again once used; an enum keyword's values complete; the same for the word `le` when on PATH |
@@ -466,6 +478,8 @@ exit code.
 | AC-46 | Ctrl-C or Ctrl-D at a prompt | nothing runs; exit 2 |
 | AC-47 | the whole-tree human gate at a pty | asked exactly as today; no prompt answers it |
 | AC-48 | `ze le help ai | json`, `ze le completion words spec cl`, `ze le` at a pty | the same payload as `le` but `program` reads `ze le`; the same candidates; the same menu |
+| AC-49 | `le commit create`, `message` or `session` failing to execute (git, the index or the tree refuses the operation) rather than refusing a keyword (carried one-verb finding: commit's `commandError(err, 2)`) | exit 1 when the operation ran and failed, 3 when it could not run; a keyword refusal stays 2 |
+| AC-50 | any listing rendered at a terminal of width W, for W at 20, 80 and 500 columns (carried one-verb AC-6, terminal branch) | no line exceeds W unless it is one unbreakable token; below the description column plus 20, the description moves to its own indented line; continuation lines start at the description column |
 
 ## 🧪 TDD Test Plan
 
@@ -495,11 +509,13 @@ pattern); pty fixtures reuse the `creack/pty` pattern of
 | `TestKeywordHelpPage` | `internal/le/le/root/dispatch_test.go` | AC-8 | |
 | `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` | `internal/le/le/action/usage_test.go` | AC-9, AC-46 off a terminal | |
 | `TestListingWrapsUnderTheDescriptionColumn` | `internal/le/le/action/leaction_test.go` | AC-10 | |
+| `TestListingWrapsAtTheTerminalWidth` | `internal/le/le/action/leaction_test.go` | AC-50: widths 20, 80 and 500 through the width the renderer is given | |
+| `TestCommitExecutionFailureIsNotAUsageError` | `internal/le/commit/actions_test.go` | AC-49 | |
 | `TestListingShowsTheFirstSentenceAndThePageTheWhole` | `internal/le/le/action/leaction_test.go` | AC-11 | |
 | `TestUsageNamesTheRunningProgram` | `internal/le/le/action/usage_test.go` | AC-12 | |
 | `TestVerifyAreaDescribesTheNamespace` | `internal/le/verify/register_test.go` | AC-13 | |
 | `TestEveryRegisteredAreaProvidesActions` | `internal/le/actions_test.go` | AC-14, AC-16 (renamed from `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList`) | |
-| `TestRegisterWithoutActionsPanics` | `internal/le/le/root/leroot_test.go` | AC-16 | |
+| `TestAnAreaWithoutATableStopsLeNamingIt` | `internal/le/le/root/leroot_test.go` | AC-16 (D-P3-tablecheck, in place of `TestRegisterWithoutActionsPanics`) | |
 | `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` | `internal/le/actions_test.go` | existing guard, now over 164 areas | |
 | `TestMigratedAreaKeepsItsExitCodes` | `internal/le/actions_test.go` | AC-17, a per-area golden captured before each conversion | |
 | `TestStressReproRunHelpComesFromTheTable` | `internal/le/test/stressrepro/actions_test.go` | AC-18 | |
@@ -587,7 +603,7 @@ DESIGN additions and resolutions:
 | `internal/le/le/root/manifest.go` | 1, 6 | typed parameters, hidden marker, exit-code exemptions |
 | `internal/le/register.go` | 6 | `run` skips cache link and before-dispatch hooks for a shell-callback area |
 | `internal/le/doc/check/retirednames.go` | 4 | its table moves to `internal/le/le/retired`; the check reads it from there |
-| `internal/le/rfc/check.go`, `internal/le/cli/grammar/` (the "tree the gate could not read" producer the one-verb skeleton called `cligrammar/actions.go`), `internal/le/spec/status/answer.go`, `internal/le/commit/actions.go` (`review-check`) | 5 | exit codes per D-Q8 |
+| `internal/le/rfc/check.go`, `internal/le/cli/grammar/` (the "tree the gate could not read" producer the one-verb skeleton called `cligrammar/actions.go`), `internal/le/spec/status/answer.go`, `internal/le/commit/actions.go` (`review-check`, and the `create`, `message` and `session` execution failures of AC-49) | 5 | exit codes per D-Q8 |
 | `internal/le/test/{cymru,dns,irr,peeringdb,rpki,rtrmock,radiusmock,tacacsmock,syslog,httpd,lg,enginesteps,recordplugin,textplugin,pluginexternal}/` | 4 | move to `internal/le/mock/<name>/` |
 | `internal/le/test/fixture/register.go`, `internal/le/test/peer/register.go` and the `mcp`, `replay` registrations | 4 | group `tool` |
 | `internal/le/worktree/actions.go`, `internal/le/verify/status/answer.go`, the ten `write` packages of A-12 | 4 | verb renames |
@@ -682,13 +698,13 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
    - Verify: AC-1, AC-2
 2. **Phase 2: Help pages** -- one renderer at every level
    - Inputs: Phase 1 tree and kinds
-   - Tests: `TestRootPageIsLaidOutByTree`, `TestHelpGoesToStdout`, `TestOneRendererForEveryPage`, `TestKeywordHelpPage`, `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage`, `TestListingWrapsUnderTheDescriptionColumn`, `TestListingShowsTheFirstSentenceAndThePageTheWhole`, `TestUsageNamesTheRunningProgram`, `TestVerifyAreaDescribesTheNamespace`, `le-help-pages`
+   - Tests: `TestRootPageIsLaidOutByTree`, `TestHelpGoesToStdout`, `TestOneRendererForEveryPage`, `TestKeywordHelpPage`, `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage`, `TestListingWrapsUnderTheDescriptionColumn`, `TestListingWrapsAtTheTerminalWidth`, `TestListingShowsTheFirstSentenceAndThePageTheWhole`, `TestUsageNamesTheRunningProgram`, `TestVerifyAreaDescribesTheNamespace`, `le-help-pages`
    - Files: `dispatch.go` (`helpNode` deleted), `group.go`, `leaction.go`, `spec/actions.go` (`refuseLifecycle` deleted), `verify/register.go`; pages `running-commands.md`, `core-design.md`
    - Constraint: exit codes unchanged (a one-action usage keeps the code its producer answers today); goldens updated in the same commit (R-4)
-   - Verify: AC-3 to AC-13 (AC-6 and AC-7 for `commit` and `job` land in Phase 3, where those areas reach the table)
+   - Verify: AC-3 to AC-13 and AC-50 (AC-6 and AC-7 for `commit` and `job` land in Phase 3, where those areas reach the table)
 3. **Phase 3: Every area on the table** -- the 30 hand-rolled areas, `commit` last
    - Inputs: each area's parser, read first (A-1, A-2); `keywordRule` mapping (A-5)
-   - Tests: `TestEveryRegisteredAreaProvidesActions`, `TestRegisterWithoutActionsPanics`, `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`, `TestMigratedAreaKeepsItsExitCodes`, `TestStressReproRunHelpComesFromTheTable`, `TestCommitCreateHelpRendersEveryLiveKeyword`, `TestEveryCreateKeywordReadsOptions`, `TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough`
+   - Tests: `TestEveryRegisteredAreaProvidesActions`, `TestAnAreaWithoutATableStopsLeNamingIt`, `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`, `TestMigratedAreaKeepsItsExitCodes`, `TestStressReproRunHelpComesFromTheTable`, `TestCommitCreateHelpRendersEveryLiveKeyword`, `TestEveryCreateKeywordReadsOptions`, `TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough`
    - Files: the 30 areas of `areasWithoutAnActionTable`, `commit/actions.go` (`commandVerbs`, `parseKeywords`, `commandError` deleted before the table replaces them, `ai/rules/no-layering.md`), the 56 forwarding registrations, `actions_test.go`, `leroot.go`; page `committing.md`
    - Output: the migration list deleted, `RegisterActions` mandatory, exit codes byte-identical (AC-17)
    - Verify: AC-6, AC-7, AC-14 to AC-19
@@ -701,9 +717,9 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
    - Verify: AC-20 to AC-27; `le doc check retired-commands` zero findings
 5. **Phase 5: Exit codes**
    - Inputs: the reader grep re-run against HEAD (A-6)
-   - Tests: `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes`, `TestRefuseArgumentAndRefuseValueAgree`, `TestReviewCheckNotCleanExitsOne`, `TestHookActionsKeepTheHookProtocolCodes`, `TestPassThroughAreasKeepTheirProgramsCode`, `le-exit-codes`
+   - Tests: `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes`, `TestRefuseArgumentAndRefuseValueAgree`, `TestReviewCheckNotCleanExitsOne`, `TestHookActionsKeepTheHookProtocolCodes`, `TestPassThroughAreasKeepTheirProgramsCode`, `TestCommitExecutionFailureIsNotAUsageError`, `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` (moved from Phase 2, D-P2-required), `le-exit-codes`
    - Files: `leaction.go`, `leroot.go`, `dispatch.go`, `rfc/check.go`, `cli/grammar/`, `spec/status/answer.go`, `commit/actions.go`, every `_test.go` asserting a changed code; pages `running-commands.md` (exit-code table) and `core-design.md` (its "unknown first word exits 1" and "non-member exits 1" sentences become 2)
-   - Verify: AC-28 to AC-32
+   - Verify: AC-28 to AC-32, AC-49
 6. **Phase 6: Completion and `le help ai`**
    - Inputs: goldens of ze's three scripts and `ze help ai` output captured from HEAD before any edit
    - Tests: `TestZeCompletionScriptsUnchanged`, `TestLeCompletionScriptRegistersBothSpellings`, `TestCompletionCallbackRunsNoBeforeDispatchHook`, `TestCompletionCallbackHonoursRepeatAndRetired`, `TestCompletionCallbackAnswersWithinBudget`, `TestHelpAiTextSummary`, `TestHelpAiJSONListsEveryAreaWithTypedParameters`, `TestHelpAiRefusesRenderingFlags`, `TestZeHelpAiOutputUnchanged`, `le-completion-shells`, `le-help-ai`, `root-completion`
@@ -769,6 +785,7 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `committed-tree-does-not-build.md` | 2026-10-25 | `internal/le/register.go` at HEAD |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

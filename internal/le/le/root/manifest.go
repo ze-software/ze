@@ -40,9 +40,9 @@ type Manifest struct {
 type ManifestArea struct {
 	// Name is the word, or the two words, typed after the program name.
 	Name string `json:"name"`
-	// Group is what the command is FOR, and it decides the section the page
-	// renders it under. An area registered by a route other than Register
-	// declares none, and it renders under Ungrouped.
+	// Group is what the command is FOR, and the page renders it as the
+	// line's purpose tag. An area registered by a route other than Register
+	// declares none, and its tag reads ungrouped.
 	Group Group `json:"group"`
 	// Description is the one-line summary the registration carries.
 	Description string `json:"description"`
@@ -51,9 +51,13 @@ type ManifestArea struct {
 	// key is then absent rather than empty: absent says the area declared
 	// nothing, which is a different fact from an area that declared no action.
 	Actions []leaction.Row `json:"actions,omitempty"`
-	// Forwards says every word after the name is another program's command
-	// line (RegisterForwarding), so the program, not le, reads and refuses it.
-	Forwards bool `json:"forwards,omitempty"`
+	// PassesWords says every word after the name is another program's command
+	// line (RegisterForwarding), so the program, not le, reads and refuses it,
+	// and its exit code is the area's. Actions is then absent: the area's
+	// table is the pass-through declaration (leaction.PassesWords).
+	PassesWords bool `json:"passes-words,omitempty"`
+	// PassesTo names that program, as help prints it.
+	PassesTo string `json:"passes-to,omitempty"`
 }
 
 // manifestOf answers the surface as it stands in the shared registry. It is
@@ -79,8 +83,9 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		}
 		if list, declared := ActionsOf(root.Name); declared {
 			area.Actions = list.Actions
+			area.PassesWords = list.PassesWords
+			area.PassesTo = list.PassesTo
 		}
-		area.Forwards = Forwards(root.Name)
 		manifest.Areas = append(manifest.Areas, area)
 	}
 	return manifest
@@ -91,6 +96,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 // operator, so the color decision is stdout's, as WriteErr's is stderr's.
 func (m Manifest) Text() string {
 	page := m.page()
+	page.Width = leaction.PageWidth(os.Stdout)
 
 	var out strings.Builder
 	page.WriteTo(&out, slogutil.UseColor(os.Stdout))
@@ -110,34 +116,49 @@ func (m Manifest) page() helpfmt.Page {
 	}
 }
 
-// sections splits the areas into one help section for each group, in render
-// order.
-//
-// An area whose group is unknown still prints. It goes in a final section of
-// its own. A help page that hides a command is worse than one that files a
-// command badly. Only a registration that bypassed Register can produce one.
+// sections lays the areas out by tree: one section for the single-word
+// commands, then one per namespace (the first word two-word commands share), in
+// the registry's order, which is by full path. A single-word command that is
+// also a namespace token lists in its namespace, so every area appears once.
+// Each line is the name, the purpose tag, and the first sentence of the
+// summary (entryText).
 func (m Manifest) sections() []helpfmt.HelpSection {
-	byGroup := make(map[Group][]helpfmt.HelpEntry, len(groupOrder))
-	ungrouped := make([]helpfmt.HelpEntry, 0)
+	namespaces := make(map[string]bool, len(m.Areas))
 	for _, area := range m.Areas {
-		entry := helpfmt.HelpEntry{Name: area.Name, Desc: area.Description}
-		if !KnownGroup(area.Group) {
-			ungrouped = append(ungrouped, entry)
-			continue
+		if word, _, nested := strings.Cut(area.Name, " "); nested {
+			namespaces[word] = true
 		}
-		byGroup[area.Group] = append(byGroup[area.Group], entry)
 	}
 
-	sections := make([]helpfmt.HelpSection, 0, len(groupOrder)+1)
-	for _, group := range groupOrder {
-		entries := byGroup[group]
-		if len(entries) == 0 {
+	single := helpfmt.HelpSection{Title: "Commands"}
+	byNamespace := make(map[string]int, len(namespaces))
+	sections := make([]helpfmt.HelpSection, 1, len(namespaces)+1)
+	for _, area := range m.Areas {
+		entry := helpfmt.HelpEntry{Name: area.Name, Desc: areaText(area)}
+		word, _, _ := strings.Cut(area.Name, " ")
+		if !namespaces[word] {
+			single.Entries = append(single.Entries, entry)
 			continue
 		}
-		sections = append(sections, helpfmt.HelpSection{Title: GroupTitle(group), Entries: entries})
+		index, seen := byNamespace[word]
+		if !seen {
+			index = len(sections)
+			byNamespace[word] = index
+			sections = append(sections, helpfmt.HelpSection{Title: word})
+		}
+		sections[index].Entries = append(sections[index].Entries, entry)
 	}
-	if len(ungrouped) != 0 {
-		sections = append(sections, helpfmt.HelpSection{Title: "Ungrouped", Entries: ungrouped})
-	}
+	sections[0] = single
 	return sections
+}
+
+// areaText is one area's line on the root page: the purpose tag the area
+// declared, then the first sentence of its summary.
+func areaText(area ManifestArea) string {
+	tag := "ungrouped"
+	if KnownGroup(area.Group) {
+		tag = string(area.Group)
+	}
+	var tb textbuf.Buffer
+	return tb.Byte('[').Str(tag).Str("] ").Str(leaction.FirstSentence(area.Description)).String()
 }

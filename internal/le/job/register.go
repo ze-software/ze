@@ -24,8 +24,11 @@ func init() {
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
-		Subs:    usageLine,
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what `run` takes (answer.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(name, Actions)
 
 	// One answer produces one document. A job report contains no rows, so row
 	// operators have no data to process. They are rejected by name instead of

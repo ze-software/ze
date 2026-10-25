@@ -11,18 +11,26 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
+// shortHelp is what the report answers. The help line and the action's Why
+// both read it, so the two cannot drift.
+const shortHelp = "where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store"
+
 func init() {
+	// The table is built once here, so a table that cannot be dispatched
+	// panics at init rather than on the first call.
+	actions := table()
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: "where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store",
+		ShortHelp: shortHelp,
 		// Offline, and the word is exact for an unusual reason: the tool reads
 		// no network AND no checkout. Its corpus is ~/.claude/projects, which
 		// is written by another program on this machine.
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
-		Section: registry.SectionTest,
-		Subs:    "root <path> | project <slug> | cap <n> | top <n> | session <prefix>",
+		Section:  registry.SectionTest,
+		SubsFunc: actions.Subs,
 	})
+	leroot.RegisterActions(area, actions.Actions)
 
 	// ShapeDoc applies because the answer contains EIGHT tables over one corpus.
 	// No single row set represents the sessions, histograms, phases, agents,

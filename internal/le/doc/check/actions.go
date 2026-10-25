@@ -4,127 +4,69 @@
 //
 // Package doccheck owns the four documentation actions that the verifier runs
 // directly. The links action owns its scan. Verify and templ-output call the Go
-// packages that already own those compositions.
+// packages that already own those compositions. The dispatch, the listing, the
+// help page and the refusals live in internal/le/le/action.
 
 package doccheck
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const area = "doc check"
 
-type action struct {
-	verb string
-	why  string
-	run  func(string) (any, int)
-}
-
-var actions = [...]action{
+// actions declares the whole command surface. No action takes a value: each
+// judges the checkout, so the table refuses any word after the verb.
+var actions = []leaction.Action{
 	{
-		verb: "links",
-		why:  "instruction links, tracked citations, suppression reasons, and Design references resolve",
-		run:  runLinks,
+		Verb:   "links",
+		Why:    "instruction links, tracked citations, suppression reasons, and Design references resolve",
+		Answer: atRoot(runLinks),
 	},
 	{
-		verb: "verify",
-		why:  "the complete ordered documentation gate passes",
-		run:  docwiring.Verify,
+		Verb:   "verify",
+		Why:    "the complete ordered documentation gate passes",
+		Answer: atRoot(docwiring.Verify),
 	},
 	{
-		verb: "templ-output",
-		why:  "generated templ output matches its sources",
-		run:  docwiring.TemplOutput,
+		Verb:   "templ-output",
+		Why:    "generated templ output matches its sources",
+		Answer: atRoot(docwiring.TemplOutput),
 	},
 	{
-		verb: "retired-commands",
-		why:  "no tracked line names a form the subject-first rename retired",
-		run:  runRetiredCheck,
+		Verb:   "retired-commands",
+		Why:    "no tracked line names a form the subject-first rename retired",
+		Answer: atRoot(runRetiredCheck),
 	},
 }
 
-// ActionRow is one callable documentation action.
-type ActionRow struct {
-	Verb string `json:"verb"`
-	Why  string `json:"why"`
-}
-
-// ActionList is the bare command's answer.
-type ActionList struct {
-	Area    string      `json:"area"`
-	Actions []ActionRow `json:"actions"`
-}
+// table is the area the declaration above builds.
+var table = leaction.New(area, actions...)
 
 // Actions returns the whole command surface from its canonical table.
-func Actions() ActionList {
-	list := ActionList{Area: area, Actions: make([]ActionRow, 0, len(actions))}
-	for _, one := range actions {
-		list.Actions = append(list.Actions, ActionRow{Verb: one.verb, Why: one.why})
-	}
-	return list
-}
-
-// Text renders the action list for a person.
-func (l ActionList) Text() string {
-	var out textbuf.Buffer
-	out.Str(l.Area).Str(":\n")
-	width := 0
-	for _, row := range l.Actions {
-		width = max(width, len(row.Verb))
-	}
-	for _, row := range l.Actions {
-		out.Str("  ").PadRight(row.Verb, width).Str("  checks  ").Str(row.Why).Byte('\n')
-	}
-	return out.String()
-}
+func Actions() leaction.List { return table.Actions() }
 
 // Subs is the one-line action hint shown by help.
-func Subs() string {
-	verbs := make([]string, 0, len(actions))
-	for _, one := range actions {
-		verbs = append(verbs, one.verb)
-	}
-	return strings.Join(verbs, " | ")
-}
+func Subs() string { return table.Subs() }
 
-// Answer is the `le doc check` command.
-func Answer(args []string) (any, int) {
-	if len(args) == 0 {
-		return Actions(), 0
-	}
-	for _, one := range actions {
-		if args[0] != one.verb {
-			continue
-		}
-		if refused := refuseActionWords(one, args[1:]); refused {
-			return nil, 2
-		}
+// Answer is the `le doc check` command. Bare, it answers the action listing.
+func Answer(args []string) (any, int) { return table.Answer(args) }
+
+// atRoot binds one action to the checkout it judges. A checkout that cannot be
+// found answers 2: the gate did not run, which a caller reads apart from a
+// tree that failed it.
+func atRoot(run func(string) (any, int)) func() (any, int) {
+	return func() (any, int) {
 		root, err := lepath.Root()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err) //nolint:errcheck // CLI output
+			leaction.ReportError(err)
 			return nil, 2
 		}
-		return one.run(root)
+		return run(root)
 	}
-	fmt.Fprintf(os.Stderr, "error: no such action in %s: %s\n", area, args[0]) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, "try one of:", Subs())                             //nolint:errcheck // CLI output
-	return nil, 2
-}
-
-// refuseActionWords reports whether any word follows the verb, and says why
-// on stderr: every action takes no value.
-func refuseActionWords(one action, words []string) bool {
-	if len(words) == 0 {
-		return false
-	}
-	fmt.Fprintf(os.Stderr, "error: %s takes no value: %s\n", one.verb, words[0]) //nolint:errcheck // CLI output
-	return true
 }
 
 func runLinks(root string) (any, int) {

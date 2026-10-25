@@ -162,6 +162,9 @@ session, so re-run it for current ratios instead of copying an absolute figure
 into a rule or a document. `./le ai tokens session <id-prefix>` prints the
 per-agent-type table for one session, which is the only comparison that holds:
 across sessions the always-on preamble changes size and swamps the difference.
+`./le ai tokens project <checkout>` reads another checkout's sessions: it takes
+the checkout's path, and le derives the store's project slug from it, because
+every slug begins with a dash and a value never does.
 
 Token counts there are characters divided by 3.6, the approximation
 `internal/le/ai/tokens/tokeneconomy.go` uses.

@@ -351,7 +351,8 @@ func TestRemovedKeywordsNameReplacement(t *testing.T) {
 			t.Fatalf("create %s: %v, want the refusal naming %s", keyword, err, replacement)
 		}
 	}
-	if _, err := parseCreate([]string{"subject", "s", "attest", "abc"}); err == nil || !strings.Contains(err.Error(), "two values") {
+	// The table names the value the line left out, the attestation's second.
+	if _, err := parseCreate([]string{"subject", "s", "attest", "abc"}); err == nil || !strings.Contains(err.Error(), "requires <owner words>") {
 		t.Fatalf("attest with one value: %v", err)
 	}
 }

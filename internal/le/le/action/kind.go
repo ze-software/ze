@@ -54,6 +54,13 @@ const (
 	KindArea
 	// KindWords is the words of a whole le command line the action runs.
 	KindWords
+	// KindArgv is the rest of the line: a program and its arguments, handed to
+	// that program as typed. Every word after its keyword is the value, an
+	// option and a word spelled like another keyword included, so it is the
+	// last thing on the line. `le job run label <label> command go test -v`
+	// runs `go test -v`. Declared with no keyword, it is the whole line after
+	// the verb and the action's only parameter: `le commit push <words>`.
+	KindArgv
 )
 
 // kindDeclaration is one row of the kind table: the name a reader sees, the
@@ -86,6 +93,7 @@ var kinds = map[Kind]kindDeclaration{
 	KindLabel:    {"label", "an identifier: one token with no whitespace", checkToken},
 	KindArea:     {"area", "the words of an le command", checkNotEmpty},
 	KindWords:    {"words", "a whole le command line, run as le <words>", checkNotEmpty},
+	KindArgv:     {"argv", "the rest of the line: a program and its arguments, run as typed", checkAnything},
 }
 
 // Kinds answers every declared kind, in declaration order, so a reader of the

@@ -56,8 +56,9 @@ func (r Requirement) MarshalJSON() ([]byte, error) {
 //
 // A parameter with no Keyword is the action's positional value: at most one,
 // first in Parameters, typed in the first slot after the verb, and of a kind
-// other than switch or string, so a keyword can never be mistaken for it. It
-// is read from Arguments under its Value name.
+// other than switch, nor string unless the action declares no keyword, so a
+// keyword can never be mistaken for it. It is read from Arguments under its
+// Value name.
 type Parameter struct {
 	Keyword string `json:"keyword"`
 	// Kind says what the value is. KindSwitch takes no value; every other kind
@@ -289,6 +290,19 @@ func parseArguments(command string, parameters []Parameter, args []string) (Argu
 			index++
 			continue
 		}
+		// An argv keyword ends the grammar: every word after it is the
+		// program's, read as typed, so `command go test -v quiet` hands
+		// `quiet` and `-v` to go. No option is refused there, because the
+		// words are another program's line, not this table's values.
+		if parameter.Kind == KindArgv {
+			if index+1 >= len(args) {
+				return nil, fmt.Errorf("argument keyword %q requires <%s>", keyword, parameter.Value)
+			}
+			for _, word := range args[index+1:] {
+				parsed.add(keyword, word)
+			}
+			return parsed, nil
+		}
 		slots := valueSlots(parameter)
 		for offset, slot := range slots {
 			value, err := keywordValue(keyword, slot, args, index+1+offset)
@@ -308,6 +322,15 @@ func parseArguments(command string, parameters []Parameter, args []string) (Argu
 func parsePositional(command string, parameters []Parameter, declared map[string]Parameter, args []string, parsed Arguments) (int, error) {
 	if len(parameters) == 0 || !parameters[0].positional() || len(args) == 0 {
 		return 0, nil
+	}
+	// A positional argv is the whole line, read as typed: checkParameters lets
+	// it stand only alone, so no word of it can be a keyword or an option of
+	// this table.
+	if parameters[0].Kind == KindArgv {
+		for _, word := range args {
+			parsed.add(parameters[0].argumentKey(), word)
+		}
+		return len(args), nil
 	}
 	if _, keyword := declared[args[0]]; keyword {
 		return 0, nil
@@ -351,32 +374,97 @@ func keywordValue(keyword, slot string, args []string, position int) (string, er
 	return value, nil
 }
 
-// trailingIsValue walks one action's grammar over the words after its verb. It
-// reports whether the LAST of them is DATA the operator typed. `new help` is a
-// keyword and the text it takes. `file <path> --help` is a keyword, its value,
-// and a word standing where the next keyword would.
+// trailingIsValue reports whether the LAST word after an action's verb is DATA
+// the operator typed. `new help` is a keyword and the text it takes. `file
+// <path> --help` is a keyword, its value, and a word standing where the next
+// keyword would.
 //
 // Two things make a word data, and both are required. Its SPELLING must be one
 // an operator can mean as text, which the bare word is and an option is not.
-// Its POSITION must be a value slot: the positional slot, or one a declared
-// keyword opened.
-//
-// It answers false as soon as a word is not a declared keyword, because the
-// grammar has ended and parseArguments refuses the invocation. Deciding the
-// question after that point would be a guess about a line the parser will not
-// accept.
+// Its POSITION must be a value slot: the positional slot, one a declared
+// keyword opened, or a word of a forwarded argv (trailingPlaceOf).
 func trailingIsValue(parameters []Parameter, args []string) bool {
-	last := len(args) - 1
-	if last < 0 {
+	if len(args) == 0 {
 		return false
 	}
-
 	// An option is never data, whatever it spells. `ai/rules/cli.md` bans a flag
 	// from being grammar or a value, so no value slot holds a dash-leading word
-	// (IsOption). `le verify status check path --help` asks what the action
-	// takes, and it names no path.
-	if IsOption(args[last]) {
+	// (IsOption).
+	if IsOption(args[len(args)-1]) {
 		return false
+	}
+	place := trailingPlaceOf(parameters, args)
+	return place == placeValue || place == placeArgv
+}
+
+// trailingAsksForHelp reports whether the LAST word after an action's verb is
+// a help spelling asking what the action takes, so usage is rendered and
+// nothing runs. A help spelling where the next keyword would stand asks the
+// question: `run --help`, `run scope ./internal --help`.
+//
+// A keyword's value slot never asks it. The bare word there is the text the
+// keyword takes, and a dash-leading word there is an option where a value is
+// expected, which `ai/rules/cli.md` says MUST be refused by name.
+// parseArguments refuses it and answers 2, and nothing starts, which is all
+// the trailing-position rule asks. `le test stress-repro run suite -help` is
+// that refusal, never a page whose 0 reads as an answer. `-help` is the cluster
+// `-h -e -l -p` there, not `--help` (D-P3-dash, spec-le-cli-usability).
+//
+// After an argv keyword the words are the program's, so the bare word is the
+// program's too, and an option there is le's question: running the child with
+// it would start work on a probe.
+func trailingAsksForHelp(parameters []Parameter, args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	word := args[len(args)-1]
+	if !IsHelpArg(word) {
+		return false
+	}
+	switch trailingPlaceOf(parameters, args) {
+	case placeValue:
+		return false
+	case placeArgv:
+		return IsOption(word)
+	case placeGrammar:
+		return true
+	case placeUnspecified:
+		panic("BUG: trailingPlaceOf answered no place for a non-empty line")
+	}
+	panic("BUG: trailingPlaceOf answered a place trailingAsksForHelp does not name")
+}
+
+// trailingPlace names where the last word of a line stands in an action's
+// grammar. The zero value is no answer, so a walk that forgot to decide panics
+// rather than answering a place.
+type trailingPlace uint8
+
+const (
+	placeUnspecified trailingPlace = iota
+	// placeGrammar is where the next keyword would stand, or a word past the
+	// end of the grammar, which parseArguments refuses.
+	placeGrammar
+	// placeValue is a slot a declared keyword opened, or the positional slot
+	// holding a word that is not an option.
+	placeValue
+	// placeArgv is a word after an argv keyword (KindArgv).
+	placeArgv
+)
+
+// trailingPlaceOf walks one action's grammar over the words after its verb and
+// answers where the LAST of them stands. It answers placeGrammar as soon as a
+// word is not a declared keyword, because the grammar has ended and
+// parseArguments refuses the invocation. Deciding more after that point would
+// be a guess about a line the parser will not accept.
+//
+// An option in the positional slot stands in grammar position. That slot is
+// shared with the keywords (parsePositional reads a keyword there as the
+// keyword), so `claim --help` is the help question typed straight after the
+// verb, never a value the slot was waiting for.
+func trailingPlaceOf(parameters []Parameter, args []string) trailingPlace {
+	last := len(args) - 1
+	if last < 0 {
+		return placeUnspecified
 	}
 
 	declared := make(map[string]Parameter, len(parameters))
@@ -386,11 +474,14 @@ func trailingIsValue(parameters []Parameter, args []string) bool {
 		}
 	}
 
+	if len(parameters) > 0 && parameters[0].positional() && parameters[0].Kind == KindArgv {
+		return placeArgv
+	}
 	index := 0
-	if len(parameters) > 0 && parameters[0].positional() {
+	if len(parameters) > 0 && parameters[0].positional() && !IsOption(args[0]) {
 		if _, keyword := declared[args[0]]; !keyword {
 			if last == 0 {
-				return true
+				return placeValue
 			}
 			index = 1
 		}
@@ -398,19 +489,22 @@ func trailingIsValue(parameters []Parameter, args []string) bool {
 	for index < last {
 		parameter, known := declared[args[index]]
 		if !known {
-			return false
+			return placeGrammar
 		}
 		if parameter.Kind == KindSwitch {
 			index++
 			continue
 		}
+		if parameter.Kind == KindArgv {
+			return placeArgv
+		}
 		width := len(valueSlots(parameter))
 		if last <= index+width {
-			return true
+			return placeValue
 		}
 		index += 1 + width
 	}
-	return false
+	return placeGrammar
 }
 
 // spellings answers every live keyword an action declares as the complete line
@@ -441,6 +535,11 @@ func checkParameters(parameters []Parameter) {
 		if parameter.Keyword != "" {
 			keywords[parameter.Keyword] = true
 		}
+	}
+	// A positional argv takes the whole line, so a keyword declared beside it
+	// could never be typed: every word after the verb is the argv's.
+	if len(parameters) > 1 && parameters[0].positional() && parameters[0].Kind == KindArgv {
+		panic("BUG: leaction.New: a positional argv takes the whole line, so it must be the action's only parameter")
 	}
 	seen := make(map[string]bool, len(parameters))
 	for index, parameter := range parameters {
@@ -534,12 +633,28 @@ func checkTyped(parameter Parameter) {
 		panic("BUG: leaction.New: a parameter carrying a value leaves requiredness " +
 			"unspecified; declare leaction.Optional or leaction.Required")
 	}
+	if parameter.Kind == KindArgv {
+		checkArgv(parameter)
+	}
 	if parameter.Kind == KindEnum && len(parameter.Values) == 0 {
 		panic("BUG: leaction.New: an enum declares no Values")
 	}
 	takesValues := parameter.Kind == KindEnum || parameter.Kind == KindList
 	if !takesValues && len(parameter.Values) != 0 {
 		panic("BUG: leaction.New: only an enum or a list declares Values")
+	}
+}
+
+// checkArgv refuses an argv parameter that claims a shape it cannot have. It
+// takes every word after its keyword, or the whole line when it is positional
+// (checkParameters keeps that one alone), so it fills one span and is given
+// once.
+func checkArgv(parameter Parameter) {
+	if parameter.Repeat {
+		panic("BUG: leaction.New: an argv value takes the rest of the line, so it cannot repeat")
+	}
+	if parameter.Pair != "" {
+		panic("BUG: leaction.New: an argv value takes the rest of the line, so it cannot take a pair")
 	}
 }
 

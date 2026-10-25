@@ -1,0 +1,15 @@
+# Test: a developer reads le's help through a pipe at every depth.
+# accept-only: the registered native fixture drives the built le binary, under
+# the names le and ze, and reads stdout, stderr and the exit code a shell would
+# read: le, le help and le --help print one root page laid out by tree on
+# stdout; a namespace page, the verify summary and a keyword page; a refused
+# keyword question; and a refused spec claim naming one action under the
+# program that ran.
+#
+# VALIDATES: spec-le-cli-usability AC-3, AC-4, AC-5, AC-8, AC-9, AC-10, AC-12,
+# AC-13 through the product binary and its real composition root.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-help-pages
+expect=exit:code=0
+expect=stdout:contains=OK

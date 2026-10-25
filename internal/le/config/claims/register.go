@@ -8,17 +8,35 @@ package configclaims
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
+// shortHelp is what the gate judges. The help line and the action's Why both
+// read it, so the two cannot drift.
+const shortHelp = "every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception"
+
+// checkVerb names the gate, which is also what the bare command line runs.
+const checkVerb = "check"
+
+// table declares the whole command surface. The one action takes no value: what
+// it judges is the linked registry and the rendering is a pipe operator.
+var table = leaction.New(name, leaction.Action{
+	Verb:   checkVerb,
+	Why:    shortHelp,
+	Answer: answerCheck,
+})
+
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception",
+		ShortHelp: shortHelp,
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
-		Section: registry.SectionTest,
+		Section:  registry.SectionTest,
+		SubsFunc: table.Subs,
 	})
+	leroot.RegisterActions(name, table.Actions)
 
 	// The answer is ONE document holding two row sets, the exceptions and the
 	// findings, so the row operators are refused by name while `| json`,

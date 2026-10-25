@@ -29,5 +29,5 @@ func init() {
 
 	// Every word after the name is the program's own command line, so a
 	// trailing help word reaches the program and it prints its own help.
-	leroot.RegisterForwarding(name)
+	leroot.RegisterForwarding(name, "the chaos orchestrator")
 }

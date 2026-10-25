@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -27,11 +28,11 @@ func TestActionTableDeclaresEveryNativeVerb(t *testing.T) {
 		t.Fatalf("the table holds %d actions", len(actions))
 	}
 	for _, action := range actions {
-		if !want[action.verb] {
-			t.Errorf("the table holds an unknown action: %s", action.verb)
+		if !want[action.Verb] {
+			t.Errorf("the table holds an unknown action: %s", action.Verb)
 		}
-		if action.why == "" || action.answer == nil {
-			t.Errorf("action %s is incomplete", action.verb)
+		if action.Why == "" || action.Answer == nil {
+			t.Errorf("action %s is incomplete", action.Verb)
 		}
 	}
 }
@@ -58,7 +59,7 @@ func TestBareCommandAnswersTheListing(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("the listing exited %d", code)
 	}
-	list, ok := payload.(ActionList)
+	list, ok := payload.(leaction.List)
 	if !ok {
 		t.Fatalf("the listing answered %T", payload)
 	}
@@ -67,7 +68,7 @@ func TestBareCommandAnswersTheListing(t *testing.T) {
 	}
 
 	text := list.Text()
-	for _, want := range []string{"doc yang-contract:", "doc-drift", "checks", "writes"} {
+	for _, want := range []string{"le doc yang-contract", "doc-drift", "checks", "writes"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the listing does not hold %q:\n%s", want, text)
 		}

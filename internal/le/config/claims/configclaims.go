@@ -36,7 +36,6 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // name is the word this command is typed as, and the prefix its own messages
@@ -121,13 +120,20 @@ func floorFindings(roots, claimed int) []string {
 	return findings
 }
 
-// Answer is the `le config claims` command. The tree it judges is the linked
-// registry rather than a directory, so the command takes no argument at all.
+// Answer is the `le config claims` command. A bare line runs the gate, as the
+// `check` action does: hooks and verify stages call it bare, and a bare listing
+// would answer them 0 with nothing judged. Every other line is the table's,
+// which refuses a word naming no action with 2.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 {
-		return nil, leroot.RefuseArgument(name, args[0])
+	if len(args) == 0 {
+		return table.Answer([]string{checkVerb})
 	}
+	return table.Answer(args)
+}
 
+// answerCheck runs the gate over what it judges. The table has already refused
+// any word after the verb.
+func answerCheck() (any, int) {
 	report, err := Audit()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config-claims: %v\n", err) //nolint:errcheck // CLI output

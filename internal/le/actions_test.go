@@ -9,6 +9,7 @@
 package le
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -19,95 +20,26 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// areasWithoutAnActionTable names every registered area that declares no
-// leaction table, so the manifest publishes its description and not its
-// grammar. Each one writes its own dispatch: a gate that refuses every argument
-// writes the refusal by hand, and the rest parse their own keywords.
-//
-// The list is a ratchet in both directions. An area that is not on it and
-// registers no table fails the test below, and so does a name on it whose area
-// now registers one. plan/post-release/engineering/spec-le-cli-usability.md
-// empties it.
-//
-// An area that forwards every word to another program (leroot.RegisterForwarding)
-// is not on it: the program owns that grammar, so no table will replace the row.
-var areasWithoutAnActionTable = []string{
-	"ai digest",
-	"ai tokens",
-	"arch iface-resolution",
-	"build gosum",
-	"build host-driver",
-	"cli grammar",
-	"cli list",
-	"cli ownership",
-	"commit",
-	"config claims",
-	"doc check",
-	"doc consistency",
-	"doc yang-contract",
-	"go extract",
-	"job",
-	"repo inventory",
-	"repo bootstraps",
-	"repo working-tree",
-	"spec citation",
-	"spec claim",
-	"spec current",
-	"spec model",
-	"spec release",
-	"spec review",
-	"spec state",
-	"spec status",
-	"spec wip",
-	"test stress-repro",
-	"verify summary",
-	"weekly",
-}
-
-// TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList holds le to
-// publishing what it declares. An area that registers a table is in the
-// manifest with its keywords, and `le <area> <verb> --help` renders that
-// grammar rather than the area's node page.
+// TestEveryRegisteredAreaProvidesActions holds le to publishing what it
+// declares. An area that registers a table is in the manifest with its
+// keywords, and `le <area> <verb> --help` renders that grammar rather than the
+// area's node page. An area that forwards every word to another program
+// (leroot.RegisterForwarding) registers the pass-through declaration
+// (leaction.PassesWords) as its table, because the program owns that grammar.
+// No area is exempt: le refuses to start while one holds no table
+// (leroot.requireEveryAreaHasATable, D-P3-tablecheck), and this test proves the
+// set le registers passes that check.
 //
 // It runs here rather than in package leroot because the registry is populated
 // by the blank imports in register.go. In leroot's own test binary no area is
 // registered at all, and the same assertion would pass over an empty set.
-func TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList(t *testing.T) {
+func TestEveryRegisteredAreaProvidesActions(t *testing.T) {
 	if len(commandsAtStart) == 0 {
 		t.Fatal("le registered no local-data command")
 	}
-
-	seen := make(map[string]bool, len(areasWithoutAnActionTable))
-	for _, name := range areasWithoutAnActionTable {
-		seen[name] = false
-	}
-
 	for _, tool := range commandsAtStart {
-		_, declared := leroot.ActionsOf(tool.Name)
-		_, listed := seen[tool.Name]
-		if listed {
-			seen[tool.Name] = true
-		}
-		// A forwarding area hands every word to another program, so the
-		// program owns the grammar and le publishes that it forwards.
-		if leroot.Forwards(tool.Name) {
-			if declared || listed {
-				t.Errorf("area %q forwards its words to a program, so it registers no action table and has no row in areasWithoutAnActionTable", tool.Name)
-			}
-			continue
-		}
-		if declared && listed {
-			t.Errorf("area %q registers an action table, so delete its row from areasWithoutAnActionTable", tool.Name)
-			continue
-		}
-		if !declared && !listed {
+		if _, declared := leroot.ActionsOf(tool.Name); !declared {
 			t.Errorf("area %q publishes no grammar: call leroot.RegisterActions(%q, Actions) in its register.go", tool.Name, tool.Name)
-		}
-	}
-
-	for name, found := range seen {
-		if !found {
-			t.Errorf("areasWithoutAnActionTable names %q, which no area registers under", name)
 		}
 	}
 }
@@ -125,7 +57,7 @@ const refusalCode = 2
 // TestEveryPublishedVerbIsDispatchedThroughItsOwnTable holds an area to the
 // grammar it publishes.
 //
-// TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList above asks only
+// TestEveryRegisteredAreaProvidesActions above asks only
 // whether a table EXISTS. An area can declare one, register it for the manifest,
 // and then read the line with a parser of its own. Four did.
 //
@@ -153,6 +85,13 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 	for _, tool := range commandsAtStart {
 		list, declared := leroot.ActionsOf(tool.Name)
 		if !declared {
+			continue
+		}
+		// A pass-through table publishes no grammar to read back: its program
+		// reads and refuses every word, so a probe word would start the program
+		// (a mock server, a suite). Its declaration is held to account by
+		// TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough instead.
+		if list.PassesWords {
 			continue
 		}
 		handler := leroot.LookupCommand(tool.Name)
@@ -194,17 +133,46 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 // A Repeat keyword is left out of the last shape because a second occurrence is
 // what it declares it takes: probing it would RUN the action, and every probe
 // here is refused before an action body.
+//
+// An argv keyword (leaction.KindArgv) keeps only the missing-value shape. Every
+// word after it is another program's, so a dash-leading word or the keyword
+// spelled again is the child's argument, which the table hands on rather than
+// refuses: `le job run label x command go test -v` runs `go test -v`.
 func probesFor(row leaction.Row) [][]string {
 	// A forwarding verb publishes that its words are another program's
 	// command line, so the table refuses none of them and no probe applies.
 	if row.Forwards {
 		return nil
 	}
+	// A positional value takes the first word after the verb, so a word naming
+	// no keyword is a stray only after it: `commit push <words> <probe>`. A
+	// dash-leading word in its slot is an option where a value is expected.
+	lead := []string{row.Verb}
+	positional := len(row.Parameters) != 0 && row.Parameters[0].Keyword == ""
+	// A positional argv is the whole line (`commit push <words>`), so every
+	// word is data and the table refuses none: any probe would RUN the action,
+	// and `commit push -probe` would prepare a real push on this checkout. The
+	// empty line is the body's refusal, which a reference cannot answer, so the
+	// area's own test asserts it (commit TestCommitRefusesWhatItsTableRefuses).
+	if positional && row.Parameters[0].Kind == leaction.KindArgv {
+		return nil
+	}
+	if positional {
+		lead = append(lead, probeWord+"-value")
+	}
 	probes := [][]string{
-		{row.Verb, probeWord},
-		{row.Verb, probeWord, probeWord + "-second"},
+		append(append([]string{}, lead...), probeWord),
+		append(append([]string{}, lead...), probeWord, probeWord+"-second"),
 	}
 	for _, parameter := range row.Parameters {
+		if parameter.Keyword == "" {
+			probes = append(probes, []string{row.Verb, "-" + probeWord})
+			continue
+		}
+		if parameter.Kind == leaction.KindArgv {
+			probes = append(probes, []string{row.Verb, parameter.Keyword})
+			continue
+		}
 		if parameter.Value != "" {
 			probes = append(probes,
 				[]string{row.Verb, parameter.Keyword, "-" + probeWord},
@@ -374,7 +342,7 @@ func TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea(t *testing.T) {
 			continue
 		}
 		node := root
-		for _, word := range strings.Fields(tool.Name) {
+		for word := range strings.FieldsSeq(tool.Name) {
 			node = node.Children[word]
 			if node == nil {
 				t.Fatalf("the derived tree has no node for %q", tool.Name)
@@ -440,4 +408,98 @@ func sampleOf(parameter leaction.Parameter) string {
 		}
 	}
 	return value
+}
+
+// VALIDATES: AC-15, AC-19 -- every registered area is either tabled or declares
+// that its words pass to another program. A pass-through area's table holds no
+// action and names the program (leaction.PassesWords), and `le | json`
+// publishes `passes-words` and `passes-to` for exactly those areas, while every
+// other area publishes its actions.
+// PREVENTS: a forwarding area whose manifest, help and completion say nothing
+// about where its words go, so the only way to learn its grammar is to run it.
+// Also an area that claims to pass its words on while it publishes actions of
+// its own, which would make the dispatcher hand le's help word to a program.
+func TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough(t *testing.T) {
+	passing := make(map[string]string, 64)
+	for _, tool := range commandsAtStart {
+		list, declared := leroot.ActionsOf(tool.Name)
+		if !declared || !list.PassesWords {
+			continue
+		}
+		if !leroot.Forwards(tool.Name) {
+			t.Errorf("area %q declares a pass-through table but leroot.Forwards answers false", tool.Name)
+		}
+		if list.PassesTo == "" {
+			t.Errorf("area %q passes its words on without naming the program", tool.Name)
+		}
+		if len(list.Actions) != 0 {
+			t.Errorf("area %q passes its words on and also declares %d action(s)", tool.Name, len(list.Actions))
+		}
+		passing[tool.Name] = list.PassesTo
+	}
+	if len(passing) == 0 {
+		t.Fatal("no registered area passes its words to a program, so the registry was not populated")
+	}
+
+	var manifest struct {
+		Areas []struct {
+			Name        string            `json:"name"`
+			Actions     []json.RawMessage `json:"actions"`
+			PassesWords bool              `json:"passes-words"`
+			PassesTo    string            `json:"passes-to"`
+		} `json:"areas"`
+	}
+	out, code := dispatchToStdout(t, "|", "json")
+	if code != 0 {
+		t.Fatalf("`le | json` answered %d: %s", code, out)
+	}
+	if err := json.Unmarshal([]byte(out), &manifest); err != nil {
+		t.Fatalf("`le | json` is not one JSON document: %v", err)
+	}
+
+	for _, area := range manifest.Areas {
+		program, passes := passing[area.Name]
+		if !passes {
+			if area.PassesWords || area.PassesTo != "" {
+				t.Errorf("manifest area %q publishes passes-words %v to %q, but its table declares actions", area.Name, area.PassesWords, area.PassesTo)
+			}
+			if len(area.Actions) == 0 {
+				t.Errorf("manifest area %q publishes neither actions nor passes-words", area.Name)
+			}
+			continue
+		}
+		delete(passing, area.Name)
+		if !area.PassesWords || area.PassesTo != program {
+			t.Errorf("manifest area %q publishes passes-words %v to %q, want true to %q", area.Name, area.PassesWords, area.PassesTo, program)
+		}
+		if len(area.Actions) != 0 {
+			t.Errorf("manifest area %q passes its words on and publishes %d action(s)", area.Name, len(area.Actions))
+		}
+	}
+	for name := range passing {
+		t.Errorf("the manifest omits pass-through area %q", name)
+	}
+}
+
+// dispatchToStdout runs one le line through the dispatcher the binary uses and
+// answers what it printed on stdout and its exit code. Stdout goes to a file,
+// not a pipe, so a page larger than the pipe buffer cannot block the write.
+func dispatchToStdout(t *testing.T, args ...string) (string, int) {
+	t.Helper()
+	file, err := os.CreateTemp(t.TempDir(), "stdout")
+	if err != nil {
+		t.Fatalf("create the stdout file: %v", err)
+	}
+	defer file.Close() //nolint:errcheck // a test's temporary file
+
+	saved := os.Stdout
+	os.Stdout = file
+	code := leroot.Dispatch("le", args)
+	os.Stdout = saved
+
+	out, err := os.ReadFile(file.Name())
+	if err != nil {
+		t.Fatalf("read the stdout file: %v", err)
+	}
+	return string(out), code
 }

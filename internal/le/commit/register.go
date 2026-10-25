@@ -16,7 +16,10 @@ func init() {
 		ShortHelp: "prepare explicit commits without touching the shared staging index",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		// Derived from the action table, so help cannot disagree with the
+		// listing about what each verb takes (actions.go, Subs).
+		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
 }

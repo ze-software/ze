@@ -33,5 +33,5 @@ func init() {
 
 	// Every word after the name is the harness's own command line, so a
 	// trailing help word reaches it and it prints its own help.
-	leroot.RegisterForwarding(name)
+	leroot.RegisterForwarding(name, harnesstool.Runner)
 }

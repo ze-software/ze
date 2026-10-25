@@ -162,22 +162,42 @@ the full verify.
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 
 Registration also states which of five groups the area belongs to, and help
-prints one section for each group in that order. The group is a parameter of
-`leroot.Register`, so a new area cannot compile without one.
+prints it as the line's purpose tag (`[workflow]`, `[gate]`, `[generate]`,
+`[suite]`, `[report]`). The group is a parameter of `leroot.Register`, so a new
+area cannot compile without one.
 
 **`help`, `-h` and `--help` are accepted at every depth, and they answer from
-the registry rather than from the command.** `le` alone prints the grouped page;
-`le <command> --help` and `le help <command>` print that node's page, which
-carries the registered description, the actions its `Meta.Subs` line declares,
-and the commands registered under it. `le <command> <action> --help` prints that
-action's closed keyword grammar, which the dispatcher renders from the table the
-area registered. An action can instead forward every word after its verb to
+the registry rather than from the command.** Every page is one `helpfmt.Page`,
+written to stdout with exit 0, and wrapped to the terminal's width, or to 100
+columns when stdout is not a terminal. `le`, `le help` and `le --help` print the
+root page, laid out by tree: one block for the single-word commands, then one
+per namespace, each line the name, the purpose tag and the first sentence of
+the summary. `le <command> --help` and `le help <command>` print that node's
+page: its summary, the actions its table declares (each with `[writes]` or
+`[checks]` and the first sentence of its purpose), and the commands registered
+under it. An area with no table yet shows each alternative of its `Meta.Subs`
+grammar as a usage line. `le <command> <action> --help` and
+`le help <command> <action>` print that action's page: its whole purpose, its
+usage line, and one line per keyword with its kind, whether it is required or
+repeats, and its help. `le help <command> <action> <keyword>` prints one
+keyword's page; a keyword the action does not take is refused naming the ones
+it does, with exit 2. A line the table refuses prints that one action's usage
+and keyword lines on stderr, under the program name the reader ran (`le` or
+`ze le`), and nothing about the area's other actions.
+<!-- source: internal/le/le/action/page.go -- ActionPage, UsagePage, KeywordPage -->
+<!-- source: internal/le/le/root/manifest.go -- sections -->
+An action can instead forward every word after its verb to
 another program verbatim (`leaction.Action.AnswerWords`): its row publishes
 `forwards`, its usage reads `[<words>...]`, and the program refuses what it
 cannot read. `le perf track --check <history>` is one. An area whose first word
 is already the program's forwards every word after its name
-(`leroot.RegisterForwarding`), and the manifest publishes `forwards` for it:
-`chaos run`, `mrt`, `test harness` and `build gokrazy`. A help word after a
+(`leroot.RegisterForwarding`, which names the program): the table it registers
+is the pass-through declaration (`leaction.PassesWords`), so it holds no
+action, the manifest publishes `passes-words: true` and `passes-to` for it, its
+help page adds a `Words` line saying where the words go, and the derived
+command tree offers nothing below it. `chaos run`, `mrt`, `exec`,
+`build gokrazy` and every `test` suite and helper are such areas. The program's
+exit code is the area's. A help word after a
 forwarding verb, or after a forwarding area's name, belongs to the program, so
 `le perf send --help` and `le mrt statistics --help` print the program's own
 help. `le perf --help` still prints le's page, and a bare forwarding area
@@ -186,19 +206,26 @@ question never reaches the handler,
 because a single-action area answers a bare invocation by RUNNING its gate, so
 rendering help through the handler would scan the tree or start a build.
 <!-- source: internal/le/le/root/dispatch.go -- asksForUsage -->
-<!-- source: internal/le/le/action/leaction.go -- TrailingWordIsValue -->
+<!-- source: internal/le/le/action/leaction.go -- TrailingWordAsksForHelp -->
+<!-- source: internal/le/le/action/leaction.go -- PassesWords, PassesLine -->
+<!-- source: internal/le/le/root/leroot.go -- RegisterForwarding, Forwards -->
 
-**The area's own table decides which help word is a question and which is
-data.** A help word that a declared keyword introduced is the value the operator
-typed, wherever it stands on the line. So `le repo rewrite replace file
-<path> old beta new help` runs the replacement. Every other help word asks the
-question, and the registry answers it.
+**The area's own table decides which help word is a question, which is data,
+and which is refused.** The bare word `help` that a declared keyword introduced
+is the value the operator typed, wherever it stands on the line. So `le repo
+rewrite replace file <path> old beta new help` runs the replacement. A
+dash-leading help spelling in that same value slot is an option where a value
+is expected, so the table refuses it by name and answers 2: `le test
+stress-repro run suite -help` starts nothing. A help word standing where the
+next keyword would asks the question, and the registry answers it.
+<!-- source: internal/le/le/action/parameter.go -- trailingAsksForHelp -->
+
 
 An area that registered no table publishes no grammar. The dispatcher cannot
 read one, so it guards. A value spelled `help`, `-h` or `--help` is unreachable
 in that area until the area declares its table.
 
-**The grouped page is a rendering of a payload, so le publishes what it
+**The root page is a rendering of a payload, so le publishes what it
 declares.** `Manifest` carries every registered area, its group and its
 description. An area that registered an action table also carries each action,
 with its verb, its purpose, its write flag and its keyword grammar. `./le '|'
@@ -207,18 +234,24 @@ the page a person reads, on stdout, with exit 0. The page is derived from the
 manifest rather than written beside it, so the text and the document name one
 command set.
 
-An area that hand-rolls its own dispatch registers no table, and
-its actions key is then absent rather than empty. Absent says the area declared
-nothing, which is a different fact from an area that declared no action.
+Every area registers a table, a pass-through area included, whose table
+publishes `passes-words` and `passes-to` and no action. le refuses to start
+while an area declares neither, and the refusal names the area and the
+`leroot.RegisterActions` call that fixes it (`requireEveryAreaHasATable`).
 
 **A keyword is typed, and its declaration is the only one.** Each
 `leaction.Parameter` declares a kind from the closed set in
 `internal/le/le/action/kind.go` (switch, string, enum, list, uint, duration,
-path, revision, spec, label, area, words), a one-line help, and for an enum or
-a list its values. It can also declare a value source for completion, a pair
+path, revision, spec, label, area, words, argv), a one-line help, and for an
+enum or a list its values. An `argv` keyword ends the line: every word after
+it, an option included, is the program it runs, as `le job run ... command
+<argv...>` takes it. It can also declare a value source for completion, a pair
 (`rename <old> <new>`), or the spelling that retired it, which is refused by
 name and never rendered. An action may take one positional value, in the first
-slot after its verb and of a kind other than string. The manifest publishes
+slot after its verb and of a kind other than string. A positional `argv` is the
+whole line after the verb and the action's only parameter: `le commit push
+"<owner authorisation>"` reads the owner's words as typed, a leading dash
+included. The manifest publishes
 the kind, help, requiredness, repetition and values of every live keyword.
 `leroot.Tree` derives a read-only `command.Node` tree from the same registry
 for completion, help, the menu and `le help ai`: a switch maps to `ArgFlag`, an
@@ -388,11 +421,11 @@ under the `testdata/` directory of the Go package that owns them.
 <!-- source: internal/le/test/unit/groups.go -- allGroups -->
 <!-- source: internal/le/rfc/check.go -- Check -->
 <!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
-<!-- source: internal/le/le/root/dispatch.go -- Commands, Dispatch, helpTrailing, helpNode -->
+<!-- source: internal/le/le/root/dispatch.go -- Commands, Dispatch, helpTrailing, helpPage, areaPage -->
 <!-- source: internal/le/le/root/manifest.go -- Manifest, Text -->
 <!-- source: internal/le/le/action/leaction.go -- IsHelpArg, actionUsage -->
 <!-- source: internal/le/le/root/leroot.go -- Register, RegisterActions -->
-<!-- source: internal/le/le/root/group.go -- Group, GroupTitle -->
+<!-- source: internal/le/le/root/group.go -- Group, KnownGroup -->
 <!-- source: internal/le/derived/derived.go -- Artifact, Register, All, EnsureAll -->
 <!-- source: cmd/ze/ze_le_register.go -->
 

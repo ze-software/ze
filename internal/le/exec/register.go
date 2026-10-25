@@ -24,7 +24,7 @@ func init() {
 
 	// Every word after the program path is the program's own command line, so
 	// a trailing help word reaches the program and it prints its own help.
-	leroot.RegisterForwarding(name)
+	leroot.RegisterForwarding(name, "the program its first word names")
 }
 
 // answer is `le exec <path> [args...]`. On success it never returns: le

@@ -4,13 +4,13 @@ package commit
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/commit/hunks"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
@@ -647,31 +647,38 @@ func refuseForeignReplace(script string, paths []string) error {
 // no-test and ledger-carried act on a commit's files too; an attestation
 // changes no file and runs no gate, so the keyword would be dropped in silence
 // and the reason the author gave recorded nowhere. The refusal is derived from
-// createKeywords, so a keyword added there is refused until it is declared
-// WithAttest. The keywords are judged in sorted order, so two given at once
-// always refuse naming the same one.
+// the create table (createParameters) and its policy (createPolicy), so a
+// keyword added to the table is refused until it is declared WithAttest. The
+// keywords are judged in sorted order, so two given at once always refuse
+// naming the same one.
 func refuseAttestAdmission(options *Options) error {
-	return refuseUndeclaredWithAttest(options, createKeywords)
+	return refuseUndeclaredWithAttest(options, createParameters, createPolicy)
 }
 
-// refuseUndeclaredWithAttest is refuseAttestAdmission over a given table, so a
-// test can add a keyword nobody decided without mutating createKeywords.
-func refuseUndeclaredWithAttest(options *Options, rules map[string]keywordRule) error {
-	for _, keyword := range slices.Sorted(maps.Keys(rules)) {
-		rule := rules[keyword]
+// refuseUndeclaredWithAttest is refuseAttestAdmission over a given table and
+// policy, so a test can add a keyword nobody decided without mutating either.
+func refuseUndeclaredWithAttest(options *Options, parameters []leaction.Parameter, policy map[string]keywordPolicy) error {
+	keywords := make([]string, 0, len(parameters))
+	for _, parameter := range parameters {
+		// A retired keyword never reaches Options: parsing refuses it.
+		if parameter.Retired != "" {
+			continue
+		}
+		keywords = append(keywords, parameter.Keyword)
+	}
+	slices.Sort(keywords)
+	for _, keyword := range keywords {
+		rule := policy[keyword]
 		if rule.WithAttest {
 			continue
 		}
-		// A removed keyword never reaches Options: parsing refuses it.
-		if rule.Replacement != "" {
-			continue
-		}
-		// A live keyword with no Given reader cannot be judged, so the
-		// refusal says so rather than letting an attestation carry it.
+		// A live keyword with no Given reader, or no policy entry at all,
+		// cannot be judged, so the refusal says so rather than letting an
+		// attestation carry it.
 		if rule.Given == nil {
 			return errors.New("attest refused: create keyword " + keyword + " has no Given reader, " +
 				"so the attest refusal cannot tell whether an attestation carries it; " +
-				"give " + keyword + " a Given in createKeywords, in internal/le/commit/actions.go")
+				"give " + keyword + " a Given in createPolicy, in internal/le/commit/actions.go")
 		}
 		if !rule.Given(options) {
 			continue

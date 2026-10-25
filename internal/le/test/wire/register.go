@@ -60,5 +60,5 @@ func init() {
 
 	// Every word after the name reaches the area, so the suite word and a
 	// trailing help word reach the harness and it prints its own help.
-	leroot.RegisterForwarding(name)
+	leroot.RegisterForwarding(name, harnesstool.Runner)
 }
