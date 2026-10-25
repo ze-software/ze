@@ -42,6 +42,10 @@ Still owed in Phase 3a:
   --fail-on-gate=false`, under `./le job run`, long: the reactor suite runs per
   mutant), then `./le rfc discriminate id RFC7947-x-5 report <path>` and
   `./le rfc discriminate-record ... route mutant report <path> mutant <file:L:C#n>`.
+  gomu finds 869 mutants in that file and runs the reactor suite for each
+  (30-60 s), about 4-7 hours at 2 workers. Thomas stopped the Mac run on
+  2026-10-25 to take it on the Linux host after the move; ask him when the
+  host can carry it.
 - Re-read the ~70 interop, perf and stress configs that load bgp-rs or bgp-rr
   (the `.ci` scan found no forward-all expectation).
 - 3 needs-linux functional tests not run on darwin:
