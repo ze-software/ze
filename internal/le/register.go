@@ -82,6 +82,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/repo/workingtree"
 	_ "github.com/ze-software/ze/internal/le/rfc"
 	_ "github.com/ze-software/ze/internal/le/rfc/skeletons"
+	_ "github.com/ze-software/ze/internal/le/rollback"
 	"github.com/ze-software/ze/internal/le/scratch"
 	_ "github.com/ze-software/ze/internal/le/session"
 	_ "github.com/ze-software/ze/internal/le/setup"

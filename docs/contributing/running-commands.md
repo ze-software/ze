@@ -149,8 +149,10 @@ To keep it, write it where your shell looks: `./le completion bash >
 Each script's first lines say the same.
 
 On Tab the script runs `<the typed word's directory>/bin/le completion words
-<line>`, never the launcher, with stderr discarded: a keystroke checks no
-staleness and builds nothing, and with `bin/le` absent it completes nothing.
+<line>`, with stderr discarded. `bin/le` is the dispatcher's installed copy, and
+it recognises that form: it execs the newest build in `bin/builds/` with no
+input-key check, no build and no rollback, so a keystroke costs one directory
+listing, and with no build it completes nothing.
 The `completion` area is a shell callback, so le runs no cache-link repair and
 no before-dispatch hook for it. It offers areas, then actions, then the
 keywords still open: a keyword already given is not offered again unless it
@@ -159,8 +161,8 @@ after their keyword. A pass-through area completes nothing after its name,
 because its program owns those words. A typed word le does not know is refused:
 `./le completion words nosuch ''` names it on stderr and exits 1, so the shell
 offers nothing while a person running it by hand learns which word was wrong.
-After a `git pull`, run `./le --update`
-so `bin/le` knows the new commands.
+After a `git pull` the next `./le` call builds the new HEAD in the background,
+and completion knows the new commands once that build lands.
 
 <!-- source: internal/le/completion/completion.go -- table, answerWords -->
 <!-- source: internal/le/le/root/complete.go -- Complete, afterVerb -->
@@ -169,27 +171,71 @@ so `bin/le` knows the new commands.
 
 ## Launcher builds do not overwrite running binaries
 
-`./le` keeps an existence cache: a compatible executable is reused until
-`--update` requests a rebuild. If the shared executable belongs to another
-platform, the launcher selects `bin/le-<OS>-<architecture>/le` instead.
-`--name <name>` rebuilds `bin/le-<name>/le` on every invocation and exports
-`ZE_LE_BUILD_NAME` so nested calls select the same private build.
+`./le` is a dispatcher. It runs the newest build of le in `bin/builds/`, one
+directory per build named `<UTC commit time>-<short sha>`, so a byte-order
+listing sorts the newest last. `bin/le` is a copy of the same script, which
+`./le` installs by rename whenever the two differ, and it chooses exactly as
+`./le` does. Go code reads the same names through `gotoolchain.ParseBuildName`
+and `gotoolchain.RunnableBuild`, which the store trim uses to judge builds.
 
-Every build, including a cold start and a named rebuild, writes a sibling
-`<target>.new.<pid>` and then renames it onto the target. A process already
-running keeps its old inode; another caller never opens a partially written
-target. Concurrent builders need no lock or retry. The final filename stays
-`le`, preserving personality dispatch. A failed build removes its staging file
-and leaves any published target unchanged. Preparation failures, including a
-missing or empty feature manifest, stop before the compiler runs.
+Builds follow HEAD, never the working tree. Each build records its input key:
+the git object id of `internal cmd pkg api vendor go.mod go.sum
+feature-gates.txt feature-tags` at the commit it was built from. When HEAD's key
+differs from the newest build's, the call starts one detached build and still
+runs the newest; later calls see the lock (`bin/builds/.building`, holding the
+builder's host and pid) and run the newest too. A lock from this host is
+reclaimed once its pid is dead. A lock from another host (a QEMU guest sharing
+the checkout over 9p, which cannot see the host's pids) holds until it is thirty
+minutes old, well past the two minutes a cold build takes, and is then
+reclaimed. The builder exports HEAD with `git archive` into the lock directory, compiles with
+the patched GOROOT into `bin/builds/.staging-<pid>/le`, smoke-tests it (`le
+help`, `le spec wip`, `le spec current`, with `ZE_REPO_ROOT` naming the
+checkout), and renames the directory into place. A commit that changes no input
+reuses the newest build, so it starts nothing. With no build at all, the first
+call builds HEAD in the foreground and the others wait for it. When
+`bin/builds` or its lock cannot be created at all (a read-only `bin/`, a full
+disk), that call refuses at once with the path, the cause and the fix, because
+no wait would end it.
 
-A missing `go` stops it too. The script refuses before `go build`, and once
-`bin/le` exists `gotoolchain.New` refuses before any le action starts a Go
-command. Both name the PATH searched, the version go.mod pins, and how to put
-Go on PATH. The usual cause is a non-interactive shell, such as `ssh host
-command`, that never read the profile adding Go to PATH.
+A build that fails to compile or fails its smoke test is never published. Its
+log becomes `bin/builds/.failed-<commit>.log`, the next caller reads one line
+naming the commit and the log, and that commit is not built again. A build
+that does not start (not executable, the wrong platform, or failing the smoke
+test a hand-placed build gets before its first run) is moved aside to
+`bin/builds/.failed-<name>` and the call runs the next newest, saying so in one
+line. `./le rollback` moves the newest build aside the same way on demand, and
+the inputs of a build moved aside are not rebuilt, except when it was the only
+build: the next call then finds no build and builds HEAD in the foreground,
+because some le must run. Nothing in this path
+deletes: a process running a build keeps its file.
+`rollback` is registered in le's command tree, so `./le help` lists it and
+completion offers it, but the move is the launcher's: a build run by its path,
+or as a `--name` build, refuses `rollback` with exit 2 and names `./le rollback`.
+<!-- source: internal/le/rollback/rollback.go -- Answer, refusal -->
 
-<!-- source: le -- build_le, update_le -->
+A machine that shares the checkout with another platform, a QEMU guest
+mounting it, finds the newest build's header is not its own, and its builds are
+named `<time>-<sha>-<GOOS>-<GOARCH>` in Go's words. `--update` is gone, and
+says so with exit 2.
+
+`--name <name>` rebuilds `bin/le-<name>/le` from the working tree on every
+invocation and exports `ZE_LE_BUILD_NAME` so nested calls select the same
+private build; `--name session` names it `s-<first 8 of
+CLAUDE_CODE_SESSION_ID>`, and refuses with exit 2 when the variable is unset.
+Every publish, a build of HEAD and a named rebuild alike, writes a complete
+sibling and renames it onto the target, so a process already running keeps its
+old inode and no caller opens a partially written file. The final filename stays
+`le`, preserving personality dispatch. Preparation failures, including a missing
+or empty feature manifest, stop before the compiler runs.
+
+A missing `go` stops it too. The script refuses before git and before `go
+build`, and once a build exists `gotoolchain.New` refuses before any le action
+starts a Go command. Both name the PATH searched, the version go.mod pins, and
+how to put Go on PATH. The usual cause is a non-interactive shell, such as `ssh
+host command`, that never read the profile adding Go to PATH.
+
+<!-- source: le -- build_le, build_head, export_commit, choose_build, start_candidate, set_aside, take_lock -->
+<!-- source: internal/le/go/toolchain/builds.go -- BuildsDir, ParseBuildName, RunnableBuild -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- New, goMissing -->
 
 Every Go command le starts compiles against Ze's patched standard library
@@ -210,17 +256,17 @@ and `./le verify` runs it in both modes.
 <!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
 
 A named build does not stay forever. The hourly store trim (see "When the disk
-is full") removes `bin/le-<name>/` once its `le` and the directory itself are
-both a day old and no running process carries the path in its argv; the next
+is full") removes `bin/le-<name>/` once nothing in it was written for a day
+and no running process carries the path in its argv; the next
 `--name <name>` call rebuilds it, at the cost of one warm build. A process
-already running from it keeps its inode. `bin/le`, the shared
-`bin/le-<OS>-<architecture>/`, `bin/ze` and every other `bin/ze*` never reach
-the removal, and neither does a name the script's own name check would refuse.
-A name that starts with a capital letter is never removed either, because that
-is the shape of the platform directory.
+already running from it keeps its inode. `bin/le`, `bin/ze` and every other
+`bin/ze*` never reach the removal, and neither does a name the script's own
+name check would refuse. A `bin/le-<OS>-<architecture>/` left by the launcher
+before `bin/builds` (`bin/le-Linux-aarch64/`) is judged the same way as a named
+build and goes once idle: the launcher writes no such directory any more.
 
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- NamedLauncherDir, NamedLauncherName -->
-<!-- source: internal/le/scratch/livetrim.go -- trimLaunchers, launcherIdle, launcherNamedInArgv -->
+<!-- source: internal/le/scratch/livetrim.go -- trimLaunchers, treeIdle, pathNamedInArgv -->
 
 ## A bare `go test` is not `./le test unit`
 
@@ -919,13 +965,28 @@ reported and exits 0.
 After the caches, the same child trims the stores a live session may be using,
 by age and liveness and never by size: named launchers (`launchers`, see
 "Launcher builds do not overwrite running binaries"), session directories
-(`sessions`) and orphaned testbins (`testbins`, both in "Scratch files"). It
-scans the process table once for all three. When that table shows no Claude
-CLI, the three rows say `no session process visible` and nothing is removed from
-them; the caches are trimmed either way. A row counts what it removed and what
-it kept, and an error in one of these rows also makes the action exit 1. With
-no `tmp/session/`, or when the session directories cannot be judged, the
-`testbins` row is a skip that says which.
+(`sessions`) and orphaned testbins (`testbins`, both in "Scratch files"), the
+launcher's builds (`builds`) and what agents leave directly in `bin/`
+(`agent-files`). It scans the process table once for all of them. When that
+table shows no Claude CLI, every one of these rows says `no session process
+visible` and nothing is removed from them; the caches are trimmed either way. A
+row counts what it removed and what it kept, and an error in one of these rows
+also makes the action exit 1. With no `tmp/session/`, or when the session
+directories cannot be judged, the `testbins` row is a skip that says which.
+
+Every rule below also needs that no running process names the entry's path in
+its argv, as whole names (`bin/gomu` does not protect `bin/gomu-rfc`), so a
+command still running from a superseded build keeps its file.
+
+| Row | Entry | Removed once |
+|-----|-------|--------------|
+| `builds` | `bin/builds/<name>/` | it is older than the newest two runnable builds of its platform; the newest, which le runs, and the one `./le rollback` falls back to always stay |
+| `builds` | `.failed-<name>[.<pid>]/`, a rolled-back build | a newer build of its platform landed |
+| `builds` | `.failed-<commit>.log`, `.reported` | a build of another commit landed after it, so HEAD moved on |
+| `builds` | `.staging-<pid>/` | nothing in it was written for an hour |
+| `builds` | `.previous-legacy/` | a build of this checkout's own platform exists |
+| `builds` | `.building/`, anything else | never: the launcher reclaims a lock whose owner died |
+| `agent-files` | any `bin/` entry but `le`, `le-*`, `le.*`, `ze*` and `builds` | nothing in it (its newest mtime, the whole tree for a directory) was written for a day; a symbolic link is never removed |
 
 The last row, `test-temp`, is the per-user test temp base `~/.zt` (see "Where a
 Go test keeps its temp dirs"). Age alone judges it, with or without a Claude
@@ -934,7 +995,7 @@ and a run still writing an entry is younger than the floor: a `go-build*` work
 directory more than 2 hours old and any other entry more than 6 hours old is
 removed. A home with no usable base makes the row a skip that says
 why.
-<!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins, trimTestTemp -->
+<!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins, trimBuilds, trimAgentFiles, pathNamedInArgv, trimTestTemp -->
 <!-- source: internal/le/session/reap.go -- Judge -->
 <!-- source: internal/le/procscan/procscan.go -- Scan -->
 

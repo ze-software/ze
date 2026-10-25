@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"golang.org/x/mod/modfile"
 
 	"github.com/ze-software/ze/internal/core/env"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 func TestRootLaunchersBuildMissingBinary(t *testing.T) {
@@ -114,7 +116,11 @@ func TestRootLaunchersExecExistingBinaryWithoutRebuild(t *testing.T) {
 	for _, launcher := range []string{"le", "ze"} {
 		t.Run(launcher, func(t *testing.T) {
 			fixture := launcherFixture(t, root, launcher)
-			writeExecutable(t, filepath.Join(fixture, "bin", launcher), fakeBuiltBinary)
+			if launcher == "le" {
+				writeHeadBuild(t, fixture, fakeBuiltBinary)
+			} else {
+				writeExecutable(t, filepath.Join(fixture, "bin", launcher), fakeBuiltBinary)
+			}
 			writeExecutable(t, filepath.Join(fixture, "fakebin", "go"), "#!/bin/sh\ntouch \"$ZE_REBUILD_RECORD\"\nexit 99\n")
 
 			working := filepath.Join(fixture, "working")
@@ -151,33 +157,15 @@ func TestRootLaunchersExecExistingBinaryWithoutRebuild(t *testing.T) {
 			if !errors.As(err, &exitErr) || exitErr.ExitCode() != -1 {
 				t.Fatalf("launcher hid existing binary's terminating signal: %v", err)
 			}
-
-			// The same assertion over the one path that does NOT exec.
-			//
-			// le_sampled sends one call in sixteen through a branch that runs the
-			// binary as a CHILD, so it can print the staleness warning after the
-			// answer. That branch is chosen by `$$ % 16`, so the run above reaches
-			// it on one pid in sixteen and the case this test is named for was
-			// covered by luck: it went red in a full verification run and passed
-			// on the next fifteen. Forcing the sample is what makes the coverage
-			// a fact rather than a coin toss.
-			//
-			// Only `le` carries the branch: `ze` execs on every call. That is
-			// asserted rather than assumed, so a `ze` that grows one, or an `le`
-			// that loses it, is not silently left uncovered.
-			sampled, samples := forcedSampleLauncher(t, fixture, launcher)
-			if samples != (launcher == "le") {
-				t.Fatalf("%s samples = %v; the sampling branch belongs to le alone", launcher, samples)
+			// Both launchers exec on every call now: le's staleness sample, the
+			// one branch that ran the binary as a child, is gone with the walk it
+			// paid for. A launcher that grows a child branch again is caught here.
+			body, err := os.ReadFile(filepath.Join(fixture, launcher))
+			if err != nil {
+				t.Fatal(err)
 			}
-			if !samples {
-				return
-			}
-			signalSampled := exec.CommandContext(t.Context(), sampled, "signal")
-			signalSampled.Dir = fixture
-			signalSampled.Env = append(launcherEnv(), "ZE_EXEC_RECORD="+execRecord)
-			err = signalSampled.Run()
-			if !errors.As(err, &exitErr) || exitErr.ExitCode() != -1 {
-				t.Fatalf("the sampled launcher branch hid the binary's terminating signal: %v", err)
+			if strings.Contains(string(body), `"$binary" "$@" ||`) {
+				t.Fatalf("%s runs the binary as a child on some path, which hides its signal", launcher)
 			}
 		})
 	}
@@ -201,7 +189,7 @@ func TestLeLauncherBuildsForTheHostUnderACrossTarget(t *testing.T) {
 	fixture := launcherFixture(t, root, "le")
 	writeFakeGo(t, fixture)
 	execRecord := filepath.Join(fixture, "exec.record")
-	code := runLauncher(t, fixture, "le", []string{"probe"}, []string{
+	code := runLauncher(t, fixture, []string{"probe"}, []string{
 		"GOOS=linux",
 		"GOARCH=amd64",
 		"ZE_GO_RECORD=" + filepath.Join(fixture, "go.record"),
@@ -236,8 +224,7 @@ func TestLeLauncherNameBuildsPrivateBinary(t *testing.T) {
 			writeFakeGo(t, fixture)
 			goRecord := filepath.Join(fixture, "go.record")
 			execRecord := filepath.Join(fixture, "exec.record")
-			shared := filepath.Join(fixture, "bin", "le")
-			writeExecutable(t, shared, sharedStubBinary)
+			shared := writeHeadBuild(t, fixture, sharedStubBinary)
 			named := filepath.Join(fixture, "bin", "le-"+buildNameProbe, "le")
 			if tt.prebuilt {
 				writeExecutable(t, named, sharedStubBinary)
@@ -245,7 +232,7 @@ func TestLeLauncherNameBuildsPrivateBinary(t *testing.T) {
 
 			args := []string{"two words", "*", "", "semi;colon"}
 			argv := append(slices.Clone(tt.option), args...)
-			exitCode := runLauncher(t, fixture, "le", argv, []string{
+			exitCode := runLauncher(t, fixture, argv, []string{
 				"ZE_GO_RECORD=" + goRecord,
 				"ZE_EXEC_RECORD=" + execRecord,
 				"ZE_EXEC_EXIT=37",
@@ -265,7 +252,9 @@ func TestLeLauncherNameBuildsPrivateBinary(t *testing.T) {
 func TestLeLauncherPreparationFailureNeverPublishes(t *testing.T) {
 	root := personalityRepoRoot(t)
 	cache := t.TempDir()
-	for _, mode := range []string{"cold", "named", "update"} {
+	// A cold start builds HEAD, so its failure is committed before the run; a
+	// named build compiles the working tree, so its failure is only written.
+	for _, mode := range []string{"cold", "named"} {
 		for _, failure := range []string{"empty manifest", "missing manifest", "missing module", "unusable caches"} {
 			t.Run(mode+"/"+failure, func(t *testing.T) {
 				fixture := launcherFixture(t, root, "le")
@@ -286,14 +275,11 @@ func init() { feature = "feature-enabled" }
 `)
 				}
 				writeProbe("old")
-				target := filepath.Join(fixture, "bin", "le")
+				var target string
 				var args []string
-				switch mode {
-				case "named":
+				if mode == "named" {
 					target = filepath.Join(fixture, "bin", "le-"+buildNameProbe, "le")
 					args = []string{"--name", buildNameProbe}
-				case "update":
-					args = []string{"--update", "probe"}
 				}
 				if mode != "cold" {
 					initial := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), args...)
@@ -327,6 +313,9 @@ func init() { feature = "feature-enabled" }
 						}
 					}
 				}
+				if mode == "cold" {
+					commitFixture(t, fixture, "a broken preparation")
+				}
 				cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), args...)
 				cmd.Dir = fixture
 				cmd.Env = launcherEnv()
@@ -334,8 +323,12 @@ func init() { feature = "feature-enabled" }
 					t.Errorf("invalid preparation succeeded: %s", output)
 				}
 				if mode == "cold" {
-					if _, err := os.Stat(target); !errors.Is(err, os.ErrNotExist) {
-						t.Fatalf("preparation failure published a target: %v", err)
+					entries, err := os.ReadDir(filepath.Join(fixture, "bin", "builds"))
+					if err != nil && !errors.Is(err, os.ErrNotExist) {
+						t.Fatal(err)
+					}
+					for _, entry := range entries {
+						t.Errorf("preparation failure left bin/builds/%s", entry.Name())
 					}
 				} else {
 					consumer := exec.CommandContext(t.Context(), target)
@@ -540,11 +533,10 @@ func TestLeLauncherCarriesTheBuildNameToNestedCalls(t *testing.T) {
 		writeFakeGo(t, fixture)
 		goRecord := filepath.Join(fixture, "go.record")
 		execRecord := filepath.Join(fixture, "exec.record")
-		shared := filepath.Join(fixture, "bin", "le")
-		writeExecutable(t, shared, sharedStubBinary)
+		shared := writeHeadBuild(t, fixture, sharedStubBinary)
 
 		args := []string{"repository", "status"}
-		exitCode := runLauncher(t, fixture, "le", args, []string{
+		exitCode := runLauncher(t, fixture, args, []string{
 			"ZE_GO_RECORD=" + goRecord,
 			"ZE_EXEC_RECORD=" + execRecord,
 			"ZE_EXEC_EXIT=37",
@@ -562,7 +554,7 @@ func TestLeLauncherCarriesTheBuildNameToNestedCalls(t *testing.T) {
 		writeFakeGoProducing(t, fixture, buildNameEchoBinary)
 		execRecord := filepath.Join(fixture, "exec.record")
 
-		exitCode := runLauncher(t, fixture, "le", []string{"--name", buildNameProbe, "repository"}, []string{
+		exitCode := runLauncher(t, fixture, []string{"--name", buildNameProbe, "repository"}, []string{
 			"ZE_GO_RECORD=" + filepath.Join(fixture, "go.record"),
 			"ZE_EXEC_RECORD=" + execRecord,
 		})
@@ -597,8 +589,7 @@ func TestLeLauncherRefusesUnsafeBuildNames(t *testing.T) {
 			writeFakeGo(t, fixture)
 			goRecord := filepath.Join(fixture, "go.record")
 			execRecord := filepath.Join(fixture, "exec.record")
-			shared := filepath.Join(fixture, "bin", "le")
-			writeExecutable(t, shared, sharedStubBinary)
+			shared := writeHeadBuild(t, fixture, sharedStubBinary)
 
 			cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), tt.option...)
 			cmd.Dir = fixture
@@ -663,11 +654,11 @@ func TestRootLaunchersArePOSIXShellWithoutPython(t *testing.T) {
 // re-split them on IFS, so `le commit create message "two words"` arrives as two.
 //
 // This replaces a count of the string "$@", which measured the wrong thing. A
-// launcher is free to name the argv more than once (le passes it to the binary
-// under the staleness sample as well as through exec, and its find helper
-// forwards its OWN arguments the same way); what it is never free to do is
-// expand it unquoted. The count read every one of those as a defect and read a
-// single unquoted $@ as correct.
+// launcher is free to name the argv more than once (le execs it from the named
+// path, the completion path and the newest-build path, and execs the legacy
+// binary with it too); what it is never free to do is expand it unquoted. The
+// count read every one of those as a defect and read a single unquoted $@ as
+// correct.
 func unquotedArgvExpansions(source string) []string {
 	splits := make([]string, 0)
 	if strings.Contains(source, "$*") {
@@ -687,32 +678,9 @@ func unquotedArgvExpansions(source string) []string {
 	}
 }
 
-// forcedSampleLauncher writes a copy of the fixture's launcher whose le_sampled
-// always answers yes, and returns its path. samples is false for a launcher that
-// carries no sampling predicate at all, which `ze` does not.
-//
-// The sample is `$$ % 16` on purpose: a counter would be state several sessions
-// write at once, and the only thing the sample has to be is roughly one in
-// sixteen (le). That makes the branch unreachable on demand, so the test
-// rewrites the predicate in its own copy rather than asking the launcher for a
-// seam it should not carry. Only the predicate's body moves; every other line,
-// including the branch under test, is the tracked file's.
-func forcedSampleLauncher(t *testing.T, fixture, launcher string) (path string, samples bool) {
-	t.Helper()
-	body, err := os.ReadFile(filepath.Join(fixture, launcher))
-	if err != nil {
-		t.Fatalf("read fixture %s: %v", launcher, err)
-	}
-	const predicate = "\t[ $(($$ % 16)) -eq 0 ]\n"
-	text := string(body)
-	if !strings.Contains(text, predicate) {
-		return "", false
-	}
-	path = filepath.Join(fixture, launcher+".sampled")
-	writeExecutable(t, path, strings.Replace(text, predicate, "\treturn 0\n", 1))
-	return path, true
-}
-
+// launcherFixture copies one launcher and the files it reads into a fresh
+// directory. An le fixture is also a git checkout with everything committed,
+// because le builds HEAD, never the working tree.
 func launcherFixture(t *testing.T, root, launcher string) string {
 	t.Helper()
 	fixture := t.TempDir()
@@ -740,6 +708,14 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 	manifest := "# fixture feature gates\nze_alpha internal/alpha\nze_beta internal/beta\nze_alpha internal/alpha/sidecar\n"
 	if err := os.WriteFile(filepath.Join(fixture, "feature-gates.txt"), []byte(manifest), 0o600); err != nil {
 		t.Fatalf("write feature-gates.txt: %v", err)
+	}
+	if launcher == "le" {
+		ignored := "/bin/\n/fakebin/\n/cache\n/tmp\n*.record\n*.count\n*.gate\n"
+		if err := os.WriteFile(filepath.Join(fixture, ".gitignore"), []byte(ignored), 0o600); err != nil {
+			t.Fatalf("write .gitignore: %v", err)
+		}
+		fixtureGit(t, fixture, "init", "--quiet")
+		commitFixture(t, fixture, "fixture")
 	}
 	return fixture
 }
@@ -805,10 +781,10 @@ func launcherEnv() []string {
 	return env.Without(os.Environ(), "ze.repo.root", "ze.le.build.name")
 }
 
-// runLauncher runs one launcher inside its fixture and answers the exit code.
-func runLauncher(t *testing.T, fixture, launcher string, args, extraEnv []string) int {
+// runLauncher runs the fixture's le launcher and answers the exit code.
+func runLauncher(t *testing.T, fixture string, args, extraEnv []string) int {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, launcher), args...)
+	cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), args...)
 	cmd.Dir = fixture
 	cmd.Env = append(launcherEnv(),
 		"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -817,7 +793,7 @@ func runLauncher(t *testing.T, fixture, launcher string, args, extraEnv []string
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
-			t.Fatalf("run %s %v: %v", launcher, args, err)
+			t.Fatalf("run le %v: %v", args, err)
 		}
 		return exitErr.ExitCode()
 	}
@@ -918,7 +894,13 @@ printf '%s\n' "${ZE_LE_BUILD_NAME-unset}" > "$ZE_EXEC_RECORD"
 exit 0
 `
 
+// fakeBuiltBinary stands in for a build of le. It answers the launcher's smoke
+// test (help, spec) with success and records nothing for it, so the record a
+// test reads is the call the test made.
 const fakeBuiltBinary = `#!/bin/sh
+case "${1-}" in
+help | spec) exit 0 ;;
+esac
 if [ "${1-}" = signal ]; then
 	kill -TERM "$$"
 fi
@@ -996,4 +978,976 @@ func TestLeLauncherAcceptsTestNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+// fixtureGit runs one git command in a fixture checkout and answers its
+// trimmed output. The user's and the system's git configuration are shut out,
+// so a signing or hook setting on the host cannot change a fixture commit, and
+// every date is read in UTC, as the launcher reads it.
+func fixtureGit(t *testing.T, fixture string, args ...string) string {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "git", append([]string{"-C", fixture}, args...)...) //nolint:gosec // the test's own git arguments
+	cmd.Env = append(launcherEnv(),
+		"GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
+		"GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid",
+		"TZ=UTC",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, output)
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// commitFixture commits the whole fixture tree. Each commit is dated one
+// minute after the one before it, so builds of successive commits sort in
+// commit order, as they do in a real checkout.
+func commitFixture(t *testing.T, fixture, message string) {
+	t.Helper()
+	fixtureGit(t, fixture, "add", "-A")
+	commits := 0
+	if out := fixtureGit(t, fixture, "rev-list", "--all", "--count"); out != "" {
+		if _, err := fmt.Sscan(out, &commits); err != nil {
+			t.Fatalf("count commits %q: %v", out, err)
+		}
+	}
+	date := fmt.Sprintf("@%d +0000", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Unix()+int64(60*commits))
+	cmd := exec.CommandContext(t.Context(), "git", "-C", fixture, "commit", "--quiet", "--allow-empty", "-m", message) //nolint:gosec // the test's own git arguments
+	cmd.Env = append(launcherEnv(),
+		"GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
+		"GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid",
+		"GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date,
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, output)
+	}
+}
+
+// headBuildName answers the name the launcher gives a build of the fixture's
+// HEAD on this checkout's own platform: <UTC commit time>-<short sha>.
+func headBuildName(t *testing.T, fixture string) string {
+	t.Helper()
+	stamp := fixtureGit(t, fixture, "log", "-1", "--date=format-local:%Y%m%dT%H%M%SZ", "--format=%cd")
+	return stamp + "-" + fixtureGit(t, fixture, "rev-parse", "--short", "HEAD")
+}
+
+// headInputKey answers the input key the launcher records for the fixture's
+// HEAD. The list of inputs is read from the script itself, so this test holds
+// no second copy of it.
+func headInputKey(t *testing.T, fixture string) string {
+	t.Helper()
+	script, err := os.ReadFile(filepath.Join(fixture, "le"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const assignment = "\nle_inputs='"
+	_, rest, found := strings.Cut(string(script), assignment)
+	if !found {
+		t.Fatalf("the le script no longer assigns %q", strings.TrimSpace(assignment))
+	}
+	inputs, _, _ := strings.Cut(rest, "'")
+	return fixtureGit(t, fixture, append([]string{"ls-tree", "HEAD", "--"}, strings.Fields(inputs)...)...) + "\n"
+}
+
+// writeBuild publishes a build into the fixture's bin/builds/<name>/ the way
+// the launcher does: its le, the input key it was built from, and the smoke
+// record that says it passed. It answers the le path.
+func writeBuild(t *testing.T, fixture, name, body, key string) string {
+	t.Helper()
+	dir := filepath.Join(fixture, "bin", "builds", name)
+	writeExecutable(t, filepath.Join(dir, "le"), body)
+	if err := os.WriteFile(filepath.Join(dir, "inputs"), []byte(key), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "smoke"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(dir, "le")
+}
+
+// writeHeadBuild publishes a build of the fixture's HEAD, current for its
+// inputs, and answers its le path.
+func writeHeadBuild(t *testing.T, fixture, body string) string {
+	t.Helper()
+	return writeBuild(t, fixture, headBuildName(t, fixture), body, headInputKey(t, fixture))
+}
+
+// recordingBuild is a build that writes its label and then its argv to
+// ZE_EXEC_RECORD, so a test reads which build ran and with what.
+func recordingBuild(label string) string {
+	return "#!/bin/sh\ncase \"${1-}\" in\nhelp | spec) exit 0 ;;\nesac\nprintf '%s\\n' '" + label + "' \"$@\" > \"$ZE_EXEC_RECORD\"\n"
+}
+
+// writeHeadGo installs a fake go for builds of HEAD. It answers the goroot
+// step as writeFakeGoProducing does, appends the directory it built in to
+// ZE_GO_COUNT, waits for ZE_GO_GATE when one is named (at most 600 checks a
+// tenth of a second apart), and fails when the tree it compiles carries
+// cmd/ze/marker "fail". The le it produces records the marker it was built from
+// and then its argv, and fails the smoke test when the marker is "smoke-fails".
+func writeHeadGo(t *testing.T, fixture string) {
+	t.Helper()
+	writeExecutable(t, filepath.Join(fixture, "fakebin", "go"), `#!/bin/sh
+if [ "${1-}" = run ]; then
+	tree=$PWD/fakegoroot
+	mkdir -p "$tree/bin"
+	cp "$0" "$tree/bin/go"
+	printf '%s\n' "$tree"
+	exit 0
+fi
+printf '%s\n' "$PWD" >> "${ZE_GO_COUNT:-/dev/null}"
+if [ -n "${ZE_GO_GATE-}" ]; then
+	checks=0
+	while [ ! -e "$ZE_GO_GATE" ] && [ "$checks" -lt 600 ]; do
+		sleep 0.1
+		checks=$((checks + 1))
+	done
+fi
+marker=$(cat cmd/ze/marker 2>/dev/null || echo none)
+if [ "$marker" = fail ]; then
+	echo "fake go: the tree says fail" >&2
+	exit 1
+fi
+out=
+previous=
+for arg do
+	if [ "$previous" = -o ]; then
+		out=$arg
+	fi
+	previous=$arg
+done
+mkdir -p "$(dirname "$out")"
+{
+	printf '#!/bin/sh\nmarker=%s\n' "$marker"
+	cat <<'EOF_BUILT'
+case "${1-}" in
+help | spec)
+	if [ "$marker" = smoke-fails ]; then
+		exit 3
+	fi
+	exit 0
+	;;
+esac
+printf '%s\n' "$marker" "$@" > "$ZE_EXEC_RECORD"
+EOF_BUILT
+} > "$out"
+chmod +x "$out"
+`)
+}
+
+// writeMarker writes the fixture's cmd/ze/marker, the value writeHeadGo's
+// builds report.
+func writeMarker(t *testing.T, fixture, marker string) {
+	t.Helper()
+	writeExecutable(t, filepath.Join(fixture, "cmd", "ze", "marker"), marker+"\n")
+}
+
+// launcherRun runs a launcher at path from the fixture with exactly env, and
+// answers the exit code and stderr.
+func launcherRun(t *testing.T, fixture, path string, env, args []string) (int, string) {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), path, args...) //nolint:gosec // the fixture's launcher
+	cmd.Dir = fixture
+	cmd.Env = env
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return exitErr.ExitCode(), stderr.String()
+	}
+	if err != nil {
+		t.Fatalf("run %s %v: %v", path, args, err)
+	}
+	return 0, stderr.String()
+}
+
+// headEnv is the environment of the HEAD-build tests: the fake go first on
+// PATH, its count and gate files, and the exec record.
+func headEnv(fixture string, extra ...string) []string {
+	env := append(launcherEnv(),
+		"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"ZE_GO_COUNT="+filepath.Join(fixture, "go.count"),
+		"ZE_EXEC_RECORD="+filepath.Join(fixture, "exec.record"),
+	)
+	return append(env, extra...)
+}
+
+// goCount answers the directories the fake go built in, one per build.
+func goCount(t *testing.T, fixture string) []string {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(fixture, "go.count"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Fields(string(body))
+}
+
+// waitFor polls cond every 20ms for at most a minute, the bound on a fixture
+// build, and fails naming what never happened.
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(time.Minute)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("after a minute: %s", what)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// lockGone answers whether no candidate build holds the fixture's lock.
+func lockGone(fixture string) func() bool {
+	return func() bool {
+		_, err := os.Stat(filepath.Join(fixture, "bin", "builds", ".building"))
+		return errors.Is(err, os.ErrNotExist)
+	}
+}
+
+// TestLauncherRunsNewestBuild: with two builds for this platform, ./le and its
+// installed copy bin/le both exec the newer, and a HEAD whose inputs match it
+// starts no build.
+//
+// VALIDATES: AC-1, AC-2, and that bin/le is the dispatcher, choosing as ./le.
+// PREVENTS: an older build answering, or a build started for a current HEAD.
+func TestLauncherRunsNewestBuild(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeBuild(t, fixture, "20200101T000000Z-aaaaaaa", recordingBuild("A"), "older inputs\n")
+	writeHeadBuild(t, fixture, recordingBuild("B"))
+	execRecord := filepath.Join(fixture, "exec.record")
+
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"two words"}); code != 0 {
+		t.Fatalf("./le exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, execRecord, []string{"B", "two words"})
+
+	script, err := os.ReadFile(filepath.Join(fixture, "le"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	installed, err := os.ReadFile(filepath.Join(fixture, "bin", "le"))
+	if err != nil {
+		t.Fatalf("./le did not install itself as bin/le: %v", err)
+	}
+	if !bytes.Equal(installed, script) {
+		t.Fatal("bin/le is not a copy of ./le")
+	}
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "bin", "le"), headEnv(fixture), []string{"from bin"}); code != 0 {
+		t.Fatalf("bin/le exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, execRecord, []string{"B", "from bin"})
+	if builds := goCount(t, fixture); len(builds) != 0 {
+		t.Fatalf("a current HEAD started builds in %v", builds)
+	}
+	if !lockGone(fixture)() {
+		t.Fatal("a current HEAD took the build lock")
+	}
+}
+
+// TestLauncherBuildsCandidateFromHEAD walks a commit through the launcher: a
+// commit outside le's inputs builds nothing, a commit to an input starts one
+// background build of HEAD while every caller keeps running the current build,
+// and the next call after the build lands runs it. An uncommitted edit made
+// after the commit never reaches the build.
+//
+// VALIDATES: AC-3, AC-4, AC-8.
+// PREVENTS: a caller waiting on a build, two builds of one HEAD, and a peer's
+// half-written edit reaching the shared le.
+func TestLauncherBuildsCandidateFromHEAD(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "one")
+	commitFixture(t, fixture, "marker one")
+	writeHeadBuild(t, fixture, recordingBuild("B"))
+	execRecord := filepath.Join(fixture, "exec.record")
+	launcher := filepath.Join(fixture, "le")
+	gate := filepath.Join(fixture, "build.gate")
+	env := headEnv(fixture, "ZE_GO_GATE="+gate)
+
+	// AC-8: a commit that changes no input.
+	if err := os.WriteFile(filepath.Join(fixture, "README"), []byte("prose\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	commitFixture(t, fixture, "prose only")
+	launcherRun(t, fixture, launcher, env, []string{"probe"})
+	assertLauncherRecord(t, execRecord, []string{"B", "probe"})
+	if builds := goCount(t, fixture); len(builds) != 0 {
+		t.Fatalf("a commit outside the inputs started builds in %v", builds)
+	}
+
+	// AC-3 and AC-4: a commit to an input, then an uncommitted edit on top.
+	writeMarker(t, fixture, "two")
+	commitFixture(t, fixture, "marker two")
+	want := headBuildName(t, fixture)
+	writeMarker(t, fixture, "uncommitted")
+
+	launcherRun(t, fixture, launcher, env, []string{"first"})
+	assertLauncherRecord(t, execRecord, []string{"B", "first"})
+	waitFor(t, "the candidate build started", func() bool { return len(goCount(t, fixture)) == 1 })
+	launcherRun(t, fixture, launcher, env, []string{"second"})
+	assertLauncherRecord(t, execRecord, []string{"B", "second"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("a call during the candidate build started another: %v", builds)
+	}
+	if built := goCount(t, fixture)[0]; !strings.HasSuffix(built, filepath.Join("bin", "builds", ".building", "src")) {
+		t.Fatalf("the candidate compiled %s, not the HEAD export", built)
+	}
+
+	if err := os.WriteFile(gate, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the candidate build finished", lockGone(fixture))
+	if _, err := os.Stat(filepath.Join(fixture, "bin", "builds", want, "le")); err != nil {
+		t.Fatalf("the candidate was not published as bin/builds/%s: %v", want, err)
+	}
+	launcherRun(t, fixture, launcher, env, []string{"third"})
+	assertLauncherRecord(t, execRecord, []string{"two", "third"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("the published HEAD was built again: %v", builds)
+	}
+}
+
+// TestLauncherRefusesAFailedCandidate: a HEAD that does not compile, and one
+// that compiles and fails the smoke test, are never published; the next caller
+// is told once, naming the commit and the log, and the build is not retried
+// for that commit.
+//
+// VALIDATES: AC-5, A-2.
+// PREVENTS: a broken HEAD becoming the shared le, and a warning or a rebuild
+// on every call.
+func TestLauncherRefusesAFailedCandidate(t *testing.T) {
+	for _, marker := range []string{"fail", "smoke-fails"} {
+		t.Run(marker, func(t *testing.T) {
+			fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+			writeHeadGo(t, fixture)
+			writeHeadBuild(t, fixture, recordingBuild("B"))
+			writeMarker(t, fixture, marker)
+			commitFixture(t, fixture, "a broken HEAD")
+			head := fixtureGit(t, fixture, "rev-parse", "HEAD")
+			execRecord := filepath.Join(fixture, "exec.record")
+			launcher := filepath.Join(fixture, "le")
+			env := headEnv(fixture)
+
+			launcherRun(t, fixture, launcher, env, []string{"first"})
+			assertLauncherRecord(t, execRecord, []string{"B", "first"})
+			waitFor(t, "the candidate build finished", lockGone(fixture))
+			if _, err := os.Stat(filepath.Join(fixture, "bin", "builds", headBuildName(t, fixture))); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("a broken HEAD was published: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(fixture, "bin", "builds", ".failed-"+head+".log")); err != nil {
+				t.Fatalf("the failure left no log: %v", err)
+			}
+
+			_, stderr := launcherRun(t, fixture, launcher, env, []string{"second"})
+			assertLauncherRecord(t, execRecord, []string{"B", "second"})
+			if !strings.Contains(stderr, head) || !strings.Contains(stderr, ".failed-"+head+".log") {
+				t.Fatalf("the next caller was not told the commit and the log: %q", stderr)
+			}
+			_, stderr = launcherRun(t, fixture, launcher, env, []string{"third"})
+			if strings.Contains(stderr, head) {
+				t.Fatalf("the failure was reported twice: %q", stderr)
+			}
+			if builds := goCount(t, fixture); len(builds) != 1 {
+				t.Fatalf("a rejected HEAD was built again: %v", builds)
+			}
+		})
+	}
+}
+
+// TestLauncherRollsBackAFailingBuild: a newest build that cannot start (not
+// executable, or crashing in its first smoke test) is moved aside and the one
+// before it runs, in the same call; `./le rollback` does the same on demand.
+// Neither rebuilds the HEAD whose build was moved aside.
+//
+// VALIDATES: AC-6, AC-7.
+// PREVENTS: a dead le after a bad build, a deleted build a command still runs,
+// and a rollback the next call silently undoes.
+func TestLauncherRollsBackAFailingBuild(t *testing.T) {
+	cases := []struct {
+		name       string
+		breakBuild func(t *testing.T, le string)
+		args       []string
+	}{
+		{name: "not executable", breakBuild: func(t *testing.T, le string) {
+			t.Helper()
+			if err := os.Chmod(le, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "crashes at start", breakBuild: func(t *testing.T, le string) {
+			t.Helper()
+			writeExecutable(t, le, "#!/bin/sh\nexit 2\n")
+			if err := os.Remove(filepath.Join(filepath.Dir(le), "smoke")); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "rollback command", breakBuild: func(*testing.T, string) {}, args: []string{"rollback"}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+			writeHeadGo(t, fixture)
+			const older = "20200101T000000Z-aaaaaaa"
+			writeBuild(t, fixture, older, recordingBuild("A"), "older inputs\n")
+			newest := headBuildName(t, fixture)
+			tt.breakBuild(t, writeHeadBuild(t, fixture, recordingBuild("B")))
+			execRecord := filepath.Join(fixture, "exec.record")
+			launcher := filepath.Join(fixture, "le")
+			env := headEnv(fixture)
+
+			if tt.args != nil {
+				code, stderr := launcherRun(t, fixture, launcher, env, tt.args)
+				if code != 0 {
+					t.Fatalf("rollback exit %d: %s", code, stderr)
+				}
+				if !strings.Contains(stderr, ".failed-"+newest) || !strings.Contains(stderr, older) {
+					t.Fatalf("rollback did not name what it moved and what runs next: %q", stderr)
+				}
+			}
+			_, stderr := launcherRun(t, fixture, launcher, env, []string{"probe"})
+			assertLauncherRecord(t, execRecord, []string{"A", "probe"})
+			if tt.args == nil && (!strings.Contains(stderr, newest) || !strings.Contains(stderr, older)) {
+				t.Fatalf("the rollback line did not name the failed build and the next: %q", stderr)
+			}
+			if _, err := os.Stat(filepath.Join(fixture, "bin", "builds", ".failed-"+newest, "le")); err != nil {
+				t.Fatalf("the failing build was not moved aside whole: %v", err)
+			}
+			if builds := goCount(t, fixture); len(builds) != 0 {
+				t.Fatalf("the rolled-back HEAD was built again: %v", builds)
+			}
+		})
+	}
+
+	t.Run("nothing to roll back", func(t *testing.T) {
+		fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+		code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"rollback"})
+		if code != 2 || !strings.Contains(stderr, "no build of le") {
+			t.Fatalf("rollback with no build: exit %d, %q", code, stderr)
+		}
+	})
+}
+
+// TestLauncherFreshCheckoutBuildsInForeground: with no build at all, the first
+// call builds HEAD itself and runs it, and the installed bin/le then runs the
+// same build without building again.
+//
+// VALIDATES: AC-9.
+// PREVENTS: a fresh checkout with no working le.
+func TestLauncherFreshCheckoutBuildsInForeground(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "fresh")
+	commitFixture(t, fixture, "fresh")
+	execRecord := filepath.Join(fixture, "exec.record")
+
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"probe"}); code != 0 {
+		t.Fatalf("./le exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, execRecord, []string{"fresh", "probe"})
+	dir := filepath.Join(fixture, "bin", "builds", headBuildName(t, fixture))
+	for _, name := range []string{"le", "inputs", "smoke"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("the foreground build lacks %s: %v", name, err)
+		}
+	}
+	if !lockGone(fixture)() {
+		t.Error("the foreground build left its lock")
+	}
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "bin", "le"), headEnv(fixture), []string{"again"}); code != 0 {
+		t.Fatalf("bin/le exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, execRecord, []string{"fresh", "again"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("builds = %v, want the one foreground build", builds)
+	}
+}
+
+// TestLauncherRefusesAnUnwritableBuildsDirectory: with no build and a bin/
+// that cannot hold bin/builds, the foreground call refuses at once, naming the
+// directory, the cause and the fix, rather than reading the failed mkdir as a
+// lock another le holds and waiting fifteen minutes for a build that never
+// starts.
+//
+// Method: bin/ is made read-only. Root ignores directory permission bits, so
+// under root the same failure is made by a regular file standing where bin/
+// goes; either way `mkdir -p bin/builds` fails and the same path refuses.
+//
+// VALIDATES: spec-le-built-from-head B-4, take_lock telling a busy lock from
+// one that cannot be made.
+// PREVENTS: a fresh checkout whose bin/ is unwritable hanging every caller
+// with a message that blames another le.
+func TestLauncherRefusesAnUnwritableBuildsDirectory(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "fresh")
+	commitFixture(t, fixture, "fresh")
+	bin := filepath.Join(fixture, "bin")
+	wants := []string{"cannot create " + filepath.Join(bin, "builds"), "then run ./le again"}
+	if os.Geteuid() == 0 {
+		if err := os.WriteFile(bin, []byte("not a directory"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		wants = append(wants, "Not a directory")
+	} else {
+		if err := os.MkdirAll(bin, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(bin, 0o550); err != nil { //nolint:gosec // a read-only directory is the case under test
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.Chmod(bin, 0o750); err != nil { //nolint:gosec // restored so the temporary directory can be removed
+				t.Errorf("restore bin/ permissions: %v", err)
+			}
+		})
+		wants = append(wants, "Permission denied", "chmod u+w '"+bin+"'")
+	}
+
+	// The bound is far below the fifteen-minute wait, so a launcher that waits
+	// fails here instead of hanging the run.
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, filepath.Join(fixture, "le"), "probe")
+	cmd.Dir = fixture
+	cmd.Env = headEnv(fixture)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if ctx.Err() != nil {
+		t.Fatalf("the launcher was still running after a minute, waiting on a lock that cannot be made: %s", stderr.String())
+	}
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		t.Fatalf("launcher answered %v, want a refusal; stderr: %s", err, stderr.String())
+	}
+	if exitErr.ExitCode() == 0 {
+		t.Fatalf("launcher exit 0, want a refusal; stderr: %s", stderr.String())
+	}
+	message := stderr.String()
+	for _, want := range wants {
+		if !strings.Contains(message, want) {
+			t.Errorf("refusal %q does not carry %q", message, want)
+		}
+	}
+	if strings.Contains(message, "another le is building") {
+		t.Errorf("refusal %q blames another le for a directory that cannot be created", message)
+	}
+	if builds := goCount(t, fixture); len(builds) != 0 {
+		t.Errorf("a refused call still built: %v", builds)
+	}
+	if _, err := os.Stat(filepath.Join(fixture, "exec.record")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a refused call still ran a build: %v", err)
+	}
+}
+
+// TestLauncherMigrationKeepsTheLegacyBuild: right after the layout changed,
+// bin/builds holds only the old binary the migration kept. Every caller runs
+// it at once while HEAD builds in the background, and the build that lands
+// takes over; a process already running the legacy binary keeps its file.
+//
+// VALIDATES: AC-16, and that no caller waits on the first build of a migrated
+// checkout.
+// PREVENTS: every session's hooks building le in the foreground at once, or a
+// moment with no le to run.
+func TestLauncherMigrationKeepsTheLegacyBuild(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "head")
+	commitFixture(t, fixture, "head")
+	legacy := filepath.Join(fixture, "bin", "builds", ".previous-legacy", "le")
+	writeExecutable(t, legacy, recordingBuild("legacy"))
+	execRecord := filepath.Join(fixture, "exec.record")
+	gate := filepath.Join(fixture, "build.gate")
+	env := headEnv(fixture, "ZE_GO_GATE="+gate)
+
+	launcherRun(t, fixture, filepath.Join(fixture, "le"), env, []string{"first"})
+	assertLauncherRecord(t, execRecord, []string{"legacy", "first"})
+	waitFor(t, "the background build started", func() bool { return len(goCount(t, fixture)) == 1 })
+	launcherRun(t, fixture, filepath.Join(fixture, "le"), env, []string{"second"})
+	assertLauncherRecord(t, execRecord, []string{"legacy", "second"})
+
+	if err := os.WriteFile(gate, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the background build finished", lockGone(fixture))
+	launcherRun(t, fixture, filepath.Join(fixture, "le"), env, []string{"third"})
+	assertLauncherRecord(t, execRecord, []string{"head", "third"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("builds = %v, want one", builds)
+	}
+	if _, err := os.Stat(legacy); err != nil {
+		t.Fatalf("the legacy binary was removed while it may still run: %v", err)
+	}
+}
+
+// foreignHeader answers the first bytes of an executable for a platform that
+// is not this one: Mach-O arm64 on Linux, ELF x86-64 elsewhere.
+func foreignHeader() string {
+	if runtime.GOOS == "linux" {
+		return "\xcf\xfa\xed\xfe\x0c\x00\x00\x01" + strings.Repeat("\x00", 24)
+	}
+	return "\x7fELF" + strings.Repeat("\x00", 14) + "\x3e\x00" + strings.Repeat("\x00", 12)
+}
+
+// TestLauncherPicksItsPlatform: a machine that shares the checkout with another
+// platform (a QEMU guest) finds the checkout's own build unrunnable, builds HEAD
+// under a name carrying its GOOS and GOARCH, and runs that build from then on.
+//
+// VALIDATES: AC-10, and that the script's platform words are Go's.
+// PREVENTS: a guest execing the host's binary, or rebuilding over it.
+func TestLauncherPicksItsPlatform(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "guest")
+	commitFixture(t, fixture, "guest")
+	foreign := writeHeadBuild(t, fixture, foreignHeader())
+	execRecord := filepath.Join(fixture, "exec.record")
+
+	for _, call := range []string{"first", "second"} {
+		if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{call}); code != 0 {
+			t.Fatalf("./le %s exit %d: %s", call, code, stderr)
+		}
+		assertLauncherRecord(t, execRecord, []string{"guest", call})
+	}
+	platform := headBuildName(t, fixture) + "-" + runtime.GOOS + "-" + runtime.GOARCH
+	if _, err := os.Stat(filepath.Join(fixture, "bin", "builds", platform, "le")); err != nil {
+		t.Fatalf("no build named for this platform: %v", err)
+	}
+	if body, err := os.ReadFile(foreign); err != nil || string(body) != foreignHeader() {
+		t.Fatalf("the other platform's build was touched: %v", err)
+	}
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("builds = %v, want one", builds)
+	}
+}
+
+// TestLauncherJudgesALockByItsHost: the build lock names the host that took
+// it. A lock from another host, whose pid means nothing here, holds until it is
+// thirty minutes old and is then reclaimed; a lock from this host whose pid is
+// dead is reclaimed at once. The local identity is read from a lock the
+// launcher itself wrote, so the test holds no second copy of how it is formed.
+//
+// VALIDATES: R-8, that a QEMU guest sharing bin/builds over 9p cannot judge a
+// live host build dead.
+// PREVENTS: a guest reclaiming the host's lock and removing its export
+// mid-build, or a dead lock from this host blocking every candidate.
+func TestLauncherJudgesALockByItsHost(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "one")
+	commitFixture(t, fixture, "marker one")
+	writeHeadBuild(t, fixture, recordingBuild("B"))
+	execRecord := filepath.Join(fixture, "exec.record")
+	launcher := filepath.Join(fixture, "le")
+	lock := filepath.Join(fixture, "bin", "builds", ".building")
+	gate := filepath.Join(fixture, "build.gate")
+	env := headEnv(fixture, "ZE_GO_GATE="+gate)
+	// No process here has this pid: it is above every system's pid limit.
+	const deadPid = "2147483646\n"
+
+	writeMarker(t, fixture, "two")
+	commitFixture(t, fixture, "marker two")
+	launcherRun(t, fixture, launcher, env, []string{"first"})
+	waitFor(t, "the candidate build started", func() bool { return len(goCount(t, fixture)) == 1 })
+	localHost, err := os.ReadFile(filepath.Join(lock, "host"))
+	if err != nil {
+		t.Fatalf("the launcher's lock names no host: %v", err)
+	}
+	if err := os.WriteFile(gate, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the candidate build finished", lockGone(fixture))
+
+	writeLock := func(host, pid string, age time.Duration) {
+		t.Helper()
+		if err := os.MkdirAll(lock, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(lock, "host"), []byte(host), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(lock, "pid"), []byte(pid), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		then := time.Now().Add(-age)
+		if err := os.Chtimes(lock, then, then); err != nil {
+			t.Fatal(err)
+		}
+	}
+	foreignHost := "another-host 00000000-0000-0000-0000-000000000000\n"
+
+	// Another host's lock with a pid dead here holds.
+	writeMarker(t, fixture, "three")
+	commitFixture(t, fixture, "marker three")
+	writeLock(foreignHost, deadPid, 29*time.Minute)
+	launcherRun(t, fixture, launcher, env, []string{"guest"})
+	assertLauncherRecord(t, execRecord, []string{"two", "guest"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("another host's live lock was reclaimed: builds %v", builds)
+	}
+	if body, err := os.ReadFile(filepath.Join(lock, "host")); err != nil || string(body) != foreignHost {
+		t.Fatalf("another host's live lock was replaced: %q, %v", body, err)
+	}
+
+	// The same lock past thirty minutes is reclaimed.
+	writeLock(foreignHost, deadPid, 31*time.Minute)
+	launcherRun(t, fixture, launcher, env, []string{"stale"})
+	assertLauncherRecord(t, execRecord, []string{"two", "stale"})
+	waitFor(t, "a candidate took over the stale lock", func() bool { return len(goCount(t, fixture)) == 2 })
+	waitFor(t, "the candidate build finished", lockGone(fixture))
+	launcherRun(t, fixture, launcher, env, []string{"after"})
+	assertLauncherRecord(t, execRecord, []string{"three", "after"})
+
+	// This host's lock with a dead pid is reclaimed at once.
+	writeMarker(t, fixture, "four")
+	commitFixture(t, fixture, "marker four")
+	writeLock(string(localHost), deadPid, 0)
+	launcherRun(t, fixture, launcher, env, []string{"local"})
+	waitFor(t, "a candidate took over the dead local lock", func() bool { return len(goCount(t, fixture)) == 3 })
+	waitFor(t, "the candidate build finished", lockGone(fixture))
+	launcherRun(t, fixture, launcher, env, []string{"last"})
+	assertLauncherRecord(t, execRecord, []string{"four", "last"})
+}
+
+// TestLauncherMigrationPassesOverAForeignLegacy: a machine sharing a migrated
+// checkout (a QEMU guest) finds no build and a legacy binary for the other
+// platform. It never execs that binary: it builds HEAD in the foreground, as a
+// fresh checkout does, and leaves the legacy binary to the host.
+//
+// VALIDATES: R-9.
+// PREVENTS: a guest failing with an exec format error during the migration.
+func TestLauncherMigrationPassesOverAForeignLegacy(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeMarker(t, fixture, "head")
+	commitFixture(t, fixture, "head")
+	legacy := filepath.Join(fixture, "bin", "builds", ".previous-legacy", "le")
+	writeExecutable(t, legacy, foreignHeader())
+
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"probe"}); code != 0 {
+		t.Fatalf("./le exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, filepath.Join(fixture, "exec.record"), []string{"head", "probe"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("builds = %v, want the one foreground build", builds)
+	}
+	if !lockGone(fixture)() {
+		t.Error("the foreground build left its lock")
+	}
+	if body, err := os.ReadFile(legacy); err != nil || string(body) != foreignHeader() {
+		t.Fatalf("the other platform's legacy binary was touched: %v", err)
+	}
+}
+
+// TestLauncherSessionName: `--name session` builds the working tree under the
+// session's own name, and refuses, naming the variable, when no session id is
+// set.
+//
+// VALIDATES: AC-11.
+// PREVENTS: two sessions sharing a private build, or one built under "session".
+func TestLauncherSessionName(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeFakeGoProducing(t, fixture, buildNameEchoBinary)
+	execRecord := filepath.Join(fixture, "exec.record")
+	env := append(launcherEnv(),
+		"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"ZE_GO_RECORD="+filepath.Join(fixture, "go.record"),
+		"ZE_EXEC_RECORD="+execRecord,
+	)
+	withSession := append(slices.Clone(env), "CLAUDE_CODE_SESSION_ID=0123abcd-4567-89ef-0123-456789abcdef")
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), withSession, []string{"--name", "session", "spec"}); code != 0 {
+		t.Fatalf("--name session exit %d: %s", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(fixture, "bin", "le-s-0123abcd", "le")); err != nil {
+		t.Fatalf("--name session did not build bin/le-s-0123abcd/le: %v", err)
+	}
+	assertLauncherRecord(t, execRecord, []string{"s-0123abcd"})
+
+	without := slices.DeleteFunc(slices.Clone(env), func(entry string) bool {
+		return strings.HasPrefix(entry, "CLAUDE_CODE_SESSION_ID=")
+	})
+	code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), without, []string{"--name", "session", "spec"})
+	if code != 2 || !strings.Contains(stderr, "CLAUDE_CODE_SESSION_ID") {
+		t.Fatalf("--name session with no id: exit %d, %q", code, stderr)
+	}
+}
+
+// TestLauncherRefusesUpdate: `--update` is gone, and says what replaced it.
+//
+// VALIDATES: AC-15.
+// PREVENTS: a caller believing it refreshed le.
+func TestLauncherRefusesUpdate(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadBuild(t, fixture, recordingBuild("B"))
+	code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"--update", "probe"})
+	if code != 2 || !strings.Contains(stderr, "follows HEAD") || !strings.Contains(stderr, "./le rollback") {
+		t.Fatalf("--update: exit %d, %q", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(fixture, "exec.record")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("--update still ran a build: %v", err)
+	}
+}
+
+// TestLauncherCompletionRunsTheNewestWithoutAKeyCheck: a Tab press runs
+// `bin/le completion words ...`, which execs the newest build even when HEAD
+// has moved past it, and starts no build.
+//
+// VALIDATES: AC-17.
+// PREVENTS: a build started, or git consulted for a key, on every keystroke.
+func TestLauncherCompletionRunsTheNewestWithoutAKeyCheck(t *testing.T) {
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	writeHeadGo(t, fixture)
+	writeBuild(t, fixture, headBuildName(t, fixture), recordingBuild("B"), "stale inputs\n")
+	script, err := os.ReadFile(filepath.Join(fixture, "le"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeExecutable(t, filepath.Join(fixture, "bin", "le"), string(script))
+	if code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "bin", "le"), headEnv(fixture), []string{"completion", "words", "le", "sp"}); code != 0 {
+		t.Fatalf("completion exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, filepath.Join(fixture, "exec.record"), []string{"B", "completion", "words", "le", "sp"})
+	if !lockGone(fixture)() {
+		t.Fatal("a completion call took the build lock")
+	}
+	if builds := goCount(t, fixture); len(builds) != 0 {
+		t.Fatalf("a completion call started builds: %v", builds)
+	}
+}
+
+// TestLauncherAgreesWithTheResolver feeds the script and gotoolchain's name
+// grammar the same build names, and the same mix of platforms, and requires the
+// same newest build from both. The script's choice is read from the build it
+// execs; the Go side is resolverNewest over gotoolchain.ParseBuildName and
+// gotoolchain.RunnableBuild.
+//
+// VALIDATES: the shell name grammar, its platform filter and its runnable test
+// match ParseBuildName and RunnableBuild, the newest is the last sorted name,
+// and the script's builds directory is gotoolchain.BuildsDir.
+// PREVENTS: the store trim, which judges builds by ParseBuildName and
+// RunnableBuild, and the launcher disagreeing on which entries are builds.
+func TestLauncherAgreesWithTheResolver(t *testing.T) {
+	root := personalityRepoRoot(t)
+	script, err := os.ReadFile(filepath.Join(root, "le"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "builds=$root/" + strings.TrimPrefix(gotoolchain.BuildsDir(""), string(filepath.Separator)) + "\n"; !strings.Contains(string(script), want) {
+		t.Fatalf("the le script does not assign %q, the directory gotoolchain.BuildsDir names", strings.TrimSpace(want))
+	}
+
+	const base = "20200101T000000Z-0000000"
+	sha40 := strings.Repeat("abcdef0123", 4)
+	names := []string{
+		"20261025T101010Z-abcdef0",
+		"20261025T101010Z-" + sha40,
+		"20261025T101010Z-" + sha40 + "a",
+		"20261025T101010Z-abcdef",
+		"20261025T101010Z-ABCDEF0",
+		"20240229T000000Z-abcdef0",
+		"20000229T000000Z-abcdef0",
+		"20260229T000000Z-abcdef0",
+		"21000229T000000Z-abcdef0",
+		"20260230T000000Z-abcdef0",
+		"20260431T000000Z-abcdef0",
+		"20260531T000000Z-abcdef0",
+		"20261231T235959Z-abcdef0",
+		"20261325T101010Z-abcdef0",
+		"20260025T101010Z-abcdef0",
+		"20261000T101010Z-abcdef0",
+		"20261025T241010Z-abcdef0",
+		"20261025T106010Z-abcdef0",
+		"20261025T101060Z-abcdef0",
+		"2026102T101010Z-abcdef0",
+		"20261025T101010-abcdef0",
+		"20261025T101010Z",
+		"20261025T101010Z-abcdef0-linux",
+		"20261025T101010Z-abcdef0-linux-arm64",
+		"20261025T101010Z-abcdef0-linux-arm64-x",
+		"20261025T101010Z-abcdef0-Linux-arm64",
+		".failed-20261025T101010Z-abcdef0",
+	}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			fixture := launcherFixture(t, root, "le")
+			writeBuild(t, fixture, base, recordingBuild(base), "")
+			writeBuild(t, fixture, name, recordingBuild(name), "")
+			assertScriptChooses(t, fixture, resolverNewest(t, fixture, ""))
+		})
+	}
+
+	t.Run("another platform", func(t *testing.T) {
+		fixture := launcherFixture(t, root, "le")
+		platform := "-" + runtime.GOOS + "-" + runtime.GOARCH
+		writeBuild(t, fixture, "20261025T101010Z-abcdef0", foreignHeader(), "")
+		writeBuild(t, fixture, "20261024T101010Z-abcdef0"+platform, recordingBuild("older"), "")
+		writeBuild(t, fixture, "20261025T090909Z-abcdef0"+platform, recordingBuild("newer"), "")
+		writeBuild(t, fixture, "20261026T101010Z-abcdef0-plan9-mips", recordingBuild("other"), "")
+		if got := resolverNewest(t, fixture, runtime.GOOS+"-"+runtime.GOARCH); got != "20261025T090909Z-abcdef0"+platform {
+			t.Fatalf("resolverNewest = %s", got)
+		}
+		assertScriptChooses(t, fixture, "newer")
+	})
+}
+
+// resolverNewest answers the newest build of one platform ("" is the
+// checkout's own) as gotoolchain's grammar reads bin/builds: of the sorted
+// names, the last that ParseBuildName reads with that platform, that is a
+// directory and not a symbolic link, and that RunnableBuild accepts.
+func resolverNewest(t *testing.T, fixture, platform string) string {
+	t.Helper()
+	dir := gotoolchain.BuildsDir(fixture)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	slices.Sort(names)
+	for _, name := range slices.Backward(names) {
+		parsed, ok := gotoolchain.ParseBuildName(name)
+		if !ok {
+			continue
+		}
+		if parsed.Platform() != platform {
+			continue
+		}
+		build := filepath.Join(dir, name)
+		info, err := os.Lstat(build)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !info.IsDir() {
+			continue
+		}
+		runnable, err := gotoolchain.RunnableBuild(build)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if runnable {
+			return name
+		}
+	}
+	t.Fatalf("no build of platform %q in %s", platform, dir)
+	return ""
+}
+
+// assertScriptChooses runs the fixture's launcher through its completion path,
+// which execs the newest build and nothing else, and requires the build that
+// ran to record label.
+func assertScriptChooses(t *testing.T, fixture, label string) {
+	t.Helper()
+	code, stderr := launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"completion", "words"})
+	if code != 0 {
+		t.Fatalf("launcher exit %d: %s", code, stderr)
+	}
+	assertLauncherRecord(t, filepath.Join(fixture, "exec.record"), []string{label, "completion", "words"})
 }

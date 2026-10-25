@@ -533,8 +533,9 @@ func TestTempDir() string {
 }
 
 // namedLauncherPrefix starts the bin/ directory of every launcher the `le`
-// script builds under a name: `./le --name <name>` builds bin/le-<name>/le,
-// and a foreign-platform bin/le falls back to bin/le-<uname -s>-<uname -m>/le.
+// script builds under a name: `./le --name <name>` builds bin/le-<name>/le from
+// the working tree. The shared builds of HEAD live in bin/builds (BuildsDir),
+// whose name never takes this prefix.
 const namedLauncherPrefix = "le-"
 
 // NamedLauncherDir answers bin/le-<name>, the directory `./le --name <name>`
@@ -550,23 +551,21 @@ func NamedLauncherDir(root, name string) string {
 
 // NamedLauncherName answers the build name of a bin/ entry when the entry is
 // the directory of a launcher built under a name, and false otherwise. It
-// answers false for the platform fallback the script shares between sessions,
-// bin/le-<uname -s>-<uname -m>, and for any name the script's check_name would
-// refuse, so a caller that removes what it answers can reach neither.
+// answers false for any name the script's check_name would refuse, so a
+// caller that removes what it answers never reaches a path the script could
+// not have written.
 //
-// The platform test reads the name's first character: `uname -s` answers a
-// capitalized kernel name (Darwin, Linux, FreeBSD), so a name that starts with
-// a capital is never answered. A build somebody named with a capital is
-// therefore never reclaimed: that costs disk, and never a peer's binary.
+// A leftover bin/le-<uname -s>-<uname -m> from the launcher before bin/builds
+// (bin/le-Linux-aarch64, bin/le-Darwin-arm64) passes check_name, so it is
+// answered like any named build: the launcher writes no such directory any
+// more, and the store trim reclaims it only once idle and named in no live
+// argv, the same proof it asks of a named build.
 func NamedLauncherName(entry string) (string, bool) {
 	name, found := strings.CutPrefix(entry, namedLauncherPrefix)
 	if !found {
 		return "", false
 	}
 	if !validLauncherName(name) {
-		return "", false
-	}
-	if name[0] >= 'A' && name[0] <= 'Z' {
 		return "", false
 	}
 	return name, true

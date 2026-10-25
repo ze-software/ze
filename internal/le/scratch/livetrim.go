@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/procscan"
 	"github.com/ze-software/ze/internal/le/session"
@@ -50,6 +49,18 @@ const (
 	// lose its work directory or its parent.
 	goBuildIdleAge  = 2 * time.Hour
 	testTempIdleAge = 6 * time.Hour
+	// buildStagingIdleAge: a builder writes into its .staging-<pid> directory
+	// while it compiles and renames it away within minutes, so one whose
+	// newest file is an hour old belongs to a builder that died.
+	buildStagingIdleAge = time.Hour
+	// agentFileIdleAge: an agent's own binary or scratch tree directly in bin/
+	// (a mutation tester, a probe) is rebuilt on each use, so a day with no
+	// write anywhere in it is a day nobody used it.
+	agentFileIdleAge = 24 * time.Hour
+	// buildsKept is how many builds of each platform stay in bin/builds: the
+	// newest, which the launcher runs, and the one before it, which
+	// `./le rollback` falls back to.
+	buildsKept = 2
 	// goBuildPrefix names the go command's work directories (cmd/go, $WORK).
 	goBuildPrefix = "go-build"
 	// startSlack absorbs the second of rounding in a ps-measured start time. A
@@ -64,6 +75,8 @@ const (
 	sessionStore     = "sessions"
 	testbinStore     = "testbins"
 	testTempStore    = "test-temp"
+	buildsStore      = "builds"
+	agentFilesStore  = "agent-files"
 	noSessionVisible = "no session process visible"
 	noSessionRoot    = "no tmp/session directory"
 	testbinPIDPrefix = "testbin-pid-"
@@ -82,13 +95,13 @@ type livenessPass struct {
 	remove    func(path string) error
 }
 
-// trimLiveness trims the three stores a live session may be using: named
-// launchers, session directories and orphaned testbins. It answers one row
-// for each, in that order.
+// trimLiveness trims the stores a live session may be using: named launchers,
+// session directories, orphaned testbins, the launcher's builds and agents'
+// own entries in bin/. It answers one row for each, in that order.
 //
 // With no Claude CLI in the process table the trim cannot tell a live session
-// from a dead one, so it removes nothing from any of the three (AC-11): a
-// QEMU guest or a container sees the checkout and none of its sessions.
+// from a dead one, so it removes nothing from any of them (AC-11): a QEMU
+// guest or a container sees the checkout and none of its sessions.
 func trimLiveness(ctx context.Context, root string, pass *livenessPass) []StoreTrim {
 	rows := livenessRows(root)
 	if !sessionProcessVisible(pass.processes) {
@@ -98,6 +111,8 @@ func trimLiveness(ctx context.Context, root string, pass *livenessPass) []StoreT
 		return rows
 	}
 	trimLaunchers(ctx, &rows[0], pass)
+	trimBuilds(ctx, &rows[3], pass)
+	trimAgentFiles(ctx, &rows[4], pass)
 	kept, unwalked := trimSessions(ctx, &rows[1], pass)
 	if unwalked != "" {
 		rows[2].Skipped = unwalked
@@ -107,13 +122,16 @@ func trimLiveness(ctx context.Context, root string, pass *livenessPass) []StoreT
 	return rows
 }
 
-// livenessRows answers the three liveness rows, untouched, in report order:
-// launchers, sessions, testbins.
+// livenessRows answers the liveness rows, untouched, in report order:
+// launchers, sessions, testbins, builds, agent files. trimLiveness indexes
+// them in this order.
 func livenessRows(root string) []StoreTrim {
 	return []StoreTrim{
 		{Name: launcherStore, Path: filepath.Join(root, "bin")},
 		{Name: sessionStore, Path: session.RootDir(root)},
 		{Name: testbinStore, Path: session.RootDir(root)},
+		{Name: buildsStore, Path: gotoolchain.BuildsDir(root)},
+		{Name: agentFilesStore, Path: filepath.Join(root, "bin")},
 	}
 }
 
@@ -129,8 +147,9 @@ func sessionProcessVisible(processes []procscan.Process) bool {
 }
 
 // trimLaunchers removes each bin/le-<name>/ that nobody has rebuilt or run
-// for a day. bin/le, bin/ze* and the shared platform launcher never reach the
-// remove call: NamedLauncherName answers only a named build's directory.
+// for a day. bin/le and bin/ze* never reach the remove call: NamedLauncherName
+// answers only a bin/le-<name> directory. A leftover bin/le-<uname> from the
+// launcher before bin/builds is one of those, and goes once idle.
 func trimLaunchers(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 	entries, err := os.ReadDir(row.Path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -147,17 +166,24 @@ func trimLaunchers(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 			continue
 		}
 		dir := gotoolchain.NamedLauncherDir(filepath.Dir(row.Path), name)
-		idle, idleErr := launcherIdle(dir, pass.now)
-		if idleErr != nil {
-			row.Error = idleErr.Error()
+		size := measureEntry(row, dir)
+		if !entry.IsDir() {
+			// The script makes a directory; a file or a symbolic link under
+			// the name is not its, and the trim removes only what it makes.
+			row.Kept++
 			continue
 		}
-		size := measureEntry(row, dir)
+		idle, idleErr := treeIdle(dir, pass.now, launcherIdleAge)
+		if idleErr != nil {
+			row.Error = idleErr.Error()
+			row.Kept++
+			continue
+		}
 		if !idle {
 			row.Kept++
 			continue
 		}
-		if launcherNamedInArgv(pass.processes, name) {
+		if pathNamedInArgv(pass.processes, strings.TrimPrefix(gotoolchain.NamedLauncherDir("", name), string(filepath.Separator))) {
 			row.Kept++
 			continue
 		}
@@ -165,53 +191,352 @@ func trimLaunchers(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 	}
 }
 
-// launcherIdle answers whether a named launcher's directory and its le binary
-// are both older than launcherIdleAge. A directory that is a symbolic link, or
-// not a directory, is never idle: the trim removes only what the script makes.
-// A directory a peer already removed is not idle, and not an error. A missing
-// le (a build that failed) leaves the directory's own age to judge,
-// and a build in progress writes its .new.<pid> file there, which refreshes it.
-func launcherIdle(dir string, now time.Time) (bool, error) {
-	info, err := os.Lstat(dir)
+// trimBuilds removes what the launcher leaves in bin/builds once nothing needs
+// it (AC-12): builds older than the newest buildsKept of their platform, a
+// rolled-back or failed build once a newer one landed, a staging directory
+// whose builder died, and the legacy binary once a build of this checkout's
+// platform exists. Each also needs no running process to name its path, so a
+// command still running from a superseded build keeps its file. The lock and
+// any entry the launcher does not write are never removed.
+func trimBuilds(ctx context.Context, row *StoreTrim, pass *livenessPass) {
+	entries, err := os.ReadDir(row.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		row.Skipped = "no bin/builds directory"
+		return
+	}
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	published, err := publishedBuilds(row.Path, entries)
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(row.Path, entry.Name())
+		size := measureEntry(row, path)
+		removable, judgeErr := buildEntryRemovable(path, entry, published, pass.now)
+		if judgeErr != nil {
+			row.Error = judgeErr.Error()
+			row.Kept++
+			continue
+		}
+		if !removable {
+			row.Kept++
+			continue
+		}
+		if pathNamedInArgv(pass.processes, filepath.Join(gotoolchain.BuildsDir(""), entry.Name())) {
+			row.Kept++
+			continue
+		}
+		removeLivenessEntry(ctx, row, pass, path, size)
+	}
+}
+
+// publishedBuild is one build in bin/builds that the launcher could run: its
+// directory name, its commit's short hash, and when it was last written.
+type publishedBuild struct {
+	name     string
+	sha      string
+	modified time.Time
+}
+
+// publishedBuilds answers the runnable builds in bin/builds by platform ("" is
+// the checkout's own), each list in name order and so oldest first. It reads
+// a build the way the launcher's resolver does (ParseBuildName, RunnableBuild),
+// so the newest it holds is the one the launcher runs.
+func publishedBuilds(dir string, entries []fs.DirEntry) (map[string][]publishedBuild, error) {
+	published := map[string][]publishedBuild{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name, ok := gotoolchain.ParseBuildName(entry.Name())
+		if !ok {
+			continue
+		}
+		runnable, err := gotoolchain.RunnableBuild(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		if !runnable {
+			continue
+		}
+		info, err := entry.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		published[name.Platform()] = append(published[name.Platform()], publishedBuild{
+			name: entry.Name(), sha: name.Sha(), modified: info.ModTime(),
+		})
+	}
+	return published, nil
+}
+
+// buildEntryRemovable answers whether one bin/builds entry is past what the
+// launcher still needs, before the argv check. The lock is the live builder's
+// (the launcher itself reclaims one whose owner died), and an entry of no
+// shape the launcher writes is somebody else's, so neither is ever removable.
+func buildEntryRemovable(path string, entry fs.DirEntry, published map[string][]publishedBuild, now time.Time) (bool, error) {
+	name := entry.Name()
+	if build, ok := gotoolchain.ParseBuildName(name); ok {
+		return buildSuperseded(published[build.Platform()], name), nil
+	}
+	if name == gotoolchain.BuildLockEntry {
+		return false, nil
+	}
+	if name == gotoolchain.BuildLegacyEntry {
+		// The launcher runs the legacy binary only while no build of the
+		// checkout's own platform exists.
+		return len(published[""]) > 0, nil
+	}
+	if strings.HasPrefix(name, gotoolchain.BuildStagingPrefix) {
+		return treeIdle(path, now, buildStagingIdleAge)
+	}
+	if rest, found := strings.CutPrefix(name, gotoolchain.BuildFailedPrefix); found {
+		return failedSuperseded(rest, entry, published)
+	}
+	return false, nil
+}
+
+// buildSuperseded answers whether a build is older than the newest buildsKept
+// of its platform. A build-named directory the launcher could not run is not
+// in the list, and is kept: it is no build this rule ranks.
+func buildSuperseded(builds []publishedBuild, name string) bool {
+	for index, build := range builds {
+		if build.name == name {
+			return index < len(builds)-buildsKept
+		}
+	}
+	return false
+}
+
+// failedSuperseded answers whether a .failed- entry (rest is its name after
+// the prefix) records something a later build replaced. A rolled-back build,
+// .failed-<build name>[.<pid>], is superseded once a newer build of its
+// platform landed. A HEAD that did not build, .failed-<commit>.log or
+// .reported, is superseded once a build of another commit landed after it:
+// HEAD has moved on, so the launcher no longer asks whether that commit was
+// rejected. Both records keep the launcher from rebuilding a rejected HEAD on
+// every call until then.
+func failedSuperseded(rest string, entry fs.DirEntry, published map[string][]publishedBuild) (bool, error) {
+	base, suffix, _ := strings.Cut(rest, ".")
+	if build, ok := gotoolchain.ParseBuildName(base); ok {
+		if !entry.IsDir() {
+			return false, nil
+		}
+		builds := published[build.Platform()]
+		if len(builds) == 0 {
+			return false, nil
+		}
+		return builds[len(builds)-1].name > base, nil
+	}
+	if !failedRecordSuffix(suffix) {
+		return false, nil
+	}
+	if !entry.Type().IsRegular() {
+		return false, nil
+	}
+	info, err := entry.Info()
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
+	}
+	for _, builds := range published {
+		for _, build := range builds {
+			if strings.HasPrefix(base, build.sha) {
+				continue
+			}
+			if build.modified.After(info.ModTime()) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// failedRecordSuffix answers whether a .failed-<commit> file is one of the two
+// records the launcher writes for a HEAD that did not build.
+func failedRecordSuffix(suffix string) bool {
+	return suffix == "log" || suffix == "reported"
+}
+
+// trimAgentFiles removes what agents made directly in bin/ (O-8): every entry
+// that is not le's own (leOwnedBinEntry) and that nothing wrote to for a day
+// and no running process names.
+func trimAgentFiles(ctx context.Context, row *StoreTrim, pass *livenessPass) {
+	entries, err := os.ReadDir(row.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		row.Skipped = "no bin/ directory"
+		return
+	}
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	for _, entry := range entries {
+		if leOwnedBinEntry(entry.Name()) {
+			continue
+		}
+		path := filepath.Join(row.Path, entry.Name())
+		size := measureEntry(row, path)
+		idle, idleErr := treeIdle(path, pass.now, agentFileIdleAge)
+		if idleErr != nil {
+			row.Error = idleErr.Error()
+			row.Kept++
+			continue
+		}
+		if !idle {
+			row.Kept++
+			continue
+		}
+		if pathNamedInArgv(pass.processes, filepath.Join("bin", entry.Name())) {
+			row.Kept++
+			continue
+		}
+		removeLivenessEntry(ctx, row, pass, path, size)
+	}
+}
+
+// leOwnedBinEntry answers whether a bin/ entry is le's or ze's, which the
+// agent-files row never judges: the dispatcher bin/le and its le.new.<pid>
+// while it is replaced, the named launchers bin/le-<name>/ (the launchers
+// row's), the builds directory (the builds row's) and every ze binary.
+func leOwnedBinEntry(name string) bool {
+	if name == "le" {
+		return true
+	}
+	if strings.HasPrefix(name, "le-") {
+		return true
+	}
+	if strings.HasPrefix(name, "le.") {
+		return true
+	}
+	if strings.HasPrefix(name, "ze") {
+		return true
+	}
+	return name == filepath.Base(gotoolchain.BuildsDir(""))
+}
+
+// treeIdle answers whether nothing in a bin/ entry was written for age: a
+// regular file by its own mtime, a directory by the newest mtime anywhere in
+// its tree. The walk stops at the first young entry. A named launcher's build
+// writes its .new.<pid> file inside, and an agent's tool rewrites what it
+// keeps, so either use refreshes the tree. A symbolic link, or anything else
+// that is neither a file nor a directory, is never idle: the trim removes only
+// what a build or an agent made. An entry a peer already removed is not idle,
+// and not an error.
+func treeIdle(path string, now time.Time, age time.Duration) (bool, error) {
+	info, err := os.Lstat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if info.Mode().IsRegular() {
+		return olderThan(info.ModTime(), now, age), nil
 	}
 	if !info.IsDir() {
 		return false, nil
 	}
-	if !olderThan(info.ModTime(), now, launcherIdleAge) {
-		return false, nil
+	idle := true
+	walkErr := filepath.WalkDir(path, func(_ string, entry fs.DirEntry, walkErr error) error {
+		if errors.Is(walkErr, fs.ErrNotExist) {
+			return nil
+		}
+		if walkErr != nil {
+			return walkErr
+		}
+		entryInfo, infoErr := entry.Info()
+		if errors.Is(infoErr, fs.ErrNotExist) {
+			return nil
+		}
+		if infoErr != nil {
+			return infoErr
+		}
+		if olderThan(entryInfo.ModTime(), now, age) {
+			return nil
+		}
+		idle = false
+		return fs.SkipAll
+	})
+	if walkErr != nil {
+		return false, walkErr
 	}
-	binary, err := os.Lstat(filepath.Join(dir, "le"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return true, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return olderThan(binary.ModTime(), now, launcherIdleAge), nil
+	return idle, nil
 }
 
-// launcherNamedInArgv answers whether a running process names the launcher's
-// directory. The `le` script execs the binary by its absolute path, so a
-// running named le carries bin/le-<name>/ in its argv (A-4). The trailing
-// separator keeps le-a from matching le-ab.
-func launcherNamedInArgv(processes []procscan.Process, name string) bool {
-	var needle textbuf.Buffer
-	needle.Str(strings.TrimPrefix(gotoolchain.NamedLauncherDir("", name), string(filepath.Separator))).
-		Byte(filepath.Separator)
-	path := needle.String()
+// pathNamedInArgv answers whether a running process names a path under the
+// checkout in its argv. The `le` script execs a build by its absolute path,
+// and a tool is run as bin/<name> or by its absolute path, so a running one
+// carries its checkout-relative path, which is what path is (A-4). The path
+// must stand as whole names: bin/le-a does not match bin/le-ab, nor bin/gomu
+// bin/gomu-rfc.
+func pathNamedInArgv(processes []procscan.Process, path string) bool {
 	for _, process := range processes {
 		for _, argument := range process.Argv {
-			if strings.Contains(argument, path) {
+			if argumentNamesPath(argument, path) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// argumentNamesPath answers whether path occurs in one argument with no file
+// name character on either side, so `-o=bin/x`, `/abs/bin/x/le` and `bin/x`
+// name bin/x and `bin/x-y` or `cabin/x` do not. The scan moves one byte past
+// each occurrence, so it ends within len(argument) steps.
+func argumentNamesPath(argument, path string) bool {
+	offset := 0
+	for {
+		index := strings.Index(argument[offset:], path)
+		if index < 0 {
+			return false
+		}
+		start := offset + index
+		end := start + len(path)
+		if nameBoundary(argument, start-1) {
+			if nameBoundary(argument, end) {
+				return true
+			}
+		}
+		offset = start + 1
+	}
+}
+
+// nameBoundary answers whether the byte at index ends a file name: the edge of
+// the argument, or a byte no file name here is spelled with (a separator, `=`,
+// a colon).
+func nameBoundary(argument string, index int) bool {
+	if index < 0 {
+		return true
+	}
+	if index >= len(argument) {
+		return true
+	}
+	return !fileNameCharacter(argument[index])
+}
+
+// fileNameCharacter answers whether a byte can be part of a bin/ entry's name:
+// a letter, a digit, a hyphen, an underscore or a dot.
+func fileNameCharacter(character byte) bool {
+	switch {
+	case character >= 'a' && character <= 'z':
+		return true
+	case character >= 'A' && character <= 'Z':
+		return true
+	case character >= '0' && character <= '9':
+		return true
+	}
+	return character == '-' || character == '_' || character == '.'
 }
 
 // trimSessions removes each session directory Reap's rules would remove and

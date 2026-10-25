@@ -2,7 +2,7 @@
 //
 // Detail: the launcher builds bin/le-<name>/le and exports the name it asked
 // for. This file is the receiving half. The process reads its own invoked name
-// and refuses to answer when the two disagree, so a stale bin/le, a hardcoded
+// and refuses to answer when the two disagree, so a shared build, a hardcoded
 // path or a shadowed PATH entry produces an error rather than an answer from
 // code that is no longer in the tree.
 // Related: dispatch.go -- dispatchMain calls refuseWrongBuildName first
@@ -29,8 +29,8 @@ var envLeBuildName = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-// sharedBuildName is the invoked name of the shared bin/le binary, which the
-// launcher builds once and then executes without a freshness check.
+// sharedBuildName is the invoked name of a shared build, bin/builds/<name>/le,
+// which the launcher builds from HEAD and execs.
 const sharedBuildName = "le"
 
 // refuseWrongBuildName answers 0 when this process is the build the caller
@@ -62,7 +62,7 @@ func refuseWrongBuildName() int {
 // invokedBuildName reports the build name of the running binary. `--name x`
 // builds bin/le-x/le, so the name lives on the directory and the file keeps the
 // one name that selects the le personality. Every other binary answers with its
-// own file name, which is what makes the shared bin/le report "le".
+// own file name, which is what makes a shared build in bin/builds report "le".
 func invokedBuildName(path string) string {
 	if filepath.Base(path) != sharedBuildName {
 		return filepath.Base(path)

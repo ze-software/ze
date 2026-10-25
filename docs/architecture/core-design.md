@@ -23,8 +23,12 @@ All new code MUST follow these patterns.
 
 `ze` and `le` are personalities of the single `cmd/ze` codebase. Both use the
 local-data registry and pipe renderers in `internal/component/command`; there is
-no second command engine for repository tooling. The root `./ze` and `./le`
-launchers select the cached `bin/ze` and `bin/le` personalities.
+no second command engine for repository tooling. The root `./ze` launcher
+selects the cached `bin/ze` personality. The root `./le` dispatcher, and its
+installed copy `bin/le`, run the newest le build in `bin/builds/`, each built
+from HEAD and smoke-tested before it is published
+(`docs/contributing/running-commands.md`, "Launcher builds do not overwrite
+running binaries").
 
 Composition, not dispatch, separates the programs. Product registrations enter
 through the normal `cmd/ze` build. Development tools register below one `le`

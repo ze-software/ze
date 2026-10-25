@@ -34,10 +34,12 @@ rows, `DaemonTags` answers the gate tags a daemon build carries, and
 `DaemonBuildTags` answers the `-tags` string for a named personality. No other
 Go file opens `feature-gates.txt`.
 
-`feature-tags` is the second reader, and the bootstrap needs it. `bin/le` is
-not there before the launcher builds it. The launcher therefore cannot ask a Go
-helper which tags to compile it with. The root `ze` and `le` launchers and the
-two Docker images source that one file.
+`feature-tags` is the second reader, and the bootstrap needs it. No le build
+exists in `bin/builds/` before the launcher builds one, so the launcher cannot
+ask a Go helper which tags to compile it with. The root `ze` and `le` launchers
+and the two Docker images source that one file; the `le` launcher sources the
+copy in the HEAD export it compiles, and `feature-tags` is one of the inputs
+whose git tree hash keys each build.
 `TestTheShellWalkAndTheGoReaderAnswerTheSameTags` holds the two readers to one
 answer, and `TestOnlyOneShellFileParsesTheFeatureManifest` refuses a third.
 

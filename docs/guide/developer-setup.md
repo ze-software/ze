@@ -40,55 +40,58 @@ This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.
 
 `le` is the native development-tool personality built from `cmd/ze`. The root
-launcher executes the cached `bin/le` binary and builds it only when absent.
+`./le` is a dispatcher, and `bin/le` is an identical copy of it that `./le`
+installs whenever the two differ. Both run the newest build in
+`bin/builds/<UTC commit time>-<short sha>/le`.
 Setup behavior lives in `internal/le/setup.Answer`.
 
-The cache is an existence test, never a freshness test, so a change under
-`internal/le/` does not reach `./le` on its own.
-<!-- source: le -- the binary existence cache -->
+Builds follow HEAD, never your working tree, because a peer session's
+half-written source would otherwise break every call in every session. Each
+build records the git tree hash of le's inputs (`internal cmd pkg api vendor
+go.mod go.sum feature-gates.txt feature-tags`) at the commit it came from.
+When a commit changes them, the next `./le` call starts one build of HEAD in
+the background and keeps running the newest build; the new one is smoke-tested
+and renamed into place only when it passes, so after a `git pull` the new
+commands arrive a couple of minutes later with no command of yours waiting. A
+commit that changes no input reuses the newest build. On a fresh checkout with
+no build at all, the first call builds HEAD in the foreground.
 
-The launcher does not rebuild by itself, because a peer session's half-written
-source would then fail every call in every session. It tells you instead. About
-one call in sixteen compares the binary with the build inputs and prints one
-line on stderr when a COMMITTED file is newer:
-
-```
-le: bin/le is older than committed sources; refresh it with './le --update'
-```
-
-A file that git holds as modified is never counted, so a peer's work in progress
-says nothing. The check runs after your command, so it never delays the answer
-you asked for.
-<!-- source: le -- warn_when_stale, committed_change_is_newer -->
-
-`./le --update` builds the working tree into `bin/le`:
+A HEAD that fails to build is reported once on stderr, with its log at
+`bin/builds/.failed-<commit>.log`, and the newest good build keeps running. A
+build that does not start is moved aside to `bin/builds/.failed-<name>` and the
+call runs the next newest, saying so in one line. When the newest build starts
+but misbehaves, take it out by hand:
 
 ```bash
-./le --update
+./le rollback
 ```
 
-It renames the new binary into place rather than writing through the file. A peer
-executing the old one therefore keeps the inode it started with. A failed build
-leaves `bin/le` as it was and says so. With a command after it, the option
-updates first and then runs that command against the new binary.
+It moves the newest build aside the same way, so the next call runs the one
+before it, and HEAD is not built again until a commit changes the inputs.
+Nothing is deleted: a peer executing that build keeps its file.
+`./le help` lists `rollback` and Tab completes it; run it as `./le rollback`,
+because only the launcher moves a build.
+`./le --update` is gone and says so with exit 2.
+<!-- source: le -- choose_build, start_candidate, head_rejected, set_aside, the rollback action -->
+<!-- source: internal/le/rollback/rollback.go -- Answer -->
 
-`--update` is the answer to a stale shared binary. `--name` below is the answer
-to reading a result back from your own uncommitted edits.
-<!-- source: le -- update_le -->
-
-Do not delete `bin/le`. Several sessions share one checkout and one of them can
-be executing that file right now. Ask for a build of your own instead:
+Do not delete `bin/le` or anything in `bin/builds/`. Several sessions share one
+checkout and one of them can be executing that file right now. When you need
+le to carry your own uncommitted edits, ask for a build of your own instead:
 
 ```bash
-./le --name mywork verify current
+./le --name session verify current
 ```
 
 `--name` comes first, before the command, and the launcher consumes it. Every
-argument after it reaches the binary unchanged. The build lands in
-`bin/le-mywork/le`, which `bin/` already keeps out of git, and it runs on every
-call, so the toolchain decides what to recompile and the binary carries your
-edits. The shared `bin/le` is never written and never waits for a peer.
-<!-- source: le -- the --name option -->
+argument after it reaches the binary unchanged. `--name session` names the
+build after `CLAUDE_CODE_SESSION_ID` (`s-<its first eight characters>`) and
+refuses with exit 2 when that variable is unset; `--name mywork` picks the name
+yourself. The build lands in `bin/le-<name>/le`, which `bin/` already keeps out
+of git, and it is rebuilt from the working tree on every call, so the toolchain
+decides what to recompile and the binary carries your edits. The shared builds
+are never written and never wait for a peer.
+<!-- source: le -- the --name option, session_name -->
 
 A name accepts letters, digits, dot, underscore and hyphen. A name carrying `/`
 or `..` is refused with a message and exit 2, never repaired into something safe.
@@ -99,7 +102,7 @@ build without repeating the option. A binary that is not the one you named
 refuses to answer and reports both names:
 
 ```
-le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/le).
+le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/builds/20261025T114143Z-00b9273a2a/le).
     Reach the named build through ./le --name mywork, never through a hardcoded binary path.
 ```
 <!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->

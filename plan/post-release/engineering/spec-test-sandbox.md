@@ -277,6 +277,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | gate-verdict-depends-on-the-machine.md | 2026-09-03 | staticcheck feature-matrix stage exits -1 |
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | stdpatch `CacheDir` spelled through the `cache` link, read as a main-module package |
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | `./le test ui` builds only `ze`; `ze-stripped` fixtures fail |
+| gate-verdict-depends-on-the-machine.md | 2026-10-25 | `TestCleanTargetsOneRowPerCache` compares a resolved /private/var path with an unresolved /var one |
 
 ## Rows found already fixed
 

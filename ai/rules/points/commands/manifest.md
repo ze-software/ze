@@ -11,7 +11,7 @@ directives ## Directives
   bash-must-not-edit-a-governed-document
   never-hardcode-bin-ze-ask-for-the-path
   never-delete-bin-le-ask-for-a-named-build
-  refresh-a-stale-shared-binary-with-le-update
+  le-follows-head-never-refresh-it-by-hand
   ze-is-cgo-free
 no-pipes-on-expensive-commands ## Pipes
   never-pipe-an-expensive-command-read-the-log

@@ -49,7 +49,7 @@ gave it.
 - [ ] `docs/architecture/testing/tracked-build-gate.md` - `repo compiles/check`, its flavors
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - certificate tree hash, `job.SnapshotTree`
 - [ ] `docs/contributing/running-commands.md` - `bin/le`, `--name`, `--update`
-- [ ] `plan/post-release/engineering/spec-le-built-from-head.md` - the le slice of this spec, approved by the owner on 2026-10-25 and superseding spec-le-shared-build-launcher: le builds from a HEAD export, keyed by the git tree hash of its inputs, smoke-tested, kept in `bin/builds/<time>-<sha>/le`, dispatched by `bin/le` and `./le`
+- [ ] `spec-le-built-from-head` (closed; `docs/contributing/running-commands.md` carries its design) - the le slice of this spec, approved by the owner on 2026-10-25 and superseding spec-le-shared-build-launcher: le builds from a HEAD export, keyed by the git tree hash of its inputs, smoke-tested, kept in `bin/builds/<time>-<sha>/le`, dispatched by `bin/le` and `./le`
   -> Decision: that spec's HEAD export is the first form of this spec's snapshot builder, not a second builder (`ai/rules/no-layering.md`); this spec generalises it to the other artifacts and gates and reuses its input-key rule for `bin/le` rather than defining another.
 - [ ] `plan/post-release/engineering/spec-le-build-cache-cap.md` - one Go build cache, capped
   -> Constraint: snapshots share that cache; a snapshot never gets its own.

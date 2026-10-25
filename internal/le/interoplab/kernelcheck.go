@@ -168,7 +168,7 @@ func invokedSelectorEnvironment() []string {
 var leWords = invokedLeWords
 
 // invokedLeWords reads the words from os.Args: after the program for `le`
-// (bin/le, which ./le execs), after `le` for `ze le`.
+// (bin/builds/<name>/le, which ./le execs), after `le` for `ze le`.
 func invokedLeWords() []string {
 	if len(os.Args) == 0 {
 		return nil

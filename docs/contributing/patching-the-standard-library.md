@@ -211,12 +211,15 @@ inherits them:
   vulnerability scan) refuses with the generator's error, and any other command
   that compiles a package linking `internal/core/eap` fails at the guard below.
   Nothing else refuses.
-- A le that does not exist yet cannot be built: on a fresh checkout, with
-  `./le --name` or `./le --update`, or for a per-platform binary, the launcher
-  builds le, le links the guarded package, and the generator refuses first. The
-  hooks that run through `./le` fail on that checkout too. The repair needs no
-  le: it is a plain edit of the patch file, described in "When the Go version
-  changes", after which the next `./le` call builds le.
+- A le that does not exist yet cannot be built: a candidate build of a new
+  HEAD, a `./le --name` build, or the first build on a fresh checkout or for
+  another platform links the guarded package, and the generator refuses first.
+  A refused candidate is never published: `./le` reports it once and keeps
+  running the newest build in `bin/builds/`. On a checkout with no build at all
+  the hooks that run through `./le` fail too. The repair needs no le: it is a
+  plain edit of the patch file, described in "When the Go version changes",
+  and the commit that lands it changes the input key, so the next `./le` call
+  builds le.
 <!-- source: internal/le/register.go -- run -->
 <!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- goEnv -->
 

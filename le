@@ -1,7 +1,25 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd "$(dirname "$0")" && pwd)
+# This file is the dispatcher, and it runs from two places: ./le at the checkout
+# root, and its installed copy bin/le, which the root copy writes whenever the
+# two differ (install_dispatcher). The copy answers exactly as the root does, so
+# its root is its own directory's parent.
+launcher_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+if [ "${launcher_dir##*/}" = bin ] && [ -f "$launcher_dir/../go.mod" ] && [ -f "$launcher_dir/../feature-gates.txt" ]; then
+	root=${launcher_dir%/bin}
+else
+	root=$launcher_dir
+fi
+
+# Every build of le lives in its own directory here, named
+# <UTC commit time>-<short sha>[-<GOOS>-<GOARCH>], so a byte-order listing sorts
+# the newest last. gotoolchain.BuildsDir, ParseBuildName and RunnableBuild
+# (internal/le/go/toolchain/builds.go) are the Go copies of the path, the name
+# grammar and the runnable test; TestLauncherAgreesWithTheResolver holds them to
+# the choice made here. Lock, staging and set-aside entries start with a dot,
+# so no listing ever reads one as a build.
+builds=$root/bin/builds
 
 # Makes $root/cache the link to the per-user cache, the one Go build cache of
 # this host, before build_le's mkdir would make it a real directory. The Go copy
@@ -40,19 +58,52 @@ ensure_cache_link() {
 	ln -s "$cache_target" "$cache_link" 2>/dev/null || return 0
 }
 
-# Builds the le personality into $1. Every caller shares this one block, so the
-# feature tags, the caches and the toolchain pin cannot drift between the shared
-# binary and a session-private one.
+# Answers in $toolchain the Go release the module in $1 pins, and refuses, with
+# the repair, when no `go` is on PATH. A toolchain line wins; the go directive is
+# the fallback, because a module stating `go 1.27.0` and no toolchain line still
+# pins go1.27.0.
+#
+# The refusal comes before git and before `go build`, rather than letting sh
+# answer `go: not found`: the usual cause is a non-interactive shell that never
+# read the profile adding Go to PATH. gotoolchain.New gives the same refusal once
+# a build exists, and internal/le/go/toolchain/gotoolchain_missing_test.go runs
+# this script.
+require_go() {
+	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$1/go.mod") || return 1
+	if [ -z "$toolchain" ]; then
+		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$1/go.mod") || return 1
+	fi
+	if command -v go >/dev/null 2>&1; then
+		return 0
+	fi
+	echo "le: building le needs the Go toolchain and finds no \`go\` program on PATH ($PATH)." >&2
+	if [ -n "$toolchain" ]; then
+		echo "le: this checkout builds with $toolchain, the version go.mod pins; any Go 1.21 or newer downloads it on first use." >&2
+	else
+		echo "le: go.mod pins no toolchain, so the Go on PATH builds as it is." >&2
+	fi
+	echo "le: install Go from https://go.dev/dl/ or your package manager, then put its bin directory on PATH, for example: export PATH=\$PATH:/usr/local/go/bin" >&2
+	echo "le: a non-interactive shell such as \`ssh host command\` does not read ~/.bashrc, so set PATH in ~/.profile or on the command line." >&2
+	return 1
+}
+
+# Builds the le personality of the module in $1 into $2. Every build shares this
+# one block, so the feature tags, the caches and the toolchain pin cannot drift
+# between a build from HEAD and a session-private one. The caches are always the
+# checkout's, whichever tree is compiled.
 build_le() {
-	out=$1
-	# update_le tests this function's status, disabling sh's implicit errexit
+	source_dir=$1
+	out=$2
+	# Callers test this function's status, disabling sh's implicit errexit
 	# inside it. Each required preparation step MUST propagate its own failure.
 
 	# One reader of the manifest for every shell caller, and one Go reader beside
 	# it (feature-tags). An empty answer is an error there, so no branch here
 	# tolerates a feature-less build.
-	. "$root/feature-tags" || return 1
-	tags=ze_le,$(feature_tags "$root/feature-gates.txt" ",") || return 1
+	. "$source_dir/feature-tags" || return 1
+	tags=ze_le,$(feature_tags "$source_dir/feature-gates.txt" ",") || return 1
+
+	require_go "$source_dir" || return 1
 
 	# cache/ is a SYMLINK onto another filesystem on the development hosts, so
 	# it resolves for them and dangles anywhere the checkout is shared without
@@ -71,32 +122,9 @@ build_le() {
 	GOLANGCI_LINT_CACHE=$root/cache/golangci-lint-cache
 	CGO_ENABLED=0
 	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
-	# A toolchain line wins; the go directive is the fallback, because a module
-	# stating `go 1.27.0` and no toolchain line still pins go1.27.0. Reading only
-	# the toolchain line left this build with no pin at all.
-	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod") || return 1
-	if [ -z "$toolchain" ]; then
-		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$root/go.mod") || return 1
-	fi
 	if [ -n "$toolchain" ]; then
 		GOTOOLCHAIN=$toolchain
 		export GOTOOLCHAIN
-	fi
-
-	# Refuse before `go build` rather than let sh answer `go: not found`: the
-	# usual cause is a non-interactive shell that never read the profile adding
-	# Go to PATH. gotoolchain.New gives the same refusal once bin/le exists, and
-	# internal/le/go/toolchain/gotoolchain_missing_test.go runs this script.
-	if ! command -v go >/dev/null 2>&1; then
-		echo "le: building le needs the Go toolchain and finds no \`go\` program on PATH ($PATH)." >&2
-		if [ -n "$toolchain" ]; then
-			echo "le: this checkout builds with $toolchain, the version go.mod pins; any Go 1.21 or newer downloads it on first use." >&2
-		else
-			echo "le: go.mod pins no toolchain, so the Go on PATH builds as it is." >&2
-		fi
-		echo "le: install Go from https://go.dev/dl/ or your package manager, then put its bin directory on PATH, for example: export PATH=\$PATH:/usr/local/go/bin" >&2
-		echo "le: a non-interactive shell such as \`ssh host command\` does not read ~/.bashrc, so set PATH in ~/.profile or on the command line." >&2
-		return 1
 	fi
 
 	# le links the EAP-TLS authenticator, which compiles only against Ze's
@@ -114,149 +142,485 @@ build_le() {
 	# to start with `exec format error`. Only these two subshells drop the
 	# target: le exec still hands the caller's GOOS to the tool it starts.
 	host_target_only='unset GOOS GOARCH GOARM GOARM64 GOAMD64 GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM'
-	tree=$(cd "$root" && eval "$host_target_only" && go run ./internal/le/go/stdpatch/goroot) || {
+	tree=$(cd "$source_dir" && eval "$host_target_only" && go run ./internal/le/go/stdpatch/goroot) || {
 		echo "le: the patched standard library could not be built, so le cannot be built; the message above says how to repair the patch" >&2
 		return 1
 	}
 
 	mkdir -p "$(dirname "$out")" || return 1
-	(cd "$root" && eval "$host_target_only" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$out" ./cmd/ze)
+	(cd "$source_dir" && eval "$host_target_only" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$out" ./cmd/ze)
 }
 
-# Publishes $1 without exposing the compiler's writable output to another caller.
-# A direct build can leave the target open for writing when a peer tries to exec
-# it, which Linux rejects with ETXTBSY. Building beside the target and renaming
-# also leaves an existing process on its old inode until it exits.
-update_le() {
-	# Not `out`: sh has no local scope, so build_le's own `out=$1` would rewrite
-	# this one and the rename below would name the staging path twice.
-	target=$1
-	staging=$target.new.$$
+# The build inputs of the le personality, as git paths: the module's own Go and
+# every file go:embed bakes in, the vendored dependencies, the three files that
+# decide how any of it compiles, and the shell reader of the feature manifest.
+# gokrazy/modcache holds 57,000 more .go files that no package imports, so it is
+# not an input.
+le_inputs='internal cmd pkg api vendor go.mod go.sum feature-gates.txt feature-tags'
 
-	# A failed build leaves a 95 MB partial object beside the binary, and every
-	# later call would walk past it, so the staging path is cleared on the way
-	# out whichever way the build went.
-	if ! build_le "$staging"; then
-		rm -f "$staging"
-		echo "le: the build failed, so bin/le is unchanged" >&2
+# Prints the input key of commit $1: the git object id of every input, one per
+# line. A commit that changes no input has the key of its parent, so it reuses
+# the build its parent had. One git call, and no walk of the working tree:
+# nothing uncommitted can change the answer.
+le_input_key() {
+	git -C "$root" ls-tree "$1" -- $le_inputs
+}
+
+# Writes the inputs of commit $1 into directory $2, which this creates. This is
+# the first form of the one snapshot builder
+# (plan/post-release/engineering/spec-snapshot-builds-and-built-commits.md), so
+# it takes a commit and a destination and knows nothing about le. The tree is
+# git's, so a peer's half-written edit never reaches it.
+export_commit() {
+	mkdir -p "$2" || return 1
+	export_paths=$(git -C "$root" ls-tree --name-only "$1" -- $le_inputs) || return 1
+	# Word splitting of the path list is intended: each input is one git path
+	# with no space in it.
+	git -C "$root" archive --format=tar "$1" -- $export_paths | tar -x -f - -C "$2"
+}
+
+# True when $1 names a build: <time>-<sha>[-<goos>-<goarch>], where time is a
+# real UTC instant written 20060102T150405Z, sha is 7 to 40 lowercase hex
+# digits and each platform word is lowercase letters and digits. Sets
+# $build_platform to "" or <goos>-<goarch>. gotoolchain.ParseBuildName is the
+# Go copy; the agreement test feeds both the same names.
+build_name_valid() {
+	build_platform=
+	case $1 in
+	[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]T[0-2][0-9][0-5][0-9][0-5][0-9]Z-*) ;;
+	*) return 1 ;;
+	esac
+	build_stamp=${1%%-*}
+	build_rest=${1#*-}
+	valid_utc_stamp "$build_stamp" || return 1
+	build_sha=${build_rest%%-*}
+	case $build_sha in
+	'' | *[!0-9a-f]*) return 1 ;;
+	esac
+	if [ ${#build_sha} -lt 7 ] || [ ${#build_sha} -gt 40 ]; then
 		return 1
 	fi
-	mv -f "$staging" "$target"
-}
-
-# The build inputs of the le personality: the module's own Go, the vendored
-# dependencies, and the three files that decide how any of it compiles.
-# gokrazy/modcache holds 57,000 more .go files that no package imports, so it is
-# not an input and walking it would cost 2.5 s a call instead of 40 ms.
-le_sources='internal cmd pkg api vendor'
-le_build_config='go.mod go.sum feature-gates.txt'
-
-# True when $1 is older than any build input. `-print -quit` stops at the first
-# newer file, so the answer costs about 40 ms when nothing changed and less when
-# something did.
-# The extensions a build input can carry. Go is not the whole set: the binary
-# embeds 221 .yang files and a handful of .json, .txt, .md, .js, .css and
-# .version assets, and go:embed bakes each one INTO the binary. A walk that
-# looks only at *.go therefore reports a current binary after a schema edit.
-#
-# That is not theoretical. On 2026-09-13 four .yang edits left `le doc yang-contract
-# help-shape` answering the PRE-edit result, because it reads the embedded
-# copy, while `le cli grammar` went green at once because it greps the disk.
-# Two gates disagreed about one edit and neither was wrong: they were reading
-# different copies of the same file (plan/journal/stale-artifact-reused.md).
-# The predicate is written out at each call site rather than held in a variable.
-# An unquoted `$names` expansion lets the shell glob `*.go` against the current
-# directory before find ever sees it, which silently empties the predicate: the
-# first version of this fix matched 0 files where the old walk matched 3.
-le_find_sources() {
-	# $1 is the reference file; every later argument goes to find unchanged.
-	reference=$1
-	shift
-	find $le_sources \( -name '*.go' -o -name '*.yang' -o -name '*.json' \
-		-o -name '*.txt' -o -name '*.md' -o -name '*.js' -o -name '*.css' \
-		-o -name '*.version' \) -newer "$reference" "$@" 2>/dev/null
-}
-
-le_is_stale() {
-	[ -n "$(
-		cd "$root" && le_find_sources "$1" -print -quit
-		find $le_build_config -newer "$1" -print -quit 2>/dev/null
-	)" ]
-}
-
-# True when a build input newer than $1 is one git holds unmodified. Several
-# sessions share this checkout, so a peer's half-written edit is newer than the
-# binary all day and says nothing: only a file that has LANDED means the binary
-# missed a change. This walk cannot stop at the first hit the way le_is_stale
-# does, because that hit can be the dirty file, so le_is_stale gates it.
-committed_change_is_newer() {
-	[ -n "$(
-		{
-			git -C "$root" status --porcelain -- $le_sources $le_build_config 2>/dev/null |
-				sed -e 's/^...//' -e 's/.* -> //'
-			echo '--'
-			(cd "$root" && le_find_sources "$1"
-			find $le_build_config -newer "$1" 2>/dev/null)
-		} | awk '
-			$0 == "--"     { landed = 1; next }
-			!landed        { dirty[$0] = 1; next }
-			!($0 in dirty) { print; exit }
-		'
-	)" ]
-}
-
-# One call in sixteen pays for the staleness walk. The pid is the sample,
-# because a counter would be state several sessions write at once and the only
-# thing the sample has to be is roughly one in sixteen.
-le_sampled() {
-	[ $(($$ % 16)) -eq 0 ]
-}
-
-# Says the binary is behind the tree. It never rebuilds and never fails: a
-# session that wanted the new binary asked for it with --update, and one that
-# did not is running a command whose answer this must not replace.
-warn_when_stale() {
-	[ -x "$1" ] || return 0
-	le_is_stale "$1" || return 0
-	committed_change_is_newer "$1" || return 0
-
-	echo "le: bin/le is older than committed sources; refresh it with './le --update'" >&2
-}
-
-# True when $1 is a binary this kernel can exec, judged by its magic bytes.
-#
-# Four bytes settle it: ELF opens 7f 45 4c 46, and a Mach-O opens cf fa ed fe
-# or its byte-swapped and universal forms. `od` is POSIX and is in busybox, so
-# this answers inside an Alpine guest as well as on the development hosts.
-#
-# An OS this does not know about answers TRUE, deliberately. The question here
-# is whether a cached binary is for another platform, and an unrecognised pair
-# is not evidence that it is: refusing one would rebuild on every call for no
-# reason. The failure that matters is the one this catches.
-#
-# A FORMAT this does not know answers TRUE for the same reason, and a shebang is
-# that case. `#!` opens a script the kernel execs on any platform, so it is never
-# the wrong-architecture binary this looks for; judging it by the Mach-O table
-# below called an executable file unrunnable and rebuilt over it.
-le_runs_here() {
-	magic=$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')
-	case $magic in
-	2321*) return 0 ;;
+	if [ "$build_sha" = "$build_rest" ]; then
+		return 0
+	fi
+	build_platform=${build_rest#*-}
+	build_goos=${build_platform%%-*}
+	build_goarch=${build_platform#*-}
+	if [ "$build_goos" = "$build_platform" ]; then
+		return 1
+	fi
+	case $build_goos in
+	'' | *[!0-9a-z]*) return 1 ;;
 	esac
-	case $(uname -s) in
-	Linux)
-		[ "$magic" = "7f454c46" ]
+	case $build_goarch in
+	'' | *[!0-9a-z]*) return 1 ;;
+	esac
+}
+
+# True when $1, eight date digits, T, six time digits and Z, is an instant Go's
+# time.Parse accepts: month 1 to 12, a day the month has (29 February only in a
+# leap year), hour below 24, minute and second below 60.
+valid_utc_stamp() {
+	stamp_year=${1%????T*}
+	stamp_month=${1#????}
+	stamp_month=${stamp_month%??T*}
+	stamp_day=${1#??????}
+	stamp_day=${stamp_day%T*}
+	stamp_time=${1#*T}
+	stamp_hour=${stamp_time%????Z}
+	stamp_minute=${stamp_time#??}
+	stamp_minute=${stamp_minute%??Z}
+	stamp_second=${stamp_time#????}
+	stamp_second=${stamp_second%Z}
+	# Leading zeros make sh read a number as octal, so each field is compared
+	# as text against its bounds.
+	case $stamp_month in
+	0[1-9] | 1[0-2]) ;;
+	*) return 1 ;;
+	esac
+	case $stamp_hour in
+	[01][0-9] | 2[0-3]) ;;
+	*) return 1 ;;
+	esac
+	case $stamp_minute$stamp_second in
+	[0-5][0-9][0-5][0-9]) ;;
+	*) return 1 ;;
+	esac
+	case $stamp_day in
+	0[1-9] | 1[0-9] | 2[0-8]) return 0 ;;
+	29)
+		[ "$stamp_month" != 02 ] && return 0
+		stamp_year=${stamp_year#"${stamp_year%%[!0]*}"}
+		stamp_year=${stamp_year:-0}
+		[ $((stamp_year % 4)) -eq 0 ] || return 1
+		[ $((stamp_year % 100)) -ne 0 ] && return 0
+		[ $((stamp_year % 400)) -eq 0 ]
 		;;
-	Darwin)
-		case $magic in
-		cffaedfe | feedfacf | cafebabe | bebafeca) return 0 ;;
+	30)
+		[ "$stamp_month" != 02 ]
+		;;
+	31)
+		case $stamp_month in
+		01 | 03 | 05 | 07 | 08 | 10 | 12) return 0 ;;
 		*) return 1 ;;
 		esac
 		;;
-	*)
-		return 0
-		;;
+	*) return 1 ;;
 	esac
+}
+
+# Sets $newest to the newest build directory for platform $1 ("" for this
+# checkout's own builds, <goos>-<goarch> for another platform's), or to "" when
+# there is none. The glob sorts like os.ReadDir, so the last match is the
+# newest. A directory link, or a build whose le is not a regular file, is not a
+# build.
+newest_build() {
+	newest=
+	for entry in "$builds"/*; do
+		[ -d "$entry" ] || continue
+		[ ! -L "$entry" ] || continue
+		build_name_valid "${entry##*/}" || continue
+		[ "$build_platform" = "$1" ] || continue
+		[ -f "$entry/le" ] || continue
+		[ ! -L "$entry/le" ] || continue
+		newest=$entry
+	done
+}
+
+# Sets $host_platform to this machine's <GOOS>-<GOARCH>, in Go's words, or
+# fails for a system Go has no word for here.
+host_platform() {
+	host_uname=$(uname -sm)
+	case ${host_uname% *} in
+	Darwin) host_goos=darwin ;;
+	Linux) host_goos=linux ;;
+	FreeBSD) host_goos=freebsd ;;
+	OpenBSD) host_goos=openbsd ;;
+	NetBSD) host_goos=netbsd ;;
+	*) return 1 ;;
+	esac
+	case ${host_uname#* } in
+	x86_64 | amd64) host_goarch=amd64 ;;
+	arm64 | aarch64) host_goarch=arm64 ;;
+	i386 | i486 | i586 | i686) host_goarch=386 ;;
+	armv6l | armv7l | arm) host_goarch=arm ;;
+	riscv64) host_goarch=riscv64 ;;
+	ppc64le) host_goarch=ppc64le ;;
+	s390x) host_goarch=s390x ;;
+	*) return 1 ;;
+	esac
+	host_platform=$host_goos-$host_goarch
+}
+
+# True when $1 is a binary this machine can exec, judged by its header: the
+# format and the processor. ELF carries the machine at byte 18, Mach-O its CPU
+# type at byte 4. `od` is POSIX and is in busybox.
+#
+# A shebang opens a script the kernel execs anywhere, and a header this does
+# not know is not evidence of another platform, so both answer TRUE: refusing
+# them would rebuild on every call for no reason.
+le_runs_here() {
+	magic=$(od -An -tx1 -N20 "$1" 2>/dev/null | tr -d ' \n')
+	host_platform || return 0
+	# Fourteen bytes, as hex, between the ELF magic and its machine field. The
+	# case patterns below expand it unquoted on purpose: each ? matches one digit.
+	skip='????????????????????????????'
+	case $magic in
+	2321*) return 0 ;;
+	7f454c46${skip}3e00) [ "$host_platform" = linux-amd64 ] ;;
+	7f454c46${skip}b700) [ "$host_platform" = linux-arm64 ] ;;
+	7f454c46*) [ "$host_goos" = linux ] ;;
+	cffaedfe07000001*) [ "$host_platform" = darwin-amd64 ] ;;
+	cffaedfe0c000001*) [ "$host_platform" = darwin-arm64 ] ;;
+	cffaedfe* | cafebabe* | bebafeca*) [ "$host_goos" = darwin ] ;;
+	*) return 0 ;;
+	esac
+}
+
+# Sets $build_dir to the build this machine runs, and $build_suffix to the
+# platform part a new build of HEAD is named with. A checkout's own builds carry
+# no platform. When the newest of them cannot run here, this is another machine
+# sharing the checkout (a QEMU guest mounting it), and its builds carry
+# -<GOOS>-<GOARCH>.
+choose_build() {
+	build_suffix=
+	newest_build ""
+	build_dir=$newest
+	if [ -z "$build_dir" ] || le_runs_here "$build_dir/le"; then
+		return 0
+	fi
+	host_platform || return 0
+	build_suffix=-$host_platform
+	newest_build "$host_platform"
+	build_dir=$newest
+}
+
+# The read-only commands a build answers before anybody runs it. They reach the
+# root handler, the patched-GOROOT activation, the command registry and the
+# renderer, which is where a HEAD that compiles but cannot start fails. The
+# checkout is named, because the build sits outside any tree its own walk would
+# find.
+smoke_test() {
+	ZE_REPO_ROOT=$root "$1" help >>"$2" 2>&1 || return 1
+	ZE_REPO_ROOT=$root "$1" spec wip >>"$2" 2>&1 || return 1
+	ZE_REPO_ROOT=$root "$1" spec current >>"$2" 2>&1
+}
+
+# True when the build in $1 starts here. A build this launcher promoted carries
+# its smoke record. One placed by hand has none, and is smoke-tested once
+# before its first run. A crash after exec cannot be seen from here, because
+# exec replaces this shell: the smoke test is how a build that cannot start is
+# found before any caller depends on it.
+build_starts() {
+	[ -x "$1/le" ] || return 1
+	le_runs_here "$1/le" || return 1
+	[ ! -f "$1/smoke" ] || return 0
+	smoke_test "$1/le" "$1/smoke.$$" || {
+		rm -f "$1/smoke.$$"
+		return 1
+	}
+	mv -f "$1/smoke.$$" "$1/smoke"
+}
+
+# Moves the build $1 aside to .failed-<name>, never deleting it: a command
+# already running from it keeps its file, and the store trim removes it once
+# nothing does.
+set_aside() {
+	aside=$builds/.failed-${1##*/}
+	if [ -e "$aside" ]; then
+		aside=$aside.$$
+	fi
+	mv "$1" "$aside"
+}
+
+# Names, in $next_label, what the next call runs.
+next_label() {
+	choose_build
+	if [ -n "$build_dir" ]; then
+		next_label=bin/builds/${build_dir##*/}
+	else
+		next_label="a build of HEAD, made on the next call"
+	fi
+}
+
+# The lock one builder holds: a directory, because mkdir is atomic, holding the
+# owner's host and then its pid. A pid means something only on the host that
+# wrote it: a QEMU guest mounts this directory over 9p and cannot see the
+# host's processes, so it would judge every live host build dead. The owner's
+# liveness is therefore judged only on its own host. A lock from another host is
+# busy until it is thirty minutes old, past which it is reclaimed: a cold build
+# of HEAD takes about two minutes, and the foreground wait gives up after
+# fifteen, so a build still holding the lock at thirty is not running. A lock
+# with no pid yet is reclaimed after ten minutes, the window being the instant
+# between mkdir and the write. A lock with a pid and no host was written by a
+# launcher from before the host was recorded, and is judged by its pid.
+lock=$builds/.building
+
+# Sets $lock_host_id to this host's identity: its node name and, where the
+# system has one, the id of its current boot, so a guest named like its host,
+# or a host since rebooted, is still another host.
+lock_host_id() {
+	boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) ||
+		boot_id=$(sysctl -n kern.bootsessionuuid 2>/dev/null) ||
+		boot_id=
+	lock_host_id="$(uname -n) $boot_id"
+}
+
+# Records this process as the owner of the lock it just created.
+claim_lock() {
+	lock_host_id
+	printf '%s\n' "$lock_host_id" >"$lock/host"
+	echo $$ >"$lock/pid"
+}
+
+# True when the existing lock still holds: its owner lives, or it cannot be
+# judged dead yet.
+lock_held() {
+	lock_owner=$(cat "$lock/pid" 2>/dev/null) || lock_owner=
+	if owner_host=$(cat "$lock/host" 2>/dev/null); then
+		lock_host_id
+		if [ "$owner_host" != "$lock_host_id" ]; then
+			[ -z "$(find "$lock" -prune -mmin +30 2>/dev/null)" ]
+			return
+		fi
+	fi
+	if [ -n "$lock_owner" ]; then
+		kill -0 "$lock_owner" 2>/dev/null
+		return
+	fi
+	[ -z "$(find "$lock" -prune -mmin +10 2>/dev/null)" ]
+}
+
+# Takes the lock. Answers 0 when this process now holds it, 1 when another live
+# builder does, and 2 when no lock can be made at all: bin/builds or the lock
+# cannot be created, or a dead owner's lock cannot be removed. On 2,
+# $lock_error names the path, the cause and the fix. A busy lock frees when its
+# builder ends, so a caller may wait on 1; nothing frees a lock that cannot be
+# made, so a caller MUST NOT wait on 2.
+take_lock() {
+	if ! lock_cause=$(mkdir -p "$builds" 2>&1); then
+		lock_unmade "$builds"
+		return 2
+	fi
+	if lock_cause=$(mkdir "$lock" 2>&1); then
+		lock_claimed
+		return
+	fi
+	# mkdir also fails when another caller made the lock first: only a lock
+	# that exists is busy, and a missing one could not be created.
+	if [ ! -d "$lock" ]; then
+		lock_unmade "$lock"
+		return 2
+	fi
+	if lock_held; then
+		return 1
+	fi
+	if ! lock_cause=$(rm -rf "$lock" 2>&1); then
+		lock_error="cannot remove $lock, the lock of a builder that is no longer running: $lock_cause. Remove it as the user who owns it (rm -rf '$lock'), then run ./le again"
+		return 2
+	fi
+	if lock_cause=$(mkdir "$lock" 2>&1); then
+		lock_claimed
+		return
+	fi
+	if [ -d "$lock" ]; then
+		return 1
+	fi
+	lock_unmade "$lock"
+	return 2
+}
+
+# Records this process in the lock take_lock just created, answering 0, or 2
+# with $lock_error when the owner cannot be written into it. claim_lock runs in
+# this shell, never in a command substitution: there `set -e` would end it at a
+# host probe that is missing (uname on a bare PATH), which only leaves the host
+# empty. The pid file it writes last is what decides.
+lock_claimed() {
+	if claim_lock 2>/dev/null && [ -s "$lock/pid" ]; then
+		return 0
+	fi
+	lock_cause="the owner could not be written into the lock"
+	rm -rf "$lock"
+	lock_unmade "$lock/pid"
+	return 2
+}
+
+# Sets $lock_error for $1, which could not be created with $lock_cause as the
+# reason. The fix names the nearest directory that exists, the one whose
+# permissions, owner or free space decide whether $1 can be made.
+lock_unmade() {
+	lock_parent=$(dirname "$1")
+	while [ ! -d "$lock_parent" ]; do
+		lock_parent=$(dirname "$lock_parent")
+	done
+	lock_user=$(id -un 2>/dev/null) || lock_user=${USER:-your user}
+	lock_error="cannot create $1, which le needs to build HEAD: $lock_cause. No build of le exists here yet, so none can run until it can be made. Fix the cause in $lock_parent (for a permission error: chmod u+w '$lock_parent', or chown $lock_user '$lock_parent' when another user owns it), then run ./le again"
+}
+
+# True when another process holds the lock.
+lock_busy() {
+	[ -d "$lock" ] || return 1
+	lock_held
+}
+
+# Builds HEAD into bin/builds under the lock, which the caller holds: export,
+# compile into .staging-<pid>, smoke-test, then one rename publishes the whole
+# directory. $1 is the platform suffix. Nothing is published unless every step
+# passed, and the staging directory goes either way.
+build_head() {
+	require_go "$root" || return 1
+	head_commit=$(git -C "$root" rev-parse --verify 'HEAD^{commit}') || return 1
+	head_sha=$(git -C "$root" rev-parse --short "$head_commit") || return 1
+	head_stamp=$(TZ=UTC git -C "$root" log -1 --date=format-local:%Y%m%dT%H%M%SZ --format=%cd "$head_commit") || return 1
+	head_key=$(le_input_key "$head_commit") || return 1
+	staging=$builds/.staging-$(cat "$lock/pid")
+	rm -rf "$lock/src" "$staging"
+	if ! build_staging "$1"; then
+		rm -rf "$lock/src" "$staging"
+		return 1
+	fi
+	rm -rf "$lock/src"
+	published=$builds/$head_stamp-$head_sha$1
+	if [ -e "$published" ]; then
+		rm -rf "$staging"
+		return 0
+	fi
+	mv "$staging" "$published"
+}
+
+# The steps of build_head that write the staging directory.
+build_staging() {
+	export_commit "$head_commit" "$lock/src" || return 1
+	# The tree is compiled inside the export, so the export borrows the
+	# checkout's cache and tmp: the patched GOROOT the generator keeps there is
+	# then built once per toolchain, not once per commit.
+	ln -s "$root/cache" "$lock/src/cache" || return 1
+	ln -s "$root/tmp" "$lock/src/tmp" || return 1
+	build_le "$lock/src" "$staging/le" || return 1
+	printf '%s\n' "$head_key" >"$staging/inputs" || return 1
+	smoke_test "$staging/le" "$staging/smoke.log" || {
+		echo "le: the build of HEAD $head_sha compiled and then failed its smoke test (help, spec wip, spec current):" >&2
+		cat "$staging/smoke.log" >&2
+		return 1
+	}
+	mv "$staging/smoke.log" "$staging/smoke"
+}
+
+# Starts one candidate build of HEAD in the background and returns at once. The
+# build's output goes to its log, which becomes .failed-<commit>.log when the
+# build fails, so the failure is reported once, by the next caller. $1 is the
+# platform suffix.
+start_candidate() {
+	take_lock || return 0
+	(
+		trap '' HUP INT
+		sh -c 'echo "$PPID"' >"$lock/pid"
+		if ! build_head "$1"; then
+			mv -f "$lock/build.log" "$builds/.failed-${head_commit:-$(git -C "$root" rev-parse HEAD)}.log"
+		fi
+		rm -rf "$lock"
+	) </dev/null >"$lock/build.log" 2>&1 &
+}
+
+# True when HEAD's inputs were already rejected for this platform: its build
+# failed (.failed-<commit>.log) or a build of these inputs was moved aside.
+# Says so once per commit, so a HEAD that never builds is not rebuilt on every
+# call and does not repeat its warning either. $1 is the input key; $2 names
+# the binary that keeps running, for the warning.
+head_rejected() {
+	head_full=$(git -C "$root" rev-parse HEAD) || return 1
+	rejection=
+	if [ -f "$builds/.failed-$head_full.log" ]; then
+		rejection="did not build; the log is bin/builds/.failed-$head_full.log"
+	else
+		for aside in "$builds"/.failed-*; do
+			[ -f "$aside/inputs" ] || continue
+			[ "$(cat "$aside/inputs")" = "$1" ] || continue
+			rejection="was built as bin/builds/${aside##*/.failed-} and rolled back"
+			break
+		done
+	fi
+	[ -n "$rejection" ] || return 1
+	if [ ! -e "$builds/.failed-$head_full.reported" ]; then
+		: >"$builds/.failed-$head_full.reported"
+		echo "le: HEAD $head_full $rejection, so le keeps running $2; a commit that changes le's inputs starts a new build" >&2
+	fi
+}
+
+# Writes this file to bin/le when the two differ, as a complete sibling that is
+# then renamed over it, so a shell reading the old copy keeps its inode. Every
+# failure is silent: the copy is a convenience for the callers that name bin/le,
+# and the root copy works without it.
+install_dispatcher() {
+	if cmp -s "$0" "$root/bin/le" 2>/dev/null; then
+		return 0
+	fi
+	{
+		mkdir -p "$root/bin" &&
+			cp "$0" "$root/bin/le.new.$$" &&
+			chmod 755 "$root/bin/le.new.$$" &&
+			mv -f "$root/bin/le.new.$$" "$root/bin/le"
+	} 2>/dev/null || rm -f "$root/bin/le.new.$$" 2>/dev/null || :
 }
 
 # A build name becomes one path component, so it accepts letters, digits, dot,
@@ -271,7 +635,24 @@ check_name() {
 	esac
 }
 
-# `./le --name <name> <command>...` builds bin/le-<name>/le and runs it. The
+# `--name session` names the build after this session, so every agent of one
+# session shares one build and no two sessions share a name.
+session_name() {
+	if [ -z "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+		echo "le: --name session names the build after CLAUDE_CODE_SESSION_ID, which is not set here; set it, or pass --name <name>" >&2
+		exit 2
+	fi
+	session_prefix=${CLAUDE_CODE_SESSION_ID#????????}
+	name=s-${CLAUDE_CODE_SESSION_ID%"$session_prefix"}
+}
+
+if [ "${1:-}" = "--update" ]; then
+	echo "le: --update is gone: every build of le now follows HEAD on its own, built in the background from committed code and run once it passes a smoke test. To run your uncommitted edits, use './le --name session <command>'; to stop running a build that misbehaves, run './le rollback'" >&2
+	exit 2
+fi
+
+# `./le --name <name> <command>...` builds bin/le-<name>/le from the WORKING
+# TREE and runs it: the one way to run uncommitted edits to le itself. The
 # option is consumed here and only here, so everything after it reaches the
 # binary untouched. It has to come first, which is unambiguous because every le
 # command starts with a keyword and no keyword starts with a hyphen.
@@ -280,37 +661,35 @@ check_name() {
 # the launcher's own channel rather than an interface: cmd/ze/le_build_name.go
 # reads it and refuses to answer when the running binary is not the one the
 # caller named, which is what turns a stale or hardcoded binary into an error.
-# `./le --update` replaces bin/le with a build of the working tree, and runs
-# whatever follows it against that build. With no command after it, updating IS
-# the command. --name already builds on every call, so the option is satisfied
-# there and writes nothing to the shared binary.
-update=
-if [ "${1:-}" = "--update" ]; then
-	update=yes
-	shift
-fi
-
-name=
+named=
 case ${1:-} in
 --name)
+	named=yes
 	name=${2:-}
-	check_name "$name"
-	shift 2
+	if [ $# -ge 2 ]; then
+		shift 2
+	else
+		shift
+	fi
 	;;
 --name=*)
+	named=yes
 	name=${1#--name=}
-	check_name "$name"
 	shift
 	;;
 *)
 	if [ -n "${ZE_LE_BUILD_NAME:-}" ]; then
+		named=yes
 		name=$ZE_LE_BUILD_NAME
-		check_name "$name"
 	fi
 	;;
 esac
 
-if [ -n "$name" ]; then
+if [ -n "$named" ]; then
+	if [ "$name" = session ]; then
+		session_name
+	fi
+	check_name "$name"
 	# The file name stays `le`, so the name goes on the DIRECTORY. defaultDispatch
 	# in cmd/ze/dispatch.go picks the personality with LookupRoot(binaryName()),
 	# and a binary called le-probe answers `le session ...` with "unknown
@@ -319,63 +698,132 @@ if [ -n "$name" ]; then
 	ZE_LE_BUILD_NAME=$name
 	export ZE_LE_BUILD_NAME
 	# Built on EVERY call, so the toolchain decides what is stale and the session
-	# reads its own edits. Sessions share this checkout, so this never writes
-	# bin/le and never waits for a peer to stop using it.
-	update_le "$binary"
-else
-	binary=$root/bin/le
-	# This is an existence cache, not a freshness check. An existing binary is
-	# deliberately executed without asking the toolchain whether sources changed,
-	# because a peer session's unfinished edit would then break every call in
-	# every session. --update picks a change up on demand, and --name builds a
-	# session its own binary. Deleting this one never does: peers execute it.
-	#
-	# The cache is per PLATFORM as well as per existence, and it has to be. A
-	# QEMU guest mounts this checkout at /workspace and finds a bin/le the HOST
-	# built, so `exec` gets ENOEXEC, the shell falls back to reading the Mach-O
-	# header as a script, and the answer is `line 1: not found` followed by a
-	# syntax error. The format is read from the file rather than stamped beside
-	# it, so an existing binary needs no rebuild to be judged.
-	if [ -x "$binary" ] && ! le_runs_here "$binary"; then
-		binary=$root/bin/le-$(uname -s)-$(uname -m)/le
+	# reads its own edits. It never writes bin/builds and never waits for a peer.
+	# The build lands beside the target and is renamed onto it, so a process
+	# running the old file keeps its inode and nobody execs a half-written one.
+	if ! build_le "$root" "$binary.new.$$"; then
+		rm -f "$binary.new.$$"
+		echo "le: the build failed, so $binary is unchanged" >&2
+		exit 1
 	fi
-	if [ ! -x "$binary" ]; then
-		update_le "$binary"
-	elif [ -n "$update" ]; then
-		update_le "$binary"
-	fi
+	mv -f "$binary.new.$$" "$binary"
+	exec "$binary" "$@"
 fi
 
-if [ $# -eq 0 ] && [ -n "$update" ]; then
+if [ "$launcher_dir" = "$root" ]; then
+	install_dispatcher
+fi
+
+# Shell completion runs bin/le on every Tab (`bin/le completion words <line>`,
+# internal/plugins/completion/script). A keystroke checks no inputs, starts no
+# build and moves nothing: it runs the newest build, or completes nothing.
+if [ "${1:-}" = completion ] && [ "${2:-}" = words ]; then
+	choose_build
+	if [ -z "$build_dir" ]; then
+		exit 1
+	fi
+	binary=$build_dir/le
+	exec "$binary" "$@"
+fi
+
+# `./le rollback` moves the newest build aside, as an automatic rollback does,
+# and the next call runs the one before it. The inputs of the build moved aside
+# count as rejected, so HEAD is not simply built again.
+if [ "${1:-}" = rollback ]; then
+	choose_build
+	if [ -z "$build_dir" ]; then
+		echo "le: there is no build of le for this machine in $builds to roll back" >&2
+		exit 2
+	fi
+	rolled=${build_dir##*/}
+	set_aside "$build_dir"
+	next_label
+	echo "le: moved bin/builds/$rolled aside to bin/builds/.failed-$rolled; the next call runs $next_label" >&2
 	exit 0
 fi
 
-# The staleness check runs AFTER the command, so a session waiting on le waits
-# on le and not on a find, and reads the line under the answer it asked for
-# rather than above it. Paying that with the exec is what costs this branch a
-# shell process; every other call keeps the exec and costs nothing.
-#
-# --name is exempt: that binary was built from the working tree one line ago.
-if [ -z "$name" ] && le_sampled; then
-	status=0
-	"$binary" "$@" || status=$?
-	warn_when_stale "$binary"
+# Find the newest build that starts here. One that does not is moved aside and
+# the next is tried, so a broken build costs one line, never a dead le.
+choose_build
+while [ -n "$build_dir" ] && ! build_starts "$build_dir"; do
+	failed=${build_dir##*/}
+	set_aside "$build_dir"
+	next_label
+	echo "le: bin/builds/$failed does not start; moved it aside to bin/builds/.failed-$failed, and this call runs $next_label" >&2
+done
 
-	# This branch gave up `exec`, so the binary ran as a CHILD and a signal that
-	# killed it arrives here as 128+signal. Exiting with that NUMBER would tell
-	# the caller the binary chose it: a `timeout` that sends SIGTERM, a CI runner
-	# that kills a hung gate, and a shell reporting `Terminated` all read a
-	# terminating signal differently from an exit code, and every other call to
-	# this launcher execs and so reports the signal. One call in sixteen must not
-	# answer differently from the other fifteen.
-	#
-	# Re-raise it on this shell instead. The `exit` below stays as the fallback
-	# for a signal the shell will not take, so this can only ever restore the
-	# exec'd behavior, never lose the status.
-	if [ "$status" -gt 128 ] && [ "$status" -lt 160 ]; then
-		kill -"$((status - 128))" $$ 2>/dev/null
+if [ -z "$build_dir" ]; then
+	# No build at all. Right after the layout changed, the migration kept the
+	# old binary as .previous-legacy: it runs, and HEAD builds in the background
+	# exactly as a candidate does, so no caller waits and a failed build is
+	# reported once rather than retried by every caller. The store trim removes
+	# the legacy binary once a build has landed. The legacy binary is the host's:
+	# a machine sharing the checkout (a QEMU guest) cannot exec it, so there it
+	# is passed over and the guest builds its own, as a fresh checkout does.
+	legacy=$builds/.previous-legacy/le
+	if [ -x "$legacy" ] && le_runs_here "$legacy"; then
+		if head_key=$(le_input_key HEAD 2>/dev/null) && [ -n "$head_key" ]; then
+			if ! lock_busy && ! head_rejected "$head_key" "$legacy"; then
+				start_candidate "$build_suffix"
+			fi
+		fi
+		exec "$legacy" "$@"
 	fi
-	exit $status
+	# A fresh checkout, or one whose legacy binary does not run here: this
+	# caller builds HEAD in the foreground, under the lock. While another caller
+	# holds it, this one waits for the build to land, at most 450 checks two
+	# seconds apart.
+	checks=0
+	while :; do
+		lock_status=0
+		take_lock || lock_status=$?
+		if [ "$lock_status" -eq 0 ]; then
+			break
+		fi
+		# A lock that cannot be made never frees: refuse now, not after the
+		# fifteen-minute wait meant for a build in progress.
+		if [ "$lock_status" -eq 2 ]; then
+			echo "le: $lock_error" >&2
+			exit 1
+		fi
+		if [ "$checks" -eq 0 ]; then
+			echo "le: another le is building HEAD into $builds; waiting for it" >&2
+		fi
+		checks=$((checks + 1))
+		if [ "$checks" -gt 450 ]; then
+			echo "le: no build appeared in $builds after 15 minutes, and the build in progress still holds $lock (owner pid $(cat "$lock/pid" 2>/dev/null || echo unknown)); remove $lock once that process is gone" >&2
+			exit 1
+		fi
+		sleep 2
+	done
+	choose_build
+	if [ -z "$build_dir" ]; then
+		echo "le: no build of le for this machine yet; building HEAD into $builds" >&2
+		if ! build_head "$build_suffix"; then
+			rm -rf "$lock"
+			echo "le: the build of HEAD failed, so no le is available; the message above names the cause" >&2
+			exit 1
+		fi
+		choose_build
+	fi
+	rm -rf "$lock"
+	if [ -z "$build_dir" ]; then
+		echo "le: the build of HEAD finished but $builds holds no build this machine runs" >&2
+		exit 1
+	fi
+else
+	# A build runs now. When HEAD's inputs differ from the ones it was built
+	# from, one candidate build of HEAD starts in the background, unless one is
+	# already running or HEAD was already rejected. A checkout git cannot read
+	# has no key, and runs what it has.
+	if head_key=$(le_input_key HEAD 2>/dev/null) && [ -n "$head_key" ]; then
+		if [ "$head_key" != "$(cat "$build_dir/inputs" 2>/dev/null)" ]; then
+			if ! lock_busy && ! head_rejected "$head_key" "bin/builds/${build_dir##*/}"; then
+				start_candidate "$build_suffix"
+			fi
+		fi
+	fi
 fi
 
+binary=$build_dir/le
 exec "$binary" "$@"

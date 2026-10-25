@@ -104,6 +104,22 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 named in `packages`. `iproute2` and `libcap` are both preconditions of a whole
 run, and the refusal for each one names it.
 
+`git` is there for the launcher as much as for the tests. A guest command that
+starts with `./le` runs the dispatcher over the shared checkout, and the
+dispatcher reads HEAD's input key with `git ls-tree` before it picks a build
+(`docs/contributing/running-commands.md`, "Launcher builds do not overwrite
+running binaries"). The setup command also marks every directory safe
+(`git config --global --add safe.directory '*'`), because the checkout the
+guest mounts belongs to the host's user. The newest build in `bin/builds/` is
+the host's, and its header is not the guest's, so the guest picks or builds its
+own `<time>-<sha>-linux-<arch>` build there, from a HEAD export, exactly as
+another machine sharing the checkout would. A checkout git cannot read has no
+key, and the dispatcher then runs the newest build the guest can start without
+building one. A command naming `tmp/qemu/linux-<arch>/le` directly runs the
+guest le `./le test qemu run` built on the host and bypasses the dispatcher.
+<!-- source: internal/le/test/qemu/run.go -- setupCommand -->
+<!-- source: le -- le_input_key, choose_build, le_runs_here -->
+
 `coreutils` was a fifth precondition until 2026-09-05. The suite wrapper passed
 GNU `timeout --kill-after=15s`, which the guest's BusyBox `timeout` answers with
 `unrecognized option` and exit 1, so every suite printed the usage text under its

@@ -69,7 +69,7 @@ func stageProcess(ctx context.Context, words []string) (*exec.Cmd, error) {
 
 // stageExecutable answers the image a stage process runs. On Linux it is
 // /proc/self/exe, which execve resolves in the forked child to the image this
-// process runs, so a bin/le replaced mid-run (`./le --update`) cannot put
+// process runs, so a build replaced mid-run (a newer bin/builds entry) cannot put
 // different code under later stages. Darwin has no procfs and no other handle
 // that execs the running image, so there it is the binary's path, and a binary
 // replaced mid-run runs its new code in the stages after the replacement.

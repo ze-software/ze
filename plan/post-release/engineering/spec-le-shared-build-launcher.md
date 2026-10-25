@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Superseded 2026-10-25.** The owner replaced this design (content-addressed
 named builds with hard links) in the discussion recorded in
-`plan/post-release/engineering/spec-le-built-from-head.md`: the shared le is
+`spec-le-built-from-head` (closed; `docs/contributing/running-commands.md` carries its design): the shared le is
 built from HEAD, keyed by its input tree hash, and kept as dated builds under
 `bin/builds/`. Nothing below is to be implemented. This spec stays parked only
 until it can be removed through the closure flow; its O-4 row carries over to

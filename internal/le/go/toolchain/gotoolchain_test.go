@@ -489,9 +489,10 @@ func TestLintCacheIsUnderCache(t *testing.T) {
 // TestNamedLauncherMatchesTheShellScript pins the `le` script's copies of the
 // named-launcher path and of its check_name rule to the Go declaration.
 //
-// VALIDATES: the script builds `--name <name>` into NamedLauncherDir, falls
-// back to a platform directory NamedLauncherName never answers, and refuses
-// exactly the names validLauncherName refuses (AC-20).
+// VALIDATES: the script builds `--name <name>` into NamedLauncherDir and writes
+// no other bin/le-<x> directory, so a leftover bin/le-<uname> platform directory
+// is answered as a named build, and it refuses exactly the names
+// validLauncherName refuses (AC-20).
 // PREVENTS: the store trim reclaiming a directory the script does not build
 // under a name, or keeping one it does, because the two spelled it apart.
 func TestNamedLauncherMatchesTheShellScript(t *testing.T) {
@@ -508,13 +509,26 @@ func TestNamedLauncherMatchesTheShellScript(t *testing.T) {
 	if !strings.Contains(string(script), named) {
 		t.Errorf("the le script does not assign %q, so the trim judges a directory --name does not build", named)
 	}
-	platform := "binary=$root/" + strings.TrimPrefix(NamedLauncherDir("", "$(uname -s)-$(uname -m)"), string(filepath.Separator)) + "/le"
-	if !strings.Contains(string(script), platform) {
-		t.Errorf("the le script does not assign %q, so the shared platform launcher is not the one the trim keeps", platform)
+	// Another platform's builds live in bin/builds now, named -<GOOS>-<GOARCH>
+	// (TestLauncherAgreesWithTheResolver in cmd/ze), so the only bin/le-<x>
+	// the script writes is a --name build. A leftover bin/le-<uname> from the
+	// old launcher is then answered like any named build, and the trim reclaims
+	// it once idle. Should the script write a bin/le- path under any other
+	// variable again, this goes red before the trim can remove a live binary.
+	for rest := string(script); ; {
+		_, after, found := strings.Cut(rest, "bin/le-")
+		if !found {
+			break
+		}
+		if !strings.HasPrefix(after, "$name") && !strings.HasPrefix(after, "<name>") {
+			line, _, _ := strings.Cut(after, "\n")
+			t.Errorf("the le script writes bin/le-%s, a launcher directory that is not a --name build: NamedLauncherName would answer it", line)
+		}
+		rest = after
 	}
 	for _, kernel := range []string{"Darwin-arm64", "Linux-x86_64", "Linux-aarch64", "FreeBSD-amd64"} {
-		if name, ok := NamedLauncherName("le-" + kernel); ok {
-			t.Errorf("NamedLauncherName(le-%s) = %q, true: the shared platform launcher must never be answered", kernel, name)
+		if name, ok := NamedLauncherName("le-" + kernel); !ok || name != kernel {
+			t.Errorf("NamedLauncherName(le-%s) = %q, %v; want %s, true: a leftover platform launcher is reclaimed like a named build", kernel, name, ok, kernel)
 		}
 	}
 

@@ -75,6 +75,7 @@ built with `ze_le` and links 836 first-party packages.
 - [ ] `le` - `build_le`, `update_le` (staging plus rename), `--update`, `--name` (`check_name`, `ZE_LE_BUILD_NAME`), the existence cache, `le_runs_here` platform fallback `bin/le-<OS>-<arch>/le`, `warn_when_stale`, `le_is_stale`, `committed_change_is_newer`, `ensure_cache_link`
 - [ ] `cmd/ze/le_build_name.go` - refuses when the running binary is not the named build
 - [ ] `internal/le/register.go`, `internal/le/go/toolchain/gotoolchain.go` (`NamedLauncherDir`, `NamedLauncherName`), `internal/le/scratch/livetrim.go` (`trimLaunchers`, `launcherIdle`, `launcherNamedInArgv`), `internal/le/verify/dispatch/dispatch.go`, `internal/le/completion/completion.go`, `internal/le/interoplab/kernelcheck.go`, `internal/le/doc/check/retirednames.go`, `internal/test/fixture/fixture.go`, `internal/test/fixture/misc_fixture_runner.go`, `internal/test/perfrunner/run.go`, `internal/plugins/completion/script/script.go` - each names the `bin/le` path
+  -> Note (phase 4, trim): `launcherIdle` became `treeIdle` and `launcherNamedInArgv` became `pathNamedInArgv` in `livetrim.go`; `NamedLauncherName` no longer refuses a capitalised name, so a leftover `bin/le-<uname>` platform directory is trimmed like a named build.
 
 **Behavior to preserve:**
 - A running le keeps the binary it started on
@@ -133,10 +134,10 @@ built with `ze_le` and links 836 first-party packages.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A HEAD export builds with the shared Go cache warm, in about a minute | `-trimpath` makes builds path-independent (running-commands.md) | Candidates take long; still detached, so callers do not wait | Time one candidate build | unvalidated |
-| A-2 | A smoke test of `le help` plus read-only commands (`le spec current`, `le session scratch ensure`, `le doc check links` scoped) catches a HEAD that compiles but cannot start | owner choice O-3 | A broken build is promoted; rollback covers it | Force a candidate that panics at init; it is not promoted | unvalidated |
-| A-3 | Moving the current `bin/le` file aside and creating the directory does not break a running process | rename keeps the inode | A session fails once mid-migration | Migration test with a running le | unvalidated |
-| A-4 | The 12 Go sites and the docs are every direct `bin/le` caller | grep of `internal`, `cmd`, `test`, docs | A missed caller breaks after the migration | grep plus the full functional suites in the closing gate | unvalidated |
+| A-1 | A HEAD export builds with the shared Go cache warm, in about a minute | `-trimpath` makes builds path-independent (running-commands.md) | Candidates take long; still detached, so callers do not wait | Time one candidate build | confirmed 2026-10-25, slower than assumed: the real candidate `bin/builds/20261025T114143Z-00b9273a2a/` built in the background from a HEAD export in about 2 minutes cold; the export path is fixed at `bin/builds/.building/src` so later builds hit the Go cache. Callers did not wait |
+| A-2 | A smoke test of `le help` plus read-only commands (`le spec current`, `le session scratch ensure`, `le doc check links` scoped) catches a HEAD that compiles but cannot start | owner choice O-3 | A broken build is promoted; rollback covers it | Force a candidate that panics at init; it is not promoted | unvalidated: the smoke test is `le help`, `le spec wip`, `le spec current` (`le spec status` took over 2 minutes and was dropped, `smoke_test` in `le`); `TestLauncherRefusesAFailedCandidate/smoke-fails` proves a fixture candidate failing it is not published. The closure context ruled against staging a real forced-panic commit on main, which every session would build; the fixture evidence is the proof, and the real-checkout evidence is a good build of HEAD (`bin/builds/20261025T114143Z-00b9273a2a/`) built in the background, smoke-tested and run by `./le` and `bin/le` |
+| A-3 | Moving the current `bin/le` file aside and creating the directory does not break a running process | rename keeps the inode | A session fails once mid-migration | Migration test with a running le | confirmed 2026-10-25 under O-10: the real migration renamed the dispatcher copy over `bin/le` and kept the old binary as `bin/builds/.previous-legacy/le` while sessions ran le; `TestLauncherMigrationKeepsTheLegacyBuild` pins it (AC-16) |
+| A-4 | The 12 Go sites and the docs are every direct `bin/le` caller | grep of `internal`, `cmd`, `test`, docs | A missed caller breaks after the migration | grep plus the full functional suites in the closing gate | confirmed by grep 2026-10-25, risk removed by O-10: phase 1 classified every site and none reads the `bin/le` file as the binary (completion runs `bin/le completion words`, which the dispatcher answers on its fast path, AC-17); the remaining `bin/le test ...` lines in the docs exec the dispatcher, which execs the newest build. The full functional suites in the closing gate stay owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -146,6 +147,10 @@ built with `ze_le` and links 836 first-party packages.
 | R-3 | The script itself is edited while sessions run it | Syntax error mid-run | Whole-file replacement by rename |
 | R-4 | A guest with a dangling `cache/` | Build fails in the guest | The existing tmp/go-cache fallback |
 | R-5 | A failing newest build deleted while a long command still runs it | That command's binary vanishes | Move aside, never delete in the rollback path; the trim removes `.failed-*` only once no process uses it |
+| R-6 | A QEMU guest runs `./le` over the shared checkout and has no `git` | The guest cannot read the input key, and a guest with no build of its own platform cannot build one | `./le test qemu run` installs `git` (`apk add --no-cache git curl musl-dev`) and marks every directory safe in `setupCommand` (`internal/le/test/qemu/run.go`); a checkout git cannot read has no key, and the dispatcher runs the newest build it can start. Documented in `docs/architecture/testing/qemu-integration.md` |
+| R-7 | No launcher-reserved exit code exists, so automatic rollback triggers only on a failure to start | A build that passes its smoke test and then crashes after `exec` is not rolled back: `exec` replaces the shell, so nothing reads a post-exec crash | Every published build passed the smoke test, a hand-placed build with no `smoke` marker is smoke-tested before its first exec, pre-exec failures (not executable, wrong header) roll back automatically, and `./le rollback` covers the rest by hand |
+| R-8 | The build lock is a pid that `kill -0` judges, and a QEMU guest shares `bin/builds/.building` with the host across pid namespaces | A guest reclaims a live host lock (the host pid is dead to the guest) and `rm -rf`s the export under the host's build, which then fails and is reported once as a failed commit; or a guest pid that happens to be live keeps a dead lock busy | FIXED 2026-10-25: the lock holds `host` (`uname -n` and the boot id) before `pid`; `lock_held` in `le` judges the pid only on its own host, and another host's lock is busy until thirty minutes old. `TestLauncherJudgesALockByItsHost` |
+| R-9 | A QEMU guest during the migration window finds no linux build and execs `bin/builds/.previous-legacy/le`, the host's binary | `exec` fails with an exec format error instead of building | FIXED 2026-10-25: the legacy branch in `le` requires `le_runs_here "$legacy"` and otherwise falls through to the foreground build. `TestLauncherMigrationPassesOverAForeignLegacy` |
 
 ## Blast Radius
 
@@ -183,6 +188,7 @@ built with `ze_le` and links 836 first-party packages.
 | AC-14 | Every former direct caller of `bin/le` | Uses the script or the resolver; a grep for the old path finds none outside tests and history |
 | AC-15 | `--update` | Removed; `./le --update` exits 2 saying builds now follow HEAD and how to roll back |
 | AC-16 | A running le during the migration | Keeps running |
+| AC-17 | Shell completion calls `bin/le` (the dispatcher) on every Tab (`internal/le/completion/completion.go`, `Binary: "bin/le"`) | The dispatcher recognises a completion call and execs the newest build with no input-key check and no candidate build: one directory listing per keystroke. The completion files are another session's work and are not edited |
 
 ## 🧪 TDD Test Plan
 
@@ -194,11 +200,12 @@ built with `ze_le` and links 836 first-party packages.
 | `TestLauncherRefusesAFailedCandidate` | `cmd/ze/root_launcher_test.go` | AC-5, A-2 | |
 | `TestLauncherRollsBackAFailingBuild` | `cmd/ze/root_launcher_test.go` | AC-6, AC-7 | |
 | `TestLauncherFreshCheckoutBuildsInForeground` | `cmd/ze/root_launcher_test.go` | AC-9 | |
+| `TestLauncherRefusesAnUnwritableBuildsDirectory` | `cmd/ze/root_launcher_test.go` | B-4 (added 2026-10-25) | |
 | `TestLauncherPicksItsPlatform` | `cmd/ze/root_launcher_test.go` | AC-10 | |
 | `TestLauncherSessionName` | `cmd/ze/root_launcher_test.go` | AC-11 | |
 | `TestTrimKeepsNewestTwoBuilds` | `internal/le/scratch/livetrim_test.go` | AC-12 | |
 | `TestTrimRemovesIdleAgentBinFiles` | `internal/le/scratch/livetrim_test.go` | AC-13 | |
-| `TestNewestBuildResolver` | `internal/le/go/toolchain/gotoolchain_test.go` | AC-14 | |
+| `TestNewestBuildResolver`, `TestNewestBuildMissingDirectory` | `internal/le/go/toolchain/builds_test.go` | AC-14 | Note 2026-10-25 (B-3): both deleted with `NewestBuild`, `NewestPlatformBuild` and `newestBuild`, which had no non-test caller. AC-14 is now held by `TestParseBuildName` and `TestRunnableBuild` (same file) and by `TestLauncherAgreesWithTheResolver` (`cmd/ze/root_launcher_test.go`), which holds the script's newest-build choice against `ParseBuildName` and `RunnableBuild` over sorted names and the platform filter |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -364,3 +371,213 @@ N-A: tooling.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Blocker
+
+Handed back by the closure context on 2026-10-25, after its deliverables
+review and its first `/ze-review` pass over the working-tree diff. The work
+below is implementation, which `/ze-close` does not do. Each item names the
+producer and what clears it. Everything else reviewed held: the `le` script
+(selection, input key, candidate, smoke test, set-aside, rollback, lock with
+host identity, legacy branch, `--name session`, `--update` refusal, completion
+fast path), the trim rows in `internal/le/scratch/livetrim.go`, and the
+resolver grammar in `internal/le/go/toolchain/builds.go`.
+
+| # | Severity | Finding | Producer | What clears it |
+|---|----------|---------|----------|----------------|
+| B-1 | ISSUE | `rollback` cannot be found from le: the Integration Checklist says completion lists it, and `./le help` and `le completion words` know nothing of it, because the action exists only in the `le` script | `le`, the `rollback` branch; no registration under `internal/le` | Register `rollback` in le's command tree so help and completion list it; its handler, reached only when a build runs without the dispatcher, says to run `./le rollback`. `internal/le/le/root` and `internal/le/le/action` carry another session's uncommitted work: coordinate |
+| B-2 | ISSUE | The planned functional test does not exist: `test/ui/le-built-from-head.ci` and `internal/test/fixture/ui_fixture_le_built_from_head.go` (TDD Plan, Files to Create, Goal Gates `./le test ui le-built-from-head`) | none written | Write them. The `cmd/ze/root_launcher_test.go` launcher tests already drive the real `le` script in fixture git checkouts; replacing the `.ci` with them is a scope change the owner decides, never this phase |
+| B-3 | ISSUE | `NewestBuild` and `NewestPlatformBuild` have no non-test caller: only `TestLauncherAgreesWithTheResolver` calls them, and `docs/contributing/running-commands.md` says "Go callers ask `gotoolchain.NewestBuild` for the same answer", which none does | `internal/le/go/toolchain/builds.go`, `NewestBuild`, `NewestPlatformBuild`, `newestBuild` | Delete them and let the agreement test hold the script against `ParseBuildName` and `RunnableBuild`, or name the caller; correct the page sentence either way |
+| B-4 | ISSUE | With no build and a `bin/builds` that cannot be created (a read-only `bin/`), the foreground path says "another le is building HEAD" and waits fifteen minutes: `take_lock` answers 1 both for a busy lock and for a failed `mkdir -p "$builds"` | `le`, `take_lock` and the foreground `while ! take_lock` loop | Tell the two apart, and refuse at once naming the directory and the cause (`ai/rules/user-facing-errors.md`); a launcher test pins it |
+| N-1 | NOTE | After `./le rollback` of the only build, the next call builds HEAD in the foreground again, ignoring the rejection: the no-build path never calls `head_rejected` | `le`, the `if [ -z "$build_dir" ]` branch | Acceptable, because some le must run; say so on the page beside `./le rollback` |
+
+Owner rulings on the items above, 2026-10-25:
+
+| Item | Ruling | Thomas's words |
+|------|--------|----------------|
+| B-2 | The 13 `cmd/ze/root_launcher_test.go` launcher tests, which run the real `le` script in fixture git checkouts, are the end-to-end proof; `test/ui/le-built-from-head.ci` and its fixture are dropped from TDD Plan, Files to Create and Goal Gates | "Yes, launcher tests suffice" |
+| weakening | Deleting `ze.forcedSampleLauncher` is approved and recorded with `./le test weakened approve` | "Approve" |
+| B-1 | Coordinate with the better-cli session, which holds uncommitted work in `internal/le/le/root`, before registering `rollback` | "Yes, message better-cli" |
+
+Gates owed beside the items above, and why they did not run here:
+
+| Gate | State on 2026-10-25 |
+|------|---------------------|
+| `go test -race -run 'Launcher\|ShellScript' ./cmd/ze/` in the main tree | blocked: `cmd/ze` does not build, because another session's uncommitted `internal/le/rfc/check_core.go` passes `*Requirement` where `Requirement` is expected. The fix agent's run passed in a scratch tree carrying HEAD's `internal/le/rfc` |
+| `./le --name session go lint run scope "./internal/le/go/toolchain/ ./internal/le/scratch/ ./cmd/ze/"` | refused a fourth time: "lint inputs changed during planning", other sessions editing |
+| `./le verify changed` | owed over the commit that closes this spec |
+| `./le commit create` of this work | refused: `cmd/ze/root_launcher_test.go weakens ze.forcedSampleLauncher, and no owner approval names it`. The helper forced le's one-call-in-sixteen staleness sample (`le_sampled`, `$$ % 16`) so the test could cover the branch that ran the binary as a child. This spec deleted that branch with the staleness walk (Required Reading, running-commands.md decision), so the helper's predicate no longer exists, and the test now asserts no launcher runs the binary as a child. Only Thomas approves a test removal: `./le test weakened approve unit ze.forcedSampleLauncher reason "<his words>"` |
+
+Resolution of every item above, recorded by the second closure context on
+2026-10-25 against the working tree it reviewed:
+
+| Item | State | Evidence |
+|------|-------|----------|
+| B-1 | resolved | `internal/le/rollback/` registers `rollback` (`register.go` `init` calls `leroot.Register`; blank import in `internal/le/register.go`). `rollback.go` `Answer` refuses every line but help with exit 2 and names `./le rollback`. `TestRootHelpListsRollback` and `TestCompletionOffersRollback` drive `leroot.Dispatch` and `leroot.Complete`, both in HEAD (`internal/le/le/root/dispatch.go`, `complete.go`), so the commit does not depend on the better-cli session's uncommitted work |
+| B-2 | resolved by owner ruling | the fourteen `TestLauncher*` tests in `cmd/ze/root_launcher_test.go` run the tracked `le` script in fixture git checkouts and are the end-to-end proof; `test/ui/le-built-from-head.ci` and its fixture are not written |
+| B-3 | resolved | `NewestBuild`, `NewestPlatformBuild` and `newestBuild` are deleted from `internal/le/go/toolchain/builds.go`; `ParseBuildName`, `RunnableBuild` and `BuildsDir` each have a non-test caller in `internal/le/scratch/livetrim.go` (`publishedBuilds`, `livenessRows`); the page sentence names those two |
+| B-4 | resolved | `le` `take_lock` answers 0, 1 or 2, and the foreground loop exits 1 with `$lock_error` on 2; `TestLauncherRefusesAnUnwritableBuildsDirectory` |
+| N-1 | resolved | `docs/contributing/running-commands.md` states the only-build exception beside `./le rollback` |
+| weakening | approved | removal of `ze.forcedSampleLauncher` approved by the owner; `./le commit audit` lists no finding in this spec's files |
+| gates | resolved | see Pre-Commit Verification: the tests ran over an export of HEAD carrying only this commit's files, so no other session's uncommitted work decides them |
+
+## Implementation Summary
+
+### What Was Implemented
+- `le` rewritten as a dispatcher: runs the newest build in `bin/builds/<UTC commit time>-<short sha>[-<goos>-<goarch>]/le`; input key from `git ls-tree` of le's inputs; one detached candidate build of a `git archive` export of HEAD under a host-aware lock; smoke test before publishing; set-aside to `.failed-<name>` on a start failure and on `./le rollback`; reporting a rejected HEAD once; legacy-binary migration; `--name session`; `--update` refusal; completion fast path; `bin/le` installed as a copy of the dispatcher.
+- `internal/le/go/toolchain/builds.go`: `BuildsDir`, `ParseBuildName`, `RunnableBuild` and the entry-name constants the script and the trim share.
+- `internal/le/scratch/livetrim.go`: `builds` and `agent-files` liveness rows (`trimBuilds`, `trimAgentFiles`), `treeIdle`, `pathNamedInArgv`.
+- `internal/le/rollback/`: `rollback` in le's command tree for help and completion; the handler refuses outside the launcher.
+- Rule point `le-follows-head-never-refresh-it-by-hand` replaces `refresh-a-stale-shared-binary-with-le-update`; `ai/rules/commands.md` re-rendered.
+
+### Bugs Found/Fixed
+- `TestToolchainOverridesLeaveTheToolchainToTheProcess/refusal` read a stamp literal the go1.27.3 bump restamped; now reads it with `gen.ReviewStamp` (test maintenance, not a product fix).
+- R-8 (lock judged across pid namespaces): `TestLauncherJudgesALockByItsHost`. R-9 (foreign legacy binary): `TestLauncherMigrationPassesOverAForeignLegacy`. B-4: `TestLauncherRefusesAnUnwritableBuildsDirectory`.
+- Closure round 1: `le` `build_name_valid` comment named the deleted `gotoolchain.buildNamePlatform`; it now names `ParseBuildName`.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md` (launcher section, completion paragraph, store-trim rows; anchors on `le`, `builds.go`, `livetrim.go`, `rollback.go`), `docs/guide/developer-setup.md`, `docs/architecture/{system-architecture,core-design}.md`, `docs/architecture/plugin/feature-gates.md`, `docs/architecture/testing/{ci-format,verify-freshness-scope,qemu-integration}.md`, `docs/contributing/patching-the-standard-library.md`, `ai/INDEX.md`, `ai/doors/le-tooling.md`, two rule points and `ai/rules/commands.md`.
+- `./le doc check verify`: every stage passes but rules-points, which names the old point file that commit A removes; `./le ai rules render-check` over an export of HEAD plus this commit, without that file: "34 rules are fresh".
+
+### Deviations from Plan
+- O-10 moved the builds from `bin/le/` to `bin/builds/`, with `bin/le` kept as the dispatcher's copy; the ACs keep the original wording.
+- Phase 6 evidence on the real checkout: a real build of HEAD built in the background and ran (`bin/builds/20261025T114143Z-00b9273a2a/`, and every commit since); the forced-broken candidate and the rollback are proved by fixture tests (`TestLauncherRefusesAFailedCandidate`, `TestLauncherRollsBackAFailingBuild`), because a broken commit or a rollback on the shared main checkout moves every session onto an older le.
+- The functional `.ci` was dropped by owner ruling (B-2).
+- No launcher-reserved exit code (R-7).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The resolver `NewestBuild` was written for Go callers before any existed | No Go caller needed the newest build; the trim needs only the grammar and the runnable test | First closure review (B-3) | Deleted; the agreement test holds the script to `ParseBuildName` and `RunnableBuild` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| O-1 no session runs an le broken by another session's edit | Done | `le` `build_head`, `export_commit` | builds come from a HEAD export |
+| O-2 replace only once known good, keep the previous | Done | `le` `build_staging` (smoke test), livetrim `buildsKept` | |
+| O-3 HEAD, smoke test, rollback command plus automatic | Done | `le` `smoke_test`, `build_starts`, `set_aside`, rollback branch | |
+| O-4 key on inputs | Done | `le` `le_input_key` | |
+| O-5/O-10 dated build directories, no symlinks | Done | `le` `newest_build`, `builds=$root/bin/builds` | |
+| O-6 never under cache/ nor hidden | Done | `bin/builds/` | |
+| O-7 split spec written | Done | `plan/post-release/engineering/spec-le-own-binary.md` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLauncherRunsNewestBuild` | |
+| AC-2 | Done | `TestLauncherRunsNewestBuild` | |
+| AC-3 | Done | `TestLauncherBuildsCandidateFromHEAD` | |
+| AC-4 | Done | `TestLauncherBuildsCandidateFromHEAD` | |
+| AC-5 | Done | `TestLauncherRefusesAFailedCandidate` | |
+| AC-6 | Done | `TestLauncherRollsBackAFailingBuild` | |
+| AC-7 | Done | `TestLauncherRollsBackAFailingBuild/rollback_command` | |
+| AC-8 | Done | `TestLauncherBuildsCandidateFromHEAD` | |
+| AC-9 | Done | `TestLauncherFreshCheckoutBuildsInForeground` | |
+| AC-10 | Done | `TestLauncherPicksItsPlatform` | |
+| AC-11 | Done | `TestLauncherSessionName` | |
+| AC-12 | Done | `TestTrimKeepsNewestTwoBuilds`, `TestTrimBuildLeftovers` | |
+| AC-13 | Done | `TestTrimRemovesIdleAgentBinFiles` | |
+| AC-14 | Done | grep below; `TestLauncherAgreesWithTheResolver` | |
+| AC-15 | Done | `TestLauncherRefusesUpdate` | |
+| AC-16 | Done | `TestLauncherMigrationKeepsTheLegacyBuild`, the real migration (A-3) | |
+| AC-17 | Done | `TestLauncherCompletionRunsTheNewestWithoutAKeyCheck` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every `TestLauncher*` row | Done | `cmd/ze/root_launcher_test.go` | |
+| `TestTrimKeepsNewestTwoBuilds`, `TestTrimRemovesIdleAgentBinFiles` | Done | `internal/le/scratch/livetrim_test.go` | |
+| `TestNewestBuildResolver`, `TestNewestBuildMissingDirectory` | Changed | `internal/le/go/toolchain/builds_test.go` | replaced by `TestParseBuildName`, `TestRunnableBuild` (B-3) |
+| `le-built-from-head` functional | Changed | none | dropped by owner ruling B-2 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `le` | Done | |
+| `cmd/ze/le_build_name.go` | Done | comments only: the guard needed no change |
+| `internal/le/go/toolchain/gotoolchain.go` | Done | resolver lives in new `builds.go` |
+| `internal/le/scratch/livetrim.go` | Done | |
+| rule point and docs | Done | `docs/contributing/testing.md`, `docs/functional-tests.md`, `docs/guide/quickstart.md` checked: their `bin/le` lines exec the dispatcher, no change |
+| `test/ui/le-built-from-head.ci`, fixture | Changed | dropped (B-2) |
+
+### Audit Summary
+- **Total items:** 7 requirements, 17 ACs, 4 test rows, 6 file rows
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No session runs an le broken by another session's edit (O-1) | functional (fixture checkout, real script) | `TestLauncherBuildsCandidateFromHEAD` asserts an uncommitted broken edit never reaches a build; real checkout: `bin/builds/` holds one build per input-changing commit, each from a HEAD export |
+| Starting development never leaves a broken le (O-1, O-2) | functional | `TestLauncherRefusesAFailedCandidate` (a candidate failing compile or smoke is never published, the newest keeps running), `TestLauncherRollsBackAFailingBuild` (a build that does not start is set aside and the next runs) |
+| Rollback by command and automatically (O-3) | functional | `TestLauncherRollsBackAFailingBuild` subtests `not executable`, `crashes at start`, `rollback command` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Split le from ze so builds key on le's own inputs (O-7) | owner decision: a later, separate spec | `plan/post-release/engineering/spec-le-own-binary.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/le-built-from-head-62a8da2c-8767-4626-9bb9-3c23af536f4c.md` (30 files, verdict clean) |
+| `./le spec review check` | clean: "OK (14 code files, clean, hashes match)" |
+| Rounds | 3 (round 3: the scoped lint finding below, re-recorded after the fix) |
+| Reviewer lenses used | wiring and functional coverage; logic and guard audit of `le` (lock, candidate, rollback, legacy, completion) and of the trim rows; removed-behaviour and test-rewrite audit; documentation drift; security (paths from git and directory names, removal scope); style pass over every changed Go file; scoped `golangci-lint` over this spec's packages |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | stale comment: `build_name_valid` named `gotoolchain.buildNamePlatform`, which `ParseBuildName` replaced | `le` line 185 | comment names `ParseBuildName` (round 2 clean) |
+| 2 | ISSUE | `unparam`: `runLauncher`'s `launcher` parameter always received `"le"` | `cmd/ze/root_launcher_test.go` `runLauncher` | parameter dropped, the helper runs the fixture's `le`; callers updated, no assertion changed (round 3) |
+
+NOTEs, recorded and not blocking: `RunnableBuild`'s doc comment carries one over-long line (`builds.go`); `git archive` honours `export-ignore` (two vendored files of `go-mnd/v2` today, neither compiled), so an export is HEAD minus such paths; with skewed commit clocks HEAD's own build can sort older than the newest, which rebuilds and then finds it published; the trim's liveness rows are indexed by position (`rows[3]`, `rows[4]`), as the earlier rows were; a wrap and a double blank line in `running-commands.md`, fixed in round 1.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/go/toolchain/builds.go`, `builds_test.go` | yes | `git status`: untracked, 180L and 125L |
+| `internal/le/rollback/{register,rollback,rollback_test}.go` | yes | 24L, 76L, 120L |
+| `ai/rules/points/commands/directives/le-follows-head-never-refresh-it-by-hand.md` | yes | 6L |
+| `plan/post-release/engineering/spec-le-own-binary.md` | yes | 165L |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-11, AC-15..AC-17 | launcher behaviour | `./le job run label close4-head command sh c4-head.sh` over an export of HEAD 7dc5beeddf carrying this commit's Go files and `le`: `go test -race -count=1 -run 'Launcher\|ShellScript\|Build' ./cmd/ze/ ./internal/le/go/toolchain/` answered `ok cmd/ze 80.924s`, `ok internal/le/go/toolchain 1.685s`; rerun after the round 3 `runLauncher` fix (`close5-head2`, same export with the fixed test file): `ok cmd/ze 54.415s`, `ok internal/le/go/toolchain 1.575s` |
+| AC-12, AC-13 | trim rows | same run, `go test -race -count=1 ./internal/le/scratch/`: every livetrim test passed; the package is red on `TestCleanTargetsOneRowPerCache` alone, which is red on HEAD with `livetrim.go` and `livetrim_test.go` restored to HEAD too (a /var against /private/var comparison since 3894cc7f89; journal row in `plan/journal/gate-verdict-depends-on-the-machine.md`, owned by `spec-test-sandbox`) |
+| AC-14 | no Go caller reads `bin/le` as the binary | `grep -rn 'bin/le"' internal cmd --include=*.go`, non-test: only `internal/le/completion/completion.go` `Binary: "bin/le"`, which execs the dispatcher (AC-17), and `retirednames.go` rows naming `/usr/local/bin/le` |
+| B-1 | rollback in help and completion | same run: `go vet ./internal/le/ ./internal/le/rollback/` clean, `ok internal/le/rollback 1.292s` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le help` with two builds | none (B-2): `TestLauncherRunsNewestBuild` runs the tracked `le` in a fixture checkout | yes, read: it execs the newest build and records the argv |
+| `./le help` after an input commit | none (B-2): `TestLauncherBuildsCandidateFromHEAD` | yes, read: commits in the fixture, waits for the lock to go, asserts the new build runs |
+| `./le help` with a failing newest build | none (B-2): `TestLauncherRollsBackAFailingBuild` | yes, read: asserts `.failed-<name>/le` exists and the older build ran |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | about two minutes cold from a HEAD export; `bin/builds/` gained a build within minutes of each commit on 2026-10-25 |
+| A-2 | confirmed | a build that cannot start fails `le help`, the first smoke command; `TestLauncherRefusesAFailedCandidate/smoke-fails` proves such a candidate is not published. Proof by fixture, not by a broken commit on main (Deviations) |
+| A-3 | confirmed | real migration; `TestLauncherMigrationKeepsTheLegacyBuild` |
+| A-4 | confirmed | phase 1 classification and the AC-14 grep |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI (`rollback`, `--update`, `--name session`) | `le` rollback branch, `--update` branch, `session_name`; `internal/le/rollback/rollback.go` `refusal` | yes |
+| Store trim rows table | `livetrim.go` `buildEntryRemovable`, `failedSuperseded`, `leOwnedBinEntry`, `buildsKept` | yes |
+| QEMU guest | `le` `le_runs_here`, `choose_build`; `internal/le/test/qemu/run.go` `setupCommand` | yes |
+| Rules | `./le ai rules render-check` over the commit's tree: 34 rules fresh | yes |

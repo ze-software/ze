@@ -100,11 +100,13 @@ func sortedBases(paths []string) []string {
 //
 // VALIDATES: bin/le-<name>/ is removed exactly when its le and its directory
 // are both a day old and no process argv names it (AC-8); bin/le, bin/ze*,
-// the platform launchers, a young or running named build, and a symbolic link
-// are kept (AC-9). A process started from bin/le-<name>/le shows that path in
-// the real scanner's argv (A-4).
-// PREVENTS: the trim deleting a binary a peer session runs, or the shared
-// platform launcher every session falls back to.
+// a young or running named build, and a symbolic link are kept (AC-9). A
+// leftover bin/le-<uname -s>-<uname -m> from the launcher before bin/builds
+// (AC-10) is judged like a named build: removed when idle and unnamed, kept
+// while young or named in an argv. A process started from bin/le-<name>/le
+// shows that path in the real scanner's argv (A-4).
+// PREVENTS: the trim deleting a binary a peer session runs, or keeping a
+// dead platform launcher forever.
 func TestTrimNamedLaunchers(t *testing.T) {
 	if os.Getenv(launcherProbeKey) != "" {
 		_, _ = io.Copy(io.Discard, os.Stdin) //nolint:errcheck // parked until the parent closes stdin
@@ -127,8 +129,9 @@ func TestTrimNamedLaunchers(t *testing.T) {
 	named("fresh-binary", time.Hour, day)
 	named("fresh-dir", day, time.Hour)
 	named("running", day, day)
+	named("Linux-aarch64", day, day)
 	named("Darwin-arm64", day, day)
-	named("Linux-x86_64", day, day)
+	named("Linux-x86_64", time.Hour, time.Hour)
 	agedDir(t, gotoolchain.NamedLauncherDir(root, "no-binary"), now, day)
 	for _, file := range []string{"le", "ze", "ze-linux-arm64"} {
 		agedFile(t, filepath.Join(bin, file), now, day)
@@ -143,6 +146,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 		claudeCLI(now),
 		{PID: 2, Start: "r", Argv: []string{filepath.Join(gotoolchain.NamedLauncherDir(root, "running"), "le"), "scratch", "store-trim"}},
 		{PID: 3, Start: "ab", Argv: []string{"bin/le-ab/le", "go", "test"}},
+		{PID: 4, Start: "d", Argv: []string{"bin/le-Darwin-arm64/le", "go", "test"}},
 	}
 	var removed []string
 	rows := trimLiveness(t.Context(), root, &livenessPass{
@@ -150,7 +154,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 		startedAt: func(int) time.Time { return time.Time{} }, remove: recordingRemove(t, &removed),
 	})
 	row := rowNamed(t, rows, launcherStore)
-	want := []string{"le-a", "le-no-binary", "le-old"}
+	want := []string{"le-Linux-aarch64", "le-a", "le-no-binary", "le-old"}
 	if got := sortedBases(removed); !slices.Equal(got, want) {
 		t.Errorf("removed %v, want %v", got, want)
 	}
@@ -203,7 +207,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !launcherNamedInArgv(scanned, "probe") {
+		if !pathNamedInArgv(scanned, strings.TrimPrefix(gotoolchain.NamedLauncherDir("", "probe"), string(filepath.Separator))) {
 			t.Errorf("the scanner does not show %s in any argv, so a running named le would be judged idle", binary)
 		}
 	})
@@ -312,6 +316,10 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	day := 25 * time.Hour
 	agedFile(t, filepath.Join(gotoolchain.NamedLauncherDir(root, "old"), "le"), now, day)
 	agedDir(t, gotoolchain.NamedLauncherDir(root, "old"), now, day)
+	for _, name := range []string{"20261001T000000Z-aaaaaaa", "20261002T000000Z-bbbbbbb", "20261003T000000Z-ccccccc"} {
+		agedBuild(t, filepath.Join(gotoolchain.BuildsDir(root), name), now, day)
+	}
+	agedFile(t, filepath.Join(root, "bin", "gomu"), now, day)
 	dead := filepath.Join(root, "tmp", "session", "2026-01-01-dead")
 	agedDir(t, filepath.Join(dead, scratchSubdir, "testbin-pid-999999-x"), now, day)
 	agedDir(t, dead, now, day)
@@ -323,7 +331,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 		now: now, processes: noCLI, judge: judgeIn(t, root),
 		startedAt: func(int) time.Time { return time.Time{} }, remove: refusingRemove(t),
 	})
-	for _, name := range []string{launcherStore, sessionStore, testbinStore} {
+	for _, name := range []string{launcherStore, sessionStore, testbinStore, buildsStore, agentFilesStore} {
 		if got := rowNamed(t, rows, name).Skipped; got != noSessionVisible {
 			t.Errorf("%s row skipped = %q, want %q", name, got, noSessionVisible)
 		}
@@ -337,7 +345,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	if got := rowNamed(t, report.Stores, checkoutCache); got.Skipped != "" || got.SizeBefore == 0 {
 		t.Errorf("checkout cache row = %+v, want it measured: the caches trim without a session", got)
 	}
-	for _, name := range []string{launcherStore, sessionStore, testbinStore} {
+	for _, name := range []string{launcherStore, sessionStore, testbinStore, buildsStore, agentFilesStore} {
 		if got := rowNamed(t, report.Stores, name).Skipped; got != noSessionVisible {
 			t.Errorf("trimStores %s row skipped = %q, want %q", name, got, noSessionVisible)
 		}
@@ -553,5 +561,244 @@ func TestTrimTestTempLeftovers(t *testing.T) {
 	t.Setenv("HOME", "/h")
 	if named := testTempRow(); named.Path != "/h/.zt" || named.Skipped != "" {
 		t.Errorf("test temp row for /h = %+v, want path /h/.zt", named)
+	}
+}
+
+// agedBuild makes a runnable build directory, bin/builds/<name>/le, both aged.
+func agedBuild(t *testing.T, dir string, now time.Time, age time.Duration) {
+	t.Helper()
+	agedFile(t, filepath.Join(dir, "le"), now, age)
+	agedDir(t, dir, now, age)
+}
+
+// trimRowIn runs the liveness pass over root with a Claude CLI visible plus
+// extra, and answers the named row and the sorted bases of what it removed.
+func trimRowIn(t *testing.T, root, store string, now time.Time, extra ...procscan.Process) (StoreTrim, []string) {
+	t.Helper()
+	var removed []string
+	rows := trimLiveness(t.Context(), root, &livenessPass{
+		now: now, processes: append([]procscan.Process{claudeCLI(now)}, extra...), judge: judgeIn(t, root),
+		startedAt: func(int) time.Time { return time.Time{} }, remove: recordingRemove(t, &removed),
+	})
+	return rowNamed(t, rows, store), sortedBases(removed)
+}
+
+// TestTrimKeepsNewestTwoBuilds proves the build retention rule on injected
+// process facts.
+//
+// VALIDATES: spec-le-built-from-head AC-12. Per platform, the newest two
+// runnable builds stay and older ones go, unless a running process names one;
+// a build-named directory with no le, the lock and an unknown entry stay; the
+// legacy binary goes once a build of this checkout's platform exists.
+// PREVENTS: bin/builds growing by one build per commit forever, and the trim
+// removing the build the launcher runs, the one rollback falls back to, or a
+// superseded build a long command still runs.
+func TestTrimKeepsNewestTwoBuilds(t *testing.T) {
+	now := time.Now()
+	root := t.TempDir()
+	builds := gotoolchain.BuildsDir(root)
+	day := 25 * time.Hour
+	for _, name := range []string{
+		"20261001T000000Z-aaaaaaa", "20261002T000000Z-bbbbbbb", "20261003T000000Z-ccccccc",
+		"20261004T000000Z-ddddddd", "20261005T000000Z-eeeeeee",
+		"20261001T000000Z-aaaaaaa-linux-arm64", "20261002T000000Z-bbbbbbb-linux-arm64",
+		"20261003T000000Z-ccccccc-linux-arm64",
+	} {
+		agedBuild(t, filepath.Join(builds, name), now, day)
+	}
+	agedDir(t, filepath.Join(builds, "20260901T000000Z-0000000"), now, day)
+	agedFile(t, filepath.Join(builds, gotoolchain.BuildLockEntry, "pid"), now, day)
+	agedFile(t, filepath.Join(builds, ".other", "x"), now, day)
+	agedFile(t, filepath.Join(builds, gotoolchain.BuildLegacyEntry, "le"), now, day)
+	running := procscan.Process{PID: 2, Start: "r", Argv: []string{filepath.Join(builds, "20261002T000000Z-bbbbbbb", "le"), "go", "test"}}
+
+	row, removed := trimRowIn(t, root, buildsStore, now, running)
+	want := []string{gotoolchain.BuildLegacyEntry, "20261001T000000Z-aaaaaaa", "20261001T000000Z-aaaaaaa-linux-arm64", "20261003T000000Z-ccccccc"}
+	slices.Sort(want)
+	if !slices.Equal(removed, want) {
+		t.Errorf("removed %v, want %v", removed, want)
+	}
+	if row.EntriesRemoved != len(want) || row.Error != "" {
+		t.Errorf("builds row = %+v, want %d removed and no error", row, len(want))
+	}
+	for _, kept := range []string{
+		"20261002T000000Z-bbbbbbb", "20261004T000000Z-ddddddd", "20261005T000000Z-eeeeeee",
+		"20261002T000000Z-bbbbbbb-linux-arm64", "20261003T000000Z-ccccccc-linux-arm64",
+		"20260901T000000Z-0000000", gotoolchain.BuildLockEntry, ".other",
+	} {
+		if !exists(t, filepath.Join(builds, kept)) {
+			t.Errorf("bin/builds/%s was removed", kept)
+		}
+	}
+	runnable, err := gotoolchain.RunnableBuild(filepath.Join(builds, "20261005T000000Z-eeeeeee"))
+	if err != nil {
+		t.Fatalf("RunnableBuild after the trim: %v", err)
+	}
+	if !runnable {
+		t.Errorf("the newest build 20261005T000000Z-eeeeeee is no longer runnable after the trim")
+	}
+
+	t.Run("the legacy binary stays while it is the only le of this platform, or runs", func(t *testing.T) {
+		root := t.TempDir()
+		builds := gotoolchain.BuildsDir(root)
+		agedBuild(t, filepath.Join(builds, "20261001T000000Z-aaaaaaa-linux-arm64"), now, day)
+		agedFile(t, filepath.Join(builds, gotoolchain.BuildLegacyEntry, "le"), now, day)
+		if _, removed := trimRowIn(t, root, buildsStore, now); len(removed) != 0 {
+			t.Errorf("removed %v with no build of this checkout's platform", removed)
+		}
+		agedBuild(t, filepath.Join(builds, "20261001T000000Z-aaaaaaa"), now, day)
+		legacy := procscan.Process{PID: 3, Start: "l", Argv: []string{filepath.Join(builds, gotoolchain.BuildLegacyEntry, "le"), "spec", "status"}}
+		if _, removed := trimRowIn(t, root, buildsStore, now, legacy); len(removed) != 0 {
+			t.Errorf("removed %v while a process runs the legacy binary", removed)
+		}
+	})
+}
+
+// TestTrimBuildLeftovers proves the rules for what the launcher leaves beside
+// its builds.
+//
+// VALIDATES: spec-le-built-from-head AC-12. A staging directory goes once
+// nothing in it was written for an hour and no process (its compiler) names
+// it; a rolled-back build goes once a newer build of its platform landed; the
+// record of a HEAD that did not build goes once a build of another commit
+// landed after it; an unknown .failed- file stays.
+// PREVENTS: a dead builder's half-compiled tree staying forever, and the trim
+// removing the record that stops the launcher rebuilding a rejected HEAD on
+// every call.
+func TestTrimBuildLeftovers(t *testing.T) {
+	now := time.Now()
+	root := t.TempDir()
+	builds := gotoolchain.BuildsDir(root)
+	hour := time.Hour
+	agedBuild(t, filepath.Join(builds, "20261002T000000Z-bbbbbbb"), now, 4*hour)
+	agedBuild(t, filepath.Join(builds, "20261003T000000Z-ccccccc"), now, 2*hour)
+	staging := func(pid, file string, fileAge, dirAge time.Duration) {
+		dir := filepath.Join(builds, gotoolchain.BuildStagingPrefix+pid)
+		if file != "" {
+			agedFile(t, filepath.Join(dir, file), now, fileAge)
+		}
+		agedDir(t, dir, now, dirAge)
+	}
+	staging("11", "", 0, 10*time.Minute)
+	staging("12", "young.go", 10*time.Minute, 2*hour)
+	staging("13", "le", 2*hour, 2*hour)
+	staging("14", "le", 2*hour, 2*hour)
+	aside := func(name string) {
+		agedBuild(t, filepath.Join(builds, gotoolchain.BuildFailedPrefix+name), now, 3*hour)
+	}
+	aside("20261001T000000Z-aaaaaaa")
+	aside("20261001T000000Z-aaaaaaa.77")
+	aside("20261004T000000Z-ddddddd")
+	aside("20261001T000000Z-aaaaaaa-linux-arm64")
+	other := strings.Repeat("1", 40)
+	recent := strings.Repeat("2", 40)
+	record := func(name string, age time.Duration) {
+		agedFile(t, filepath.Join(builds, gotoolchain.BuildFailedPrefix+name), now, age)
+	}
+	record(other+".log", 3*hour)
+	record(other+".reported", 3*hour)
+	record(recent+".log", hour)
+	record("ccccccc"+strings.Repeat("0", 33)+".log", 3*hour)
+	record(other+".unknown", 3*hour)
+	compiling := procscan.Process{PID: 4, Start: "g", Argv: []string{"compile", "-o", filepath.Join(builds, gotoolchain.BuildStagingPrefix+"14", "le")}}
+
+	row, removed := trimRowIn(t, root, buildsStore, now, compiling)
+	want := []string{
+		gotoolchain.BuildFailedPrefix + other + ".log", gotoolchain.BuildFailedPrefix + other + ".reported",
+		gotoolchain.BuildFailedPrefix + "20261001T000000Z-aaaaaaa", gotoolchain.BuildFailedPrefix + "20261001T000000Z-aaaaaaa.77",
+		gotoolchain.BuildStagingPrefix + "13",
+	}
+	slices.Sort(want)
+	if !slices.Equal(removed, want) {
+		t.Errorf("removed %v, want %v", removed, want)
+	}
+	if row.Error != "" {
+		t.Errorf("builds row error %q", row.Error)
+	}
+}
+
+// TestTrimRemovesIdleAgentBinFiles proves the agent-files rule on injected
+// process facts.
+//
+// VALIDATES: spec-le-built-from-head AC-13 (O-8). An entry directly in bin/
+// that is not le's or ze's goes once nothing in it was written for a day and
+// no running process names it; le, le-*, le.*, ze*, builds, a young entry, a
+// directory with one young file, a named one and a symbolic link stay.
+// PREVENTS: agents' mutation-test binaries and probes filling bin/
+// (2026-10-25: gomu, gomu-rfc-99e7, gomu-9b5c1d68-r2/, rfc-vet-probe), and the
+// trim removing a binary somebody runs or one of le's own.
+func TestTrimRemovesIdleAgentBinFiles(t *testing.T) {
+	now := time.Now()
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin")
+	day := 25 * time.Hour
+	for _, file := range []string{"gomu", "gomu-rfc-99e7", "rfc-vet-probe", "le", "le.new.5", "ze", "ze-ospfvf"} {
+		agedFile(t, filepath.Join(bin, file), now, day)
+	}
+	agedFile(t, filepath.Join(bin, "young-probe"), now, time.Hour)
+	tree := func(name, leaf string, leafAge time.Duration) {
+		agedFile(t, filepath.Join(bin, name, "deep", leaf), now, leafAge)
+		agedDir(t, filepath.Join(bin, name, "deep"), now, day)
+		agedDir(t, filepath.Join(bin, name), now, day)
+	}
+	tree("gomu-9b5c1d68-r2", "old", day)
+	tree("gomu-live", "young", time.Hour)
+	tree("le-named", "le", time.Hour)
+	agedBuild(t, filepath.Join(gotoolchain.BuildsDir(root), "20261005T000000Z-eeeeeee"), now, day)
+	agedDir(t, gotoolchain.BuildsDir(root), now, day)
+	target := agedDir(t, filepath.Join(root, "elsewhere"), now, day)
+	if err := os.Symlink(target, filepath.Join(bin, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	running := procscan.Process{PID: 5, Start: "m", Argv: []string{filepath.Join(bin, "gomu-rfc-99e7"), "run"}}
+
+	row, removed := trimRowIn(t, root, agentFilesStore, now, running)
+	want := []string{"gomu", "gomu-9b5c1d68-r2", "rfc-vet-probe"}
+	if !slices.Equal(removed, want) {
+		t.Errorf("removed %v, want %v", removed, want)
+	}
+	if row.EntriesRemoved != len(want) || row.Error != "" {
+		t.Errorf("agent-files row = %+v, want %d removed and no error", row, len(want))
+	}
+	if row.Kept != 4 {
+		t.Errorf("agent-files row kept %d, want 4 (gomu-rfc-99e7, young-probe, gomu-live, linked): le's and ze's entries are not judged", row.Kept)
+	}
+	for _, kept := range []string{"gomu-rfc-99e7", "young-probe", "gomu-live", "le", "le.new.5", "ze", "ze-ospfvf", "le-named", "builds", "linked"} {
+		if !exists(t, filepath.Join(bin, kept)) {
+			t.Errorf("bin/%s was removed", kept)
+		}
+	}
+	if !exists(t, target) {
+		t.Error("the target of a symbolic link under bin/ was removed")
+	}
+}
+
+// TestPathNamedInArgvNeedsWholeNames proves the argv match the liveness rows
+// share stops at name boundaries.
+//
+// VALIDATES: a path matches as whole names, after a separator or `=` and
+// before a separator, a colon or the end; never inside a longer name.
+// PREVENTS: a process running bin/gomu-rfc keeping bin/gomu forever, or one
+// running bin/gomu failing to keep it.
+func TestPathNamedInArgvNeedsWholeNames(t *testing.T) {
+	for _, tc := range []struct {
+		argument string
+		want     bool
+	}{
+		{"bin/gomu", true},
+		{"/abs/repo/bin/gomu", true},
+		{"-o=bin/gomu", true},
+		{"/abs/repo/bin/gomu/le", true},
+		{"bin/gomu:rest", true},
+		{"bin/gomu-rfc", false},
+		{"bin/gomu.log", false},
+		{"cabin/gomu", false},
+		{"cabin/gomu bin/gomu", true},
+		{"bin/gom", false},
+	} {
+		got := pathNamedInArgv([]procscan.Process{{Argv: []string{tc.argument}}}, "bin/gomu")
+		if got != tc.want {
+			t.Errorf("pathNamedInArgv(%q, bin/gomu) = %v, want %v", tc.argument, got, tc.want)
+		}
 	}
 }
