@@ -268,6 +268,36 @@ func (l List) Accepts(verb string, args []string) error {
 	return errors.New("le " + l.Area + " holds no action " + verb)
 }
 
+// Missing answers the parameters verb declares Required that args, the words
+// after the verb, do not give, in declaration order, so the positional value
+// comes first. It runs nothing. A line the verb's parser refuses is that
+// refusal, and a verb this listing does not hold is refused: neither has a
+// missing value to ask for, so a caller lets the line run and be refused as
+// it always was.
+func (l List) Missing(verb string, args []string) ([]Parameter, error) {
+	for _, row := range l.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		given, err := parseArguments("le "+l.Area+" "+verb, row.Parameters, args)
+		if err != nil {
+			return nil, err
+		}
+		var missing []Parameter
+		for _, parameter := range row.Parameters {
+			if parameter.Requirement != Required {
+				continue
+			}
+			if given.Has(parameter.argumentKey()) {
+				continue
+			}
+			missing = append(missing, parameter)
+		}
+		return missing, nil
+	}
+	return nil, errors.New("le " + l.Area + " holds no action " + verb)
+}
+
 // Parse reads args, the words after verb, through that action's declared
 // grammar, exactly as Answer does before it runs the action, and runs nothing.
 // An area whose body turns the keywords into its own typed request reads them

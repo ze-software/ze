@@ -1,0 +1,22 @@
+[1;38;5;205mze[m
+
+> [1;38;5;73mshow              [m[38;5;241mShow operational data[m[38;5;241m >[m
+  [38;5;73mset               [m[38;5;241mModify configuration[m[38;5;241m >[m
+  [38;5;73mOperations        [m[38;5;241m5 commands[m[38;5;241m >[m
+  [38;5;73mdoctor            [m[38;5;241mRun health checks[m
+  [38;5;73mversion           [m[38;5;241mShow version[m
+
+[38;5;241m↑/↓ navigate • enter select • esc quit[m
+----
+[1;38;5;205mze[m
+
+> [1;38;5;73mversion           [m[38;5;241mShow version[m
+
+[38;5;241mfilter: v[m  [38;5;241m↑/↓ navigate • enter select • esc quit[m
+----
+[1;38;5;205mze[m > [38;5;33mshow[m
+
+> [1;38;5;73mbgp               [m[38;5;241mBGP state[m
+  [38;5;73minterface         [m[38;5;241mInterface state[m[38;5;241m >[m
+
+[38;5;241m↑/↓ navigate • enter select • ← back • esc quit[m

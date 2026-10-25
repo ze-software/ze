@@ -17,7 +17,9 @@ consumes an unquoted one. `| yaml` and `| table` render the same payload.
 
 `./le` with no argument prints that manifest as the root help page, and
 `./le help` and `./le --help` print the same bytes. All three write to stdout
-and exit 0. The page has one block for the single-word commands and one per
+and exit 0. The one exception is a person at a terminal: when stdin and stdout
+are both terminals, a bare `./le` opens the menu instead (below), so an agent,
+a pipe, CI or a redirection always gets the page. The page has one block for the single-word commands and one per
 namespace; each line is the name, the area's group as a tag in brackets, and the
 first sentence of its description. Every page wraps to the terminal's width, or
 to 100 columns when stdout is a pipe, so a page read through a pipe is the same
@@ -76,6 +78,42 @@ tells le its own option from one you forward to a child.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch, helpTrailing -->
 <!-- source: internal/le/le/action/parameter.go -- parameterForm, parseArguments -->
 <!-- source: internal/le/le/root/leroot.go -- requireEveryAreaHasATable -->
+
+### At a terminal: the menu, and prompting for a missing value
+
+With stdin and stdout both terminals, a bare `./le` opens the drill-down menu
+ze opens for a bare `ze` (`docs/architecture/cli/tui-launcher.md`), over le's
+derived command tree: the first screen lists every first word, Enter on a
+namespace or an area opens its members, and Enter on an action runs it. Typing
+filters the level, Left and Backspace go back, Escape goes back or quits, and
+`q` quits while no filter is typed. Quitting runs nothing and exits 0.
+
+At a terminal, a line that names an action but leaves out a value the action
+declares required is not refused: le asks for each missing value in turn, the
+positional one first, with Tab offering what `le completion words` offers at
+that place, and the paths on disk for a path or a spec file. Optional values
+are never asked. Enter on an empty answer keeps asking. Once every value is
+given, le prints the whole line to stderr after `running: `, so it is never
+read as the command's output, and runs it:
+
+```
+$ ./le spec claim
+spec (the spec file this session takes): plan/post-release/engineering/spec-le-cli-usability.md
+running: le spec claim spec plan/post-release/engineering/spec-le-cli-usability.md
+```
+
+A line chosen at the menu is echoed the same way, whether or not anything was
+asked. Ctrl-C or Ctrl-D at a prompt runs nothing and exits 2. Off a terminal
+nothing is asked, because a prompt on a pipe would wait forever: the line runs
+and is refused with that one action's usage, as above. A pass-through area and
+a forwarding action are never prompted, since their words are another
+program's. A prompt never answers the whole-tree gate: a full verification
+still asks its own terminal question once the line is complete
+(`internal/le/le/human`). `ze le` behaves identically under its own name.
+
+<!-- source: internal/le/le/root/prompt.go -- fillLine, missingIn, candidatesFor, openMenu -->
+<!-- source: internal/le/le/action/leaction.go -- Missing -->
+<!-- source: internal/component/cli/menu/prompt.go -- Ask -->
 
 ### The whole surface for an agent: `le help ai`
 

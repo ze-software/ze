@@ -2,7 +2,11 @@ package human
 
 import (
 	"errors"
+	"go/parser"
+	"go/token"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -125,4 +129,50 @@ func TestGateAdmitsTwoTerminals(t *testing.T) {
 		t.Fatalf("two terminals refused: %v", err)
 	}
 	assertRefusal(t, Check(IsTerminal, stdin, stdout, givenLine), "neither stdin nor stdout is a terminal")
+}
+
+// TestHumanGateIsNotAnsweredByAPrompt proves the whole-tree gate takes its
+// answer only from the process streams, so le's prompting for a missing value
+// (internal/le/le/root prompt.go, over internal/component/cli/menu) can never
+// answer it: no file of this package imports the prompt, the menu or the
+// dispatcher that drives them, and RequireTerminal asks os.Stdin and os.Stdout
+// themselves, exactly as before prompting existed (AC-47). Method: parse the
+// package's own source and read its imports and RequireTerminal's body.
+func TestHumanGateIsNotAnsweredByAPrompt(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forbidden := []string{"internal/component/cli/menu", "internal/le/le/root", "bubbletea"}
+	sawGate := false
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		source, readErr := os.ReadFile(name)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		file, parseErr := parser.ParseFile(token.NewFileSet(), name, source, parser.ImportsOnly)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		for _, spec := range file.Imports {
+			path, unquoteErr := strconv.Unquote(spec.Path.Value)
+			if unquoteErr != nil {
+				t.Fatal(unquoteErr)
+			}
+			for _, banned := range forbidden {
+				if strings.Contains(path, banned) {
+					t.Errorf("%s imports %s: the gate must not be reachable from a prompt", name, path)
+				}
+			}
+		}
+		if strings.Contains(string(source), "return Check(IsTerminal, os.Stdin, os.Stdout, commandLine)") {
+			sawGate = true
+		}
+	}
+	if !sawGate {
+		t.Error("RequireTerminal no longer asks os.Stdin and os.Stdout itself")
+	}
 }

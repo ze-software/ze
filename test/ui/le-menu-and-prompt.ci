@@ -1,0 +1,21 @@
+# Test: a developer runs le with nothing typed, or leaves out a value, at a terminal.
+# accept-only: the registered native fixture builds the le personality and
+# drives it at a pseudo-terminal, in a directory that is not a Ze checkout and
+# under a throwaway session id, so every line it runs is refused before it can
+# change one: the claim it runs must answer "no Ze checkout found". Each step
+# prints a progress line on stderr and is stopped at 60s, so a hung step names
+# itself. Bare le opens the menu; typing filters, Enter drills from spec
+# into spec current and runs its action after echoing
+# `running: le spec current show`; q quits with 0. `le spec claim` asks
+# for its spec, Tab completes the path on disk, Enter echoes the whole line
+# and runs it. Ctrl-C at the prompt runs nothing and exits 2.
+# With only stdin, or only stdout, a terminal, bare le prints the root page and
+# exits 0. `ze le` opens the same menu under its own name.
+#
+# VALIDATES: spec-le-cli-usability AC-42, AC-43, AC-44, AC-46 and the menu
+# half of AC-48, through the product binary at a terminal.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-menu-and-prompt
+expect=exit:code=0
+expect=stdout:contains=OK

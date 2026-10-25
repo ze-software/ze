@@ -141,6 +141,11 @@ func Dispatch(program string, args []string) int {
 	// page a reader has always seen. `le` asked a question rather than making a
 	// mistake, so the answer goes to stdout and the code is 0.
 	if own, _ := splitChain(args); len(own) == 0 {
+		// A person at a terminal who typed nothing at all gets the menu over
+		// the same tree (D-Q4); `le | json` and every pipe still get the page.
+		if len(args) == 0 && interactive() {
+			return openMenu(program)
+		}
 		return Run("", func(command.ValidatedArgs) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
 	}
 	if isHelpArg(args[0]) {
@@ -154,7 +159,14 @@ func Dispatch(program string, args []string) int {
 		}
 		return helpAsked(program, args[1:])
 	}
+	return dispatchLine(program, args, false)
+}
 
+// dispatchLine runs one command line that is not the root and not a help
+// question. At a terminal, a missing Required value is asked for first
+// (fillLine); fromMenu says the reader built the line at the menu, so it is
+// echoed even when nothing was missing.
+func dispatchLine(program string, args []string, fromMenu bool) int {
 	name, handler, toolArgs := resolve(args)
 	if handler != nil {
 		// A help word the reader typed LAST asks what this command takes, and
@@ -165,6 +177,13 @@ func Dispatch(program string, args []string) int {
 		own, _ := splitChain(toolArgs)
 		if asksForUsage(name, own) {
 			return helpTrailing(program, name, own)
+		}
+		if interactive() {
+			line, err := fillLine(program, name, toolArgs, fromMenu)
+			if err != nil {
+				return canceled(program, err)
+			}
+			toolArgs = line.args
 		}
 		return Run(name, handler, toolArgs, os.Stdout, os.Stderr)
 	}
