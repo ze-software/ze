@@ -100,7 +100,10 @@ func leHelpAiText(run leHelpPagesRun, lePath string) error {
 	if err != nil {
 		return err
 	}
-	if summary.exitCode != 0 || summary.stderr != "" {
+	if summary.exitCode != 0 {
+		return fmt.Errorf("le help ai answered %d, stderr %q", summary.exitCode, summary.stderr)
+	}
+	if summary.stderr != "" {
 		return fmt.Errorf("le help ai answered %d, stderr %q", summary.exitCode, summary.stderr)
 	}
 	for _, want := range append([]string{"le help ai | json"}, leHelpAiSections...) {
@@ -126,7 +129,10 @@ func leHelpAiRendered(run leHelpPagesRun, lePath, zePath string) error {
 	for _, command := range le.Commands {
 		for _, action := range command.Actions {
 			for _, parameter := range action.Parameters {
-				if parameter.Kind == "" || parameter.Help == "" {
+				if parameter.Kind == "" {
+					return fmt.Errorf("%s %s %s%s carries no kind or no help", command.Name, action.Verb, parameter.Keyword, parameter.Value)
+				}
+				if parameter.Help == "" {
 					return fmt.Errorf("%s %s %s%s carries no kind or no help", command.Name, action.Verb, parameter.Keyword, parameter.Value)
 				}
 				if command.Name == "spec claim" && parameter.Value == areaSpec && parameter.Kind == areaSpec && parameter.Required {
@@ -142,7 +148,10 @@ func leHelpAiRendered(run leHelpPagesRun, lePath, zePath string) error {
 	if err != nil {
 		return err
 	}
-	if ze.Program != programZeLe || len(ze.Commands) != len(le.Commands) {
+	if ze.Program != programZeLe {
+		return fmt.Errorf("ze le help ai commands names %q with %d commands; le answered %d", ze.Program, len(ze.Commands), len(le.Commands))
+	}
+	if len(ze.Commands) != len(le.Commands) {
 		return fmt.Errorf("ze le help ai commands names %q with %d commands; le answered %d", ze.Program, len(ze.Commands), len(le.Commands))
 	}
 	all, err := run(lePath, leHelpPagesHelpWord, "ai", "all", "|", "yaml")
@@ -189,7 +198,10 @@ func leHelpAiRefusals(run leHelpPagesRun, lePath string) error {
 	if err != nil {
 		return err
 	}
-	if unknown.exitCode != 2 || !strings.Contains(unknown.stderr, strings.Join(leHelpAiSections, " | ")) {
+	if unknown.exitCode != 2 {
+		return fmt.Errorf("le help ai nosuch answered %d, stderr %q", unknown.exitCode, unknown.stderr)
+	}
+	if !strings.Contains(unknown.stderr, strings.Join(leHelpAiSections, " | ")) {
 		return fmt.Errorf("le help ai nosuch answered %d, stderr %q", unknown.exitCode, unknown.stderr)
 	}
 	for _, flag := range []string{flagJSON, "--ai"} {
@@ -197,7 +209,10 @@ func leHelpAiRefusals(run leHelpPagesRun, lePath string) error {
 		if err != nil {
 			return err
 		}
-		if refused.exitCode != 2 || !strings.Contains(refused.stderr, "le help ai | json") {
+		if refused.exitCode != 2 {
+			return fmt.Errorf("le help ai %s answered %d, stderr %q", flag, refused.exitCode, refused.stderr)
+		}
+		if !strings.Contains(refused.stderr, "le help ai | json") {
 			return fmt.Errorf("le help ai %s answered %d, stderr %q", flag, refused.exitCode, refused.stderr)
 		}
 	}

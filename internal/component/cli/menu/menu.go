@@ -79,7 +79,7 @@ func Run(m Model) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("menu: the terminal program answered a %T, not the menu", result)
 	}
-	return final.chosen, nil
+	return final.Chosen(), nil
 }
 
 // menuDescMaxLen is the longest description a menu line shows.
@@ -101,7 +101,10 @@ func TruncateDesc(s string) string {
 // name, terminal when the child has no children of its own.
 func LevelOf(tree *command.Node, path []string) Level {
 	node := command.FindNode(tree, path)
-	if node == nil || len(node.Children) == 0 {
+	if node == nil {
+		return Level{Title: textbuf.Join(path, " "), Items: nil}
+	}
+	if len(node.Children) == 0 {
 		return Level{Title: textbuf.Join(path, " "), Items: nil}
 	}
 

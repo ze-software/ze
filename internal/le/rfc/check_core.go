@@ -303,8 +303,9 @@ func updatedByRefusal(req Requirement, updater string, metas map[string]Meta, st
 			Str(rfcName(updater)).Str(" first (ai/skills/ze-rfc.md), or remove the marker").String()
 	}
 	meta, parsed := metas[updater]
+	// Its Meta table did not parse, and that refusal is already reported.
+	// refuse-by-default: guards checkUpdatedBy -- "" keeps one unparsed Meta table from being refused twice
 	if !parsed {
-		// Its Meta table did not parse, and that refusal is already reported.
 		return ""
 	}
 	if !slices.Contains(meta.Updates, req.RFC) {

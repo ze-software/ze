@@ -137,7 +137,10 @@ var promptLabelStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
 // View draws the prompt inline, not on the alternate screen, so the question
 // and the answer stay in the reader's scrollback above the command that runs.
 func (p promptModel) View() tea.View {
-	if p.done || p.canceled {
+	if p.done {
+		return tea.NewView("")
+	}
+	if p.canceled {
 		return tea.NewView("")
 	}
 	var b textbuf.Buffer

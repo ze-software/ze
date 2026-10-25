@@ -138,8 +138,10 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	}
 	// The area's action table refuses the word it has no action for, names
 	// it, and lists the actions it does have.
-	if !bytes.Contains(refused.stderr, []byte("error: no such action in spec status: --json\n")) ||
-		!bytes.Contains(refused.stderr, []byte("try one of: report | closure")) {
+	if !bytes.Contains(refused.stderr, []byte("error: no such action in spec status: --json\n")) {
+		return uiLeSpecStatusAnswersFailf("the refusal does not identify the invalid argument: %q", refused.stderr)
+	}
+	if !bytes.Contains(refused.stderr, []byte("try one of: report | closure")) {
 		return uiLeSpecStatusAnswersFailf("the refusal does not identify the invalid argument: %q", refused.stderr)
 	}
 

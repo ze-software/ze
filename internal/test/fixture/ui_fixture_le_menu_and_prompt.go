@@ -190,7 +190,10 @@ func leMenuAndPromptQuit(ctx context.Context, dir string, env []string, lePath, 
 	if err != nil {
 		return fmt.Errorf("quit: %w", err)
 	}
-	if code != 0 || strings.Contains(screen, "running:") {
+	if code != 0 {
+		return fmt.Errorf("q at the menu exited %d and printed %q, want 0 and nothing run", code, screen)
+	}
+	if strings.Contains(screen, "running:") {
 		return fmt.Errorf("q at the menu exited %d and printed %q, want 0 and nothing run", code, screen)
 	}
 	return nil
@@ -227,7 +230,10 @@ func leMenuAndPromptClaim(ctx context.Context, dir string, env []string, lePath,
 	// The line ran: le, finding no checkout, refuses the claim itself, so the
 	// code is not 0 and the no-checkout refusal follows the echo. That
 	// refusal is also the proof the claim took nothing in any checkout.
-	if code == 0 || !strings.Contains(after, lepath.ErrNoCheckout.Error()) {
+	if code == 0 {
+		return fmt.Errorf("prompt: the echoed line exited %d with %q after the echo, want the claim refused with %q", code, after, lepath.ErrNoCheckout.Error())
+	}
+	if !strings.Contains(after, lepath.ErrNoCheckout.Error()) {
 		return fmt.Errorf("prompt: the echoed line exited %d with %q after the echo, want the claim refused with %q", code, after, lepath.ErrNoCheckout.Error())
 	}
 	return nil
@@ -248,7 +254,13 @@ func leMenuAndPromptCancel(ctx context.Context, dir string, env []string, lePath
 	if err != nil {
 		return fmt.Errorf("cancel: %w", err)
 	}
-	if code != 2 || strings.Contains(screen, "running:") || !strings.Contains(screen, "nothing ran") {
+	if code != 2 {
+		return fmt.Errorf("Ctrl-C at the prompt exited %d and printed %q, want 2, nothing ran", code, screen)
+	}
+	if strings.Contains(screen, "running:") {
+		return fmt.Errorf("Ctrl-C at the prompt exited %d and printed %q, want 2, nothing ran", code, screen)
+	}
+	if !strings.Contains(screen, "nothing ran") {
 		return fmt.Errorf("Ctrl-C at the prompt exited %d and printed %q, want 2, nothing ran", code, screen)
 	}
 	return nil
@@ -297,7 +309,10 @@ func leMenuAndPromptHalfTerminal(ctx context.Context, dir string, env []string, 
 		if process.waitErr != nil {
 			return fmt.Errorf("bare le with stdin terminal %v printed %q and answered %w, want 0 and the root page", stdinTerminal, page, process.waitErr)
 		}
-		if strings.Contains(page, "esc quit") || !strings.Contains(page, "\nspec:\n") {
+		if strings.Contains(page, "esc quit") {
+			return fmt.Errorf("bare le with stdin terminal %v printed %q, want the root page and no menu", stdinTerminal, page)
+		}
+		if !strings.Contains(page, "\nspec:\n") {
 			return fmt.Errorf("bare le with stdin terminal %v printed %q, want the root page and no menu", stdinTerminal, page)
 		}
 	}

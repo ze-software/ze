@@ -522,11 +522,17 @@ func parseUpdatedBy(body, where string) (*UpdatedBy, error) {
 	}
 	head, reason, found := strings.Cut(rest, ";")
 	reason = strings.TrimSpace(reason)
-	if !found || reason == "" {
-		return nil, parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).Str(": ").
+	noReason := func() error {
+		return parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).Str(": ").
 			Str(strings.TrimSpace(head)).Str("} has no reason. A pointer nobody explained is a ").
 			Str("pointer nobody checked; say what the updater does to this row (replaces, ").
 			Str("narrows, relaxes or strengthens it). Format: {").Str(UpdatedByKind).Str(": <ID>; why}"))
+	}
+	if !found {
+		return nil, noReason()
+	}
+	if reason == "" {
+		return nil, noReason()
 	}
 	ids := strings.Fields(head)
 	if len(ids) != 1 {

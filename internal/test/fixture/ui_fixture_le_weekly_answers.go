@@ -173,8 +173,10 @@ func leWeeklyAnswers(ctx context.Context) error {
 	if refused.exitCode != 2 {
 		return fmt.Errorf("FAIL: a bare path exited %d, want 2", refused.exitCode)
 	}
-	if !strings.Contains(refused.stderr, "takes no argument keyword") ||
-		!strings.Contains(refused.stderr, barePath) {
+	if !strings.Contains(refused.stderr, "takes no argument keyword") {
+		return fmt.Errorf("FAIL: the refusal does not name the problem:\n%s", refused.stderr)
+	}
+	if !strings.Contains(refused.stderr, barePath) {
 		return fmt.Errorf("FAIL: the refusal does not name the problem:\n%s", refused.stderr)
 	}
 

@@ -284,6 +284,7 @@ func (s *Setup) applyVendorPatches(report *Report) bool {
 // on another having been built first.
 func (s *Setup) downloadApplianceDeps(report *Report) bool {
 	builddirs, err := filepath.Glob(filepath.Join(s.Root, "gokrazy", "*", "builddir"))
+	// refuse-by-default: guards FillApplianceModules -- false is this step's failure, and the report carries the error
 	if err != nil {
 		report.Note("  FAIL discover gokrazy instances: " + err.Error())
 		return false
