@@ -529,6 +529,10 @@ func TestCarriedRowOnUnpushedCommitGatesPush(t *testing.T) {
 func newOwedRepository(t *testing.T) string {
 	t.Helper()
 	root := newCommitRepository(t)
+	// A generated commit script runs plain `git commit`, so the fixture
+	// carries its own author: the test must not depend on the runner having a
+	// git identity (CI has none).
+	configureCommitAuthor(t, root)
 	remote := filepath.Join(t.TempDir(), "origin.git")
 	runCommitGit(t, root, "init", "-q", "--bare", "--initial-branch=main", remote)
 	runCommitGit(t, root, "branch", "-M", "main")

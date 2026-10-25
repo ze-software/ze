@@ -12,7 +12,11 @@ import (
 )
 
 func init() {
-	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
+	// Rung 1 of the group ladder (internal/le/le/root/group.go): the pins are
+	// committed lines in the lab Dockerfiles and Go sources, and `bump`
+	// rewrites them, so the area owns a committed artifact. A report never
+	// writes (TestReportAreasWriteNothing).
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		ShortHelp: "every pinned interop and integration lab peer compared with its upstream latest stable release (network)",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
