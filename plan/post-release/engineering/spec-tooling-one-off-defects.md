@@ -253,6 +253,7 @@ The verification-debt shards, the session directory, the hook registry.
 | `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results |
 | `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib |
 | `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename |
+| `bound-too-small-for-its-own-burst` | 2026-10-25 | `le job run` stall window breaks a silent gomu run |
 | `declared-format-contradicts-payload` | 2026-08-31 | session state file `Uncommitted:` section is a whole-tree `git status` |
 | `declared-format-contradicts-payload` | 2026-09-01 | `rfc/not-enrolled.txt` `source-restricted` kind refused by `./le rfc check` |
 | `gate-excludes-part-of-its-population` | 2026-08-22 | a spec's Files to Modify list read as the population of a wire's speakers |
