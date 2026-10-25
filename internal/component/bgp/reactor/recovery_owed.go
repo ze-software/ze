@@ -289,8 +289,9 @@ func (w *recoveryWorker) round() (bool, error) {
 	owed := w.snapshot()
 	decided := false
 	for fam, keys := range owed {
-		for start := 0; start < len(keys); start += recoveryLookupKeysMax {
-			chunk := keys[start:min(start+recoveryLookupKeysMax, len(keys))]
+		for start := 0; start < len(keys); {
+			chunk := keys[start:min(start+recoveryChunkKeys(), len(keys))]
+			start += len(chunk)
 			err := w.decide(fam, chunk)
 			if errors.Is(err, errRecoveryBufferStalled) && decided {
 				// An earlier chunk of this round was decided, so the round
@@ -306,6 +307,16 @@ func (w *recoveryWorker) round() (bool, error) {
 		}
 	}
 	return w.stillOwed(owed), nil
+}
+
+// recoveryChunkKeys sizes the next lookup chunk: at most recoveryLookupKeysMax
+// keys, and no more than the 4K read pool can lend now, because each staged
+// replacement holds one of its buffers until its write completes. A chunk the
+// pool cannot cover goes partial, and its unstaged keys wait for the next
+// round. At least one key is asked, so an empty pool still reaches the
+// admission's own stall handling.
+func recoveryChunkKeys() int {
+	return max(1, min(recoveryLookupKeysMax, bufMuxStd.lendable()))
 }
 
 // snapshot copies the owed set of this session under the table mutex, and

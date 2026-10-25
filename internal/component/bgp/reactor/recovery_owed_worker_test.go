@@ -554,3 +554,70 @@ func TestOwedKeyOwnerGoneAfterOweRetires(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
+
+// TestRecoveryChunkSizedFromLendableBuffers proves the journal row of
+// 2026-10-25 in bound-too-small-for-its-own-burst.md: a round asks the RIB
+// about no more keys than the 4K read pool can lend, because each staged
+// replacement holds one of its buffers until its write completes. Method:
+// a held round on one key lets 100 more keys become owed; the pool is capped
+// at one more block and drained until it can lend exactly 40 buffers; the
+// next round's lookup holds at most 40 keys, and every key is still decided
+// once the buffers come back.
+//
+// VALIDATES: recoveryChunkKeys sizes a chunk from BufMux.lendable.
+// PREVENTS: a 500-key chunk over a smaller pool, which goes partial and
+// leaves most of its keys to later rounds.
+func TestRecoveryChunkSizedFromLendableBuffers(t *testing.T) {
+	const keys, lendable = 100, 40
+	rail := newOwedRail(t)
+	held := []byte{24, 198, 51, 100}
+	rail.forward(t, false, held)
+	rail.forward(t, true, held)
+	rail.request(t)
+	for i := range keys {
+		raw := []byte{24, 10, 30, byte(i)}
+		rail.forward(t, false, raw)
+		rail.forward(t, true, raw)
+	}
+	require.Len(t, rail.owed(), keys+1)
+
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
+	mux := bufMuxStd.mux
+	mux.mu.Lock()
+	blocksMax := mux.maxBlocks
+	mux.mu.Unlock()
+	defer mux.setMaxBlocks(blocksMax)
+	mux.setMaxBlocks(mux.blockCount() + 1)
+	var drained []BufHandle
+	defer func() {
+		for _, h := range drained {
+			bufMuxStd.Return(h)
+		}
+	}()
+	for bufMuxStd.lendable() > lendable {
+		h := bufMuxStd.Get()
+		require.NotNil(t, h.Buf, "the capped pool lends while lendable says it can")
+		drained = append(drained, h)
+	}
+	require.Equal(t, lendable, bufMuxStd.lendable())
+
+	rail.release <- nil
+	request := rail.request(t)
+	require.LessOrEqual(t, len(request.Keys), lendable,
+		"the lookup asks about no more keys than the pool can lend")
+	rail.release <- nil
+	lowEventually(t, func() bool { return len(rail.owed()) <= keys-len(request.Keys) },
+		"the sized chunk was decided whole")
+	for _, h := range drained {
+		bufMuxStd.Return(h)
+	}
+	drained = nil
+	for len(rail.owed()) != 0 {
+		select {
+		case <-rail.requests:
+			rail.release <- nil
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}

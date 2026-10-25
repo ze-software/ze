@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"math"
 	"runtime"
 	"sync"
 	"testing"
@@ -994,4 +995,32 @@ func TestBufMux_ConcurrentGetReturn(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+// TestBufMuxLendable proves lendable counts the free slots of every block
+// plus the slots of the blocks growth may still add, bounded by maxBlocks and
+// by the shared budget, and answers math.MaxInt when nothing bounds growth.
+//
+// VALIDATES: BufMux.lendable, which sizes a recovery lookup chunk.
+// PREVENTS: a chunk sized from free slots alone, or from growth the budget
+// would refuse.
+func TestBufMuxLendable(t *testing.T) {
+	m := newBufMux(64, 4)
+	want := func(n int, why string) {
+		t.Helper()
+		if got := m.lendable(); got != n {
+			t.Fatalf("%s: lendable = %d, want %d", why, got, n)
+		}
+	}
+	want(math.MaxInt, "unbounded growth")
+	m.setMaxBlocks(2)
+	want(8, "two blocks of four may still grow")
+	handles := []BufHandle{m.Get(), m.Get(), m.Get()}
+	want(5, "one free slot and one block still to grow")
+	m.setBudget(newCombinedBudget(int64(m.blockBytes())))
+	want(1, "the budget holds no second block")
+	m.Return(handles[0])
+	want(2, "a returned buffer is lendable again")
+	m.Return(handles[1])
+	m.Return(handles[2])
 }

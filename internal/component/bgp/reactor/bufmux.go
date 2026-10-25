@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"math"
 	"sync"
 	"sync/atomic"
 
@@ -347,6 +348,37 @@ func (m *BufMux) Stats() (allocated, inUse int) {
 	return
 }
 
+// lendable reports how many buffers Get could hand out now if none were
+// returned: the free slots of every block, plus the slots of the blocks
+// growLocked may still add under maxBlocks and the shared budget. Session
+// reads and the other mux draw on the same slots and budget at once, so the
+// answer sizes a burst and promises nothing: Get stays the authority, and a
+// caller still handles a nil buffer. Unlimited growth answers math.MaxInt.
+// Safe for concurrent use (acquires mu).
+func (m *BufMux) lendable() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	free := 0
+	for _, b := range m.blocks {
+		free += b.freeCount
+	}
+	blocks := math.MaxInt // The blocks growLocked may still add.
+	if m.maxBlocks > 0 {
+		blocks = max(0, m.maxBlocks-len(m.blocks))
+	}
+	if m.budget != nil {
+		if limit := m.budget.maxBytes.Load(); limit > 0 {
+			// Rounded down: growLocked reserves whole blocks only.
+			room := (limit - m.budget.allocatedBytes()) / int64(m.blockBytes())
+			blocks = min(blocks, int(max(0, room)))
+		}
+	}
+	if blocks > (math.MaxInt-free)/m.blockSize {
+		return math.MaxInt
+	}
+	return free + blocks*m.blockSize
+}
+
 // blockBytes returns the byte size of one block (blockSize * bufSize).
 func (m *BufMux) blockBytes() int {
 	return m.blockSize * m.bufSize
@@ -477,6 +509,11 @@ func (p *probedPool) addProbe(fn func()) {
 // Stats returns (allocated, inUse) buffer slot counts from the underlying BufMux.
 func (p *probedPool) Stats() (allocated, inUse int) {
 	return p.mux.Stats()
+}
+
+// lendable reports how many buffers the underlying BufMux could lend now.
+func (p *probedPool) lendable() int {
+	return p.mux.lendable()
 }
 
 // setBudget sets the shared budget on the underlying BufMux.
