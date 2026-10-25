@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/completion/script"
 )
 
 // words outputs tab-separated "word\tdescription" pairs for shell completion.
@@ -71,26 +72,11 @@ func writeWords(w io.Writer, args []string) int {
 	return 0
 }
 
-// writeCompletionRecord writes one shell-completion record. The record is the
-// candidate, a tab, its summary, a newline. Every shell generator reads that
-// shape. A tab or a newline inside the summary makes the shell read one
-// candidate as two, or read half the summary as a third field.
-//
-// A summary carrying either one is FOLDED to single spaces, never cut. Folding
-// loses no word and decides nothing. It answers the format's one-line
-// constraint, the same answer the TUI completion pane gives the same problem
-// (internal/component/cli/model_render.go). The cut that stood here until this
-// spec published the first line as if the author had chosen it as the summary.
-// It dropped the rest and logged nothing. A summary is declared one line long,
-// so on a converted node this folds nothing.
+// writeCompletionRecord writes one shell-completion record in the shape every
+// Ze completion script reads (script.WriteRecord, which owns the format and
+// its folding of a multi-line summary).
 func writeCompletionRecord(w io.Writer, candidate, summary string) error {
-	if strings.ContainsAny(summary, "\n\r\t") {
-		summary = textbuf.Join(strings.Fields(summary), " ")
-	}
-	var record textbuf.Buffer
-	record.Str(candidate).Byte('\t').Str(summary).Byte('\n')
-	_, err := io.WriteString(w, record.String())
-	return err
+	return script.WriteRecord(w, candidate, summary)
 }
 
 // nameRIB is the BGP RIB that the "rib" shorthand expands to. The verb this

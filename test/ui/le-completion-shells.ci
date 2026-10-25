@@ -1,0 +1,18 @@
+# Test: a developer loads le's completion script and presses Tab.
+# accept-only: the registered native fixture builds the le personality, lays it
+# out as a checkout (the binary at bin/le, a launcher script at ./le that
+# records any run), and types into bash and zsh at a pseudo-terminal: ./le sp
+# completes to spec, spec cl to claim, commit create lists its live keywords
+# and none of the retired three, a used keyword is not offered again, an enum
+# keyword's values complete, and the same through the word le on PATH. fish
+# answers complete -C for both spellings. The callback writes records only and
+# nothing on stderr, ze le answers the same candidates, and with bin/le absent
+# Tab completes nothing and the launcher never runs.
+#
+# VALIDATES: spec-le-cli-usability AC-33, AC-34, AC-35, AC-36 and the
+# completion half of AC-48, through the product binary and the shells.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-completion-shells
+expect=exit:code=0
+expect=stdout:contains=OK

@@ -55,9 +55,28 @@ const (
 	GroupReport Group = "report"
 )
 
-// groupOrder is the set Register accepts, in the order the ladder above reads
-// them. A group absent from this table is a programming error at init.
-var groupOrder = []Group{GroupWorkflow, GroupGate, GroupGenerate, GroupSuite, GroupReport}
+// groupTable is the set Register accepts, in the order the ladder above reads
+// them, each with the one line `le help ai groups` prints. A group absent from
+// this table is a programming error at init.
+var groupTable = []struct {
+	group   Group
+	meaning string
+}{
+	{GroupWorkflow, "typed by a person to move their own work along"},
+	{GroupGate, "judges the tree and answers a verdict"},
+	{GroupGenerate, "owns a committed artifact and can rewrite it"},
+	{GroupSuite, "runs tests, proofs, and benchmarks by name"},
+	{GroupReport, "reads the tree and answers what it found, gating nothing"},
+}
+
+// groupOrder is groupTable's groups, in its order.
+var groupOrder = func() []Group {
+	order := make([]Group, 0, len(groupTable))
+	for _, row := range groupTable {
+		order = append(order, row.group)
+	}
+	return order
+}()
 
 // groups holds the declared group of every registered command. Registration
 // runs in init() and every read happens after it, but help runs on any

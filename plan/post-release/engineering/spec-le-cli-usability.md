@@ -538,11 +538,11 @@ pattern); pty fixtures reuse the `creack/pty` pattern of
 | `TestLeCompletionScriptRegistersBothSpellings` | `internal/plugins/completion/scripts_test.go` | AC-33, AC-34, AC-35 script side | |
 | `TestCompletionCallbackRunsNoBeforeDispatchHook` | `internal/le/completion/words_test.go` | AC-36 | |
 | `TestCompletionCallbackHonoursRepeatAndRetired` | `internal/le/completion/words_test.go` | AC-33 | |
-| `TestCompletionCallbackAnswersWithinBudget` | `internal/le/completion/budget_test.go` | AC-37: builds nothing, runs `bin/le` ten times, median under 100 ms; refuses when `bin/le` is absent, naming `./le --update` | |
+| `TestCompletionCallbackAnswersWithinBudget` | `internal/le/completion/budget_test.go` | AC-37: builds the le personality from the tree into a private directory, as the functional fixtures build their subject (D-P6-budget: the shared `bin/le` can predate the change under test, so measuring it judged the wrong binary), warms it once, runs it ten times, median under 100 ms | |
 | `TestHelpAiTextSummary` | `internal/le/le/root/helpai_test.go` | AC-38 | |
 | `TestHelpAiJSONListsEveryAreaWithTypedParameters` | `internal/le/le/root/helpai_test.go` | AC-39 | |
 | `TestHelpAiRefusesRenderingFlags` | `internal/le/le/root/helpai_test.go` | AC-40 | |
-| `TestZeHelpAiOutputUnchanged` | `cmd/ze/help_ai_test.go` | AC-41, golden captured before Phase 6 | |
+| `TestZeHelpAiOutputUnchanged` | `cmd/ze/help_ai_golden_test.go` | AC-41, golden captured before Phase 6 | |
 | `TestMenuModel_*` (ten tests, moved) | `internal/component/cli/menu/menu_test.go` | R-11, assertions unchanged | |
 | `TestLeMenuItemsComeFromTheTree` | `internal/le/le/root/menu_test.go` | AC-42 | |
 | `TestBareLeOnAPipePrintsTheRootPage` | `internal/le/le/root/dispatch_test.go` | AC-43 | |
@@ -550,7 +550,7 @@ pattern); pty fixtures reuse the `creack/pty` pattern of
 | `TestOptionalParametersAreNeverPrompted` | `internal/le/le/root/prompt_test.go` | AC-45 | |
 | `TestPromptCancelRunsNothing` | `internal/component/cli/menu/prompt_test.go` | AC-46 | |
 | `TestHumanGateIsNotAnsweredByAPrompt` | `internal/le/le/human/human_test.go` | AC-47 | |
-| `TestZeLeParity` | `internal/le/le/root/parity_test.go` | AC-48 | |
+| `TestZeLeParity` | `internal/le/le/root/helpai_test.go` | AC-48, `help ai` half; the completion half is `le-completion-shells` (`ze le completion words`), the menu half Phase 7 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -786,6 +786,7 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `committed-tree-does-not-build.md` | 2026-10-25 | `internal/le/register.go` at HEAD |
+| `reference-output-depends-on-map-order.md` | 2026-10-25 | `internal/component/aihelp` `matchEnvVars`, RPC order |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

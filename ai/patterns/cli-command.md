@@ -502,7 +502,8 @@ defer store.Close() //nolint:errcheck // releases the writer lock
 
 ### How `help ai` consumes the registry
 
-`cmd/ze/help_ai.go:cliSubcommands()` enumerates:
+`aihelp.CLISubcommands()` (`internal/component/aihelp/aihelp.go`), which
+`cmd/ze/help_ai.go` renders, enumerates:
 
 1. YANG verb subtree (show, set, del, update, ...).
 2. `registry.ListRoot()` for top-level subcommands.
@@ -510,6 +511,13 @@ defer store.Close() //nolint:errcheck // releases the writer lock
 De-dupe on root-name collisions. No static list. Adding a new
 subcommand package means adding its `register.go`; help picks it up
 automatically.
+
+`le help ai` is the le side of the same idea and shares no code path with
+`ze help ai` beyond the renderer: `internal/le/le/root/helpai.go` fills a
+`reference.Reference` (`internal/component/aihelp/reference`) from the derived
+tree and the action tables, so a new area or action appears with no edit
+there. `le completion words` answers from the same tables
+(`leroot.Complete`, `internal/le/le/root/complete.go`).
 
 ## Reference Implementations
 

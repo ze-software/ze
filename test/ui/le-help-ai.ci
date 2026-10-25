@@ -1,0 +1,15 @@
+# Test: an agent reads le's machine reference through a pipe.
+# accept-only: the registered native fixture builds the le personality, under
+# the names le and ze, and reads le help ai: the text summary naming every
+# section and the JSON form; every command's actions and typed parameters as
+# JSON; every section as YAML; an unknown section and the --json and --ai
+# flags refused with the usage code; and ze le answering the same commands
+# under its own program name.
+#
+# VALIDATES: spec-le-cli-usability AC-38, AC-39, AC-40 and the help ai half of
+# AC-48, through the product binary and its real composition root.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-help-ai
+expect=exit:code=0
+expect=stdout:contains=OK

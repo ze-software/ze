@@ -147,6 +147,11 @@ func Dispatch(program string, args []string) int {
 		if len(args) == 1 {
 			return helpRoot(program)
 		}
+		// `ai` is the one reserved word after the help word: the reference an
+		// agent reads. The ai namespace's own page is `le ai help`.
+		if args[1] == aiWord {
+			return helpAI(program, args[2:])
+		}
 		return helpAsked(program, args[1:])
 	}
 

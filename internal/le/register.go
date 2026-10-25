@@ -33,6 +33,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/cli/ownership"
 	_ "github.com/ze-software/ze/internal/le/cli/stdio"
 	_ "github.com/ze-software/ze/internal/le/commit"
+	_ "github.com/ze-software/ze/internal/le/completion"
 	_ "github.com/ze-software/ze/internal/le/config/claims"
 	_ "github.com/ze-software/ze/internal/le/config/coercion"
 	_ "github.com/ze-software/ze/internal/le/config/ports"
@@ -190,12 +191,18 @@ func init() {
 // run is the le root handler: every le command and native hook enters here.
 // It links the checkout's cache/ (ensureCacheLink), then selects the patched
 // standard library (activatePatchedGOROOT), in that order and outside the
-// hook contract. Before dispatching it runs the hooks areas registered to run ahead of every
+// hook contract, except for a shell callback (leroot.ShellCallback), which
+// runs none of them. Before dispatching it runs the hooks areas registered to run ahead of every
 // command (leroot.RegisterBeforeDispatch), such as the scratch store trim's
 // hourly chance to start. A hook never prints and returns nothing, so the
 // command's exit code and output are the dispatch's alone.
 func run(_ *registry.RuntimeContext, args []string) int {
 	program := leaction.InvocationName()
+	// A shell callback runs on a keystroke: the repair and the hooks below can
+	// print or start work, and the shell reads stdout as candidates.
+	if leroot.ShellCallback(args) {
+		return leroot.Dispatch(program, args)
+	}
 	ensureCacheLink()
 	activatePatchedGOROOT()
 	leroot.RunBeforeDispatch(program)

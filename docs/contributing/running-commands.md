@@ -77,6 +77,58 @@ tells le its own option from one you forward to a child.
 <!-- source: internal/le/le/action/parameter.go -- parameterForm, parseArguments -->
 <!-- source: internal/le/le/root/leroot.go -- requireEveryAreaHasATable -->
 
+### The whole surface for an agent: `le help ai`
+
+`./le help ai` prints the sections it answers. Each section is a word:
+`commands` lists every area, each action and each parameter with its kind, its
+values, whether it is required and whether it repeats, and the program a
+pass-through area hands its words to; `groups` the purpose tags; `verbs` every
+verb in use; `exit-codes` what each code means and who answers another
+program's; `all` every section. Render it with the pipe layer, never a flag:
+`./le help ai commands | json`, `./le help ai all | yaml`. A dash-leading word
+(`--json`, `--ai`) is refused with exit 2 and the refusal names
+`le help ai | json`; so is a section that does not exist. `ai` is the one
+reserved word after `help`, so the `ai` namespace's own page is
+`./le ai help`. `ze le help ai` answers the same, its program reading `ze le`.
+
+<!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI -->
+<!-- source: internal/component/aihelp/reference/reference.go -- Reference -->
+
+### Install completion
+
+One script completes both `./le` and `le` (when the checkout is on your
+`PATH`). Load it in the current shell, from the checkout root:
+
+```
+eval "$(./le completion bash)"     # bash
+source <(./le completion zsh)      # zsh
+./le completion fish | source      # fish
+```
+
+To keep it, write it where your shell looks: `./le completion bash >
+~/.local/share/bash-completion/completions/le`, `./le completion zsh >
+"${fpath[1]}/_le"`, or `./le completion fish > ~/.config/fish/completions/le.fish`.
+Each script's first lines say the same.
+
+On Tab the script runs `<the typed word's directory>/bin/le completion words
+<line>`, never the launcher, with stderr discarded: a keystroke checks no
+staleness and builds nothing, and with `bin/le` absent it completes nothing.
+The `completion` area is a shell callback, so le runs no cache-link repair and
+no before-dispatch hook for it. It offers areas, then actions, then the
+keywords still open: a keyword already given is not offered again unless it
+repeats, a retired keyword is never offered, and an enum's values come only
+after their keyword. A pass-through area completes nothing after its name,
+because its program owns those words. A typed word le does not know is refused:
+`./le completion words nosuch ''` names it on stderr and exits 1, so the shell
+offers nothing while a person running it by hand learns which word was wrong.
+After a `git pull`, run `./le --update`
+so `bin/le` knows the new commands.
+
+<!-- source: internal/le/completion/completion.go -- table, answerWords -->
+<!-- source: internal/le/le/root/complete.go -- Complete, afterVerb -->
+<!-- source: internal/plugins/completion/script/script.go -- Generate, WriteRecord -->
+<!-- source: internal/le/register.go -- run -->
+
 ## Launcher builds do not overwrite running binaries
 
 `./le` keeps an existence cache: a compatible executable is reused until

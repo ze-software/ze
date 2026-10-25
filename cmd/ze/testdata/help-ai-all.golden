@@ -1,0 +1,1493 @@
+# Ze AI Reference
+# Generated from code -- always matches this binary.
+
+## CLI Subcommands
+
+  ze [global-flags] <command> [options]
+
+  Modes: [offline] no daemon needed  [daemon] requires running daemon  [setup] one-time setup
+
+  Global flags:
+    -d, --debug            Enable debug logging
+    -f <file>              Use filesystem directly, bypass blob store
+    --plugin <name>        Load plugin before starting (repeatable)
+    --mcp <port>           Start MCP server on 127.0.0.1:<port>
+    --web <port>           Start web server on 0.0.0.0:<port>
+    --web-only             Web UI only, no daemon (config editing only)
+    --insecure-web         Disable web auth (forces 127.0.0.1)
+    --pprof <addr:port>    Start pprof HTTP server
+    -V, --version          Show version
+
+  ze clear          [daemon ] Reset counters, caches, and operational state without changing configuration.
+    ze clear help
+  ze create         [daemon ] Create new resources.
+    ze create help
+  ze debug          [daemon ] OSPF debug LSA injection (spec-ospf-ext-14).
+    ze debug help
+  ze delete         [daemon ] Delete elements from the running configuration.
+    ze delete help
+  ze help           [read-only] Show available commands at this level.
+    ze help help
+  ze monitor        [read-only] Continuous monitoring commands (Ctrl-C to stop).
+    ze monitor help
+  ze plugin         [read-only] Configure how events are delivered to your plugin session.
+    ze plugin help
+  ze request        [daemon ] Commands that act on the running system.
+    ze request help
+  ze resolve        [read-only] DNS, ASN, PeeringDB, and IRR resolution tools.
+    ze resolve help
+  ze send           [daemon ] Put an operator-supplied message on a wire.
+    ze send help
+  ze set            [daemon ] Modify running configuration parameters.
+    ze set help
+  ze show           [read-only] Read-only commands to inspect system, protocol, and network state.
+    ze show help
+  ze system         [read-only] Daemon introspection and command dispatch.
+    ze system help
+  ze update         [daemon ] Pull fresh data from external sources or manage firmware.
+    ze update help
+  ze appliance      [offline] Manage gokrazy-based Ze appliance images
+    assemble, build, clone, config, config-push, export, import, init, initrd, iso, kernel, list, passwd, push, rekey, replace-cert, run, show, unlock
+  ze bgp            [offline] BGP protocol tools
+    decode <hex> | decode - | decode pcap <file>, encode <route>, plugin
+  ze cli            [daemon ] Interactive CLI for the running daemon
+    -c <cmd> for single command
+  ze completion     [offline] Shell completion scripts
+    bash, zsh, fish, nushell
+  ze config         [offline] Configuration editing, formatting, validation, and history
+    activate, archive, cat, completion, deactivate, diff, dump, edit, fix, fmt, graph, history, import, list, migrate, rename, rollback, set, show, validate
+  ze data           [offline] Store keys and blob artifact management
+    backup, restore, write, import, rm, list, cat, registered, check, repair, encode
+  ze doctor         [offline] Check if this box is ready to run Ze
+    config <file>, kernel-capabilities, --json
+  ze env            [offline] Environment variable inspection
+    list, get, registered
+  ze exabgp         [offline] ExaBGP bridge tools
+    plugin, migrate
+  ze firewall       [offline] Firewall management
+    show, apply
+  ze init           [setup  ] Initialize a live store or appliance seed with SSH credentials
+    --managed --force --yes --web-cert <address> --web-cert-name <name> --seed --from <source> --sha256 <hex>
+  ze interface      [offline] Manage OS network interfaces
+    addr, clear, create, delete, down, mac, migrate, mtu, neighbors, routes, scan, show, unit, up
+  ze isis           [offline] Offline IS-IS wire tools
+    decode [--pretty]
+  ze l2tp           [offline] L2TP tools
+    decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}
+  ze le             [offline] the Ze repository and development commands, in-process
+  ze ospf           [offline] Offline OSPF wire tools
+    decode [--pretty]
+  ze passwd         [setup  ] Change stored SSH/HTTP passwords
+  ze schema         [offline] Schema discovery
+    events, handlers, list, methods, protocol
+  ze signal         [daemon ] Send signals to the daemon via SSH
+    reload, stop, restart, quit
+  ze status         [daemon ] Check if daemon is running
+    exit 0 = running, 1 = not
+  ze sysctl         [offline] Kernel sysctl helpers
+  ze tacacs         [offline] TACACS+ client helpers
+    show
+  ze traffic        [offline] Linux tc / VPP policer helpers
+    control
+  ze yang           [offline] YANG tree analysis
+    completion, doc, tree
+
+## Daemon API Commands (YANG RPCs)
+
+Format: wire-method (dispatch-key) description
+
+  ze-bfd:show-profile                          (show bfd profile              ) Return resolved BFD profile parameters. [read-only]
+    name                     Profile name (empty returns every profile).
+  ze-bfd:show-session                          (show bfd session address      ) Return one BFD session by peer address. [read-only]
+    peer                     Peer IPv4 or IPv6 address. (REQUIRED)
+  ze-bfd:show-sessions                         (show bfd sessions             ) Return every live BFD session. [read-only]
+  ze-bgp:announce-blackhole                    (send bgp blackhole            ) Announce a route on demand (unicast, blackhole, flowspec).
+  ze-bgp:announce-flowspec                     (send bgp flowspec             ) Announce a route on demand (unicast, blackhole, flowspec).
+  ze-bgp:announce-unicast                      (send bgp unicast              ) Announce a route on demand (unicast, blackhole, flowspec).
+  ze-bgp:cache-list                            (show cache                    ) BGP message cache operations. [read-only]
+    action                   Cache action (list|retain|release|expire|forward) (REQUIRED)
+    message-id               Cache message ID
+    peer-selector            Target peers (for forward)
+  ze-bgp:commit                                (request commit                ) Named commit operations.
+    name                     Commit name
+  ze-bgp:monitor                               (monitor bgp                   ) Stream live BGP events with optional filters. [read-only]
+  ze-bgp:overview                              (show bgp                      ) Show the BGP overview (peer table with statistics). [read-only]
+  ze-bgp:peer-borr                             (request peer borr             ) Send Beginning of Route Refresh.
+    peer-selector            Target peers (REQUIRED)
+    family                   Address family (REQUIRED)
+  ze-bgp:peer-capabilities                     (show bgp peer capabilities    ) Show negotiated capabilities for peer. [read-only]
+    selector                 Peer filter (REQUIRED)
+  ze-bgp:peer-clear-soft                       (request peer clear soft       ) Soft-clear peer (send ROUTE-REFRESH per negotiated family).
+    selector                 Peer address (REQUIRED)
+  ze-bgp:peer-create                           (create bgp peer               ) Create a peer in the running daemon.
+    address                  Peer address (REQUIRED)
+    asn                      Peer ASN, in any notation RFC 5396 names (REQUIRED)
+    local-as                 Local ASN override, in any notation RFC 5396 names
+    local-address            Local bind address
+    router-id                Router ID override
+    receive-hold-time        Receive hold time (RFC 4271)
+    send-hold-time           Send hold time (RFC 9687, 0=auto)
+    connect-retry            Connect retry interval
+    connect                  Dial the peer (default true)
+    accept                   Answer a connection from the peer (default true)
+    graceful-restart         Restart Time in seconds (RFC 4724)
+    group-updates            Group this peer's UPDATEs with other peers (default true)
+    attach                   Plugin process this peer feeds
+    family                   Address family to negotiate
+  ze-bgp:peer-delete                           (delete bgp peer               ) Delete a peer from the running daemon.
+  ze-bgp:peer-detail                           (show bgp peer detail          ) Show detailed peer information. [read-only]
+    selector                 Peer filter
+  ze-bgp:peer-disable                          (request peer disable          ) Hold a peer administratively down.
+    selector                 Peer filter (REQUIRED)
+    message                  Shutdown communication
+  ze-bgp:peer-enable                           (request peer enable           ) Release a peer's administrative hold.
+    selector                 Peer filter (REQUIRED)
+  ze-bgp:peer-eorr                             (request peer eorr             ) Send End of Route Refresh.
+    peer-selector            Target peers (REQUIRED)
+    family                   Address family (REQUIRED)
+  ze-bgp:peer-flush                            (request peer flush            ) Wait for forward pool to drain (barrier).
+    selector                 Peer filter (* for all) (REQUIRED)
+  ze-bgp:peer-list                             (show bgp peer list            ) List configured peers. [read-only]
+    selector                 Peer filter
+  ze-bgp:peer-notify                           (request peer notify           ) Close a peer session with a NOTIFICATION of any code and subcode.
+    selector                 Peer filter (REQUIRED)
+    code                     NOTIFICATION error code (REQUIRED)
+    subcode                  NOTIFICATION error subcode (REQUIRED)
+    hex                      Data field octets in hexadecimal
+    text                     Data field text
+  ze-bgp:peer-raw                              (send bgp raw                  ) Send raw bytes to peer (no validation).
+    peer-selector            Target peers (REQUIRED)
+    type                     Message type hint
+    encoding                 Data encoding (REQUIRED)
+    data                     Raw data (REQUIRED)
+  ze-bgp:peer-refresh                          (request peer refresh          ) Send ROUTE-REFRESH to peer for specified family.
+  ze-bgp:peer-save                             (update bgp config             ) Write the running peer set to the configuration file.
+  ze-bgp:peer-statistics                       (show bgp peer statistics      ) Show per-peer update statistics with rates. [read-only]
+    selector                 Peer filter
+  ze-bgp:peer-teardown                         (request peer teardown         ) Teardown peer session with CEASE notification.
+    selector                 Peer filter (REQUIRED)
+    subcode                  CEASE subcode
+  ze-bgp:peer-update                           (send bgp update               ) Batch UPDATE with text/hex/b64 encoding.
+    peer-selector            Target peers (REQUIRED)
+    encoding                 Command encoding (REQUIRED)
+    command                  Route DSL command (REQUIRED)
+  ze-bgp:plugin-session-peer-ready             (request peer plugin session ready) Signal that this peer's plugin process finished its initialization.
+    session                  Initial-replay session token
+  ze-bgp:rib-best                              (show bgp rib best             ) Show best-path per prefix (RFC 4271 §9.1.2). [read-only]
+    peer                     Filter by peer
+    args                     Pipeline args: filters, terminal
+  ze-bgp:rib-best-status                       (show bgp rib best status      ) Show best-path computation status. [read-only]
+  ze-bgp:rib-clear-advertised                  (clear bgp rib advertised      ) Withdraw the Adj-RIB-Out of the selected peers.
+    selector                 Peer filter (* for all) (REQUIRED)
+    family                   Address family
+  ze-bgp:rib-clear-in                          (clear bgp rib in              ) Clear Adj-RIB-In entries.
+    peer                     Filter by peer
+    family                   Filter by address family
+  ze-bgp:rib-clear-out                         (clear bgp rib out             ) Resend the Adj-RIB-Out routes to the matching peers.
+    peer                     Filter by peer
+    family                   Filter by address family
+  ze-bgp:rib-inject                            (request bgp rib inject        ) Insert route into Adj-RIB-In as if received from a peer.
+    peer                     Peer address label (REQUIRED)
+    family                   Address family (e.g. ipv4/unicast) (REQUIRED)
+    prefix                   CIDR prefix (e.g. 10.0.0.0/24) (REQUIRED)
+    origin                   Origin: igp, egp, incomplete (default: igp)
+    nhop                     Next-hop IP address
+    nexthop                  Alias for nhop next-hop IP address
+    aspath                   AS path as comma-separated ASNs (e.g. 64500,64501)
+    localpref                LOCAL_PREF value
+    med                      MULTI_EXIT_DISC value
+  ze-bgp:rib-routes                            (show bgp rib                  ) Show routes with pipeline filters. [read-only]
+    peer                     Filter by peer
+    args                     Pipeline args: scope, filters, terminal
+  ze-bgp:rib-status                            (show bgp rib status           ) RIB summary: peer count, route counts, GR state. [read-only]
+  ze-bgp:rib-withdraw                          (request bgp rib withdraw      ) Remove route from Adj-RIB-In.
+    peer                     Peer address label (REQUIRED)
+    family                   Address family (REQUIRED)
+    prefix                   CIDR prefix to withdraw (REQUIRED)
+  ze-bgp:show-announcements                    (show announcements            ) List active on-demand announcements. [read-only]
+  ze-bgp:show-health                           (show bgp health               ) Show BGP peer health sorted by state and activity. [read-only]
+  ze-bgp:withdraw-all                          (send bgp withdraw all         ) Withdraw on-demand announcements (by tag, id, or all).
+  ze-bgp:withdraw-id                           (send bgp withdraw id          ) Withdraw on-demand announcements (by tag, id, or all).
+  ze-bgp:withdraw-tag                          (send bgp withdraw tag         ) Withdraw on-demand announcements (by tag, id, or all).
+  ze-cmd:bgp-metrics-list                      (show metrics list             ) List metric names only. [read-only]
+  ze-cmd:bgp-metrics-values                    (show metrics values           ) Show Prometheus metrics in text format. [read-only]
+  ze-cmd:bgp-subscribe                         (request subscribe             ) Subscribe to BGP events (streaming).
+    events                   Event types to subscribe to
+  ze-cmd:bgp-unsubscribe                       (request unsubscribe           ) Unsubscribe from BGP events.
+  ze-cmd:show-event-delivery                   (show event delivery           ) Show which peers feed which attached processes. [read-only]
+  ze-cmd:show-event-namespaces                 (show event namespaces         ) Show registered event namespaces with counts. [read-only]
+  ze-cmd:show-event-recent                     (show event recent             ) Show recent events from global event ring. [read-only]
+  ze-cmd:show-health                           (show health                   ) Show aggregated component health status. [read-only]
+  ze-cmd:show-metrics-query                    (show metrics name             ) Query Prometheus metrics by name and label filter. [read-only]
+  ze-cmd:show-warnings                         (show warnings                 ) Show active prefix warnings (stale data, threshold exceeded). [read-only]
+  ze-config:archive-trigger                    (request config archive        ) Trigger a named config archive destination.
+  ze-diag:show-capture                         (show capture                  ) Show captured control messages. [read-only]
+  ze-iface:clear-interface-counters            (clear interface counters all  ) Reset RX/TX counters on one or all interfaces.
+  ze-iface:interface-addr-add                  (create interface address      ) Add an IP address to an interface.
+    name                     Interface name (REQUIRED)
+    prefix                   IP address in CIDR notation (e.g. 10.0.0.1/24) (REQUIRED)
+  ze-iface:interface-addr-del                  (delete interface name address ) Remove an IP address from an interface.
+    name                     Interface name (REQUIRED)
+    prefix                   IP address in CIDR notation (REQUIRED)
+  ze-iface:interface-create-dummy              (create interface dummy name   ) Create a dummy (loopback-like) interface.
+    name                     Interface name (REQUIRED)
+  ze-iface:interface-create-veth               (create interface veth name    ) Create a veth pair.
+    name                     Interface name (REQUIRED)
+    peer                     Peer interface name (REQUIRED)
+  ze-iface:interface-delete                    (delete interface name         ) Delete an interface.
+    name                     Interface name (REQUIRED)
+  ze-iface:interface-migrate                   (request interface migrate     ) Make-before-break IP migration between interfaces.
+    from                     Source interface.unit (e.g. eth0.0) (REQUIRED)
+    to                       Destination interface.unit (e.g. eth1.0) (REQUIRED)
+    address                  IP address to migrate (CIDR) (REQUIRED)
+  ze-iface:interface-unit-add                  (create interface bridge name unit) Add a VLAN logical unit to an interface.
+    name                     Parent interface name (REQUIRED)
+    vid                      VLAN ID (1-4094) (REQUIRED)
+  ze-iface:interface-unit-del                  (delete interface name unit    ) Delete a logical unit from an interface.
+    name                     Parent interface name (REQUIRED)
+    vid                      VLAN ID (1-4094) (REQUIRED)
+  ze-iface:show-route-lookup                   (show route lookup             ) Longest-prefix-match route lookup for a destination IP. [read-only]
+  ze-l2tp:config                               (show l2tp config              ) Return effective runtime configuration. [read-only]
+  ze-l2tp:cqm                                  (show l2tp cqm                 ) Return per-login CQM bucket history. [read-only]
+    login                    Login name, or 'summary' for aggregate view.
+  ze-l2tp:echo                                 (show l2tp echo                ) Return the current echo state of one login. [read-only]
+    login                    Login name. (REQUIRED)
+  ze-l2tp:listeners                            (show l2tp listeners           ) List bound UDP listener endpoints. [read-only]
+  ze-l2tp:observer                             (show l2tp observer            ) Return per-session event ring snapshot. [read-only]
+    session-id               Local session ID (1..65535), or omit for 'all'.
+  ze-l2tp:outgoing-call                        (request l2tp outgoing-call remote called) Place an LNS-side outgoing call toward a configured remote (RFC 2661 Section 10.4).
+    remote                   Name of a configured l2tp/remote dial target. (REQUIRED)
+    called                   Called Number placed in the OCRQ (RFC 2661 Section 7.9). (REQUIRED)
+  ze-l2tp:pppoe-interfaces                     (show pppoe interfaces         ) List configured PPPoE access interfaces. [read-only]
+  ze-l2tp:pppoe-session                        (show pppoe session id         ) Return one session by session ID. [read-only]
+    session-id               PPPoE session ID (1..65535). (REQUIRED)
+  ze-l2tp:pppoe-sessions                       (show pppoe sessions           ) List every live PPPoE session across all interfaces. [read-only]
+  ze-l2tp:pppoe-statistics                     (show pppoe statistics         ) Return protocol counters: active sessions per interface, discovery packet counts. [read-only]
+  ze-l2tp:pppoe-summary                        (show pppoe                    ) Return subsystem summary: session count, interface count, aggregate state. [read-only]
+  ze-l2tp:reliable                             (show l2tp reliable            ) Return the reliable transport window state of one tunnel. [read-only]
+    tunnel-id                Local tunnel ID (1..65535). (REQUIRED)
+  ze-l2tp:session                              (show l2tp session id          ) Return one session by local session ID. [read-only]
+    session-id               Local session ID (1..65535). (REQUIRED)
+  ze-l2tp:session-history                      (show l2tp session history     ) Return FSM transition history for a session. [read-only]
+    session-id               Local session ID (1..65535). (REQUIRED)
+  ze-l2tp:session-teardown                     (clear l2tp session id         ) Send CDN Result Code 3 (administrative) for the session with the given local session ID.
+    session-id               Local session ID (1..65535). (REQUIRED)
+  ze-l2tp:session-teardown-all                 (clear l2tp session all        ) Stop every live session on every tunnel on every listener.
+  ze-l2tp:sessions                             (show l2tp sessions            ) List every live session across all tunnels. [read-only]
+  ze-l2tp:show-health                          (show l2tp health              ) Show L2TP session health sorted by echo loss. [read-only]
+  ze-l2tp:statistics                           (show l2tp statistics          ) Return the L2TP protocol counters. [read-only]
+  ze-l2tp:summary                              (show l2tp                     ) Return subsystem summary: tunnel count, session count, listener count, aggregate state. [read-only]
+  ze-l2tp:tunnel                               (show l2tp tunnel id           ) Return one tunnel by local tunnel ID. [read-only]
+    tunnel-id                Local tunnel ID (1..65535). (REQUIRED)
+  ze-l2tp:tunnel-history                       (show l2tp tunnel history      ) Return FSM transition history for a tunnel. [read-only]
+    tunnel-id                Local tunnel ID (1..65535). (REQUIRED)
+  ze-l2tp:tunnel-teardown                      (clear l2tp tunnel id          ) Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.
+    tunnel-id                Local tunnel ID (1..65535). (REQUIRED)
+  ze-l2tp:tunnel-teardown-all                  (clear l2tp tunnel all         ) Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.
+  ze-l2tp:tunnels                              (show l2tp tunnels             ) List every live tunnel. [read-only]
+  ze-log:bgp-log-levels                        (show log levels               ) Show current log levels for all subsystems. [read-only]
+  ze-log:bgp-log-recent                        (show log recent               ) Show recent log entries from ring buffer with optional level/component/count filters. [read-only]
+  ze-log:bgp-log-set                           (request log level             ) Set log level for a subsystem at runtime.
+  ze-meta:bgp-command-complete                 (show command complete         ) Complete BGP command/args. [read-only]
+    partial                  Partial command string (REQUIRED)
+  ze-meta:bgp-command-help                     (show command help             ) Show BGP command details. [read-only]
+    name                     Command name (REQUIRED)
+  ze-meta:bgp-command-list                     (show command list             ) List BGP commands. [read-only]
+  ze-meta:bgp-event-list                       (show event list               ) List available event types. [read-only]
+  ze-meta:bgp-help                             (help                          ) List BGP subcommands. [read-only]
+  ze-meta:bgp-plugin-ack                       (plugin ack                    ) Set ACK timing (sync|async). [read-only]
+    mode                     ACK mode (REQUIRED)
+  ze-meta:bgp-plugin-encoding                  (plugin encoding               ) Set event encoding (json|text). [read-only]
+    encoding                 Encoding format (REQUIRED)
+  ze-meta:bgp-plugin-format                    (plugin format                 ) Set wire format (hex|base64|parsed|full). [read-only]
+    format                   Wire format (REQUIRED)
+  ze-meta:event-monitor                        (monitor event                 ) Stream live BGP events with optional filters. [read-only]
+  ze-ping:show-ping                            (show ping                     ) ICMP ping from the router to a destination IP. [read-only]
+  ze-pki:show-certificate                      (show pki certificate name     ) Show details, PEM, bundle, or fingerprint of a named certificate. [read-only]
+    name                     Certificate name to look up.
+  ze-pki:show-certificates                     (show pki certificates         ) List all loaded certificates (CA and device). [read-only]
+  ze-plugin:command-complete                   (plugin command complete       ) List the completion candidates for a partial plugin command. [read-only]
+    partial                  Partial command string (REQUIRED)
+  ze-plugin:command-help                       (plugin command help           ) Show one plugin command's summary, explanation, arguments, and source plugin. [read-only]
+    name                     Command name (REQUIRED)
+  ze-plugin:command-list                       (plugin command list           ) List every command a plugin registered, with its summary. [read-only]
+  ze-plugin:help                               (plugin help                   ) List the subcommands the plugin verb accepts. [read-only]
+  ze-plugin:session-bye                        (plugin session bye            ) Tell the daemon this session is disconnecting. [read-only]
+  ze-plugin:session-ping                       (plugin session ping           ) Answer a health check with the daemon process id. [read-only]
+  ze-plugin:session-ready                      (plugin session ready          ) Signal that this plugin process finished its initialization. [read-only]
+  ze-plugin:system-command-complete            (system command complete       ) List the completion candidates for a partial command. [read-only]
+    partial                  Partial command string (REQUIRED)
+    arg                      Current argument being completed
+  ze-plugin:system-command-help                (system command help           ) Show the detailed help for one command. [read-only]
+    name                     Command name (REQUIRED)
+  ze-plugin:system-command-list                (system command list           ) List every command the daemon knows. [read-only]
+  ze-plugin:system-daemon-quit                 (request halt                  ) Dump every goroutine stack, then shut the daemon down.
+  ze-plugin:system-daemon-reboot               (request reboot                ) Shut the daemon down gracefully, then reboot the system (root is required on Linux).
+  ze-plugin:system-daemon-reload               (request reload                ) Reload the configuration.
+  ze-plugin:system-daemon-shutdown             (request shutdown              ) Shut the daemon down gracefully.
+  ze-plugin:system-daemon-status               (show status                   ) Show the daemon uptime, peer count, and start time. [read-only]
+  ze-plugin:system-dispatch                    (system dispatch               ) Dispatch a text command through the command dispatcher. [read-only]
+    args                     Command words to join and dispatch
+  ze-plugin:system-help                        (system help                   ) List the subcommands the system verb accepts. [read-only]
+  ze-plugin:system-quiesce                     (request quiesce               ) Block until every subsystem drains its pending async work.
+  ze-plugin:system-subsystem-list              (system subsystem list         ) List the subsystems registered in the daemon. [read-only]
+  ze-plugin:system-version-api                 (system version api            ) Show the IPC protocol version. [read-only]
+  ze-plugin:system-version-software            (system version software       ) Show the ze software version. [read-only]
+  ze-resolve:clear-dns-cache                   (clear dns cache all           ) Flush DNS cache entries or reset cache counters.
+  ze-resolve:cymru-asn-name                    (resolve cymru asn-name        ) Look up organization name for an ASN via Team Cymru DNS. [read-only]
+    asn                      Autonomous System Number (REQUIRED)
+  ze-resolve:dns-a                             (resolve dns a                 ) Resolve DNS A records (IPv4 addresses). [read-only]
+    name                     Hostname to resolve (REQUIRED)
+  ze-resolve:dns-aaaa                          (resolve dns aaaa              ) Resolve DNS AAAA records (IPv6 addresses). [read-only]
+    name                     Hostname to resolve (REQUIRED)
+  ze-resolve:dns-ptr                           (resolve dns ptr               ) Reverse DNS lookup (PTR records). [read-only]
+    address                  IP address for reverse lookup (REQUIRED)
+  ze-resolve:dns-txt                           (resolve dns txt               ) Resolve DNS TXT records. [read-only]
+    name                     Hostname to resolve (REQUIRED)
+  ze-resolve:irr-expand                        (resolve irr expand            ) Recursively expand AS-SET to member ASNs. [read-only]
+    as-set                   AS-SET name (e.g. AS-CLOUDFLARE) (REQUIRED)
+  ze-resolve:irr-prefix                        (resolve irr prefix            ) Look up prefixes for an AS-SET from IRR. [read-only]
+    as-set                   AS-SET name (e.g. AS-CLOUDFLARE) (REQUIRED)
+  ze-resolve:peeringdb-as-set                  (resolve peeringdb as-set      ) Look up AS-SET names for an ASN from PeeringDB. [read-only]
+    asn                      Autonomous System Number (REQUIRED)
+  ze-resolve:peeringdb-max-prefix              (resolve peeringdb max-prefix  ) Look up maximum prefix counts for an ASN from PeeringDB. [read-only]
+    asn                      Autonomous System Number (REQUIRED)
+  ze-traffic:show-traffic                      (show traffic control          ) Show traffic control state per interface. [read-only]
+  ze-update:show-system-update                 (show system update            ) Show firmware update status. [read-only]
+  ze-update:show-system-update-history         (show system update history    ) Show firmware update event history. [read-only]
+  ze-update:system-firmware-apply              (update system firmware apply  ) Full firmware update cycle: download+verify+stage+restart.
+  ze-update:system-firmware-check              (update system firmware check  ) Trigger immediate firmware version check.
+  ze-update:system-firmware-download           (update system firmware download) Download firmware update now.
+  ze-update:system-firmware-restart            (update system firmware restart) Restart into staged firmware version.
+  ze-update:system-firmware-rollback           (update system firmware rollback) Restore previous firmware version and restart.
+  ze-aaa:show-accounting                       (show aaa accounting           ) ze-aaa:show-accounting [read-only]
+  ze-anomaly:show-anomaly                      (show anomaly detect           ) ze-anomaly:show-anomaly [read-only]
+  ze-anomaly:show-observe                      (show anomaly observe          ) ze-anomaly:show-observe [read-only]
+  ze-anomaly:show-shape                        (show anomaly shape            ) ze-anomaly:show-shape [read-only]
+  ze-as112:health                              (request as112 healthcheck     ) ze-as112:health
+  ze-as112:show-as112                          (show as112                    ) ze-as112:show-as112 [read-only]
+  ze-bgp:cache-expire                          (request cache expire          ) ze-bgp:cache-expire
+  ze-bgp:cache-forward                         (send bgp cached               ) ze-bgp:cache-forward
+  ze-bgp:cache-release                         (request cache release         ) ze-bgp:cache-release
+  ze-bgp:cache-retain                          (request cache retain          ) ze-bgp:cache-retain
+  ze-bgp:peer-history                          (show bgp peer history         ) ze-bgp:peer-history [read-only]
+  ze-bgp:peer-pause                            (request peer pause            ) ze-bgp:peer-pause
+  ze-bgp:peer-resume                           (request peer resume           ) ze-bgp:peer-resume
+  ze-bgp:peer-rib                              (show bgp peer rib             ) ze-bgp:peer-rib [read-only]
+  ze-bgp:pool-stats                            (show metrics pool             ) ze-bgp:pool-stats [read-only]
+  ze-bgp:rib-fastpath                          (request bgp rib fastpath      ) ze-bgp:rib-fastpath
+  ze-bgp:rib-protocol                          (show bgp rib protocol         ) ze-bgp:rib-protocol [read-only]
+  ze-bgp:rib-rpf                               (show bgp rib rpf              ) ze-bgp:rib-rpf [read-only]
+  ze-bgp:show-bmp-collectors                   (show bmp collectors           ) ze-bgp:show-bmp-collectors [read-only]
+  ze-bgp:show-bmp-peers                        (show bmp peers                ) ze-bgp:show-bmp-peers [read-only]
+  ze-bgp:show-bmp-rib                          (show bmp rib                  ) ze-bgp:show-bmp-rib [read-only]
+  ze-bgp:show-bmp-sessions                     (show bmp sessions             ) ze-bgp:show-bmp-sessions [read-only]
+  ze-bgp:show-irr-check                        (show bgp irr check            ) ze-bgp:show-irr-check [read-only]
+  ze-bgp:show-irr-prefix                       (show bgp irr prefix           ) ze-bgp:show-irr-prefix [read-only]
+  ze-bgp:show-irr-status                       (show bgp irr                  ) ze-bgp:show-irr-status [read-only]
+  ze-bgp:show-policy-chain                     (show policy chain peer        ) ze-bgp:show-policy-chain [read-only]
+  ze-bgp:show-policy-test                      (show policy test peer         ) ze-bgp:show-policy-test [read-only]
+  ze-bgp:show-reject-asn                       (show bgp reject-asn           ) ze-bgp:show-reject-asn [read-only]
+  ze-bgp:show-reject-asn-known-transit-free    (show bgp reject-asn known transit-free) ze-bgp:show-reject-asn-known-transit-free [read-only]
+  ze-bgp:show-reject-asn-name                  (show bgp reject-asn name      ) ze-bgp:show-reject-asn-name [read-only]
+  ze-bgp:show-rr-peers                         (show rr peers                 ) ze-bgp:show-rr-peers [read-only]
+  ze-bgp:show-rr-status                        (show rr status                ) ze-bgp:show-rr-status [read-only]
+  ze-bgp:update-delay                          (show bgp update-delay         ) ze-bgp:update-delay [read-only]
+  ze-bgp:update-irr-all                        (update bgp irr all            ) ze-bgp:update-irr-all
+  ze-bgp:update-irr-as-set                     (update bgp irr as-set         ) ze-bgp:update-irr-as-set
+  ze-bgp:update-irr-asn                        (update bgp irr asn            ) ze-bgp:update-irr-asn
+  ze-bgp:update-peer-prefix                    (update bgp peer prefix        ) ze-bgp:update-peer-prefix
+  ze-bgp:watchdog-announce                     (request bgp watchdog announce ) ze-bgp:watchdog-announce
+  ze-bgp:watchdog-forget                       (request bgp watchdog forget   ) ze-bgp:watchdog-forget
+  ze-bgp:watchdog-give                         (request bgp watchdog give     ) ze-bgp:watchdog-give
+  ze-bgp:watchdog-withdraw                     (request bgp watchdog withdraw ) ze-bgp:watchdog-withdraw
+  ze-cli:editor-mode-command                                                    ze-cli:editor-mode-command
+  ze-cli:editor-mode-edit                                                       ze-cli:editor-mode-edit
+  ze-cmd:show-audit                            (show audit                    ) ze-cmd:show-audit [read-only]
+  ze-cmd:show-errors                           (show errors                   ) ze-cmd:show-errors [read-only]
+  ze-cmd:show-policy-list                      (show policy list              ) ze-cmd:show-policy-list [read-only]
+  ze-cmd:show-reload-status                    (show reload-status            ) ze-cmd:show-reload-status [read-only]
+  ze-cmd:show-system-cpu                       (show system cpu               ) ze-cmd:show-system-cpu [read-only]
+  ze-cmd:show-system-date                      (show system date              ) ze-cmd:show-system-date [read-only]
+  ze-cmd:show-system-file-descriptors          (show system file-descriptors  ) ze-cmd:show-system-file-descriptors [read-only]
+  ze-cmd:show-system-goroutines                (show system goroutines        ) ze-cmd:show-system-goroutines [read-only]
+  ze-cmd:show-system-memory                    (show runtime memory           ) ze-cmd:show-system-memory [read-only]
+  ze-cmd:show-system-memory-map                (show system memory            ) ze-cmd:show-system-memory-map [read-only]
+  ze-cmd:show-system-platform                  (show system platform          ) ze-cmd:show-system-platform [read-only]
+  ze-cmd:show-system-profile                   (show system profile           ) ze-cmd:show-system-profile [read-only]
+  ze-cmd:show-system-sockets                   (show system sockets           ) ze-cmd:show-system-sockets [read-only]
+  ze-cmd:show-system-subsystem-list            (show system subsystem list    ) ze-cmd:show-system-subsystem-list [read-only]
+  ze-cmd:show-uptime                           (show uptime                   ) ze-cmd:show-uptime [read-only]
+  ze-cmd:show-version                          (show version                  ) ze-cmd:show-version [read-only]
+  ze-config:data-backup                        (request data backup           ) ze-config:data-backup
+  ze-config:data-restore                       (request data restore          ) ze-config:data-restore
+  ze-config:show-config-running                (show config running           ) ze-config:show-config-running [read-only]
+  ze-crashes:show-crashes                      (show crashes                  ) ze-crashes:show-crashes [read-only]
+  ze-ddos:show-flowspec                        (show ddos flowspec            ) ze-ddos:show-flowspec [read-only]
+  ze-ddos:show-incidents                       (show ddos incidents           ) ze-ddos:show-incidents [read-only]
+  ze-ddos:show-local                           (show ddos local               ) ze-ddos:show-local [read-only]
+  ze-ddos:show-status                          (show ddos status              ) ze-ddos:show-status [read-only]
+  ze-debug:debug-state                         (show debug                    ) ze-debug:debug-state [read-only]
+  ze-diag:show-capture-interface               (show capture interface        ) ze-diag:show-capture-interface [read-only]
+  ze-diag:show-capture-raw                     (show capture raw              ) ze-diag:show-capture-raw [read-only]
+  ze-diag:show-tcp-check                       (show tcp-check                ) ze-diag:show-tcp-check [read-only]
+  ze-doctor:show-doctor                        (show doctor                   ) ze-doctor:show-doctor [read-only]
+  ze-firewall:clear-domain-group               (clear firewall domain-group   ) ze-firewall:clear-domain-group
+  ze-firewall:clear-irr-as-set                 (clear firewall irr as-set     ) ze-firewall:clear-irr-as-set
+  ze-firewall:clear-irr-asn                    (clear firewall irr asn        ) ze-firewall:clear-irr-asn
+  ze-firewall:show-domain-group-status         (show firewall domain-group    ) ze-firewall:show-domain-group-status [read-only]
+  ze-firewall:show-group                       (show firewall group           ) ze-firewall:show-group [read-only]
+  ze-firewall:show-irr-prefix                  (show firewall irr prefix      ) ze-firewall:show-irr-prefix [read-only]
+  ze-firewall:show-irr-status                  (show firewall irr             ) ze-firewall:show-irr-status [read-only]
+  ze-firewall:show-ruleset                     (show firewall ruleset         ) ze-firewall:show-ruleset [read-only]
+  ze-firewall:show-system-conntrack            (show system conntrack         ) ze-firewall:show-system-conntrack [read-only]
+  ze-firewall:update-domain-group              (update firewall domain-group  ) ze-firewall:update-domain-group
+  ze-firewall:update-irr-all                   (update firewall irr all       ) ze-firewall:update-irr-all
+  ze-firewall:update-irr-as-set                (update firewall irr as-set    ) ze-firewall:update-irr-as-set
+  ze-firewall:update-irr-asn                   (update firewall irr asn       ) ze-firewall:update-irr-asn
+  ze-flowexport:show-flow-export               (show flow export              ) ze-flowexport:show-flow-export [read-only]
+  ze-flowexport:show-flow-recent               (show flow recent              ) ze-flowexport:show-flow-recent [read-only]
+  ze-geodns:show-geodns                        (show geodns                   ) ze-geodns:show-geodns [read-only]
+  ze-gnmi:show-gnmi                            (show gnmi                     ) ze-gnmi:show-gnmi [read-only]
+  ze-host:set-system-file-descriptors          (set system file-descriptors   ) ze-host:set-system-file-descriptors
+  ze-host:show-all                             (show host                     ) ze-host:show-all [read-only]
+  ze-host:show-cpu                             (show host cpu                 ) ze-host:show-cpu [read-only]
+  ze-host:show-dmi                             (show host dmi                 ) ze-host:show-dmi [read-only]
+  ze-host:show-kernel                          (show host kernel              ) ze-host:show-kernel [read-only]
+  ze-host:show-memory                          (show host memory              ) ze-host:show-memory [read-only]
+  ze-host:show-nic                             (show host nic                 ) ze-host:show-nic [read-only]
+  ze-host:show-platform                        (show host platform            ) ze-host:show-platform [read-only]
+  ze-host:show-storage                         (show host storage             ) ze-host:show-storage [read-only]
+  ze-host:show-system-kernel-log               (show system kernel-log        ) ze-host:show-system-kernel-log [read-only]
+  ze-host:show-thermal                         (show host thermal             ) ze-host:show-thermal [read-only]
+  ze-iface:interface-create-bridge             (create interface bridge name  ) ze-iface:interface-create-bridge
+  ze-iface:interface-down                      (request interface down        ) ze-iface:interface-down
+  ze-iface:interface-mac                       (request interface mac         ) ze-iface:interface-mac
+  ze-iface:interface-mtu                       (request interface mtu         ) ze-iface:interface-mtu
+  ze-iface:interface-up                        (request interface up          ) ze-iface:interface-up
+  ze-iface:monitor-interface-rate              (monitor interface rate        ) ze-iface:monitor-interface-rate [read-only]
+  ze-iface:monitor-system-netlink              (monitor system netlink        ) ze-iface:monitor-system-netlink [read-only]
+  ze-iface:show-arp                            (show arp                      ) ze-iface:show-arp [read-only]
+  ze-iface:show-interface                      (show interface                ) ze-iface:show-interface [read-only]
+  ze-iface:show-interface-brief                (show interface brief          ) ze-iface:show-interface-brief [read-only]
+  ze-iface:show-interface-counters             (show interface name counters  ) ze-iface:show-interface-counters [read-only]
+  ze-iface:show-interface-detail               (show interface name detail    ) ze-iface:show-interface-detail [read-only]
+  ze-iface:show-interface-errors               (show interface errors         ) ze-iface:show-interface-errors [read-only]
+  ze-iface:show-interface-rate                 (show interface rate           ) ze-iface:show-interface-rate [read-only]
+  ze-iface:show-interface-scan                 (show interface scan           ) ze-iface:show-interface-scan [read-only]
+  ze-iface:show-interface-type                 (show interface type           ) ze-iface:show-interface-type [read-only]
+  ze-iface:show-neighbor                       (show neighbor                 ) ze-iface:show-neighbor [read-only]
+  ze-iface:show-route                          (show route                    ) ze-iface:show-route [read-only]
+  ze-iface:show-vpp-runtime                    (show vpp runtime              ) ze-iface:show-vpp-runtime [read-only]
+  ze-iface:show-vpp-trace-clear                (show vpp trace clear          ) ze-iface:show-vpp-trace-clear [read-only]
+  ze-iface:show-vpp-trace-show                 (show vpp trace show           ) ze-iface:show-vpp-trace-show [read-only]
+  ze-iface:show-vpp-trace-start                (show vpp trace start          ) ze-iface:show-vpp-trace-start [read-only]
+  ze-ike:clear-vpn-ipsec-sa                    (clear vpn ipsec sa all        ) ze-ike:clear-vpn-ipsec-sa
+  ze-ike:clear-vpn-ipsec-sa-peer               (clear vpn ipsec sa peer       ) ze-ike:clear-vpn-ipsec-sa-peer
+  ze-ike:monitor-vpn-ipsec                     (monitor vpn ipsec             ) ze-ike:monitor-vpn-ipsec [read-only]
+  ze-ike:show-vpn-ipsec-dataplane-drift        (show vpn ipsec dataplane drift) ze-ike:show-vpn-ipsec-dataplane-drift [read-only]
+  ze-ike:show-vpn-ipsec-dataplane-policy       (show vpn ipsec dataplane policy) ze-ike:show-vpn-ipsec-dataplane-policy [read-only]
+  ze-ike:show-vpn-ipsec-dataplane-sa           (show vpn ipsec dataplane sa   ) ze-ike:show-vpn-ipsec-dataplane-sa [read-only]
+  ze-ike:show-vpn-ipsec-peer                   (show vpn ipsec peer name      ) ze-ike:show-vpn-ipsec-peer [read-only]
+  ze-ike:show-vpn-ipsec-sa                     (show vpn ipsec sa             ) ze-ike:show-vpn-ipsec-sa [read-only]
+  ze-ike:show-vpn-ipsec-status                 (show vpn ipsec status         ) ze-ike:show-vpn-ipsec-status [read-only]
+  ze-isis:clear-adjacency                      (clear isis adjacency all      ) ze-isis:clear-adjacency
+  ze-isis:clear-counters                       (clear isis counters           ) ze-isis:clear-counters
+  ze-isis:show-database                        (show isis database            ) ze-isis:show-database [read-only]
+  ze-isis:show-database-detail                 (show isis database detail     ) ze-isis:show-database-detail [read-only]
+  ze-isis:show-hostname                        (show isis hostname            ) ze-isis:show-hostname [read-only]
+  ze-isis:show-interface                       (show isis interface           ) ze-isis:show-interface [read-only]
+  ze-isis:show-neighbor                        (show isis neighbor            ) ze-isis:show-neighbor [read-only]
+  ze-isis:show-route                           (show isis route               ) ze-isis:show-route [read-only]
+  ze-isis:show-route-ipv6                      (show isis route ipv6          ) ze-isis:show-route-ipv6 [read-only]
+  ze-isis:show-spf-log                         (show isis spf-log             ) ze-isis:show-spf-log [read-only]
+  ze-l2tp:session-traffic                      (show l2tp session traffic     ) ze-l2tp:session-traffic [read-only]
+  ze-l2tp:subscriber-detail                    (show subscriber id detail     ) ze-l2tp:subscriber-detail [read-only]
+  ze-l2tp:subscriber-summary                   (show subscriber               ) ze-l2tp:subscriber-summary [read-only]
+  ze-ldp:show-binding                          (show ldp binding              ) ze-ldp:show-binding [read-only]
+  ze-ldp:show-neighbor                         (show ldp neighbor             ) ze-ldp:show-neighbor [read-only]
+  ze-mpls:show-forwarding                      (show mpls forwarding          ) ze-mpls:show-forwarding [read-only]
+  ze-mtu:show-mtu                              (show mtu                      ) ze-mtu:show-mtu [read-only]
+  ze-ntp:show-system-ntp                       (show system ntp               ) ze-ntp:show-system-ntp [read-only]
+  ze-ntp:show-system-ntp-peers                 (show system ntp peers         ) ze-ntp:show-system-ntp-peers [read-only]
+  ze-ospf:clear-counters                       (clear ospf counters           ) ze-ospf:clear-counters
+  ze-ospf:clear-neighbor                       (clear ospf neighbor all       ) ze-ospf:clear-neighbor
+  ze-ospf:clear-process                        (clear ospf process all        ) ze-ospf:clear-process
+  ze-ospf:debug-inject                         (debug ip ospf inject opaque   ) ze-ospf:debug-inject
+  ze-ospf:debug-inject-disable                 (debug ospf inject disable     ) ze-ospf:debug-inject-disable
+  ze-ospf:debug-inject-enable                  (debug ospf inject enable      ) ze-ospf:debug-inject-enable
+  ze-ospf:debug-ospfv3-inject                  (debug ipv6 ospf inject lsa    ) ze-ospf:debug-ospfv3-inject
+  ze-ospf:graceful-restart-prepare             (request ospf graceful-restart ) ze-ospf:graceful-restart-prepare
+  ze-ospf:show-border-routers                  (show ospf border-routers      ) ze-ospf:show-border-routers [read-only]
+  ze-ospf:show-database                        (show ospf database            ) ze-ospf:show-database [read-only]
+  ze-ospf:show-database-asbr-summary           (show ospf database asbr-summary) ze-ospf:show-database-asbr-summary [read-only]
+  ze-ospf:show-database-external               (show ospf database external   ) ze-ospf:show-database-external [read-only]
+  ze-ospf:show-database-network                (show ospf database network    ) ze-ospf:show-database-network [read-only]
+  ze-ospf:show-database-nssa-external          (show ospf database nssa-external) ze-ospf:show-database-nssa-external [read-only]
+  ze-ospf:show-database-opaque-area            (show ospf database opaque-area) ze-ospf:show-database-opaque-area [read-only]
+  ze-ospf:show-database-opaque-area-detail     (show ospf database opaque-area detail) ze-ospf:show-database-opaque-area-detail [read-only]
+  ze-ospf:show-database-opaque-as              (show ospf database opaque-as  ) ze-ospf:show-database-opaque-as [read-only]
+  ze-ospf:show-database-opaque-as-detail       (show ospf database opaque-as detail) ze-ospf:show-database-opaque-as-detail [read-only]
+  ze-ospf:show-database-opaque-link            (show ospf database opaque-link) ze-ospf:show-database-opaque-link [read-only]
+  ze-ospf:show-database-opaque-link-detail     (show ospf database opaque-link detail) ze-ospf:show-database-opaque-link-detail [read-only]
+  ze-ospf:show-database-router                 (show ospf database router     ) ze-ospf:show-database-router [read-only]
+  ze-ospf:show-database-router-information     (show ospf database router-information) ze-ospf:show-database-router-information [read-only]
+  ze-ospf:show-database-summary                (show ospf database summary    ) ze-ospf:show-database-summary [read-only]
+  ze-ospf:show-graceful-restart                (show ospf graceful-restart    ) ze-ospf:show-graceful-restart [read-only]
+  ze-ospf:show-instance                        (show ospf instance            ) ze-ospf:show-instance [read-only]
+  ze-ospf:show-interface                       (show ospf interface           ) ze-ospf:show-interface [read-only]
+  ze-ospf:show-interface-detail                (show ospf interface detail    ) ze-ospf:show-interface-detail [read-only]
+  ze-ospf:show-ipv6                            (show ospf ipv6                ) ze-ospf:show-ipv6 [read-only]
+  ze-ospf:show-ipv6-graceful-restart           (show ospf ipv6 graceful-restart) ze-ospf:show-ipv6-graceful-restart [read-only]
+  ze-ospf:show-ipv6-interface                  (show ospf ipv6 interface      ) ze-ospf:show-ipv6-interface [read-only]
+  ze-ospf:show-ipv6-segment-routing            (show ospf ipv6 segment-routing) ze-ospf:show-ipv6-segment-routing [read-only]
+  ze-ospf:show-ldp-sync                        (show ospf ldp-sync            ) ze-ospf:show-ldp-sync [read-only]
+  ze-ospf:show-neighbor                        (show ospf neighbor            ) ze-ospf:show-neighbor [read-only]
+  ze-ospf:show-neighbor-detail                 (show ospf neighbor detail     ) ze-ospf:show-neighbor-detail [read-only]
+  ze-ospf:show-ospf                            (show ospf                     ) ze-ospf:show-ospf [read-only]
+  ze-ospf:show-ospfv3-database                 (show ospf ipv6 database       ) ze-ospf:show-ospfv3-database [read-only]
+  ze-ospf:show-ospfv3-database-detail          (show ospf ipv6 database detail) ze-ospf:show-ospfv3-database-detail [read-only]
+  ze-ospf:show-ospfv3-database-extended        (show ospf ipv6 database extended) ze-ospf:show-ospfv3-database-extended [read-only]
+  ze-ospf:show-ospfv3-database-router-detail   (show ospf ipv6 database router detail) ze-ospf:show-ospfv3-database-router-detail [read-only]
+  ze-ospf:show-ospfv3-database-router-information (show ospf ipv6 database router-information) ze-ospf:show-ospfv3-database-router-information [read-only]
+  ze-ospf:show-ospfv3-database-scope-area      (show ospf ipv6 database scope area) ze-ospf:show-ospfv3-database-scope-area [read-only]
+  ze-ospf:show-ospfv3-database-scope-as        (show ospf ipv6 database scope as) ze-ospf:show-ospfv3-database-scope-as [read-only]
+  ze-ospf:show-ospfv3-database-scope-link      (show ospf ipv6 database scope link) ze-ospf:show-ospfv3-database-scope-link [read-only]
+  ze-ospf:show-ospfv3-database-segment-routing (show ospf ipv6 database segment-routing) ze-ospf:show-ospfv3-database-segment-routing [read-only]
+  ze-ospf:show-ospfv3-instance                 (show ospf ipv6 instance       ) ze-ospf:show-ospfv3-instance [read-only]
+  ze-ospf:show-ospfv3-interface-detail         (show ospf ipv6 interface detail) ze-ospf:show-ospfv3-interface-detail [read-only]
+  ze-ospf:show-ospfv3-neighbor                 (show ospf ipv6 neighbor       ) ze-ospf:show-ospfv3-neighbor [read-only]
+  ze-ospf:show-ospfv3-neighbor-detail          (show ospf ipv6 neighbor detail) ze-ospf:show-ospfv3-neighbor-detail [read-only]
+  ze-ospf:show-ospfv3-spf                      (show ospf ipv6 spf            ) ze-ospf:show-ospfv3-spf [read-only]
+  ze-ospf:show-ospfv3-spf-detail               (show ospf ipv6 spf detail     ) ze-ospf:show-ospfv3-spf-detail [read-only]
+  ze-ospf:show-route                           (show ospf route               ) ze-ospf:show-route [read-only]
+  ze-ospf:show-route-fast-reroute              (show ospf route fast-reroute  ) ze-ospf:show-route-fast-reroute [read-only]
+  ze-ospf:show-segment-routing                 (show ospf segment-routing     ) ze-ospf:show-segment-routing [read-only]
+  ze-ospf:show-spf                             (show ospf spf                 ) ze-ospf:show-spf [read-only]
+  ze-ospf:show-spf-detail                      (show ospf spf detail          ) ze-ospf:show-spf-detail [read-only]
+  ze-ospf:show-te-database                     (show ospf te-database         ) ze-ospf:show-te-database [read-only]
+  ze-ospf:show-virtual-links                   (show ospf virtual-links       ) ze-ospf:show-virtual-links [read-only]
+  ze-ping:monitor-ping                         (monitor ping                  ) ze-ping:monitor-ping [read-only]
+  ze-ping:resolve-ping                         (resolve ping                  ) ze-ping:resolve-ping [read-only]
+  ze-pki:show-certificate-bundle-pem           (show pki certificate name bundle pem) ze-pki:show-certificate-bundle-pem [read-only]
+  ze-pki:show-certificate-fingerprint          (show pki certificate name fingerprint) ze-pki:show-certificate-fingerprint [read-only]
+  ze-pki:show-certificate-pem                  (show pki certificate name pem ) ze-pki:show-certificate-pem [read-only]
+  ze-pki:show-local-ca-pem                     (show pki local-ca pem         ) ze-pki:show-local-ca-pem [read-only]
+  ze-policyroute:show-policy-routes            (show policy routes            ) ze-policyroute:show-policy-routes [read-only]
+  ze-resolve:clear-cymru-cache-address         (clear cymru cache address     ) ze-resolve:clear-cymru-cache-address
+  ze-resolve:clear-cymru-cache-all             (clear cymru cache all         ) ze-resolve:clear-cymru-cache-all
+  ze-resolve:clear-dns-cache-record            (clear dns cache record        ) ze-resolve:clear-dns-cache-record
+  ze-resolve:clear-dns-cache-stats             (clear dns cache stats         ) ze-resolve:clear-dns-cache-stats
+  ze-resolve:clear-irr-cache-all               (clear irr cache all           ) ze-resolve:clear-irr-cache-all
+  ze-resolve:clear-irr-cache-as-set            (clear irr cache as-set        ) ze-resolve:clear-irr-cache-as-set
+  ze-resolve:clear-peeringdb-cache-all         (clear peeringdb cache all     ) ze-resolve:clear-peeringdb-cache-all
+  ze-resolve:clear-peeringdb-cache-asn         (clear peeringdb cache asn     ) ze-resolve:clear-peeringdb-cache-asn
+  ze-resolve:show-dns-cache-list               (show dns cache list           ) ze-resolve:show-dns-cache-list [read-only]
+  ze-resolve:show-dns-cache-record             (show dns cache record         ) ze-resolve:show-dns-cache-record [read-only]
+  ze-resolve:show-dns-cache-stats              (show dns cache stats          ) ze-resolve:show-dns-cache-stats [read-only]
+  ze-resolve:show-dns-lookup                   (show dns lookup               ) ze-resolve:show-dns-lookup [read-only]
+  ze-resolve:show-rir                          (show resolve rir              ) ze-resolve:show-rir [read-only]
+  ze-resolve:update-rir                        (update resolve rir            ) ze-resolve:update-rir
+  ze-rsvpte:show-rsvp-te-fast-reroute          (show rsvp-te fast-reroute     ) ze-rsvpte:show-rsvp-te-fast-reroute [read-only]
+  ze-rsvpte:show-rsvp-te-interface             (show rsvp-te interface        ) ze-rsvpte:show-rsvp-te-interface [read-only]
+  ze-rsvpte:show-rsvp-te-lsp                   (show rsvp-te lsp              ) ze-rsvpte:show-rsvp-te-lsp [read-only]
+  ze-rsvpte:show-rsvp-te-tunnel                (show rsvp-te tunnel           ) ze-rsvpte:show-rsvp-te-tunnel [read-only]
+  ze-static:show-static                        (show static                   ) ze-static:show-static [read-only]
+  ze-storage:show-smart                        (show storage smart            ) ze-storage:show-smart [read-only]
+  ze-traceroute:monitor-traceroute             (monitor traceroute            ) ze-traceroute:monitor-traceroute [read-only]
+  ze-traceroute:resolve-traceroute             (resolve traceroute            ) ze-traceroute:resolve-traceroute [read-only]
+  ze-traceroute:show-probe-round               (show probe-round              ) ze-traceroute:show-probe-round [read-only]
+  ze-traceroute:show-traceroute                (show traceroute               ) ze-traceroute:show-traceroute [read-only]
+  ze-trafficfeature:show-traffic-feature       (show traffic feature          ) ze-trafficfeature:show-traffic-feature [read-only]
+  ze-trafficstat:monitor-traffic-stat          (monitor traffic stat          ) ze-trafficstat:monitor-traffic-stat [read-only]
+  ze-trafficstat:show-traffic-stat             (show traffic stat             ) ze-trafficstat:show-traffic-stat [read-only]
+  ze-trafficusage:show-traffic-usage           (show traffic usage            ) ze-trafficusage:show-traffic-usage [read-only]
+  ze-vrrp:clear-statistics                     (clear vrrp statistics all     ) ze-vrrp:clear-statistics
+  ze-vrrp:show-interface                       (show vrrp interface name      ) ze-vrrp:show-interface [read-only]
+  ze-vrrp:show-statistics                      (show vrrp statistics          ) ze-vrrp:show-statistics [read-only]
+  ze-vrrp:show-vrrp                            (show vrrp                     ) ze-vrrp:show-vrrp [read-only]
+
+## Update Text Syntax
+
+  send bgp <selector> update text [attributes] nlri <action> <prefix>...           (IPv4 unicast)
+  send bgp <selector> update text [attributes] mp <family> <action> <nlri>...    (MP_REACH/MP_UNREACH)
+
+  Selectors:  * (all), <ip-address>, <peer-name>
+  Actions:    add <prefix>, del <prefix>, eor
+
+  Attributes (common):
+    origin <igp|egp|incomplete>
+    next-hop <ip-address>             (alias: nhop)
+    local-preference <N>
+    med <N>
+    as-path [<asn> ...]
+    community <value>                 (e.g. 65000:100, no-export)
+    large-community <value>           (e.g. 65000:100:200)
+    extended-community <value>
+
+  Attributes (family-specific):
+    path-id <N>                       (ADD-PATH path identifier)
+    rd <value>                        (Route Distinguisher for VPN)
+    label <N>                         (MPLS label for labeled/VPN)
+
+  Example:
+    send bgp * update text origin igp next-hop 1.1.1.1 local-preference 100 nlri add 10.0.0.0/24
+
+## Address Families
+
+  bgp-ls/bgp-ls            (bgp-nlri-ls)
+  bgp-ls/bgp-ls-vpn        (bgp-nlri-ls)
+  ipv4/flow                (bgp-nlri-flowspec)
+  ipv4/flow-vpn            (bgp-nlri-flowspec)
+  ipv4/mpls-label          (bgp-nlri-labeled)
+  ipv4/mpls-vpn            (bgp-nlri-vpn)
+  ipv4/multicast           (builtin)
+  ipv4/mup                 (bgp-nlri-mup)
+  ipv4/mvpn                (bgp-nlri-mvpn)
+  ipv4/rtc                 (bgp-nlri-rtc)
+  ipv4/sr-policy           (bgp-nlri-srpolicy)
+  ipv4/unicast             (builtin)
+  ipv6/flow                (bgp-nlri-flowspec)
+  ipv6/flow-vpn            (bgp-nlri-flowspec)
+  ipv6/mpls-label          (bgp-nlri-labeled)
+  ipv6/mpls-vpn            (bgp-nlri-vpn)
+  ipv6/multicast           (builtin)
+  ipv6/mup                 (bgp-nlri-mup)
+  ipv6/mvpn                (bgp-nlri-mvpn)
+  ipv6/sr-policy           (bgp-nlri-srpolicy)
+  ipv6/unicast             (builtin)
+  l2vpn/evpn               (bgp-nlri-evpn)
+  l2vpn/vpls               (bgp-nlri-vpls)
+
+## Plugins
+
+  anomaly-detect           Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature
+  anomaly-observe          Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI
+  anomaly-shape            Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch
+  as112                    AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)
+  bfd                      Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)
+    RFCs: 5880, 5881, 5882, 5883
+  bgp                      BGP routing daemon
+  bgp-adj-rib-in           Adj-RIB-In storage (raw hex replay)
+    RFCs: 4271
+  bgp-aigp                 Accumulated IGP Metric (RFC 7311)
+    RFCs: 7311
+  bgp-bmp                  BMP receiver and sender (RFC 7854, 8671)
+    RFCs: 7854, 8671
+  bgp-capa                 Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message)
+    RFCs: 4760, 6793, 7911, 8654, 8950, draft-abraitis-idr-addpath-paths-limit
+  bgp-epe                  Native BGP Egress Peer Engineering segments
+    RFCs: 9086
+  bgp-filter-aspath        Named AS-path regex filter (ordered entries, first match wins, accept/reject)
+  bgp-filter-aspath-length Named AS-path length filter (accept/reject based on hop count)
+  bgp-filter-community     Community tag/strip filter (standard, large, extended)
+  bgp-filter-community-match Named community match filter (ordered entries, first match wins, accept/reject)
+  bgp-filter-family        Named address-family policy filter: remove a family's NLRI or tear down the session
+  bgp-filter-irr           IRR-based prefix-list filter for eBGP peers
+  bgp-filter-modify        Named route attribute modifier (set local-preference, med, origin, next-hop)
+  bgp-filter-path-asn      Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position
+  bgp-filter-prefix        Named prefix-list filter (CIDR + ge/le + accept/reject)
+  bgp-filter-remove-private-as Named AS-path action filter that removes RFC 6996 Private Use ASNs
+  bgp-gr                   Graceful Restart capability and mechanism plugin
+    RFCs: 4724, 9494
+  bgp-healthcheck          Service healthcheck plugin with watchdog route control
+  bgp-hostname             FQDN capability decoding
+    RFCs: draft-walton-bgp-hostname-capability
+  bgp-llnh                 Link-Local Next-Hop capability plugin
+  bgp-ls-export            Export native routing databases through BGP-LS
+    RFCs: 9552, 9085, 9086, 9514
+  bgp-nlri-evpn            EVPN family plugin
+    RFCs: 7432, 9136
+    Families: l2vpn/evpn
+  bgp-nlri-flowspec        FlowSpec NLRI encoding/decoding
+    RFCs: 8955, 8956
+    Families: ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn
+  bgp-nlri-labeled         Labeled Unicast family plugin (RFC 8277)
+    RFCs: 8277
+    Families: ipv4/mpls-label, ipv6/mpls-label
+  bgp-nlri-ls              BGP-LS family plugin
+    RFCs: 7752, 9085, 9514
+    Families: bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn
+  bgp-nlri-mup             Mobile User Plane family plugin (draft-ietf-bess-mup-safi)
+    Families: ipv4/mup, ipv6/mup
+  bgp-nlri-mvpn            Multicast VPN family plugin (RFC 6514)
+    RFCs: 6514
+    Families: ipv4/mvpn, ipv6/mvpn
+  bgp-nlri-rtc             Route Target Constraint family plugin (RFC 4684)
+    RFCs: 4684
+    Families: ipv4/rtc
+  bgp-nlri-srpolicy        SR-Policy family plugin (RFC 9830, SAFI 73)
+    Families: ipv4/sr-policy, ipv6/sr-policy
+  bgp-nlri-vpls            VPLS family plugin (RFC 4761)
+    RFCs: 4761, 4762
+    Families: l2vpn/vpls
+  bgp-nlri-vpn             VPN family plugin
+    RFCs: 4364, 4659
+    Families: ipv4/mpls-vpn, ipv6/mpls-vpn
+  bgp-rib                  Route Information Base storage
+    RFCs: 4271
+  bgp-role                 RFC 9234 BGP Role capability
+    RFCs: 9234
+  bgp-route-refresh        Route Refresh capability decoding
+    RFCs: 2918, 7313
+  bgp-rpki                 RPKI origin validation via RTR protocol
+    RFCs: 6811, 8210
+  bgp-rpki-decorator       Correlates UPDATE + RPKI events into merged update-rpki events
+  bgp-rr                   Route Reflector
+    RFCs: 4456
+  bgp-rs                   Route Server
+    RFCs: 7947
+  bgp-softver              Software Version capability (code 75)
+    RFCs: draft-abraitis-bgp-version-capability
+  bgp-watchdog             Watchdog route management plugin
+  connected                Connected routes: redistribute directly connected interface prefixes
+  copp                     Control-plane policing: rate-limit new TCP connections to BGP listen port
+  cos                      802.1p class-of-service profile definitions
+  crashes                  Crash capture: kernel crash record harvest at daemon start, crash reports
+  ddos-detect              Automatic DDoS attack detector with two-stage detection
+  ddos-flowspec            DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear
+  ddos-flowtriq            DDoS incident reporter for Flowtriq cloud API
+  ddos-local               DDoS local responder: on-host nft drop on attack detection
+  ddos-observe             DDoS observability: incident store and show ddos status/incidents CLI
+  dhcpserver               DHCP server: address assignment for LAN clients (RFC 2131)
+  exabgp-bridge            In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)
+  fib-kernel               FIB kernel: programs OS routes from system RIB via netlink/route socket
+  fib-p4                   FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime
+  fib-vpp                  FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API
+  firewall                 Packet filter and NAT rules (nftables on Linux)
+  firewall-domain          DNS-sourced address groups for firewall rules
+  firewall-irr             IRR-based prefix-list filtering for firewall rules
+  flow-export              sFlow, NetFlow v9, and IPFIX counter export
+  flowspec-firewall        Translates BGP FlowSpec routes into nftables firewall rules
+  geodns                   GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)
+  ike                      IKEv2 engine for native IPsec VPN
+  imageserver              Image server: HTTP provisioning for disk images and boot files
+  interface                OS network interface monitoring and management
+  isis                     Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP
+    RFCs: 1195, 5301, 5303, 5305, 5308, 5310
+  kernel                   Kernel routes: redistribute externally-installed kernel routes into BGP
+  l2tp-auth-local          Static local user list for L2TP PPP authentication
+  l2tp-auth-radius         RADIUS authentication and accounting for L2TP PPP sessions
+  l2tp-pool                IPv4 address and IPv6 prefix pool for L2TP PPP sessions
+  l2tp-shaper              Traffic shaping for L2TP subscriber sessions
+  ldp                      Label Distribution Protocol (RFC 5036): MPLS label distribution
+  loop                     Route loop detection (RFC 4271 S9, RFC 4456 S8)
+    RFCs: 4271, 4456
+  mrt                      MRT routing information export (RFC 6396)
+  ntp                      NTP client: system clock synchronization
+  ospf                     Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP
+    RFCs: 2328, 5709, 7474, 9129
+  policy-routes            Policy-based routing: nftables packet marking and ip rule table selection
+  redistribute-orchestrator Redistribute orchestrator: dispatches protocol route events to registered consumers
+  rib                      System RIB: selects best route across protocols by admin distance
+  routing-table            Named routing table registry: maps names to kernel table IDs
+  rsvp-te                  RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)
+  static                   Static routes: config-driven kernel/VPP route programming with ECMP
+  sysctl                   Kernel tunable management: three-layer precedence, restore on stop
+  tftpserver               TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)
+  traffic                  Traffic control (tc) qdisc, class, and filter management
+  traffic-usage            eBPF TCX per-port and per-IP byte accounting
+  vpp                      VPP data plane lifecycle management
+  vrrp                     Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy
+    RFCs: 9568, 3768
+
+## Peer Selectors
+
+  Most commands accept a peer selector to target specific peers.
+  The reactor resolves selectors in priority order:
+
+  *                All peers (default when omitted)
+  192.168.1.1      Exact IP address
+  my-peer          Peer name (from config, takes priority over IP)
+  as65001          All peers with remote AS 65001 (case-insensitive)
+  10.0.0.*         IP glob pattern (per-octet wildcard)
+  !192.168.1.1     Exclusion: all peers except this one
+  10.0.0.1,10.0.0.2  Comma-separated list (RIB commands only)
+
+## Family-Specific Attributes
+
+  Some update text attributes only apply to specific address families:
+
+  path-id <N>        ADD-PATH peers only (any family, requires ADD-PATH capability)
+  rd <value>         VPN families: ipv4/mpls-vpn, ipv6/mpls-vpn, l2vpn/evpn, l2vpn/vpls
+  label <N>          Labeled/VPN: ipv4/mpls-label, ipv6/mpls-label, */vpn
+
+## RIB Show Pipeline
+
+  show bgp rib [scope] [filters...] [terminal]
+  show bgp rib best [filters...] [terminal]
+
+  Scopes (positional, first argument):
+    received         Adj-RIB-In only
+    sent             Adj-RIB-Out only
+    sent-received    Both (default)
+
+  Filters (named, chainable):
+    family <afi/safi>     Address family (e.g. ipv4/unicast)
+    prefix <pattern>      Prefix string match (e.g. 192.168)
+    path <pattern>        AS-path: 64501 (anywhere), ^64501 (anchored), 64501,64502 (contiguous)
+    community <value>     Exact community match (e.g. 65000:100)
+    match <text>          Case-insensitive substring across all fields
+
+  Terminals (last argument):
+    count                 Return {"count": N} instead of routes
+    json                  Full route details (default)
+
+  Examples:
+    show bgp rib received family ipv4/unicast
+    show bgp rib sent prefix 10.0 count
+    show bgp rib received community 65000:100 path ^64501
+    show bgp rib best family ipv4/unicast json
+
+## Dispatch Keys (what you type)
+
+These are the strings accepted by the daemon dispatcher.
+Use with: ze cli -c "<dispatch-key>"
+
+  DISPATCH KEY                             WIRE METHOD
+  clear bgp rib advertised                 ze-bgp:rib-clear-advertised
+  clear bgp rib in                         ze-bgp:rib-clear-in
+  clear bgp rib out                        ze-bgp:rib-clear-out
+  clear cymru cache address                ze-resolve:clear-cymru-cache-address
+  clear cymru cache all                    ze-resolve:clear-cymru-cache-all
+  clear dns cache all                      ze-resolve:clear-dns-cache
+  clear dns cache record                   ze-resolve:clear-dns-cache-record
+  clear dns cache stats                    ze-resolve:clear-dns-cache-stats
+  clear firewall domain-group              ze-firewall:clear-domain-group
+  clear firewall irr as-set                ze-firewall:clear-irr-as-set
+  clear firewall irr asn                   ze-firewall:clear-irr-asn
+  clear interface counters all             ze-iface:clear-interface-counters
+  clear irr cache all                      ze-resolve:clear-irr-cache-all
+  clear irr cache as-set                   ze-resolve:clear-irr-cache-as-set
+  clear isis adjacency all                 ze-isis:clear-adjacency
+  clear isis counters                      ze-isis:clear-counters
+  clear l2tp session all                   ze-l2tp:session-teardown-all
+  clear l2tp session id                    ze-l2tp:session-teardown
+  clear l2tp tunnel all                    ze-l2tp:tunnel-teardown-all
+  clear l2tp tunnel id                     ze-l2tp:tunnel-teardown
+  clear ospf counters                      ze-ospf:clear-counters
+  clear ospf neighbor all                  ze-ospf:clear-neighbor
+  clear ospf process all                   ze-ospf:clear-process
+  clear peeringdb cache all                ze-resolve:clear-peeringdb-cache-all
+  clear peeringdb cache asn                ze-resolve:clear-peeringdb-cache-asn
+  clear vpn ipsec sa all                   ze-ike:clear-vpn-ipsec-sa
+  clear vpn ipsec sa peer                  ze-ike:clear-vpn-ipsec-sa-peer
+  clear vrrp statistics all                ze-vrrp:clear-statistics
+  create bgp peer                          ze-bgp:peer-create
+  create interface address                 ze-iface:interface-addr-add
+  create interface bridge name             ze-iface:interface-create-bridge
+  create interface bridge name unit        ze-iface:interface-unit-add
+  create interface dummy name              ze-iface:interface-create-dummy
+  create interface veth name               ze-iface:interface-create-veth
+  debug ip ospf inject opaque              ze-ospf:debug-inject
+  debug ipv6 ospf inject lsa               ze-ospf:debug-ospfv3-inject
+  debug ospf inject disable                ze-ospf:debug-inject-disable
+  debug ospf inject enable                 ze-ospf:debug-inject-enable
+  delete bgp peer                          ze-bgp:peer-delete
+  delete interface name                    ze-iface:interface-delete
+  delete interface name address            ze-iface:interface-addr-del
+  delete interface name unit               ze-iface:interface-unit-del
+  help                                     ze-meta:bgp-help
+  monitor bgp                              ze-bgp:monitor
+  monitor event                            ze-meta:event-monitor
+  monitor interface rate                   ze-iface:monitor-interface-rate
+  monitor ping                             ze-ping:monitor-ping
+  monitor system netlink                   ze-iface:monitor-system-netlink
+  monitor traceroute                       ze-traceroute:monitor-traceroute
+  monitor traffic stat                     ze-trafficstat:monitor-traffic-stat
+  monitor vpn ipsec                        ze-ike:monitor-vpn-ipsec
+  plugin ack                               ze-meta:bgp-plugin-ack
+  plugin command complete                  ze-plugin:command-complete
+  plugin command help                      ze-plugin:command-help
+  plugin command list                      ze-plugin:command-list
+  plugin encoding                          ze-meta:bgp-plugin-encoding
+  plugin format                            ze-meta:bgp-plugin-format
+  plugin help                              ze-plugin:help
+  plugin session bye                       ze-plugin:session-bye
+  plugin session ping                      ze-plugin:session-ping
+  plugin session ready                     ze-plugin:session-ready
+  request as112 healthcheck                ze-as112:health
+  request bgp rib fastpath                 ze-bgp:rib-fastpath
+  request bgp rib inject                   ze-bgp:rib-inject
+  request bgp rib withdraw                 ze-bgp:rib-withdraw
+  request bgp watchdog announce            ze-bgp:watchdog-announce
+  request bgp watchdog forget              ze-bgp:watchdog-forget
+  request bgp watchdog give                ze-bgp:watchdog-give
+  request bgp watchdog withdraw            ze-bgp:watchdog-withdraw
+  request cache expire                     ze-bgp:cache-expire
+  request cache release                    ze-bgp:cache-release
+  request cache retain                     ze-bgp:cache-retain
+  request commit                           ze-bgp:commit
+  request config archive                   ze-config:archive-trigger
+  request data backup                      ze-config:data-backup
+  request data restore                     ze-config:data-restore
+  request halt                             ze-plugin:system-daemon-quit
+  request interface down                   ze-iface:interface-down
+  request interface mac                    ze-iface:interface-mac
+  request interface migrate                ze-iface:interface-migrate
+  request interface mtu                    ze-iface:interface-mtu
+  request interface up                     ze-iface:interface-up
+  request l2tp outgoing-call remote called ze-l2tp:outgoing-call
+  request log level                        ze-log:bgp-log-set
+  request ospf graceful-restart            ze-ospf:graceful-restart-prepare
+  request peer borr                        ze-bgp:peer-borr
+  request peer clear soft                  ze-bgp:peer-clear-soft
+  request peer disable                     ze-bgp:peer-disable
+  request peer enable                      ze-bgp:peer-enable
+  request peer eorr                        ze-bgp:peer-eorr
+  request peer flush                       ze-bgp:peer-flush
+  request peer notify                      ze-bgp:peer-notify
+  request peer pause                       ze-bgp:peer-pause
+  request peer plugin session ready        ze-bgp:plugin-session-peer-ready
+  request peer refresh                     ze-bgp:peer-refresh
+  request peer resume                      ze-bgp:peer-resume
+  request peer teardown                    ze-bgp:peer-teardown
+  request quiesce                          ze-plugin:system-quiesce
+  request reboot                           ze-plugin:system-daemon-reboot
+  request reload                           ze-plugin:system-daemon-reload
+  request shutdown                         ze-plugin:system-daemon-shutdown
+  request subscribe                        ze-cmd:bgp-subscribe
+  request unsubscribe                      ze-cmd:bgp-unsubscribe
+  resolve cymru asn-name                   ze-resolve:cymru-asn-name
+  resolve dns a                            ze-resolve:dns-a
+  resolve dns aaaa                         ze-resolve:dns-aaaa
+  resolve dns ptr                          ze-resolve:dns-ptr
+  resolve dns txt                          ze-resolve:dns-txt
+  resolve irr expand                       ze-resolve:irr-expand
+  resolve irr prefix                       ze-resolve:irr-prefix
+  resolve peeringdb as-set                 ze-resolve:peeringdb-as-set
+  resolve peeringdb max-prefix             ze-resolve:peeringdb-max-prefix
+  resolve ping                             ze-ping:resolve-ping
+  resolve traceroute                       ze-traceroute:resolve-traceroute
+  send bgp blackhole                       ze-bgp:announce-blackhole
+  send bgp cached                          ze-bgp:cache-forward
+  send bgp flowspec                        ze-bgp:announce-flowspec
+  send bgp raw                             ze-bgp:peer-raw
+  send bgp unicast                         ze-bgp:announce-unicast
+  send bgp update                          ze-bgp:peer-update
+  send bgp withdraw all                    ze-bgp:withdraw-all
+  send bgp withdraw id                     ze-bgp:withdraw-id
+  send bgp withdraw tag                    ze-bgp:withdraw-tag
+  set system file-descriptors              ze-host:set-system-file-descriptors
+  show aaa accounting                      ze-aaa:show-accounting
+  show announcements                       ze-bgp:show-announcements
+  show anomaly detect                      ze-anomaly:show-anomaly
+  show anomaly observe                     ze-anomaly:show-observe
+  show anomaly shape                       ze-anomaly:show-shape
+  show arp                                 ze-iface:show-arp
+  show as112                               ze-as112:show-as112
+  show audit                               ze-cmd:show-audit
+  show bfd profile                         ze-bfd:show-profile
+  show bfd session address                 ze-bfd:show-session
+  show bfd sessions                        ze-bfd:show-sessions
+  show bgp                                 ze-bgp:overview
+  show bgp health                          ze-bgp:show-health
+  show bgp irr                             ze-bgp:show-irr-status
+  show bgp irr check                       ze-bgp:show-irr-check
+  show bgp irr prefix                      ze-bgp:show-irr-prefix
+  show bgp peer capabilities               ze-bgp:peer-capabilities
+  show bgp peer detail                     ze-bgp:peer-detail
+  show bgp peer history                    ze-bgp:peer-history
+  show bgp peer list                       ze-bgp:peer-list
+  show bgp peer rib                        ze-bgp:peer-rib
+  show bgp peer statistics                 ze-bgp:peer-statistics
+  show bgp reject-asn                      ze-bgp:show-reject-asn
+  show bgp reject-asn known transit-free   ze-bgp:show-reject-asn-known-transit-free
+  show bgp reject-asn name                 ze-bgp:show-reject-asn-name
+  show bgp rib                             ze-bgp:rib-routes
+  show bgp rib best                        ze-bgp:rib-best
+  show bgp rib best status                 ze-bgp:rib-best-status
+  show bgp rib protocol                    ze-bgp:rib-protocol
+  show bgp rib rpf                         ze-bgp:rib-rpf
+  show bgp rib status                      ze-bgp:rib-status
+  show bgp update-delay                    ze-bgp:update-delay
+  show bmp collectors                      ze-bgp:show-bmp-collectors
+  show bmp peers                           ze-bgp:show-bmp-peers
+  show bmp rib                             ze-bgp:show-bmp-rib
+  show bmp sessions                        ze-bgp:show-bmp-sessions
+  show cache                               ze-bgp:cache-list
+  show capture                             ze-diag:show-capture
+  show capture interface                   ze-diag:show-capture-interface
+  show capture raw                         ze-diag:show-capture-raw
+  show command complete                    ze-meta:bgp-command-complete
+  show command help                        ze-meta:bgp-command-help
+  show command list                        ze-meta:bgp-command-list
+  show config running                      ze-config:show-config-running
+  show crashes                             ze-crashes:show-crashes
+  show ddos flowspec                       ze-ddos:show-flowspec
+  show ddos incidents                      ze-ddos:show-incidents
+  show ddos local                          ze-ddos:show-local
+  show ddos status                         ze-ddos:show-status
+  show debug                               ze-debug:debug-state
+  show dns cache list                      ze-resolve:show-dns-cache-list
+  show dns cache record                    ze-resolve:show-dns-cache-record
+  show dns cache stats                     ze-resolve:show-dns-cache-stats
+  show dns lookup                          ze-resolve:show-dns-lookup
+  show doctor                              ze-doctor:show-doctor
+  show errors                              ze-cmd:show-errors
+  show event delivery                      ze-cmd:show-event-delivery
+  show event list                          ze-meta:bgp-event-list
+  show event namespaces                    ze-cmd:show-event-namespaces
+  show event recent                        ze-cmd:show-event-recent
+  show firewall domain-group               ze-firewall:show-domain-group-status
+  show firewall group                      ze-firewall:show-group
+  show firewall irr                        ze-firewall:show-irr-status
+  show firewall irr prefix                 ze-firewall:show-irr-prefix
+  show firewall ruleset                    ze-firewall:show-ruleset
+  show flow export                         ze-flowexport:show-flow-export
+  show flow recent                         ze-flowexport:show-flow-recent
+  show geodns                              ze-geodns:show-geodns
+  show gnmi                                ze-gnmi:show-gnmi
+  show health                              ze-cmd:show-health
+  show host                                ze-host:show-all
+  show host cpu                            ze-host:show-cpu
+  show host dmi                            ze-host:show-dmi
+  show host kernel                         ze-host:show-kernel
+  show host memory                         ze-host:show-memory
+  show host nic                            ze-host:show-nic
+  show host platform                       ze-host:show-platform
+  show host storage                        ze-host:show-storage
+  show host thermal                        ze-host:show-thermal
+  show interface                           ze-iface:show-interface
+  show interface brief                     ze-iface:show-interface-brief
+  show interface errors                    ze-iface:show-interface-errors
+  show interface name counters             ze-iface:show-interface-counters
+  show interface name detail               ze-iface:show-interface-detail
+  show interface rate                      ze-iface:show-interface-rate
+  show interface scan                      ze-iface:show-interface-scan
+  show interface type                      ze-iface:show-interface-type
+  show isis database                       ze-isis:show-database
+  show isis database detail                ze-isis:show-database-detail
+  show isis hostname                       ze-isis:show-hostname
+  show isis interface                      ze-isis:show-interface
+  show isis neighbor                       ze-isis:show-neighbor
+  show isis route                          ze-isis:show-route
+  show isis route ipv6                     ze-isis:show-route-ipv6
+  show isis spf-log                        ze-isis:show-spf-log
+  show l2tp                                ze-l2tp:summary
+  show l2tp config                         ze-l2tp:config
+  show l2tp cqm                            ze-l2tp:cqm
+  show l2tp echo                           ze-l2tp:echo
+  show l2tp health                         ze-l2tp:show-health
+  show l2tp listeners                      ze-l2tp:listeners
+  show l2tp observer                       ze-l2tp:observer
+  show l2tp reliable                       ze-l2tp:reliable
+  show l2tp session history                ze-l2tp:session-history
+  show l2tp session id                     ze-l2tp:session
+  show l2tp session traffic                ze-l2tp:session-traffic
+  show l2tp sessions                       ze-l2tp:sessions
+  show l2tp statistics                     ze-l2tp:statistics
+  show l2tp tunnel history                 ze-l2tp:tunnel-history
+  show l2tp tunnel id                      ze-l2tp:tunnel
+  show l2tp tunnels                        ze-l2tp:tunnels
+  show ldp binding                         ze-ldp:show-binding
+  show ldp neighbor                        ze-ldp:show-neighbor
+  show log levels                          ze-log:bgp-log-levels
+  show log recent                          ze-log:bgp-log-recent
+  show metrics list                        ze-cmd:bgp-metrics-list
+  show metrics name                        ze-cmd:show-metrics-query
+  show metrics pool                        ze-bgp:pool-stats
+  show metrics values                      ze-cmd:bgp-metrics-values
+  show mpls forwarding                     ze-mpls:show-forwarding
+  show mtu                                 ze-mtu:show-mtu
+  show neighbor                            ze-iface:show-neighbor
+  show ospf                                ze-ospf:show-ospf
+  show ospf border-routers                 ze-ospf:show-border-routers
+  show ospf database                       ze-ospf:show-database
+  show ospf database asbr-summary          ze-ospf:show-database-asbr-summary
+  show ospf database external              ze-ospf:show-database-external
+  show ospf database network               ze-ospf:show-database-network
+  show ospf database nssa-external         ze-ospf:show-database-nssa-external
+  show ospf database opaque-area           ze-ospf:show-database-opaque-area
+  show ospf database opaque-area detail    ze-ospf:show-database-opaque-area-detail
+  show ospf database opaque-as             ze-ospf:show-database-opaque-as
+  show ospf database opaque-as detail      ze-ospf:show-database-opaque-as-detail
+  show ospf database opaque-link           ze-ospf:show-database-opaque-link
+  show ospf database opaque-link detail    ze-ospf:show-database-opaque-link-detail
+  show ospf database router                ze-ospf:show-database-router
+  show ospf database router-information    ze-ospf:show-database-router-information
+  show ospf database summary               ze-ospf:show-database-summary
+  show ospf graceful-restart               ze-ospf:show-graceful-restart
+  show ospf instance                       ze-ospf:show-instance
+  show ospf interface                      ze-ospf:show-interface
+  show ospf interface detail               ze-ospf:show-interface-detail
+  show ospf ipv6                           ze-ospf:show-ipv6
+  show ospf ipv6 database                  ze-ospf:show-ospfv3-database
+  show ospf ipv6 database detail           ze-ospf:show-ospfv3-database-detail
+  show ospf ipv6 database extended         ze-ospf:show-ospfv3-database-extended
+  show ospf ipv6 database router detail    ze-ospf:show-ospfv3-database-router-detail
+  show ospf ipv6 database router-information ze-ospf:show-ospfv3-database-router-information
+  show ospf ipv6 database scope area       ze-ospf:show-ospfv3-database-scope-area
+  show ospf ipv6 database scope as         ze-ospf:show-ospfv3-database-scope-as
+  show ospf ipv6 database scope link       ze-ospf:show-ospfv3-database-scope-link
+  show ospf ipv6 database segment-routing  ze-ospf:show-ospfv3-database-segment-routing
+  show ospf ipv6 graceful-restart          ze-ospf:show-ipv6-graceful-restart
+  show ospf ipv6 instance                  ze-ospf:show-ospfv3-instance
+  show ospf ipv6 interface                 ze-ospf:show-ipv6-interface
+  show ospf ipv6 interface detail          ze-ospf:show-ospfv3-interface-detail
+  show ospf ipv6 neighbor                  ze-ospf:show-ospfv3-neighbor
+  show ospf ipv6 neighbor detail           ze-ospf:show-ospfv3-neighbor-detail
+  show ospf ipv6 segment-routing           ze-ospf:show-ipv6-segment-routing
+  show ospf ipv6 spf                       ze-ospf:show-ospfv3-spf
+  show ospf ipv6 spf detail                ze-ospf:show-ospfv3-spf-detail
+  show ospf ldp-sync                       ze-ospf:show-ldp-sync
+  show ospf neighbor                       ze-ospf:show-neighbor
+  show ospf neighbor detail                ze-ospf:show-neighbor-detail
+  show ospf route                          ze-ospf:show-route
+  show ospf route fast-reroute             ze-ospf:show-route-fast-reroute
+  show ospf segment-routing                ze-ospf:show-segment-routing
+  show ospf spf                            ze-ospf:show-spf
+  show ospf spf detail                     ze-ospf:show-spf-detail
+  show ospf te-database                    ze-ospf:show-te-database
+  show ospf virtual-links                  ze-ospf:show-virtual-links
+  show ping                                ze-ping:show-ping
+  show pki certificate name                ze-pki:show-certificate
+  show pki certificate name bundle pem     ze-pki:show-certificate-bundle-pem
+  show pki certificate name fingerprint    ze-pki:show-certificate-fingerprint
+  show pki certificate name pem            ze-pki:show-certificate-pem
+  show pki certificates                    ze-pki:show-certificates
+  show pki local-ca pem                    ze-pki:show-local-ca-pem
+  show policy chain peer                   ze-bgp:show-policy-chain
+  show policy list                         ze-cmd:show-policy-list
+  show policy routes                       ze-policyroute:show-policy-routes
+  show policy test peer                    ze-bgp:show-policy-test
+  show pppoe                               ze-l2tp:pppoe-summary
+  show pppoe interfaces                    ze-l2tp:pppoe-interfaces
+  show pppoe session id                    ze-l2tp:pppoe-session
+  show pppoe sessions                      ze-l2tp:pppoe-sessions
+  show pppoe statistics                    ze-l2tp:pppoe-statistics
+  show probe-round                         ze-traceroute:show-probe-round
+  show reload-status                       ze-cmd:show-reload-status
+  show resolve rir                         ze-resolve:show-rir
+  show route                               ze-iface:show-route
+  show route lookup                        ze-iface:show-route-lookup
+  show rr peers                            ze-bgp:show-rr-peers
+  show rr status                           ze-bgp:show-rr-status
+  show rsvp-te fast-reroute                ze-rsvpte:show-rsvp-te-fast-reroute
+  show rsvp-te interface                   ze-rsvpte:show-rsvp-te-interface
+  show rsvp-te lsp                         ze-rsvpte:show-rsvp-te-lsp
+  show rsvp-te tunnel                      ze-rsvpte:show-rsvp-te-tunnel
+  show runtime memory                      ze-cmd:show-system-memory
+  show static                              ze-static:show-static
+  show status                              ze-plugin:system-daemon-status
+  show storage smart                       ze-storage:show-smart
+  show subscriber                          ze-l2tp:subscriber-summary
+  show subscriber id detail                ze-l2tp:subscriber-detail
+  show system conntrack                    ze-firewall:show-system-conntrack
+  show system cpu                          ze-cmd:show-system-cpu
+  show system date                         ze-cmd:show-system-date
+  show system file-descriptors             ze-cmd:show-system-file-descriptors
+  show system goroutines                   ze-cmd:show-system-goroutines
+  show system kernel-log                   ze-host:show-system-kernel-log
+  show system memory                       ze-cmd:show-system-memory-map
+  show system ntp                          ze-ntp:show-system-ntp
+  show system ntp peers                    ze-ntp:show-system-ntp-peers
+  show system platform                     ze-cmd:show-system-platform
+  show system profile                      ze-cmd:show-system-profile
+  show system sockets                      ze-cmd:show-system-sockets
+  show system subsystem list               ze-cmd:show-system-subsystem-list
+  show system update                       ze-update:show-system-update
+  show system update history               ze-update:show-system-update-history
+  show tcp-check                           ze-diag:show-tcp-check
+  show traceroute                          ze-traceroute:show-traceroute
+  show traffic control                     ze-traffic:show-traffic
+  show traffic feature                     ze-trafficfeature:show-traffic-feature
+  show traffic stat                        ze-trafficstat:show-traffic-stat
+  show traffic usage                       ze-trafficusage:show-traffic-usage
+  show uptime                              ze-cmd:show-uptime
+  show version                             ze-cmd:show-version
+  show vpn ipsec dataplane drift           ze-ike:show-vpn-ipsec-dataplane-drift
+  show vpn ipsec dataplane policy          ze-ike:show-vpn-ipsec-dataplane-policy
+  show vpn ipsec dataplane sa              ze-ike:show-vpn-ipsec-dataplane-sa
+  show vpn ipsec peer name                 ze-ike:show-vpn-ipsec-peer
+  show vpn ipsec sa                        ze-ike:show-vpn-ipsec-sa
+  show vpn ipsec status                    ze-ike:show-vpn-ipsec-status
+  show vpp runtime                         ze-iface:show-vpp-runtime
+  show vpp trace clear                     ze-iface:show-vpp-trace-clear
+  show vpp trace show                      ze-iface:show-vpp-trace-show
+  show vpp trace start                     ze-iface:show-vpp-trace-start
+  show vrrp                                ze-vrrp:show-vrrp
+  show vrrp interface name                 ze-vrrp:show-interface
+  show vrrp statistics                     ze-vrrp:show-statistics
+  show warnings                            ze-cmd:show-warnings
+  system command complete                  ze-plugin:system-command-complete
+  system command help                      ze-plugin:system-command-help
+  system command list                      ze-plugin:system-command-list
+  system dispatch                          ze-plugin:system-dispatch
+  system help                              ze-plugin:system-help
+  system subsystem list                    ze-plugin:system-subsystem-list
+  system version api                       ze-plugin:system-version-api
+  system version software                  ze-plugin:system-version-software
+  update bgp config                        ze-bgp:peer-save
+  update bgp irr all                       ze-bgp:update-irr-all
+  update bgp irr as-set                    ze-bgp:update-irr-as-set
+  update bgp irr asn                       ze-bgp:update-irr-asn
+  update bgp peer prefix                   ze-bgp:update-peer-prefix
+  update firewall domain-group             ze-firewall:update-domain-group
+  update firewall irr all                  ze-firewall:update-irr-all
+  update firewall irr as-set               ze-firewall:update-irr-as-set
+  update firewall irr asn                  ze-firewall:update-irr-asn
+  update resolve rir                       ze-resolve:update-rir
+  update system firmware apply             ze-update:system-firmware-apply
+  update system firmware check             ze-update:system-firmware-check
+  update system firmware download          ze-update:system-firmware-download
+  update system firmware restart           ze-update:system-firmware-restart
+  update system firmware rollback          ze-update:system-firmware-rollback
+
+## MCP Tools (via --mcp <port>)
+
+  Start: ze start --mcp <port> <config>  or  ze --mcp <port> -
+  Connect: POST http://127.0.0.1:<port>/mcp with a JSON-RPC body
+
+  Protocol revision 2026-07-28 (the only one accepted). Stateless: every
+  message is its own POST, with no initialize handshake and no session.
+
+  Required on every POST:
+    MCP-Protocol-Version: 2026-07-28   header, must match the _meta version
+    Mcp-Method: <method>               header, must match the body's method
+    Mcp-Name: <params.name>            header, tools/call + prompts/get
+    Mcp-Name: <params.uri>             header, resources/read
+    params._meta["io.modelcontextprotocol/protocolVersion"]    (required)
+    params._meta["io.modelcontextprotocol/clientCapabilities"] (required, {} is valid)
+
+  Tools are auto-generated from the YANG command registry at tools/list time.
+  Each command group becomes a tool with an action enum. New YANG commands
+  appear as MCP tools automatically.
+
+  Handcrafted tools:
+  ze_execute          Run any Ze command (escape hatch)
+    command           Full command string (REQUIRED)
+
+  ze_reference        Full AI reference for this daemon (same as 'ze help ai --json')
+
+  Call server/discover first to learn the supported versions and capabilities,
+  then tools/list against a live daemon for the full tool inventory.
+
+  JSON-RPC Example (headers shown above are required and not repeated here):
+    {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_execute",
+     "arguments":{"command":"summary"},
+     "_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities":{}}}}
+
+  Every successful result carries resultType:"complete" and
+  _meta["io.modelcontextprotocol/serverInfo"].
+
+## Services (from YANG environment containers)
+
+  Optional services started alongside the BGP daemon.
+  Enable via config block or CLI flag. Web UI requires ze init (blob storage).
+
+  api-server: API engine settings (shared parent; merged across modules)
+    Config:    environment { api-server { } }
+    rest                 REST and HTTP transport for the API server.
+    Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
+
+  api-server: API engine settings (shared parent for the REST/gRPC transports)
+    Config:    environment { api-server { } }
+    token                Bearer token for API authentication.
+    Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
+
+  api-server: API engine settings (shared parent; merged across modules)
+    Config:    environment { api-server { } }
+    grpc                 gRPC API transport. Authenticated non-loopback listeners
+require tls-cert and tls-key.
+    Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
+
+  bgp: BGP protocol environment settings, applied before any peer-level config.
+    Config:    environment { bgp { announce-delay 0s; openwait 120; } }
+    announce-delay       Delay between reactor Ready and first UPDATE (duration, 0s-1h) (default: 0s)
+    openwait             Seconds to wait for peer OPEN after TCP connect (default: 120)
+    Env vars:  ze.bgp.announce.delay, ze.bgp.chaos.rate, ze.bgp.chaos.seed, ze.bgp.openwait, ze.bgp.reactor.cache-max, ze.bgp.reactor.cache-ttl, ze.bgp.reactor.coalesce, ze.bgp.reactor.forward-dedup, ze.bgp.reactor.speed, ze.bgp.reactor.update-groups, ze.bgp.rib.bestprev.shards, ze.bgp.route-server.worker-queue-size
+
+  bmp: BMP receiver settings
+    Config:    environment { bmp { enabled false; max-sessions 100; route-action monitor; } }
+    enabled              Enable BMP receiver (default: false)
+    max-sessions         Maximum concurrent BMP sessions (default: 100)
+    route-action         Action for received BMP Route Monitoring messages (default: monitor)
+    server               BMP receiver listen endpoints
+    Env vars:  ze.gokrazy.enabled, ze.gokrazy.socket
+
+  chaos: Chaos fault injection settings
+    Config:    environment { chaos { rate 0.1; } }
+    rate                 Fault probability per operation (0.0-1.0) (default: 0.1)
+    seed                 PRNG seed (0 = disabled)
+    Env vars:  ze.chaos.bgp.port, ze.chaos.lg.port, ze.chaos.listen.base, ze.chaos.mcp, ze.chaos.metrics, ze.chaos.pprof, ze.chaos.ssh.port, ze.chaos.web, ze.chaos.web.ui.port, ze.chaos.ze.mcp.port
+
+  cli: CLI session settings
+    Config:    environment { cli { transcript disabled; } }
+    format               Default output format settings
+    transcript           CLI session transcript recording to $XDG_DATA_HOME/ze/transcripts/ (default: disabled)
+    Env vars:  ze.cli.format, ze.cli.transcript
+
+  daemon: Daemon settings
+    Config:    environment { daemon { user zeuser; } }
+    pid                  PID file path
+    user                 System user for privilege drop (default: zeuser)
+
+  exabgp: ExaBGP compatibility settings for the migration bridge
+    Config:    environment { exabgp { } }
+    api                  ExaBGP bridge API settings
+
+  gnmi: Settings of the gNMI server.
+    Config:    environment { gnmi { enabled false; } }
+    enabled              Start the gNMI server. (default: false)
+    server               Listen endpoints of the gNMI server.
+    tls                  TLS certificate of the gNMI gRPC transport.
+    token                Bearer token that authenticates a gNMI client.
+    Env vars:  ze.gnmi.enabled, ze.gnmi.listen, ze.gnmi.tls.cert, ze.gnmi.tls.key, ze.gnmi.token
+
+  l2tp: L2TP listener endpoints
+    Config:    environment { l2tp { } }
+    server               L2TP server listen endpoints (UDP)
+    Env vars:  ze.l2tp.cqm.echo-interval, ze.l2tp.metrics.poll-interval
+
+  log: Logging settings
+    Config:    environment { log { destination stdout; level INFO; } }
+    backend              Log output backend (default: stderr)
+    color                Force color log output on (true) or off (false). When unset, auto-detected from terminal.
+    destination          Syslog address used when backend is syslog: empty, a socket path, or host:port (default: stdout)
+    level                Base log level for all subsystems: disabled, debug, info, warn, or err (case-insensitive) (default: INFO)
+    relay                Plugin stderr relay level: disabled, debug, info, warn, or err (case-insensitive)
+    Env vars:  ze.log, ze.log.backend, ze.log.color, ze.log.destination, ze.log.relay
+
+  looking-glass: Looking glass HTTP server settings.
+    Config:    environment { looking-glass { enabled false; tls true; } }
+    certificate          PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).
+    enabled              Enable the looking glass. (default: false)
+    server               Looking glass listen endpoints.
+    tls                  Enable TLS. Override with the ze.looking-glass.tls variable. (default: true)
+    token                Bearer token checked on every /api/ and /lg/ route (ze.looking-glass.token).
+    Env vars:  ze.looking-glass.certificate, ze.looking-glass.enabled, ze.looking-glass.listen, ze.looking-glass.tls, ze.looking-glass.token
+
+  mcp: Settings of the MCP server.
+    CLI flag:  --mcp <port>
+    Config:    environment { mcp { bind-remote false; enabled false; } }
+    auth-mode            Authentication strategy for the MCP server.
+    bind-remote          Allow the MCP server to bind to a non-loopback address. (default: false)
+    enabled              Start the MCP server. (default: false)
+    identity             Per-identity bearer entries, for auth-mode=bearer-list.
+    oauth                OAuth 2.1 resource-server settings, for auth-mode=oauth.
+    server               Listen endpoints of the MCP server.
+    tls                  TLS certificate that serves the MCP endpoint over HTTPS.
+    token                Bearer token for auth-mode=bearer.
+    Env vars:  ze.mcp.auth-mode, ze.mcp.bind-remote, ze.mcp.enabled, ze.mcp.listen, ze.mcp.oauth.audience, ze.mcp.oauth.authorization-server, ze.mcp.oauth.required-scopes, ze.mcp.tls.cert, ze.mcp.tls.key, ze.mcp.token
+
+  mtu: Settings of the path MTU diagnostic.
+    Config:    environment { mtu { } }
+    reference-address    Address show mtu measures to tell a clamped circuit from a clamped peer path.
+    Env vars:  ze.mtu.reference-address
+
+  ntp: Settings of the NTP client.
+    Config:    environment { ntp { enabled false; interval 3600; max-step 3600; persist-path /perm/ze/timefile; slew-threshold 128; } }
+    enabled              Synchronize the system clock with an NTP server. (default: false)
+    interval             Seconds between two clock synchronizations. (default: 3600)
+    max-step             Largest clock step in seconds that Ze accepts. (default: 3600)
+    persist-path         Path of the file that holds the time across a restart. (default: /perm/ze/timefile)
+    server               The NTP servers Ze queries.
+    slew-threshold       Maximum offset in milliseconds for a gradual clock slew. (default: 128)
+    Env vars:  ze.mcp.auth-mode, ze.mcp.bind-remote, ze.mcp.enabled, ze.mcp.listen, ze.mcp.oauth.audience, ze.mcp.oauth.authorization-server, ze.mcp.oauth.required-scopes, ze.mcp.tls.cert, ze.mcp.tls.key, ze.mcp.token
+
+  reactor: BGP reactor engine tuning.
+    Config:    environment { reactor { cache-max 1000000; cache-ttl 60; forward-batch-limit 1024; forward-pool-headroom 0; forward-pool-max-bytes 0; forward-queue-size 256; forward-teardown-grace 5s; read-buffer-size 65536; speed 1.0; update-groups true; write-buffer-size 16384; } }
+    cache-max            Maximum number of cached UPDATE wire messages. (default: 1000000)
+    cache-ttl            Seconds Ze keeps a built UPDATE wire message in the encoding cache. (default: 60)
+    forward-batch-limit  Max items per drain batch. Bounds writeMu hold time during forward dispatch. 0 means unlimited. (default: 1024)
+    forward-pool-headroom Extra bytes beyond the auto-sized pool baseline. (default: 0)
+    forward-pool-max-bytes Combined byte budget for the 4K and 64K buffer pools, in bytes. (default: 0)
+    forward-queue-size   Per-destination forward channel capacity. (default: 256)
+    forward-teardown-grace Grace period before forced teardown on congestion (duration string, e.g. 5s, 1m). (default: 5s)
+    read-buffer-size     Per-session TCP read buffer size in bytes. (default: 65536)
+    speed                Reactor loop cycle time multiplier, from 0.1 to 10.0. (default: 1.0)
+    update-groups        Build each UPDATE once for every peer with the same encoding context. (default: true)
+    write-buffer-size    Per-session TCP write buffer size in bytes. (default: 16384)
+
+  ssh: SSH server settings.
+    Config:    environment { ssh { enabled false; } }
+    enabled              Enable the SSH server. (default: false)
+    host-certificate     Path to the SSH host certificate file, signed by a CA.
+    host-key             Path to the SSH host key file.
+    idle-timeout         Idle timeout in seconds. The default is 600.
+    max-sessions         Maximum number of concurrent SSH sessions.
+    server               SSH server listen endpoints.
+    Env vars:  ze.ssh.ephemeral, ze.ssh.host, ze.ssh.insecure, ze.ssh.password, ze.ssh.port, ze.ssh.username
+
+  web: Web interface settings.
+    CLI flag:  --web <port>  --web-only  --insecure-web
+    Config:    environment { web { enabled false; insecure false; ui-mode finder; } }
+    certificate          Name of the PKI store certificate served on the HTTPS listener (ze.web.certificate).
+    enabled              Enable the web interface. (default: false)
+    insecure             Disable authentication, which forces the host to 127.0.0.1. (default: false)
+    server               Web server listen endpoints.
+    ui-mode              Web UI mode. (default: finder)
+    Env vars:  ze.web.certificate, ze.web.enabled, ze.web.insecure, ze.web.listen, ze.web.ui-mode
+
+## Recipes
+
+  Start daemon with MCP:
+    ze init && ze start --mcp 9718
+
+  Start with config file:
+    ze config validate example.conf && ze --mcp 9718 example.conf
+
+  Announce a route (CLI):
+    ze cli -c "send bgp * update text origin igp next-hop 1.1.1.1 nlri add 10.0.0.0/24"
+
+  Announce a route (MCP; POST to /mcp with the headers from the MCP Tools section):
+    {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_announce",
+     "arguments":{"family":"ipv4/unicast","origin":"igp","next-hop":"1.1.1.1","prefixes":["10.0.0.0/24"]},
+     "_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+              "io.modelcontextprotocol/clientCapabilities":{}}}}
+
+  Check peer state:
+    ze cli -c "show bgp peer list"
+    ze cli -c "show bgp peer test-peer detail"
+
+  Show RIB:
+    ze cli -c "show bgp rib received family ipv4/unicast"
+    ze cli -c "show bgp rib best"
+
+  Monitor live events:
+    ze cli -c "bgp monitor"
+
+  Drain and teardown a peer:
+    ze cli -c "request peer 10.0.0.1 pause"
+    ze cli -c "request peer * flush"
+    ze cli -c "request peer 10.0.0.1 teardown"
+
+  Test without a real peer:
+    le test peer --mode sink --port 1179 --asn 65001
+
+## Common Errors
+
+  unknown family "ipv4-unicast"       Use slash separator: ipv4/unicast
+  peer not found "10.0.0.1"           Peer not configured; check: peer list
+  database already exists              Run: ze init --force (backs up old database)
+  connection refused (SSH)             Daemon not running; start with: ze start
+  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw
+  unknown command "..."                Use: ze_reference (MCP) or ze cli -c "help"
+  web server disabled: persistent store unavailable  Run: ze init (creates the database/ store with TLS certs)
+
+## Minimal Config
+
+  bgp {
+      router-id 10.0.0.1
+      local {
+          as 65000
+      }
+      peer test-peer {
+          remote {
+              ip 10.0.0.2
+              as 65001
+          }
+          local {
+              ip 10.0.0.1
+          }
+          family {
+              ipv4/unicast
+          }
+      }
+  }
+
+  Validate: ze config validate <file>
+  Start:    ze <file>  or  ze start (from database)
+

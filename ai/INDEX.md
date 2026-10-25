@@ -27,6 +27,7 @@ Ask the question from Bash instead
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
 | Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, their open rows and capture; a class is due when its rows counted since its capture reach the threshold the report prints, and due classes come first) |
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
+| Which `./le` command, action and typed parameter does a task need? | Run `./le help ai commands \| json` (every section: `./le help ai all \| yaml`); Tab completion for a shell is `./le completion bash\|zsh\|fish`. Both read the action tables (`docs/contributing/running-commands.md`, "The whole surface for an agent: `le help ai`") |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |
 | What must I respect before I edit a subsystem? (third-party plugins, the process boundary, the public `pkg/` API, its boundaries) | `ai/doors/system.md`, then `ai/doors/<subsystem>.md`. The index is in `ai/doors/README.md` |
