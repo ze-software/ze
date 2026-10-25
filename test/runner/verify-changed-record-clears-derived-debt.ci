@@ -1,0 +1,31 @@
+# A green scoped verification over HEAD empties the derived debt, and a green
+# full verification does not.
+#
+# The fixture builds a throwaway Ze checkout with a bare upstream, commits one
+# change, and asserts the REAL `le commit debt-status` exits 1 (owed). It then
+# runs verify.Run, the lifecycle `le verify worktree` answers through, with a
+# fixture action runner that answers every stage green: a native run over the
+# real population takes this machine's job slots for most of an hour. It
+# asserts the green record sits at the asking root naming HEAD, uncut, and that
+# `le commit debt-status` still exits 1, because a push owes the scoped verify
+# and the debt is derived from the scoped record alone. Last it runs
+# verify.Run over the changed population, the lifecycle `le verify changed`
+# answers through, with the same fixture action runner, asserts the scoped
+# record at the asking root names HEAD, and that `le commit debt-status` then
+# exits 0.
+#
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md) (AC-8, AC-25).
+# Delete the green-record write from the lifecycle (internal/le/verify/lifecycle.go)
+# and seq=1 fails at green-record-at-asking-root; delete the scoped-record
+# write (recordChanged, internal/le/verify/changed.go) and seq=1 fails at
+# scoped-record-at-asking-root.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture runner/verify-changed-record-clears-derived-debt
+expect=exit:code=0
+expect=stdout:contains=debt-owed-before-verify
+expect=stdout:contains=green-record-at-asking-root
+expect=stdout:contains=full-verify-leaves-debt-owed
+expect=stdout:contains=scoped-record-at-asking-root
+expect=stdout:contains=derived-debt-cleared

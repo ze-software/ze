@@ -4,7 +4,7 @@
 # The fixture runs the REAL `le commit create ... remove <spec>
 # review-override "<reason>"` in a throwaway Ze checkout, runs the script, and
 # asserts the commit message carries `Review-owed: <stem>: <reason>` and the
-# commit holds no file under plan/verification-debt/. With a green record over
+# commit holds no file under plan/verification-debt/. With a scoped record over
 # that commit, `le commit push` is refused naming the trailer and the
 # attestation that answers it (AC-13).
 #

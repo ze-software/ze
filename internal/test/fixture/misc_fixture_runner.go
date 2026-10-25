@@ -19,7 +19,7 @@ func init() {
 	Register("runner/verify-scope-wiring-attribution", verifyScopeWiringDriver)
 	Register("runner/commit-push-refused-by-derived-debt", commitPushRefusedByDerivedDebtDriver)
 	Register("runner/commit-push-script-rechecks", commitPushScriptRechecksDriver)
-	Register("runner/verify-green-record-clears-derived-debt", verifyGreenRecordClearsDerivedDebtDriver)
+	Register("runner/verify-changed-record-clears-derived-debt", verifyChangedRecordClearsDerivedDebtDriver)
 	Register("runner/verify-worktree-cut-sweep", verifyWorktreeCutSweepDriver)
 	Register("runner/commit-attest-empty-commit", commitAttestEmptyCommitDriver)
 	Register("runner/commit-review-owed-trailer", commitReviewOwedTrailerDriver)

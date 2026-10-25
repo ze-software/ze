@@ -4,7 +4,7 @@
 # The fixture prepares the script with the REAL `le commit push` over a
 # verified commit P, lands another commit, runs the script, and asserts the
 # bare upstream holds P and not the later commit (D-6, AC-5). It then prepares
-# a script again, removes the green record, runs it, and asserts it exits
+# a script again, removes the scoped record, runs it, and asserts it exits
 # non-zero and the upstream did not move (AC-6): the script's
 # `debt-status commit <P>` line is what stops it.
 #
