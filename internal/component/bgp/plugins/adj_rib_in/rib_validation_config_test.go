@@ -232,8 +232,24 @@ func TestLateReflectorClaimsExistingReplayOwner(t *testing.T) {
 		_ = engineEnd.Close()
 		_ = mux.Close()
 	})
+	// bgp-rr refuses to run forked, so the pipe carries a DirectBridge as an
+	// in-process engine would hand it one. Once the bridge is ready the SDK
+	// sends dispatch-command-args through it rather than the pipe, so the
+	// bridge hands each dispatch to this test, which answers it below.
+	bridge := rpc.NewDirectBridge()
+	dispatches := make(chan rpc.DispatchCommandArgsInput, 1)
+	answers := make(chan *rpc.DispatchCommandOutput, 1)
+	bridge.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+		dispatches <- rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
+		select {
+		case out := <-answers:
+			return out, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
 	finished := make(chan int, 1)
-	go func() { finished <- runner.RunEngine(pluginEnd) }()
+	go func() { finished <- runner.RunEngine(rpc.NewBridgedConn(pluginEnd, bridge)) }()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	request := func(method string) *rpc.Request {
@@ -261,18 +277,22 @@ func TestLateReflectorClaimsExistingReplayOwner(t *testing.T) {
 
 	postStartup := make(chan error, 1)
 	go func() {
-		_, err := mux.CallRPC(ctx, "ze-plugin-callback:post-startup", map[string]any{})
+		// After ready the SDK closes the pipe and reads callbacks from the bridge.
+		_, err := bridge.SendCallback(ctx, "ze-plugin-callback:post-startup", json.RawMessage(`{}`))
 		postStartup <- err
 	}()
-	req = request(rpc.MethodDispatchCommandArgs)
 	var input rpc.DispatchCommandArgsInput
-	require.NoError(t, json.Unmarshal(req.Params, &input))
+	select {
+	case input = <-dispatches:
+	case <-ctx.Done():
+		t.Fatal("reflector did not reach " + rpc.MethodDispatchCommandArgs)
+	}
 	status, result, err := r.handleCommand(input.Command, input.Args, input.Peer)
 	require.NoError(t, err)
 	require.Equal(t, rpc.StatusDone, status)
 	data, err := json.Marshal(result)
 	require.NoError(t, err)
-	require.NoError(t, rpc.WriteDocumentAnswer(mux.AnswerWriter(ctx), req.ID, rpc.AnswerTail{}, data))
+	answers <- &rpc.DispatchCommandOutput{Status: status, Data: data}
 	select {
 	case err := <-postStartup:
 		require.NoError(t, err)
@@ -288,7 +308,7 @@ func TestLateReflectorClaimsExistingReplayOwner(t *testing.T) {
 	require.Equal(t, []string{"192.0.2.2", "192.0.2.4"}, destinations,
 		"late ownership remains scoped to peers the reflector can serve")
 
-	_, err = mux.CallRPC(ctx, "ze-plugin-callback:bye", map[string]any{"reason": "test-complete"})
+	_, err = bridge.SendCallback(ctx, "ze-plugin-callback:bye", json.RawMessage(`{"reason":"test-complete"}`))
 	require.NoError(t, err)
 	select {
 	case code := <-finished:
