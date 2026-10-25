@@ -258,6 +258,9 @@ func minorOf(reference string) (minor string, isGolang, readable bool) {
 	if colon := strings.LastIndex(image, ":"); colon > strings.LastIndex(image, "/") {
 		name, tag = image[:colon], image[colon+1:]
 	}
+	if !referenceName(name) {
+		return "", false, false
+	}
 	if path.Base(name) != moduleImage {
 		return "", false, false
 	}
@@ -270,6 +273,32 @@ func minorOf(reference string) (minor string, isGolang, readable bool) {
 		return "", true, false
 	}
 	return parts[1] + "." + parts[2], true, true
+}
+
+// referenceName reports whether name, the part of a reference before its tag,
+// can name an image at all. The image reference grammar allows a colon in the
+// name only as a registry port (`localhost:5000/golang`). A Docker token scope
+// such as `repository:library/golang:pull` carries one elsewhere: it names the
+// golang repository's pull permission, not an image a build runs in.
+func referenceName(name string) bool {
+	host, rest, found := strings.Cut(name, "/")
+	if strings.Contains(rest, ":") {
+		return false
+	}
+	if found {
+		return registryHost(host)
+	}
+	return !strings.Contains(host, ":")
+}
+
+// registryHost reports whether the first component of a multi-component name
+// is a registry host or a path component: a colon in it is a numeric port.
+func registryHost(host string) bool {
+	_, port, hasPort := strings.Cut(host, ":")
+	if hasPort {
+		return port != "" && strings.Trim(port, "0123456789") == ""
+	}
+	return true
 }
 
 // Check judges every build carrier under root against the declared minor.

@@ -186,6 +186,23 @@ var selftestCases = []selftestCase{
 		}
 		return ""
 	}},
+	{"a-token-scope-is-not-an-image", func() string {
+		scope := judge(goFixture, "package x\n\nconst scope = \"repository:library/golang:pull\"\n")
+		if scope.Carriers != 0 {
+			return describe("case16 (a token scope is not an image): unexpected result ", scope)
+		}
+		if len(scope.Findings) != 0 {
+			return describe("case16 (a token scope is not an image): unexpected result ", scope)
+		}
+		port := judge(goFixture, "package x\n\nconst image = \"localhost:5000/golang:1.26\"\n")
+		if len(port.Findings) != 1 {
+			return describe("case16 (a registry port still names the image): unexpected result ", port)
+		}
+		if port.Findings[0].Reason != ReasonMismatch {
+			return describe("case16 (a registry port still names the image): unexpected result ", port)
+		}
+		return ""
+	}},
 }
 
 // detail answers a lead-in followed by one number.
