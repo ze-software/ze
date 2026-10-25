@@ -9,6 +9,27 @@ import (
 	"testing"
 
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	// The probe registers `test zzprobe`, and the dependencies link areas
+	// under repo and under the namespaces below. Dispatch refuses a first word
+	// with no summary, so the repo and site areas and every namespace package
+	// are linked, as the composition root links them.
+	_ "github.com/ze-software/ze/internal/le/ai"
+	_ "github.com/ze-software/ze/internal/le/arch"
+	_ "github.com/ze-software/ze/internal/le/build"
+	_ "github.com/ze-software/ze/internal/le/chaos"
+	_ "github.com/ze-software/ze/internal/le/cli"
+	_ "github.com/ze-software/ze/internal/le/config"
+	_ "github.com/ze-software/ze/internal/le/data"
+	_ "github.com/ze-software/ze/internal/le/doc"
+	_ "github.com/ze-software/ze/internal/le/go"
+	_ "github.com/ze-software/ze/internal/le/lab"
+	_ "github.com/ze-software/ze/internal/le/plugin"
+	_ "github.com/ze-software/ze/internal/le/repo"
+	_ "github.com/ze-software/ze/internal/le/site"
+	_ "github.com/ze-software/ze/internal/le/spec"
+	_ "github.com/ze-software/ze/internal/le/test"
+	_ "github.com/ze-software/ze/internal/le/web"
+	_ "github.com/ze-software/ze/internal/le/yang"
 )
 
 // TestAnswerForwardsWordsAndExitCode drives the real dispatcher over a probe

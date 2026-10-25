@@ -23,7 +23,29 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+
+	// verifyengine links areas under repo and under the namespaces below, and
+	// Dispatch refuses a first word with no summary, so the repo and site
+	// areas and every namespace package are linked, as the composition root links
+	// them.
+	_ "github.com/ze-software/ze/internal/le/ai"
+	_ "github.com/ze-software/ze/internal/le/arch"
+	_ "github.com/ze-software/ze/internal/le/build"
+	_ "github.com/ze-software/ze/internal/le/chaos"
+	_ "github.com/ze-software/ze/internal/le/cli"
+	_ "github.com/ze-software/ze/internal/le/config"
+	_ "github.com/ze-software/ze/internal/le/data"
+	_ "github.com/ze-software/ze/internal/le/doc"
+	_ "github.com/ze-software/ze/internal/le/go"
+	_ "github.com/ze-software/ze/internal/le/lab"
+	_ "github.com/ze-software/ze/internal/le/plugin"
+	_ "github.com/ze-software/ze/internal/le/repo"
+	_ "github.com/ze-software/ze/internal/le/site"
+	_ "github.com/ze-software/ze/internal/le/spec"
+	_ "github.com/ze-software/ze/internal/le/test"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
+	_ "github.com/ze-software/ze/internal/le/web"
+	_ "github.com/ze-software/ze/internal/le/yang"
 )
 
 const probeRoot = "verify-dispatch-probe"
