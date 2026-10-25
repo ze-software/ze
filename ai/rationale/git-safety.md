@@ -60,9 +60,11 @@ waking no faster than every 30 seconds.
 This paragraph used to carve out an exception for
 "genuinely independent work to do for >60s while it runs", contradicting the
 rule it exists to explain, and enumerating "both cases" under a single bullet.
-Editing the tree during a run is what makes that exception unsafe: the gate
-reads the working tree, so independent work invalidates the run it is waiting
-for.
+The exception was wrong for a reason other than the tree: `./le verify changed`
+runs in a throwaway worktree at the named commit, so editing the checkout while
+it runs does not touch what it judges. What breaks is the wait itself: a
+backgrounded run whose agent goes on working is a run nobody reads to the end,
+and the anti-pattern rows above show how its notification gets lost.
 
 ## History moved from rule points (2026-09-26)
 

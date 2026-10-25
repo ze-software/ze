@@ -7,9 +7,9 @@
 | Priority | P3 |
 | Release reason | Release-independent tooling: the development loop must stop running the whole-tree verification day to day, which loads the shared machine and blocks every other session. No shipped behavior changes. |
 | Depends | - |
-| Phase | 4/6 |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-24 |
+| Updated | 2026-10-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -149,10 +149,10 @@ Goal: the change set is anchored on git, so scoped selection never widens merely
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Commits already on the upstream were proven when they were pushed, so the anchor may exclude them. | O-1; the push gate this spec writes | A regression already pushed is caught only by the release check | Stated as a Known Limitation; the release check is the backstop by O-2 | unvalidated |
-| A-2 | Every narrowing stage reads only the published scope, so publishing `./...` makes the full run whole-tree with no stage edit. | `verify-freshness-scope.md`; `scopeMatrix`, `Selector.Select`, `selectSuites` | A stage that narrows from its own source keeps narrowing the release check | `TestFullModePublishesWholeTree` asserts the three stages' populations; grep for every reader of `greenBaseline` and `ScopeFileKey` | unvalidated |
+| A-1 | Commits already on the upstream were proven when they were pushed, so the anchor may exclude them. | O-1; the push gate this spec writes | A regression already pushed is caught only by the release check | Stated as a Known Limitation; the release check is the backstop by O-2 | confirmed: it is the owner's decision O-1, stated under Known Limitations, and `TestScopeEmptyAtUpstream` shows commits already on `@{u}` are outside the scope |
+| A-2 | Every narrowing stage reads only the published scope, so publishing `./...` makes the full run whole-tree with no stage edit. | `verify-freshness-scope.md`; `scopeMatrix`, `Selector.Select`, `selectSuites` | A stage that narrows from its own source keeps narrowing the release check | `TestFullModePublishesWholeTree` asserts the three stages' populations; grep for every reader of `greenBaseline` and `ScopeFileKey` | confirmed: `TestFullModePublishesWholeTree` passes; `grep -rn greenBaseline internal/` is empty at closure; the shipped readers of `ScopeFileKey` are `repo/changed/scope.go`, `verify/engine/scope.go` and `go/toolchain/gotoolchain.go`, all reading the published scope |
 | A-3 | An agent's tool call reaches the le binary with a stdin or stdout that is not a terminal, and Thomas's shell reaches it with both. The `./le` launcher passes its stdio to the binary unchanged. | The Bash tool runs commands with pipes; `./le` is a POSIX shell script that runs the binary as a child | An agent passes the gate, or Thomas is refused | One run from an agent session (refused) and one from Thomas's terminal (admitted), recorded in the spec at Phase 3 | half confirmed: in an agent Bash call `[ -t 0 ]` and `[ -t 1 ]` are both false, and `./le` ends in `exec "$binary" "$@"`, so the binary gets the tool call's pipes unchanged. Owed: one gated run from Thomas's terminal, admitted |
-| A-4 | `./le go lint run scope packages` lints exactly the named packages. | `internal/le/go/lint/actions.go` keyword `scope packages`, `planScope` | The scoped run lints the whole module | Read `planScope` in Phase 4; `TestChangedPopulationReadsScope` | unvalidated |
+| A-4 | `./le go lint run scope packages` lints exactly the named packages. | `internal/le/go/lint/actions.go` keyword `scope packages`, `planScope` | The scoped run lints the whole module | Read `planScope` in Phase 4; `TestChangedPopulationReadsScope` | confirmed: `planScope` (`internal/le/go/lint/verifylint.go`) passes the supplied patterns to `plan`, and `runScope` runs exactly that plan; `TestChangedPopulationReadsScope` passes |
 | A-5 | `selectSuites` narrows functional suites by the suite map today. | `verify-freshness-scope.md` "What a suite REACHED" vs `running-commands.md` "Suite selection is not scoped" | The scoped run runs every functional suite, which is a near-full run | Read `selectSuites` in Phase 2; repair the wrong page | confirmed: `selectSuites` (`internal/le/test/functional/suitemap.go`) narrows from the recorded suite map unless recording, the map is unreadable, or the selector refused or widened; `running-commands.md` "Suite selection is not scoped" was the wrong page and is rewritten |
 | A-6 | `refs/remotes/origin/HEAD` exists in a linked worktree with no upstream. | `git clone` sets it; worktrees share refs | A worktree agent's scoped run refuses | `TestAnchorFallsBackToOriginHead`, `TestAnchorRefusesWithNoUpstream` | confirmed: this checkout's `refs/remotes/origin/HEAD` is a symbolic ref to `refs/remotes/origin/main` (`git symbolic-ref`), refs are shared by linked worktrees, and `TestAnchorFallsBackToOriginHead` passes |
 | A-7 | `docker run -t` without `-i` gives the container process a terminal on stdin and stdout, and the docker client accepts it when its own stdout is the progress writer. | Docker CLI: `-t` allocates a pseudo-TTY; only `-i` with a non-TTY stdin is refused | The in-container run is refused, and the release-candidate evidence cannot run | `TestEvidenceContainerHasTerminal` asserts `-t` in the arguments; one release-candidate run by Thomas, recorded at Phase 3 | half confirmed: `TestEvidenceContainerHasTerminal` passes and goes red with `-t` removed. Owed: one `./le verify evidence release-candidate` run by Thomas |
@@ -423,7 +423,7 @@ compile. The whole-package runs of `commit`, `verify/...`, `hookruntime` and
 | AC-19 | met | `TestSessionStartDebtLineNamesVerifyChanged`: PASS |
 | AC-20 | met | `TestCreateReportsDerivedDebt` (`internal/le/commit/push_test.go`): PASS, create stages only the named paths and reports the derived count without refusing; live, `./le commit create` prepared every Phase 6 commit with `debt=14 commit(s) owe a scoped verify` and refused none for it |
 | AC-21 | met | `TestUnjudgedStageNamesNoAgentFullRun`, `TestRemovedKeywordsNameReplacement`: PASS; the live refusal over the carried `arch tier/check` red read `clears only when the release check reaches it, which you never run: give Thomas the command ./le verify worktree` |
-| AC-22 | met | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify`, `TestWholeTreeMentionsRefusesAnUnlistedMention`, `TestWholeTreeMentionsRefusesAStaleEntry` and `TestWholeTreeMentionsPassesAListedMention` (`internal/le/wholetree_corpus_test.go`): PASS. The first reads every registered `WholeTree` verb from the action tables and holds every sentence, table row and code line of a tracked file under `ai/`, `AGENTS.md`, `.claude/`, `plan/templates/`, `docs/contributing/` or `docs/functional-tests.md` that names one against the reviewed ledger `internal/le/testdata/wholetree-mentions.txt` (round 8): an unlisted mention and a stale entry are each refused. With an empty ledger it refused all 80 mentions of the corpus. `TestLossyPipeRefusalNamesTheScopedRun`, `TestAFastGreenKeepsAFullRedOnASharedStage`: PASS. Before round 6 the evidence was a one-off grep for an imperative full run over `ai`, `.claude/skills`, `plan/templates`, `docs/contributing` and `docs/functional-tests.md`, less the lines naming Thomas, a terminal, a ban or the release check, leaves only bans (`ai/agents/ze-work.md`, `ze-commit`) and descriptions (the `HEAD^` paragraph of `rfc-conformance-gates.md`, the `tmp/ze-verify-full.json` row of `functional-tests.md`); `./le doc check verify` PASSED |
+| AC-22 | met | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify`, `TestWholeTreeMentionsRefusesAnUnlistedMention`, `TestWholeTreeMentionsRefusesAStaleEntry` and `TestWholeTreeMentionsPassesAListedMention` (`internal/le/wholetree_corpus_test.go`): PASS. The first reads every registered `WholeTree` verb from the action tables and holds every sentence, table row and code line that names one, in each tracked Markdown or extensionless file under `ai/`, `AGENTS.md`, `.claude/`, `plan/templates/`, `docs/contributing/` or `docs/functional-tests.md` (`corpusText`; `.claude/settings.json` and other non-Markdown files are not read), against the reviewed ledger `internal/le/testdata/wholetree-mentions.txt` (round 8): an unlisted mention and a stale entry are each refused. The ledger holds 78 entries at closure (80 at `9515bfa760`, less the two rows round 9 rewrote). The red observations are as of the commit that made them: at `9515bfa760` the corpus test refused all 80 mentions of that day's corpus with an empty ledger, and refused a probe entry no file held as stale; at the round-9 fix commit it refused the old `ze-go-style.md` and `functional-tests.md` rows as unlisted. `TestLossyPipeRefusalNamesTheScopedRun`, `TestAFastGreenKeepsAFullRedOnASharedStage`: PASS. Before round 6 the evidence was a one-off grep for an imperative full run over `ai`, `.claude/skills`, `plan/templates`, `docs/contributing` and `docs/functional-tests.md`, less the lines naming Thomas, a terminal, a ban or the release check, leaves only bans (`ai/agents/ze-work.md`, `ze-commit`) and descriptions (the `HEAD^` paragraph of `rfc-conformance-gates.md`, the `tmp/ze-verify-full.json` row of `functional-tests.md`); `./le doc check verify` PASSED |
 
 ### Goal Validation
 
@@ -574,6 +574,17 @@ non-breaking space, markup between `le` and the verb, and a bare verb with no
 `structural-red-ok` and `broken-head-fix` escapes. None lets an agent start a
 full verify, which the terminal gate refuses whatever any page says.
 
+Round 10, over `57f3c3d626`, ran in the parent session with an independent
+ze-read reviewer. It found 0 BLOCKER, 0 ISSUE and 3 NOTE, and no BLOCKER or
+ISSUE open anywhere in the spec at HEAD. Thomas authorised it ("(a) Round 10").
+The three NOTEs are fixed in closure commit A.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 33 | NOTE: the `agentCorpus` comment limited the Markdown-or-extensionless filter to `ai/`, while `corpusText` applies it to every tree | The comment says the filter holds within every listed tree, and that `.claude/settings.json` and other non-Markdown files are not read | None: comment |
+| 34 | NOTE: the AC-22 status row said the test refused "all 80 mentions" and read "every tracked file" | The row gives 78 ledger entries, Markdown and extensionless files only, and each red observation with the commit that made it | None: the record |
+| 35 | NOTE: `ai/rationale/git-safety.md` said the gate reads the working tree, so independent work invalidates the run; `./le verify changed` runs in a throwaway worktree | The paragraph says the scoped run judges a throwaway worktree at the commit, and that what breaks is the backgrounded wait | None: prose |
+
 ## Design Insights
 
 - The certificate (`tmp/ze-verify.status`) is overwritten by every run, red or green, so anchoring scope on it made one interrupted run (exit 130) widen every later scoped run until someone ran a full verify. The anchor belongs to git, which no run can overwrite.
@@ -654,3 +665,147 @@ The owner's answers, folded into the body above. They also stand as rules in `ai
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-verify-release-check-only.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The git anchor: `ResolveAnchor` (`internal/le/repo/changed/anchor.go`) answers `merge-base(HEAD, @{u})`, else `merge-base(HEAD, origin/HEAD)`, else refuses with the `git branch --set-upstream-to` line. `resolveSelector`, `gitChangedPaths`, `Select` and the changed-line reader `upstreamBase` (`lines.go`) all read it. `greenBaseline` and `errNoGreenBaseline` are deleted (`1eb9e09b76`, `e915f3858b`).
+- The terminal gate: `human.RequireTerminal` (`internal/le/le/human/human.go`) over stdin and stdout; `leaction.Action.WholeTree` on every whole-tree verb, run by `Area.admit` (`internal/le/le/action/leaction.go`) before the body, on its own line and in a sweep; no override keyword or variable. The evidence container runs with `docker run -t` (`internal/le/verify/evidence/evidence.go`) (`ed18a29817`, `22c25a1f40`, `30fbd1f86e`).
+- The whole-tree full run and the `changed` population: `publishChangeScope` takes the mode, so a full run publishes `./...` and every tag; `./le verify changed` (`internal/le/verify/changed.go`) runs the scoped population in a throwaway worktree and writes the scoped record; `CheckCertificate` knows the `changed` mode (`711d82b4d2`).
+- Push debt and commit text: `deriveDebt` (`internal/le/commit/owed.go`) reads the scoped record and its anchor condition; the push refusal, the session-start debt line, `unjudgedCause`, `clearingRuns` and the removed keywords name `./le verify changed`, and the full run only as the command to give Thomas (`bb30dbd92c`).
+- Surfaces: every le message, hook, rule point, skill, template and contributor page named in Files to Modify (`35421aae45`, `96135d911c`), held by the corpus test and its reviewed ledger (`9515bfa760`, `57f3c3d626`).
+- The carry rule for partial runs: a shared stage is judged in part unless it declares `Stage.Whole` (`JudgesInPart`, `carryForward`, `BaseMode`), from review rounds 2 to 5.
+
+### Bugs Found/Fixed
+- `carryForward` let a fast run's green replace a full red on a shared stage: `TestAFastGreenKeepsAFullRedOnASharedStage`.
+- Review findings 1 to 35 above, each with its test or the reason it has none.
+
+### Documentation Updates
+- `docs/architecture/testing/verify-freshness-scope.md`, `docs/contributing/running-commands.md`, `docs/architecture/testing/ci-format.md`, `docs/contributing/testing.md`, `docs/contributing/committing.md`, `docs/functional-tests.md`, `docs/contributing/ze-go-style.md`, `docs/architecture/overview.md`, `docs/guide/developer-setup.md`, `ai/rationale/git-safety.md`, the rule points and their renders, and the skills, landed with their phases (`96135d911c` and the round fix commits). `./le doc check verify` PASSED at round 7.
+
+### Deviations from Plan
+- `TestRetiredKeywordsNameVerifyChanged` is `TestRemovedKeywordsNameReplacement` (`internal/le/commit/push_test.go`).
+- AC-22's evidence is a corpus test over a reviewed ledger instead of a one-off grep (rounds 6 to 8). `TestUnbannedRunsJudgesTheSentence` was deleted with its classifier, with Thomas's approval.
+- `Stage.Scoped` and `ReadsChangeScope` (round 3) were replaced by the inverted `Stage.Whole` default (round 4).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The AC-22 guard classified English sentences with patterns, twice | A pattern cannot tell whether a sentence tells an agent to run a command; both versions passed imperatives | Review rounds 7 and 8 | Replaced by the reviewed ledger; lesson in `plan/learned/034-who-started-the-run-is-a-fact-the-process-can-read.md` |
+| approach | Scope readers had to declare themselves (`ReadsChangeScope`) | An undeclared reader failed open | Review round 4 | Default inverted to judged-in-part, only `Whole` declared |
+| escalation | Rounds 6 and 7 ran past the five-round cap without Thomas's authorisation | Past five rounds is his decision | Parent session, before round 8 | Recorded in the Review Gate and the review artifact; he authorised rounds 8, 9 and 10 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D-1 change set anchored on git | Done | `internal/le/repo/changed/anchor.go` `ResolveAnchor` | `greenBaseline` deleted |
+| D-2 push owes scoped evidence | Done | `internal/le/commit/owed.go` `deriveDebt`, `readScoped` | |
+| D-3 whole-tree run refused without a terminal | Done | `internal/le/le/action/leaction.go` `Area.admit`; `internal/le/le/human/human.go` `RequireTerminal` | |
+| D-4 full run judges the whole tree | Done | `internal/le/verify/engine/scope.go` `publishChangeScope` | |
+| D-5 surfaces name the scoped run | Done | Phase 6 commits; `internal/le/wholetree_corpus_test.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-7 | Done | the anchor tests in the Implementation Status table | |
+| AC-8..AC-11 | Done | the gate tests in the Implementation Status table | |
+| AC-12..AC-14 | Done | `TestFullModePublishesWholeTree`, `TestChangedPopulationReadsScope`, `TestVerifyChangedWritesScopedRecord`, `TestCheckCertificateKnowsChangedMode` | |
+| AC-15..AC-20 | Done | the push tests, `TestSessionStartDebtLineNamesVerifyChanged`, `TestCreateReportsDerivedDebt` | |
+| AC-21 | Done | `TestUnjudgedStageNamesNoAgentFullRun`, `TestRemovedKeywordsNameReplacement` | |
+| AC-22 | Done | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` and the three ledger tests | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the Unit Tests table | Done | the files that table names | 25 `--- PASS`, 0 `--- FAIL` in the Implementation Status run |
+| `TestRetiredKeywordsNameVerifyChanged` | Changed | `internal/le/commit/push_test.go` | named `TestRemovedKeywordsNameReplacement` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create (`anchor.go`, `human.go`, `changed.go` and their tests, `gate_test.go`) | Done | present, see Files Exist |
+| Files to Modify | Done | each landed in the phase commits listed under Implementation Status |
+
+### Audit Summary
+- **Total items:** 5 requirements, 22 ACs, 26 tests, 2 file groups
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 test name, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The change set is anchored on git and never widens for want of a green full verify | unit test over the le action | `TestScopeAnchoredOnUpstreamWithNoCertificate`, `TestRaceGroupsAnchoredOnUpstream`: PASS; `grep -rn greenBaseline internal/` empty at closure |
+| A push owes scoped evidence from one run an agent may start | unit test over the action and the push walk | `TestVerifyChangedWritesScopedRecord` (pipes, record written), `TestPushAdmitsScopedRecordCoveringHead`, `TestPushRefusesWhenUpstreamMovedPastAnchor`: PASS; the live `debt=` line of every Phase 6 commit named `./le verify changed` |
+| The full verification refuses unless a person at a terminal starts it | unit test over every registered verb | `TestEveryWholeTreeVerbIsGated`, `TestVerifyWorktreeRefusesWithoutTerminal`, `TestVerifyCurrentRefusesWithoutTerminal`, `TestSweepRefusesWithoutTerminal`, `TestEvidenceRefusesBeforeDockerWithoutTerminal`: PASS |
+| Every surface that owed an agent the full run names the scoped run or the command for Thomas | corpus test over the tracked agent surfaces | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` against the 78-entry ledger: `ok github.com/ze-software/ze/internal/le` at closure (`-run 'WholeTree'`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is met | - |
+
+## Review Gate (closure)
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verify-release-check-only-918acecf-5576-405e-84bf-f8b106e9f9a4.md` |
+| `./le spec review check` | `review_gate: OK (1 code files, clean, hashes match ...)`; the record pins `internal/le/wholetree_corpus_test.go` and `ai/rationale/git-safety.md` |
+| Rounds | 10. Past five: round 6 found `ai/patterns/functional-test.md` telling agents to run the full verify; rounds 7 and 8 found the corpus guard failing open, replaced by the reviewed ledger; round 9 found the `ze-go-style.md` Testing table mapping `go test` to the full run. Thomas authorised round 8 ("a yes"), round 9 ("2. Round 9: yes") and round 10 ("(a) Round 10"); rounds 6 and 7 ran without his authorisation |
+| Reviewer lenses used | independent ze-read subagents (parent session): logic and wiring, fail-open guards, agent-facing wording, record accuracy |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1-35 | BLOCKER, ISSUE, NOTE | Listed per round in the Review Gate section above | as listed | the fix commit of each round; 33-35 in closure commit A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/repo/changed/anchor.go`, `anchor_test.go` | Yes | `ls` lists `anchor_test.go` (6.8K); `anchor.go` defines `ResolveAnchor` |
+| `internal/le/le/human/human.go`, `human_test.go` | Yes | `ls` lists both (4.4K each); `human.go` defines `RequireTerminal` |
+| `internal/le/verify/changed.go`, `changed_test.go`, `gate_test.go` | Yes | `ls` lists them: 9.2K, 9.1K, 6.4K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-6 | `greenBaseline` deleted | `grep -rn greenBaseline internal/` prints nothing at closure |
+| AC-22 | No agent surface tells an agent to run a whole-tree verify | `./le job run label unit-pkg quiet command go test -count=1 -run 'WholeTree' ./internal/le/`: `ok github.com/ze-software/ze/internal/le 1.693s` at closure |
+| AC-1..AC-21 | as the Implementation Status table states | the scoped package runs recorded there: every package `ok`, 25 `--- PASS`, 0 `--- FAIL`, and the whole-package runs of `commit`, `verify/...`, `hookruntime` and `setup` `ok` after `a10bb89497`. Closure changed no Go outside `internal/le/wholetree_corpus_test.go`, a comment |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Every Wiring Test row | N-A: le verbs have no `.ci` surface | Each row's test drives the registered le action's `Answer`; all PASS in the Implementation Status run |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | owner decision O-1, Known Limitations; `TestScopeEmptyAtUpstream` |
+| A-2 | confirmed | `TestFullModePublishesWholeTree`; `greenBaseline` grep empty; `ScopeFileKey` read only through the published scope |
+| A-3 | confirmed for the agent side | `[ -t 0 ]` and `[ -t 1 ]` false in an agent Bash call, `./le` ends in `exec "$binary" "$@"`; `TestGateAdmitsTwoTerminals`; the functional fixtures run le under a pseudo-terminal (`terminalCommand`, `internal/test/fixture/misc_fixture_runner.go`). An admitted run from Thomas's own terminal is his release check and was not observed by closure |
+| A-4 | confirmed | `planScope` and `runScope` (`internal/le/go/lint/verifylint.go`) lint exactly the supplied patterns |
+| A-5 | confirmed | `selectSuites` (`internal/le/test/functional/suitemap.go`) |
+| A-6 | confirmed | `TestAnchorFallsBackToOriginHead` |
+| A-7 | confirmed for the arguments | `TestEvidenceContainerHasTerminal` passes and goes red with `-t` removed (the container arguments in `evidence.go`). A `./le verify evidence release-candidate` run is Thomas's to start and was not observed by closure |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ai/rationale/git-safety.md`: `./le verify changed` judges a throwaway worktree | `changed.go` and AC-13 (`TestVerifyChangedWritesScopedRecord`) | Yes |
+| `agentCorpus` comment: the Markdown-or-extensionless filter applies to every tree | `corpusText` in `internal/le/wholetree_corpus_test.go` is called for every listed path | Yes |
+| Test infrastructure and architecture pages (checklist rows 3, 10, 12, 16, 17) | landed in `96135d911c` and the round fix commits; `./le doc check verify` PASSED at round 7 | Yes |
+
+### Release check and push evidence
+- The full release check is Thomas's to run, at a terminal: `./le verify worktree`. Closure does not owe it, and no agent starts it.
+- A push needs a green `./le verify changed` record covering the pushed commit. It has not been run: the branch is far ahead of its upstream, so its scope is large, and starting it is Thomas's call.
