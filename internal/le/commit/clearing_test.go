@@ -81,6 +81,29 @@ func TestAFullRedOnASharedStageNamesNoChangedClear(t *testing.T) {
 	}
 }
 
+// TestAFullRedOnAFullIdentityStageClearsThroughTheScopedRun proves a race
+// piece, which the changed population runs at the identity the full population
+// gives it, names ./le verify changed as what clears a full run's red: carry
+// forward replaces that red with a changed verdict (verifyengine.JudgesInPart),
+// so the text must not send the agent to Thomas for it.
+// VALIDATES: the commit text and the carry rule read one shared-stage answer.
+// PREVENTS: a message naming the release check for a red a changed run clears.
+func TestAFullRedOnAFullIdentityStageClearsThroughTheScopedRun(t *testing.T) {
+	race := ""
+	for _, stage := range verifyengine.StagesForMode(verifyengine.ChangedMode) {
+		if strings.HasPrefix(stage.Identity.Name, "verify deps/unit-race-changed/") {
+			race = stage.Identity.Name
+			break
+		}
+	}
+	if race == "" {
+		t.Fatal("the changed population holds no race piece")
+	}
+	if got := clearingRuns(race, verifyengine.Mode); !strings.Contains(got, "clears when ./le verify changed reaches it") {
+		t.Errorf("a full red on %s clears with %q, want ./le verify changed", race, got)
+	}
+}
+
 var errTestUnreadable = stringError("unreadable")
 
 type stringError string

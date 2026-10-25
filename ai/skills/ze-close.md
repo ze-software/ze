@@ -60,8 +60,8 @@ not produce it. No specific model is required (`ai/rules/planning.md`).
 ## Precondition
 
 The implementation is complete and the targeted tests for what it changed are
-green (`/ze-implement` steps 1-10). The full gate has not run yet: it runs
-once, after this skill's closing commit (step 6f). If feature code is
+green (`/ze-implement` steps 1-10). The scoped verify has not run yet: it
+runs once, after this skill's closing commit (step 6f). If feature code is
 still missing, go back: this skill does not implement.
 
 Two entry statuses are valid, `in-progress` and `verification`, and they differ
@@ -198,7 +198,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      yours** (`ai/rules/completion.md`).
    Running the commit script finishes the closure. There is no step 7. Every
    change below MUST be in that single script; the only thing after it is the
-   full gate over the commits it made (6f).
+   scoped verify over the commits it made (6f).
 
    a. **Route any lesson to its governing surface.** Follow the lesson-routing
       rule in `ai/rules/planning.md`. Update an existing rule, architecture page,

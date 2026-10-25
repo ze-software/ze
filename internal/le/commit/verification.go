@@ -282,17 +282,18 @@ func unjudgedCause(stage failureStage, groups []failureGroup, judgedBy string) s
 // clearingRuns names the verify run whose index rewrites the named stage's
 // entry, judged by the population judgedBy (failureStage.judgedBy). A stage
 // only the changed population holds is cleared by `./le verify changed`,
-// which an agent runs. A stage it shares with the full population, it judges
-// only over its scope (verifyengine carryForward), so a changed run clears
-// only a verdict a changed run gave. Otherwise only the release check reaches
+// which an agent runs, and so is one it judges at its full identity, such as
+// a race piece. A stage it judges only over its scope (verifyengine
+// JudgesInPart, the rule carryForward applies) a changed run clears only when
+// a changed run gave the verdict. Otherwise only the release check reaches
 // it, and an agent never runs that: the text gives the exact command to hand
 // Thomas, the whole run or the piece of a cut that holds the stage. Both
-// memberships are read from the populations, so a stage moved in or out of
+// answers are read from the populations, so a stage moved in or out of
 // either needs no edit here. No default piece count exists, so the piece is
 // named by what it holds rather than by its number.
 func clearingRuns(name, judgedBy string) string {
 	if inPopulation(verifyengine.ChangedMode, name) &&
-		(judgedBy == verifyengine.ChangedMode || !inPopulation(verifyengine.Mode, name)) {
+		(judgedBy == verifyengine.ChangedMode || !verifyengine.JudgesInPart(verifyengine.ChangedMode, name)) {
 		return "clears when " + verify.ChangedCommand + " reaches it, which you run"
 	}
 	return "clears only when the release check reaches it, which you never run: give Thomas the command " +

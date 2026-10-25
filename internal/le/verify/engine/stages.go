@@ -60,6 +60,41 @@ type Stage struct {
 	// as unattributed and the commit went through. Two lists of one population
 	// drift, and this one drifted toward letting commits past a broken tree.
 	Structural bool `json:"structural,omitempty"`
+	// Scoped says the stage's action reads the change set the run publishes
+	// (publishChangeScope) and judges only that part of its subject when the
+	// answer is narrow. The full population publishes the whole tree, so there
+	// it judges everything; a partial population's verdict on it covers its
+	// scope alone (JudgesInPart, carryForward). An action that starts reading
+	// the published scope MUST be marked here, or a partial green would replace
+	// a full red it never re-judged.
+	Scoped bool `json:"scoped,omitempty"`
+}
+
+// JudgesInPart reports whether mode's population judges the named stage only
+// over its published scope while the full population judges all of it: the
+// stage is in both populations and Scoped. Only such a stage's full verdict
+// survives a partial run; a stage the partial run judges at its full identity
+// is a full judgement. The full population judges every stage in full.
+func JudgesInPart(mode, name string) bool {
+	if mode == Mode {
+		return false
+	}
+	partial := false
+	for _, one := range StagesForMode(mode) {
+		if one.Identity.Name == name {
+			partial = one.Scoped
+			break
+		}
+	}
+	if !partial {
+		return false
+	}
+	for _, one := range fullStages() {
+		if one.Identity.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Structural answers the stages whose red refuses a commit outright.
@@ -79,8 +114,8 @@ func Structural(mode string) map[string]bool {
 func staticcheckStages() []Stage {
 	stages := make([]Stage, 0, staticcheckParts)
 	for part := 1; part <= staticcheckParts; part++ {
-		stages = append(stages, structural("go staticcheck", "check",
-			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
+		stages = append(stages, scoped(structural("go staticcheck", "check",
+			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts))))
 	}
 	return stages
 }
@@ -138,7 +173,7 @@ func fullStages() []Stage {
 		// arch enumeration judges the CHANGE SET rather than the tree: the copies
 		// already in the tree are `le arch enumeration report`, and this stage's red
 		// means the change under test added one (owner decision, 2026-09-14).
-		stage("arch enumeration", "check"),
+		scoped(stage("arch enumeration", "check")),
 		// arch compound-guard judges the LINES in the unpushed range, committed or
 		// not: the base is the merge base of HEAD and the upstream, or origin/main,
 		// read from refs, so this detached worktree answers the same range as its
@@ -175,7 +210,7 @@ func fullStages() []Stage {
 		stage("verify deps", "unit-cached"),
 	}, raceStages(), []Stage{
 		stage(FunctionalCommand, "exabgp-test"),
-		stage(FunctionalCommand, "gating"),
+		scoped(stage(FunctionalCommand, "gating")),
 		stage("verify deps", "alloc"),
 	})
 	return stages
@@ -212,9 +247,10 @@ func fastStages() []Stage {
 
 // changedStages returns the population of `./le verify changed`: the tests and
 // the checks of what the change set reaches, and nothing that judges the whole
-// tree. Every stage here reads the scope the run published, so it narrows to
-// the change set and widens only when the selector widened, which it says on
-// stderr:
+// tree. Every stage here narrows to the change set and widens only when the
+// selector widened, which it says on stderr. Each stage marked scoped reads the
+// scope the run published; the race pieces select their groups from the same
+// anchor through the refs, as they do in the full population:
 //
 //   - `go lint/run/changed` lints the scope's packages
 //   - `verify deps/unit-changed` tests the scope's packages under the scope's
@@ -227,12 +263,18 @@ func fastStages() []Stage {
 // through the job slots like any job and is not a release check.
 func changedStages() []Stage {
 	stages := []Stage{
-		structural("go lint", "run", "changed"),
-		stage("verify deps", "unit-changed"),
+		scoped(structural("go lint", "run", "changed")),
+		scoped(stage("verify deps", "unit-changed")),
 	}
 	return slices.Concat(stages, staticcheckStages(), raceStages(), []Stage{
-		stage(FunctionalCommand, "gating"),
+		scoped(stage(FunctionalCommand, "gating")),
 	})
+}
+
+// scoped marks a stage whose action reads the run's published change set.
+func scoped(one Stage) Stage {
+	one.Scoped = true
+	return one
 }
 
 // FunctionalCommand is the command every functional suite stage runs. Those

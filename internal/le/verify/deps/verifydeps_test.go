@@ -608,10 +608,12 @@ func anchoredCheckout(t *testing.T, root string) {
 
 // The fixture's upstream and the merge base the change set is anchored on
 // (repochanged.ResolveAnchor): the branch tracks "upstream", whose merge base
-// with HEAD is "anchor".
+// with HEAD is "anchor". anchorBranchQuery is the query a no-upstream refusal
+// asks to tell a branch from a detached HEAD.
 const (
 	anchorUpstreamQuery = "git rev-parse --verify -q @{u}^{commit}"
 	anchorMergeQuery    = "git merge-base HEAD upstream"
+	anchorBranchQuery   = "git rev-parse --abbrev-ref HEAD"
 )
 
 // anchorAnswer answers the two git queries ResolveAnchor asks, so a scripted

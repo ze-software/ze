@@ -29,8 +29,9 @@ See also: `/ze-debrief` (deep dive on current session/spec)
    - Failing: "Tests: FAIL -- [count] failures (Nh ago)"
    - Missing: "Tests: no run recorded"
    An old or missing run is not an attention item. During development only
-   the targeted tests for what changed run, and the full gate runs once per
-   piece of work, over its final commit.
+   the targeted tests for what changed run, and the scoped verify
+   (`./le verify changed`) runs once per piece of work, over its final commit.
+   A full verification is the release check, which only Thomas starts.
 6. **Present the status** using this format:
 
 ```

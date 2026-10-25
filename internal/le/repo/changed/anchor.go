@@ -29,6 +29,9 @@ import (
 const (
 	anchorUpstreamRef   = "@{u}"
 	anchorOriginHeadRef = "refs/remotes/origin/HEAD"
+	// anchorHead is HEAD as git names it, and what `rev-parse --abbrev-ref`
+	// prints in its place when HEAD is detached.
+	anchorHead = "HEAD"
 )
 
 // ErrNoUpstream says the checkout holds neither an upstream for its branch nor
@@ -61,7 +64,7 @@ func ResolveAnchor(root string, query func(string, ...string) (string, error)) (
 	if err != nil {
 		return Anchor{}, err
 	}
-	out, err := query(root, "merge-base", "HEAD", upstreamCommit)
+	out, err := query(root, "merge-base", anchorHead, upstreamCommit)
 	if err != nil {
 		return Anchor{}, errors.New(anchorFailure(upstream, upstreamCommit, err.Error()))
 	}
@@ -96,19 +99,36 @@ func resolveUpstream(root string, query func(string, ...string) (string, error))
 // verify run judges, no branch exists and only refs/remotes/origin/HEAD can
 // name the upstream, so the command is the one that sets that ref; a linked
 // worktree shares the refs, so running it in the checkout fixes the run.
+//
+// Which case holds is git's answer to `git rev-parse --abbrev-ref HEAD`, which
+// prints the branch, or `HEAD` when HEAD is detached, and exits 0 for both. A
+// query that fails, or answers nothing, is a git error and is reported as one,
+// with the command that shows it: it is never read as a detached HEAD.
 func noUpstreamError(root string, query func(string, ...string) (string, error)) error {
 	var message textbuf.Buffer
 	message.Str(ErrNoUpstream.Error()).
 		Str(", so the change set cannot tell which commits are not yet pushed\n")
-	out, err := query(root, "symbolic-ref", "--short", "-q", "HEAD")
-	if branch := strings.TrimSpace(out); err != nil || branch == "" {
+	out, err := query(root, "rev-parse", "--abbrev-ref", anchorHead)
+	branch := strings.TrimSpace(out)
+	if err != nil {
+		message.Str("  git could not say whether HEAD is on a branch (").Str(err.Error()).
+			Str(");\n  fix what git reports here, then run the command again:\n").
+			Str("    git -C ").Str(root).Str(" rev-parse --abbrev-ref HEAD")
+		return &anchorError{message: message.String()}
+	}
+	if branch == "" {
+		message.Str("  git answered no branch and no detached HEAD;\n").
+			Str("  fix what git reports here, then run the command again:\n").
+			Str("    git -C ").Str(root).Str(" rev-parse --abbrev-ref HEAD")
+		return &anchorError{message: message.String()}
+	}
+	if branch == anchorHead {
 		message.Str("  HEAD is detached, so only ").Str(anchorOriginHeadRef).
 			Str(" can name the upstream, and it names no commit;\n").
 			Str("  set it from the remote, then run the command again:\n").
 			Str("    git remote set-head origin --auto")
 		return &anchorError{message: message.String()}
 	}
-	branch := strings.TrimSpace(out)
 	message.Str("  set the branch's upstream, then run the command again:\n").
 		Str("    git branch --set-upstream-to=origin/").Str(branch)
 	return &anchorError{message: message.String()}

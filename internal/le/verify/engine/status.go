@@ -212,6 +212,12 @@ func ReadCertificate(root string) (Certificate, error) {
 	}, nil
 }
 
+// agentRerun names the verify run that rewrites a verify record, for the agent
+// that reads the message: the scoped run, which an agent starts, and the
+// release check, which only Thomas starts. Every message that asks for a
+// rerun uses it, so none of them tells an agent to start a full verify.
+const agentRerun = "./le verify changed for an agent; a release check is Thomas's to start"
+
 // Freshness is the structured answer to a status check.
 type Freshness struct {
 	Fresh       bool     `json:"fresh"`
@@ -234,7 +240,7 @@ func CheckCertificate(root string, paths []string) Freshness {
 		return stale("STALE: no status file (never verified)")
 	}
 	if err != nil {
-		return stale("STALE: status file is unreadable (run a full verify to replace it)")
+		return stale("STALE: status file is unreadable, and the next verify run replaces it (" + agentRerun + ")")
 	}
 	if certificate.Exit != 0 {
 		return stale(fmt.Sprintf("STALE: last verify failed (exit=%d, at %s)", certificate.Exit, certificate.Timestamp))
@@ -276,7 +282,7 @@ func checkScoped(root string, certificate Certificate, paths []string) Freshness
 		return stale("STALE: no per-path manifest (PASS predates scoped checking)")
 	}
 	if err != nil {
-		return stale("STALE: per-path manifest is unreadable (run a full verify to replace it)")
+		return stale("STALE: per-path manifest is unreadable, and the next verify run replaces it (" + agentRerun + ")")
 	}
 	if reason := scopedChange(root, certificate, recorded, paths); reason != "" {
 		return stale(reason)

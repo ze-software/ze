@@ -65,7 +65,7 @@ func TestRaceChangedRefusesWithNoAnchor(t *testing.T) {
 		}
 		// The checkout is on a branch: with HEAD detached the refusal names
 		// git remote set-head instead (repochanged.noUpstreamError).
-		if strings.Join(plan.Command, " ") == "git symbolic-ref --short -q HEAD" {
+		if strings.Join(plan.Command, " ") == anchorBranchQuery {
 			return "main\n", childFrom(plan, 0)
 		}
 		return "", childFrom(plan, 0)
