@@ -205,7 +205,8 @@ Fixture presence, native execution and fresh discrimination records are separate
 proof obligations.
 RFC 4271 Section 6 does not require a socket write to precede an unrelated
 plugin's Adj-RIB-In cleanup. The route server retains compact withdrawal records
-for its asynchronous sender, and the forwarding queue retains its own work.
+for its departure worker, which sends a departed source's records after the
+DOWN handler has returned, and the forwarding queue retains its own work.
 The tests do not yet establish the exact last-owner release/admission ordering;
 see the [RFC summary's proof boundaries](../../../rfc/short/rfc8654.md#proof-boundaries).
 
@@ -215,7 +216,7 @@ see the [RFC summary's proof boundaries](../../../rfc/short/rfc8654.md#proof-bou
 <!-- source: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go -->
 <!-- source: internal/component/bgp/reactor/rfc8654_rib_recovery_test.go -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- emitPurgedWithdraws -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, sendBatchedWithdrawals -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, departureQueue, sendBatchedWithdrawals -->
 
 The named FRR interop scenarios exercise a real producer and consumer. An
 OPEN-only fixture relay makes asymmetric advertisements visible to Ze because
