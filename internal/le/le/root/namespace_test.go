@@ -112,8 +112,9 @@ func TestBareNamespaceTokenListsItsMembers(t *testing.T) {
 	// A word after the token that names no member is a mistake, not a
 	// question, so it is still refused with the members it could have been.
 	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare", "gamma"}) })
-	if code != 1 {
-		t.Errorf("a namespace token with an unknown member answered %d, want 1", code)
+	// A namespace non-member is a usage error (D-Q8): 2.
+	if code != 2 {
+		t.Errorf("a namespace token with an unknown member answered %d, want 2", code)
 	}
 	for _, want := range []string{"alpha", "beta", "is a namespace"} {
 		if !strings.Contains(stderr, want) {
@@ -127,8 +128,9 @@ func TestBareNamespaceTokenListsItsMembers(t *testing.T) {
 func TestAnUnknownCommandIsStillUnknown(t *testing.T) {
 	code := 0
 	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-nothing-holds-this"}) })
-	if code != 1 {
-		t.Errorf("an unknown command answered %d, want 1", code)
+	// An unknown command is a usage error (D-Q8): 2.
+	if code != 2 {
+		t.Errorf("an unknown command answered %d, want 2", code)
 	}
 	if !strings.Contains(stderr, "unknown command") {
 		t.Errorf("the refusal does not say unknown command: %s", stderr)

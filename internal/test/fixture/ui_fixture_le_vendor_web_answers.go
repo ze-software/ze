@@ -128,8 +128,9 @@ func leVendorWebAnswers(parent context.Context) error {
 	if err != nil {
 		return err
 	}
-	if counted.code != 1 {
-		return fmt.Errorf("FAIL: `le web vendor check | count` exited %d, want the document-shape refusal 1", counted.code)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if counted.code != 2 {
+		return fmt.Errorf("FAIL: `le web vendor check | count` exited %d, want the document-shape refusal 2", counted.code)
 	}
 	if counted.stdout != "" {
 		return fmt.Errorf("FAIL: refused `le web vendor check | count` wrote stdout: %q", counted.stdout)

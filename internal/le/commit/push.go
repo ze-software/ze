@@ -35,8 +35,10 @@ type pushPrepared struct {
 }
 
 // preparePush derives what a push owes and, when the derivation admits it,
-// writes the push-only script. The code is 1 for a refusal the derivation
-// names and 2 for a push it cannot prepare at all.
+// writes the push-only script. The code is 2 for an authorisation the line
+// gave that is refused, 1 for a refusal the derivation or a pending commit
+// script names, and 3 for a push it cannot prepare at all because the
+// checkout, its upstream, a file or git could not be read.
 func preparePush(root, authorisation string) (pushPrepared, int, error) {
 	var prepared pushPrepared
 	reason, err := pushAuthorisation(authorisation)
@@ -45,7 +47,7 @@ func preparePush(root, authorisation string) (pushPrepared, int, error) {
 	}
 	derived, err := deriveDebt(root, "")
 	if err != nil {
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	if err := derived.pushRefusal(); err != nil {
 		return prepared, 1, err
@@ -57,32 +59,32 @@ func preparePush(root, authorisation string) (pushPrepared, int, error) {
 		// HEAD as it stands now and the script carries no re-check (AC-23).
 		prepared.Target, err = commitOf(root, "HEAD")
 		if err != nil {
-			return prepared, 2, fmt.Errorf("read the HEAD this push publishes: %w", err)
+			return prepared, 3, fmt.Errorf("read the HEAD this push publishes: %w", err)
 		}
 	}
 	prepared.LeftBehind = derived.LeftBehind
 	prepared.Remote, prepared.Branch, err = upstreamOf(root)
 	if err != nil {
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	session, err := lepath.CommitSession(root, "")
 	if err != nil {
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	prepared.Script, err = pushScriptPath(root, session)
 	if err != nil {
-		return prepared, 2, err
+		return prepared, exitCodeOrCouldNotRun(err), err
 	}
 	text := renderPushScript(root, session, reason, &prepared)
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	full := filepath.Join(root, filepath.FromSlash(prepared.Script))
 	if err := os.WriteFile(full, []byte(text), 0o750); err != nil { //nolint:gosec // the prepared push script is executed, so it needs the owner execute bit
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	if err := os.Chmod(full, 0o750); err != nil { //nolint:gosec // the prepared push script is executed, so it needs the owner execute bit
-		return prepared, 2, err
+		return prepared, 3, err
 	}
 	return prepared, 0, nil
 }
@@ -143,9 +145,9 @@ func pushScriptPath(root, session string) (string, error) {
 			continue
 		}
 		if pending := pendingBlocks(root, text); len(pending) != 0 {
-			return "", fmt.Errorf("push refused: %s holds commit block(s) %s not yet run, and an unrun commit is "+
+			return "", foundProblem(fmt.Errorf("push refused: %s holds commit block(s) %s not yet run, and an unrun commit is "+
 				"neither verified nor published; run it with: bash %s, then %s, then ./le commit push",
-				relative, strings.Join(pending, ", "), relative, scopedCommand)
+				relative, strings.Join(pending, ", "), relative, scopedCommand))
 		}
 	}
 	if reuse != "" {
@@ -241,13 +243,14 @@ type debtStatus struct {
 }
 
 // answerDebtStatus derives the debt for HEAD's choice of P, or for candidate,
-// and answers the exit code: 0 nothing owed, 1 something owed, 2 cannot
-// answer. Whether anything is owed is derivedDebt.owed, the one rule the
+// and answers the exit code: 0 nothing owed, 1 something owed, 3 cannot
+// answer (the checkout, its upstream or git could not be read). Whether
+// anything is owed is derivedDebt.owed, the one rule the
 // create report and the session-start warning read too.
 func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 	derived, err := deriveDebt(root, candidate)
 	if err != nil {
-		return debtStatus{}, 2, err
+		return debtStatus{}, 3, err
 	}
 	status := debtStatus{
 		Applicable: derived.Target != pushTargetNotApplicable,

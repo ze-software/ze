@@ -248,25 +248,26 @@ func extractionClassifyAnswer(args leaction.Arguments) (any, int) {
 
 // extractionStatusAnswer derives the envelope over this checkout.
 //
-// It answers 2 for anything that stopped it, which is the code the script
-// answers: a malformed summary, an unreadable enrolled list, a malformed
-// artifact and a tag in a carrier nothing runs are all "the gate could not
-// run", and "clean" must never mean "I compared nothing".
+// It answers 3, could not run (D-Q8, D-P5-extraction), for anything that
+// stopped it: a checkout with no rfc/ tree, a malformed summary, an unreadable
+// enrolled list, a malformed artifact and a tag in a carrier nothing runs are
+// all input the count needs and does not have, and "clean" must never mean "I
+// compared nothing".
 func extractionStatusAnswer() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, 3
 	}
 	collected, err := Collect(tree)
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, 3
 	}
 	status, err := extractionStatus(NewDeriver(tree), collected.Requirements, collected.Enrolled)
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, 3
 	}
 	return status, 0
 }
@@ -320,11 +321,11 @@ func discriminateAnswer(args leaction.Arguments) (any, int) {
 func checkAnswer() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
-		return &CheckReport{CannotRun: err.Error()}, 2
+		return &CheckReport{CannotRun: err.Error()}, 3
 	}
 	approvals, err := sessionApprovals(tree)
 	if err != nil {
-		return &CheckReport{CannotRun: err.Error()}, 2
+		return &CheckReport{CannotRun: err.Error()}, 3
 	}
 	report, code := Check(tree, approvals)
 	return &report, code

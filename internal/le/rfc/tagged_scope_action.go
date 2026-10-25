@@ -317,27 +317,26 @@ func taggedScopeError(path string, err error) taggedScopeActionReport {
 }
 
 func taggedScopeAnswer(args leaction.Arguments) (any, int) {
-	if !args.Has("path") {
-		err := errors.New("rfc tagged-scope requires path <path>")
-		return taggedScopeError("", err), 2
-	}
+	// The parser refuses a line without the Required path keyword (exit 2), so
+	// the body is reached only with one. Every failure below is the gate unable
+	// to judge: exit 3.
 	path := args.One("path")
 	root, err := lepath.Root()
 	if err != nil {
-		return taggedScopeError(path, err), 2
+		return taggedScopeError(path, err), 3
 	}
 	reader, err := cliio.OpenReader(cliio.StdinToken)
 	if err != nil {
-		return taggedScopeError(path, err), 2
+		return taggedScopeError(path, err), 3
 	}
 	defer reader.Close() //nolint:errcheck // stdin close is a no-op; the process exits after the action
 	request, err := readTaggedScopeRequest(reader, TaggedScopeMaxBytes)
 	if err != nil {
-		return taggedScopeError(path, err), 2
+		return taggedScopeError(path, err), 3
 	}
 	report, err := evaluateTaggedScope(root, path, request)
 	if err != nil {
-		return report, 2
+		return report, 3
 	}
 	if !report.Allowed {
 		return report, 1

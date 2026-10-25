@@ -43,7 +43,7 @@ func TestPartialRequirementCheckReportsScope(t *testing.T) {
 	files := partialFiles()
 	files[selftestCIPath] = "# RFC requirement: " + selftestRIDSend + " positive -- receipt accepts zero\nexpect=stdout:contains=OK\n"
 	incomplete, incompleteCode := Check(checkFixtureTree(t, files), nil)
-	if incompleteCode != 2 || incomplete.Partial != 1 || incomplete.Gated != 1 ||
+	if incompleteCode != 1 || incomplete.Partial != 1 || incomplete.Gated != 1 ||
 		len(incomplete.PartialScopes) != 1 || incomplete.PartialScopes[0].RID != selftestRIDSend ||
 		len(incomplete.Violations) == 0 {
 		t.Fatalf("missing negative proof concealed scope or accepted the row: code=%d report=%+v", incompleteCode, incomplete)
@@ -327,7 +327,7 @@ func TestMalformedPartialCannotPublishWholeCredit(t *testing.T) {
 				t.Fatal("publication accepted an incomplete parsed population")
 			}
 			report, code := Check(root, nil)
-			if code != 2 || !strings.Contains(report.Text(), "malformed {partial}") {
+			if code != 1 || !strings.Contains(report.Text(), "malformed {partial}") {
 				t.Fatalf("gate did not refuse malformed scope: %s", report.Text())
 			}
 			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: map[string]any{"verdict": VerdictEnforced, "note": "not a whole proof"}})

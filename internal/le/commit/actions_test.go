@@ -4,6 +4,8 @@
 package commit
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -98,5 +100,55 @@ func TestCommitRefusesWhatItsTableRefuses(t *testing.T) {
 	}
 	if _, code := Answer(nil); code != 0 {
 		t.Errorf("bare commit answered %d, want its listing and 0", code)
+	}
+}
+
+// TestReviewCheckNotCleanExitsOne validates AC-31: `le commit review-check`
+// over a spec with no recorded review ran, found the review missing, and
+// answers 1, the found-a-problem code, never 3, which means it could not run.
+// Method: run the action body over a fresh checkout that holds no review.
+func TestReviewCheckNotCleanExitsOne(t *testing.T) {
+	root := newCommitRepository(t)
+	answer, code := answerReviewCheck(root, leaction.Arguments{keywordSpec: {"spec-nothing-reviewed"}})
+	if code != 1 {
+		t.Fatalf("review-check over a missing review answered %d, want 1", code)
+	}
+	review, isReview := answer.(ReviewResult)
+	if !isReview {
+		t.Fatalf("review-check answered %T, want a ReviewResult", answer)
+	}
+	if review.Clean || len(review.Problems) == 0 {
+		t.Errorf("review-check answered 1 without naming the problem: %+v", review)
+	}
+}
+
+// TestCommitExecutionFailureIsNotAUsageError validates AC-49: `le commit
+// create` answers 2 only when it refuses the keywords the line gave, 3 when
+// the operation could not run (here, git has no HEAD to prepare against), and
+// 1 when it ran and a gate refused it. Method: run the create body three ways
+// over fixture checkouts, and read each code with its error line.
+func TestCommitExecutionFailureIsNotAUsageError(t *testing.T) {
+	refused := newCommitRepository(t)
+	_, code := answerCreate(refused, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"},
+		keywordAppend: {""}, keywordReplace: {""}})
+	if code != 2 {
+		t.Errorf("append with replace answered %d, want the keyword refusal 2", code)
+	}
+
+	headless := t.TempDir()
+	writeCommitFixture(t, headless, "go.mod", "module fixture\n")
+	writeCommitFixture(t, headless, "feature-gates.txt", "")
+	writeCommitFixture(t, headless, "tracked.txt", "tracked\n")
+	runCommitGit(t, headless, "init", "-q")
+	_, code = answerCreate(headless, leaction.Arguments{keywordSubject: {"s"}, keywordFile: {"tracked.txt"}})
+	if code != 3 {
+		t.Errorf("a checkout with no HEAD answered %d, want could-not-run 3", code)
+	}
+
+	if got := exitCodeOf(errors.New("a gate refused the commit")); got != 1 {
+		t.Errorf("an unmarked failure answered %d, want ran-and-failed 1", got)
+	}
+	if got := exitCodeOf(fmt.Errorf("wrapped: %w", couldNotRun(errors.New("x")))); got != 3 {
+		t.Errorf("a wrapped could-not-run answered %d, want 3", got)
 	}
 }

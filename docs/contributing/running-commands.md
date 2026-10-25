@@ -141,6 +141,30 @@ reserved word after `help`, so the `ai` namespace's own page is
 <!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI -->
 <!-- source: internal/component/aihelp/reference/reference.go -- Reference -->
 
+### What le's exit codes mean
+
+Every le command answers one of four codes, so a script or an agent reads the
+kind of failure from the code alone. `./le help ai exit-codes` prints the same
+table from its one declaration.
+
+| Code | Meaning |
+|------|---------|
+| 0 | the action did what it names, or a help question was answered |
+| 1 | the action ran and found a problem (a gate's violations, a review that is not clean), or the operation it ran failed |
+| 2 | usage error: an unknown command or action, a word a namespace does not hold, a stray or dash-leading word, a missing or malformed value, a retired spelling, a refused rendering flag |
+| 3 | could not run: the checkout, a file or a program the action needs is absent or unreadable, or a `\| save` could not write its file |
+
+The table's parser makes every usage refusal before the action runs: a value
+its kind does not accept (`max-areas many`) and a required value left out on
+a pipe are refused there, with the one action's usage. Two kinds of command
+are exempt. `le ai hooks <hook>` answers the hook protocol, 0 to allow and 2 to
+block, because Claude Code reads 2 from a hook as "block". A forwarding
+command (`le test fixture`, `le test peer`, every `mock` area, every
+pass-through area) answers its program's own code.
+
+<!-- source: internal/le/le/root/exitcode.go -- exitCodes -->
+<!-- source: internal/le/le/action/parameter.go -- parseLine, checkValue -->
+
 ### Install completion
 
 One script completes both `./le` and `le` (when the checkout is on your
@@ -168,7 +192,7 @@ keywords still open: a keyword already given is not offered again unless it
 repeats, a retired keyword is never offered, and an enum's values come only
 after their keyword. A pass-through area completes nothing after its name,
 because its program owns those words. A typed word le does not know is refused:
-`./le completion words nosuch ''` names it on stderr and exits 1, so the shell
+`./le completion words nosuch ''` names it on stderr and exits 2, so the shell
 offers nothing while a person running it by hand learns which word was wrong.
 After a `git pull` the next `./le` call builds the new HEAD in the background,
 and completion knows the new commands once that build lands.

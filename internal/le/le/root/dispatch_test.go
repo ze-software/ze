@@ -125,7 +125,8 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 				code = Dispatch("le", append([]string{"action-shape", "probe"}, args...))
 			})
 		})
-		if code != 1 || out != "" || !strings.Contains(stderr, "count cannot apply here") || !strings.Contains(stderr, "one document") {
+		// An operator the answer's shape cannot support is a usage error (D-Q8): 2.
+		if code != 2 || out != "" || !strings.Contains(stderr, "count cannot apply here") || !strings.Contains(stderr, "one document") {
 			t.Errorf("%q answered code=%d stdout=%q stderr=%q, want document refusal", args, code, out, stderr)
 		}
 		if got != nil {
@@ -205,8 +206,9 @@ func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 			code = Dispatch("le", []string{name, "|", "json", "|", "yaml"})
 		})
 	})
-	if code != 1 {
-		t.Errorf("two format operators answered %d, want 1", code)
+	// A pipe chain the grammar refuses is a usage error (D-Q8): 2.
+	if code != 2 {
+		t.Errorf("two format operators answered %d, want 2", code)
 	}
 	if stdout != "" {
 		t.Errorf("refused pipe chain wrote stdout: %q", stdout)
@@ -214,8 +216,9 @@ func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 }
 
 func TestDispatchRefusesUnknownAndHandlesHelp(t *testing.T) {
-	if code := Dispatch("le", []string{"no-such-tool"}); code != 1 {
-		t.Errorf("unknown tool answered %d, want 1", code)
+	// An unknown command is a usage error (D-Q8): 2.
+	if code := Dispatch("le", []string{"no-such-tool"}); code != 2 {
+		t.Errorf("unknown tool answered %d, want 2", code)
 	}
 	if code := Dispatch("le", []string{"--help"}); code != 0 {
 		t.Errorf("help answered %d, want 0", code)

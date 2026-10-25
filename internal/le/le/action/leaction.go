@@ -308,7 +308,7 @@ func (a Area) Parse(verb string, args []string) (Arguments, error) {
 		if a.verbOf(act) != verb {
 			continue
 		}
-		return parseArguments(Program()+" "+a.name+" "+verb, act.Parameters, args)
+		return parseLine(Program()+" "+a.name+" "+verb, act.Parameters, args)
 	}
 	return nil, errors.New(Program() + " " + a.name + " holds no action " + verb)
 }
@@ -497,7 +497,7 @@ func (a Area) Answer(args []string) (any, int) {
 			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
-			parsed, err := parseArguments(Program()+" "+a.name+" "+verb, act.Parameters, args[1:])
+			parsed, err := parseLine(Program()+" "+a.name+" "+verb, act.Parameters, args[1:])
 			if err != nil {
 				ReportError(err)
 				a.writeUsage(verb)

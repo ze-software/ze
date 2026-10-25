@@ -96,8 +96,8 @@ func TestRFCCheckRefusesAReferenceCitation(t *testing.T) {
 	if report.CannotRun != "" {
 		t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 	}
-	if code != 2 {
-		t.Fatalf("a summary citing reference/ answered %d, want 2:\n%s", code, report.Text())
+	if code != 1 {
+		t.Fatalf("a summary citing reference/ answered %d, want 1:\n%s", code, report.Text())
 	}
 	for _, violation := range report.Violations {
 		if strings.Contains(violation, referenceReadmeRel) && strings.Contains(violation, selftestSummaryRel) {

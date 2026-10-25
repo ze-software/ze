@@ -168,7 +168,7 @@ func TestCheckJudgesErratumRowThroughCommits(t *testing.T) {
 
 	missing := commitFixtureTip(t, withSource(), map[string]string{selftestSummaryRel: quoteFixtureSummary(row)}, nil)
 	report, code := Check(missing, nil)
-	if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), erratumRel) {
+	if code != 1 || !strings.Contains(strings.Join(report.Violations, "\n"), erratumRel) {
 		t.Fatalf("a row citing an unstored erratum answered %d without naming %s:\n%s", code, erratumRel, report.Text())
 	}
 
@@ -183,7 +183,7 @@ func TestCheckJudgesErratumRowThroughCommits(t *testing.T) {
 	base[erratumRel] = placed
 	edited := commitFixtureTip(t, base, map[string]string{erratumRel: strings.Replace(placed, "count the frames", "log the frames", 1)}, nil)
 	report, code = Check(edited, nil)
-	if code != 2 || len(report.Violations) != 1 || !strings.Contains(report.Violations[0], "RFC9999-2-3") {
+	if code != 1 || len(report.Violations) != 1 || !strings.Contains(report.Violations[0], "RFC9999-2-3") {
 		t.Fatalf("an erratum edit that unquoted a row answered %d without refusing the row:\n%s", code, report.Text())
 	}
 }

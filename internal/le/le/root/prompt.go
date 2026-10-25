@@ -253,7 +253,7 @@ func echoLine(program, name string, toolArgs []string) {
 
 // canceled is the refusal of a line whose prompt did not answer: nothing ran.
 // The reader leaving with Ctrl-C or Ctrl-D is a usage answer, 2; a terminal
-// that failed under the prompt is an execution failure, 1.
+// that failed under the prompt could not run the line, 3.
 func canceled(program string, err error) int {
 	var tb textbuf.Buffer
 	tb.Str(program).Str(": ").Str(err.Error())
@@ -262,7 +262,7 @@ func canceled(program string, err error) int {
 		return 2
 	}
 	tb.Str("; nothing ran\n").StdErr() //nolint:errcheck // CLI output
-	return 1
+	return 3
 }
 
 // openMenu opens the menu over the derived tree and runs the line the reader

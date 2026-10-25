@@ -278,8 +278,9 @@ func TestAnswerRefusesATreeWithNoPopulation(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	payload, code := Answer(nil)
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1 for a tree that holds no plan/ directory", code)
+	// The population the answer needs is absent, so the gate could not run (D-Q8): 3.
+	if code != 3 {
+		t.Errorf("exit code = %d, want 3 for a tree that holds no plan/ directory", code)
 	}
 	if payload != nil {
 		t.Errorf("the refusal carries a payload: %v", payload)

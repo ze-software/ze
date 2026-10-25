@@ -228,8 +228,9 @@ func runLEDevAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if nonnumeric.code != 1 {
-		return uiLeDevGatesAnswersFailf("a ceiling that is not a number was accepted")
+	// 2: max-areas is a uint, so the parser refuses the word (D-P1-validate).
+	if nonnumeric.code != 2 {
+		return uiLeDevGatesAnswersFailf("a ceiling that is not a number answered %d, want the parser's refusal 2", nonnumeric.code)
 	}
 	high, err := le("repo working-tree", "max-areas", "99")
 	if err != nil {

@@ -29,6 +29,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -283,5 +284,18 @@ func discardTemp(path, tmpName string, cause error) string {
 // full disk.
 func saveError(path string, err error) string {
 	var tb textbuf.Buffer
-	return tb.Str("save could not write ").Str(path).Str(": ").Str(err.Error()).String()
+	return tb.Str(saveWriteFailure).Str(path).Str(": ").Str(err.Error()).String()
+}
+
+// saveWriteFailure opens every refusal saveError builds, so IsSaveWriteFailure
+// reads the same words the message carries and the two cannot drift apart.
+const saveWriteFailure = "save could not write "
+
+// IsSaveWriteFailure reports whether a formatted answer is a `| save` that could
+// not write its file. Such a chain was well formed: the command ran and only the
+// write failed (a missing directory, a permission, a full disk). A caller that
+// tells a malformed chain from an environment that refused the write reads this,
+// and every other pipe refusal stays a refusal of what the operator typed.
+func IsSaveWriteFailure(answer string) bool {
+	return strings.HasPrefix(answer, PipeErrorPrefix+saveWriteFailure)
 }

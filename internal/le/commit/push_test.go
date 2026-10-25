@@ -64,8 +64,9 @@ func TestDebtStatusExitCodes(t *testing.T) {
 		t.Fatalf("commit HEAD the green record does not cover: code %d err %v, want 1", code, err)
 	}
 	runCommitGit(t, root, "branch", "--unset-upstream")
-	if _, code, err := answerDebtStatus(root, ""); code != 2 || err == nil || !strings.Contains(err.Error(), "--set-upstream-to") {
-		t.Fatalf("no upstream: code %d err %v, want 2 naming git branch --set-upstream-to", code, err)
+	// No upstream: the debt cannot be derived, so it could not run (D-Q8): 3.
+	if _, code, err := answerDebtStatus(root, ""); code != 3 || err == nil || !strings.Contains(err.Error(), "--set-upstream-to") {
+		t.Fatalf("no upstream: code %d err %v, want 3 naming git branch --set-upstream-to", code, err)
 	}
 }
 
@@ -134,7 +135,8 @@ func TestPushOntoCommitScriptRefused(t *testing.T) {
 	}
 	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	_, code, err := preparePush(root, pushTestAuthorisation)
-	if err == nil || code != 2 || !strings.Contains(err.Error(), "bash "+created.Script) {
+	// The push gate ran and found an unrun commit script (D-Q8): 1.
+	if err == nil || code != 1 || !strings.Contains(err.Error(), "bash "+created.Script) {
 		t.Fatalf("push over an unrun commit script: code %d err %v, want a refusal naming bash %s", code, err, created.Script)
 	}
 	runCommitScript(t, root, created.Script)
@@ -377,8 +379,9 @@ func TestPushRefusedInLinkedWorktreeWithoutUpstream(t *testing.T) {
 	writeOwedGreen(t, linked, head)
 
 	prepared, code, err := preparePush(linked, pushTestAuthorisation)
-	if code != 2 || err == nil {
-		t.Fatalf("push from a linked worktree with no upstream: code %d err %v, want 2", code, err)
+	// No upstream: the push could not be prepared (D-Q8): 3.
+	if code != 3 || err == nil {
+		t.Fatalf("push from a linked worktree with no upstream: code %d err %v, want 3", code, err)
 	}
 	if !strings.Contains(err.Error(), "git branch --set-upstream-to") {
 		t.Fatalf("the refusal %q does not name git branch --set-upstream-to", err)

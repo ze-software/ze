@@ -128,7 +128,7 @@ func TestCheckAuditRatchetSeesTipCommit(t *testing.T) {
 			report, code := Check(root, nil)
 			joined := strings.Join(report.Violations, "\n")
 			for _, want := range one.violations {
-				if code != 2 || !strings.Contains(joined, want) {
+				if code != 1 || !strings.Contains(joined, want) {
 					t.Errorf("the tip commit's change was not seen, want %q, exit %d:\n%s", want, code, report.Text())
 				}
 			}
@@ -178,7 +178,7 @@ func TestCheckExtractionRatchetSeesTipCommit(t *testing.T) {
 			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
 			report, code := Check(root, nil)
 			seen := strings.Contains(strings.Join(report.Violations, "\n"), violation)
-			if one.deleted && (code != 2 || !seen) {
+			if one.deleted && (code != 1 || !seen) {
 				t.Fatalf("the tip commit's deletion was not seen, want %q, exit %d:\n%s", violation, code, report.Text())
 			}
 			if !one.deleted && seen {

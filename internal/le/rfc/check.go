@@ -335,10 +335,10 @@ func evidencePhrase(counts map[string]int) string {
 func Check(tree string, approvals map[string]string) (CheckReport, int) {
 	report, err := check(tree, time.Now(), approvals)
 	if err != nil {
-		return CheckReport{CannotRun: err.Error()}, 2
+		return CheckReport{CannotRun: err.Error()}, 3
 	}
 	if len(report.Violations) > 0 {
-		return report, 2
+		return report, 1
 	}
 	return report, 0
 }

@@ -175,3 +175,47 @@ func drain(reader io.Reader, done chan<- string) {
 	}
 	done <- string(data)
 }
+
+// VALIDATES: D-Q8 -- a word le does not know, given to `le completion words`,
+// is a usage error: exit 2, the word named on stderr and nothing on stdout.
+// PREVENTS: the callback answering 1, the code D-Q8 keeps for a check that ran
+// and found a problem.
+func TestCompletionWordsRefusesAnUnknownWordAsUsage(t *testing.T) {
+	handler := registry.LookupRoot("le")
+	if handler == nil {
+		t.Fatal("no le root handler registered")
+	}
+	code := 0
+	var stderr string
+	out := captureStdout(t, func() {
+		stderr = captureStderr(t, func() {
+			code = handler(nil, []string{"completion", "words", "nosuch-completion-probe", ""})
+		})
+	})
+	if code != 2 {
+		t.Errorf("an unknown word answered %d, want the usage code 2", code)
+	}
+	if out != "" {
+		t.Errorf("the refusal wrote candidates on stdout: %q", out)
+	}
+	if !strings.Contains(stderr, "nosuch-completion-probe") {
+		t.Errorf("the refusal does not name the unknown word: %q", stderr)
+	}
+}
+
+// captureStderr runs fn with os.Stderr redirected and answers what it wrote.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	os.Stderr = writer
+	done := make(chan string, 1)
+	go drain(reader, done)
+	fn()
+	os.Stderr = saved
+	writer.Close() //nolint:errcheck // test pipe
+	return <-done
+}

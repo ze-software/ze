@@ -73,12 +73,12 @@ func answerReport() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
-		return nil, 1
+		return nil, 3
 	}
 	inventory, err := Collect(context.Background(), root, time.Now(), warnToStderr)
 	if err != nil {
 		reportError(err)
-		return nil, 1
+		return nil, 3
 	}
 	// A tree full of blocked specs is not a failure, so the code is 0 whenever
 	// the population was read.
@@ -86,7 +86,9 @@ func answerReport() (any, int) {
 }
 
 // answerClosure runs the closure action the parsed line selects. A line that
-// selects none, or both, is refused with the action's usage and 2. The
+// selects none, or both, is refused with the action's usage and 2. A
+// checkout or journal it cannot read answers 3, and `check` answers 1 for a
+// spec whose closure is blocked: the check ran and found a problem. The
 // closure actions preserve the detector's list and single-spec contracts.
 func answerClosure(args leaction.Arguments) (any, int) {
 	action, spec := closureActionOf(args)
@@ -96,7 +98,7 @@ func answerClosure(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		reportError(err)
-		return nil, 1
+		return nil, 3
 	}
 	switch action {
 	case closureList:
@@ -104,7 +106,7 @@ func answerClosure(args leaction.Arguments) (any, int) {
 		reportMalformedJournals(malformed)
 		if err != nil {
 			reportError(err)
-			return nil, 2
+			return nil, 3
 		}
 		return report, 0
 	case closureCheck:
@@ -112,10 +114,10 @@ func answerClosure(args leaction.Arguments) (any, int) {
 		reportMalformedJournals(malformed)
 		if err != nil {
 			reportError(err)
-			return nil, 2
+			return nil, 3
 		}
 		if report.Blocked() {
-			return report, 3
+			return report, 1
 		}
 		return report, 0
 	case closureUnspecified:

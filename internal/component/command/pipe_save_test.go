@@ -101,6 +101,36 @@ func TestSaveLeavesTheDestinationAloneWhenItCannotWrite(t *testing.T) {
 	}
 }
 
+// TestSaveWriteFailureIsToldApartFromARefusedChain proves a caller can tell a
+// `| save` the environment refused (the directory is missing) from a chain the
+// operator mistyped. Method: one answer of each kind through the real formatter;
+// the predicate holds for the write failure and not for the shape refusal, and
+// both stay pipe errors.
+// PREVENTS: le answering a full disk as a usage error, or a typo as could not run.
+func TestSaveWriteFailureIsToldApartFromARefusedChain(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonexistent-directory", "answer.json")
+	_, format, errMsg := processPipesChecked("show test | json compact | save " + path)
+	if errMsg != "" {
+		t.Fatalf("the chain was refused at validation: %s", errMsg)
+	}
+	failed := format(`{"peers":[]}`)
+	if !IsSaveWriteFailure(failed) {
+		t.Errorf("a save into a missing directory is not a save write failure: %q", failed)
+	}
+
+	_, format, errMsg = processPipesChecked("show test | count | table")
+	if errMsg != "" {
+		t.Fatalf("the chain was refused at validation: %s", errMsg)
+	}
+	refused := format(`"a scalar"`)
+	if !IsPipeError(refused) {
+		t.Fatalf("a count over a scalar answered %q instead of refusing", refused)
+	}
+	if IsSaveWriteFailure(refused) {
+		t.Errorf("a refused chain reads as a save write failure: %q", refused)
+	}
+}
+
 // TestSaveFileIsOwnerOnly keeps an answer that can carry peer addresses, keys
 // and topology from being readable by every account on the box.
 func TestSaveFileIsOwnerOnly(t *testing.T) {

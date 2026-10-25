@@ -26,7 +26,7 @@ func TestCheckCompileRejectsChangedTaggedPackage(t *testing.T) {
 		code   int
 	}{
 		{name: "compiles", source: "var compileWitness int = 1\n", code: 0},
-		{name: "broken", source: "var compileWitness int = \"not-an-integer\"\n", code: 2},
+		{name: "broken", source: "var compileWitness int = \"not-an-integer\"\n", code: 1},
 		{name: "repaired", source: "var compileWitness int = 2\n", code: 0},
 	} {
 		t.Run(one.name, func(t *testing.T) {
@@ -78,8 +78,8 @@ func TestCheckCompileRequiresCompleteToolchain(t *testing.T) {
 				t.Fatal(err)
 			}
 			report, code := Check(root, nil)
-			if code != 2 {
-				t.Fatalf("incomplete toolchain answered %d, want 2:\n%s", code, report.Text())
+			if code != 3 {
+				t.Fatalf("incomplete toolchain answered %d, want 3:\n%s", code, report.Text())
 			}
 			if !strings.Contains(report.CannotRun, "derive native Go test toolchain") {
 				t.Fatalf("incomplete toolchain was not refused as unreadable:\n%s", report.Text())

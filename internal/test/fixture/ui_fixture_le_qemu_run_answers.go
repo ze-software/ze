@@ -237,8 +237,9 @@ func leQEMURunAnswers(ctx context.Context) error {
 	logRecord := filepath.Join(work, "log.ndjson")
 	logArgs := append(append([]string{}, base...), "|", "log")
 	logged := runLE("0", "log.ndjson", logArgs...)
-	if logged.code != 1 {
-		return fmt.Errorf("FAIL: one-shot pipe log exited %d, want 1", logged.code)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if logged.code != 2 {
+		return fmt.Errorf("FAIL: one-shot pipe log exited %d, want 2", logged.code)
 	}
 	if len(logged.stdout) != 0 {
 		return fmt.Errorf("FAIL: one-shot pipe log returned data: %q", logged.stdout)

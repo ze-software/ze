@@ -210,7 +210,7 @@ func withRoot(body func(root string, args leaction.Arguments) (any, int)) func(l
 		root, err := lepath.Root()
 		if err != nil {
 			leaction.ReportError(err)
-			return nil, 2
+			return nil, 3
 		}
 		return body(root, args)
 	}
@@ -218,9 +218,13 @@ func withRoot(body func(root string, args leaction.Arguments) (any, int)) func(l
 
 func answerSession(root string, args leaction.Arguments) (any, int) {
 	session, err := lepath.CommitSession(root, args.One(keywordSession))
-	if err != nil {
+	if errors.Is(err, lepath.ErrCommitSessionSpelling) {
 		leaction.ReportError(err)
 		return nil, 2
+	}
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 3
 	}
 	return sessionResult{Session: session}, 0
 }
@@ -234,13 +238,14 @@ func answerCreate(root string, args leaction.Arguments) (any, int) {
 	prepared, err := Create(root, &options)
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, exitCodeOf(err)
 	}
 	return &prepared, 0
 }
 
 // answerMessage renders a message alone. It reads no file of the checkout, and
-// resolves the root anyway, as every commit verb does.
+// resolves the root anyway, as every commit verb does. Every refusal it makes
+// is of the subject or body the line gave, so it answers 2.
 func answerMessage(_ string, args leaction.Arguments) (any, int) {
 	message, err := Message(args.One(keywordSubject), args.Values(keywordBody), nil)
 	if err != nil {
@@ -261,7 +266,7 @@ func answerReviewCheck(root string, args leaction.Arguments) (any, int) {
 	}
 	review := CheckReview(root, args.One(keywordSpec), args.Values(keywordFile))
 	if !review.Clean {
-		return review, 3
+		return review, 1
 	}
 	return review, 0
 }
@@ -282,7 +287,7 @@ func answerPush(root string, args leaction.Arguments) (any, int) {
 }
 
 // answerDebtStatusArgs answers the derived debt. The derivation answers or
-// errors; an error is "cannot answer", exit 2, and never reads as nothing owed.
+// errors; an error is "cannot answer", exit 3, and never reads as nothing owed.
 func answerDebtStatusArgs(root string, args leaction.Arguments) (any, int) {
 	status, code, err := answerDebtStatus(root, args.One(keywordCommit))
 	if err != nil {

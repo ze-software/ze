@@ -92,8 +92,9 @@ func TestEveryRetiredNameAnswersUnknownCommand(t *testing.T) {
 				}
 				return
 			}
-			if code != 1 {
-				t.Errorf("answered %d, want 1", code)
+			// A retired spelling is an unknown command, a usage error (D-Q8): 2.
+			if code != 2 {
+				t.Errorf("answered %d, want 2", code)
 			}
 			refused := strings.Contains(stderr, "unknown command: "+old[0]) ||
 				strings.Contains(stderr, "error: "+old[0]+" is a namespace; it needs one of:")
@@ -141,8 +142,9 @@ func TestSpecIsANamespace(t *testing.T) {
 	}
 
 	_, stderr = streams(t, func() { code = leroot.Dispatch("le", []string{"spec", "nope"}) })
-	if code != 1 {
-		t.Errorf("`le spec nope` answered %d, want 1", code)
+	// A namespace non-member is a usage error (D-Q8): 2.
+	if code != 2 {
+		t.Errorf("`le spec nope` answered %d, want 2", code)
 	}
 	if !strings.Contains(stderr, "is a namespace") {
 		t.Errorf("`le spec nope` was not refused as a namespace member:\n%s", stderr)

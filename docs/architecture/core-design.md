@@ -139,8 +139,8 @@ no command, and `spec` holds `spec citation`, `spec status` and the rest, so the
 dispatcher prints that namespace's page: every member with the summary it
 registered. The exit code is 0, as for a bare `le`. A word after the token that
 names no member, as in `le spec nosuch`, is a mistake: it is refused with the
-members it could have been, and exit 1. A first word that holds no members is
-`unknown command`, exit 1.
+members it could have been, and exit 2, le's usage code. A first word that
+holds no members is `unknown command`, exit 2.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
 **A namespace says what it is for, and its own package says it.** A namespace
@@ -179,7 +179,7 @@ rename map once: each row maps a retired command, or one retired action of a
 command, to the command and action that replace it, and a second table lists
 the retired programs, build tags, harness file names and harness variables.
 `Dispatch` does not read the map. A retired name is never registered, so it
-answers `unknown command` and exit 1 like any other word le does not know, and
+answers `unknown command` and exit 2 like any other word le does not know, and
 it is absent from `./le '|' json` and from the help page. An old name whose
 first word is now a namespace is refused as a word that names no member of
 that namespace, and a retired action of a command that is still registered is

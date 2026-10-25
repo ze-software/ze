@@ -93,8 +93,11 @@ func TestRunAllowsLocalSave(t *testing.T) {
 		}{Answer: "not saved"}, 0
 	}, []string{"|", "save", invalidPath, "|", "json"}, &stdout, &stderr)
 
-	if code != 1 {
-		t.Errorf("Run with invalid destination answered %d, want 1", code)
+	// A destination whose parent does not exist is a write the environment
+	// refused, not a malformed chain: le could not deliver its answer, 3
+	// (D-P5-save). The pipe layer reports it through the post-run refusal path.
+	if code != 3 {
+		t.Errorf("Run with invalid destination answered %d, want 3", code)
 	}
 	if stdout.Len() != 0 {
 		t.Errorf("Run wrote stdout after save failure: %q", stdout.String())

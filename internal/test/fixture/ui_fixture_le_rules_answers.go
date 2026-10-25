@@ -250,8 +250,9 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if counted.code != 1 {
-		return uiLeRulesAnswersFailf("`| count` over several lists answered %d", counted.code)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if counted.code != 2 {
+		return uiLeRulesAnswersFailf("`| count` over several lists answered %d, want 2", counted.code)
 	}
 	if !strings.Contains(counted.stderr, "count needs rows") || !strings.Contains(counted.stderr, "gated") {
 		return uiLeRulesAnswersFailf("the count refusal does not name the lists: %q", counted.stderr)

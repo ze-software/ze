@@ -467,7 +467,7 @@ func runCheckSelftest() ([]leroot.SelftestResult, error) {
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
 	report, code := Check(root, nil)
-	refused := code == 2 && report.CannotRun != ""
+	refused := code == 3 && report.CannotRun != ""
 	refused = refused && strings.Contains(report.CannotRun, "polarity")
 	return []leroot.SelftestResult{
 		selftestResult("check/public-driver", refused && len(report.Violations) == 0,

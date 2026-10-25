@@ -149,7 +149,8 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 	writePersonalityWorkingTree(t, workingTree)
 	workingTreeEnv := []string{"ZE_REPO_ROOT=" + workingTree}
 	assertInvocationPair(t, standalone, tagged, 0, workingTreeEnv, []string{"repo", "working-tree"})
-	assertInvocationPair(t, standalone, tagged, 1, nil, []string{"no-such-tool"})
+	// An unknown command is a usage error in both personalities (D-Q8): 2.
+	assertInvocationPair(t, standalone, tagged, 2, nil, []string{"no-such-tool"})
 	assertInvocationPair(t, standalone, tagged, 2, nil, []string{"repo", "no-such-action"})
 
 	direct := invokePersonality(t, tagged, nil, "repo", "working-tree")
@@ -223,8 +224,9 @@ func TestLeDispatchesNoProductCommand(t *testing.T) {
 	os.Args = []string{"le"}
 	t.Cleanup(func() { os.Args = savedArgs })
 
-	if code := defaultDispatch([]string{name}); code != 1 {
-		t.Errorf("standalone le product-root refusal code = %d, want 1", code)
+	// le refuses a product root as an unknown command, a usage error (D-Q8): 2.
+	if code := defaultDispatch([]string{name}); code != 2 {
+		t.Errorf("standalone le product-root refusal code = %d, want 2", code)
 	}
 	if *ran {
 		t.Error("standalone le ran a product root")
@@ -240,8 +242,9 @@ func TestTheCrossingRefusesZesOwnCommands(t *testing.T) {
 	if crossing == nil {
 		t.Fatal("the test process has no le crossing root")
 	}
-	if code := crossing(&registry.RuntimeContext{}, []string{name}); code != 1 {
-		t.Errorf("ze le product-root refusal code = %d, want 1", code)
+	// The crossing answers le's unknown-command usage error (D-Q8): 2.
+	if code := crossing(&registry.RuntimeContext{}, []string{name}); code != 2 {
+		t.Errorf("ze le product-root refusal code = %d, want 2", code)
 	}
 	if *ran {
 		t.Error("ze le ran a product root")

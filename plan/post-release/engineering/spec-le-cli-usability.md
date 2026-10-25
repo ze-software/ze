@@ -262,7 +262,7 @@ and R-2.
 | R-17 | Typed validation refuses a value an existing caller passes today (a uint keyword given `auto`, a path that does not exist yet) | a hook, script or `.ci` that worked is refused with exit 2 | a kind validates syntax only (uint parses, duration parses, enum member), never existence; `path` and `spec` kinds complete from disk but accept any value; each conversion in Phase 3 greps the consumer surface for the keyword's values |
 | R-18 | Many sessions edit `internal/le` while Phases 3 and 4 run; a rename commit lands over another session's new citation of the old spelling | `le doc check retired-commands` red after a pull | each rename commit re-runs `retired-commands` against HEAD at commit time; `retirednames.go` makes any later old spelling fail loudly rather than silently |
 | R-19 | `ze` itself contradicts `ai/rules/cli.md`: `ze help ai --json` reads a rendering flag (`cmd/ze/help_ai.go`, `slices.Contains`) and `--ai` is a hidden alias (`aiHelpRequested`, L698) | `le` and `ze` answer `help ai` differently | out of this spec (ze is not in scope). Journal row candidate for the main thread, class `rendering-flag-on-a-command` or the nearest existing class: `ze help ai --json` and `ze --ai`, `cmd/ze/help_ai.go`, contradict `ai/rules/cli.md` "a rendering flag MUST NOT exist" and "renamed outright rather than aliased"; owner spec to be named by the main thread. This spec only makes ze's `help ai` render through the shared reference renderer, with its flags untouched |
-| R-20 | The closed verb vocabulary (D-Q9) is large because le has about 184 distinct verbs over its actions | the vocabulary becomes a list of every verb, which proves nothing | Phase 4 merges synonyms per job before the set is frozen; the set records one meaning per verb and `TestNoTwoVocabularyVerbsShareAMeaning` refuses two entries with the same meaning text; a verb used by exactly one action stays only if no other entry covers its job |
+| R-20 | The closed verb vocabulary (D-Q9) is large because le has 246 distinct action words over 375 actions in 110 tabled areas (measured 2026-10-25 from `le help ai commands | json`; the earlier "about 184" is stale), 214 of them used once | the vocabulary becomes a list of every word, which proves nothing | Designed in D-P4-vocab: the vocabulary is 36 verbs, each with a kind and one meaning ("Verb vocabulary"); an action word outside it is a name (a suite, scenario, platform, shell, artifact or selection) that declares the vocabulary verb it performs; synonyms and compound words are renamed per "Phase 4 rename map". `TestNoTwoVocabularyVerbsShareAMeaning` refuses two entries with the same meaning text; a verb used by exactly one action stays only if no other entry covers its job |
 
 ## Blast Radius
 
@@ -402,6 +402,159 @@ exit code.
 - → Decision D-P7-missing (Phase 7): requiredness stays a declaration (`leaction.Requirement`); `List.Missing` derives the absent Required parameters from the same parser, and a line that parser refuses is not prompted, so it is refused as before. A forwarding action and a pass-through area are never prompted. Tab offers `leroot.Complete`'s candidates at that place, plus paths on disk for kinds path and spec. Ctrl-C or Ctrl-D answers 2; a terminal that fails under the prompt answers 1. `TestBareLeOnAPipePrintsTheRootPage` lives in `internal/le/le/root/menu_test.go` beside the menu test, not in `dispatch_test.go`
 - → Decision D-P7-namespace (Phase 7, owner report: sub-menus had no description): a namespace (a first word areas share that is no area itself) declares its one-sentence summary once, with `leroot.RegisterNamespace(name, summary)` from `internal/le/<name>/register.go`, the path its name predicts, blank-imported by `internal/le/register.go` (15 namespaces: ai, arch, build, chaos, cli, config, data, doc, go, lab, plugin, spec, test, web, yang; `internal/le/spec` was already a library, the other 14 directories gain a package holding only `register.go`). `treeFrom` gives a namespace node that summary, so the menu shows it; the root page heads each namespace block with its first sentence (`helpfmt.HelpSection.Summary`); the namespace's own page carries it; `le help ai commands` lists every namespace with it (`reference.Reference.Namespaces`). A first word that is also an area (`repo`, `rfc`, `setup`, `site`, `verify`) is described by the area's own summary, because its page, manifest entry and completion already show that one; a `RegisterNamespace` for such a word is a second description of one entry and the startup check refuses it. The startup check (D-P3-tablecheck, renamed `checkRegistrations`) also refuses a namespace with no summary, naming the namespace, the `leroot.RegisterNamespace` call and the file it goes in. `TestEveryCommandIsFoundAtThePathItsNamePredicts` now also holds each namespace's registration to its predicted directory, and `TestEveryCommandRegistersItsOwnAnswerShape` leaves a namespace directory out because a namespace answers nothing and has no shape
 - → Decision D-P7-describe-all (Phase 7, owner request "make sure all the sections of le have description"): every word le offers carries text, held as an invariant rather than a one-off scan. `checkRegistrations` gains `requireEveryItemHasText` (`internal/le/le/root/describe.go`), run once on the first Dispatch or Tree: it refuses to start while an area has no summary (Meta ShortHelp), a pass-through area names no program (its passes-to line is its description), an action has no `Why`, a live keyword has no `Help`, a value an enum or closed list declares has no line, or a line describes a value the keyword does not declare; the stop names the item, what to fill in and `internal/le/<area path>/`. Values had no description slot, so `leaction.Parameter` gains `ValueHelp map[string]string` (manifest key `value-help`) beside `Values`, which keeps its type so `Kind.Check`, the usage line and the manifest's `values` array are untouched; `Parameter.ValueCandidates` answers each value with its line, and completion (`valuesOf`), the menu's positional hints (`hintsOf`), the keyword page (`values:` one per line) and `le help ai commands` (`reference.Parameter.ValueHelp`, one indented line per value) all read it. A registry that holds the values fills the map from where each value is declared (`testintegration.StressScenarioHelp` from a `summary` field of each stress scenario; `vrrpScenarioHelp` replaces the `vrrpDescription` switch, which the report header and PASS line now read too). 29 values gained a description: perf step (2), yang path-refactor operation (3), setup docker-host arch (2), test qemu all-tests only (1), vrrp scenarios (5), netns suites (6), stress scenarios (5), rfc evidence-split from (1), rfc audit-stamp mode (2), weekly channel (2)
+- → Decision D-P4-vocab (Phase 4, design pass of 2026-10-25 over `le help ai commands | json`: 246 distinct action words, 375 actions, 110 tabled areas, 56 forwarding areas): `leaction` declares the closed vocabulary once, as a table of verb, kind and one-line meaning ("Verb vocabulary" below, 36 verbs). Every action word is one of two things. A VERB is a vocabulary entry and performs that entry's meaning. A NAME is a noun or adjective naming what the action works on (a suite, scenario, platform, shell, architecture, artifact or selection: `test functional bgp`, `go vet-platforms darwin`, `completion zsh`, `verify changed`, `commit message`) and declares the vocabulary verb it performs (`Does`), so every action still has exactly one verb meaning without renaming a noun. Three rules make the split testable rather than a free pass: a word that is a vocabulary verb never declares another verb (this is why `test functional install`, a suite, is renamed); no hyphen-separated part of a name is a vocabulary verb, a retired verb (`write`, `generate`) or `test` (the owner's ruling that `*-test` and `*-update` words such as `ipsec-mobike-test`, `index-update` and `condensed-update` are nouns to restructure); and `all` is the one shared name, meaning every member of the area in table order. `le help ai verbs` renders each verb with its kind, its meaning and the names that declare it. Reason: 214 of the 246 words are used once and most are suite or scenario names; listing them as verbs makes the vocabulary prove nothing (R-20), and renaming nouns into verbs churns 1,600 `.ci` files for no reader gain
+- → Decision D-P4-minimal (Phase 4): a name keeps its spelling when it embeds no verb, even where another area spells the same job with a vocabulary verb: `commit message` (preview), `commit session` (ensure), `commit debt-status` (report), `spec model current`, `spec state current` and `spec state latest` (show), `doc ste review` and `review-changed` (report), `test sensitivity tracked` (report), `ai hooks unit` (selftest), `verify current`, `changed` and `worktree` (run), `session scratch` and `seed-store` (ensure), `rfc audit-stamp` (record), `rfc tagged-scope` and `test weakened proposed` (judge), `rfc evidence-split` (migrate), `rfc quote-backfill` (update). A word that is an English verb outside the vocabulary (`validate`, `lint`, `audit`, `append`, `reap`, `bump`, `sync`, `select`, `rename` in `rfc`) is renamed to the vocabulary verb that covers its job, and a vocabulary verb used with a second meaning (`report` in `perf`, `update` in `weekly`) is renamed to its real job. Single-action areas reached bare keep their action word (`spec release run`, `spec current show`, `job run`), except where a ruling makes the area word the whole command (`spec claim <file>`, D-3; `rollback`, D-P4-launcher)
+- → Decision D-P4-frozen (Phase 4): the 14 `le ai hooks <name>` words that `.claude/settings.json` calls are declared frozen on the `ai hooks` area, citing D-hooks, and the name rules do not judge them (`session-start` contains `start`, `rule-coverage-report` contains `report`, `block-premature-stop` contains `stop`). `TestFrozenHookWordsAreExactlyTheSettingsCalls` reads `.claude/settings.json` and requires the frozen set to equal its `le ai hooks <name>` calls, so the exemption can never cover a word settings does not call; `ai hooks unit`, which settings does not call, is an ordinary name and passes the rules. No hook word is renamed, so `.claude/settings.json` and `.claude/hooks/README.md` are untouched by Phase 4
+- → Decision D-P4-positional (Phase 4): where one area holds several compound words for one verb over different targets, the target becomes an enum positional (D-Q3: one, first slot, not string): `ai rules check <condensed|index|metadata|points-roundtrip|render>`, `ai rules update <condensed|index|render>`, `ai rules report <coverage|gate-map|payload|router>`, `site terminal-demo check <artifacts|release|validation>`, `site terminal-demo build <binaries|image>`, `perf record [evidence|history]`, `repo check [generated|tree]`. The positional is required, except for `perf record` and `repo check`, whose bare form keeps today's job (record HEAD; all six repository checks). Where the targets of one verb take different keywords, Phase 4 reads them first and uses a sub-area instead, because one action declares one parameter list. `rfc extraction-create`, `extraction-classify` and `extraction-status` become the sub-area `rfc extraction` (`create`, `classify`, `report`), registered from `internal/le/rfc/extraction` (path predicts package) and calling the existing `rfc` functions
+- → Decision D-P4-launcher (Phase 4, owner rule in `ai/META-DECISIONS.md` "Developer tooling"): every word the `./le` launcher consumes before the binary runs is declared once in `leroot` (word, value, one-line meaning): `--name <name>` and `--name=<name>` (run the build of the working tree under that name; the value `session` names this session's build) and `rollback` (set the newest build aside). The root page renders them in a launcher block, `le help ai launcher` lists them, and completion offers them at the first word. `TestEveryWordTheLauncherConsumesIsInHelp` reads the words from the launcher script itself (the arms of its `case ${1:-} in`, its `[ "${1:-}" = <word> ]` tests and its `[ "$name" = <word> ]` value tests, all before the first `exec`), fails when it finds none so a restructured script cannot make it vacuous, and requires the script's set and the declared set to be equal both ways. `./le rollback <anything>` accepts and ignores the extra words today, which is a word le accepts that help cannot show, so the launcher refuses any word after `rollback` with exit 2 naming `./le rollback`; the binary's `rollback newest` retires and `rollback` becomes an area-only command, matching the launcher
+- → Decision D-P4-counts (Phase 4): the consumer counts in "Phase 4 rename map" are tracked files whose text holds the old phrase (`git grep -l`, 2026-10-25; `plan` excludes `plan/learned` and `plan/journal`, which are history). A Go argv literal split into words (`"ai", "rules", "condensed-update"`) is found by `le doc check retired-commands` once the row is in the rename map, not by these counts. The 330 `internal/` files naming `yang glue write` are generated headers that the renamed command rewrites when it runs, so they change in the same commit by running `le yang glue update`, never by hand
+- → Decision D-P5-save (Phase 5): a `| save` whose write fails (a missing directory, a full disk, a permission) was a well-formed chain that could not deliver its answer, so le exits 3; every other pipe refusal stays 2. The pipe layer names the case once: `saveError` opens with the constant `saveWriteFailure` and `command.IsSaveWriteFailure` reads the same constant (`internal/component/command/pipe_save.go`), and `leroot.Run` branches on it before `IsPipeError`. Ze's own callers do not call the predicate, so ze's codes are unchanged. Reason: the pipe layer reports both through one string, and a prefix predicate beside the existing `IsPipeError` is the contained change; a typed error would change the formatter's signature at every ze surface
+- → Decision D-P5-extraction (Phase 5): `rfc extraction-status` over a tree with no `rfc/` tree, and every other failure that stops it (malformed summary, unreadable enrolled list, malformed artifact), exits 3: the input the count needs is absent
+- → Decision D-P5-indexscope (Phase 5): `rfc index-update` over a scope the user wrote invalid stays a usage refusal, exit 2 (`ui_fixture_le_rfc_answers.go` unchanged)
+
+### Verb vocabulary
+
+The closed set of D-Q9 and D-P4-vocab. Kind: `report` reads and prints, exit 0
+whenever it answered; `gate` reads and exits 1 on a defect; `regenerate`
+rewrites a committed artifact from its source; `record` appends to a ledger;
+`render` produces a published artifact this repository does not commit; `run`
+has side effects outside the tree's committed files. 36 verbs, against 246
+distinct action words today and no declared vocabulary.
+
+| Verb | Meaning | Kind |
+|------|---------|------|
+| `report` | print what the area finds in the tree, read-only | report |
+| `list` | print the members of a set, one per line | report |
+| `show` | print one recorded item: a claim, a certificate, a path, a model, a script | report |
+| `preview` | print what another action would do or write, doing and writing nothing | report |
+| `compare` | print the difference between two or more inputs | report |
+| `track` | print the trend of a history ledger over time; exit 1 on a regression only when asked | report |
+| `suggest` | say whether a run is owed and why, never failing | report |
+| `discriminate` | print which breaks of the producing code prove a tagged requirement, and what is still unproven | report |
+| `combine` | merge several result files into one result file outside the committed tree | report |
+| `check` | run the area's gate over the tree; exit 1 on a defect | gate |
+| `selftest` | run the gate against its seeded fixtures, proving it catches what it claims | gate |
+| `judge` | decide one proposed edit read on stdin; exit 1 when refused | gate |
+| `update` | rewrite a committed artifact from its canonical source (owner ruling: never `write`, never `generate`) | regenerate |
+| `reseal` | re-pin the recorded fingerprints a mechanical edit moved, keeping every verdict | regenerate |
+| `record` | append one result, verdict or measurement to its ledger | record |
+| `approve` | record the owner's approval of one named change, in his words | record |
+| `render` | produce a page, deck or recording for the published site | render |
+| `run` | start the area's job, with its side effects; exit is the job's | run |
+| `build` | produce a binary or image that is not committed | run |
+| `send` | send traffic at a target | run |
+| `install` | install tools, a kernel or a profile on this host | run |
+| `start` | start a long-lived service | run |
+| `stop` | stop a long-lived service | run |
+| `clean` | remove what earlier runs left behind, only what this checkout or run provably owns | run |
+| `trim` | bound a store's size by evicting its oldest entries | run |
+| `ensure` | create the item when absent and leave it when present, then print it | run |
+| `create` | create one new item, such as a commit script, each time | run |
+| `migrate` | convert files from a retired layout to the current one | run |
+| `rewrite` | apply one mechanical edit to tracked files, previewing unless told to apply | run |
+| `move` | relocate code or files to another path, carrying what refers to them | run |
+| `rename` | change a name everywhere it is spelled | run |
+| `rebase` | rebase a worktree branch onto its upstream | run |
+| `push` | prepare the owner-authorised push of a verified commit | run |
+| `publish` | post an announcement to an outside channel | run |
+| `claim` | claim a spec for this session | run |
+| `rollback` | set the newest le build aside so the previous one runs | run |
+
+Retired from the vocabulary: `write` (owner ruling), `generate`, `validate`,
+`lint`, `audit`, `append`, `reap`, `bump`, `sync`, `select`, and every compound
+word in the map below.
+
+### Phase 4 rename map
+
+Every row adds its old spelling to the rename map (D-retired) in the commit that
+updates its consumers. Consumer columns are file counts per D-P4-counts: ai,
+docs, .claude, plan (live), test, internal, .github. `cmd/`, `AGENTS.md`,
+`CLAUDE.md`, the `le` script, `.agents` and `.codex` hold none of these phrases.
+
+| Old spelling | New spelling | Reason | ai | docs | .claude | plan | test | internal | .github |
+|--------------|--------------|--------|----|------|---------|------|------|----------|---------|
+| `ai sync write` | `ai sync update` | owner ruling (A-12) | 6 | 0 | 0 | 1 | 0 | 5 | 0 |
+| `data asn-delegation write` | `data asn-delegation update` | owner ruling (A-12) | 0 | 1 | 0 | 0 | 0 | 6 | 0 |
+| `data ietf-reference write` | `data ietf-reference update` | owner ruling (A-12) | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
+| `data ip-special-purpose write` | `data ip-special-purpose update` | owner ruling (A-12) | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
+| `doc index write` | `doc index update` | owner ruling (A-12) | 2 | 3 | 0 | 2 | 0 | 4 | 0 |
+| `plugin gated-table write` | `plugin gated-table update` | owner ruling (A-12) | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
+| `plugin imports write` | `plugin imports update` | owner ruling (A-12) | 1 | 1 | 1 | 1 | 0 | 41 | 0 |
+| `repo feature-tags write` | `repo feature-tags update` | owner ruling (A-12) | 0 | 2 | 0 | 0 | 0 | 5 | 1 |
+| `web assets write` | `web assets update` | owner ruling (A-12) | 0 | 0 | 0 | 0 | 0 | 5 | 0 |
+| `yang glue write` | `yang glue update` | owner ruling (A-12); 330 generated headers, D-P4-counts | 1 | 0 | 0 | 2 | 0 | 330 | 0 |
+| `verify status write` | `verify status record` | records a verdict (D-Q9) | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
+| `worktree update` | `worktree rebase` | rebases, not a regeneration (D-Q9) | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| `spec claim spec <file>` | `spec claim <file>` | D-3 | 4 | 1 | 1 | 9 | 0 | 6 | 0 |
+| `setup docker-host build|check|start|stop` | `setup docker host build|check|start|stop` | rule R9 of `le cli grammar` (Phase 4 step) | 1 | 5 | 0 | 2 | 0 | 21 | 0 |
+| `setup docker-kernel apparmor|check|install` | `setup docker kernel apparmor|check|install` | rule R9 of `le cli grammar` | 2 | 8 | 0 | 11 | 0 | 24 | 1 |
+| `test <mock>` (15 mocks and helpers) | `mock <name>` | D-Q10; counts per D-Q10 (about 150 `.ci` lines) | - | - | - | - | - | - | - |
+| `ai rules condensed-check` | `ai rules check condensed` | compound word (D-P4-positional) | 0 | 1 | 0 | 0 | 0 | 8 | 0 |
+| `ai rules index-check` | `ai rules check index` | compound word | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| `ai rules points-roundtrip-check` | `ai rules check points-roundtrip` | compound word | 0 | 1 | 0 | 1 | 0 | 4 | 0 |
+| `ai rules render-check` | `ai rules check render` | compound word | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
+| `ai rules lint` | `ai rules check metadata` | `lint` is a gate, which `check` covers | 2 | 1 | 0 | 1 | 0 | 3 | 0 |
+| `ai rules condensed-update` | `ai rules update condensed` | compound word, named by the owner | 5 | 1 | 0 | 6 | 0 | 8 | 0 |
+| `ai rules index-update` | `ai rules update index` | compound word, named by the owner | 1 | 1 | 0 | 1 | 0 | 6 | 0 |
+| `ai rules render-update` | `ai rules update render` | compound word | 3 | 2 | 0 | 0 | 0 | 1 | 0 |
+| `ai rules coverage-report` | `ai rules report coverage` | compound word | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| `ai rules gate-map-report` | `ai rules report gate-map` | compound word | 0 | 1 | 0 | 1 | 0 | 5 | 0 |
+| `ai rules payload-report` | `ai rules report payload` | compound word | 0 | 1 | 0 | 1 | 0 | 4 | 0 |
+| `ai rules router-report` | `ai rules report router` | compound word | 1 | 1 | 0 | 0 | 0 | 5 | 0 |
+| `test netlab render-check` | `test netlab check` | compound word; the render is the area's only artifact | 1 | 3 | 0 | 0 | 1 | 2 | 0 |
+| `test netlab render-update` | `test netlab update` | compound word | 0 | 2 | 0 | 0 | 0 | 2 | 0 |
+| `rfc index-update` | `rfc update` | compound word, named by the owner; the index is `rfc`'s only regenerated artifact | 4 | 5 | 0 | 39 | 0 | 14 | 0 |
+| `rfc discriminate-record` | `rfc record` | compound word | 9 | 9 | 0 | 92 | 0 | 21 | 0 |
+| `rfc extraction-create` | `rfc extraction create` | compound word; sub-area (D-P4-positional) | 2 | 3 | 0 | 4 | 0 | 11 | 0 |
+| `rfc extraction-classify` | `rfc extraction classify` | moves with its family into the sub-area | 2 | 3 | 0 | 3 | 0 | 5 | 0 |
+| `rfc extraction-status` | `rfc extraction report` | moves with its family; `status` is a report | 3 | 3 | 0 | 5 | 0 | 4 | 0 |
+| `rfc rename` | `rfc move` | it moves test files; `rename` means changing a name (`go module rename`) | 4 | 2 | 0 | 3 | 0 | 8 | 0 |
+| `perf report` | `perf compare` | it compares result files; `report` reads the tree | 1 | 3 | 0 | 1 | 0 | 7 | 0 |
+| `perf evidence-record` | `perf record evidence` | compound word | 0 | 2 | 0 | 3 | 0 | 2 | 0 |
+| `perf history-record` | `perf record history` | compound word | 0 | 1 | 0 | 1 | 0 | 3 | 0 |
+| `test mutation record-history` | `test mutation record` | compound word; one ledger in the area | 1 | 2 | 0 | 0 | 1 | 4 | 0 |
+| `doc yang-contract pipe-operators-update` | `doc yang-contract update` | compound word; one regenerated artifact in the area | 0 | 1 | 0 | 0 | 0 | 7 | 0 |
+| `arch tier write-baseline` | `arch tier update` | compound word with a retired verb | 0 | 0 | 0 | 0 | 0 | 5 | 0 |
+| `repo generate` | `repo update` | owner ruling: `update` regenerates a committed artifact | 8 | 11 | 0 | 6 | 1 | 5 | 0 |
+| `repo generated-check` | `repo check generated` | compound word (D-P4-positional) | 0 | 4 | 0 | 1 | 1 | 5 | 0 |
+| `repo tree-check` | `repo check tree` | compound word | 0 | 0 | 1 | 2 | 0 | 3 | 0 |
+| `site update-talk` | `site talk` | compound word; a name that declares `update` | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+| `site terminal-demo check-all` | `site terminal-demo check artifacts` | compound word | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
+| `site terminal-demo release-check-all` | `site terminal-demo check release` | compound word | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| `site terminal-demo validation-check-all` | `site terminal-demo check validation` | compound word | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| `site terminal-demo render-all` | `site terminal-demo render all` | compound word; `all` becomes a switch of `render` | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
+| `site terminal-demo binaries-build-ze` | `site terminal-demo build binaries` | compound word | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
+| `site terminal-demo image-build` | `site terminal-demo build image` | compound word | 0 | 1 | 0 | 2 | 0 | 2 | 0 |
+| `scratch cache-clean` | `scratch clean` | compound word | 2 | 2 | 0 | 12 | 0 | 11 | 0 |
+| `scratch store-trim` | `scratch trim` | compound word | 1 | 1 | 0 | 6 | 1 | 3 | 0 |
+| `scratch links-ensure` | `scratch ensure` | compound word | 0 | 1 | 0 | 0 | 0 | 9 | 0 |
+| `session reap` | `session clean` | `reap` and `clean` share one meaning | 0 | 1 | 1 | 3 | 0 | 3 | 0 |
+| `test integration cleanup` | `test integration clean` | `cleanup` and `clean` share one meaning | 1 | 7 | 0 | 4 | 0 | 17 | 0 |
+| `verify summary append` | `verify summary record` | `append` and `record` share one meaning | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| `spec journal validate` | `spec journal check` | `validate` and `check` share one meaning | 0 | 0 | 0 | 1 | 0 | 1 | 0 |
+| `doc check verify` | `doc check all` | `verify` here means every check in order, which is `all` | 10 | 8 | 0 | 40 | 0 | 8 | 0 |
+| `commit audit` | `test weakened check` | a gate; the weakening tools live in `test weakened` | 3 | 4 | 0 | 8 | 0 | 2 | 0 |
+| `commit review-check` | `commit check` | compound word; `commit`'s one gate once `audit` leaves | 0 | 0 | 0 | 1 | 0 | 4 | 0 |
+| `test functional select` | `test functional preview` | it prints what a gating run would start | 0 | 3 | 0 | 0 | 1 | 5 | 0 |
+| `test functional install` | `test functional installer` | a suite spelled as the vocabulary verb `install` | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
+| `test functional exabgp-test` | `test functional exabgp` | `*-test` word, owner ruling | 3 | 6 | 0 | 7 | 0 | 3 | 0 |
+| `weekly update` | `weekly publish` | it posts to Discord; `update` regenerates a committed artifact | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| `lab pin bump` | `lab pin update` | rewrites a committed pin from upstream, as `data * update` refetches | 0 | 2 | 0 | 0 | 2 | 2 | 0 |
+| `web vendor sync` | `web vendor update` | rewrites committed copies from `third_party/web/` | 1 | 0 | 0 | 0 | 0 | 5 | 0 |
+| `web vendor update-report` | `web vendor report` | compound word | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| `feature record-run` | `feature run` | compound word | 1 | 6 | 0 | 2 | 0 | 8 | 0 |
+| `setup web-test` | `setup web` | `*-test` word | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| `setup proto-generate` | `setup proto` | compound word with a retired verb; a name that declares `update` | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
+| `rollback newest` | `rollback` | D-P4-launcher | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| `test qemu all-tests`, `install-test`, `install-iso-test`, `install-scenarios-test`, `install-ventoy-test`, `ipsec-mobike-test`, `mpls-boot-test`, `netns-test`, `pppoe-accel-test`, `pppoe-test`, `vpp-hugepages-test`, `vrrp-keepalived-test` | `all`, `installer`, `installer-iso`, `installer-scenarios`, `installer-ventoy`, `ipsec-mobike`, `mpls-boot`, `netns`, `pppoe-accel`, `pppoe`, `vpp-hugepages`, `vrrp-keepalived` | `*-test` words, owner ruling; `install-*` would keep the vocabulary verb `install` inside a name | 8 | 24 | 1 | 26 | 45 | 35 | 1 |
+| `test deployment docker-l2tp-ppp-test`, `docker-pppoe-accel-test`, `gokrazy-l2tp-ppp-test`, `ipsec-mobike-test`, `l2tp-ppp-test`, `l2tp-scale-test`, `l2tp-test`, `vpp-iface-test`, `vpp-test` | the same words without `-test` | `*-test` words, owner ruling | 3 | 13 | 1 | 13 | 1 | 5 | 2 |
+
+Totals: 113 retired spellings (12 from the A-12 rulings, 1 from D-3, 7 docker
+actions, 15 mocks and helpers, 78 from this design pass: 57 single rows plus the
+21 `test qemu` and `test deployment` words). The 21 `test qemu` and
+`test deployment` renames each land with their `.ci` and workflow consumers in
+one mechanical commit (R-5). Phase 4 re-runs every count against HEAD before
+its commit (R-18).
 
 ### Data flow impact
 
@@ -488,6 +641,8 @@ exit code.
 | AC-48 | `ze le help ai | json`, `ze le completion words spec cl`, `ze le` at a pty | the same payload as `le` but `program` reads `ze le`; the same candidates; the same menu |
 | AC-49 | `le commit create`, `message` or `session` failing to execute (git, the index or the tree refuses the operation) rather than refusing a keyword (carried one-verb finding: commit's `commandError(err, 2)`) | exit 1 when the operation ran and failed, 3 when it could not run; a keyword refusal stays 2 |
 | AC-50 | any listing rendered at a terminal of width W, for W at 20, 80 and 500 columns (carried one-verb AC-6, terminal branch) | no line exceeds W unless it is one unbreakable token; below the description column plus 20, the description moves to its own indented line; continuation lines start at the description column |
+| AC-51 | every word le accepts, including every word the `./le` launcher script consumes before the binary runs (`--name <name>`, `--name=<name>`, the value `session`, `rollback`), owner rule in `ai/META-DECISIONS.md` "Developer tooling" (D-P4-launcher) | each appears on the help page of its level (`le help` for areas and launcher words, the area page for actions, the action page for keywords and enum values), in `le help ai | json`, and among the completion candidates at its place; the launcher's words are read from the script, so a word added to the script without its declaration turns the test red; `./le rollback newest` is refused naming `./le rollback`, exit 2 |
+| AC-52 | every registered action word (D-P4-vocab) | is a vocabulary verb, or a name declaring the vocabulary verb it performs; no vocabulary verb declares another verb; no name has a hyphen part that is a vocabulary verb, `write`, `generate` or `test`; the only words exempt are the `ai hooks` words `.claude/settings.json` calls, and that set equals the settings file's calls; every old spelling in "Phase 4 rename map" is refused naming its successor |
 | AC-53 | every namespace of the live tree, a first word areas share that is no area itself (D-P7-namespace) | carries the summary its package registered, in the menu item on le's first screen, as the heading of its block on the root page, on its own page and in `le help ai commands`; a word that is both a namespace and an area shows the area's summary, and a namespace registration for it stops le; le refuses to start while a namespace holds no summary, naming the namespace and the `leroot.RegisterNamespace` call that fixes it |
 | AC-54 | every area, pass-through area, action, keyword and declared enum or list value of the live registry (D-P7-describe-all) | carries text: the area's summary, the program a pass-through area's words go to, the action's Why, the keyword's Help, and one line per declared value that completion, the menu, the keyword page and `le help ai commands` print beside the value; le refuses to start while any one is blank, or a value line names a value the keyword does not declare, naming the item, what to fill in and the package it goes in |
 
@@ -537,6 +692,12 @@ pattern); pty fixtures reuse the `creack/pty` pattern of
 | `TestEveryRegisteredVerbIsInTheVocabulary` | `internal/le/actions_test.go` | AC-26 | |
 | `TestEveryVocabularyVerbIsUsed` | `internal/le/actions_test.go` | AC-26 | |
 | `TestNoTwoVocabularyVerbsShareAMeaning` | `internal/le/le/action/verbs_test.go` | R-20 | |
+| `TestEveryWordTheLauncherConsumesIsInHelp` | `internal/le/le/root/launcher_test.go` | AC-51: reads the consumed words from the repository's `le` script (the `case ${1:-} in` arms, `[ "${1:-}" = <word> ]` and `[ "$name" = <word> ]` tests before the first `exec`); fails when it reads none; script set equals the declared set both ways; each word is on `le help`, in `le help ai launcher | json` and offered as a first-word completion | |
+| `TestEveryWordLeAcceptsIsInHelp` | `internal/le/actions_test.go` | AC-51: every registered area, action, keyword and enum value appears on the help page of its level, in `le help ai | json` and among completion candidates; a hidden helper only in `help ai`, marked hidden (AC-23) | |
+| `le-launcher-words` | `test/ui/le-launcher-words.ci` | AC-51 through the real launcher: `./le rollback newest` refused naming `./le rollback`, exit 2, nothing moved aside; `./le help` names `--name` and `rollback` | |
+| `TestEveryActionWordIsAVerbOrADeclaringName` | `internal/le/actions_test.go` | AC-52, D-P4-vocab: a verb, or a name with `Does` set to a vocabulary verb; a vocabulary verb with a different `Does` is refused | |
+| `TestNoNameEmbedsAVerbOrTest` | `internal/le/actions_test.go` | AC-52: no hyphen part of a name is a vocabulary verb, `write`, `generate` or `test` | |
+| `TestFrozenHookWordsAreExactlyTheSettingsCalls` | `internal/le/ai/hooks/frozen_test.go` | AC-52, D-P4-frozen: the frozen set equals the `le ai hooks <name>` calls read from `.claude/settings.json` | |
 | `TestEveryNamespaceIsDescribedInTheMenu` | `internal/le/namespace_test.go` | AC-53 over the real registry: every namespace's tree node and first-screen menu item carry its registered summary | |
 | `TestEveryNamespaceIsDescribedOnTheRootPageAndInHelpAI` | `internal/le/namespace_test.go` | AC-53: `le help` heads each namespace block with its summary's first sentence; `le help ai commands \| json` lists each namespace with its summary | |
 | `TestANamespaceWithoutASummaryStopsLeNamingIt`, `TestANamespaceThatIsAlsoAnAreaIsDescribedOnce`, `TestTheTreeAndTheRootPageShowANamespaceSummary` | `internal/le/le/root/namespacesummary_test.go` | AC-53: the refusal names the namespace, the call and its file; a namespace registration for an area is refused; the tree and the root page show the summary, an area's own summary winning | |
@@ -726,11 +887,11 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
    - Verify: AC-6, AC-7, AC-14 to AC-19
 4. **Phase 4: Renames** -- through the one rename map
    - Inputs: `retirednames.go` moved to `internal/le/le/retired`; the Consumer surface table
-   - Tests: `TestRetiredSpellingNamesItsSuccessor`, `TestNoAreaRegistersWrite`, `TestSpawnedHelpersAreHiddenFromHelpAndCompletion`, `TestEveryRegisteredVerbIsInTheVocabulary`, `TestEveryVocabularyVerbIsUsed`, `TestNoTwoVocabularyVerbsShareAMeaning`, `TestNoCitationNamesAVerbTheRegistryDoesNotHold`, `TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage` (namespace half), `le-retired-spellings`
-   - Renames: `spec claim spec <file>` to `spec claim <file>`; ten `write` to `update`; `verify status write` to `verify status record`; `worktree update` to `worktree rebase`; the 15 mocks and helpers to `le mock <name>`; synonym verbs merged per job (R-20); `ai` namespace page reachable as `le ai help`
+   - Tests: `TestRetiredSpellingNamesItsSuccessor`, `TestNoAreaRegistersWrite`, `TestSpawnedHelpersAreHiddenFromHelpAndCompletion`, `TestEveryRegisteredVerbIsInTheVocabulary`, `TestEveryVocabularyVerbIsUsed`, `TestNoTwoVocabularyVerbsShareAMeaning`, `TestNoCitationNamesAVerbTheRegistryDoesNotHold`, `TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage` (namespace half), `TestEveryWordTheLauncherConsumesIsInHelp`, `TestEveryWordLeAcceptsIsInHelp`, `TestEveryActionWordIsAVerbOrADeclaringName`, `TestNoNameEmbedsAVerbOrTest`, `TestFrozenHookWordsAreExactlyTheSettingsCalls`, `le-retired-spellings`, `le-launcher-words`
+   - Renames: every row of "Phase 4 rename map" (113 spellings), the vocabulary of "Verb vocabulary" declared in `leaction`, and `Does` declared on every name (D-P4-vocab, D-P4-minimal); in summary `spec claim spec <file>` to `spec claim <file>`; ten `write` to `update`; `verify status write` to `verify status record`; `worktree update` to `worktree rebase`; the 15 mocks and helpers to `le mock <name>`; synonym verbs and compound words per the map (R-20); launcher words declared and `./le rollback` refusing trailing words (D-P4-launcher, AC-51, files: the `le` script, `leroot`, `internal/le/rollback`); `.claude/settings.json` untouched (D-P4-frozen); `ai` namespace page reachable as `le ai help`; `setup docker-host` and `setup docker-kernel` to `setup docker host` and `setup docker kernel` (rule R9 of `le cli grammar`: two siblings sharing the left word `docker` make it a namespace; package move to `internal/le/setup/docker/{host,kernel}`, the `internal/le/interoplab` dockerlab argv, workflows, `workflowcheck` and docs; clears functional `le-checks-answers`)
    - Constraint: each rename's old spelling is deleted and its row added in the same commit as every consumer's update; `le ai hooks` untouched (D-hooks); `.ci` rewrites one commit per moved helper (R-5)
    - Files: per rename; pages `running-commands.md` (verb vocabulary section), `functional-tests.md`, `ci-format.md`, `ai/INDEX.md`
-   - Verify: AC-20 to AC-27; `le doc check retired-commands` zero findings
+   - Verify: AC-20 to AC-27, AC-51, AC-52; `le doc check retired-commands` zero findings
 5. **Phase 5: Exit codes**
    - Inputs: the reader grep re-run against HEAD (A-6)
    - Tests: `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes`, `TestRefuseArgumentAndRefuseValueAgree`, `TestReviewCheckNotCleanExitsOne`, `TestHookActionsKeepTheHookProtocolCodes`, `TestPassThroughAreasKeepTheirProgramsCode`, `TestCommitExecutionFailureIsNotAUsageError`, `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` (moved from Phase 2, D-P2-required), `le-exit-codes`

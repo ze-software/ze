@@ -103,8 +103,8 @@ func assertRenameOwesOne(t *testing.T, root string) {
 	t.Helper()
 
 	report, code := Check(root, nil)
-	if code != 2 || report.DiscriminationOwed != 1 {
-		t.Fatalf("a rename with an edit answered %d owing %d, want exit 2 owing 1:\n%s",
+	if code != 1 || report.DiscriminationOwed != 1 {
+		t.Fatalf("a rename with an edit answered %d owing %d, want exit 1 owing 1:\n%s",
 			code, report.DiscriminationOwed, report.Text())
 	}
 	if !strings.Contains(report.Text(), fixtureGizmoCIPath) {

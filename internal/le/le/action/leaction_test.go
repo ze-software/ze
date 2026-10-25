@@ -782,33 +782,6 @@ func TestARepeatKeywordCannotBeReadAsOneValue(t *testing.T) {
 	_ = got.One("share")
 }
 
-// VALIDATES: Required is PUBLISHED and is not newly enforced: the parser still
-// hands a missing keyword to the action, whose own body refuses it exactly
-// where and how it refuses it today.
-// PREVENTS: marking a parameter required starting to refuse an invocation that
-// works today, which is the one way this field could break a caller.
-func TestARequiredKeywordIsPublishedRatherThanNewlyEnforced(t *testing.T) {
-	reached := 0
-	area := New("probe", Action{
-		Verb: "run", Why: "run the probe over one file",
-		Parameters: []Parameter{{Keyword: "file", Value: "path", Requirement: Required, Kind: KindString, Help: "h"}},
-		AnswerArgs: func(args Arguments) (any, int) {
-			reached++
-			if !args.Has("file") {
-				return nil, 4
-			}
-			return args, 0
-		},
-	})
-
-	if _, code := area.Answer([]string{"run"}); code != 4 {
-		t.Errorf("a missing required keyword answered %d, want the action's own 4", code)
-	}
-	if reached != 1 {
-		t.Errorf("the action's body was reached %d time(s), want 1: requiredness is published, not parsed", reached)
-	}
-}
-
 // VALIDATES: a help word that a declared keyword introduced is the VALUE the
 // operator typed, so the action runs with it, while the same word at a keyword
 // position still asks what the action takes.

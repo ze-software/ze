@@ -26,20 +26,20 @@ func Answer(args []string) (any, int) {
 // answerCheck runs the gate over the checkout. The table has already refused
 // any word after the verb.
 //
-// The three codes are the script's and stay apart: 0 for a tree that obeys the
-// grammar, 1 for one that does not, and 2 for a tree the gate could not read.
+// The three codes stay apart (le help ai exit-codes): 0 for a tree that obeys the
+// grammar, 1 for one that does not, and 3 for a tree the gate could not read.
 // A caller that reads them apart keeps reading them apart.
 func answerCheck() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, 3
 	}
 
 	result, err := Check(tree, DefaultFloor, leroot.Owned())
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return nil, 3
 	}
 	if !result.Valid {
 		return result, 1

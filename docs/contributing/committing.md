@@ -195,6 +195,17 @@ script judges what the commit holds, as for any commit.
 
 ## What the command refuses
 
+A refusal's exit code says which kind it is. `create`, `message` and `session`
+answer 2 when they refuse the keywords the line gave (`append` with `replace`,
+no file named, a malformed session id, a subject the message rules refuse), 3
+when the operation could not run (no HEAD to prepare against, a file a gate
+must read is unreadable, the checkout is not found), and 1 when it ran and a
+gate or git refused it. `review-check` answers 1 for a review that is not
+clean. The generated script runs under `set -e`, so any non-zero code stops it.
+
+<!-- source: internal/le/commit/exitcode.go -- exitCodeOf, refusedKeywords, couldNotRun -->
+<!-- source: internal/le/commit/actions.go -- answerCreate, answerSession, answerReviewCheck -->
+
 `normalizePath` and `validateAddPath` (`internal/le/commit/input.go`) refuse a
 path before the script is written:
 
@@ -292,7 +303,12 @@ carries no re-check.
 | a push-only script | prepared again in place, P chosen again | refused: an appended commit would not be published; run the push script first, or use `replace` |
 
 `./le commit debt-status` answers exit 0 when P is HEAD and nothing is owed, 1
-when anything is owed (listing it, P included), and 2 when it cannot answer.
+when anything is owed (listing it, P included), and 3 when it cannot answer
+because the checkout, its upstream or git could not be read. `./le commit push`
+answers 2 when it refuses the authorisation the line gave, 1 when the
+derivation or a commit script with a block not yet run refuses the push, and
+3 when it cannot prepare the push because the checkout, its upstream, a file
+or git could not be read.
 `debt-status commit <rev>` answers 0 when `<rev>` is an admissible push target
 with no open item in `<rev> ^@{u}`, whatever follows it on the branch.
 <!-- source: internal/le/commit/push.go -- preparePush, pushScriptPath, renderPushScript, answerDebtStatus -->

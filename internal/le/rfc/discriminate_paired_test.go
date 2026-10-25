@@ -534,7 +534,7 @@ func TestCheckRefusesAPairWithoutSoloRuns(t *testing.T) {
 	putDiscrimination(t, committed, record)
 
 	report, code := Check(commitFixtureTree(t, committed, nil), nil)
-	if code != 2 || len(report.Violations) != 1 {
+	if code != 1 || len(report.Violations) != 1 {
 		t.Fatalf("a committed pair with no solo runs answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}

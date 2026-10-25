@@ -19,16 +19,16 @@ var migratedRefusalsBatchB = []migratedRefusal{
 	{"test stress-repro", []string{"run", "suite", "-help"}, 2}, // D-P3-dash
 	{"test stress-repro", []string{"run", "suite", "bgp", "iterations", "-1"}, 2},
 	{"test stress-repro", []string{"run", "suite", "bgp", "suite", "bgp"}, 2},
-	{"test stress-repro", []string{"run", "test", "x"}, 2}, // body: no suite, 2 before
-	{"repo working-tree", []string{"3"}, 2},                // parser: 1 before
-	{"repo working-tree", []string{"max-areas"}, 2},        // parser: 1 before
-	{"repo working-tree", []string{"max-areas", "-1"}, 2},  // parser: 1 before
-	{"repo working-tree", []string{"max-areas", "many"}, 1},
-	{"go extract", []string{"a.go"}, 2},                   // parser: 1 before
-	{"go extract", []string{"source", "a.go", "dest"}, 2}, // parser: 1 before
-	{"go extract", []string{"source", "a.go", "symbol", "X"}, 1},
-	{"weekly", []string{"publish"}, 2},           // parser: 1 before
-	{"weekly", []string{"resume-from", "-1"}, 2}, // parser: 1 before
-	{"weekly", []string{"channel", "general"}, 1},
+	{"test stress-repro", []string{"run", "test", "x"}, 2},       // body: no suite, 2 before
+	{"repo working-tree", []string{"3"}, 2},                      // parser: 1 before
+	{"repo working-tree", []string{"max-areas"}, 2},              // parser: 1 before
+	{"repo working-tree", []string{"max-areas", "-1"}, 2},        // parser: 1 before
+	{"repo working-tree", []string{"max-areas", "many"}, 2},      // a malformed uint, refused at parse (D-Q8): 1 before
+	{"go extract", []string{"a.go"}, 2},                          // parser: 1 before
+	{"go extract", []string{"source", "a.go", "dest"}, 2},        // parser: 1 before
+	{"go extract", []string{"source", "a.go", "symbol", "X"}, 2}, // the Required dest is missing, refused at parse (D-P2-required): 1 before
+	{"weekly", []string{"publish"}, 2},                           // parser: 1 before
+	{"weekly", []string{"resume-from", "-1"}, 2},                 // parser: 1 before
+	{"weekly", []string{"channel", "general"}, 2},                // a value outside the enum, refused at parse (D-Q8): 1 before
 	{"weekly", []string{"confirm", "force"}, 1},
 }

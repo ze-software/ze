@@ -129,8 +129,8 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	unreadable := filepath.Join(here, "unreadable")
 	leRFCAnswersRequireNoError(os.MkdirAll(unreadable, 0o750), "create the unreadable tree")
 	blind := runLE(unreadable, "rfc", actionCheck)
-	leRFCAnswersRequire(blind.code == 2,
-		"a tree the gate cannot read exited %d, want gate code 2\nstdout:\n%s\nstderr:\n%s",
+	leRFCAnswersRequire(blind.code == 3,
+		"a tree the gate cannot read exited %d, want could-not-run code 3\nstdout:\n%s\nstderr:\n%s",
 		blind.code, blind.stdout, blind.stderr)
 	leRFCAnswersRequire(strings.HasPrefix(blind.stdout, "rfc-requirements: cannot run: "),
 		"a tree the gate cannot read did not say so:\n%s", blind.stdout)
@@ -154,8 +154,8 @@ func leRFCAnswers(ctx context.Context) (err error) {
 
 	leRFCAnswersSeedRequirement(seedTree)
 	seeded := leRFCAnswersRunCheck(runLE, seedTree, "seeded export")
-	leRFCAnswersRequire(seeded.code == 2,
-		"one gated MUST that no test tags exited %d, want gate code 2:\n%s",
+	leRFCAnswersRequire(seeded.code == 1,
+		"one gated MUST that no test tags exited %d, want found-a-problem code 1:\n%s",
 		seeded.code, seeded.page)
 	refused := false
 	var named []string
@@ -581,8 +581,8 @@ func leRFCAnswersRunCheck(
 	tree, name string,
 ) leRFCAnswersCheckAnswer {
 	plain := runLE(tree, "rfc", actionCheck)
-	leRFCAnswersRequire(plain.code == 0 || plain.code == 2,
-		"%s: rfc check exited %d, want 0 or gate code 2\nstdout:\n%s\nstderr:\n%s",
+	leRFCAnswersRequire(plain.code == 0 || plain.code == 1,
+		"%s: rfc check exited %d, want 0 or gate code 1\nstdout:\n%s\nstderr:\n%s",
 		name, plain.code, plain.stdout, plain.stderr)
 	leRFCAnswersRequire(plain.stderr == "", "%s: rfc check wrote to stderr: %q", name, plain.stderr)
 	leRFCAnswersRequire(!strings.Contains(plain.stdout, "\x1b["),
@@ -617,7 +617,7 @@ func leRFCAnswersRunCheck(
 		return answer
 	}
 
-	// Gate code 2 carries two answers. The caller of this helper asked for the
+	// Gate code 1 is a judged tree with violations. The caller of this helper asked for the
 	// tree to be JUDGED. A tree the gate cannot READ is named here, never read
 	// as an empty violation list. It is the refusal the unreadable tree above
 	// is held to.
@@ -1008,7 +1008,7 @@ func (t leRFCPartialTree) seed() {
 // checkJSON runs `le rfc check | json` and returns its exit code and report.
 func (t leRFCPartialTree) checkJSON(what string) (int, map[string]any) {
 	check := t.runLE("rfc", actionCheck, "|", renderJSON)
-	leRFCAnswersRequire(check.code == 0 || check.code == 2, "%s did not answer a gate result: %s", what, check.stderr)
+	leRFCAnswersRequire(check.code == 0 || check.code == 1, "%s did not answer a gate result: %s", what, check.stderr)
 	report := leRFCAnswersJSONObject(check.stdout, what)
 	leRFCAnswersRequire(report["cannot-run"] == nil, "%s could not run: %v", what, report["cannot-run"])
 	return check.code, report
@@ -1029,7 +1029,7 @@ func (t leRFCPartialTree) indexShard() []byte {
 func (t leRFCPartialTree) refuses(shard []byte, row, refusal string) {
 	t.write(leRFCPartialSummary, leRFCPartialMeta+row)
 	bad := t.runLE("rfc", actionCheck, "|", renderJSON)
-	leRFCAnswersRequire(bad.code == 2 && strings.Contains(bad.stdout, refusal), "invalid scope was accepted: %s", bad.stdout)
+	leRFCAnswersRequire(bad.code == 1 && strings.Contains(bad.stdout, refusal), "invalid scope was accepted: %s", bad.stdout)
 	badIndex := t.runLE("rfc", actionIndexUpdate)
 	leRFCAnswersRequire(badIndex.code == 2, "index-update accepted invalid scope")
 	unchanged := leRFCAnswersRead(t.tree, leRFCPartialShard)

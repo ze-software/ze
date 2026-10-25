@@ -203,13 +203,13 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 		message := tb.Str("error: ").Str(args[0]).
 			Str(" is a namespace; it needs one of: ").Join(held, " | ").String()
 		fmt.Fprintln(os.Stderr, message) //nolint:errcheck // CLI output
-		return 1
+		return 2
 	}
 
 	var tb textbuf.Buffer
 	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
-	return 1
+	return 2
 }
 
 // helpAsked answers `le help <command>...`: it resolves the words the reader
@@ -226,7 +226,7 @@ func helpAsked(program string, words []string) int {
 			var tb textbuf.Buffer
 			tb.Str("unknown command: ").Str(words[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 			Usage(program)
-			return 1
+			return 2
 		}
 		return helpPage(program, words[0])
 	}

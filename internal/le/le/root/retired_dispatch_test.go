@@ -30,8 +30,9 @@ func TestDispatchRewritesNoRetiredName(t *testing.T) {
 		captureStdout(t, func() { code = Dispatch("le", []string{"probe-retired-split", "go", "x"}) })
 	})
 
-	if code != 1 {
-		t.Errorf("a word sequence le does not register answered %d, want 1", code)
+	// An unregistered word sequence is an unknown command, a usage error (D-Q8): 2.
+	if code != 2 {
+		t.Errorf("a word sequence le does not register answered %d, want 2", code)
 	}
 	if !strings.Contains(stderr, "unknown command: probe-retired-split") {
 		t.Errorf("the refusal does not name the unknown command:\n%s", stderr)

@@ -354,7 +354,7 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 		// check and `performance.md`, and keeps the writer a seam.
 		var tb textbuf.Buffer
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(errMsg).String()) //nolint:errcheck // CLI output
-		return 1
+		return 2
 	}
 	if folded, ok := strings.CutPrefix(resolved, path); ok && folded != "" {
 		toolArgs = append(toolArgs, strings.Fields(folded)...)
@@ -368,7 +368,7 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 	if err != nil {
 		var tb textbuf.Buffer
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
-		return 1
+		return 2
 	}
 	payload, code := handler(validated)
 	if payload == nil {
@@ -401,9 +401,16 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 	// cannot support an operator. The caller then holds a refusal rather than
 	// data, so it goes to stderr and the status says so. This is not the
 	// flattening AC-8 bans: the tool's verdict is not what failed here.
+	// A `| save` whose write failed (a missing directory, a permission, a full
+	// disk) was well formed and could not deliver its answer: 3 (D-P5-save).
+	// Every other refusal is of what the operator typed: 2 (D-Q8).
+	if command.IsSaveWriteFailure(result) {
+		fmt.Fprintln(errOut, result) //nolint:errcheck // CLI output
+		return 3
+	}
 	if command.IsPipeError(result) {
 		fmt.Fprintln(errOut, result) //nolint:errcheck // CLI output
-		return 1
+		return 2
 	}
 
 	io.WriteString(out, result) //nolint:errcheck // CLI output

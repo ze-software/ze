@@ -91,7 +91,7 @@ type Prepared struct {
 func Create(root string, options *Options) (Prepared, error) {
 	var result Prepared
 	if options.Append && options.Replace {
-		return result, errors.New("append and replace are mutually exclusive")
+		return result, refusedKeywords(errors.New("append and replace are mutually exclusive"))
 	}
 	paths, err := normalizePaths(root, options.Files, validateAddPath)
 	if err != nil {
@@ -103,10 +103,10 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	attesting := options.Attest != ""
 	if attesting && len(slices.Concat(paths, removed))+len(options.Hunks) != 0 {
-		return result, errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
+		return result, refusedKeywords(errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
 			"because a changed tree moves HEAD off the green tree and owes the verify the attestation exists to spare; " +
 			"prepare the attestation alone with ./le commit create subject \"<subject>\" attest <commit> \"<owner words>\", " +
-			"and the files in a commit of their own")
+			"and the files in a commit of their own"))
 	}
 	if attesting {
 		if err := refuseAttestAdmission(options); err != nil {
@@ -114,8 +114,8 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 	}
 	if !attesting && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
-		return result, errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
-			`attest <commit> "<owner words>"`)
+		return result, refusedKeywords(errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
+			`attest <commit> "<owner words>"`))
 	}
 	// The message is judged before any gate runs, so a bad subject is the
 	// first refusal; it is composed again below once the gates have answered
@@ -162,7 +162,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	// applies to this same HEAD, so the script's refusal covers its base too.
 	preparedHead, err := gitOutput(root, "rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil {
-		return result, fmt.Errorf("read the HEAD this commit is prepared against: %w", err)
+		return result, couldNotRun(fmt.Errorf("read the HEAD this commit is prepared against: %w", err))
 	}
 	preparedHead = strings.TrimSpace(preparedHead)
 	// The selected blobs are built before any gate runs, so every gate judges
@@ -214,7 +214,7 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 	default:
 		if len(options.LedgerCarried) != 0 {
-			return result, errors.New("ledger-carried refused: this tree is not the Ze checkout, and only the Ze checkout carries the ledger")
+			return result, refusedKeywords(errors.New("ledger-carried refused: this tree is not the Ze checkout, and only the Ze checkout carries the ledger"))
 		}
 		result.Verify = VerificationState{State: verifyNotApplicable, Detail: notCheckoutDetail}
 	}
@@ -321,7 +321,7 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 		var err error
 		approvalSession, err = lepath.SessionCommitSession(root)
 		if err != nil {
-			return fmt.Errorf("resolve this session's owner approval namespace: %w", err)
+			return couldNotRun(fmt.Errorf("resolve this session's owner approval namespace: %w", err))
 		}
 	}
 	weakening := testweakened.Check(testweakened.Request{
@@ -488,8 +488,8 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 func admissionTrailer(key, subject, reason string) (string, error) {
 	reason = strings.TrimSpace(reason)
 	if strings.ContainsAny(reason, "\r\n") {
-		return "", fmt.Errorf("the reason given for %s must be one line, because it becomes the %s trailer: %q",
-			strings.TrimSpace(key), strings.TrimSuffix(strings.TrimSpace(key), ":"), reason)
+		return "", refusedKeywords(fmt.Errorf("the reason given for %s must be one line, because it becomes the %s trailer: %q",
+			strings.TrimSpace(key), strings.TrimSuffix(strings.TrimSpace(key), ":"), reason))
 	}
 	if subject == "" {
 		return key + reason, nil
@@ -524,7 +524,7 @@ func testCoverageProblemsSelected(root string, paths []string, selection hunks.S
 	for _, path := range paths {
 		if isCommitTestPath(path) && selection.Selected(path) {
 			if _, err := selection.Read(root, path); err != nil {
-				return nil, fmt.Errorf("test-coverage gate cannot read %s: %w", path, err)
+				return nil, couldNotRun(fmt.Errorf("test-coverage gate cannot read %s: %w", path, err))
 			}
 		}
 		if isCommitTestPath(path) {
@@ -535,7 +535,7 @@ func testCoverageProblemsSelected(root string, paths []string, selection hunks.S
 		}
 		content, err := selection.Read(root, path)
 		if err != nil {
-			return nil, fmt.Errorf("test-coverage gate cannot read %s: %w", path, err)
+			return nil, couldNotRun(fmt.Errorf("test-coverage gate cannot read %s: %w", path, err))
 		}
 		head := content
 		if len(head) > 500 {
@@ -583,13 +583,13 @@ func targetScript(root, session, tag string, options *Options) (string, string, 
 		}
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
-			return "", "", fmt.Errorf("script does not exist: %s", relative)
+			return "", "", refusedKeywords(fmt.Errorf("script does not exist: %s", relative))
 		}
 		if !strings.Contains(string(content), scriptMarker) {
-			return "", "", fmt.Errorf("script is not a generated commit script: %s", relative)
+			return "", "", refusedKeywords(fmt.Errorf("script is not a generated commit script: %s", relative))
 		}
 		if !options.Append && !options.Replace {
-			return "", "", fmt.Errorf("%s exists; name append or replace", relative)
+			return "", "", refusedKeywords(fmt.Errorf("%s exists; name append or replace", relative))
 		}
 		return relative, string(content), nil
 	}
@@ -608,11 +608,11 @@ func targetScript(root, session, tag string, options *Options) (string, string, 
 		}
 		matches = candidates
 		if len(matches) == 0 {
-			return "", "", errors.New("append: this session has no prepared script")
+			return "", "", refusedKeywords(errors.New("append: this session has no prepared script"))
 		}
 		if len(matches) > 1 {
 			slices.Sort(matches)
-			return "", "", fmt.Errorf("append is ambiguous: this session has %d prepared scripts; name script", len(matches))
+			return "", "", refusedKeywords(fmt.Errorf("append is ambiguous: this session has %d prepared scripts; name script", len(matches)))
 		}
 		content, err := os.ReadFile(matches[0])
 		if err != nil {
@@ -638,7 +638,7 @@ func refuseForeignReplace(script string, paths []string) error {
 			return nil
 		}
 	}
-	return errors.New("replace refused: script was prepared for a different commit and shares none of these files")
+	return refusedKeywords(errors.New("replace refused: script was prepared for a different commit and shares none of these files"))
 }
 
 // refuseAttestAdmission refuses an attestation that also carries a create
@@ -676,17 +676,17 @@ func refuseUndeclaredWithAttest(options *Options, parameters []leaction.Paramete
 		// cannot be judged, so the refusal says so rather than letting an
 		// attestation carry it.
 		if rule.Given == nil {
-			return errors.New("attest refused: create keyword " + keyword + " has no Given reader, " +
+			return refusedKeywords(errors.New("attest refused: create keyword " + keyword + " has no Given reader, " +
 				"so the attest refusal cannot tell whether an attestation carries it; " +
-				"give " + keyword + " a Given in createPolicy, in internal/le/commit/actions.go")
+				"give " + keyword + " a Given in createPolicy, in internal/le/commit/actions.go"))
 		}
 		if !rule.Given(options) {
 			continue
 		}
-		return errors.New("attest refused with " + keyword + ": an attestation changes no file and runs no gate, " +
+		return refusedKeywords(errors.New("attest refused with " + keyword + ": an attestation changes no file and runs no gate, " +
 			"so there is nothing for " + keyword + " to act on and its value would be recorded nowhere; " +
 			"give " + keyword + " on a commit of its own, and prepare the attestation alone with " +
-			`./le commit create subject "<subject>" attest <commit> "<owner words>"`)
+			`./le commit create subject "<subject>" attest <commit> "<owner words>"`))
 	}
 	return nil
 }

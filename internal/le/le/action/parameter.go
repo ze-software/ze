@@ -257,10 +257,12 @@ func valueForm(parameter Parameter) string {
 // copies the right one rather than guessing where the keyword goes. A retired
 // keyword is refused naming the spelling that replaced it.
 //
-// The kind of a value is NOT checked here yet: a malformed value refused at
-// parse answers 2, where several action bodies answer 1 for it today, and the
-// exit-code phase of plan/post-release/engineering/spec-le-cli-usability.md is
-// where those codes change together.
+// Each value is checked against its parameter's Kind (Kind.Check) as it is
+// read, so a malformed value is a usage error refused here, with exit 2, and
+// never reaches the action's body. A pair's second slot is free text, so only
+// the first slot of a keyword is checked. A Required parameter left out is NOT
+// refused here: Missing and Accepts read a partial line through this function,
+// and parseLine adds that refusal for a line that is about to run.
 func parseArguments(command string, parameters []Parameter, args []string) (Arguments, error) {
 	declared := make(map[string]Parameter, len(parameters))
 	for _, parameter := range parameters {
@@ -314,6 +316,11 @@ func parseArguments(command string, parameters []Parameter, args []string) (Argu
 			if err != nil {
 				return nil, err
 			}
+			if offset == 0 {
+				if err := checkValue(command, parameter, value); err != nil {
+					return nil, err
+				}
+			}
 			parsed.add(keyword, value)
 		}
 		index += 1 + len(slots)
@@ -344,8 +351,42 @@ func parsePositional(command string, parameters []Parameter, declared map[string
 		return 0, fmt.Errorf("%s cannot take %q as its <%s>, because a value never begins with a dash",
 			command, args[0], parameters[0].Value)
 	}
+	if err := checkValue(command, parameters[0], args[0]); err != nil {
+		return 0, err
+	}
 	parsed.add(parameters[0].argumentKey(), args[0])
 	return 1, nil
+}
+
+// checkValue refuses a value its parameter's Kind does not accept, naming the
+// slot and what a value of that kind is.
+func checkValue(command string, parameter Parameter, value string) error {
+	if err := parameter.Kind.Check(value, parameter.Values); err != nil {
+		return fmt.Errorf("%s cannot take %q as %s: %w; a <%s> is %s",
+			command, value, slotForm(parameter), err, parameter.Value, parameter.Kind.Meaning())
+	}
+	return nil
+}
+
+// parseLine reads a line that is about to run: parseArguments, then the first
+// Required parameter the line left out is refused, so a missing value is a
+// usage error with exit 2 that no action body sees. A terminal asks for the
+// missing values before this point, through Missing.
+func parseLine(command string, parameters []Parameter, args []string) (Arguments, error) {
+	parsed, err := parseArguments(command, parameters, args)
+	if err != nil {
+		return nil, err
+	}
+	for _, parameter := range live(parameters) {
+		if parameter.Requirement != Required {
+			continue
+		}
+		if parsed.Has(parameter.argumentKey()) {
+			continue
+		}
+		return nil, fmt.Errorf("%s requires %s", command, slotForm(parameter))
+	}
+	return parsed, nil
 }
 
 // valueSlots answers the names of the value slots a keyword opens: one, or

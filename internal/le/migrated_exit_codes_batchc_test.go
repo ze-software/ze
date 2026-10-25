@@ -42,6 +42,6 @@ var migratedRefusalsBatchC = []migratedRefusal{
 	{"ai tokens", []string{probeWord, "1"}, 2},                    // parser: 1 before
 	{"ai tokens", []string{"cap"}, 2},                             // parser: 1 before
 	{"ai tokens", []string{"project", "-home-thomas-Code-ze"}, 2}, // D-P3-slug: a slug was read as the value before
-	{"ai tokens", []string{"cap", "many"}, 1},
+	{"ai tokens", []string{"cap", "many"}, 2},                     // a malformed uint, refused at parse (D-Q8): 1 before
 	{"ai tokens", []string{"top", "0"}, 1},
 }

@@ -27,6 +27,11 @@ import (
 
 var commitSessionPattern = regexp.MustCompile(`^[0-9a-f]{8}$`)
 
+// ErrCommitSessionSpelling is the refusal of a requested commit session that
+// is not eight lowercase hexadecimal characters: the caller's keyword was
+// wrong, which a caller answers apart from a directory it could not write.
+var ErrCommitSessionSpelling = errors.New("session must be 8 lowercase hexadecimal characters")
+
 // ValidCommitSession reports whether namespace has the shape of a commit
 // namespace, for a caller handed one from outside (a hook payload on stdin)
 // before it names a file after it.
@@ -156,7 +161,7 @@ func commitSessionFor(root, requested, fingerprint string) (string, error) {
 	if requested != "" {
 		requested = strings.ToLower(requested)
 		if !commitSessionPattern.MatchString(requested) {
-			return "", errors.New("session must be 8 lowercase hexadecimal characters")
+			return "", ErrCommitSessionSpelling
 		}
 		if err := writeCommitSession(path, requested); err != nil {
 			return "", fmt.Errorf("write commit session: %w", err)

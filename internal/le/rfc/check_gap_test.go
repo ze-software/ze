@@ -95,7 +95,7 @@ func TestCheckAcceptsDemonstratedGap(t *testing.T) {
 func TestCheckRefusesGapTagOnNonGapRow(t *testing.T) {
 	root := checkFixtureTree(t, gapFixtureFiles(false, gapFixtureTest(selftestRIDSend)))
 	report, code := Check(root, nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("a gap tag on a non-gap row answered %d:\n%s", code, report.Text())
 	}
 	if violationWith(&report, gapFixtureTestPath, selftestSummaryRel, selftestRIDSend,
@@ -110,7 +110,7 @@ func TestCheckRefusesGapTagOnNonGapRow(t *testing.T) {
 func TestCheckRefusesGapTagWithoutHelper(t *testing.T) {
 	root := checkFixtureTree(t, gapFixtureFiles(true, gapFixtureTest("RFC9999-9-9")))
 	report, code := Check(root, nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("a gap tag without its helper call answered %d:\n%s", code, report.Text())
 	}
 	if violationWith(&report, gapFixtureTestPath, selftestRIDSend,
@@ -128,7 +128,7 @@ func TestCheckStillRefusesPolarityTagOnGapRow(t *testing.T) {
 	files := fixtureCorpus()
 	files[selftestSummaryRel] = gapFixtureSummary()
 	report, code := Check(checkFixtureTree(t, files), nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("polarity tags on a {gap} row answered %d:\n%s", code, report.Text())
 	}
 	if violationWith(&report, selftestRIDSend, "is annotated {gap} but IS tested") == "" {
@@ -146,7 +146,7 @@ func TestCheckRefusesGapTagInCI(t *testing.T) {
 			selftestCIDirective + "\n",
 	}
 	report, code := Check(checkFixtureTree(t, files), nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("a gap tag in a .ci file answered %d:\n%s", code, report.Text())
 	}
 	if violationWith(&report, selftestCIPath, selftestRIDSend, "outside a Go test") == "" {

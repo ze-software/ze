@@ -168,7 +168,7 @@ func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 		"- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")}, nil)
 	gitFixture(t, added, []string{"checkout", "-q", "--detach"})
 	report, code := Check(added, nil)
-	if code != 2 || len(report.Violations) != 1 {
+	if code != 1 || len(report.Violations) != 1 {
 		t.Fatalf("a paraphrased row the tip added answered %d with %d violation(s), want the row:\n%s",
 			code, len(report.Violations), report.Text())
 	}
@@ -198,7 +198,7 @@ func TestCheckRefusesUnchangedUnquotedRow(t *testing.T) {
 	base[selftestSummaryRel] = quoteFixtureSummary("- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")
 	root := commitFixtureTip(t, base, fixtureCorpusNudge(), nil)
 	report, code := Check(root, nil)
-	if code != 2 || len(report.Violations) != 1 {
+	if code != 1 || len(report.Violations) != 1 {
 		t.Fatalf("an unquoted row the tip did not touch answered %d with %d violation(s), want the row:\n%s",
 			code, len(report.Violations), report.Text())
 	}
@@ -265,7 +265,7 @@ func TestCheckRefusesRowAnRFCTextChangeUnquoted(t *testing.T) {
 	}
 	root := commitFixtureTip(t, base, map[string]string{selftestSourceRel: changed}, nil)
 	report, code := Check(root, nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("an RFC text change that unquoted a row answered %d:\n%s", code, report.Text())
 	}
 	// The extraction rules also refuse the changed text; the row refusal is the one this
@@ -369,7 +369,7 @@ func TestCheckRefusesFrontCitationInNumberedStem(t *testing.T) {
 	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(wholeTextRows...)}, nil)
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
 	report, code := Check(root, nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("front-matter citations in a numbered stem answered %d:\n%s", code, report.Text())
 	}
 	for _, rid := range []string{"RFC9999-Widgets-1", "RFC9999-x-1"} {
@@ -406,7 +406,7 @@ func TestCheckRefusesMissingSectionInIndentedStem(t *testing.T) {
 		"- [ ] [RFC9999-7-1] [SHOULD] A receiver MUST NOT drop the widget. (§7)")}, nil)
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
 	report, code := Check(root, nil)
-	if code != 2 {
+	if code != 1 {
 		t.Fatalf("a citation of a section the indented text lacks answered %d:\n%s", code, report.Text())
 	}
 	refused := false

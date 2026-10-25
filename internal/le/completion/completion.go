@@ -67,15 +67,15 @@ func (s scriptText) Text() string { return string(s) }
 var _ leroot.Prose = scriptText("")
 
 // answerWords answers the candidates for words. A word le does not know is
-// refused on stderr with exit 1 and nothing on stdout, so the shell, which
-// discards stderr, offers nothing, and a person running the callback by hand
+// a usage error (D-Q8), refused on stderr with exit 2 and nothing on
+// stdout, so the shell, which discards stderr, offers nothing, and a person running the callback by hand
 // reads which word was wrong.
 func answerWords(words []string) (any, int) {
 	candidates, err := leroot.Complete(words)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: completion words: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		return nil, 1
+		return nil, 2
 	}
 	return records(candidates), 0
 }

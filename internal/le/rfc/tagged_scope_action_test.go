@@ -48,8 +48,10 @@ func TestTaggedScopeActionPublishesClosedKeywordGrammar(t *testing.T) {
 	if _, code := Answer([]string{"tagged-scope", "some/path"}); code != 2 {
 		t.Errorf("a path before its keyword answered %d, want grammar refusal 2", code)
 	}
-	if answer, code := Answer([]string{"tagged-scope"}); code != 2 || answer == nil {
-		t.Errorf("a missing path answered (%T, %d), want structured refusal and 2", answer, code)
+	// The Required path is refused by the table's parser (D-P2-required), which
+	// prints the usage and answers no document: exit 2 and a nil answer.
+	if answer, code := Answer([]string{"tagged-scope"}); code != 2 || answer != nil {
+		t.Errorf("a missing path answered (%T, %d), want the parser's usage refusal 2 and no answer", answer, code)
 	}
 }
 
@@ -211,7 +213,7 @@ func TestTaggedScopeMalformedActionInputExitsCannotRun(t *testing.T) {
 	t.Cleanup(restore)
 	answer, code := Answer([]string{"tagged-scope", "path", "internal/x/x_test.go"})
 	report, ok := answer.(taggedScopeActionReport)
-	if code != 2 || !ok || report.Decision != "error" || report.Allowed {
+	if code != 3 || !ok || report.Decision != "error" || report.Allowed {
 		t.Errorf("malformed action input answered code %d, %#v", code, answer)
 	}
 }

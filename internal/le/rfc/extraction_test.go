@@ -540,15 +540,16 @@ func TestAnEmptyBacklogRendersAsAnEmptyList(t *testing.T) {
 }
 
 func TestEachFailureAnswersItsOwnExitCode(t *testing.T) {
-	// A tree with no rfc/ at all is a tree the gate could not judge, which is
-	// the script's exit 2 rather than a clean envelope.
+	// A tree with no rfc/ at all is a tree the gate could not judge: the input
+	// the count needs is absent, so it could not run, exit 3 (D-Q8,
+	// D-P5-extraction), rather than a clean envelope.
 	tree := fixtureTree(t, map[string]string{"go.mod": "module x\n", "feature-gates.txt": ""})
 	t.Setenv("ZE_REPO_ROOT", tree)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if _, code := Answer([]string{"extraction-status"}); code != 2 {
-		t.Errorf("a tree with no workflows answered %d, want 2", code)
+	if _, code := Answer([]string{"extraction-status"}); code != 3 {
+		t.Errorf("a tree with no workflows answered %d, want 3", code)
 	}
 	if _, code := Answer([]string{"no-such-action"}); code != 2 {
 		t.Errorf("an action this area does not hold answered %d, want 2", code)

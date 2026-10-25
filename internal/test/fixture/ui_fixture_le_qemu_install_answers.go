@@ -150,8 +150,9 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	if logged.startErr != nil {
 		return fmt.Errorf("FAIL: one-shot log refusal failed to start: %w", logged.startErr)
 	}
-	if logged.exitCode != 1 {
-		return fmt.Errorf("FAIL: one-shot log refusal exited %d", logged.exitCode)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if logged.exitCode != 2 {
+		return fmt.Errorf("FAIL: one-shot log refusal exited %d, want 2", logged.exitCode)
 	}
 	if logged.stdout != "" {
 		return fmt.Errorf("FAIL: one-shot log refusal wrote stdout: %q", logged.stdout)
