@@ -161,6 +161,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   `./le`, API and gNMI), says what is wrong in plain words, why, and the exact
   command that fixes it (`ai/rules/user-facing-errors.md`).
 
+## Developer tooling
+
+- `le help` covers all of le: every command, keyword and value, and every word
+  or option the `./le` launcher script consumes before the binary runs (such as
+  `--name` and `rollback`). Completion and `le help ai` cover the same set. A
+  word le accepts that its help does not show is a defect.
+
 ## Website design
 
 - Website design follows the approved principles in
