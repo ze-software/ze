@@ -4,13 +4,16 @@
 package reactor
 
 import (
+	"bytes"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -249,6 +252,134 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		require.Empty(t, rail.owed(), "the originated write removes the record")
 		rail.release <- nil
 	})
+	t.Run("initial-replay-over-contested-entry-owed", func(t *testing.T) {
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		adjOutTestForward(t, rail.destination, other, p, 21)
+		rail.request(t)
+		// The RIB elects the revision the destination holds: nothing is
+		// written, the record goes, and the entry stays contested.
+		rail.release <- owedSurvivorMessage(rail.source.Settings().Address, p, 11)
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
+		entry, _ := adjOutTestEntry(rail.destination)
+		require.Same(t, rail.source, entry.owner.source)
+		require.True(t, entry.contested)
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+
+		owedRailInitialReplay(t, rail, 81)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before,
+			"the owner's replay of a contested key is a candidate, never written")
+		request := rail.request(t)
+		require.Equal(t, p, request.Keys[0].NLRI)
+		require.Empty(t, request.Keys[0].Excluded)
+		rail.release <- nil
+	})
+	t.Run("initial-replay-over-tombstone-owed", func(t *testing.T) {
+		rail := newOwedRail(t)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		table := &rail.destination.adjOut
+		table.mu.Lock()
+		for key := range table.routes {
+			delete(table.routes, key)
+			table.tombstone(key)
+		}
+		table.mu.Unlock()
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+
+		owedRailInitialReplay(t, rail, 81)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before,
+			"a replay meeting a tombstone and no entry is a candidate, never written")
+		_, held := adjOutTestEntry(rail.destination)
+		require.False(t, held, "the owed replay installs no entry")
+		request := rail.request(t)
+		require.Equal(t, p, request.Keys[0].NLRI)
+		require.Empty(t, request.Keys[0].Excluded)
+		rail.release <- nil
+	})
+	t.Run("initial-replay-withdrawal-refused", func(t *testing.T) {
+		rail := newOwedRail(t)
+		session := rail.destination.currentSession()
+		session.writeMu.Lock()
+		session.initialReplay = 5
+		session.writeMu.Unlock()
+		rail.destination.initialSyncEOROwed.Store(true)
+		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+			authority: adjOutInitial, sourceMessageID: 81, initialReplay: 5, initialUpdate: true,
+			expectedMessage: 91, initialSourceState: PeerStateEstablished}
+		withdrawal := ownershipRailBody(family.IPv4Unicast, true, p, 0)
+		adjOutTestSend(t, rail.destination, rail.source, &item, withdrawal)
+		require.Empty(t, recoveryWrittenUpdates(t, rail.conn.written()),
+			"an initial replay never withdraws a key the destination does not hold")
+		require.Empty(t, rail.owed())
+
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+		item = fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+			authority: adjOutInitial, sourceMessageID: 81, initialReplay: 5, initialUpdate: true,
+			expectedMessage: 91, initialSourceState: PeerStateEstablished}
+		adjOutTestSend(t, rail.destination, rail.source, &item, withdrawal)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before,
+			"an initial replay never withdraws")
+		entry, held := adjOutTestEntry(rail.destination)
+		require.True(t, held, "the refused withdrawal deletes nothing")
+		require.Equal(t, uint64(11), entry.owner.message)
+		require.Empty(t, rail.owed(), "the refused withdrawal owes nothing")
+	})
+	t.Run("add-path-destination-written", func(t *testing.T) {
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		encoding := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
+		ctxID, err := bgpctx.Registry.Register(encoding)
+		require.NoError(t, err)
+		rail.destination.sendCtx.Store(encoding)
+		rail.destination.sendCtxID = ctxID
+		rail.destination.session.setSendCtxID(ctxID)
+		rail.source.recvCtxID, other.recvCtxID = ctxID, ctxID
+		send := func(source *Peer, path byte, message uint64) {
+			item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+				authority: adjOutForwarded, sourceMessageID: message}
+			raw := []byte{0, 0, 0, path, 24, 192, 0, 2}
+			adjOutTestSend(t, rail.destination, source, &item, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
+		}
+		send(rail.source, 1, 11)
+		send(other, 2, 21)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
+			"an ADD-PATH destination receives every path, never an election")
+		require.Empty(t, rail.owed())
+	})
+	t.Run("staged-once-over-two-filter-passes", func(t *testing.T) {
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		held := []byte{24, 198, 51, 100}
+		q := []byte{24, 203, 0, 113}
+		// A round is held on another key, so no snapshot clears the marks.
+		adjOutTestForward(t, rail.destination, rail.source, held, 1)
+		adjOutTestForward(t, rail.destination, other, held, 2)
+		rail.request(t)
+		adjOutTestForward(t, rail.destination, other, p, 21)
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+
+		// One body: P is owed and removed, Q is written, so the writer
+		// filters the body a second time into a scratch buffer.
+		adjOutTestForward(t, rail.destination, rail.source, append(slices.Clone(p), q...), 11)
+		written := recoveryWrittenUpdates(t, rail.conn.written())[before:]
+		require.Len(t, written, 1)
+		require.Equal(t, q, written[0].NLRI, "only Q reaches the wire")
+		var record *adjOutOwed
+		for _, owed := range rail.owed() {
+			if bytes.Equal(owed.nlri, p) {
+				record = owed
+			}
+		}
+		require.NotNil(t, record, "P is owed")
+		require.False(t, record.announced, "the announcement that created the record is no mover of it")
+		require.Len(t, record.announcers, 1, "one current-announcer entry")
+		rail.release <- nil
+	})
 	t.Run("initial-replay-installs-source-message", func(t *testing.T) {
 		f := ownershipRailNew(t, nil)
 		f.r.config = &Config{LocalAS: 65000}
@@ -279,5 +410,146 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		require.True(t, held)
 		require.Same(t, f.source, entry.owner.source)
 		require.Equal(t, uint64(81), entry.owner.message, "the entry names the replayed revision")
+	})
+}
+
+// adjOutTestTombstones counts the destination's tombstoned keys.
+func adjOutTestTombstones(destination *Peer) int {
+	table := &destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	return len(table.tombstones)
+}
+
+// TestAdjOutContestedBitAndTombstone proves the contested bit and the
+// tombstone at the final writer (round 11, I-3 and I-4; round 12, I-1 and
+// I-3). Method: real writer calls on a non-ADD-PATH destination with a
+// registered recovery owner and a gated RIB double, the table read after
+// each. A recovery write sets the bit, so the new owner's own re-announcement
+// is owed. An originated withdrawal of a source-owned, not-owed key leaves a
+// tombstone, and the next forwarded announcement meets it and is owed; the
+// deletion of an originated-owned entry leaves none. A recovery WITHDRAW
+// decision leaves no tombstone, and a table reset clears bits and
+// tombstones. A recovery announcement with no source is refused with
+// errAdjOutProvenance and changes nothing.
+//
+// VALIDATES: Data Flow 3a, the bit and the tombstone; A-14's two exits.
+// PREVENTS: a candidate written with no election after the entry it
+// contested was deleted, and an unattributed recovery write installing an
+// originated-looking owner.
+func TestAdjOutContestedBitAndTombstone(t *testing.T) {
+	p := syncOrderPrefixWire
+	sel := func(rail *owedRail) *selector.Selector {
+		return selector.ParseDefault(rail.destination.Settings().Address.String())
+	}
+	t.Run("recovery-write-sets-bit", func(t *testing.T) {
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		rail.forward(t, true, p) // The owner withdraws P: owed.
+		rail.request(t)
+		rail.release <- owedSurvivorMessage(other.Settings().Address, p, 21)
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
+		entry, held := adjOutTestEntry(rail.destination)
+		require.True(t, held)
+		require.Same(t, other, entry.owner.source, "the recovery write installs the elected owner")
+		require.True(t, entry.contested, "a recovery write sets the bit")
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+
+		adjOutTestForward(t, rail.destination, other, p, 22)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before,
+			"the elected owner's own re-announcement of a contested key is owed")
+		rail.request(t)
+		rail.release <- nil
+	})
+	t.Run("originated-withdrawal-leaves-tombstone", func(t *testing.T) {
+		rail := newOwedRail(t)
+		rail.r.config = &Config{LocalAS: 65000}
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		api := &reactorAPIAdapter{r: rail.r}
+		require.NoError(t, api.WithdrawNLRIBatch(t.Context(), sel(rail), adjOutBatch(syncOrderPrefix, "10.0.0.1"), plugin.OperatorSender()))
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the originated withdrawal is written")
+		_, held := adjOutTestEntry(rail.destination)
+		require.False(t, held)
+		require.Equal(t, 1, adjOutTestTombstones(rail.destination), "a source-owned deletion leaves a tombstone")
+
+		adjOutTestForward(t, rail.destination, other, p, 21)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
+			"an announcement meeting a tombstone is owed, never written")
+		request := rail.request(t)
+		require.Equal(t, p, request.Keys[0].NLRI)
+		rail.release <- nil
+	})
+	t.Run("originated-entry-leaves-no-tombstone", func(t *testing.T) {
+		rail := newOwedRail(t)
+		rail.r.config = &Config{LocalAS: 65000}
+		api := &reactorAPIAdapter{r: rail.r}
+		require.NoError(t, api.AnnounceNLRIBatch(t.Context(), sel(rail), adjOutBatch(syncOrderPrefix, "10.0.0.1"), plugin.OperatorSender()))
+		require.NoError(t, api.WithdrawNLRIBatch(t.Context(), sel(rail), adjOutBatch(syncOrderPrefix, "10.0.0.1"), plugin.OperatorSender()))
+		require.Zero(t, adjOutTestTombstones(rail.destination), "an originated entry's deletion leaves none")
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 3, "the first forwarded route is written")
+		require.Empty(t, rail.owed())
+	})
+	t.Run("withdraw-decision-leaves-no-tombstone", func(t *testing.T) {
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		rail.forward(t, true, p)
+		rail.request(t)
+		rail.release <- nil // WITHDRAW.
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the WITHDRAW answer is written")
+		require.Zero(t, adjOutTestTombstones(rail.destination), "a WITHDRAW decision leaves no tombstone")
+
+		adjOutTestForward(t, rail.destination, other, p, 21)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 3,
+			"after a WITHDRAW decision the next route is a first arrival")
+		require.Empty(t, rail.owed())
+	})
+	t.Run("table-reset-clears-bits-and-tombstones", func(t *testing.T) {
+		rail := newOwedRail(t)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		table := &rail.destination.adjOut
+		table.mu.Lock()
+		for key := range table.routes {
+			table.tombstone(key)
+		}
+		table.clearRoutes()
+		table.mu.Unlock()
+		require.Zero(t, adjOutTestTombstones(rail.destination))
+		_, held := adjOutTestEntry(rail.destination)
+		require.False(t, held)
+	})
+	t.Run("recovery-announcement-without-source-refused", func(t *testing.T) {
+		rail := newOwedRail(t)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		table := &rail.destination.adjOut
+		table.mu.Lock()
+		for key := range table.routes {
+			table.tombstone(key)
+		}
+		table.mu.Unlock()
+		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+		s := rail.destination.currentSession()
+		item := fwdItem{peer: rail.destination, session: s, authority: adjOutRecovery}
+		body := ownershipRailBody(family.IPv4Unicast, false, p, 0)
+		item.rawBodies = [][]byte{body}
+		s.writeMu.Lock()
+		s.sentForward = &item
+		err := s.writeRawUpdateBody(body)
+		s.sentForward = nil
+		s.writeMu.Unlock()
+		require.ErrorIs(t, err, errAdjOutProvenance)
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before)
+		entry, held := adjOutTestEntry(rail.destination)
+		require.True(t, held)
+		require.Same(t, rail.source, entry.owner.source, "no originated-looking owner is installed")
+		require.False(t, entry.contested, "no bit is set")
+		require.Equal(t, 1, adjOutTestTombstones(rail.destination), "the tombstone is untouched")
 	})
 }

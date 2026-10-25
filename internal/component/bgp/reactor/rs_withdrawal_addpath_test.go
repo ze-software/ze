@@ -257,8 +257,14 @@ func addPathLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 func addPathLiveOpenParams(s *PeerSettings) []byte {
 	params := []byte{2, 6, 65, 4, 0, 0, byte(s.PeerAS >> 8), byte(s.PeerAS), 2, 6, 1, 4, 0, 1, 0, 1}
 	for _, c := range s.Capabilities {
-		if _, ok := c.(*capability.AddPath); ok {
-			return append(params, 2, 6, 69, 4, 0, 1, 1, byte(capability.AddPathSend))
+		if addPath, ok := c.(*capability.AddPath); ok {
+			// The remote advertises the direction complementing Ze's: Ze
+			// receiving needs a sending peer, Ze sending a receiving one.
+			mode := capability.AddPathSend
+			if addPath.Families[0].Mode == capability.AddPathSend {
+				mode = capability.AddPathReceive
+			}
+			return append(params, 2, 6, 69, 4, 0, 1, 1, byte(mode))
 		}
 	}
 	return params
