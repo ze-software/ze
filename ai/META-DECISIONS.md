@@ -23,6 +23,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
   support.
+- RFC work is ordered by use-case profile and by the RFC dependency tree: a
+  release profile needs every MUST of every RFC it reaches covered before
+  release, and work moves from root RFCs to leaves, except where a leaf
+  updates a root's requirements. A MUST counts as covered only when a recorded
+  break proved its test goes red. RFCs no release profile reaches wait until
+  after the first release.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
