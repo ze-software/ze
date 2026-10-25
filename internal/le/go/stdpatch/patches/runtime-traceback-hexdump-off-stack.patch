@@ -1,0 +1,50 @@
+Ze patch to the Go standard library: runtime tracebackHexdump returns when
+frame.sp is not on the stack it was given.
+
+How this file is applied, reviewed and replaced on a Go upgrade:
+docs/contributing/patching-the-standard-library.md
+
+The defect, read in go1.27.3 and unchanged on golang/go master (2026-10-25).
+racecall (runtime/race_arm64.s) moves SP to g0's stack and calls the race
+runtime without changing g. A SIGQUIT that lands there makes sighandler
+trace the user goroutine from a PC inside C code, so (*unwinder).initAt
+prints "unknown pc" and calls tracebackHexdump(gp.stack, ...). frame.sp is
+on g0's stack, so clamping to gp.stack leaves hi below lo, and
+hexdumpWords(lo, hi-lo, ...) receives a wrapped length: "fatal error:
+unsafe.Slice: len out of range", then "panic during panic". The second
+traceback (fatalthrow, dopanic_m, tracebackothers) re-traces the same
+goroutine from its saved registers. On darwin/arm64 every sample of the hung
+process sits on the load at traceback.go:374 in (*unwinder).resolveInternal,
+and the dump stops after its first goroutine; that the load faults and is
+re-executed while the handler blocks SIGSEGV is inferred, not traced. Before CL 681375 ("runtime: add hexdumper", go1.26),
+hexdumpWords took an end address and printed nothing when end <= p; the
+hunk below restores that outcome.
+
+Upstream status: not yet reported. The same output appears in builder
+failures on golang/go#73470 (os/exec TestWaitInterrupt/SIGQUIT, linux msan
+and asan), which names no cause. Delete this patch when the toolchain Ze
+pins carries the fix.
+
+No Ze code references this patch: a build without it compiles and runs
+the same, and only a SIGQUIT dump under -race (or msan, asan) differs.
+
+Ze-Reviewed-Against: go1.27.3
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 58161de..0fa83be 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1462,6 +1462,13 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+
+ 	// Print the hex dump.
+ 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
++	if hi <= lo {
++		// frame.sp is not on stk, so the clamped range is empty or
++		// inverted and hi-lo would wrap to a huge length. A signal
++		// that lands while gp runs C code on the system stack without
++		// switching g, as racecall does, gets here.
++		return
++	}
+ 	hexdumpWords(lo, hi-lo, func(p uintptr, m hexdumpMarker) {
+ 		if p == frame.fp {
+ 			m.start()

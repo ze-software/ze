@@ -21,6 +21,33 @@ a change to the package source can set it. The owner chose that route on
 2026-10-14, pointing to Vincent Bernat's article
 (<https://vincent.bernat.ch/en/blog/2026-go-netip-addrto6>) as the way to do it.
 
+## The runtime traceback patch
+
+The set holds a second patch,
+`internal/le/go/stdpatch/patches/runtime-traceback-hexdump-off-stack.patch`,
+which fixes a hang in the Go runtime itself. It affects only binaries built with
+`-race` (and, by the same route, msan and asan), so it matters to Ze's tests,
+not to a shipped binary.
+
+In go1.27.3, `racecall` (`src/runtime/race_arm64.s`) moves SP to the system
+stack and calls the race runtime without changing `g`. A SIGQUIT that lands
+there traces the user goroutine from a PC inside C code. The unwinder prints
+`unknown pc` and calls `tracebackHexdump` (`src/runtime/traceback.go`), which
+clamps its range to the goroutine's stack. The SP is not on that stack, so the
+range is inverted and `hexdumpWords(lo, hi-lo, ...)` gets a wrapped length:
+`fatal error: unsafe.Slice: len out of range`, then `panic during panic`. The
+second traceback of the same goroutine then never returns on darwin/arm64, and
+the dump stops after its first goroutine. `TestSIGQUITDumpDrainsAfterInit` in
+`internal/core/crashlog` met it under `-race`. The patch returns from
+`tracebackHexdump` when `hi <= lo`, which is what go1.25's end-address
+`hexdumpWords` did; the length form came with CL 681375 in go1.26.
+
+golang/go master has the same code on 2026-10-25. The same output is in
+builder failures on golang/go#73470, which names no cause; the analysis is not
+yet reported upstream. When the pinned toolchain carries a fix, the patch is
+deleted. No Ze code references it, so it carries no marker file and no guard:
+a build without it differs only in a SIGQUIT dump under `-race`.
+
 ## The idea, and where Ze departs from the article
 
 The article changes the standard library for one build with `go build -overlay`:
@@ -327,7 +354,8 @@ runs it in both modes, so a stale stamp turns the verification red.
 The current Go floor is 1.27.3, which fixes
 [GO-2026-6809](https://vuln.go.dev/ID/GO-2026-6809.json) in certificate
 verification. Its `doFullHandshake` still needs Ze's session-ID patch; only
-the review stamp changes.
+the review stamp changes. The runtime patch is re-read the same way, against
+`tracebackHexdump` in `src/runtime/traceback.go`.
 
 1. Change the Go version in `go.mod` as usual.
 2. The stamp still names the old version, so the generator refuses. A le that
