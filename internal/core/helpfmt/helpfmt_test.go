@@ -337,3 +337,30 @@ func TestPageWrapsUnderTheDescriptionColumn(t *testing.T) {
 		t.Errorf("a page with no width must render each entry whole:\n%s", whole.String())
 	}
 }
+
+// TestSectionSummaryFollowsTheTitleAndWraps proves a section's summary is
+// printed on its heading line, after the title, and wraps at the page width
+// under the entries' indent, so no heading line exceeds the width. Method:
+// render one section with a summary wider than the page, plain.
+func TestSectionSummaryFollowsTheTitleAndWraps(t *testing.T) {
+	page := Page{
+		Command: "le",
+		Width:   40,
+		Sections: []HelpSection{{
+			Title:   "spec",
+			Summary: "the spec workflow: claim, track, review and release specs",
+			Entries: []HelpEntry{{Name: "claim", Desc: "claim a spec"}},
+		}},
+	}
+	var out strings.Builder
+	page.WriteTo(&out, false)
+	want := "\nspec: the spec workflow: claim, track,\n  review and release specs\n  claim "
+	if !strings.Contains(out.String(), want) {
+		t.Errorf("the section heading is not %q:\n%s", want, out.String())
+	}
+	for line := range strings.SplitSeq(out.String(), "\n") {
+		if len(line) > 40 {
+			t.Errorf("line of %d columns exceeds 40: %q", len(line), line)
+		}
+	}
+}

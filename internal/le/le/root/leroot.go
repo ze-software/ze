@@ -135,16 +135,22 @@ func RegisterActions(name string, actions func() leaction.List) {
 	setActions(name, actions)
 }
 
-// tablesChecked runs requireEveryAreaHasATable once per process, on the first
-// Dispatch or Tree: every init has run by then, so a table registered after
-// its area's Register call is seen. Safe for concurrent use.
-var tablesChecked sync.Once
+// registrationsChecked runs the startup checks once per process, on the first
+// Dispatch or Tree: every init has run by then, so a table or a namespace
+// summary registered after its area's Register call is seen. Safe for
+// concurrent use.
+var registrationsChecked sync.Once
 
-// checkEveryAreaHasATable stops le before its first answer when an area
-// registered no action table and no pass-through declaration. MUST run after
-// every init, which the first Dispatch or Tree guarantees.
-func checkEveryAreaHasATable() {
-	tablesChecked.Do(func() { requireEveryAreaHasATable(Owned()) })
+// checkRegistrations stops le before its first answer when an area registered
+// no action table and no pass-through declaration, or a namespace registered
+// no summary (requireEveryNamespaceHasASummary). MUST run after every init,
+// which the first Dispatch or Tree guarantees.
+func checkRegistrations() {
+	registrationsChecked.Do(func() {
+		owned := Owned()
+		requireEveryAreaHasATable(owned)
+		requireEveryNamespaceHasASummary(owned)
+	})
 }
 
 // requireEveryAreaHasATable panics naming the first of names that holds no

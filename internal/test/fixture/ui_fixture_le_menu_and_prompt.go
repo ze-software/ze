@@ -148,7 +148,8 @@ func leMenuAndPromptProgress(line string) {
 }
 
 // leMenuAndPromptMenu checks AC-42: the menu drills from spec into spec
-// current and runs its action after echoing the whole line.
+// current and runs its action after echoing the whole line. It checks AC-53 on
+// the way: the spec row says what the namespace is for.
 func leMenuAndPromptMenu(ctx context.Context, dir string, env []string, lePath, _ string) error {
 	run, err := leMenuAndPromptStart(ctx, dir, env, lePath)
 	if err != nil {
@@ -162,7 +163,8 @@ func leMenuAndPromptMenu(ctx context.Context, dir string, env []string, lePath, 
 		{"", leMenuAndPromptHint},
 		// The renderer redraws only the cells that changed, so each step
 		// matches text the step newly draws, never the cursor marker.
-		{"spec", regexp.MustCompile(`filter: spec`)},
+		// The filtered spec row carries what the namespace is for (AC-53).
+		{"spec", regexp.MustCompile(`(?s)filter: spec.*the spec workflow|the spec workflow.*filter: spec`)},
 		{"\r", regexp.MustCompile(`claim`)},
 		{"cu", regexp.MustCompile(`filter: cu`)},
 		{"\r", regexp.MustCompile(`show`)},
@@ -312,7 +314,7 @@ func leMenuAndPromptHalfTerminal(ctx context.Context, dir string, env []string, 
 		if strings.Contains(page, "esc quit") {
 			return fmt.Errorf("bare le with stdin terminal %v printed %q, want the root page and no menu", stdinTerminal, page)
 		}
-		if !strings.Contains(page, "\nspec:\n") {
+		if !strings.Contains(page, "\nspec: the spec workflow: ") {
 			return fmt.Errorf("bare le with stdin terminal %v printed %q, want the root page and no menu", stdinTerminal, page)
 		}
 	}

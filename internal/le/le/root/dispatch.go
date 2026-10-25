@@ -134,7 +134,7 @@ func members(token string) []string {
 // program supplies the page name for help and refusals. It does not change the
 // registered command set.
 func Dispatch(program string, args []string) int {
-	checkEveryAreaHasATable()
+	checkRegistrations()
 	leaction.SetProgram(program)
 	// The root names no command, so it answers what le holds, as a payload
 	// through Run: `le | json` renders the manifest, and a bare `le` prints the
@@ -384,6 +384,10 @@ func areaPage(program, name string) helpfmt.Page {
 			meta = command.Meta
 			break
 		}
+	}
+	// A namespace is no command, so its line is the summary it registered.
+	if summary, named := NamespaceSummary(name); named {
+		meta.ShortHelp = summary
 	}
 
 	var tb textbuf.Buffer

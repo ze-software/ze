@@ -120,7 +120,9 @@ func leHelpPagesRoot(run leHelpPagesRun, lePath string) error {
 			return fmt.Errorf("le %s answered %d, stderr %q, and a page that differs from bare le", word, asked.exitCode, asked.stderr)
 		}
 	}
-	for _, want := range []string{"\nCommands:\n", "\nspec:\n", "  spec claim ", "[workflow] "} {
+	// A namespace block is headed by what the namespace is for (AC-53,
+	// D-P7-namespace), the sentence internal/le/spec/register.go registers.
+	for _, want := range []string{"\nCommands:\n", "\nspec: the spec workflow: ", "  spec claim ", "[workflow] "} {
 		if !strings.Contains(bare.stdout, want) {
 			return fmt.Errorf("the root page lacks %q:\n%s", want, bare.stdout)
 		}

@@ -22,6 +22,9 @@ type Reference struct {
 	Summary string `json:"summary"`
 	// Sections names every section and what it holds.
 	Sections []Entry `json:"sections"`
+	// Namespaces is every first word several commands share, and what it is
+	// for. It is filled with Commands, by the same section.
+	Namespaces []Entry `json:"namespaces,omitempty"`
 	// Commands is every command the program registers.
 	Commands []Command `json:"commands,omitempty"`
 	// Groups is the purpose tags a command declares, and what each means.
@@ -96,6 +99,7 @@ func (r Reference) Text() string {
 		r.writeIndex(&tb)
 		return tb.String()
 	}
+	writeEntries(&tb, "Namespaces", r.Namespaces)
 	r.writeCommands(&tb)
 	writeEntries(&tb, "Groups", r.Groups)
 	writeEntries(&tb, "Verbs", r.Verbs)

@@ -115,9 +115,14 @@ func refuseHelpAI(program, why string) int {
 }
 
 // fillCommands copies every area of the manifest, so the count is the
-// manifest's by construction.
+// manifest's by construction, and every namespace those areas share with the
+// line that describes it (namespaceLine), in the order the root page lists them.
 func fillCommands(ref *reference.Reference, program string) {
-	for _, area := range manifestOf(program).Areas {
+	areas := manifestOf(program).Areas
+	for _, section := range (Manifest{Areas: areas}).sections()[1:] {
+		ref.Namespaces = append(ref.Namespaces, reference.Entry{Name: section.Title, Meaning: namespaceLine(section.Title, areas)})
+	}
+	for _, area := range areas {
 		entry := reference.Command{Name: area.Name, Group: string(area.Group), Summary: area.Description, PassesTo: area.PassesTo}
 		if area.Group == "" {
 			entry.Group = ungroupedTag

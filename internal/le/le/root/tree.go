@@ -22,7 +22,7 @@ import (
 // the action's live parameters as argument definitions. Safe for concurrent
 // use, because each call builds a new tree from the registry.
 func Tree() *command.Node {
-	checkEveryAreaHasATable()
+	checkRegistrations()
 	return treeFrom(Commands())
 }
 
@@ -52,13 +52,19 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 	return root
 }
 
-// nodeFor answers the node at words, creating each missing level.
+// nodeFor answers the node at words, creating each missing level. A level it
+// creates is a namespace until an area of that name claims it, so it carries
+// the summary the namespace registered (RegisterNamespace); treeFrom then
+// overwrites it with the area's own summary when the name is also an area.
 func nodeFor(root *command.Node, words []string) *command.Node {
 	node := root
-	for _, word := range words {
+	for depth, word := range words {
 		next, held := node.Children[word]
 		if !held {
 			next = &command.Node{Name: word, Children: map[string]*command.Node{}}
+			if summary, named := NamespaceSummary(strings.Join(words[:depth+1], " ")); named {
+				next.ShortHelp = summary
+			}
 			node.Children[word] = next
 		}
 		node = next

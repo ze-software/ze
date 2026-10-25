@@ -54,7 +54,10 @@ type Page struct {
 
 // HelpSection is a named group of entries in a help page.
 type HelpSection struct {
-	Title   string      // e.g. "Commands", "Options"
+	Title string // e.g. "Commands", "Options"
+	// Summary is one line saying what the section holds, rendered after the
+	// title on the heading line. Empty renders the title alone.
+	Summary string
 	Entries []HelpEntry // name + description pairs
 }
 
@@ -127,7 +130,18 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 			continue
 		}
 		rw.Str("\n")
-		rw.Line(styled(color, styleHeader, b.Reset().Str(s.Title).Byte(':').String()))
+		heading := b.Reset().Str(s.Title).Byte(':').String()
+		if s.Summary == "" {
+			rw.Line(styled(color, styleHeader, heading))
+		} else {
+			// The summary wraps like a description: its first line follows
+			// the title, and it continues under the entries' indent.
+			parts := wrap(s.Summary, p.Width, len(heading)+1, 2)
+			rw.Line(b.Reset().Str(styled(color, styleHeader, heading)).Byte(' ').Str(parts[0][len(heading)+1:]).String())
+			for _, part := range parts[1:] {
+				rw.Line(part)
+			}
+		}
 		width := entryWidth(s.Entries)
 		for _, e := range s.Entries {
 			// Pad based on raw name length, then apply color.

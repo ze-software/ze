@@ -158,12 +158,43 @@ func TestEveryCommandIsFoundAtThePathItsNamePredicts(t *testing.T) {
 				tool.Name, directory, statErr)
 		}
 	}
+	// A namespace's summary registers at the path its name predicts too, under
+	// the same rule (D-P7-namespace).
+	for directory, namespace := range namespaceDirectories(t) {
+		claimed[directory] = namespace
+		source, readErr := os.ReadFile(filepath.Join(tools, directory, "register.go")) //nolint:gosec // a test reads the checkout it runs in
+		if readErr != nil {
+			t.Errorf("namespace %q predicts internal/le/%s, which registers nothing: %v", namespace, directory, readErr)
+			continue
+		}
+		if !strings.Contains(string(source), `leroot.RegisterNamespace("`+namespace+`", `) {
+			t.Errorf("internal/le/%s/register.go does not register namespace %q's summary", directory, namespace)
+		}
+	}
 
 	for _, held := range registeringDirectories(t, tools) {
 		if _, ok := claimed[held]; !ok {
 			t.Errorf("internal/le/%s registers a command that no command name predicts", held)
 		}
 	}
+}
+
+// namespaceDirectories answers the directory each live namespace predicts,
+// mapped to the namespace: every first word of le's tree that holds commands
+// and is no command itself.
+func namespaceDirectories(t *testing.T) map[string]string {
+	t.Helper()
+	directories := map[string]string{}
+	for name := range leroot.Tree().Children {
+		if leroot.Owns(name) {
+			continue
+		}
+		directories[directoryFor(name)] = name
+	}
+	if len(directories) == 0 {
+		t.Fatal("le registered no namespace")
+	}
+	return directories
 }
 
 // registeringDirectories answers every directory under internal/le holding a
@@ -263,7 +294,14 @@ func TestEveryCommandRegistersItsOwnAnswerShape(t *testing.T) {
 	}
 	tools := filepath.Join(root, "internal", "le")
 
+	// A namespace is no command, so it answers nothing and has no shape to
+	// declare; its register.go registers only its summary, which
+	// TestEveryCommandIsFoundAtThePathItsNamePredicts holds it to.
+	namespaces := namespaceDirectories(t)
 	for _, held := range registeringDirectories(t, tools) {
+		if _, namespace := namespaces[held]; namespace {
+			continue
+		}
 		source, readErr := os.ReadFile(filepath.Join(tools, held, "register.go")) //nolint:gosec // a test reads the checkout it runs in
 		if readErr != nil {
 			t.Errorf("read internal/le/%s/register.go: %v", held, readErr)

@@ -20,7 +20,8 @@ consumes an unquoted one. `| yaml` and `| table` render the same payload.
 and exit 0. The one exception is a person at a terminal: when stdin and stdout
 are both terminals, a bare `./le` opens the menu instead (below), so an agent,
 a pipe, CI or a redirection always gets the page. The page has one block for the single-word commands and one per
-namespace; each line is the name, the area's group as a tag in brackets, and the
+namespace, its heading followed by the first sentence of what the namespace is
+for; each line is the name, the area's group as a tag in brackets, and the
 first sentence of its description. Every page wraps to the terminal's width, or
 to 100 columns when stdout is a pipe, so a page read through a pipe is the same
 on every host.
@@ -78,12 +79,14 @@ tells le its own option from one you forward to a child.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch, helpTrailing -->
 <!-- source: internal/le/le/action/parameter.go -- parameterForm, parseArguments -->
 <!-- source: internal/le/le/root/leroot.go -- requireEveryAreaHasATable -->
+<!-- source: internal/le/le/root/namespacesummary.go -- requireEveryNamespaceHasASummary -->
 
 ### At a terminal: the menu, and prompting for a missing value
 
 With stdin and stdout both terminals, a bare `./le` opens the drill-down menu
 ze opens for a bare `ze` (`docs/architecture/cli/tui-launcher.md`), over le's
-derived command tree: the first screen lists every first word, Enter on a
+derived command tree: the first screen lists every first word with what it is
+for (a namespace's registered summary, an area's own), Enter on a
 namespace or an area opens its members, and Enter on an action runs it. Typing
 filters the level, Left and Backspace go back, Escape goes back or quits, and
 `q` quits while no filter is typed. Quitting runs nothing and exits 0.
@@ -121,7 +124,7 @@ still asks its own terminal question once the line is complete
 ### The whole surface for an agent: `le help ai`
 
 `./le help ai` prints the sections it answers. Each section is a word:
-`commands` lists every area, each action and each parameter with its kind, its
+`commands` lists every namespace with what it is for, then every area, each action and each parameter with its kind, its
 values, whether it is required and whether it repeats, and the program a
 pass-through area hands its words to; `groups` the purpose tags; `verbs` every
 verb in use; `exit-codes` what each code means and who answers another

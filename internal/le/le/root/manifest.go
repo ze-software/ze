@@ -121,7 +121,8 @@ func (m Manifest) page() helpfmt.Page {
 // the registry's order, which is by full path. A single-word command that is
 // also a namespace token lists in its namespace, so every area appears once.
 // Each line is the name, the purpose tag, and the first sentence of the
-// summary (entryText).
+// summary (entryText). A namespace's heading carries the first sentence of
+// what the namespace is for (namespaceLine).
 func (m Manifest) sections() []helpfmt.HelpSection {
 	namespaces := make(map[string]bool, len(m.Areas))
 	for _, area := range m.Areas {
@@ -144,7 +145,9 @@ func (m Manifest) sections() []helpfmt.HelpSection {
 		if !seen {
 			index = len(sections)
 			byNamespace[word] = index
-			sections = append(sections, helpfmt.HelpSection{Title: word})
+			sections = append(sections, helpfmt.HelpSection{
+				Title: word, Summary: leaction.FirstSentence(namespaceLine(word, m.Areas)),
+			})
 		}
 		sections[index].Entries = append(sections[index].Entries, entry)
 	}

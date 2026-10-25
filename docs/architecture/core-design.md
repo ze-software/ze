@@ -143,6 +143,21 @@ members it could have been, and exit 1. A first word that holds no members is
 `unknown command`, exit 1.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
+**A namespace says what it is for, and its own package says it.** A namespace
+holds commands without being one, so no area registration describes it. The
+package at the path its name predicts calls `leroot.RegisterNamespace` with one
+sentence from its `register.go`: `internal/le/spec/register.go` for `spec`,
+`internal/le/test/register.go` for `test`, each blank-imported by
+`internal/le/register.go`. The menu, the namespace's page, its block heading on
+the root page and `le help ai commands` all show that sentence, so the menu has
+no blank sub-menu. A first word that is also an area (`repo`, `verify`, `site`)
+is described by the area's own summary, which its page and completion already
+show; a namespace registration for that word is a second description of one
+entry, and le refuses it. le refuses to start while a namespace holds no
+summary, and the refusal names the namespace and the call that fixes it.
+<!-- source: internal/le/le/root/namespacesummary.go -- RegisterNamespace, requireEveryNamespaceHasASummary -->
+<!-- source: internal/le/le/root/tree.go -- nodeFor -->
+
 **A retired name runs as the command that replaced it.** The subject-first
 rename (`spec-le-subject-first-command-tree`) moves every le command to
 `le <subject> <action>`. `internal/le/doc/check/retirednames.go` declares the
@@ -178,8 +193,8 @@ the registry rather than from the command.** Every page is one `helpfmt.Page`,
 written to stdout with exit 0, and wrapped to the terminal's width, or to 100
 columns when stdout is not a terminal. `le`, `le help` and `le --help` print the
 root page, laid out by tree: one block for the single-word commands, then one
-per namespace, each line the name, the purpose tag and the first sentence of
-the summary. `le <command> --help` and `le help <command>` print that node's
+per namespace, headed by the first sentence of what the namespace is for, each
+line the name, the purpose tag and the first sentence of the summary. `le <command> --help` and `le help <command>` print that node's
 page: its summary, the actions its table declares (each with `[writes]` or
 `[checks]` and the first sentence of its purpose), and the commands registered
 under it. An area with no table yet shows each alternative of its `Meta.Subs`
