@@ -188,7 +188,7 @@ N-A: tooling, no protocol.
 |----------|--------|
 | What breaks if this is wrong? | Other sessions' builds on the same machine fail with `cache entry not found` (R-1, R-2), or every le call and hook slows (R-5). No shipped binary changes |
 | How is it reverted? | A single commit revert; `ze.le.store.trim=off` stops every automatic start at once |
-| Who else touches this path? | the shared-build launcher work (`plan/post-release/engineering/spec-le-shared-build-launcher.md`), whenever it starts (the launcher trim in `livetrim.go` runs in the same child); any session editing `internal/le/scratch` |
+| Who else touches this path? | the le launcher work (`plan/post-release/engineering/spec-le-built-from-head.md`, which superseded spec-le-shared-build-launcher on 2026-10-25), whenever it starts (the launcher trim in `livetrim.go` runs in the same child); any session editing `internal/le/scratch` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

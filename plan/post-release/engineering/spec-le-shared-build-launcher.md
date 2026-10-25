@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | deferred |
 | Priority | P3 |
 | Release reason | Release-independent le shared build launcher work; historical findings do not establish a current product defect. |
 | Scope | tooling |
@@ -13,6 +13,14 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+**Superseded 2026-10-25.** The owner replaced this design (content-addressed
+named builds with hard links) in the discussion recorded in
+`plan/post-release/engineering/spec-le-built-from-head.md`: the shared le is
+built from HEAD, keyed by its input tree hash, and kept as dated builds under
+`bin/builds/`. Nothing below is to be implemented. This spec stays parked only
+until it can be removed through the closure flow; its O-4 row carries over to
+the new spec as O-8.
+
 ## Task
 
 Owner decision O-1, recorded here because it approves this feature (it was a row
@@ -22,6 +30,11 @@ decisions only):
 | Id | Date | Decision | Thomas's words |
 |----|------|----------|----------------|
 | O-1 | 2026-10-22 | `bin/` gets a shared-build launcher: `le-<name>` builds are content-addressed and hard-linked to one copy per distinct build | "yes" to "Shared-build launcher for `bin/` (content-addressed, hard-linked `le-<name>`)?" |
+| O-2 | 2026-10-25 | Named builds are built with `-buildvcs=false`, so a build's bytes depend on its source and not on the commit or the dirty flag Go stamps; two builds of the same source after any number of unrelated commits are byte-identical and share one store entry (makes A-1 hold across HEAD changes). A named build then reports no VCS revision through `internal/core/version`, `crashlog` and `support`; the shared `bin/le` keeps its stamp | "Fix it as discuss." to the proposal: no stamp on named builds, a content-hash store with hardlinks, one default name per session, a trim row for the other agent-made binaries in `bin/` |
+| O-3 | 2026-10-25 | One default name per session: `./le --name session` resolves to a name derived from the session id (`CLAUDE_CODE_SESSION_ID`), so every agent of one session shares one named build; with no session id it refuses and names the variable. `ai/rules/commands.md` tells agents to use it | same |
+| O-4 | 2026-10-25 | The store trim gains a row for agent-made files and directories directly in `bin/` that match none of `le`, `le-*`, `ze*`, `.store`: removed once a day idle and named by no running process's argv, like the `launchers` row (measured 2026-10-25: `gomu`, `gomu-rfc-99e7`, `gomu-9b5c1d68-r2/`, `rfc-vet-probe`) | same |
+
+O-2 to O-4 add AC-17 to AC-20 below; the rest of the spec is unchanged.
 
 O-1: `bin/` gets a shared-build launcher. Every `le-<name>` build is content-addressed and
 hard-linked to one copy per distinct build, instead of one 137 MB binary per
@@ -199,6 +212,10 @@ reclaims a stored build no name links to.
 | AC-13 | `bin/.store/` absent | The `launcher-store` row is a skip that says "no bin/.store directory"; exit 0 |
 | AC-14 | No Claude CLI in the process table | `launcher-store` follows the same rule as `launchers`: skipped with "no session process visible" |
 | AC-15 | `bin/.store/<digest>` executed directly with `ZE_LE_BUILD_NAME=a` | Refused by `refuseWrongBuildName` naming `a` and the digest; exit 2 |
+| AC-17 | O-2: `./le --name a <cmd>`, an unrelated commit by another session that touches no build input, then `./le --name b <cmd>` | Same inode, one store entry; `go version -m bin/le-a/le` shows no `vcs.*` line |
+| AC-18 | O-3: `./le --name session <cmd>` from two agents of one session | Both resolve to the same `bin/le-<derived>/le`; the derived name passes `check_name`; with `CLAUDE_CODE_SESSION_ID` unset, exit 2 naming the variable and `--name <name>` as the alternative |
+| AC-19 | O-4: `bin/` holds an agent-made file and directory a day idle, a younger one, one named in a running process's argv, plus `bin/le`, `bin/ze`, `bin/ze-x`, `bin/.store` | Only the idle, unnamed agent-made pair is removed; every protected name stays |
+| AC-20 | O-3 rule text | `ai/rules/commands.md` names `./le --name session` as the default for a session's own build |
 | AC-16 | `./le` without `--name`, and `./le --update` | Behavior unchanged: `bin/le` is never a link into the store and is never relinked |
 
 ## 🧪 TDD Test Plan

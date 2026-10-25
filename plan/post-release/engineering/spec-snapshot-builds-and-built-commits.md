@@ -49,8 +49,8 @@ gave it.
 - [ ] `docs/architecture/testing/tracked-build-gate.md` - `repo compiles/check`, its flavors
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - certificate tree hash, `job.SnapshotTree`
 - [ ] `docs/contributing/running-commands.md` - `bin/le`, `--name`, `--update`
-- [ ] `plan/post-release/engineering/spec-le-shared-build-launcher.md` - content-addressed `bin/le-<name>` links
-  -> Decision: that spec deduplicates `--name` builds by output hash and leaves `bin/le` alone. This spec decides when `bin/le` is stale (by source digest) and which binary a gate runs. They compose; neither replaces the other.
+- [ ] `plan/post-release/engineering/spec-le-built-from-head.md` - the le slice of this spec, approved by the owner on 2026-10-25 and superseding spec-le-shared-build-launcher: le builds from a HEAD export, keyed by the git tree hash of its inputs, smoke-tested, kept in `bin/builds/<time>-<sha>/le`, dispatched by `bin/le` and `./le`
+  -> Decision: that spec's HEAD export is the first form of this spec's snapshot builder, not a second builder (`ai/rules/no-layering.md`); this spec generalises it to the other artifacts and gates and reuses its input-key rule for `bin/le` rather than defining another.
 - [ ] `plan/post-release/engineering/spec-le-build-cache-cap.md` - one Go build cache, capped
   -> Constraint: snapshots share that cache; a snapshot never gets its own.
 - [ ] `docs/architecture/testing/verify-freshness-scope.md`, "The green record and the cut" and "Verification debt, derived" - debt and certificate model (landed by the closed `spec-verification-debt-derived`)
