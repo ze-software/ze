@@ -334,10 +334,16 @@ commands whose selector the clear covers, and nets each run between clears on
 its own, so the clear dispatches where it was written. A route aimed wider
 than the clear (written for `*`, cleared for one neighbor) is kept: it reaches
 the wire and the clear then withdraws it from the cleared peer
-(`docs/exabgp/exabgp-differences.md`). `api-rib` and `api-rr-rib` are the cases.
+(`docs/exabgp/exabgp-differences.md`). `TestBridgeAdjRIBOutClearCancelsEarlierRoutes`
+is the case. No functional case drives it: `api-rib` and `api-rr-rib` waited on
+the clock until upstream ExaBGP commit 49f00bc15, which made their scripts wait
+on the events a route reaching the wire raises and dropped the step that
+announced a route and cleared it in one write, because whether the clear lands
+in the same batch cannot be made deterministic on the wire.
 
 <!-- source: internal/exabgp/bridge/bridge_command.go -- convertControl -->
 <!-- source: internal/exabgp/bridge/bridge_batch.go -- Net, netRun, adjRIBOutClearCovers -->
+<!-- test: internal/exabgp/bridge/bridge_adjribout_test.go TestBridgeAdjRIBOutClearCancelsEarlierRoutes -->
 
 ## A bare address is a host route
 
