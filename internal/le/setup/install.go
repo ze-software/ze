@@ -275,10 +275,34 @@ func (s *Setup) applyVendorPatches(report *Report) bool {
 	return true
 }
 
+// downloadApplianceDeps fills gokrazy/modcache with the module downloads every
+// gokrazy instance's builddir requires. An image build runs with GOPROXY=off
+// over that cache (SetGokGoEnv), and git holds only the module source there,
+// so an instance whose modules were never downloaded fails its build with
+// "module lookup disabled by GOPROXY=off". Every gokrazy/<instance>/builddir is
+// walked, the appliance's and the docker host's alike, so no instance depends
+// on another having been built first.
 func (s *Setup) downloadApplianceDeps(report *Report) bool {
-	root := filepath.Join(s.Root, "gokrazy", "ze", "builddir")
+	builddirs, err := filepath.Glob(filepath.Join(s.Root, "gokrazy", "*", "builddir"))
+	if err != nil {
+		report.Note("  FAIL discover gokrazy instances: " + err.Error())
+		return false
+	}
+	cache := filepath.Join(s.Root, "gokrazy", "modcache")
+	environment := applianceDownloadEnvironment(cache)
+	for _, builddir := range builddirs {
+		if !s.downloadInstanceDeps(report, builddir, environment) {
+			return false
+		}
+	}
+	return true
+}
+
+// downloadInstanceDeps runs `go mod download all` in every module of one
+// instance's builddir.
+func (s *Setup) downloadInstanceDeps(report *Report, builddir string, environment []string) bool {
 	var modules []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(builddir, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -287,19 +311,14 @@ func (s *Setup) downloadApplianceDeps(report *Report) bool {
 		}
 		return nil
 	})
-	if os.IsNotExist(err) {
-		return true
-	}
 	if err != nil {
-		report.Note("  FAIL discover appliance modules: " + err.Error())
+		report.Note("  FAIL discover the modules of " + builddir + ": " + err.Error())
 		return false
 	}
-	cache := filepath.Join(s.Root, "gokrazy", "modcache")
-	environment := applianceDownloadEnvironment(cache)
 	// The kernel module requires ze's runtime kernel, which each image build
 	// assembles and replaces in; nothing of it exists to download, and its path
 	// is reserved so a download could only fail.
-	kernel := filepath.Join(root, filepath.FromSlash(instance.KernelModule))
+	kernel := filepath.Join(builddir, filepath.FromSlash(instance.KernelModule))
 	for _, module := range modules {
 		if module == kernel {
 			continue
@@ -313,6 +332,18 @@ func (s *Setup) downloadApplianceDeps(report *Report) bool {
 		}
 	}
 	return true
+}
+
+// FillApplianceModules is `le setup appliance-modules`: the module-cache fill
+// `setup install` ends with, on its own, for a machine (a CI runner) that
+// builds a gokrazy image and installs nothing else.
+func (s *Setup) FillApplianceModules() (*Report, int) {
+	s.prepare()
+	report := &Report{}
+	if !s.downloadApplianceDeps(report) {
+		return report, 1
+	}
+	return report, 0
 }
 
 func applianceDownloadEnvironment(cache string) []string {

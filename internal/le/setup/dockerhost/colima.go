@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	labhost "github.com/ze-software/ze/internal/le/dockerhost"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // archARM64 is the Go name of the arch Rosetta and aarch64 belong to.
@@ -249,14 +250,14 @@ func runColima(ctx context.Context, argv []string) error {
 	return nil
 }
 
-// useDockerContext runs `docker context use name` with its output on stderr
-// and no stdin.
+// useDockerContext runs `docker context use name` through interoplab.Docker,
+// the one route to the docker binary (docs/architecture/module-tiers.md, "The
+// docker route"). The build-tool client hands the CLI this process's own
+// environment: the lab endpoint selection would refuse here, because the
+// context this switches to is the one it requires.
 func useDockerContext(ctx context.Context, name string) error {
-	command := exec.CommandContext(ctx, dockerCLI, "context", "use", name) //nolint:gosec // name from zeDockerContext
-	command.Stdout = os.Stderr
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("the ze profile runs, but `docker context use %s` failed: %w (its output is above), "+
+	if err := interoplab.NewBuildToolDocker().UseContext(ctx, name); err != nil {
+		return fmt.Errorf("the ze profile runs, but `docker context use %s` failed: %w, "+
 			"so a plain `docker` still talks to another daemon. Colima creates that context when it starts the profile. "+
 			"Fix: run `docker context use %s`; if docker says the context does not exist, run "+
 			"`colima stop --profile %s` and `./le setup docker-host start`", name, err, name, labhost.ZeProfile)

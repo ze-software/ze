@@ -369,6 +369,15 @@ func (d *Docker) Probe(ctx context.Context) error {
 	return err
 }
 
+// UseContext makes name the Docker CLI's current context, so a plain `docker`
+// in any later shell talks to the daemon that context names. It creates
+// nothing on a daemon, so it carries no label; it is bounded like every other
+// command. A failure carries docker's own stderr.
+func (d *Docker) UseContext(ctx context.Context, name string) error {
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "context", "use", name)
+	return err
+}
+
 // ServerArchitecture answers the GOARCH the Docker daemon builds images FOR.
 //
 // The DAEMON is asked rather than the host assumed, and that is a fact about

@@ -127,6 +127,18 @@ a newer go. `ze appliance build` also refuses, at the same point, a run from
 outside the ze source tree root, where `gokrazy/modcache` is absent.
 <!-- source: internal/appliance/gokpreflight.go -- checkGokHost, CheckGoToolchain -->
 
+With the proxy off, every module an image needs must already be downloaded
+into `gokrazy/modcache/`, and git holds only module source there, never the
+`cache/download` entries a build reads first. `./le setup appliance-modules`
+runs `go mod download all` in every module of every `gokrazy/<instance>/builddir`
+(the appliance's `gokrazy/ze` and the docker host's `gokrazy/docker-host`),
+skipping the reserved kernel module. `./le setup install` ends with the same
+fill. A machine that builds an image and installs nothing else, such as the
+`evidence-nightly` runner before `./le test qemu docker-lab`, runs the action on
+its own; without it the docker-host build fails with "module lookup disabled by
+GOPROXY=off".
+<!-- source: internal/le/setup/install.go -- downloadApplianceDeps, downloadInstanceDeps, FillApplianceModules -->
+
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
 (`github.com/gokrazy/gokrazy@*/**`). That committed source carries upstream's
 own `go.mod`, and GitHub's dependency graph scans every `go.mod` in the

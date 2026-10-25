@@ -3,10 +3,10 @@
 // actions.go contains the ported Python setup area. The dispatch, help line,
 // and two refusals are in internal/le/le/action. Only the TABLE remains here.
 //
-// SEVEN ACTIONS REPLACE TWO FLAGS, THE CLAUDE SERVER BOOTSTRAP, THE
-// GENERATED-PROTO PIPELINE, AND THE LOCAL WEB SERVER. The first three actions
-// represent the effective invocations of the old setup tool. The script
-// declared --check and --no-vendor. These flags have four combinations, but
+// EIGHT ACTIONS REPLACE TWO FLAGS, THE CLAUDE SERVER BOOTSTRAP, THE
+// GENERATED-PROTO PIPELINE, THE LOCAL WEB SERVER AND THE APPLIANCE MODULE
+// FILL. The first three actions represent the effective invocations of the
+// old setup tool. The script declared --check and --no-vendor. These flags have four combinations, but
 // only three can differ. The --no-vendor flag never reaches a check run because
 // check mode returns before the vendoring step.
 //
@@ -17,6 +17,7 @@
 //	proto-generate   regenerate both protobuf Go files
 //	proto-json-tags  apply explicit proto json_name options to generated Go
 //	web-test         initialize an isolated config and run the local web server
+//	appliance-modules  download every gokrazy instance's modules into gokrazy/modcache
 
 // THE BARE COMMAND LISTS THE ACTIONS AND RUNS NOTHING. `setup install` is the
 // install run that the bare name used to start. A developer types an area name
@@ -44,6 +45,7 @@ const (
 	protoGenerateVerb = "proto-generate"
 	protoJSONTagsVerb = "proto-json-tags"
 	webTestVerb       = "web-test"
+	modulesVerb       = "appliance-modules"
 )
 
 // actions is the whole command surface.
@@ -98,6 +100,12 @@ var actions = leaction.New(area,
 		Why:    "initialize an isolated config and run the local web server on port 3443",
 		Answer: runWebTestServer,
 	},
+	leaction.Action{
+		Verb:   modulesVerb,
+		Writes: true,
+		Why:    "download every module each gokrazy/*/builddir needs into gokrazy/modcache, so an image build under GOPROXY=off finds it",
+		Answer: runApplianceModules,
+	},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -126,4 +134,17 @@ func run(check, vendor bool) (any, int) {
 	}
 	setup := &Setup{Root: root, Check: check, Vendor: vendor}
 	return setup.Run()
+}
+
+// runApplianceModules fills the gokrazy module cache over the checkout this
+// command was run in. It answers 2 when the checkout cannot be found, as run
+// does.
+func runApplianceModules() (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	setup := &Setup{Root: root}
+	return setup.FillApplianceModules()
 }

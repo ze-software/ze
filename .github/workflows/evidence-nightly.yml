@@ -157,6 +157,11 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
       - name: BGP interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -164,7 +169,9 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: ./le test qemu docker-lab lab "test integration interop" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
-        if: ${{ !cancelled() }}
+        # The probe ze is built by the docker-lab step; a run that stopped
+        # before building it leaves nothing to probe.
+        if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
         run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
@@ -209,6 +216,11 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
       - name: IKEv2/IPsec interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -216,7 +228,9 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: ./le test qemu docker-lab lab "test integration interop-ipsec" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
-        if: ${{ !cancelled() }}
+        # The probe ze is built by the docker-lab step; a run that stopped
+        # before building it leaves nothing to probe.
+        if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
         run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
@@ -270,6 +284,11 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
       - name: RADIUS admin-login interoperability against FreeRADIUS in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -277,7 +296,9 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: ./le test qemu docker-lab lab "test integration interop-radius" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
-        if: ${{ !cancelled() }}
+        # The probe ze is built by the docker-lab step; a run that stopped
+        # before building it leaves nothing to probe.
+        if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
         run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
@@ -331,6 +352,11 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
       - name: L2TP PPP/NCP interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -338,7 +364,9 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: ./le test qemu docker-lab lab "test deployment docker-l2tp-ppp-test" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
-        if: ${{ !cancelled() }}
+        # The probe ze is built by the docker-lab step; a run that stopped
+        # before building it leaves nothing to probe.
+        if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
         run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
 
@@ -384,6 +412,11 @@ jobs:
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+      - name: Fill the gokrazy module cache
+        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
+        # and git holds only module source there: this downloads what every
+        # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
+        run: ./le setup appliance-modules
       - name: PPPoE client against accel-ppp in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -391,6 +424,8 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: ./le test qemu docker-lab lab "test deployment docker-pppoe-accel-test" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
-        if: ${{ !cancelled() }}
+        # The probe ze is built by the docker-lab step; a run that stopped
+        # before building it leaves nothing to probe.
+        if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
         run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze

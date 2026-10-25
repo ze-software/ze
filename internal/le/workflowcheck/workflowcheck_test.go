@@ -550,7 +550,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"test integration/traffic", "test integration/gtsm", "test integration/as112",
 		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
 		"test deployment/docker-l2tp-ppp-test", "test deployment/docker-pppoe-accel-test",
-		"test qemu/docker-lab", "setup docker-kernel/check",
+		"test qemu/docker-lab", "setup docker-kernel/check", "setup/appliance-modules",
 		"test integration/docker-peers", "test integration/live-rpki",
 	}
 	actions := nativeActions(t, name)
@@ -592,10 +592,21 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			"./le build host-driver",
 			"./ze-host appliance kernel --target runtime --arch amd64",
 			"./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze",
+			"hashFiles('tmp/qemu/linux-amd64/ze') != ''",
 		} {
 			if !strings.Contains(job.body, required) {
 				t.Errorf("%s job %q runs its Docker lab without %q", name, job.name, required)
 			}
+		}
+		// The docker-host image builds under GOPROXY=off over gokrazy/modcache,
+		// so the cache fill MUST run before the lab, never after it.
+		fill := strings.Index(job.body, "run: ./le setup appliance-modules")
+		labStep := strings.Index(job.body, "./le test qemu docker-lab")
+		if fill < 0 {
+			t.Errorf("%s job %q builds the docker-host image without filling the module cache", name, job.name)
+		}
+		if fill > labStep {
+			t.Errorf("%s job %q fills the module cache after its Docker lab", name, job.name)
 		}
 	}
 	for job := range dockerLabs {
