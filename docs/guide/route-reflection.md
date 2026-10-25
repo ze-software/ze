@@ -232,6 +232,27 @@ does not reset a destination that has already reconnected.
 <!-- source: test/plugin/addpath-departure-rr-replacement.ci -- the surviving route replaces the departed best -->
 <!-- source: test/plugin/addpath-departure-rr-nonclient-skip.ci -- a non-client candidate is stepped past toward a non-client -->
 
+A departure decides a prefix at a client only where the departed source owns
+the route the client holds. When A and B both send a prefix and the client
+holds B's route, A leaving writes nothing to that client for it. When the
+client holds A's route, it is sent the best remaining route, or the withdrawal
+when none remains. A labeled or VPN route that carried a stack of several labels
+is withdrawn with the single Compatibility field 0x800000 in place of the stack
+(RFC 8277 Section 2.4), so the client matches the route it holds.
+
+The reflector honours Graceful Restart the way the route server does. When
+`bgp-gr` retains a departed source's address family, the reflector leaves that
+family's routes in place: clients keep them through the restart, because RFC
+4724 Section 4.2 says the router "MUST NOT differentiate between stale and other
+routing information during forwarding". They leave when `bgp-rib` purges them,
+at the restart-time expiry, at the source's End-of-RIB, or on `release-routes`,
+and that purge is decided like an owner withdrawal: the client receives the best
+remaining route, or the withdrawal when none remains. A family the source did not
+retain departs at once, as above.
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, sendPeerDown, nlriDelCmd -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- oweDeparture, departureOweFraming -->
+<!-- source: internal/component/bgp/reactor/rr_withdrawal_replacement_test.go -- TestRRDepartureRecoversThroughOwedSet, TestRRDepartureHonoursRetention, TestRRGRPurgeRecoversSurvivor -->
+
 The VPN daemon fixtures wait for the owning server or reflector to report both
 peers UP before releasing the source's first route. They then fence each marker
 on the destination's sent UPDATE count; the receiving peer checks the actual

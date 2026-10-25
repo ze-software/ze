@@ -232,10 +232,13 @@ reload has since unbound processes from that still-running session
 command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
 `<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
+bgp-rr reaches this path with one departure command per family and command
+form, carrying `recovery-source` meta and naming each route with its own `del`
+keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- sendPeerDown, recoverRouteSel -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
