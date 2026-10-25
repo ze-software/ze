@@ -278,9 +278,14 @@ const (
 	InitialSourceIDMeta    = "initial-source-id"
 	InitialSourceOwnerMeta = "initial-source-owner"
 	InitialSourcePathMeta  = "initial-source-path"
-	SentPathSourcesMeta    = "sent-path-sources"
-	SourceOwnerMeta        = "source-owner"
-	SourceLocalMeta        = "source-local"
+	// InitialSourceMessageMeta carries the received message ID of the source
+	// route a forwarded initial replay restates (the ribOut entry's
+	// SourceMessageID), so the destination's Adj-RIB-Out entry names the
+	// revision it holds and a later election of that revision writes nothing.
+	InitialSourceMessageMeta = "initial-source-message"
+	SentPathSourcesMeta      = "sent-path-sources"
+	SourceOwnerMeta          = "source-owner"
+	SourceLocalMeta          = "source-local"
 )
 
 // RecoveryWriteMeta marks the sent event of a recovery write: a survivor that
@@ -322,6 +327,9 @@ type NLRIBatch struct {
 	InitialSourceOwner   uint64
 	InitialSourcePath    uint32
 	InitialSourceAddPath bool
+	// InitialSourceMessage is the source route's received message ID. A
+	// forwarded initial replay MUST carry it; a local one MUST NOT.
+	InitialSourceMessage uint64
 	// NextHop is the next-hop policy. An announce resolves it per destination
 	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
 	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.

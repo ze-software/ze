@@ -623,6 +623,11 @@ type Session struct {
 	coalesce        coalesceState
 	coalesceEnabled bool
 
+	// readBufferStarved is set while the read loop waits for a read buffer
+	// (awaitReadBuffer), so one wait episode logs once. Accessed only from the
+	// read goroutine (no lock).
+	readBufferStarved bool
+
 	// captureWriter is the peer's protocol event capture, nil unless the
 	// operator enabled it on this peer. Set by Peer in runOnce() before the
 	// read loop starts, and read only from the session read goroutine, so the
@@ -1197,6 +1202,10 @@ func (s *Session) Run(ctx context.Context) error {
 	// unaffected (spec-fixit-bgp-session-fsm-lifecycle AC-7 / D-8).
 	defer s.closeConn()
 
+	// readStop is closed by the cancel goroutine once the session is closing,
+	// so a read loop waiting for a buffer (awaitReadBuffer) leaves at once.
+	readStop := make(chan struct{})
+
 	// Cancel goroutine: watches for shutdown signals and closes the connection
 	// to unblock ReadFull. Sets closeReason before closing so the read loop
 	// can distinguish cancel from hold timer from teardown.
@@ -1225,7 +1234,8 @@ func (s *Session) Run(ctx context.Context) error {
 		}
 		s.setCloseReason(reason)
 		s.closeConn()
-		s.Resume() // Unblock pause gate if paused.
+		s.Resume()      // Unblock pause gate if paused.
+		close(readStop) // Unblock a wait for a read buffer.
 	}()
 
 	defer s.resetCoalesce()
@@ -1273,6 +1283,23 @@ func (s *Session) Run(ctx context.Context) error {
 		// so data does not sit in destination bufWriters.
 		if err != nil || bufReader.Buffered() == 0 {
 			s.flushFwdDirty()
+		}
+
+		// A read buffer shortage is backpressure first: nothing was read
+		// from the connection, so the loop waits for a buffer and reads the
+		// same message then. The peer's TCP window fills meanwhile, which is
+		// what slows it down. The wait has no bound of its own: only a close
+		// or the hold timer ends the session meanwhile (awaitReadBuffer).
+		if errors.Is(err, errReadBufferExhaustedPoolAtMaximum) {
+			if waitErr := s.awaitReadBuffer(ctx, readStop); waitErr != nil {
+				return waitErr
+			}
+			continue
+		}
+		if err == nil && s.readBufferStarved {
+			s.readBufferStarved = false
+			sessionLogger().Info("session read resumed: a read buffer is available again",
+				"peer", s.settings.Address)
 		}
 
 		if err != nil {

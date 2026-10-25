@@ -373,7 +373,7 @@ func TestPolicyFinalFlowSpecOnlyRestorationWithoutReceiveStore(t *testing.T) {
 		lowEventually(t, func() bool { return peer.currentSession() != nil && peer.SessionState() == fsm.StateActive }, "FlowSpec-only peer active")
 		server, remote := net.Pipe()
 		capture := &lowLivePeer{peer: peer, remote: remote, stopped: make(chan struct{})}
-		go capture.readFrames()
+		capture.startCapture(t)
 		t.Cleanup(func() {
 			_ = remote.Close()
 			_ = server.Close()

@@ -409,7 +409,13 @@ func departureWritesOnlyWhereSourceOwns(t *testing.T, sourceOwns, withE bool) {
 	ownershipLiveSend(t, a, nil, attrsA, only) // RFC 4271 Section 4.3.
 	ownershipLiveThrough(t, c, only, attrsA)
 	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C's election of P settled")
-	before := ownershipLiveRead(t, c)
+	// An empty owed set is reached when the election's write is flushed,
+	// before C's reader appends the frame, so C is read through B's fresh
+	// fence prefix, which C's forward worker writes behind any write the
+	// election made. B stays up through the departure below.
+	fence := netip.MustParsePrefix("10.9.4.0/24")
+	ownershipLiveSend(t, b, nil, attrsB, fence) // RFC 4271 Section 4.3.
+	before := ownershipLiveThrough(t, c, fence, attrsB)
 	if withE {
 		// RFC 4271 Section 9.1.2.2, step a: E's one-AS path is the
 		// shortest, so the election keeps E and C is sent neither A's nor
@@ -753,4 +759,80 @@ func synthesizedNextHopAttrs(nextHop netip.Addr, asns ...uint32) []byte {
 	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrASPath), collapseASPathValue(4, asns...))...)
 	address := nextHop.As4()
 	return append(attrs, collapseAttr(0x40, byte(attribute.AttrNextHop), address[:])...)
+}
+
+// TestRSOwnerWithdrawalLaterAnnouncementElected is AC-6 (owner, Q-3). Method:
+// the real bgp-rs and bgp-rib over live sessions. A (the best) and B announce
+// P, so C holds A's route. C's recovery lookups are parked after bgp-rib
+// answers; A withdraws P, so C owes it and the parked round has elected B. F
+// then announces P: its write at C merges into the owed record as an ANNOUNCE
+// mover. Once the lookup is released, the admission writes the round's
+// choice and re-owes P, and the next round elects with F. C ends on the RIB's
+// best of B and F, run with F better and with F worse than B, never on A's
+// route and never with a withdrawal of P.
+//
+// VALIDATES: AC-6.
+// PREVENTS: the newest arrival, or a round's stale choice, ending on C.
+func TestRSOwnerWithdrawalLaterAnnouncementElected(t *testing.T) {
+	for _, fBetter := range []bool{true, false} {
+		name := "f-worse-than-b"
+		if fBetter {
+			name = "f-better-than-b"
+		}
+		t.Run(name, func(t *testing.T) {
+			settings := []*PeerSettings{
+				lowLiveSettings("192.0.2.10", 65000, 65001),
+				lowLiveSettings("192.0.2.11", 65000, 65002),
+				lowLiveSettings("192.0.2.12", 65000, 65003),
+				lowLiveSettings("192.0.2.3", 65000, 65100),
+			}
+			for _, setting := range settings {
+				setting.RSClient = true
+			}
+			peers := rsLiveRouter(t, settings...)
+			a, b, f, c := peers[0], peers[1], peers[2], peers[3]
+			gate := &lookupGate{destination: c.peer.Settings().Address}
+			publishLookupTap(t, gate.after)
+			p := netip.MustParsePrefix("10.6.0.0/24")
+			// RFC 4271 Section 9.1.2.2, step a: the shorter AS_PATH wins.
+			attrsA := firstASAttrs(4, 65001)                                // RFC 6793 Section 3.
+			attrsB := firstASAttrs(4, slices.Repeat([]uint32{65002}, 3)...) // RFC 6793 Section 3.
+			attrsF := firstASAttrs(4, 65003, 65003)                         // RFC 6793 Section 3.
+			want := attrsF
+			if !fBetter {
+				attrsB = firstASAttrs(4, 65002, 65002)                         // RFC 6793 Section 3.
+				attrsF = firstASAttrs(4, slices.Repeat([]uint32{65003}, 3)...) // RFC 6793 Section 3.
+				want = attrsB
+			}
+
+			ownershipLiveSend(t, a, nil, attrsA, p) // RFC 4271 Section 4.3.
+			ownershipLiveThrough(t, c, p, attrsA)
+			ownershipLiveSend(t, b, nil, attrsB, p) // RFC 4271 Section 4.3.
+			lowEventually(t, func() bool {
+				_, owed := adjOutTestRecord(c.peer)
+				return !owed && adjOutPrefixOwner(t, c.peer, p) == a.peer
+			}, "C's election of B's arrival kept A")
+			before := ownershipLiveRead(t, c).withdrawals[p]
+
+			gate.close()
+			lookups := gate.count()
+			ownershipLiveSend(t, a, []netip.Prefix{p}, nil) // RFC 4271 Section 4.3.
+			lowEventually(t, func() bool { return gate.count() > lookups }, "C's round asked the RIB about P")
+			ownershipLiveSend(t, f, nil, attrsF, p) // RFC 4271 Section 4.3.
+			lowEventually(t, func() bool {
+				record, owed := adjOutTestRecord(c.peer)
+				return owed && record.announced
+			}, "F's announcement merged into C's owed record")
+			gate.open()
+
+			lowEventually(t, func() bool {
+				_, owed := adjOutTestRecord(c.peer)
+				return !owed && adjOutPrefixOwner(t, c.peer, p) != a.peer
+			}, "C decided P")
+			view := ownershipLiveRead(t, c)
+			ownershipLiveRoute(t, view, p, want)
+			ownershipLiveWithdrawals(t, view, p, before)
+			ownershipLiveEstablished(t, peers)
+		})
+	}
 }

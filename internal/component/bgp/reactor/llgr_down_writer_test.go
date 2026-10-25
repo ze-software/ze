@@ -137,7 +137,7 @@ func llgrDownLiveRouter(t *testing.T, restart uint16) ([]*lowLivePeer, *process.
 		require.NoError(t, err)
 		require.NoError(t, listener.Close())
 		capture := &lowLivePeer{peer: peer, remote: remote, stopped: make(chan struct{})}
-		go capture.readFrames()
+		capture.startCapture(t)
 		t.Cleanup(func() {
 			_ = remote.Close()
 			_ = server.Close()

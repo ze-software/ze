@@ -605,10 +605,11 @@ func New(config *Config) *Reactor {
 	// minPoolBudget ensures at least one block of each buffer size can be
 	// allocated even when peers have very low prefix maximums or no limit.
 	// Without a floor, the auto-sized budget can be smaller than a single
-	// block allocation, causing Get() to return nil and sessions to fail
-	// on read. Both pools share one budget: the 4K pool serves pre-OPEN
-	// reads, and the 64K pool serves post-negotiation reads when Extended
-	// Message (RFC 8654) is agreed. The floor must cover one block of each.
+	// block allocation, so Get() answers no buffer: a session's read loop
+	// then waits for one (awaitReadBuffer), and a session whose hold timer
+	// runs out first ends with Hold Timer Expired. Both pools share one
+	// budget: the 4K pool serves pre-OPEN reads, and the 64K pool serves
+	// post-negotiation reads when Extended Message (RFC 8654) is agreed. The floor must cover one block of each.
 	minPoolBudget := int64(bufMuxBlockSize) * (int64(message.MaxMsgLen) + int64(message.ExtMsgLen))
 	overflowMux := r.fwdOverflowMux // capture for closure
 	if explicitMaxBytes <= 0 {

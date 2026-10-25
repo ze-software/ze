@@ -37,6 +37,10 @@ type replayGroup struct {
 	SourcePath    uint32
 	SourceAddPath bool
 	LocalOrigin   bool
+	// SourceMessageID is the received message ID of the source route the
+	// group restates, carried as initial-source-message on a forwarded
+	// initial replay.
+	SourceMessageID uint64
 }
 
 // groupKey identifies a unique attribute group for replay batching.
@@ -54,6 +58,9 @@ type groupKey struct {
 	SourcePath    uint32
 	SourceAddPath bool
 	LocalOrigin   bool
+	// SourceMessage keeps two revisions of one source apart: each group
+	// restates exactly one received revision.
+	SourceMessage uint64
 }
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
@@ -163,6 +170,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 				SourcePath:    entry.SourcePath,
 				SourceAddPath: entry.SourceAddPath,
 				LocalOrigin:   entry.LocalOrigin,
+				SourceMessage: entry.SourceMessageID,
 			}
 			pg, ok := groups[gk]
 			if !ok {
@@ -227,6 +235,8 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			SourcePath:    pg.key.SourcePath,
 			SourceAddPath: pg.key.SourceAddPath,
 			LocalOrigin:   pg.key.LocalOrigin,
+			// The ribOut entry's received revision, for initial-source-message.
+			SourceMessageID: pg.key.SourceMessage,
 		})
 	}
 
@@ -395,6 +405,7 @@ groups:
 			meta[bgptypes.InitialSourcePeerMeta] = g.Route.SourcePeer
 			meta[bgptypes.InitialSourceIDMeta] = strconv.FormatUint(uint64(g.SourceID), 10)
 			meta[bgptypes.InitialSourceOwnerMeta] = strconv.FormatUint(g.SourceOwner, 10)
+			meta[bgptypes.InitialSourceMessageMeta] = strconv.FormatUint(g.SourceMessageID, 10)
 			if g.SourceAddPath {
 				meta[bgptypes.InitialSourcePathMeta] = strconv.FormatUint(uint64(g.SourcePath), 10)
 			}

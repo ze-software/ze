@@ -29,8 +29,17 @@ type lowLivePeer struct {
 	remote  net.Conn
 	mu      sync.Mutex
 	frames  [][]byte
+	dropped int // frames past lowLiveFramesMax, which were not retained
 	stopped chan struct{}
 }
+
+// lowLiveFramesMax bounds the frames one remote peer retains. A route-server
+// recovery under a small read pool writes one UPDATE per owed key, so a
+// 2000-key scenario sends thousands of frames; a frame past the bound is
+// counted in dropped, and the test fails rather than judging a truncated
+// history: at once in ownershipLiveRead, at cleanup for every other reader
+// (startCapture).
+const lowLiveFramesMax = 16384
 
 func lowLiveSettings(address string, local, remote uint32) *PeerSettings {
 	s := NewPeerSettings(netip.MustParseAddr(address), local, remote, 0x0a0000fe)
@@ -76,7 +85,7 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		lowEventually(t, func() bool { return p.currentSession() != nil && p.SessionState() == fsm.StateActive }, "peer active")
 		server, remote := net.Pipe()
 		v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
-		go v.readFrames()
+		v.startCapture(t)
 		t.Cleanup(func() {
 			// MUST close before joining: the reader may be waiting for a header.
 			_ = remote.Close()
@@ -97,8 +106,27 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	return out
 }
 
-// readFrames runs once per remote peer. Its owner MUST close remote and join
-// stopped; at most 64 frames are retained for these bounded scenarios.
+// startCapture starts readFrames and registers the check that fails t when a
+// frame went past lowLiveFramesMax. Every reader of frames then judges a
+// complete TCP history or the test fails, whichever reader it used, so the
+// bound is never a silent truncation. The check is registered before the
+// caller's cleanup that closes remote and joins stopped, so it runs after it.
+func (p *lowLivePeer) startCapture(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.dropped != 0 {
+			t.Errorf("peer %s sent %d frames past the %d retained: the test judged an incomplete TCP history",
+				p.peer.Settings().Address, p.dropped, lowLiveFramesMax)
+		}
+	})
+	go p.readFrames()
+}
+
+// readFrames runs once per remote peer, started by startCapture. Its owner
+// MUST close remote and join stopped; at most lowLiveFramesMax frames are
+// retained, and the rest are counted in dropped.
 func (p *lowLivePeer) readFrames() {
 	defer close(p.stopped)
 	for {
@@ -107,8 +135,10 @@ func (p *lowLivePeer) readFrames() {
 			return
 		}
 		p.mu.Lock()
-		if len(p.frames) < 64 {
+		if len(p.frames) < lowLiveFramesMax {
 			p.frames = append(p.frames, frame)
+		} else {
+			p.dropped++
 		}
 		p.mu.Unlock()
 	}

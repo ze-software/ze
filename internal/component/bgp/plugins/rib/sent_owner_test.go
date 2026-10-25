@@ -210,7 +210,8 @@ func TestInitialReplayRequiresExactReceivedHistory(t *testing.T) {
 				return
 			}
 			if len(groups) != 1 || groups[0].SourcePath != 7 || !groups[0].SourceAddPath ||
-				groups[0].SourceOwner != 101 || groups[0].LocalOrigin || groups[0].MinMsgID != 91 {
+				groups[0].SourceOwner != 101 || groups[0].LocalOrigin || groups[0].MinMsgID != 91 ||
+				groups[0].SourceMessageID != 81 {
 				t.Fatalf("exact forwarded history lost its owner: %+v", groups)
 			}
 		})

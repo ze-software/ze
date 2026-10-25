@@ -109,6 +109,16 @@ Peer-up history uses the new Session's captured initial-sync receipt rather than
 bypassing ordinary ownership on an empty table. It can populate only empty slots
 in that phase and cannot displace newer live output. Forwarded history requires
 the same source incarnation and exact retained received path/message revision.
+Each forwarded replay group also carries `initial-source-message`: the received
+message ID of the source route it restates (the ribOut entry's
+`SourceMessageID`). The update parser refuses a forwarded initial replay without
+it, or with a zero or non-decimal value, and refuses it on a local one; the
+reactor refuses a forwarded initial replay whose batch names message zero. The
+Adj-RIB-Out entry the replay installs records that revision, so a later
+recovery election of the same received route recognizes the route the
+destination already holds and writes nothing.
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- replayRoutesWithCursor -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- initialReplayFromMeta -->
 Changed or removed source history is ineligible; replay does not elect or
 reconstruct a newer route. The RIB joins the existing initial-update fence so
 restoration precedes queued live changes and lifecycle cleanup. Both local and

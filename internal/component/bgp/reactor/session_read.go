@@ -9,6 +9,7 @@ package reactor
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -145,6 +147,91 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	processErr, kept = s.processMessage(&hdr, buf.Buf[message.HeaderLen:hdr.Length], buf)
 
 	return processErr
+}
+
+// readBufferRecheck bounds one wait of awaitReadBuffer. A Return to the
+// session's own pool wakes it at once, but capacity also comes back without
+// one: auto-sizing raises the byte budget (updateBufMuxBudget), and the other
+// multiplexer's collapse releases budget bytes. The wait retries Get at least
+// this often so neither leaves a reader asleep.
+const readBufferRecheck = 100 * time.Millisecond
+
+// awaitReadBuffer blocks the read loop until the session's read pool can hand
+// out a buffer, the session closes (stop), or ctx ends. It is backpressure:
+// the connection is not read meanwhile, so the peer's TCP window fills and
+// the peer slows down. The buffers come back as the forward workers write
+// what holds them (queued forwards, staged recovery keys) and as plugins
+// release cached UPDATEs.
+//
+// The wait has no bound of its own and sends nothing to the peer. FRR's read
+// path does the same on a full input queue (bgp_io.c bgp_process_reads logs
+// "Peer Input-Queue is full" and re-arms the read), and RFC 4486 Section 4
+// makes the Cease / Out of Resources a speaker that decides to reset "MAY"
+// send, not a duty. The session ends during the wait only as any session
+// ends: it closes, or its hold timer expires and the OnHoldTimerExpires
+// callback (session.go) tears it down under RFC 4271 Section 8.2.2, Event 10,
+// which closes stop. With a hold time of zero no hold timer runs, and the
+// session waits as long as it stays open.
+//
+// The first wait of an episode logs a warning; the loop logs the resume.
+// Called only from the read goroutine (Run).
+func (s *Session) awaitReadBuffer(ctx context.Context, stop <-chan struct{}) error {
+	pool := bufMuxStd
+	if s.extendedMessage {
+		pool = bufMuxExt
+	}
+	if !s.readBufferStarved {
+		s.readBufferStarved = true
+		total, used := combinedBufMuxStats()
+		sessionLogger().Warn("session read paused: the read buffer pool is at its byte budget",
+			"peer", s.settings.Address,
+			"reason", "every buffer is held by a forward or a cached UPDATE not yet written",
+			"pool-bytes", total, "pool-bytes-in-use", used,
+			"effect", "the session waits and reads again as soon as a buffer is returned; "+
+				"meanwhile the peer is held back by TCP, and if the hold timer runs out first "+
+				"the session ends with Hold Timer Expired",
+			"fix", readBufferPoolFix())
+	}
+
+	// No iteration bound, by design: the loop ends on a buffer, stop or ctx.
+	for {
+		// The channel is taken before Get, so a Return between the two wakes us.
+		freed := pool.freed()
+		probe := pool.Get()
+		if probe.Buf != nil {
+			pool.Return(probe)
+			return nil
+		}
+		timer := s.clock.NewTimer(readBufferRecheck)
+		select {
+		case <-freed:
+		case <-timer.C():
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-stop:
+			timer.Stop()
+			if reason := s.closeReason.Load(); reason != nil {
+				return *reason
+			}
+			return ErrConnectionClosed
+		}
+		timer.Stop()
+	}
+}
+
+// readBufferPoolFix names the config leaf that sizes the read buffer pool.
+// An explicit forward-pool-max-bytes is the budget itself; without one the
+// reactor auto-sizes the budget from the peers' prefix maximums and adds
+// forward-pool-headroom (reactor.go, the weight tracker callback).
+func readBufferPoolFix() string {
+	if env.GetInt64("ze.fwd.pool.maxbytes", 0) > 0 {
+		return "raise environment reactor forward-pool-max-bytes (env ze.fwd.pool.maxbytes), " +
+			"or remove it to let the pool auto-size"
+	}
+	return "the pool is auto-sized from the peers' prefix maximums: raise environment reactor " +
+		"forward-pool-headroom (env ze.fwd.pool.headroom), or set environment reactor " +
+		"forward-pool-max-bytes (env ze.fwd.pool.maxbytes) above pool-bytes"
 }
 
 // notifyHeaderErr sends the NOTIFICATION for a message header that ParseHeader

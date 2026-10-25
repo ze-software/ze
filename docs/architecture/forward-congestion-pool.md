@@ -634,15 +634,56 @@ events and teardown to recover capacity.
 ### Read Pool Exhaustion
 
 Session reads use the shared 4K/64K `BufMux` pools. If `getReadBuffer()` cannot
-obtain a buffer because the combined budget is exhausted, the read path returns
-`read buffer exhausted: pool at maximum allocation`.
+obtain a buffer because the combined budget is exhausted, nothing is read from
+the connection and the session stays up: `Session.Run` waits for a buffer
+(`awaitReadBuffer`) and reads the same message once it has one. That is
+backpressure. The peer's TCP window fills while the session waits, so the peer
+slows down. The wait has no bound of its own and sends the peer nothing.
+
+| Event | What ends the wait |
+|-------|--------------------|
+| A buffer is returned to the session's pool | `BufMux.Return` closes the pool's `bufWake` channel, and the read retries at once |
+| Auto-sizing raises the budget, or the other pool collapses a block | No Return happens on this pool, so the wait retries `Get` every 100 ms (`readBufferRecheck`) |
+| The hold timer expires | The `OnHoldTimerExpires` callback sends Hold Timer Expired (RFC 4271 Section 8.2.2, Event 10), the cancel goroutine closes `readStop`, and `Run` returns the close reason |
+| The session closes (teardown, shutdown) | The cancel goroutine closes `readStop`, and `Run` returns the close reason |
+
+With a hold time of zero no hold timer runs, so the session waits as long as it
+stays open.
+
+The buffers come back as forward workers write what holds them (queued
+forwards, the keys a route-server recovery round staged) and as plugins
+release cached UPDATEs. The first wait of an episode logs a WARN that names
+the pool's bytes, says the session waits while TCP holds the peer back and
+that a hold timer running out first ends it with Hold Timer Expired, and gives
+the fix; the next successful read logs the resume. The fix names the leaf that
+sizes the pool: with `environment reactor forward-pool-max-bytes` set, that
+leaf is the budget; without it the budget is auto-sized from the peers' prefix
+maximums, and `environment reactor forward-pool-headroom` adds to it. The
+leaves feed `ze.fwd.pool.maxbytes` and `ze.fwd.pool.headroom`, which the
+reactor reads.
+
+Neither FRR nor BIRD ends a session for its own full input queue. FRR's
+`bgp_process_reads` (`bgpd/bgp_io.c`) logs "Peer Input-Queue is full" and
+re-arms the read, and RFC 4486 Section 4 makes Cease / Out of Resources
+something a speaker that decides to reset "MAY" send. Both also defer the hold
+timer while input waits unprocessed: FRR's `bgp_holdtime_timer`
+(`bgpd/bgp_fsm.c`) re-arms for a full hold time while the peer's input queue
+is not empty, and BIRD's `bgp_hold_timeout` (`proto/bgp/bgp.c`) restarts the
+timer for 10 seconds when `sk_rx_ready` finds the socket readable. Ze does not
+defer: its hold timer expiry always stops the session, by the decision
+recorded in [congestion-industry.md](congestion-industry.md). A ze whose pool
+stays exhausted for a full hold time therefore sends Hold Timer Expired to a
+peer whose messages wait unread.
 
 The forward overflow pool is separate: denial there does not directly pause
 source reads. Manual `PausePeer` / `ResumePeer` APIs exist for read-loop pause,
 while automatic forward congestion currently emits congestion/resume events and
 uses pool denial plus GR-aware teardown.
 
-<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage getReadBuffer failure -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage getReadBuffer failure, awaitReadBuffer, readBufferRecheck, readBufferPoolFix -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- minPoolBudget, headroom, explicitMaxBytes -->
+<!-- source: internal/component/bgp/reactor/session.go -- Run readStop and the errReadBufferExhaustedPoolAtMaximum wait, OnHoldTimerExpires callback -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- bufWake, BufMux.Return -->
 <!-- source: internal/component/bgp/reactor/session_flow.go -- Pause and Resume -->
 
 ## Weighted Access

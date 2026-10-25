@@ -279,6 +279,9 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 			owner.initialSourceState = target.sourceState
 			owner.initialSourcePath = batch.InitialSourcePath
 			owner.initialSourceAddPath = batch.InitialSourceAddPath
+			// The entry this write installs names the received revision it
+			// restates, so an election of that revision writes nothing.
+			owner.sourceMessageID = batch.InitialSourceMessage
 		}
 	}
 	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner)
@@ -319,6 +322,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		return permErr
 	}
 	if batch.InitialReplay != 0 && !batch.InitialLocal && initialSource == nil {
+		return errAdjOutProvenance
+	}
+	if batch.InitialReplay != 0 && !batch.InitialLocal && batch.InitialSourceMessage == 0 {
+		// A forwarded replay that names no received revision would install
+		// an entry no election can recognize as the one it holds.
 		return errAdjOutProvenance
 	}
 	if len(peers) == 0 {

@@ -1351,6 +1351,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				InitialSourceOwner:   initial.InitialSourceOwner,
 				InitialSourcePath:    initial.InitialSourcePath,
 				InitialSourceAddPath: initial.InitialSourceAddPath,
+				InitialSourceMessage: initial.InitialSourceMessage,
 			}
 			if err := bgpReactor.AnnounceNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
@@ -1508,7 +1509,8 @@ func initialReplayFromMeta(meta map[string]any, sentOwner uint64) (bgptypes.NLRI
 	raw, present := meta[bgptypes.InitialReplayMeta]
 	if !present {
 		for _, key := range []string{bgptypes.InitialLocalMeta, bgptypes.InitialSourcePeerMeta,
-			bgptypes.InitialSourceIDMeta, bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta} {
+			bgptypes.InitialSourceIDMeta, bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta,
+			bgptypes.InitialSourceMessageMeta} {
 			if _, exists := meta[key]; exists {
 				return batch, errors.New("initial replay origin lacks session receipt")
 			}
@@ -1529,7 +1531,7 @@ func initialReplayFromMeta(meta map[string]any, sentOwner uint64) (bgptypes.NLRI
 			return batch, errors.New("initial local origin must be true")
 		}
 		for _, key := range []string{bgptypes.InitialSourcePeerMeta, bgptypes.InitialSourceIDMeta,
-			bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta} {
+			bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta, bgptypes.InitialSourceMessageMeta} {
 			if _, exists := meta[key]; exists {
 				return batch, errors.New("initial local replay cannot carry a forwarding source")
 			}
@@ -1558,6 +1560,20 @@ func initialReplayFromMeta(meta map[string]any, sentOwner uint64) (bgptypes.NLRI
 		return batch, errors.New("initial source identity must be nonzero")
 	}
 	batch.InitialSourceID = uint32(id)
+	// The source route's received message ID names the revision the
+	// destination's Adj-RIB-Out entry will hold, so a later election of the
+	// same revision writes nothing to the client.
+	sourceMessage, ok := meta[bgptypes.InitialSourceMessageMeta].(string)
+	if !ok {
+		return batch, errors.New("initial source message must be a decimal string")
+	}
+	batch.InitialSourceMessage, err = strconv.ParseUint(sourceMessage, 10, 64)
+	if err != nil {
+		return batch, errors.New("initial source message must be a decimal uint64")
+	}
+	if batch.InitialSourceMessage == 0 {
+		return batch, errors.New("initial source message must be nonzero")
+	}
 	if rawPath, exists := meta[bgptypes.InitialSourcePathMeta]; exists {
 		path, valid := rawPath.(string)
 		if !valid {

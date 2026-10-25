@@ -157,7 +157,7 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 		}
 		_ = listener.Close()
 		capture := &lowLivePeer{peer: peer, remote: remote, stopped: make(chan struct{})}
-		go capture.readFrames()
+		capture.startCapture(t)
 		t.Cleanup(func() {
 			_ = remote.Close()
 			_ = server.Close()

@@ -713,7 +713,7 @@ func TestOpenConfirmFailureEndsNegotiatedCache(t *testing.T) {
 		lowEventually(t, func() bool { return p.SessionState() == fsm.StateActive }, "passive session")
 		server, remote := net.Pipe()
 		v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
-		go v.readFrames()
+		v.startCapture(t)
 		t.Cleanup(func() {
 			_ = remote.Close()
 			_ = server.Close()
@@ -844,7 +844,7 @@ func TestBFDNegotiatedPublicationJoinsSessionEnd(t *testing.T) {
 	session := p.currentSession()
 	server, remote := net.Pipe()
 	v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
-	go v.readFrames()
+	v.startCapture(t)
 	t.Cleanup(func() {
 		_ = remote.Close()
 		_ = server.Close()

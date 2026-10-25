@@ -221,7 +221,7 @@ func addPathLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		lowEventually(t, func() bool { return p.currentSession() != nil && p.SessionState() == fsm.StateActive }, "peer active")
 		server, remote := net.Pipe()
 		v := &lowLivePeer{peer: p, remote: remote, stopped: make(chan struct{})}
-		go v.readFrames()
+		v.startCapture(t)
 		t.Cleanup(func() {
 			// MUST close before joining: the reader may be waiting for a header.
 			_ = remote.Close() //nolint:errcheck // Cleanup: the pipe may already be closed.

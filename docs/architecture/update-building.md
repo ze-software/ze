@@ -1036,6 +1036,13 @@ resend and ROUTE-REFRESH carry the stored sent-message receipt and preserve the
 current owner and revision. Deliberate peer-up replay instead carries the
 captured new-Session initial-sync token and explicit local or source/path origin;
 it may populate only an empty slot while that initial phase remains open.
+A forwarded peer-up replay also carries `initial-source-message`
+(`NLRIBatch.InitialSourceMessage`), the received message ID of the source route
+it restates. `sendBatchUpdate` writes it into the owner the Adj-RIB-Out entry
+records, so a later election of that same revision is recognized as held and
+writes nothing; `AnnounceNLRIBatch` refuses a forwarded initial replay that
+carries message zero, and the update parser refuses the key on a local replay.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdate, AnnounceNLRIBatch -->
 See [replay cursor](bgp/replay-cursor.md) for the distinct initial and refresh receipts.
 
 Cursor replay clears prior cursor state before its first group and after its

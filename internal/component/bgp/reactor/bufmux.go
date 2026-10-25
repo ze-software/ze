@@ -195,6 +195,44 @@ type BufMux struct {
 	maxBlocks int             // 0 = unlimited
 	nextID    uint32          // next block ID to assign
 	budget    *combinedBudget // shared budget across mux instances; nil = unlimited
+	freed     bufWake         // wakes a reader waiting for a buffer (Session.awaitReadBuffer)
+}
+
+// bufWake wakes every goroutine waiting for a buffer of one BufMux. A waiter
+// MUST take the channel with wait BEFORE it retries Get: a Return between its
+// failed Get and its wait then closes the channel it holds, so no Return is
+// missed. signal closes the current channel once, and the next wait makes a
+// new one. Safe for concurrent use; signal with no waiter is one atomic load,
+// because it runs on every Return.
+type bufWake struct {
+	mu sync.Mutex
+	ch atomic.Pointer[chan struct{}]
+}
+
+// wait returns the channel the next signal closes.
+func (w *bufWake) wait() <-chan struct{} {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if current := w.ch.Load(); current != nil {
+		return *current
+	}
+	ch := make(chan struct{})
+	w.ch.Store(&ch)
+	return ch
+}
+
+// signal wakes every goroutine that took the current channel.
+func (w *bufWake) signal() {
+	if w.ch.Load() == nil {
+		return // No waiter: the Return hot path.
+	}
+	w.mu.Lock()
+	current := w.ch.Swap(nil)
+	w.mu.Unlock()
+	if current != nil {
+		close(*current)
+	}
 }
 
 // newBufMux creates a multiplexer for buffers of the given size.
@@ -280,18 +318,20 @@ func (m *BufMux) Return(h BufHandle) {
 		return // zero handle, nothing to return
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	b := m.blockByID(h.ID)
 	if b == nil {
+		m.mu.Unlock()
 		// Block was already collapsed. This should not happen if
 		// callers follow the contract (return before collapse), but
 		// defensive: log and discard.
 		fwdLogger().Error("bufmux: return to deleted block", "blockID", h.ID)
 		return
 	}
-
 	b.put(h.idx)
+	m.mu.Unlock()
+
+	// After the unlock: a woken reader's Get takes mu at once.
+	m.freed.signal()
 }
 
 // Stats returns the total allocated buffer slots and the number currently
@@ -407,6 +447,12 @@ func (p *probedPool) Get() BufHandle {
 // Return releases a buffer handle back to the underlying BufMux.
 func (p *probedPool) Return(h BufHandle) {
 	p.mux.Return(h)
+}
+
+// freed returns the channel the next Return to this pool closes. Take it
+// before retrying Get (bufWake).
+func (p *probedPool) freed() <-chan struct{} {
+	return p.mux.freed.wait()
 }
 
 // setProbe sets the function fired on every Get(). The probe target owns

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7947-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute",
+    "unit-sha": "bf49bf2322aa50a4",
+    "claim-sha": "33b938afada35ab5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
+    "producer-sha": "13cf02a605ddca00",
+    "break": "body of oweAnnouncement replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

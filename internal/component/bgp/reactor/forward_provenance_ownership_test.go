@@ -343,6 +343,13 @@ func TestRSWithdrawalOwnershipInitialExpiryOrdering(t *testing.T) {
 	f.send(t, "cached", f.source, f.ctxID, body)
 	f.await(t, 61, syncOrderPrefixWire)
 	history := ownershipReplayBatch(t, f, body)
+	// bgp-rib's replay names the received revision it restates
+	// (initial-source-message): the forward installed it in the entry.
+	forwarded, held := adjOutTestEntry(f.destination)
+	if !held || forwarded.owner.message == 0 {
+		t.Fatal("the forward installed no received message ID")
+	}
+	history.InitialSourceMessage = forwarded.owner.message
 	old := f.destination.currentSession()
 	if err := old.teardownAutomatic(message.NotifyCeaseOutOfResources, "test reconnect"); err != nil {
 		t.Fatal(err)

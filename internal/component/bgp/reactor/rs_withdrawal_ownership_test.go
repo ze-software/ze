@@ -111,7 +111,14 @@ func TestRSWithdrawalKeepsCurrentDestinationOwner(t *testing.T) {
 			ownershipLiveSend(t, b, nil, attrsB, second) // RFC 4271 Section 4.3.
 			ownershipLiveThrough(t, c, second, attrsB)
 			lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C's election of P settled")
-			view = ownershipLiveRead(t, c)
+			// The owed record is settled after the election's write is
+			// flushed, and C's reader appends that frame later, so an empty
+			// owed set does not mean C's history holds the write. B's fresh
+			// fence prefix travels C's forward worker behind any write the
+			// election made, so C's view through it holds that write.
+			fence := netip.MustParsePrefix("203.0.124.0/24")
+			ownershipLiveSend(t, b, nil, attrsB, fence) // RFC 4271 Section 4.3.
+			view = ownershipLiveThrough(t, c, fence, attrsB)
 			// RFC 4271 Section 9.1.2.2, step f: "Remove from consideration
 			// all routes other than the route that was advertised by the BGP
 			// speaker with the lowest BGP Identifier value." A's identifier
@@ -221,6 +228,10 @@ func ownershipLiveRead(t *testing.T, peer *lowLivePeer) ownershipLiveProjection 
 	t.Helper()
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
+	if peer.dropped != 0 {
+		t.Fatalf("recipient %s sent %d frames past the %d retained: the TCP history is incomplete",
+			peer.peer.Settings().Address, peer.dropped, lowLiveFramesMax)
+	}
 	view := ownershipLiveProjection{
 		routes:        make(map[netip.Prefix][]byte),
 		announcements: make(map[netip.Prefix][][]byte),
@@ -434,7 +445,7 @@ func ownershipLiveSameASPeers(t *testing.T) []*lowLivePeer {
 			t.Fatal(err)
 		}
 		capture := &lowLivePeer{peer: peer, remote: remote, stopped: make(chan struct{})}
-		go capture.readFrames()
+		capture.startCapture(t)
 		t.Cleanup(func() {
 			// MUST close both endpoints before joining the owned reader.
 			//nolint:errcheck // Cleanup may encounter an already closed endpoint.

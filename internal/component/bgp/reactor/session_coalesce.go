@@ -20,6 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
+// errReadBufferExhaustedPoolAtMaximum: the read pool had no buffer, so nothing
+// was read from the connection. Session.Run waits for one (awaitReadBuffer)
+// and retries; it is backpressure, never a reason to end the session.
 var errReadBufferExhaustedPoolAtMaximum = errors.New("read buffer exhausted: pool at maximum allocation")
 
 var _ = env.MustRegister(env.EnvEntry{

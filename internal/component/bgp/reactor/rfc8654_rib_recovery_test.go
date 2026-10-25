@@ -381,7 +381,7 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...c
 		require.NoError(t, err)
 		require.NoError(t, listener.Close())
 		capture := &lowLivePeer{peer: peer, remote: remote, stopped: make(chan struct{})}
-		go capture.readFrames()
+		capture.startCapture(t)
 		t.Cleanup(func() {
 			// MUST close both endpoints before joining the owned reader.
 			_ = remote.Close()
