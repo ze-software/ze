@@ -157,7 +157,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		v := tmpfsForRecord(rec)
 		if len(rec.EngineSteps) > 0 {
 			// Contract with the .ci-declared external executor plugin:
-			// run "le test engine-steps ./engine-steps.json" (engine_steps.go).
+			// run "le mock engine-steps ./engine-steps.json" (engine_steps.go).
 			stepsJSON, stepsErr := marshalEngineSteps(r.engineStepsForRun(rec.EngineSteps))
 			if stepsErr != nil {
 				rec.Error = fmt.Errorf("marshal engine steps: %w", stepsErr)

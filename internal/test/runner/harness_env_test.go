@@ -138,7 +138,7 @@ func TestRunnerUsesItsOwnExecutable(t *testing.T) {
 // A forwarding `test` command is registered so leHarnessArea has one to find.
 //
 // VALIDATES: AC-37, the shims, the dropped variable and the working directory.
-// PREVENTS: a daemon-spawned `le test engine-steps` finding no `le`, or every
+// PREVENTS: a daemon-spawned `le mock engine-steps` finding no `le`, or every
 // child refused by refuseWrongBuildName under `./le --name x`.
 func TestRunnerShimsResolveLeToItself(t *testing.T) {
 	dir := t.TempDir()

@@ -882,7 +882,7 @@ One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
 
 The first word selects the program. `ze` is the daemon under test, and
-`le test <name>` runs the harness, which is the runner's own executable. Any
+`le test <name>` or `le mock <name>` runs the harness, which is the runner's own executable. Any
 other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory
@@ -1944,7 +1944,7 @@ cap how many are unexplained.
 
 ## Registered engines launched externally
 
-`le test plugin-external <name>` runs a registered engine through a genuine TLS
+`le mock plugin-external <name>` runs a registered engine through a genuine TLS
 connect-back so a test can exercise its external-process refusal or warning.
 Before configuring the engine logger, the launcher calls `crashlog.Flush` to
 restore the stderr pipe managed by the parent daemon. The logger therefore
@@ -2052,7 +2052,7 @@ instead of an embedded Python observer. The runner serializes the parsed steps
 to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
 config directory of every further daemon, because a plugin runs in its daemon's
 config directory; the `.ci` declares the executor as an
-external plugin (`run "le test engine-steps ./engine-steps.json"`), which runs
+external plugin (`run "le mock engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
 

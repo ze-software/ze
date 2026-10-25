@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// CmdStaticHTTP is the harness command `le test httpd`, registered by
+// CmdStaticHTTP is the harness command `le mock httpd`, registered by
 // internal/le/test/statichttp. It answers the process exit code.
 func CmdStaticHTTP(args []string) int {
 	flags := flag.NewFlagSet("httpd", flag.ContinueOnError)

@@ -117,6 +117,6 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
 | `./le plugin imports check` | The generated composition root is current |
 | `./le arch tier check` | Placement and plugin import ownership |
 | `./le doc yang-contract command-contract` | Every YANG command has a handler |
-| `./le test plugin-external <name>` | Runs a registered engine through real TLS connect-back (`docs/architecture/testing/ci-format.md`) |
+| `./le mock plugin-external <name>` | Runs a registered engine through real TLS connect-back (`docs/architecture/testing/ci-format.md`) |
 | `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/...` | The scoped package tests |
 | `./le doc check verify` | Source anchors in any page you edited |

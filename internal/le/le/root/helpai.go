@@ -128,7 +128,7 @@ func fillCommands(ref *reference.Reference, program string) {
 		})
 	}
 	for _, area := range areas {
-		entry := reference.Command{Name: area.Name, Group: string(area.Group), ShortHelp: area.ShortHelp, Description: area.Description, PassesTo: area.PassesTo}
+		entry := reference.Command{Name: area.Name, Group: string(area.Group), ShortHelp: area.ShortHelp, Description: area.Description, PassesTo: area.PassesTo, Hidden: area.Hidden}
 		if area.Group == "" {
 			entry.Group = ungroupedTag
 		}

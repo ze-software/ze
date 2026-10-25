@@ -3,7 +3,7 @@
 # PREVENTS: graph builder producing wrong nodes/edges, mode parameter ignored
 #
 # The AS-path SVGs label each node with the name the Team Cymru lookup returns
-# (DecorateASN, cmd/ze/hub/service_lg.go). The names come from `le test cymru`
+# (DecorateASN, cmd/ze/hub/service_lg.go). The names come from `le mock cymru`
 # (internal/test/mock/cymru), never from live DNS: the live service renamed
 # AS20940 between May and October 2026, and every exact-body match below went
 # red on every machine with a network. The stub answers
@@ -100,7 +100,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration -- both in background, HTTP checks are the assertions
-cmd=background:seq=1:exec=le test cymru --port 53
+cmd=background:seq=1:exec=le mock cymru --port 53
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=3:exec=ze -:stdin=ze-bgp
 

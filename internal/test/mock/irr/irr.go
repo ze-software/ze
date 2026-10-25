@@ -15,7 +15,7 @@ import (
 )
 
 func Run(args []string) int {
-	fs := flag.NewFlagSet("le test irr", flag.ExitOnError)
+	fs := flag.NewFlagSet("le mock irr", flag.ExitOnError)
 
 	var port int
 	var emptyAfterFirst bool
@@ -29,7 +29,7 @@ func Run(args []string) int {
 		"answer the first N queries with \"F\" (query failed), then normally")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le test irr [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le mock irr [flags]
 
 Deterministic fake IRR whois server for functional tests.
 Responds to RPSL !i (AS-SET expansion) and !a4/!a6 (prefix lookup) queries.
@@ -74,7 +74,7 @@ Flags:
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "le test irr: listening on port %s\n", portStr)
+	fmt.Fprintf(os.Stderr, "le mock irr: listening on port %s\n", portStr)
 
 	var answered *servedQueries
 	if emptyAfterFirst {

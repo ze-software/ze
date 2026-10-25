@@ -287,7 +287,7 @@ func plugin15StreamAnswerTable(ctx context.Context, args []string) error {
 	}
 	const config = `plugin {
 	external record-plugin {
-		run "le test record-plugin"
+		run "le mock record-plugin"
 		encoder json
 	}
 }

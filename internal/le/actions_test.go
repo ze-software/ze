@@ -341,6 +341,11 @@ func TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea(t *testing.T) {
 		if !declared {
 			continue
 		}
+		// A hidden area is absent from the tree on purpose: completion never
+		// offers it (leroot.RegisterHidden).
+		if leroot.Hidden(tool.Name) {
+			continue
+		}
 		node := root
 		for word := range strings.FieldsSeq(tool.Name) {
 			node = node.Children[word]

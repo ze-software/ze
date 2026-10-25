@@ -166,7 +166,7 @@ func TestIsPeerExec(t *testing.T) {
 	assert.False(t, isPeerExec("ze bgp server -"))
 	assert.False(t, isPeerExec("fixture-driver --wait-for ze-peer"))
 	assert.False(t, isPeerExec("fixture-driver --wait-for le test peer"))
-	assert.False(t, isPeerExec("le test rpki --port 1790"))
+	assert.False(t, isPeerExec("le mock rpki --port 1790"))
 	assert.False(t, isPeerExec("le test"))
 	assert.False(t, isPeerExec(""))
 }

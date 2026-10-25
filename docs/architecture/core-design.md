@@ -205,10 +205,20 @@ the full verify.
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 <!-- source: internal/le/doc/check/retired.go -- retiredOwnedRowsAfter -->
 
-Registration also states which of five groups the area belongs to, and help
+Registration also states which of six groups the area belongs to, and help
 prints it as the line's purpose tag (`[workflow]`, `[gate]`, `[generate]`,
-`[suite]`, `[report]`). The group is a parameter of `leroot.Register`, so a new
-area cannot compile without one.
+`[suite]`, `[tool]`, `[report]`). The group is a parameter of `leroot.Register`, so a new
+area cannot compile without one. `[tool]` is a command a test runs rather than
+one that runs tests: every `le mock` stand-in server, and `le test fixture`,
+`peer`, `mcp` and `replay`.
+
+An area Ze starts itself and a person never types (the plugins a test daemon
+spawns from its config: `le mock engine-steps`, `record-plugin`, `text-plugin`
+and `plugin-external`) also calls `leroot.RegisterHidden`. It dispatches like
+any other area, but the root page, its namespace's page and refusal,
+completion and the menu leave it out; `le help ai commands` lists it marked
+hidden (`"hidden": true` under `| json`).
+<!-- source: internal/le/le/root/hidden.go -- RegisterHidden, Hidden -->
 
 **`help`, `-h` and `--help` are accepted at every depth, and they answer from
 the registry rather than from the command.** Every page is one `helpfmt.Page`,

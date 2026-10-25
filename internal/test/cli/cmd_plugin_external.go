@@ -11,7 +11,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// CmdPluginExternal is the harness command `le test plugin-external`, registered by
+// CmdPluginExternal is the harness command `le mock plugin-external`, registered by
 // internal/le/test/pluginexternal. It answers the process exit code.
 //
 // CmdPluginExternal runs a REGISTERED engine plugin's own RunEngine function
@@ -35,7 +35,7 @@ import (
 // depending on the engine's own plugin registry being linked in.
 func CmdPluginExternal(args []string) int {
 	if len(args) != 1 {
-		slog.Error("plugin-external: usage: le test plugin-external <registered-plugin-name>")
+		slog.Error("plugin-external: usage: le mock plugin-external <registered-plugin-name>")
 		return 1
 	}
 	name := args[0]

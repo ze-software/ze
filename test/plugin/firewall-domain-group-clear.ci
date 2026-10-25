@@ -61,7 +61,7 @@
 # This test programs nftables and binds port 53, so it needs CAP_NET_ADMIN and
 # CAP_NET_BIND_SERVICE, not merely Linux.
 option=needs-linux:caps=net-admin,net-bind
-# Serialize against every other test that binds port 53, the two `le test dns`
+# Serialize against every other test that binds port 53, the two `le mock dns`
 # scenarios included. The port is NODE-WIDE and the address is fixed by the type
 # of the `system name-server` leaf. One group covers the nftables contention
 # too: the ruleset is node-wide and the set names come from the group name

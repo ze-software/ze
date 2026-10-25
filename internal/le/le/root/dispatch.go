@@ -121,6 +121,9 @@ func members(token string) []string {
 
 	found := make([]string, 0, 4)
 	for _, command := range Commands() {
+		if Hidden(command.Name) {
+			continue
+		}
 		if name, ok := strings.CutPrefix(command.Name, prefix); ok {
 			found = append(found, name)
 		}
@@ -450,6 +453,9 @@ func childEntries(name string) []helpfmt.HelpEntry {
 
 	entries := make([]helpfmt.HelpEntry, 0, 4)
 	for _, command := range Commands() {
+		if Hidden(command.Name) {
+			continue
+		}
 		if child, ok := strings.CutPrefix(command.Name, prefix); ok {
 			entries = append(entries, helpfmt.HelpEntry{Name: child, Desc: entryText(command.Name, command.Meta.ShortHelp)})
 		}

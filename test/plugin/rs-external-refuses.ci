@@ -21,13 +21,13 @@ plugin {
 		}
 	}
 	external bgp-rs {
-		# le test plugin-external launches the registered engine's own
+		# le mock plugin-external launches the registered engine's own
 		# RunEngine over a real TLS connect-back
 		# (internal/test/cli/cmd_plugin_external.go).
-		# The block carries the registered name: le test plugin-external
+		# The block carries the registered name: le mock plugin-external
 		# connects back under that name (sdk.DialTLSEnvRaw), and the hub
 		# rejects a connect-back whose name no plugin block holds.
-		run "le test plugin-external bgp-rs"
+		run "le mock plugin-external bgp-rs"
 	}
 }
 

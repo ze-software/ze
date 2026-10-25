@@ -528,11 +528,11 @@ func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr
 // zeTestStartLGNoEngineServer starts the looking glass with an engine that
 // always fails, so its pages and its stream take the engine-unavailable path.
 //
-// It runs `le test lg`, not the daemon: the looking glass dispatches in
+// It runs `le mock lg`, not the daemon: the looking glass dispatches in
 // process, so a daemon with no BGP configured still answers an empty peer list,
 // and the engine-error path cannot be reached through configuration.
 func zeTestStartLGNoEngineServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
-	cmd := exec.CommandContext(ctx, bins.zeTest, "test", "lg", "--listen", listenAddr) //nolint:gosec // test binary path
+	cmd := exec.CommandContext(ctx, bins.zeTest, "mock", "lg", "--listen", listenAddr) //nolint:gosec // test binary path
 	cmd.Env = zeTestEnv(envVars)
 
 	if err := cmd.Start(); err != nil {

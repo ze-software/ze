@@ -23,7 +23,7 @@ import (
 // words.
 var errLGEngineUnavailable = errors.New("bgp engine unavailable")
 
-// CmdLG is the harness command `le test lg`, registered by
+// CmdLG is the harness command `le mock lg`, registered by
 // internal/le/test/lg. It answers the process exit code.
 //
 // CmdLG serves the REAL looking glass with an engine that always fails.

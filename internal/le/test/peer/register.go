@@ -16,7 +16,7 @@ import (
 const name = "test peer"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdPeer), harnesstool.Meta("BGP test peer (sink/echo/check modes)"))
+	leroot.Register(name, leroot.GroupTool, harnesstool.Answer(cli.CmdPeer), harnesstool.Meta("BGP test peer (sink/echo/check modes)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

@@ -32,7 +32,7 @@
 # and the anycast addresses (IP_FREEBIND, Linux). An unprivileged host refuses
 # port 53 (Linux below 1024, Darwin on 127.0.0.1 and ::1), so there the reload
 # is correctly refused and this test is skipped. It binds 127.0.0.1:53, as the
-# `le test dns` stub does, so it shares that stub's exclusive group.
+# `le mock dns` stub does, so it shares that stub's exclusive group.
 
 option=needs-linux:caps=net-bind
 option=exclusive:group=dns-stub-port-53

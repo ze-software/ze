@@ -286,7 +286,7 @@ of them has to start that one.
 |--------|-------------------------|--------|-------|
 | `web` | `ze start --web <port> --web-only` | `https` | 1 |
 | `lg` | `le test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
-| `lg-no-engine` | `le test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
+| `lg-no-engine` | `le mock lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `le chaos run --in-process --web :<port>` | `http` | 1 |
 | `daemon` | `ze start <config> --web <port> --insecure-web`, the web UI on a running daemon with one BGP peer that never connects | `https` | 1 |
 
@@ -302,7 +302,7 @@ the window drives the web UI the daemon serves.
 
 `lg-no-engine` exists because no configuration reaches the engine-unavailable
 state: the looking glass dispatches in process, so a daemon with no BGP still
-answers an empty peer list. `le test lg` builds the REAL server through
+answers an empty peer list. `le mock lg` builds the REAL server through
 `lg.NewLGServer` and injects one failing dispatcher, which is the only part that
 is not production code. The two ends of the `lg` daemon peer carry different
 loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
@@ -478,7 +478,7 @@ repository root, as `./le` and `go` do.
 The runner prepends a shim directory to every child's PATH. It holds `ze` and
 `le` as symlinks to the two binaries above, and nothing else. So
 `exec.LookPath`, `exec.Command("ze", ...)`, and a plugin `run` string that
-starts `le test engine-steps` name the binaries this run uses. The shim exists
+starts `le mock engine-steps` name the binaries this run uses. The shim exists
 because a cross-compiled binary carries its target in the file name. One
 directory holding two architectures once gave the QEMU guest the host's `ze`.
 

@@ -124,7 +124,7 @@ EOF_SCRIPT
 
 # VRPs: 9.43.0.0/24 by AS 65001 (Valid); 10.43.0.0/24 by AS 65099 (Invalid for
 # origin 65001); 11.43.0.0/24 has no ROA (NotFound).
-cmd=background:seq=1:exec=le test rtr-mock --port $PORT3 --vrp 9.43.0.0/24,24,65001 --vrp 10.43.0.0/24,24,65099:ready=le test rtr-mock: listening on
+cmd=background:seq=1:exec=le mock rtr --port $PORT3 --vrp 9.43.0.0/24,24,65001 --vrp 10.43.0.0/24,24,65099:ready=le mock rtr: listening on
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze start bgp-rpki-added-live.conf:timeout=60s
 cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 bgp-rpki-added-live.conf bgp-rpki-added-live.script:timeout=60s

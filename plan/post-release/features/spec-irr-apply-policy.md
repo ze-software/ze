@@ -128,7 +128,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 - [ ] `internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang` - `firewall irr { server; peeringdb-url; refresh-interval (0 or 60..86400, default 0); interface ... }` plus term `from` leaves `source-asn`, `source-as-set`, `destination-asn`, `destination-as-set`.
 - [ ] `internal/component/config/system/selfupdate.go` - `inMaintenanceWindow` compares minutes-of-day against `start`/`end`, crossing midnight when start > end; it fails open on an unparsable value.
 - [ ] `internal/component/config/system/selfupdate_validate.go` - `parseHHMM`, called here for `restart-time` and the maintenance-window leaves, and from `selfupdate.go`.
-- [ ] `internal/test/mock/irr/irr.go` - `le test irr [--port N] [--empty-after-first]`, fixed answers for `AS-TEST` and `AS-V4ONLY`; no way to answer a different list on a later query.
+- [ ] `internal/test/mock/irr/irr.go` - `le mock irr [--port N] [--empty-after-first]`, fixed answers for `AS-TEST` and `AS-V4ONLY`; no way to answer a different list on a later query.
 - [ ] `pkg/zefs/keys.go` - `KeyIRRPrefixCache` `meta/irr/{name}`, `KeyIRRCache` legacy; both plugins grant access through `statestore.RegisterPluginKeys` in their `register.go`.
 - [ ] `internal/core/clock/clock.go` - injectable `Clock` (`Now`, `NewTimer`, `NewTicker`) for deterministic tests.
 
@@ -376,7 +376,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | `completion-words-irr-held` | `test/ui/completion-words-irr-held.ci` | completion offers `held`, `apply`, and the mode enum | |
 
 The mock whois server needs one new option so a fetch can return a changed list:
-`le test irr --change-after-first` answers each query once with the current data, then with a
+`le mock irr --change-after-first` answers each query once with the current data, then with a
 second fixed answer for `AS-TEST` that adds one IPv4 prefix and removes another (and adds one IPv6
 prefix). Removing one of the three `AS-TEST` IPv4 prefixes is a 33% shrink, so the same option drives
 the shrink tests with `system apply-policy shrink-threshold 20`. The usage text in `internal/test/mock/irr/irr.go`
@@ -441,13 +441,13 @@ N-A: no wire-visible change. IRR queries are unchanged; BGP and nftables output 
 | 7 | Wire format changed? | N-A | no wire change |
 | 8 | Plugin SDK/protocol changed? | N-A | no SDK change |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if it documents `le test irr` flags; the mock's usage text |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if it documents `le mock irr` flags; the mock's usage text |
 | 11 | Affects daemon comparison? | No | checked at implementation: `docs/comparison.md` IRR row, if any, gains the apply modes |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` section 22 (replace "not implemented" sentence), `docs/architecture/resolve.md`, `docs/architecture/bgp/filter-irr.md`, `docs/architecture/firewall/firewall-irr.md` |
 | 13 | Route metadata keys added/changed? | N-A | none |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` or the IRR telemetry section that lists `ze_irr_*`; the report code `irr-shrink-held` in `docs/guide/operational-reports.md`, in the report-bus section of `docs/architecture/api/commands.md`, and in the code list of `docs/architecture/core-design.md` section 15 |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` and `docs/features/plugins.md` if they list IRR commands |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation by `./le spec citation anchors spec plan/post-release/features/spec-irr-apply-policy.md`; known now: `irr-filtering.md` and `core-design.md` anchor `store.go` and `filter_irr.go`; `docs/architecture/appliance/self-update.md` (declared by `selfupdate.go`) is updated if it describes where the maintenance-window check lives; `docs/architecture/testing/ci-format.md` (declared by the mock) is updated only if it lists `le test irr` flags, otherwise named here as unaffected; `docs/guide/firewall.md` (mentions `store.go`, `irr.go`) gains the firewall `apply` container and commands; `docs/architecture/cli/command-verbs.md` (mentions `command.go`) is checked for the `update`/`clear` verb examples and updated if it lists the IRR commands |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation by `./le spec citation anchors spec plan/post-release/features/spec-irr-apply-policy.md`; known now: `irr-filtering.md` and `core-design.md` anchor `store.go` and `filter_irr.go`; `docs/architecture/appliance/self-update.md` (declared by `selfupdate.go`) is updated if it describes where the maintenance-window check lives; `docs/architecture/testing/ci-format.md` (declared by the mock) is updated only if it lists `le mock irr` flags, otherwise named here as unaffected; `docs/guide/firewall.md` (mentions `store.go`, `irr.go`) gains the firewall `apply` container and commands; `docs/architecture/cli/command-verbs.md` (mentions `command.go`) is checked for the `update`/`clear` verb examples and updated if it lists the IRR commands |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/irr-filtering.md` and `docs/guide/configuration.md` examples stay valid (default mode); new examples added |
 
 Discovery (`ai/rules/repo-maintenance.md`): `ai/INDEX.md` has no IRR row today. Add one: keywords "IRR, AS-SET, prefix-list from IRR, held change, apply mode, operator approval" pointing at `docs/guide/irr-filtering.md`, `docs/architecture/bgp/filter-irr.md`, `docs/architecture/firewall/firewall-irr.md`. Regression is prevented by AC-1 (existing `.ci` unchanged) and the store unit tests; drift between consumers by the shared grouping and the single store implementation.

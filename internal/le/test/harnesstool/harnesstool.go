@@ -1,12 +1,14 @@
-// Design: docs/architecture/testing/ci-format.md -- every harness command is `le test <name>`
+// Design: docs/architecture/testing/ci-format.md -- every harness command is `le test <name>` or `le mock <name>`
 // Related: ../../../test/cli/ci_runner.go -- the suite runner a suite command calls
 // Related: ../../job/job.go -- the admission a runner command takes on the host
 //
 // Package harnesstool adapts one handler of the test harness to an le command
-// under the `test` namespace (spec-le-subject-first-command-tree, D-8).
+// under the `test` or `mock` namespace (spec-le-subject-first-command-tree,
+// D-8; spec-le-cli-usability D-Q10).
 //
 // It registers nothing itself and holds no register.go. Each harness command
-// has its own package at internal/le/test/<name>, whose register.go calls
+// has its own package at internal/le/test/<name> or internal/le/mock/<name>,
+// whose register.go calls
 // leroot.Register, leroot.RegisterShape and leroot.RegisterForwarding with the
 // answer and help built here, so a new harness command adds one package and
 // edits no list.
@@ -39,7 +41,7 @@ import (
 // Answer adapts a helper tool's handler to an le answer. It never admits: a
 // helper runs inside a test whose suite holds the slot.
 //
-// Every word after `test <name>` reaches run unchanged, and run's exit code is
+// Every word after the command name reaches run unchanged, and run's exit code is
 // le's exit code.
 // The answer carries no payload, because the harness writes its own output.
 //

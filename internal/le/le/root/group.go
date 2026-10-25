@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- le's command groups
 // Overview: leroot.go -- the registration adapter that takes a group
 //
-// A group is what one le command is FOR, and le has five kinds of command
+// A group is what one le command is FOR, and le has six kinds of command
 // behind one name. Help renders the group as each line's purpose tag.
 //
 // The group is declared at the registration site rather than derived, because
@@ -9,17 +9,19 @@
 // It carries ze's operator taxonomy, and every le tool files under
 // SectionTest. A second meaning behind one name costs the reader a guess.
 //
-// Several commands answer to more than one of the five, so the choice is a
+// Several commands answer to more than one of the six, so the choice is a
 // LADDER rather than a judgement. Read it from the top and stop at the first
 // row that matches.
 //
 //	1. a committed file is its product, and its check
 //	   compares that file against the tree            GroupGenerate
 //	2. it runs tests, proofs, or benchmarks           GroupSuite
-//	3. it acts on your working state: git, the
+//	3. a test runs it to drive or stand in for a
+//	   peer: a mock server, a test peer, a fixture    GroupTool
+//	4. it acts on your working state: git, the
 //	   session, job admission, scratch, a build       GroupWorkflow
-//	4. it judges the tree and answers a verdict       GroupGate
-//	5. nothing above, so it answers a question        GroupReport
+//	5. it judges the tree and answers a verdict       GroupGate
+//	6. nothing above, so it answers a question        GroupReport
 //
 // Rung 1 is about the command's PURPOSE, not about whether some verb writes.
 // A gate's repair verb and its ratchet baseline write too. `tier write-baseline`
@@ -29,7 +31,7 @@
 //
 // `mutation` exists to hold the score history, so it is rung 1. `perf`
 // runs the benchmark, so it stops at rung 2. internal/le/group_test.go checks
-// rungs 1 and 5, and the pre-commit population against rungs 1, 2 and 4.
+// rungs 1 and 6, and the pre-commit population against rungs 1, 2 and 5.
 
 package leroot
 
@@ -45,7 +47,7 @@ const ungroupedTag = "ungrouped"
 // Group is the part of le's surface one command belongs to.
 type Group string
 
-// The five groups. A command declares exactly one.
+// The six groups. A command declares exactly one.
 const (
 	// GroupWorkflow is typed by a person to move their own work along.
 	GroupWorkflow Group = "workflow"
@@ -55,6 +57,8 @@ const (
 	GroupGenerate Group = "generate"
 	// GroupSuite runs tests, proofs, and benchmarks by name.
 	GroupSuite Group = "suite"
+	// GroupTool is run by a test, to drive it or to stand in for a peer.
+	GroupTool Group = "tool"
 	// GroupReport reads the tree and answers what it found, gating nothing.
 	GroupReport Group = "report"
 )
@@ -70,6 +74,7 @@ var groupTable = []struct {
 	{GroupGate, "judges the tree and answers a verdict"},
 	{GroupGenerate, "owns a committed artifact and can rewrite it"},
 	{GroupSuite, "runs tests, proofs, and benchmarks by name"},
+	{GroupTool, "run by a test, to drive it or to stand in for a peer"},
 	{GroupReport, "reads the tree and answers what it found, gating nothing"},
 }
 

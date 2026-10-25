@@ -88,7 +88,7 @@ func TestCompiledScenarioEvidenceCannotBeSpoofedOrWeakened(t *testing.T) {
 		{name: "missing evidence", text: strings.Replace(valid, first, "", 1)},
 		{name: "duplicate evidence", text: strings.Replace(valid, first, first+first, 1)},
 		{name: "shorter-prefix evidence", text: strings.Replace(valid, localdatacoverage.Marker("show config history"), localdatacoverage.Marker("show config"), 1)},
-		{name: "wrong helper", text: strings.Replace(valid, functionalRunCommand, "le test text-plugin", 1)},
+		{name: "wrong helper", text: strings.Replace(valid, functionalRunCommand, "le mock text-plugin", 1)},
 		{name: "interpreted payload", text: "tmpfs=payload:terminator=END\nfake\nEND\n" + valid},
 		{name: "missing completion", text: strings.Replace(valid, completion, "", 1)},
 		{

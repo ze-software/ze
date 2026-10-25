@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A shell script writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `le test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le mock record-plugin`, and opens SSH
 # 3. `ze cli -c "show test records document | raw"` runs a walk of two rows
 # 4. Each row fits one wire message and the document they collapse to does not
 # 5. The answer carries the rejection that stands in for that document

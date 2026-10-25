@@ -1,4 +1,5 @@
-// VALIDATES: every harness command is the le command `test <name>`, registered
+// VALIDATES: every harness command is the le command `test <name>` or
+// `mock <name>`, registered
 // by its own package through internal/le/test/harnesstool, no package under
 // internal/test registers a ze root, and every test/<dir> holding .ci files is
 // reached by a suite command or a big runner (AC-32 to AC-34 of
@@ -26,16 +27,25 @@ import (
 // the one mark that separates a harness command from an le member of `test`.
 const harnessRegistration = "harnesstool."
 
-// harnessDirectories answers every directory under internal/le/test whose
-// register.go registers a harness command, as the command's name under `test`
+// harnessNamespaces are the namespaces a harness command registers under:
+// `test` for suites and the tools that drive them, `mock` for stand-in servers
+// and the plugins a test daemon spawns (spec-le-cli-usability D-Q10).
+var harnessNamespaces = []string{"test", "mock"}
+
+// testTools are the harness commands under `test` that a test runs rather than
+// suites it runs, so they declare GroupTool (D-Q10, D-groups).
+var testTools = []string{"test fixture", "test mcp", "test peer", "test replay"}
+
+// harnessDirectories answers every directory under internal/le/<word> whose
+// register.go registers a harness command, as the command's name under word
 // without hyphens.
-func harnessDirectories(t *testing.T) []string {
+func harnessDirectories(t *testing.T, word string) []string {
 	t.Helper()
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("find checkout: %v", err)
 	}
-	namespace := filepath.Join(root, "internal", "le", "test")
+	namespace := filepath.Join(root, "internal", "le", word)
 	entries, err := os.ReadDir(namespace)
 	if err != nil {
 		t.Fatalf("read %s: %v", namespace, err)
@@ -57,36 +67,43 @@ func harnessDirectories(t *testing.T) []string {
 }
 
 // TestEveryHarnessCommandForwards proves the registration shape: every harness
-// package registers a `test` member that forwards its words to the harness
-// handler, sits in the suite group, and carries help. The set of forwarding
-// `test` members and the set of harness packages must be the same set, so a
-// harness command registered anywhere else, or a package that registers under
-// another name, fails here by name.
+// package registers a `test` or `mock` member that forwards its words to the
+// harness handler, sits in its group (a mock and a test tool in the tool
+// group, a suite in the suite group), and carries help. The set of forwarding
+// members of each namespace and the set of its harness packages must be the
+// same set, so a harness command registered anywhere else, or a package that
+// registers under another name, fails here by name.
 func TestEveryHarnessCommandForwards(t *testing.T) {
-	packages := harnessDirectories(t)
-	if len(packages) == 0 {
-		t.Fatal("no package under internal/le/test registers a harness command")
-	}
+	for _, word := range harnessNamespaces {
+		packages := harnessDirectories(t, word)
+		if len(packages) == 0 {
+			t.Fatalf("no package under internal/le/%s registers a harness command", word)
+		}
 
-	forwarding := make([]string, 0, len(packages))
-	for _, command := range commandsAtStart {
-		member, ok := strings.CutPrefix(command.Name, "test ")
-		if !ok || !leroot.Forwards(command.Name) {
-			continue
+		forwarding := make([]string, 0, len(packages))
+		for _, command := range commandsAtStart {
+			member, ok := strings.CutPrefix(command.Name, word+" ")
+			if !ok || !leroot.Forwards(command.Name) {
+				continue
+			}
+			forwarding = append(forwarding, directoryFor(member))
+			want := leroot.GroupSuite
+			if word == "mock" || slices.Contains(testTools, command.Name) {
+				want = leroot.GroupTool
+			}
+			group, declared := leroot.GroupOf(command.Name)
+			if !declared || group != want {
+				t.Errorf("harness command %q is in group %q, want %q", command.Name, group, want)
+			}
+			if command.Meta.ShortHelp == "" {
+				t.Errorf("harness command %q has no help", command.Name)
+			}
 		}
-		forwarding = append(forwarding, directoryFor(member))
-		group, declared := leroot.GroupOf(command.Name)
-		if !declared || group != leroot.GroupSuite {
-			t.Errorf("harness command %q is in group %q, want %q", command.Name, group, leroot.GroupSuite)
+		slices.Sort(forwarding)
+		slices.Sort(packages)
+		if !slices.Equal(forwarding, packages) {
+			t.Errorf("forwarding %s members and harness packages differ:\nmembers:  %v\npackages: %v", word, forwarding, packages)
 		}
-		if command.Meta.ShortHelp == "" {
-			t.Errorf("harness command %q has no help", command.Name)
-		}
-	}
-	slices.Sort(forwarding)
-	slices.Sort(packages)
-	if !slices.Equal(forwarding, packages) {
-		t.Errorf("forwarding test members and harness packages differ:\nmembers:  %v\npackages: %v", forwarding, packages)
 	}
 }
 

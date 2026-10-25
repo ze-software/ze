@@ -16,7 +16,7 @@ import (
 const name = "test mcp"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdMcp), harnesstool.Meta("MCP client (send commands to daemon via MCP endpoint)"))
+	leroot.Register(name, leroot.GroupTool, harnesstool.Answer(cli.CmdMcp), harnesstool.Meta("MCP client (send commands to daemon via MCP endpoint)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

@@ -195,7 +195,7 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile("daemon.ready", nil, 0o600); err != nil {
 		return err
 	}
-	mock, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", "mock.addr")
+	mock, err := startFixtureProcess(ctx, os.Environ(), "", "le", "mock", "radius", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", "mock.addr")
 	if err != nil {
 		return err
 	}

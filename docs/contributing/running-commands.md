@@ -134,7 +134,8 @@ still asks its own terminal question once the line is complete
 `./le help ai` prints the sections it answers. Each section is a word:
 `commands` lists every namespace with what it is for, then every area, each action and each parameter with its kind, its
 values, whether it is required and whether it repeats, and the program a
-pass-through area hands its words to; `groups` the purpose tags; `verbs` every
+pass-through area hands its words to, and every hidden area (one Ze spawns,
+absent from help pages and completion) marked hidden; `groups` the purpose tags; `verbs` every
 verb in use; `exit-codes` what each code means and who answers another
 program's; `launcher` the words the `./le` script reads before le starts
 (below); `all` every section. Render it with the pipe layer, never a flag:

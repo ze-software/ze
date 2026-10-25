@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// CmdTextPlugin is the harness command `le test text-plugin`, registered by
+// CmdTextPlugin is the harness command `le mock text-plugin`, registered by
 // internal/le/test/textplugin. It answers the process exit code.
 func CmdTextPlugin(_ []string) int {
 	p, err := sdk.NewFromEnv("text-test")

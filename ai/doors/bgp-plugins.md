@@ -123,7 +123,7 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 | `./le plugin declarations check` | The two declarations agree |
 | `./le plugin imports check`, `./le arch tier check` | The composition root is current. No plugin imports another's implementation |
 | `./le arch enumeration check` | No literal in the change restates what a registry holds |
-| `./le test plugin-external` | A registered engine plugin run as an external process, refusing or warning where it must |
+| `./le mock plugin-external` | A registered engine plugin run as an external process, refusing or warning where it must |
 | `./le test functional plugin`, `./le test functional reload` | Plugin startup, events and reload through the real daemon |
 | `./le rfc check` | RFC rows and tags for the protocols these plugins implement |
 | `./le job run label <label> command go test -tags ze_bgp <package>` | The scoped package test. Add `ze_bmp` for `bmp` |

@@ -68,7 +68,7 @@ daemon.
 | 5 | `internal/test/cli/cmd_bgp.go` | `zeTestRunClientOnly` | `ze server <config>` | Yes |
 | 6 | `internal/test/cli/cmd_web.go` | `zeTestStartLGServer` | `le test peer --mode sink` | Yes |
 | 7 | `internal/test/cli/cmd_web.go` | `zeTestStartLGServer` | `ze -`, the looking glass | Yes |
-| 8 | `internal/test/cli/cmd_web.go` | `zeTestStartLGNoEngineServer` | `le test lg --listen` | Yes |
+| 8 | `internal/test/cli/cmd_web.go` | `zeTestStartLGNoEngineServer` | `le mock lg --listen` | Yes |
 | 9 | `internal/test/cli/cmd_web.go` | `zeTestStartChaosServer` | `le chaos run --in-process --web` | Yes |
 | 10 | `internal/test/cli/cmd_web.go` | `zeTestStartWebServer` | `ze start --web --web-only` | Yes |
 | 11 | `internal/test/cli/cmd_web.go` | `zeTestCloseAllBrowserSessions` | `agent-browser close --all` | No |
@@ -201,7 +201,7 @@ without one.
 | R-2 | The operator's `--save` value of `le test exabgp` is relative, and the change redirects the operator's own output into a scratch directory | An operator reports that `--save out` writes nothing to `./out` | Resolve `--save` against the harness's own working directory BEFORE the spawn, so the flag keeps its meaning, and pin it with a unit test over the argument builder |
 | R-3 | The lint passes vacuously because it found no spawn site, after an import alias, a build tag, or a package move | Nothing. That is what makes it a risk | Resolve `os/exec` by import path, and carry a floor on the number of call sites the walk found. A stale floor is a visible red; an evaded walk is not |
 | R-4 | A test that today finds a file an earlier run left in the checkout root stops finding it, and goes red | A web or ExaBGP test fails only after the change, at a missing-file assertion | That test was passing on a cross-run artifact, which is the defect this spec exists to remove. Fix the test to declare the file it needs. Do not restore the shared directory |
-| R-5 | Sites 8 and 9 gain a directory and its removal, and a child that outlives the stop path writes into a directory that is gone | A `le chaos run` or `le test lg` child logs a write error after the test ends | `(*zeTestWebServer).stop` kills the children before it removes the directory, which is the order sites 6, 7 and 10 already use |
+| R-5 | Sites 8 and 9 gain a directory and its removal, and a child that outlives the stop path writes into a directory that is gone | A `le chaos run` or `le mock lg` child logs a write error after the test ends | `(*zeTestWebServer).stop` kills the children before it removes the directory, which is the order sites 6, 7 and 10 already use |
 | R-6 | A directory created off-session lands in the system temp directory and is never removed, because `./le session reap` only knows session roots | An unowned temp directory per run | Each creator answers its own remover, and every caller defers it, which is what `runOrchestrated` already does |
 | R-7 | The suite-scoped directory for sites 1, 12 and 14 outlives a killed run | A directory under the session scratch root carrying `workDirPrefix` and no owner | The prefix names what made it, which is why `workDirPrefix` exists, and `./le session reap` removes an abandoned session root |
 

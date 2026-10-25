@@ -59,7 +59,7 @@ option=env:var=ze_log_ike:value=info
 stdin=responder:terminator=EOF_RESPONDER
 plugin {
 	external engine-steps {
-		run "le test engine-steps ./engine-steps.json"
+		run "le mock engine-steps ./engine-steps.json"
 		encoder json
 	}
 }

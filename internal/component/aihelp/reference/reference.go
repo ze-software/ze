@@ -70,6 +70,10 @@ type Command struct {
 	// PassesTo names the program that reads every word after the name, for a
 	// command that passes its words on. Empty for a command le parses itself.
 	PassesTo string `json:"passes-to,omitempty"`
+	// Hidden says the program starts this command itself and a person never
+	// types it, so help pages and completion leave it out; this reference is
+	// the one listing that names it.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Action is one verb of a command and the parameters it takes.
@@ -181,7 +185,11 @@ func (r Reference) writeCommands(tb *textbuf.Buffer) {
 	}
 	tb.Str("## Commands\n")
 	for _, command := range r.Commands {
-		tb.Str("\n").Str(r.Program).Byte(' ').Str(command.Name).Str("  [").Str(command.Group).Str("]  ").Str(command.ShortHelp).Byte('\n')
+		tb.Str("\n").Str(r.Program).Byte(' ').Str(command.Name).Str("  [").Str(command.Group).Str("]  ")
+		if command.Hidden {
+			tb.Str("(hidden) ")
+		}
+		tb.Str(command.ShortHelp).Byte('\n')
 		writeDescription(tb, "  ", command.Description)
 		if command.PassesTo != "" {
 			tb.Str("  <words>...  passed to ").Str(command.PassesTo).Byte('\n')

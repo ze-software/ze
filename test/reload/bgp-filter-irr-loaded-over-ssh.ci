@@ -137,7 +137,7 @@ cli show bgp irr check customer 192.168.0.0/24 | no-more | yaml
 has accepted: false
 EOF_SCRIPT
 
-cmd=background:seq=1:exec=le test irr --port $PORT2
+cmd=background:seq=1:exec=le mock irr --port $PORT2
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze start bgp-filter-irr-loaded-over-ssh.conf:timeout=60s
 cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT bgp-filter-irr-loaded-over-ssh.conf bgp-filter-irr-loaded-over-ssh.script:timeout=60s

@@ -10,7 +10,7 @@
 #
 # option=needs-linux: internal/plugins/iface/dhcp/register.go is
 # `//go:build linux`, so on any other host the plugin is not registered and
-# `le test plugin-external iface-dhcp` stops at "unknown registered plugin"
+# `le mock plugin-external iface-dhcp` stops at "unknown registered plugin"
 # before the IsInternal() guard this test proves can run.
 
 option=needs-linux
@@ -25,10 +25,10 @@ plugin {
 		}
 	}
 	external iface-dhcp {
-		# le test plugin-external (internal/test/cli/cmd_plugin_external.go)
+		# le mock plugin-external (internal/test/cli/cmd_plugin_external.go)
 		# launches the registered plugin's own RunEngine via a real TLS
 		# connect-back.
-		run "le test plugin-external iface-dhcp"
+		run "le mock plugin-external iface-dhcp"
 	}
 }
 

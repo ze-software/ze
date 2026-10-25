@@ -14,7 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/test/syslog"
 )
 
-// CmdSyslog is the harness command `le test syslog`, registered by
+// CmdSyslog is the harness command `le mock syslog`, registered by
 // internal/le/test/syslog. It answers the process exit code.
 func CmdSyslog(args []string) int {
 	fs := flag.NewFlagSet("syslog", flag.ExitOnError)

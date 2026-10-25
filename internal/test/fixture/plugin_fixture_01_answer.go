@@ -208,7 +208,7 @@ environment {
 
 const plugin01RecordPluginConfig = `plugin {
 	external record-plugin {
-		run "le test record-plugin"
+		run "le mock record-plugin"
 		encoder json
 	}
 }

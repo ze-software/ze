@@ -352,7 +352,7 @@ func beforeRedirection(words []string) []string {
 // no file name is read as the functional runner. A harness command under
 // `test` is heavy when its registration says its run is admitted
 // (leroot.Admits): `le test bgp` and `le test ospf` run the functional runner,
-// while `le test peer` and `le test rpki` are helper tools a test starts
+// while `le test peer` and `le mock rpki` are helper tools a test starts
 // (AC-45). The hook runs inside le, so every registration is linked.
 //
 // `le go lint` runs the linter and is heavy. The retired top-level suite

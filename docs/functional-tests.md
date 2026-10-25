@@ -532,7 +532,7 @@ and name, plus periodic progress while tests are still running.
 | Firewall | `le test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `le test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
 | IPsec | `le test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. Two of them read Ze's own kernel read-back surface: `ipsec-show-dataplane-kernel` asserts that `show vpn ipsec dataplane sa` names the ESP transform and the addresses the test configured, and stops naming them after `clear vpn ipsec sa`, which is a transition rather than a state; `ipsec-show-sa-counters` asserts that `show vpn ipsec sa` reports `counters-known` true and NUMERIC byte counters, where 0 is the kernel's true count for a tunnel no packet crossed and null is the failure it discriminates. `ipsec-dataplane-show` is their unprivileged sibling: under the noop backend every dump reports that the backend cannot enumerate, which is reachability evidence and never kernel evidence. |
-| Web | `le test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le test lg`), the chaos dashboard (`le chaos run`), or the web UI on a running daemon (`daemon`, the only kind whose commits reach the confirmed-commit window). |
+| Web | `le test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le mock lg`), the chaos dashboard (`le chaos run`), or the web UI on a running daemon (`daemon`, the only kind whose commits reach the confirmed-commit window). |
 | Install | `le test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `le test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `le test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
@@ -873,7 +873,7 @@ capability bits the probe tests.
 | Token | Capability | What needs it |
 |-------|-----------|---------------|
 | `net-admin` | CAP_NET_ADMIN | interfaces, netlink, nftables |
-| `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `le test dns` does on 53 |
+| `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `le mock dns` does on 53 |
 | `net-raw` | CAP_NET_RAW | raw and packet sockets (ping, traceroute) |
 | `bpf` | CAP_BPF | loading eBPF programs and creating maps |
 | `sys-time` | CAP_SYS_TIME | setting the system clock, which the NTP restart carrier does |
@@ -1638,7 +1638,7 @@ runs retry successive subnets. Use `ZE_INTEROP_SUBNET_INDEX=N` or
 `ZE_INTEROP_SUBNET_PREFIX=A.B.C.` to force a prefix. A scenario whose config
 enables BMP gets the compiled collector personality on the run's `.6` address
 before Ze starts.
-`rpki-server` starts `le test rpki --bind 0.0.0.0` on the run's `.7` address.
+`rpki-server` starts `le mock rpki --bind 0.0.0.0` on the run's `.7` address.
 
 The tree is not BGP-only. A scenario that includes `keepalived.conf` gets a real
 keepalived on the run's `.8` address, and `vrrp-mastership-keepalived` is the
@@ -2499,13 +2499,13 @@ log.
 
 #### Writing a record answer: the Go SDK test plugin
 
-`le test record-plugin` is a Go SDK plugin whose command handlers answer with a
+`le mock record-plugin` is a Go SDK plugin whose command handlers answer with a
 walk. A `.ci` spawns it the way it spawns the engine-step executor:
 
 ```
 plugin {
 	external record-plugin {
-		run "le test record-plugin"
+		run "le mock record-plugin"
 		encoder json
 	}
 }
@@ -3228,7 +3228,7 @@ See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.
 
 Subcommand-based CLI with `bgp` for BGP test execution, `syslog` for syslog server, and `rpki` for deterministic RPKI mock RTR server.
 
-### le test rpki
+### le mock rpki
 
 Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-generates VRPs for all /8 prefixes based on the first octet modulo 3:
 
@@ -3238,9 +3238,9 @@ Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-genera
 | 1 | ASN=65099, maxLen=/32 | Invalid |
 | 2 | No VRP | NotFound |
 
-Usage: `le test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
+Usage: `le mock rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
-### le test irr
+### le mock irr
 
 Deterministic IRR whois server for firewall and BGP IRR functional tests. It
 answers RPSL `!i` (AS-SET expansion) and `!a4`/`!a6` (prefix lookup) queries for
@@ -3262,11 +3262,11 @@ later one normally. It models an IRR server that is down when ze starts and
 then recovers, which is how `test/plugin/filter-irr-readmit.ci` gets a route
 rejected for a missing list.
 
-Usage: `le test irr --port 4343 [--empty-after-first] [--fail-first N]`
+Usage: `le mock irr --port 4343 [--empty-after-first] [--fail-first N]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
-### le test dns
+### le mock dns
 
 Deterministic DNS server for any functional test that resolves a name. It
 answers A and AAAA on 127.0.0.1 over UDP, from a fixed zone.
@@ -3291,7 +3291,7 @@ A TTL of 0 keeps the answer out of the daemon's resolver cache, so a second
 lookup reaches the stub rather than the cache. That is what lets a test change an
 answer and observe the change with no cache-clearing command.
 
-The stub has two forms. `le test dns --port <N>` is the process a `.ci` starts
+The stub has two forms. `le mock dns --port <N>` is the process a `.ci` starts
 with `cmd=background`, and `dns.Start` plus `Server.Set` is the in-process form a
 compiled fixture uses when it must change an answer while the test runs.
 `test/plugin/dns-stub-lookup.ci` drives the first and
@@ -3302,12 +3302,12 @@ A daemon is pointed at the stub through `system name-server`, which is declared
 and declares `option=needs-linux:caps=net-bind` plus
 `option=exclusive:group=dns-stub-port-53`.
 
-`le test cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
+`le mock cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
 from the queried ASN and shares no answer with this zone.
 
-Usage: `le test dns --port 53`
+Usage: `le mock dns --port 53`
 
-<!-- source: internal/test/mock/dns/dns.go -- le test dns subcommand -->
+<!-- source: internal/test/mock/dns/dns.go -- le mock dns subcommand -->
 <!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
 <!-- source: internal/test/mock/dns/server.go -- Start, Set, Close -->
 

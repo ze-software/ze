@@ -16,7 +16,7 @@ import (
 const name = "test fixture"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(fixture.Run), harnesstool.Meta("Run one compiled .ci fixture helper"))
+	leroot.Register(name, leroot.GroupTool, harnesstool.Answer(fixture.Run), harnesstool.Meta("Run one compiled .ci fixture helper"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

@@ -62,6 +62,9 @@ type ManifestArea struct {
 	PassesWords bool `json:"passes-words,omitempty"`
 	// PassesTo names that program, as help prints it.
 	PassesTo string `json:"passes-to,omitempty"`
+	// Hidden says Ze starts the command itself (RegisterHidden), so the page
+	// leaves it out and the payload carries it marked.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // manifestOf answers the surface as it stands in the shared registry. It is
@@ -81,7 +84,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		Areas:   make([]ManifestArea, 0, len(roots)),
 	}
 	for _, root := range roots {
-		area := ManifestArea{Name: root.Name, ShortHelp: root.Meta.ShortHelp, Description: root.Meta.Description}
+		area := ManifestArea{Name: root.Name, ShortHelp: root.Meta.ShortHelp, Description: root.Meta.Description, Hidden: Hidden(root.Name)}
 		if group, declared := GroupOf(root.Name); declared {
 			area.Group = group
 		}
@@ -139,6 +142,9 @@ func (m Manifest) sections() []helpfmt.HelpSection {
 	byNamespace := make(map[string]int, len(namespaces))
 	sections := make([]helpfmt.HelpSection, 1, len(namespaces)+1)
 	for _, area := range m.Areas {
+		if area.Hidden {
+			continue
+		}
 		entry := helpfmt.HelpEntry{Name: area.Name, Desc: areaText(area)}
 		word, _, _ := strings.Cut(area.Name, " ")
 		if !namespaces[word] {

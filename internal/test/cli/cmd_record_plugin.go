@@ -30,7 +30,7 @@ import (
 
 // recordPluginName is the plugin name a .ci file must declare:
 //
-//	plugin { external record-plugin { run "le test record-plugin" } }
+//	plugin { external record-plugin { run "le mock record-plugin" } }
 //
 // The spawn env binds the connect-back token to this exact name.
 const recordPluginName = "record-plugin"
@@ -147,7 +147,7 @@ const (
 // reaches this command later, so the wait is usually zero.
 const engineAnswerWait = 15 * time.Second
 
-// CmdRecordPlugin is the harness command `le test record-plugin`, registered by
+// CmdRecordPlugin is the harness command `le mock record-plugin`, registered by
 // internal/le/test/recordplugin. It answers the process exit code.
 //
 // CmdRecordPlugin runs the plugin. It answers recordWalkCommand and

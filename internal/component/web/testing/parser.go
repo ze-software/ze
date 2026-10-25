@@ -78,7 +78,7 @@ const (
 	// WBServerChaos is the chaos dashboard, served by le chaos run.
 	WBServerChaos WBServer = "chaos"
 	// WBServerLGNoEngine is the looking glass with an engine that always
-	// fails, served by `le test lg`. A daemon cannot be asked for that state:
+	// fails, served by `le mock lg`. A daemon cannot be asked for that state:
 	// the looking glass dispatches in process, so a daemon with no BGP still
 	// answers an empty peer list rather than an error.
 	WBServerLGNoEngine WBServer = "lg-no-engine"

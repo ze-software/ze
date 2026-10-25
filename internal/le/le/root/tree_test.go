@@ -46,6 +46,14 @@ func TestDerivedTreeHoldsEveryRegisteredAction(t *testing.T) {
 
 	for _, area := range Commands() {
 		node := nodeAt(root, strings.Fields(area.Name))
+		// A hidden area is one Ze starts itself, so completion and the menu,
+		// which read this tree, must not offer it (hidden.go).
+		if Hidden(area.Name) {
+			if node != nil {
+				t.Errorf("the tree offers hidden area %q", area.Name)
+			}
+			continue
+		}
 		if node == nil {
 			t.Errorf("the tree has no node for area %q", area.Name)
 			continue

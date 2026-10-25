@@ -143,13 +143,13 @@ var renames = []Rename{
 	{Retired: "test ospf-wire", Command: "test wire", Action: "ospf"},
 	{Retired: "test l2tp-wire", Command: "test wire", Action: "l2tp"},
 	{Retired: "test l2tp-scale", Command: "test scale", Action: "l2tp"},
-	{Retired: "test static-http", Command: "test httpd"},
+	{Retired: "test static-http", Command: "mock httpd"},
 	{Retired: "test vpp-stub", Command: "test vpp", Action: "stub"},
 	{Retired: "test harness isis-wire", Command: "test wire", Action: "isis"},
 	{Retired: "test harness ospf-wire", Command: "test wire", Action: "ospf"},
 	{Retired: "test harness l2tp-wire", Command: "test wire", Action: "l2tp"},
 	{Retired: "test harness l2tp-scale", Command: "test scale", Action: "l2tp"},
-	{Retired: "test harness static-http", Command: "test httpd"},
+	{Retired: "test harness static-http", Command: "mock httpd"},
 	{Retired: "test harness vpp-stub", Command: "test vpp", Action: "stub"},
 	{Retired: "test-chaos", Command: "chaos selftest"},
 	{Retired: "perf-bench", Command: "perf"},
@@ -178,6 +178,23 @@ var renames = []Rename{
 	// of le cli grammar), so the hyphenated areas split into two tokens.
 	{Retired: "setup docker-host", Command: "setup docker host"},
 	{Retired: "setup docker-kernel", Command: "setup docker kernel"},
+	// Mocks and stand-in servers left test, the namespace of suites, for
+	// their own (D-Q10); a `-mock` suffix the namespace now says is dropped.
+	{Retired: "test cymru", Command: "mock cymru"},
+	{Retired: "test dns", Command: "mock dns"},
+	{Retired: "test irr", Command: "mock irr"},
+	{Retired: "test peeringdb", Command: "mock peeringdb"},
+	{Retired: "test rpki", Command: "mock rpki"},
+	{Retired: "test rtr-mock", Command: "mock rtr"},
+	{Retired: "test radius-mock", Command: "mock radius"},
+	{Retired: "test tacacs-mock", Command: "mock tacacs"},
+	{Retired: "test syslog", Command: "mock syslog"},
+	{Retired: "test httpd", Command: "mock httpd"},
+	{Retired: "test lg", Command: "mock lg"},
+	{Retired: "test engine-steps", Command: "mock engine-steps"},
+	{Retired: "test record-plugin", Command: "mock record-plugin"},
+	{Retired: "test text-plugin", Command: "mock text-plugin"},
+	{Retired: "test plugin-external", Command: "mock plugin-external"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

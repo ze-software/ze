@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A Go fixture writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `le test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le mock record-plugin`, and opens SSH
 # 3. `ze cli -c "show test records fault | raw"` runs a walk of twelve rows
 # 4. Row seven is wider than one wire message, so it has no line at all
 # 5. The answer carries the eleven rows it applied and the one it refused

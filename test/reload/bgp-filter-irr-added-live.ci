@@ -155,7 +155,7 @@ bgp {
 }
 EOF_CONF2
 
-cmd=background:seq=1:exec=le test irr --port $PORT2
+cmd=background:seq=1:exec=le mock irr --port $PORT2
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
 # Wait for the filter's decision on the peer's UPDATE before the runner stops the

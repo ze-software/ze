@@ -18,7 +18,7 @@ import (
 )
 
 func Run(args []string) int {
-	fs := flag.NewFlagSet("le test peeringdb", flag.ExitOnError)
+	fs := flag.NewFlagSet("le mock peeringdb", flag.ExitOnError)
 
 	var port int
 	var servedCount bool
@@ -28,7 +28,7 @@ func Run(args []string) int {
 		"answer irr_as_set as AS-SERVED-<n>, n counting the requests served for that ASN")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le test peeringdb [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le mock peeringdb [flags]
 
 Deterministic fake PeeringDB HTTP server for functional tests.
 
@@ -66,7 +66,7 @@ Flags:
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "le test peeringdb: listening on port %s\n", portStr)
+	fmt.Fprintf(os.Stderr, "le mock peeringdb: listening on port %s\n", portStr)
 
 	srv := &http.Server{
 		Handler:           mux,

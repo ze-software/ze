@@ -22,7 +22,7 @@
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
-		run "le test engine-steps ./engine-steps.json"
+		run "le mock engine-steps ./engine-steps.json"
 		encoder json
 	}
 }

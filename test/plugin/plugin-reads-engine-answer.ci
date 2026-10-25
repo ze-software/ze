@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A Go fixture writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `le test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le mock record-plugin`, and opens SSH
 # 3. When every plugin is ready, the plugin dispatches `system command list`
 #    through Plugin.DispatchCommandAnswer and walks the rows as they arrive
 # 4. It keeps the count, the first name and the last name, and no row

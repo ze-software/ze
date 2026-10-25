@@ -25,7 +25,7 @@ const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 //
 // TWO of them, and that is what separates this lab from the other four: the
 // peer containers run `le test interop-bgp ...`, `le test peer ...` and
-// `le test rpki ...`, and scenario ze.conf files run the harness from inside the
+// `le mock rpki ...`, and scenario ze.conf files run the harness from inside the
 // daemon container, so an image carrying the daemon alone answers those
 // scenarios with "not found".
 //

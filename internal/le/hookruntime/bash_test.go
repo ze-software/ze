@@ -19,10 +19,10 @@ import (
 
 	// The four harness commands the heaviness test reads: two runners
 	// that admit, two helper tools that do not.
+	_ "github.com/ze-software/ze/internal/le/mock/rpki"
 	_ "github.com/ze-software/ze/internal/le/test/bgp"
 	_ "github.com/ze-software/ze/internal/le/test/ospf"
 	_ "github.com/ze-software/ze/internal/le/test/peer"
-	_ "github.com/ze-software/ze/internal/le/test/rpki"
 )
 
 // TestGovernedWriteCatchesEveryInPlaceFlagSpelling drives the pretool-bash hook
@@ -535,7 +535,7 @@ func TestBashHookReadsNoHarnessFile(t *testing.T) {
 // TestBashHookReadsHarnessSuitesAsHeavy proves the lossy-pipe refusal reads a
 // harness runner as heavy and a helper tool as light, from the registration
 // alone: `test bgp` and `test ospf` register their run as admitted
-// (harnesstool.RunnerAnswer, SuiteAnswer), `test peer` and `test rpki` do not.
+// (harnesstool.RunnerAnswer, SuiteAnswer), `test peer` and `mock rpki` do not.
 // It drives bashLossyPipe, the hook's own entry point, over the command text.
 //
 // VALIDATES: AC-45, the hook half.
@@ -554,14 +554,14 @@ func TestBashHookReadsHarnessSuitesAsHeavy(t *testing.T) {
 			t.Errorf("%q was not refused: a runner area is heavy", command)
 		}
 	}
-	for _, name := range []string{"peer", "rpki"} {
-		if leroot.Admits("test " + name) {
-			t.Fatalf("test %s, a helper tool, is registered as admitted", name)
+	for _, name := range []string{"test peer", "mock rpki"} {
+		if leroot.Admits(name) {
+			t.Fatalf("%s, a helper tool, is registered as admitted", name)
 		}
-		if !leroot.Forwards("test " + name) {
-			t.Fatalf("test %s is not registered, so this case proves nothing", name)
+		if !leroot.Forwards(name) {
+			t.Fatalf("%s is not registered, so this case proves nothing", name)
 		}
-		command := "./le test " + name + " --help | grep x"
+		command := "./le " + name + " --help | grep x"
 		if refused(command) {
 			t.Errorf("%q was refused: a helper tool is not heavy", command)
 		}

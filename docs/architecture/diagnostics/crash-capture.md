@@ -60,7 +60,7 @@ that size. Panic detection reads the same lines, so only the start of a line can
 open a trace.
 <!-- source: internal/core/crashlog/stderr.go -- relayStderr, lineRelay -->
 
-The test-only `le test plugin-external` launcher ends its local stderr relay
+The test-only `le mock plugin-external` launcher ends its local stderr relay
 with `Flush` before configuring the engine logger. Its parent daemon owns the
 stderr pipe and relays those writes. A refusing engine can close its SDK
 connection immediately after logging, causing the parent to kill the child

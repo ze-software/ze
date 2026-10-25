@@ -13,6 +13,6 @@ import (
 
 func init() {
 	leroot.RegisterNamespace("test",
-		"Ze's test suites and the helpers and mocks they run",
-		"Ze's test suites and the helpers they run: functional, interop, integration, unit, fuzz and mutation suites, and mock servers.")
+		"Ze's test suites and the tools that drive them",
+		"Ze's test suites and the tools that drive them: functional, interop, integration, unit, fuzz and mutation suites, and the fixture, peer, MCP and replay tools a test runs. Mock servers are under le mock.")
 }

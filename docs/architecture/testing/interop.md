@@ -1473,7 +1473,7 @@ same structural predicate and save the observed route objects in
 `/tmp/rpki-check.json` inside the Ze container.
 
 This scenario exercises FRR-to-Ze BGP reception with RPKI eligibility decisions.
-It uses the same-repository `le test rpki` RTR cache mock and does not establish
+It uses the same-repository `le mock rpki` RTR cache mock and does not establish
 independent RTR interoperability. The `rtr-stayrtr` scenario uses StayRTR for
 that purpose. The retention observation does not measure downstream export:
 FRR originates these routes, and there is no separate receiving peer.

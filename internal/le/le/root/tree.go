@@ -30,6 +30,10 @@ func Tree() *command.Node {
 func treeFrom(roots []registry.RootCommand) *command.Node {
 	root := &command.Node{Children: map[string]*command.Node{}}
 	for _, area := range roots {
+		// A hidden command is absent from completion and the menu.
+		if Hidden(area.Name) {
+			continue
+		}
 		node := nodeFor(root, strings.Fields(area.Name))
 		node.ShortHelp = area.Meta.ShortHelp
 		node.Description = area.Meta.Description
