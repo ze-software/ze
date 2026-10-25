@@ -82,11 +82,13 @@ func TestInteropTreeUsesOnlyCompiledHelpers(t *testing.T) {
 			"entrypoint\", \"" + "python",
 			"#!/" + "bin/sh",
 			"#!/usr/bin/env ba" + "sh",
-			"." + "sh",
-			"." + "bash",
-			"." + "pl",
 		} {
 			if strings.Contains(text, token) {
+				t.Errorf("interpreter launch remains in %s", relative)
+			}
+		}
+		for _, extension := range []string{"." + "sh", "." + "bash", "." + "pl"} {
+			if namesScriptExtension(text, extension) {
 				t.Errorf("interpreter launch remains in %s", relative)
 			}
 		}
@@ -94,5 +96,50 @@ func TestInteropTreeUsesOnlyCompiledHelpers(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// namesScriptExtension reports whether text names a file ending in extension:
+// an occurrence the next byte does not continue as a name. A bare substring
+// match read the sysctl key net.mpls.platform_labels as a Perl script name,
+// and would read any dotted word that begins with "sh" as a shell script.
+func namesScriptExtension(text, extension string) bool {
+	for rest := text; ; {
+		at := strings.Index(rest, extension)
+		if at < 0 {
+			return false
+		}
+		rest = rest[at+len(extension):]
+		if rest == "" || !continuesName(rest[0]) {
+			return true
+		}
+	}
+}
+
+// continuesName reports whether b can continue a file-name extension.
+func continuesName(b byte) bool {
+	return b == '_' || b == '-' || ('a' <= b && b <= 'z') || ('0' <= b && b <= '9')
+}
+
+// TestNamesScriptExtension pins the boundary the tree check reads: a script
+// name at the end of text, before a quote, a space or a dot, is found, and a
+// dotted word that only begins with the extension's letters is not.
+func TestNamesScriptExtension(t *testing.T) {
+	cases := []struct {
+		text, extension string
+		want            bool
+	}{
+		{"cmd [\"/run" + "." + "sh\"]", "." + "sh", true},
+		{"entry" + "." + "sh", "." + "sh", true},
+		{"helper" + "." + "pl.in", "." + "pl", true},
+		{"start" + "." + "bash run", "." + "bash", true},
+		{"net.mpls" + "." + "platform_labels=1048575", "." + "pl", false},
+		{"lib" + "." + "shared-1", "." + "sh", false},
+		{"lib" + "." + "shared then x" + "." + "sh", "." + "sh", true},
+	}
+	for _, c := range cases {
+		if got := namesScriptExtension(c.text, c.extension); got != c.want {
+			t.Errorf("namesScriptExtension(%q, %q) = %v, want %v", c.text, c.extension, got, c.want)
+		}
 	}
 }

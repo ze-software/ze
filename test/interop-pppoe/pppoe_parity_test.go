@@ -91,17 +91,25 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// Repinned for 4a923c72de: the header comment names `./le test integration`.
 		// Repinned for bdee1599a3, which removed kmod and modprobe from the ze,
 		// accel-ppp and client images: each peer holds NET_ADMIN and /dev/ppp.
-		"Dockerfile.ze":    "2401cbe2bf4ab32a39935a405facdb1da273b8c146d6f7546544ec468e90a344",
-		"Dockerfile.accel": "ca79627cf36afc748854a2486e1b8efeb800942875c4cac588cff4f56bac3ed8",
+		// Repinned for 180dfc8b8a, which moved both images to alpine:3.24.3,
+		// whose accel-ppp 1.14.0 is upstream's latest stable release (every lab
+		// peer runs one), and for ecf2804fc1, whose comment no longer cites the
+		// owner decision by label.
+		"Dockerfile.ze":    "6db26bfc313a30ebefceae2680900442b829b5387852da969f947475392421e2",
+		"Dockerfile.accel": "5cdc9590fcb5508437df656f36532d47647bb222b0c32e7989f8c5301ffb7d46",
 		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
 		// pppoe-empty-service-name checker captures the discovery exchange to
 		// read the Service-Name tags Ze puts on the wire. Repinned again for
 		// pppoe-pap-ze-ac, which added tcpreplay: that checker resends the
 		// client's captured PAP Authenticate-Request from inside the container.
-		// Repinned again for bdee1599a3 (no kmod, no modprobe).
-		"Dockerfile.client":                           "3ea9ab6e185566a61bbad964c9840be775efa62a724ea34fcb32065fcaf2a78d",
+		// Repinned again for bdee1599a3 (no kmod, no modprobe). Repinned again
+		// for 180dfc8b8a and 8c82bd749b (alpine:3.24.3, upstream ppp 2.5.4) and
+		// ecf2804fc1 (comment wording).
+		"Dockerfile.client":                           "05b2352d73615c9f17b16a71fedd0b89890331c3e43b7efebd58eb1d81cbaa35",
 		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
-		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "c7b096b09feb5492123e4f32fff09a167abc30b798f5a6b22ae6e007f3d5fa05",
+		// Repinned for ad81e43e76: log copy=1 puts the session's LCP and CHAP
+		// exchange in the general log the CHAP-MD5 evidence check reads.
+		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "0f8e0c7aaa425f9ad809a72456ad6d91f5cc439bec632bb36d79045c5b787e83",
 		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
 		"scenarios/01-pppoe-chap-ipv4/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
 		"scenarios/02-ze-ac-pppd-client/ze.conf":      "86018076f6fa758abb91a5108f39fda38ca78ddd6d0c15325f77ca630daa89e5",

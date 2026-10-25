@@ -34,7 +34,9 @@ FROM alpine:3.24.3 AS build
 ARG KEA_VERSION=3.2.1
 ARG KEA_SHA256=3478220be62b3aa361a2c7f97d5d2989b934f7864e82d4bd17056e1e208b9735
 
-RUN apk add --no-cache boost-dev build-base curl log4cplus-dev meson openssl-dev python3 scanelf
+# meson's own interpreter arrives as a dependency of Alpine's meson package;
+# the runtime stage below installs no Python.
+RUN apk add --no-cache boost-dev build-base curl log4cplus-dev meson openssl-dev scanelf
 
 WORKDIR /src
 RUN curl -fsSL -o kea.tar.xz "https://downloads.isc.org/isc/kea/${KEA_VERSION}/kea-${KEA_VERSION}.tar.xz" \

@@ -66,8 +66,14 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// Repinned for b3a5960dc7: the 02-ppp-bgp-redistribute-frr frr.conf
 		// sets no bgp ebgp-requires-policy, because FRR 10.3.1 refused Ze's
 		// UPDATE with "inbound policy missing" and the scenario waited forever.
-		"Dockerfile.ze":                                      "d18dcba6226a09fb874cee777af6566f92bdb5723f82a91568951b8421cd2213",
-		"Dockerfile.lac":                                     "67007f9802268dbc1762c754fb7187abafca0408314c3e2d9d7252abd36e00f8",
+		// Repinned for 180dfc8b8a and 8c82bd749b, which moved both images to
+		// alpine:3.24.3 and build the LAC's ppp 2.5.4 and xl2tpd 1.3.20 from
+		// upstream (the latest stable release every lab peer runs), and for
+		// ecf2804fc1, whose comment no longer cites the owner decision by label.
+		// Repinned for b0f097d650: accounting now goes to accounting-port, 1813
+		// by default, so 04-radius-acct-attrs names 1812, where its mock listens.
+		"Dockerfile.ze":                                      "87225f0aa63c839df3ec291de8b4a734091022569c7583104dc006f47dde968f",
+		"Dockerfile.lac":                                     "ce8cb0c18ee610e092dd37b966c683a11baa63605675ec6b799d99cdda2c4b4f",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
 		"vtysh.conf":                                         "dc8aa539965a4cebabbe1a75a53b48ae8471bafe77ce59af22d5352d28da4df6",
 		"scenarios/01-ppp-ipv4/ze.conf":                      "1025ac71136323782a35a27cf6c2278d668ad9e597e6fa610e943bed39d97b33",
@@ -82,7 +88,7 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"scenarios/03-ze-lac-xl2tpd-lns/ze.conf":             "f9e55699a9b087c079b518d5fab2897590a4e10cbbfc071d4a77e9fbbeda9411",
 		"scenarios/03-ze-lac-xl2tpd-lns/xl2tpd.conf":         "bdd8acec47050dd362774130bccc6f17a97d9956b514143cd93e827b716bf013",
 		"scenarios/03-ze-lac-xl2tpd-lns/options.xl2tpd":      "24bd437d8d4bd6d2916236a7036d01d4f990ead0951763b18347c068c809536f",
-		"scenarios/04-radius-acct-attrs/ze.conf":             "a834e28c29c8e80e1d1c135bc6f5f3f02f4a39c33b21914bc3e5af60489e15ae",
+		"scenarios/04-radius-acct-attrs/ze.conf":             "e3cbb9ae0469fcb3f050bdcd3e534adb03b6240bf2dddb3264e5c68e1da11123",
 		"scenarios/04-radius-acct-attrs/xl2tpd.conf":         "37c2eb77bfdb632f4c03ef5ba06a71b3ddb8200369e30395d6bf8b5d738a3cae",
 		"scenarios/04-radius-acct-attrs/ppp-options":         "f09bbbc2e509408723541c5009d4819b9d01cc9d81b4f0961117c31f53314004",
 		"scenarios/04-radius-acct-attrs/l2tp-secrets":        "6c08c01fa683780b644f441f8d7f4191d64feaf05a035fe4fe79f63e7365b7e5",
