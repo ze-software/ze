@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-25 | spec-bgp-rs-replacement-on-withdrawal (Phase 4, round-2 N-8) | `routeReflector.handleStateDown` (`go rr.sendPeerDown`, `bgp/plugins/rr/rr.go`) and `routeServer` (`go rs.sendPeerDown`, `bgp/plugins/rs/server_handlers.go`) | Each source session down starts one goroutine to send its departure, joined by `downWG`: one goroutine per event, which `ai/rules/goroutine-lifecycle.md` forbids. Many sources flapping start as many goroutines. | open: one long-lived departure worker per plugin fed by a bounded channel, closed at stop. |

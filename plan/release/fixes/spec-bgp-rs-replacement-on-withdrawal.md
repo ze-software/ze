@@ -922,6 +922,7 @@ Setup (round 5, I-4). Under Data Flow 4 a departure owes a key only where the de
 |------------|------|-----------------|
 | `plan/journal/silent-fall-through.md` | 2026-10-25 | route-server forward of a received UPDATE under a 128-buffer 4K read budget |
 | `plan/journal/bound-too-small-for-its-own-burst.md` | 2026-10-25 | recovery staging holds one 4K read buffer per owed key (`queueRecovery`) |
+| `plan/journal/goroutine-started-per-event.md` | 2026-10-25 | bgp-rr and bgp-rs start one departure goroutine per source session down (`sendPeerDown`) |
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
