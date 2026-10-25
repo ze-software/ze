@@ -126,14 +126,7 @@ func TestForwardPortsInOneRunAreDistinct(t *testing.T) {
 // PREVENTS: two le runs probing in the same instant and handing two QEMUs one
 // port (the 2026-10-10 row of parallel-copies-collide-on-a-deterministic-port).
 func TestForwardPortSkipsAReservedPort(t *testing.T) {
-	port := releasedLoopbackPort(t)
-	held, ok, err := runner.LockPort(port)
-	if err != nil {
-		t.Fatalf("reserve port %d: %v", port, err)
-	}
-	if !ok {
-		t.Fatalf("port %d is already reserved by another run; rerun the test", port)
-	}
+	port, held := reservedReleasedLoopbackPort(t)
 	defer held.Release()
 	if got, err := reserveForwardPortIn(port, port); err == nil {
 		t.Fatalf("probe answered port %d while another run holds its reservation", got)
@@ -148,16 +141,9 @@ func TestForwardPortSkipsAReservedPort(t *testing.T) {
 // PREVENTS: an install-test or hugepages operator told to set the run's key,
 // which their action never reads.
 func TestForwardPortExhaustionNamesEveryFix(t *testing.T) {
-	port := releasedLoopbackPort(t)
-	held, ok, err := runner.LockPort(port)
-	if err != nil {
-		t.Fatalf("reserve port %d: %v", port, err)
-	}
-	if !ok {
-		t.Fatalf("port %d is already reserved by another run; rerun the test", port)
-	}
+	port, held := reservedReleasedLoopbackPort(t)
 	defer held.Release()
-	_, err = reserveForwardPortIn(port, port)
+	_, err := reserveForwardPortIn(port, port)
 	if err == nil {
 		t.Fatalf("probe answered port %d while another run holds its reservation", port)
 	}
@@ -176,6 +162,33 @@ func TestForwardPortExhaustionNamesEveryFix(t *testing.T) {
 }
 
 // releasedLoopbackPort answers a port the kernel just handed out and released.
+// reservedReleasedLoopbackPort answers a port nothing is bound to, with the
+// runner's cross-process lock on it held for the caller, who MUST Release it.
+//
+// The kernel knows nothing of those locks: a port it hands out as free can
+// still be reserved, by another le run or by this test process itself, whose
+// earlier reserveForwardPortIn calls keep their reservations until it exits.
+// Such a port is not the one the test asked for, so the helper takes another,
+// up to reservedPortAttempts times, rather than failing the test on it.
+func reservedReleasedLoopbackPort(t *testing.T) (int, *runner.PortReservation) {
+	t.Helper()
+	for range reservedPortAttempts {
+		port := releasedLoopbackPort(t)
+		held, ok, err := runner.LockPort(port)
+		if err != nil {
+			t.Fatalf("reserve port %d: %v", port, err)
+		}
+		if ok {
+			return port, held
+		}
+	}
+	t.Fatalf("every one of %d free loopback ports was already reserved", reservedPortAttempts)
+	return 0, nil
+}
+
+// reservedPortAttempts bounds reservedReleasedLoopbackPort's search.
+const reservedPortAttempts = 32
+
 func releasedLoopbackPort(t *testing.T) int {
 	t.Helper()
 	var config net.ListenConfig
