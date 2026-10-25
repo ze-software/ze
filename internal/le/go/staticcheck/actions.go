@@ -31,18 +31,15 @@ var actions = leaction.New(area,
 			{Keyword: "part", Value: "index", Requirement: leaction.Optional},
 			{Keyword: "of", Value: "count", Requirement: leaction.Optional},
 		},
-		// Derive reads the run's feature-tag answer (repochanged.ScopeTagsKey).
-		ReadsChangeScope: true,
-		AnswerArgs:       runCheck,
+		AnswerArgs: runCheck,
 	},
 	leaction.Action{
 		// No Make target names this one: it is the script's --print-matrix, and
 		// it exists so a reader can see WHICH combinations a run judges without
 		// waiting for Staticcheck.
-		Verb:             "rows",
-		Why:              "the feature-tag combinations this run judges, derived from the feature manifest and narrowed to what the change set can move",
-		ReadsChangeScope: true,
-		Answer:           runRows,
+		Verb:   "rows",
+		Why:    "the feature-tag combinations this run judges, derived from the feature manifest and narrowed to what the change set can move",
+		Answer: runRows,
 	},
 )
 

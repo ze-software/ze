@@ -60,51 +60,98 @@ type Stage struct {
 	// as unattributed and the commit went through. Two lists of one population
 	// drift, and this one drifted toward letting commits past a broken tree.
 	Structural bool `json:"structural,omitempty"`
-	// Scoped says the stage's action reads the change set the run publishes
-	// (publishChangeScope) and judges only that part of its subject when the
-	// answer is narrow. The full population publishes the whole tree, so there
-	// it judges everything; a partial population's verdict on it covers its
-	// scope alone (JudgesInPart, carryForward).
+	// Whole declares that the stage's action judges its whole subject whatever
+	// change scope the run published (publishChangeScope), so a partial
+	// population's verdict on it is a full judgement and replaces a full run's
+	// red (JudgesInPart, carryForward).
 	//
-	// It is a COPY, and its source is the action's registration: the action,
-	// or the keyword the stage names, declares leaction.ReadsChangeScope where
-	// the verb registers. The copy exists because this package cannot read the
-	// registry: the areas register only where the composition root links them,
-	// so a lookup from here would answer false in every test and in any binary
-	// that links fewer areas, which is the unmarked stage this flag guards
-	// against. TestStageScopedIsTheActionsDeclaration (internal/le) compares
-	// every stage of every population with its action's declaration, and
-	// TestEveryChangeScopeReaderDeclaresIt ties the declaration to the code
-	// that reads the scope, so an unmarked reader goes red there rather than
-	// letting a partial green replace a full red it never re-judged.
-	Scoped bool `json:"scoped,omitempty"`
+	// The zero value is the safe answer, and it is the default on purpose: a
+	// stage a partial population shares with the full population and that does
+	// not declare Whole is judged in part there, so its partial green never
+	// replaces a full red it did not re-judge. A stage that learns to read the
+	// scope therefore needs no edit here to stay correct; only the claim of a
+	// full judgement does, and TestAWholeStageReachesNoChangeScopeReader
+	// (internal/le) refuses that claim for a stage whose action's package, or
+	// a package it imports, reads the scope, unless the readers there were
+	// reviewed as ones the stage never reaches.
+	Whole bool `json:"whole,omitempty"`
 }
 
 // JudgesInPart reports whether mode's population judges the named stage only
 // over its published scope while the full population judges all of it: the
-// stage is in both populations and Scoped. Only such a stage's full verdict
-// survives a partial run; a stage the partial run judges at its full identity
-// is a full judgement. The full population judges every stage in full.
-func JudgesInPart(mode, name string) bool {
-	if mode == Mode {
-		return false
+// stage is in both populations and does not declare Whole. Only such a
+// stage's full verdict survives a partial run. A cut run's mode
+// (`changed-part-1-of-2`, Part.Name) is judged as the population it cut
+// (BaseMode), and a mode that names no population is refused, never answered:
+// a guessed "full" would let a partial green replace a full red.
+func JudgesInPart(mode, name string) (bool, error) {
+	base, err := BaseMode(mode)
+	if err != nil {
+		return false, err
 	}
-	partial := false
-	for _, one := range StagesForMode(mode) {
-		if one.Identity.Name == name {
-			partial = one.Scoped
-			break
-		}
+	if base == Mode {
+		return false, nil
 	}
-	if !partial {
-		return false
+	return judgesInPart(name, StagesForMode(base), fullStages())
+}
+
+// judgesInPart is JudgesInPart over the two populations it compares, so a test
+// can add a stage nobody declared. A stage the partial population does not
+// hold is not judged by it at all, which is an error rather than an answer.
+func judgesInPart(name string, partial, full []Stage) (bool, error) {
+	index := slices.IndexFunc(partial, func(one Stage) bool { return one.Identity.Name == name })
+	if index < 0 {
+		return false, errors.New("the population holds no stage " + name)
 	}
-	for _, one := range fullStages() {
-		if one.Identity.Name == name {
-			return true
-		}
+	if !slices.ContainsFunc(full, func(one Stage) bool { return one.Identity.Name == name }) {
+		return false, nil
 	}
-	return false
+	return !partial[index].Whole, nil
+}
+
+// BaseMode answers the population a mode names: the mode itself for a
+// population StagesForMode knows, or the population a cut run's mode
+// (`<base>-part-<i>-of-<n>`, Part.Name) was dealt from. Any other mode is an
+// error, because no population answers for it.
+func BaseMode(mode string) (string, error) {
+	if len(StagesForMode(mode)) > 0 {
+		return mode, nil
+	}
+	refused := errors.New("verify mode " + strconv.Quote(mode) +
+		" names no stage population: it is none of full, fast or changed, nor a cut of one (<mode>-part-<i>-of-<n>)")
+	base, numbers, isCut := strings.CutLast(mode, "-part-")
+	if !isCut {
+		return "", refused
+	}
+	index, count, found := strings.Cut(numbers, "-of-")
+	if !found {
+		return "", refused
+	}
+	part, err := parsePart(index, count)
+	if err != nil {
+		return "", refused
+	}
+	if len(StagesForMode(base)) == 0 {
+		return "", refused
+	}
+	if part.Name(base) != mode {
+		return "", refused
+	}
+	return base, nil
+}
+
+// parsePart reads a cut's index and count as a valid Part.
+func parsePart(index, count string) (Part, error) {
+	i, err := strconv.Atoi(index)
+	if err != nil {
+		return Part{}, err
+	}
+	n, err := strconv.Atoi(count)
+	if err != nil {
+		return Part{}, err
+	}
+	part := Part{Index: i, Of: n}
+	return part, part.Valid()
 }
 
 // Structural answers the stages whose red refuses a commit outright.
@@ -124,27 +171,36 @@ func Structural(mode string) map[string]bool {
 func staticcheckStages() []Stage {
 	stages := make([]Stage, 0, staticcheckParts)
 	for part := 1; part <= staticcheckParts; part++ {
-		stages = append(stages, scoped(structural("go staticcheck", "check",
-			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts))))
+		stages = append(stages, structural("go staticcheck", "check",
+			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
 	}
 	return stages
 }
 
 // raceStages returns one stage per piece of the race pass. Each piece lists
 // the changed population itself and runs its share, so a package added to the
-// tree needs nothing here.
+// tree needs nothing here. A piece selects its groups from the anchor through
+// the refs, not from the published scope, so it judges the same packages in
+// every population and is declared Whole.
 func raceStages() []Stage {
 	stages := make([]Stage, 0, raceParts)
 	for part := 1; part <= raceParts; part++ {
 		stages = append(stages, stage("verify deps", "unit-race-changed",
 			"part", strconv.Itoa(part), "of", strconv.Itoa(raceParts)))
 	}
-	return stages
+	return whole(stages...)
 }
 
 // fullStages returns the native verification actions in execution order.
+//
+// Every stage whose action judges its whole subject whatever scope the run
+// published is declared so through whole (Stage.Whole). The Staticcheck parts,
+// `arch enumeration check` and the gating suite read the published scope and
+// declare nothing, which is what makes a partial run's verdict on them a
+// partial one. A stage added here without whole is judged in part by any
+// partial population that shares it, which is the safe answer.
 func fullStages() []Stage {
-	stages := []Stage{
+	stages := whole(
 		structural("go lint", "run"),
 		structural("arch tier", "check"),
 		stage("rfc", "check"),
@@ -160,8 +216,8 @@ func fullStages() []Stage {
 		stage("go patch-stamps", "check"),
 		stage("config claims"),
 		stage("test sensitivity", "check"),
-	}
-	stages = slices.Concat(stages, staticcheckStages(), []Stage{
+	)
+	return slices.Concat(stages, staticcheckStages(), whole(
 		structural("repo compiles", "check"),
 		stage("go vet-platforms", "darwin", "freebsd", "openbsd"),
 		structural("doc wiring"),
@@ -180,10 +236,12 @@ func fullStages() []Stage {
 		// no declared edge, runs silently empty in a build without that gate.
 		stage("plugin coupling", "check"),
 		stage("plugin declarations", "check"),
+	), []Stage{
 		// arch enumeration judges the CHANGE SET rather than the tree: the copies
 		// already in the tree are `le arch enumeration report`, and this stage's red
 		// means the change under test added one (owner decision, 2026-09-14).
-		scoped(stage("arch enumeration", "check")),
+		stage("arch enumeration", "check"),
+	}, whole(
 		// arch compound-guard judges the LINES in the unpushed range, committed or
 		// not: the base is the merge base of HEAD and the upstream, or origin/main,
 		// read from refs, so this detached worktree answers the same range as its
@@ -218,12 +276,13 @@ func fullStages() []Stage {
 		stage("ai hooks", "unit"),
 		stage("verify deps", "vulnerability"),
 		stage("verify deps", "unit-cached"),
-	}, raceStages(), []Stage{
+	), raceStages(), whole(
 		stage(FunctionalCommand, "exabgp-test"),
-		scoped(stage(FunctionalCommand, "gating")),
+	), []Stage{
+		stage(FunctionalCommand, "gating"),
+	}, whole(
 		stage("verify deps", "alloc"),
-	})
-	return stages
+	))
 }
 
 // fastStages returns the per-edit population: every full stage except the
@@ -240,7 +299,8 @@ func fullStages() []Stage {
 // scope at all and loads the whole module whichever mode called it. Lint is a
 // large part of a run's wall clock, so this list makes the population smaller
 // without making the run proportionally faster. A stage that learns to narrow
-// itself narrows fast mode too, with no edit here.
+// itself narrows fast mode too, with no edit here, and its Whole claim is then
+// refused until it drops it (TestAWholeStageReachesNoChangeScopeReader).
 func fastStages() []Stage {
 	full := fullStages()
 	stages := make([]Stage, 0, len(full)-3)
@@ -258,9 +318,10 @@ func fastStages() []Stage {
 // changedStages returns the population of `./le verify changed`: the tests and
 // the checks of what the change set reaches, and nothing that judges the whole
 // tree. Every stage here narrows to the change set and widens only when the
-// selector widened, which it says on stderr. Each stage marked scoped reads the
-// scope the run published; the race pieces select their groups from the same
-// anchor through the refs, as they do in the full population:
+// selector widened, which it says on stderr. Every stage but the race pieces
+// reads the scope the run published; the race pieces select their groups from
+// the same anchor through the refs, as they do in the full population, and are
+// the only stages here declared Whole:
 //
 //   - `go lint/run/changed` lints the scope's packages
 //   - `verify deps/unit-changed` tests the scope's packages under the scope's
@@ -273,19 +334,23 @@ func fastStages() []Stage {
 // through the job slots like any job and is not a release check.
 func changedStages() []Stage {
 	stages := []Stage{
-		scoped(structural("go lint", "run", "changed")),
-		scoped(stage("verify deps", "unit-changed")),
+		structural("go lint", "run", "changed"),
+		stage("verify deps", "unit-changed"),
 	}
 	return slices.Concat(stages, staticcheckStages(), raceStages(), []Stage{
-		scoped(stage(FunctionalCommand, "gating")),
+		stage(FunctionalCommand, "gating"),
 	})
 }
 
-// scoped marks a stage whose action reads the run's published change set, as
-// that action declares (leaction.Action.ReadsChangeScope, Stage.Scoped).
-func scoped(one Stage) Stage {
-	one.Scoped = true
-	return one
+// whole declares each stage a full judgement in every population that holds
+// it (Stage.Whole). It is the only way a stage claims one, so the claim is
+// written where the stage is, and TestAWholeStageReachesNoChangeScopeReader
+// (internal/le) refuses it for a stage that can reach a reader of the scope.
+func whole(stages ...Stage) []Stage {
+	for index := range stages {
+		stages[index].Whole = true
+	}
+	return stages
 }
 
 // FunctionalCommand is the command every functional suite stage runs. Those

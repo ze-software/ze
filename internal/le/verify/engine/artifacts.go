@@ -190,7 +190,10 @@ func writeFailureIndex(root string, index artifactIndex) error {
 
 	prior, note := readEarlierIndex(root)
 	index.CarryNote = note
-	index.Stages = carryForward(index.Stages, prior, index.Mode)
+	index.Stages, err = carryForward(index.Stages, prior, index.Mode)
+	if err != nil {
+		return unpublished(fmt.Errorf("carry the earlier verdicts into this run's index: %w", err))
+	}
 	data, err := json.MarshalIndent(index, "", "  ")
 	if err != nil {
 		return unpublished(fmt.Errorf("marshal verify failure index: %w", err))
@@ -306,10 +309,13 @@ func earlierRun(commit, runDir string) string {
 // red is not lost by that: the stage stays charged, and the only run that can
 // clear it judges the partial run's scope too. A partial red over a green, or
 // over a red its own population judged, is held and charged as the run's own.
-// A stage the partial run judges at its full identity (`go lint/run` in fast
-// mode, the race pieces, `go patch-stamps/check`) is a full judgement, and its
-// verdict replaces any earlier one.
-func carryForward(stages []artifactStage, prior artifactIndex, mode string) []artifactStage {
+// A stage the partial run judges at its full identity declares it (Stage.Whole:
+// `go lint/run` in fast mode, the race pieces, `go patch-stamps/check`), is a
+// full judgement, and its verdict replaces any earlier one; a shared stage that
+// declares nothing is judged in part. A cut piece is judged as the population
+// it was dealt from (BaseMode), and a mode that names none is refused: the
+// index is not written rather than written with a guessed judgement.
+func carryForward(stages []artifactStage, prior artifactIndex, mode string) ([]artifactStage, error) {
 	result := make([]artifactStage, 0, len(stages))
 	held := make(map[string]bool, len(stages))
 	interrupted := make(map[string]artifactStage)
@@ -327,11 +333,15 @@ func carryForward(stages []artifactStage, prior artifactIndex, mode string) []ar
 		if stages[index].OutsideRun {
 			continue
 		}
-		if JudgesInPart(mode, stages[index].Stage) {
+		partial, err := JudgesInPart(mode, stages[index].Stage)
+		if err != nil {
+			return nil, err
+		}
+		if partial {
 			// Another population's red stays charged, whatever this run said
 			// about its part of the stage: the loop below carries it.
 			if was, found := earlier[stages[index].Stage]; found && judged(was, legacy) &&
-				was.ExitCode != 0 && judgedBy(was, prior) != mode {
+				was.ExitCode != 0 && !samePopulation(judgedBy(was, prior), mode) {
 				continue
 			}
 		}
@@ -377,7 +387,24 @@ func carryForward(stages []artifactStage, prior artifactIndex, mode string) []ar
 			delete(interrupted, stages[index].Stage)
 		}
 	}
-	return result
+	return result, nil
+}
+
+// samePopulation reports whether the run that judged an earlier entry and
+// this run are one population, a cut piece of it included: a red that
+// `changed-part-1-of-2` judged is the changed population's own red. A judge
+// whose mode names no population is another one, because nothing says its
+// scope covered this run's, so its red stays carried.
+func samePopulation(judge, mode string) bool {
+	judgeBase, err := BaseMode(judge)
+	if err != nil {
+		return false
+	}
+	base, err := BaseMode(mode)
+	if err != nil {
+		return false
+	}
+	return judgeBase == base
 }
 
 // judgedBy answers the population of the run that judged an earlier index

@@ -1,5 +1,5 @@
-// Design: docs/architecture/testing/verify-freshness-scope.md -- a scoped stage's verdict
-// Related: verify/engine/stages.go -- Stage.Scoped, the copy these tests compare
+// Design: docs/architecture/testing/verify-freshness-scope.md -- a partial run's verdict on a shared stage
+// Related: verify/engine/stages.go -- Stage.Whole, the claim these tests refuse
 
 package le
 
@@ -16,8 +16,6 @@ import (
 	"strings"
 	"testing"
 
-	leaction "github.com/ze-software/ze/internal/le/le/action"
-	leroot "github.com/ze-software/ze/internal/le/le/root"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -25,123 +23,158 @@ import (
 // verify run publishes and the calls that read it.
 const changeScopePath = "github.com/ze-software/ze/internal/le/repo/changed"
 
-// TestStageScopedIsTheActionsDeclaration proves Stage.Scoped, the stage-side
-// copy, says what the action the stage runs declares where its verb registers
-// (leaction.Action.ReadsChangeScope, or the same field on a keyword the stage
-// names). A stage whose action reads the published scope and is not marked
-// would let a partial green replace a full red it never re-judged.
+// verifyDepsReaders is what every verify deps stage reaches: the one reader in
+// its package, which only the unit-changed verb calls (planCommands' switch on
+// the verb sends VerbUnitChanged, and nothing else, to planUnitChanged).
+var verifyDepsReaders = []string{"verify/deps:planUnitChanged"}
+
+// reviewedReach names, for a stage declared Whole whose package reads the
+// change scope, every reader in that package, each reviewed as one the stage
+// never calls. The key is the stage's name with a cut piece's
+// `/part/<i>/of/<n>` dropped.
 //
-// Method: resolve every stage of every population through the registered
-// action table and compare. A stage whose area registers no action table, or
-// whose verb its table lacks, cannot declare anything, so its area's directory
-// must hold no reader of the scope (changeScopeReaders) and the stage must not
-// be marked.
-func TestStageScopedIsTheActionsDeclaration(t *testing.T) {
-	readers := changeScopeReaders(t)
-	for _, mode := range []string{verifyengine.Mode, verifyengine.FastMode, verifyengine.ChangedMode} {
-		for _, stage := range verifyengine.StagesForMode(mode) {
-			reads, resolved := stageReadsChangeScope(stage.Identity)
-			if !resolved {
-				if where, found := readers[directoryFor(stage.Identity.Command)]; found {
-					t.Errorf("%s stage %q runs an action no table declares, and its area reads the change scope at %s",
-						mode, stage.Identity.Name, where[0])
-				}
-				if stage.Scoped {
-					t.Errorf("%s stage %q is marked Scoped, but no registered action declares that it reads the change scope",
-						mode, stage.Identity.Name)
-				}
-				continue
-			}
-			if reads != stage.Scoped {
-				t.Errorf("%s stage %q: Scoped is %v, but its action declares ReadsChangeScope %v; make the "+
-					"scoped() mark in internal/le/verify/engine/stages.go and the action's declaration agree",
-					mode, stage.Identity.Name, stage.Scoped, reads)
-			}
-		}
-	}
+// It is the one place a Whole claim beside a reader is accepted, and it is
+// pinned to the readers themselves: a reader added to, removed from or renamed
+// in the package changes the list the scan answers, the entry no longer
+// matches, and the claim is refused until somebody reviews it again. A second
+// reader in the same directory is therefore never accepted unseen: the
+// package-granular scan can refuse a true claim, and never accepts one it was
+// not shown.
+var reviewedReach = map[string][]string{
+	// changedScope returns its arguments untouched unless the invocation names
+	// the changed keyword, and `go lint run` does not.
+	"go lint/run":                   {"go/lint:changedScope"},
+	"verify deps/evidence-vet":      verifyDepsReaders,
+	"verify deps/vulnerability":     verifyDepsReaders,
+	"verify deps/unit-cached":       verifyDepsReaders,
+	"verify deps/unit-race-changed": verifyDepsReaders,
+	"verify deps/alloc":             verifyDepsReaders,
+	"test functional/exabgp-test":   {"test/functional:selectSuites"},
 }
 
-// TestEveryChangeScopeReaderDeclaresIt ties the declaration to the code that
-// reads the scope. Every directory whose shipped Go calls repochanged.Packages,
-// or reads repochanged.ScopeTagsKey or ScopeFileKey through a Get, is an
-// area's package whose table declares a scope-reading action, and every area
-// declaring one holds such a reader.
+// TestAWholeStageReachesNoChangeScopeReader refuses a Whole claim the scan
+// cannot accept. A stage declared Whole is a full judgement in a partial
+// population, so its partial green replaces a full red; a stage whose action
+// reads the scope that claim lets a partial green erase a red over code the
+// run never judged. The default needs no check: a stage that declares nothing
+// is judged in part, which is the safe answer.
 //
-// Method: parse every non-test Go file under internal/le that imports the
-// scope package, collect the directories holding a read, and compare them with
-// the directories of the areas whose action rows declare ReadsChangeScope.
-func TestEveryChangeScopeReaderDeclaresIt(t *testing.T) {
-	readers := changeScopeReaders(t)
-	if len(readers) == 0 {
+// Method: scan every shipped Go file under internal/le for a read of the
+// scope, close each package over its internal/le imports, and refuse every
+// Whole stage of every population whose package reaches a reader, unless
+// reviewedReach holds exactly those readers for it. Every reviewed entry must
+// still be needed.
+func TestAWholeStageReachesNoChangeScopeReader(t *testing.T) {
+	scan := scanChangeScope(t)
+	if len(scan.readers) == 0 {
 		t.Fatal("found no reader of the change scope under internal/le; the scan is broken")
 	}
-	declaring := map[string]string{}
-	for _, tool := range commandsAtStart {
-		table, declared := leroot.ActionsOf(tool.Name)
-		if !declared {
+	used := map[string]bool{}
+	for _, mode := range []string{verifyengine.Mode, verifyengine.FastMode, verifyengine.ChangedMode} {
+		stages := verifyengine.StagesForMode(mode)
+		for _, refusal := range wholeClaimRefusals(stages, scan.reach, reviewedReach) {
+			t.Errorf("%s population: %s", mode, refusal)
+		}
+		for _, stage := range stages {
+			if stage.Whole {
+				used[reviewKey(stage.Identity.Name)] = len(scan.reach(stage.Identity.Command)) > 0
+			}
+		}
+	}
+	for key := range reviewedReach {
+		if !used[key] {
+			t.Errorf("reviewedReach holds %q, which is no Whole stage that reaches a reader; remove the entry", key)
+		}
+	}
+}
+
+// TestAWholeClaimOnAScopeReaderIsRefused proves the check refuses the claim it
+// exists for: the gating suite and `go lint run changed` read the scope, so
+// declaring either Whole is refused, while `go lint run`, whose reader is
+// reviewed, is accepted.
+//
+// Method: run wholeClaimRefusals over three stages built Whole, with the real
+// scan and the real reviewed entries.
+func TestAWholeClaimOnAScopeReaderIsRefused(t *testing.T) {
+	scan := scanChangeScope(t)
+	claim := func(command string, args ...string) verifyengine.Stage {
+		name := command + "/" + strings.Join(args, "/")
+		return verifyengine.Stage{Identity: verifyengine.Identity{Name: name, Command: command, Args: args}, Whole: true}
+	}
+	for _, check := range []struct {
+		stage   verifyengine.Stage
+		refused bool
+	}{
+		{claim(verifyengine.FunctionalCommand, "gating"), true},
+		{claim("go lint", "run", "changed"), true},
+		{claim("go staticcheck", "check", "part", "1", "of", "2"), true},
+		{claim("go lint", "run"), false},
+	} {
+		refusals := wholeClaimRefusals([]verifyengine.Stage{check.stage}, scan.reach, reviewedReach)
+		if got := len(refusals) > 0; got != check.refused {
+			t.Errorf("Whole %s: refused %v (%q), want %v", check.stage.Identity.Name, got, refusals, check.refused)
+		}
+	}
+}
+
+// wholeClaimRefusals answers one line for each stage declared Whole whose
+// command's package reaches a reader of the change scope that reviewed does
+// not hold, exactly, for it.
+func wholeClaimRefusals(stages []verifyengine.Stage, reach func(command string) []string, reviewed map[string][]string) []string {
+	var refusals []string
+	for _, stage := range stages {
+		if !stage.Whole {
 			continue
 		}
-		if slices.ContainsFunc(table.Actions, rowReadsChangeScope) {
-			declaring[directoryFor(tool.Name)] = tool.Name
+		reached := reach(stage.Identity.Command)
+		if len(reached) == 0 {
+			continue
+		}
+		key := reviewKey(stage.Identity.Name)
+		want, found := reviewed[key]
+		if !found {
+			refusals = append(refusals, "stage "+strconv.Quote(stage.Identity.Name)+
+				" is declared Whole, and its package can reach a reader of the change scope ("+strings.Join(reached, ", ")+
+				"); drop its whole() in internal/le/verify/engine/stages.go, or review that it never calls them and add "+
+				strconv.Quote(key)+" to reviewedReach")
+			continue
+		}
+		if !slices.Equal(want, reached) {
+			refusals = append(refusals, "stage "+strconv.Quote(stage.Identity.Name)+
+				" is declared Whole and reviewed against the readers "+strings.Join(want, ", ")+
+				", but it now reaches "+strings.Join(reached, ", ")+"; review the change and update reviewedReach")
 		}
 	}
-	for dir, where := range readers {
-		if _, found := declaring[dir]; !found {
-			t.Errorf("%s reads the change scope, and no area at %s declares an action with ReadsChangeScope", where[0], dir)
-		}
-	}
-	for dir, area := range declaring {
-		if _, found := readers[dir]; !found {
-			t.Errorf("area %q declares ReadsChangeScope, and no Go file in %s reads the change scope", area, dir)
-		}
-	}
+	return refusals
 }
 
-// stageReadsChangeScope answers what the action a stage runs declares, and
-// whether that action resolved at all. The first argument is the verb; a later
-// argument that is a keyword declared ReadsChangeScope counts too.
-func stageReadsChangeScope(identity verifyengine.Identity) (reads, resolved bool) {
-	table, declared := leroot.ActionsOf(identity.Command)
-	if !declared {
-		return false, false
-	}
-	verb := ""
-	if len(identity.Args) > 0 {
-		verb = identity.Args[0]
-	}
-	index := slices.IndexFunc(table.Actions, func(row leaction.Row) bool { return row.Verb == verb })
-	if index < 0 {
-		return false, false
-	}
-	row := table.Actions[index]
-	if row.ReadsChangeScope {
-		return true, true
-	}
-	for _, parameter := range row.Parameters {
-		if parameter.ReadsChangeScope && slices.Contains(identity.Args[1:], parameter.Keyword) {
-			return true, true
-		}
-	}
-	return false, true
+// reviewKey is a stage's name without a cut piece's `/part/<i>/of/<n>`.
+func reviewKey(name string) string {
+	key, _, _ := strings.Cut(name, "/part/")
+	return key
 }
 
-// rowReadsChangeScope reports whether an action row, or any of its keywords,
-// declares that it reads the change scope.
-func rowReadsChangeScope(row leaction.Row) bool {
-	if row.ReadsChangeScope {
-		return true
-	}
-	return slices.ContainsFunc(row.Parameters, func(parameter leaction.Parameter) bool {
-		return parameter.ReadsChangeScope
-	})
+// changeScopeScan is what the scan found: the readers in each package
+// directory under internal/le, relative to it.
+type changeScopeScan struct {
+	readers map[string][]string
 }
 
-// changeScopeReaders answers every directory under internal/le, relative to
-// it, whose shipped Go reads the published change scope, with the position of
-// each read.
-func changeScopeReaders(t *testing.T) map[string][]string {
+// reach answers every reader in the package of command, sorted. It is
+// package-granular and does not follow imports: a reader in a package the
+// action calls into is not seen here, which is the bound of this check.
+func (s changeScopeScan) reach(command string) []string {
+	reached := slices.Clone(s.readers[directoryFor(command)])
+	slices.Sort(reached)
+	return slices.Compact(reached)
+}
+
+// scanChangeScope parses every shipped Go file under internal/le, the
+// package's own directory, that imports the scope package, and names every
+// read of the scope there by the function that holds it.
+func scanChangeScope(t *testing.T) changeScopeScan {
 	t.Helper()
-	readers := map[string][]string{}
+	scan := changeScopeScan{readers: map[string][]string{}}
 	needle := []byte(strconv.Quote(changeScopePath))
 	err := filepath.WalkDir(".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -166,27 +199,27 @@ func changeScopeReaders(t *testing.T) map[string][]string {
 		if !bytes.Contains(source, needle) {
 			return nil
 		}
-		for _, where := range readsInFile(t, path, source) {
-			readers[filepath.Dir(path)] = append(readers[filepath.Dir(path)], where)
+		file, err := parser.ParseFile(token.NewFileSet(), path, source, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		dir := filepath.Dir(path)
+		for _, function := range readsInFile(file) {
+			scan.readers[dir] = append(scan.readers[dir], filepath.ToSlash(dir)+":"+function)
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("walk internal/le: %v", err)
 	}
-	return readers
+	return scan
 }
 
-// readsInFile answers the position of every read of the published scope in
-// one file: a call of Packages, or a Get whose argument is ScopeTagsKey or
-// ScopeFileKey, each through the file's own name for the scope package.
-func readsInFile(t *testing.T, path string, source []byte) []string {
-	t.Helper()
-	files := token.NewFileSet()
-	file, err := parser.ParseFile(files, path, source, parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatalf("parse %s: %v", path, err)
-	}
+// readsInFile answers the function holding each read of the published scope
+// in one file: a call of Packages, or a Get whose argument is ScopeTagsKey or
+// ScopeFileKey, each through the file's own name for the scope package. A read
+// outside every function is named for the file's package-level declarations.
+func readsInFile(file *ast.File) []string {
 	local := ""
 	for _, spec := range file.Imports {
 		if spec.Path.Value != strconv.Quote(changeScopePath) {
@@ -198,34 +231,45 @@ func readsInFile(t *testing.T, path string, source []byte) []string {
 		}
 	}
 	var reads []string
-	ast.Inspect(file, func(node ast.Node) bool {
-		call, isCall := node.(*ast.CallExpr)
-		if !isCall {
-			return true
+	for _, declaration := range file.Decls {
+		holder := "package level"
+		if function, isFunction := declaration.(*ast.FuncDecl); isFunction {
+			holder = function.Name.Name
 		}
-		function, isSelector := call.Fun.(*ast.SelectorExpr)
-		if !isSelector {
-			return true
-		}
-		if isScopeName(function, local, "Packages") {
-			reads = append(reads, files.Position(call.Pos()).String())
-			return true
-		}
-		if function.Sel.Name != "Get" {
-			return true
-		}
-		for _, argument := range call.Args {
-			key, isKey := argument.(*ast.SelectorExpr)
-			if !isKey {
-				continue
+		ast.Inspect(declaration, func(node ast.Node) bool {
+			call, isCall := node.(*ast.CallExpr)
+			if !isCall {
+				return true
 			}
-			if isScopeName(key, local, "ScopeTagsKey") || isScopeName(key, local, "ScopeFileKey") {
-				reads = append(reads, files.Position(call.Pos()).String())
+			if isScopeRead(call, local) {
+				reads = append(reads, holder)
 			}
-		}
-		return true
-	})
+			return true
+		})
+	}
 	return reads
+}
+
+// isScopeRead reports whether call reads the published scope through the
+// file's local name for the scope package.
+func isScopeRead(call *ast.CallExpr, local string) bool {
+	function, isSelector := call.Fun.(*ast.SelectorExpr)
+	if !isSelector {
+		return false
+	}
+	if isScopeName(function, local, "Packages") {
+		return true
+	}
+	if function.Sel.Name != "Get" {
+		return false
+	}
+	return slices.ContainsFunc(call.Args, func(argument ast.Expr) bool {
+		key, isKey := argument.(*ast.SelectorExpr)
+		if !isKey {
+			return false
+		}
+		return isScopeName(key, local, "ScopeTagsKey") || isScopeName(key, local, "ScopeFileKey")
+	})
 }
 
 // isScopeName reports whether selector names the given member of the scope

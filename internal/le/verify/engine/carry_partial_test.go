@@ -101,7 +101,11 @@ func TestAFullIdentityStageTakesAPartialRunsVerdict(t *testing.T) {
 		{ChangedMode, FunctionalCommand + "/gating", true},
 		{Mode, staticcheck, false},
 	} {
-		if got := JudgesInPart(check.mode, check.name); got != check.want {
+		got, err := JudgesInPart(check.mode, check.name)
+		if err != nil {
+			t.Fatalf("JudgesInPart(%s, %s): %v", check.mode, check.name, err)
+		}
+		if got != check.want {
 			t.Errorf("JudgesInPart(%s, %s) = %v, want %v", check.mode, check.name, got, check.want)
 		}
 	}
@@ -116,16 +120,17 @@ func TestAFullIdentityStageTakesAPartialRunsVerdict(t *testing.T) {
 }
 
 // TestACutFullRunPieceIsAFullJudgement pins JudgesInPart for the mode a cut
-// full run writes (`full-part-i-of-n`, Part.Name). Each piece judges its
-// stages over the whole tree, because the full population publishes the whole
-// tree as its scope, so its verdict on a stage is a full judgement and replaces
-// the entry, a Scoped stage included.
+// full run writes (`full-part-i-of-n`, Part.Name). JudgesInPart reads the
+// population the cut was dealt from (BaseMode), and that is the full one,
+// which publishes the whole tree as its scope, so the piece's verdict on a
+// stage is a full judgement and replaces the entry, a stage that declares no
+// Whole included.
 //
 // Method: name every piece of a six-way cut of the full population and ask
-// JudgesInPart about each stage that piece runs, the Scoped ones included.
+// JudgesInPart about each stage that piece runs, the undeclared ones included.
 func TestACutFullRunPieceIsAFullJudgement(t *testing.T) {
 	const pieces = 6
-	scoped := 0
+	undeclared := 0
 	for index := 1; index <= pieces; index++ {
 		part := Part{Index: index, Of: pieces}
 		mode := part.Name(Mode)
@@ -137,17 +142,126 @@ func TestACutFullRunPieceIsAFullJudgement(t *testing.T) {
 			t.Fatalf("Dealt(%s, %s): %v", Mode, mode, err)
 		}
 		for _, stage := range dealt {
-			if stage.Scoped {
-				scoped++
+			if !stage.Whole {
+				undeclared++
 			}
-			if JudgesInPart(mode, stage.Identity.Name) {
+			partial, err := JudgesInPart(mode, stage.Identity.Name)
+			if err != nil {
+				t.Fatalf("JudgesInPart(%s, %s): %v", mode, stage.Identity.Name, err)
+			}
+			if partial {
 				t.Errorf("JudgesInPart(%s, %s) = true, want false: a cut full-run piece judges the whole tree",
 					mode, stage.Identity.Name)
 			}
 		}
 	}
-	if scoped == 0 {
-		t.Fatal("no piece of the cut full run holds a Scoped stage, so this test asks nothing of them")
+	if undeclared == 0 {
+		t.Fatal("no piece of the cut full run holds a stage that declares no Whole, so this test asks nothing of them")
+	}
+}
+
+// TestACutPartialRunPieceIsJudgedAsItsPopulation proves a piece of a cut
+// changed or fast run (`changed-part-1-of-2`) is judged as the population it
+// was dealt from: a Staticcheck part is judged in part, as it is uncut. And a
+// full red on that part survives the piece's green, which a mode read as "no
+// population, so full" let it erase (review round 4, finding 2).
+//
+// Method: ask BaseMode and JudgesInPart about the cut names, then publish a
+// full red and a cut changed green over it and read the entry.
+func TestACutPartialRunPieceIsJudgedAsItsPopulation(t *testing.T) {
+	part := staticcheckStages()[0].Identity.Name
+	for _, mode := range []string{ChangedMode, FastMode} {
+		cut := Part{Index: 1, Of: 2}.Name(mode)
+		base, err := BaseMode(cut)
+		if err != nil || base != mode {
+			t.Fatalf("BaseMode(%s) = %q, %v, want %s", cut, base, err, mode)
+		}
+		partial, err := JudgesInPart(cut, part)
+		if err != nil || !partial {
+			t.Fatalf("JudgesInPart(%s, %s) = %v, %v, want true: the piece judges the part over its scope",
+				cut, part, partial, err)
+		}
+		root := t.TempDir()
+		writeOneStage(t, root, part, "aaa", Mode, 1)
+		writeOneStage(t, root, part, "bbb", cut, 0)
+		entry := carriedEntry(t, readCarried(t, root), part)
+		if entry.ExitCode != 1 || entry.CarriedFrom == nil || entry.CarriedFrom.Commit != "aaa" {
+			t.Fatalf("%s after full red then %s green = %#v, want the full red carried from aaa", part, cut, entry)
+		}
+	}
+	if base, err := BaseMode("full-part-1-of-6"); err != nil || base != Mode {
+		t.Fatalf("BaseMode(full-part-1-of-6) = %q, %v, want %s", base, err, Mode)
+	}
+}
+
+// TestAnUnknownModeIsRefused proves a mode that names no population is
+// refused by BaseMode, JudgesInPart and the index write, never answered as a
+// full judgement.
+//
+// Method: ask about names that are no population or no valid cut of one, and
+// write an index under one over a full red.
+func TestAnUnknownModeIsRefused(t *testing.T) {
+	part := staticcheckStages()[0].Identity.Name
+	for _, mode := range []string{"", "partial", "changed-part-3-of-2", "changed-part-0-of-2",
+		"changed-part-01-of-2", "nothing-part-1-of-2", "changed-part-1-of-x", "changed-part-1"} {
+		if base, err := BaseMode(mode); err == nil {
+			t.Errorf("BaseMode(%q) = %q, want a refusal", mode, base)
+		}
+		if partial, err := JudgesInPart(mode, part); err == nil {
+			t.Errorf("JudgesInPart(%q, %s) = %v, want a refusal", mode, part, partial)
+		}
+	}
+	root := t.TempDir()
+	writeOneStage(t, root, part, "aaa", Mode, 1)
+	index := artifactIndex{Format: FailureIndexFormat, Mode: "partial", Commit: "bbb", RunDir: "run-bbb",
+		Stages: []artifactStage{{Stage: part, Reached: true, ExitCode: 0}}}
+	if err := writeFailureIndex(root, index); err == nil {
+		t.Fatal("an index under a mode that names no population was written, want a refusal")
+	}
+	entry := carriedEntry(t, readCarried(t, root), part)
+	if entry.ExitCode != 1 {
+		t.Fatalf("after the refused write the entry is %#v, want the full red left in place", entry)
+	}
+}
+
+// TestAnUndeclaredSharedStageIsJudgedInPart proves the default fails closed:
+// a stage nobody declared Whole, shared by a partial and the full population,
+// is judged in part, so a partial green cannot replace a full red on it.
+// Declaring it Whole is what makes it a full judgement, and a stage only the
+// partial population holds is that population's own.
+//
+// Method: add a fresh stage to copies of the fast and full populations and ask
+// judgesInPart about it undeclared and declared; then publish a full red and a
+// fast green on the real undeclared shared stage `arch enumeration/check`.
+func TestAnUndeclaredSharedStageIsJudgedInPart(t *testing.T) {
+	added := stage("new area", "check")
+	for _, check := range []struct {
+		partial, full []Stage
+		want          bool
+	}{
+		{append(fastStages(), added), append(fullStages(), added), true},
+		{append(fastStages(), whole(added)...), append(fullStages(), added), false},
+		{append(fastStages(), added), fullStages(), false},
+	} {
+		got, err := judgesInPart(added.Identity.Name, check.partial, check.full)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != check.want {
+			t.Errorf("judgesInPart(%s) = %v, want %v", added.Identity.Name, got, check.want)
+		}
+	}
+	if _, err := judgesInPart(added.Identity.Name, fastStages(), fullStages()); err == nil {
+		t.Error("judgesInPart answered for a stage the partial population does not hold, want a refusal")
+	}
+
+	const shared = "arch enumeration/check"
+	root := t.TempDir()
+	writeOneStage(t, root, shared, "aaa", Mode, 1)
+	writeOneStage(t, root, shared, "bbb", FastMode, 0)
+	entry := carriedEntry(t, readCarried(t, root), shared)
+	if entry.ExitCode != 1 || entry.CarriedFrom == nil || entry.CarriedFrom.Commit != "aaa" {
+		t.Fatalf("%s after full red then fast green = %#v, want the full red carried from aaa", shared, entry)
 	}
 }
 

@@ -84,12 +84,6 @@ type Parameter struct {
 	// occurrence, which is what every parameter declared before this field
 	// existed still gets.
 	Repeat bool `json:"repeat"`
-	// ReadsChangeScope says naming this keyword makes the action read the
-	// change scope a verify run publishes, where the action without it does
-	// not: `le go lint run changed` lints the scope's packages, `le go lint
-	// run` the whole tree. Action.ReadsChangeScope says why the fact is
-	// declared here.
-	ReadsChangeScope bool `json:"reads-change-scope,omitempty"`
 }
 
 // Arguments is the parsed value of an argument-aware action: every keyword the
@@ -165,18 +159,6 @@ type Action struct {
 	// (human.RequireTerminal). Declaring it here, where the verb registers, is
 	// what gates a new whole-tree verb; no list of gated verbs exists.
 	WholeTree bool
-	// ReadsChangeScope says the action's body reads the change scope a verify
-	// run publishes (repochanged.Packages, or env.Get of
-	// repochanged.ScopeTagsKey or ScopeFileKey), so a run whose scope is narrow
-	// has it judge only that part of its subject. A verify stage running such
-	// an action is a partial judgement in a partial population, and its green
-	// MUST NOT replace a full red (verifyengine.JudgesInPart). Declaring it
-	// where the verb registers puts the fact beside the reader:
-	// verifyengine.Stage.Scoped is the stage-side copy, and
-	// TestStageScopedIsTheActionsDeclaration and
-	// TestEveryChangeScopeReaderDeclaresIt (internal/le) refuse the copy, or a
-	// reader, that disagrees with this declaration.
-	ReadsChangeScope bool
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -326,9 +308,6 @@ type Row struct {
 	// WholeTree publishes that this verb refuses unless a person at a terminal
 	// started it (Action.WholeTree).
 	WholeTree bool `json:"whole-tree,omitempty"`
-	// ReadsChangeScope publishes that this verb reads the change scope a verify
-	// run publishes (Action.ReadsChangeScope).
-	ReadsChangeScope bool `json:"reads-change-scope,omitempty"`
 	// Parameters is the action's whole keyword grammar, so a reader learns what
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
@@ -353,7 +332,6 @@ func (a Area) Actions() List {
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
 			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
-			ReadsChangeScope: act.ReadsChangeScope,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			Parameters: slices.Clone(act.Parameters),

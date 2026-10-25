@@ -92,7 +92,11 @@ func readIndexFixture(t *testing.T, root string) artifactIndex {
 func TestAnInterruptedStageOutsideTheFullPopulationIsKept(t *testing.T) {
 	cut := artifactStage{Stage: "not in any population", OutsideRun: true, Interrupted: true, Rerun: "le x"}
 	found := 0
-	for _, stage := range carryForward([]artifactStage{cut}, artifactIndex{}, Mode) {
+	carried, err := carryForward([]artifactStage{cut}, artifactIndex{}, Mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range carried {
 		if stage.Stage == cut.Stage {
 			found++
 			if !stage.Interrupted || stage.Reached || stage.ExitCode != 0 {

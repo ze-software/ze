@@ -37,10 +37,9 @@ func actionTable(run actionRunner) leaction.Area {
 			Answer: actionAnswer(VerbUnitCached, run),
 		},
 		leaction.Action{
-			Verb:             VerbUnitChanged,
-			Why:              "test and vet the packages the change set reaches and run the bare-core compile-out check",
-			ReadsChangeScope: true,
-			Answer:           actionAnswer(VerbUnitChanged, run),
+			Verb:   VerbUnitChanged,
+			Why:    "test and vet the packages the change set reaches and run the bare-core compile-out check",
+			Answer: actionAnswer(VerbUnitChanged, run),
 		},
 		leaction.Action{
 			Verb: VerbUnitRaceChanged,

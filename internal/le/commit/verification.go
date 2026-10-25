@@ -292,12 +292,23 @@ func unjudgedCause(stage failureStage, groups []failureGroup, judgedBy string) s
 // either needs no edit here. No default piece count exists, so the piece is
 // named by what it holds rather than by its number.
 func clearingRuns(name, judgedBy string) string {
-	if inPopulation(verifyengine.ChangedMode, name) &&
-		(judgedBy == verifyengine.ChangedMode || !verifyengine.JudgesInPart(verifyengine.ChangedMode, name)) {
-		return "clears when " + verify.ChangedCommand + " reaches it, which you run"
-	}
-	return "clears only when the release check reaches it, which you never run: give Thomas the command " +
+	releaseOnly := "clears only when the release check reaches it, which you never run: give Thomas the command " +
 		"./le verify worktree, or the ./le verify worktree part <i> of <n> piece that holds it"
+	if !inPopulation(verifyengine.ChangedMode, name) {
+		return releaseOnly
+	}
+	changedClears := "clears when " + verify.ChangedCommand + " reaches it, which you run"
+	if base, err := verifyengine.BaseMode(judgedBy); err == nil && base == verifyengine.ChangedMode {
+		return changedClears
+	}
+	partial, err := verifyengine.JudgesInPart(verifyengine.ChangedMode, name)
+	if err != nil {
+		return "cannot tell which run clears it (" + err.Error() + "); " + releaseOnly
+	}
+	if partial {
+		return releaseOnly
+	}
+	return changedClears
 }
 
 // inPopulation reports whether the population mode holds the stage name.
