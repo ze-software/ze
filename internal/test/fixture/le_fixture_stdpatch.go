@@ -11,11 +11,14 @@ import (
 
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/scratch"
 )
 
 // leFixtureStdpatch makes tree, a stand-in checkout a fixture runs le in,
 // carry what toolchain derivation reads there: the standard-library patch set
-// of the checkout under test, and a stdpatch cache that is that checkout's.
+// of the checkout under test, and the cache/ link every le run makes in a
+// checkout (scratch.EnsureCache), to the per-user cache whose stdpatch/ the
+// checkout under test reaches too.
 //
 // le activates the patched GOROOT of whichever checkout it runs in, at startup
 // and again in gotoolchain.New (gen.Activate). A tree with no patch set refuses
@@ -23,11 +26,12 @@ import (
 // cache/stdpatch inside the tree. A tree with the set but a cache of its own
 // would build a whole GOROOT per run. The patched tree is content-addressed by
 // toolchain and patch bytes, never by checkout, so the linked cache answers the
-// tree the run under test already built.
+// tree the run under test already built. The link is the one le would make, so
+// le finds it correct and the run leaves the tree as the fixture laid it out.
 //
-// A tree that already has a cache/ keeps it, whether the fixture linked it or
-// made it a private directory: it reaches a stdpatch cache of its own choosing,
-// and replacing it would change what the fixture shares.
+// A tree that already has a cache/ keeps it. Only a link survives a le run
+// unchanged: le renames a real cache/ directory aside and links its place
+// (docs/contributing/running-commands.md, the cache link table).
 func leFixtureStdpatch(tree string) error {
 	root, err := lepath.Root()
 	if err != nil {
@@ -51,15 +55,13 @@ func leFixtureStdpatch(tree string) error {
 	if _, err := os.Lstat(link); err == nil {
 		return nil
 	}
-	cache, err := gen.CacheDir(root)
+	result, err := scratch.New(tree, os.Environ()).EnsureCache(false)
 	if err != nil {
-		return err
+		return fmt.Errorf("link the stand-in checkout's cache: %w", err)
 	}
-	if err := os.MkdirAll(link, 0o750); err != nil {
-		return fmt.Errorf("create the stand-in cache directory: %w", err)
-	}
-	if err := os.Symlink(cache, filepath.Join(link, "stdpatch")); err != nil {
-		return fmt.Errorf("link the stand-in stdpatch cache: %w", err)
+	// An absent cache/ is linked silently; a repair or a refusal is announced.
+	if result.Announce() {
+		return fmt.Errorf("link the stand-in checkout's cache: %s", result.Line)
 	}
 	return nil
 }

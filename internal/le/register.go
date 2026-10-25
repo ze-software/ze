@@ -214,14 +214,22 @@ func run(_ *registry.RuntimeContext, args []string) int {
 // activatePatchedGOROOT runs: its gen.CacheDir creates cache/stdpatch, which
 // would make a missing cache/ a real directory and grow a second Go build cache
 // in the checkout. It covers every le that the `le` script did not start, such
-// as bin/le run directly in a git-archive export. It is not a
+// as a build run directly from a git-archive export. It is not a
 // leroot.BeforeDispatch hook, because that contract forbids printing, and a
 // repair or a refusal is printed on stderr, once, so stdout stays the action's
 // own. A correct link costs one Lstat and one Readlink, and no process.
+//
+// The link belongs to a Ze checkout only (lepath.IsCheckout): ZE_REPO_ROOT can
+// name a tree that holds no Ze source, such as the published site, the wiki, or
+// a test's copy of a few subtrees, and no le action builds Ze there, so a cache
+// link planted in it is only an untracked file the tree's owner never asked for.
 func ensureCacheLink() {
 	root, err := lepath.Root()
 	if err != nil {
 		return // no checkout: no cache/ to link
+	}
+	if !lepath.IsCheckout(root) {
+		return // a tree le was pointed at, not a checkout: Ze builds nothing here
 	}
 	result, err := scratch.New(root, os.Environ()).EnsureCache(false)
 	var text textbuf.Buffer

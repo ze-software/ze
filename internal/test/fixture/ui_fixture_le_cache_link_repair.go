@@ -61,6 +61,13 @@ func leCacheLinkRepair(ctx context.Context) error {
 	if err := os.Mkdir(checkout, 0o750); err != nil {
 		return leStoreTrimFailf("create the throwaway checkout: %v", err)
 	}
+	// le links cache/ only in a Ze checkout (lepath.IsCheckout), so the
+	// throwaway tree carries the two markers that make it one.
+	for name, body := range map[string]string{fileGoMod: "module example.com/cachelink\n", fileFeatureGates: ""} {
+		if err := os.WriteFile(filepath.Join(checkout, name), []byte(body), 0o600); err != nil {
+			return leStoreTrimFailf("write the throwaway checkout's %s: %v", name, err)
+		}
+	}
 	perUser := filepath.Join(work, "xdg")
 	target := filepath.Join(perUser, "ze")
 	link := filepath.Join(checkout, "cache")

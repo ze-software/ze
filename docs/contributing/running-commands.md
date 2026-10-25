@@ -648,8 +648,11 @@ findmnt -T cache/go-cache     # Linux: which device that path is on
 `df` on the checkout ROOT can answer about the wrong device. The per-user cache
 target is `$XDG_CACHE_HOME/ze`, or `~/.cache/ze` (`internal/le/scratch/scratch.go`,
 `cacheTarget`), and that target is frequently its own filesystem. Every le run
-makes the checkout's `cache/` the symlink to it before anything can create
-`cache/` as a real directory, so `cache/go-cache`, which every le action writes,
+in a Ze checkout makes the checkout's `cache/` the symlink to it before anything
+can create `cache/` as a real directory. A checkout is a tree holding `go.mod`
+beside `feature-gates.txt` (`lepath.IsCheckout`): a tree `ZE_REPO_ROOT` names
+without them, such as the published site, the wiki or a test's copy of a few
+subtrees, builds no Ze and gets no link. So `cache/go-cache`, which every le action writes,
 and `~/.cache/ze/go-cache`, which every verify worktree writes through its own
 link (see "A verify worktree shares that cache" below), are ONE cache. The
 step runs in three places, because the `le` and `ze` scripts build their binary
@@ -684,6 +687,7 @@ the entries into the target instead. Naming each cache path rather than the
 checkout is still what makes `df` answer correctly.
 <!-- source: internal/le/scratch/scratch.go -- EnsureCache, moveRealCacheAside, repairedResult, Announce -->
 <!-- source: internal/le/register.go -- run, ensureCacheLink -->
+<!-- source: internal/le/le/path/lepath.go -- IsCheckout -->
 <!-- source: le -- ensure_cache_link, build_le -->
 <!-- source: ze -- ensure_cache_link -->
 
