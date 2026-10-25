@@ -38,7 +38,7 @@ as the work went. This section is the starting point for the next session.
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | `./le verify changed` over the unverified range (last run covered up to 19df13723d; 145da76fb9, ddc2138f10, d390bcb148 are not yet verified) | Classify reds as this spec's, another session's, or load. Known others' reds at the time: bgp reactor owed-key, `cli/dispatch` on `adj_rib_in`, plugin/all watchdog, pki config claims, gatedtable, `plugin/imports` |
+| 1 | Wider verification of 145da76fb9, ddc2138f10, d390bcb148 and the Phase 4 commits | Thomas's call, not an agent's: on the Linux host agents run scoped package tests only (`ai/META-DECISIONS.md`), and `verify changed` runs lint, Staticcheck, race and functional suites too. The three named commits are pushed, so `verify changed` no longer reaches them; only the release check does. Each Phase 4 batch is judged by its changed packages' tests and its edited `.ci` tests. Known others' reds: bgp reactor owed-key, `cli/dispatch` on `adj_rib_in`, plugin/all watchdog, pki config claims (gatedtable, `TestConfigSchemaRootsClaimed`), `plugin/imports` |
 | 2 | Phase 4 bulk renames: the "Phase 4 rename map" table (113 retired spellings; 36 verbs per "Verb vocabulary") | Drive it from `vocabulary-owed.txt` (303 findings at d390bcb148; a listed finding that disappears must be removed, a new one fails). Each rename: delete the old spelling, add its row to `internal/le/le/retired`, update every consumer (ai/, docs/, .claude/, live plan/, test/, internal/, .github/) in the same commit. `le ai hooks` words stay frozen. Includes `setup docker host` / `setup docker kernel` (clears functional `le-checks-answers` R9), `spec claim <file>`, `le mock <name>`, `rfc discriminate-record` to `rfc record`, `doc check verify` to `doc check all`, `commit audit` to `test weakened check` |
 | 3 | Phase 4 leftovers from part 1 | `le help ai verbs` renders the vocabulary; `TestEveryWordLeAcceptsIsInHelp`; the two `.ci` tests (`le-retired-spellings`, `le-launcher-words`); `./le rollback <extra words>` refused with exit 2 (a change to the `le` launcher script, owned by spec-le-built-from-head: coordinate before editing it) |
 | 4 | AC-37 proof: `TestCompletionCallbackAnswersWithinBudget` (100 ms median) on a quiet machine | It passes at moderate load and fails at load above about 100. Do not loosen the budget |
@@ -1018,6 +1018,7 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
 | `committed-tree-does-not-build.md` | 2026-10-25 | `internal/le/register.go` at HEAD |
 | `reference-output-depends-on-map-order.md` | 2026-10-25 | `internal/component/aihelp` `matchEnvVars`, RPC order |
 | `test-shares-a-process-global.md` | 2026-10-25 | `internal/le/le/root` table-less probe tests, run alone |
+| `tool-help-contradicts-owner-rule.md` | 2026-10-25 | `le verify changed` help and page grant agents a run the Linux-host rule withholds |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
