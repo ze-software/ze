@@ -8,10 +8,9 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 
 ```sh
 ./le setup install
-./le verify current
 ```
 
-`./le verify current` is the full verification. It runs only when stdin and
+`./le verify current` is the full verification, which Thomas runs. It runs only when stdin and
 stdout are both terminals, so it is yours to start; an agent is refused and
 runs `./le verify changed` instead.
 
@@ -44,13 +43,13 @@ the commit, in a throwaway worktree, and its green scoped record is what
 `./le commit push` asks for. A red it finds gets a fix commit; it does not hold
 the commit it judged.
 
-Step 5 is the full verification, and it is not an agent's to run. `./le verify
+Step 5 is the full verification, and it is not an agent's to run. The dispatcher refuses `./le verify
 current`, `./le verify current fast` and every form of `./le verify worktree`
-are refused unless stdin and stdout are both terminals, because a full run
+unless stdin and stdout are both terminals, because a full run
 loads the whole shared machine and only Thomas knows when that is safe. The
 refusal prints the exact command line to hand to Thomas, and `./le verify
 changed` for the agent's own evidence. No keyword or environment variable
-skips it. `./le verify current` runs every stage in a fresh detached worktree
+skips it. When Thomas starts `./le verify current`, it runs every stage in a fresh detached worktree
 at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
 while it runs cannot move the tree it judges; `./le verify current fast` runs
 the changed-files stages in place, over the working tree.
@@ -212,7 +211,7 @@ It is a Go tool recorded in `tools.go`. The native `./le test mutation combine`
 command combines completed reports, and `./le test mutation record-history` appends
 their per-package scores to the committed history.
 
-Mutation testing is advisory. It never gates `./le verify current` or CI. A surviving mutant
+Mutation testing is advisory. It never gates Thomas's release check, `./le verify current`, or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
 One consumer reads a gomu report for a narrower question. `./le rfc discriminate
@@ -324,9 +323,9 @@ Git history is where past approvals are read: `git log --grep
 `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
-## How `./le verify current` works
+## How Thomas's release check works
 
-`./le verify current` runs the full population in a fresh detached worktree at
+When Thomas starts `./le verify current`, it runs the full population in a fresh detached worktree at
 HEAD; `./le verify current fast` runs the changed-files population in place.
 Both are release checks that start only at a terminal (see the ladder above).
 `./le verify changed` runs the changed population in a throwaway worktree.
@@ -439,7 +438,7 @@ type-checked under FreeBSD or OpenBSD, where `syscall.Rlimit` is signed and
 `Statfs_t` names its fields `F_bavail` and `F_bsize`. `./le go vet-platforms`
 is the check that does compile it: it vets `./cmd/... ./internal/... ./pkg/...`
 with the shipped personality tags under `darwin`, `freebsd` and `openbsd`, and
-`./le verify worktree` runs all three. The split is deliberate: linting every
+Thomas's release check, `./le verify worktree`, runs all three. The split is deliberate: linting every
 package again under each BSD would repeat the host pass's findings to type-check
 what one `go vet` per target already type-checks.
 
@@ -685,12 +684,12 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup (at a terminal) | `./le verify current` |
+| Check my setup (Thomas runs it at a terminal) | `./le verify current` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
 | Judge my committed change set before a push | `./le verify changed` |
-| Run the release check (Thomas, at a terminal; an agent gives him the command) | `./le verify current` |
+| Run the release check (an agent gives Thomas the command for his terminal) | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

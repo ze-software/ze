@@ -29,17 +29,30 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// agentCorpus is every path an agent reads instructions from: the shared rules,
-// patterns, skills and INSTRUCTIONS.md under ai/, the generated AGENTS.md, and
-// the Claude copies and plans under .claude/. Only files git tracks are read: a
-// gitignored derived file (ai/RFC-REQUIREMENTS.md, rebuilt from
-// internal/le/rfc/carriers.go) is judged at its Go source, and a file another
-// session has not committed is not yet a surface any agent inherits.
-var agentCorpus = []string{"ai", "AGENTS.md", ".claude"}
+// agentCorpus is the set of trees this scan judges, and exactly that set: the
+// shared rules, patterns, skills and INSTRUCTIONS.md under ai/, the generated
+// AGENTS.md, the Claude copies and plans under .claude/, the spec templates
+// under plan/templates/, the contributor pages under docs/contributing/, and
+// docs/functional-tests.md, the test-running page the tooling door sends an
+// agent to. The rest of docs/ (architecture, guide) and the specs under plan/
+// are not judged. Only files git tracks are read: a gitignored derived file
+// (ai/RFC-REQUIREMENTS.md, rebuilt from internal/le/rfc/carriers.go) is judged
+// at its Go source, and a file another session has not committed is not yet a
+// surface any agent inherits.
+var agentCorpus = []string{"ai", "AGENTS.md", ".claude", "plan/templates", "docs/contributing", "docs/functional-tests.md"}
 
-// thomasOrBan is what a sentence naming a whole-tree verb must carry: the run
-// is Thomas's, or the sentence bans running it.
-var thomasOrBan = regexp.MustCompile("(?i)\\b(thomas|never|must not|do not|don't|refus\\w*|forbid\\w*|banned)\\b|\\bno\\s+`")
+// ownedOrBanned is what a prose sentence naming a whole-tree verb must carry: a
+// form that ties the run to Thomas, or a form that bans an agent running it. A
+// bare "Thomas" or a bare ban word is not enough, because "Thomas says run it"
+// and "run it; do not skip it" are both instructions to run.
+var ownedOrBanned = regexp.MustCompile("(?i)" +
+	`\b(give|gives|hand|hands)\s+thomas\b` +
+	`|\bthomas\s+(runs|starts)\b` +
+	`|\bthomas's\s+release\s+check\b` +
+	`|\bnever\s+(run|runs|start|starts)\b` +
+	`|\b(must|do)\s+not\s+(run|start)\b` +
+	`|\b(run|runs)\s+no\b` +
+	`|\brefuses\b`)
 
 // sentenceEnd ends a sentence: a terminal mark, any closing emphasis, code or
 // quote mark, then a space or the end of the paragraph.
@@ -95,10 +108,12 @@ func TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify(t *testing.T) {
 	}
 }
 
-// TestUnbannedRunsJudgesTheSentence holds the scanner to its three answers, so
-// the corpus test above cannot pass by reading nothing: a bare instruction is
-// refused, one that names Thomas or bans the run is not, and a fenced command is
-// refused even when the paragraph above names Thomas.
+// TestUnbannedRunsJudgesTheSentence holds the scanner to its answers, so the
+// corpus test above cannot pass by reading nothing: a bare instruction is
+// refused; one that ties the run to Thomas or bans it is not; a sentence that
+// merely names Thomas, or bans something other than the run, is refused; and a
+// fenced command is refused even when the paragraph above names Thomas or its
+// own comment says never.
 func TestUnbannedRunsJudgesTheSentence(t *testing.T) {
 	named := wholeTreePattern([]string{"verify current", "verify worktree", "verify evidence"})
 	cases := []struct {
@@ -113,6 +128,10 @@ func TestUnbannedRunsJudgesTheSentence(t *testing.T) {
 		{"imperative", "Before closing, run `./le verify worktree`.\nThomas reads the report.\n", []int{1}},
 		{"area verb", "- Run `./le verify evidence release-candidate`.\n", []int{1}},
 		{"scoped verb", "Run `./le verify changed`.\n", nil},
+		{"Thomas named but not the runner", "Thomas says run ./le verify worktree before you commit.\n", []int{1}},
+		{"ban word on another verb", "Run ./le verify current now; do not skip it.\n", []int{1}},
+		{"fenced comment is no ban", "```bash\n./le verify current   # never skip this\n```\n", []int{2}},
+		{"agent never runs", "The release check is `./le verify current`, which an agent never runs.\n", nil},
 	}
 	for _, tc := range cases {
 		var got []int
@@ -188,14 +207,15 @@ type runHit struct {
 	phrase string
 }
 
-// unbannedRuns answers each whole-tree verb in text whose sentence carries no
-// thomasOrBan mark, with the line the verb starts on.
+// unbannedRuns answers each whole-tree verb in text that a code line names, or
+// whose prose sentence carries no ownedOrBanned form, with the line the verb
+// starts on. A code line is never exempt: a comment beside a command does not
+// stop an agent copying the command.
 func unbannedRuns(text string, named *regexp.Regexp) []runHit {
 	var hits []runHit
 	for _, unit := range units(text) {
 		for _, match := range named.FindAllStringSubmatchIndex(unit.text, -1) {
-			sentence := sentenceAround(unit.text, match[0], match[1])
-			if thomasOrBan.MatchString(sentence) {
+			if !unit.code && ownedOrBanned.MatchString(sentenceAround(unit.text, match[0], match[1])) {
 				continue
 			}
 			hits = append(hits, runHit{
@@ -208,10 +228,12 @@ func unbannedRuns(text string, named *regexp.Regexp) []runHit {
 }
 
 // textUnit is a paragraph of prose with its wrapped lines joined, or one
-// code-block line or table row, with the line it starts on.
+// code-block line or table row, with the line it starts on. code marks a line
+// inside a fence.
 type textUnit struct {
 	line int
 	text string
+	code bool
 }
 
 // units splits markdown into the units unbannedRuns judges.
@@ -236,7 +258,7 @@ func units(text string) []textUnit {
 		}
 		if fenced || strings.HasPrefix(trimmed, "|") {
 			flush()
-			out = append(out, textUnit{line: number, text: line})
+			out = append(out, textUnit{line: number, text: line, code: fenced})
 			continue
 		}
 		if trimmed == "" {

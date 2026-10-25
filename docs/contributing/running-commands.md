@@ -55,7 +55,7 @@ grammar, so le cannot tell its own option from one you forward to a child.
 
 <!-- source: internal/le/le/root/manifest.go -- Manifest -->
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch, helpTrailing -->
-<!-- source: internal/le/le/action/leaction.go -- parameterForm, parseArguments -->
+<!-- source: internal/le/le/action/parameter.go -- parameterForm, parseArguments -->
 
 An area that hand-rolls its own dispatch registers no table. The manifest then
 carries its description and not its grammar, and `--help` answers its node page.
@@ -193,8 +193,8 @@ functional suite checks the host first, before it builds or runs anything:
 | Command | When it checks |
 |---------|----------------|
 | `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp-test` | Always |
-| `./le verify worktree`, `./le verify current` | When the population holds a functional stage |
-| `./le verify worktree all of <m>` | When a piece the sweep will run holds a functional stage, for every such piece before the first starts |
+| `./le verify worktree`, `./le verify current` (Thomas's release check) | When the population holds a functional stage |
+| `./le verify worktree all of <m>` (Thomas's release check) | When a piece the sweep will run holds a functional stage, for every such piece before the first starts |
 | `./le feature record-run feature <id>`, `./le feature record-run due <days>`, `./le site build refresh` | When a feature's real-path tests hold a `.ci` that runs on this host, before its first test runs. A Go test, an editor test and a `.ci` whose home is the QEMU guest bind none of the addresses. Each due or stale feature is judged on its own, so every one is refused and none runs |
 | `./le rfc discriminate-record` | When the tagged unit's carrier is a functional `.ci`, before the break is built. An escape (`route no-break`) runs nothing and is not checked, and neither is `./le rfc discriminate`, which only reads records |
 
@@ -243,7 +243,7 @@ obtain a plan. These are observation checks, not an atomic filesystem snapshot.
 ## The changed-set selector
 
 `./le repo changed scope` is the one selector, and `./le verify changed` and
-`./le verify current fast` reuse its answer. It reports the changed packages plus two levels of their
+`./le verify current fast`, Thomas's release check, reuse its answer. It reports the changed packages plus two levels of their
 importers (`defaultDepth`, `internal/le/repo/changed/selector.go`), and the feature
 tags the change can reach.
 
@@ -468,7 +468,7 @@ and the next run may still answer `(cached)`. Run with `-count=1` after you
 change one. `TestTheTestCacheSeesGetenvButNotEnviron` shows this.
 
 le makes sure the gate never changes such a value itself, so two
-`./le verify worktree` runs of one commit from the same shell hand every test
+`./le verify worktree` runs Thomas starts over one commit from the same shell hand every test
 the same environment:
 
 - `GOCACHE`, `GOLANGCI_LINT_CACHE` and the patched `GOROOT` (with its `bin`
@@ -838,7 +838,7 @@ why.
 
 ### A verify worktree shares that cache
 
-`./le verify worktree` extracts a detached worktree under `tmp/verify-worktree`
+Thomas's release check, `./le verify worktree`, extracts a detached worktree under `tmp/verify-worktree`
 and links its `cache/` to the per-user target, before any stage runs
 (`internal/le/verify`, `sharedCacheLink`, calling `EnsureCache` in
 `internal/le/scratch`). That target is the checkout's own cache only when the
@@ -900,7 +900,7 @@ reading that line, never on a schedule.
 
 ### A run that judged nothing
 
-`./le verify worktree` answers five statuses, and they are not interchangeable:
+Thomas's release check, `./le verify worktree`, answers five statuses, and they are not interchangeable:
 
 | Status | Meaning |
 |--------|---------|
@@ -1001,7 +1001,7 @@ has finished, and answers one of four verdicts
 **It is a query, never a certificate.** Only `not-named` exits 0, and it demands
 a whole run. Every answer carries `stages`, `reported` and `pending`, so a
 reader can see how much of the run has judged nothing yet. The gate a commit
-passes is still `./le verify worktree` and the freshness certificate
+passes is decided by `./le commit push` from the recorded verify runs
 (`ai/rules/precommit-verify.md`); this action tells you whether to keep working
 or to go and fix something, and it starts no run.
 
@@ -1069,11 +1069,10 @@ list.
 `first-red` stops the run after the first stage that exits non-zero. It is an
 opt-in: without it a red stage never hides a later red.
 
-```
-./le verify current fast first-red      # in place, the changed-files stages
-./le verify current first-red           # the full population in a fresh worktree at HEAD
-./le verify worktree first-red          # the same, naming a commit with commit <rev>
-```
+Thomas runs `./le verify current fast first-red` in place over the
+changed-files stages, `./le verify current first-red` over the full population
+in a fresh worktree at HEAD, and `./le verify worktree first-red` for the same
+run naming a commit with `commit <rev>`.
 
 All three are release checks that start only at a terminal ("A full
 verification is Thomas's to start", below).
@@ -1111,7 +1110,7 @@ judged, with its own rerun as the command that judges it, without charging it.
 An index written before that marker existed records the interrupt status 130
 as the stage's exit, and the gate reads that the same way. So a green
 `verify current fast` charges nothing for the stages it drops, and a green
-`le verify worktree all of <m>` sweep of every piece leaves no structural charge. A
+`le verify worktree all of <m>` sweep Thomas starts over every piece leaves no structural charge. A
 missing or malformed earlier index is treated as empty, and the index's
 `carry-note` (the `Earlier index:` line of the text index) says so. The merge
 runs under a lock on `tmp/ze-verify-failures.lock`, because sessions publish
@@ -1124,8 +1123,8 @@ run to it.
 <!-- source: internal/le/commit/verification.go -- structuralGateReds -->
 <!-- source: internal/le/verify/engine/artifacts.go -- carryForward -->
 
-`./le verify worktree part <i> of <m>` runs one dealt piece, every stage of it,
-and `./le verify worktree all of <m>` runs every piece not yet proven over one
+Thomas runs `./le verify worktree part <i> of <m>` for one dealt piece, every stage of it,
+and `./le verify worktree all of <m>` for every piece not yet proven over one
 commit, each in its own worktree. The piece that completes 1..m over one commit
 writes the green record (`docs/architecture/testing/verify-freshness-scope.md`,
 "The green record and the cut"). A sweep whose every piece passed but that
@@ -1147,7 +1146,7 @@ stage of it runs.
 
 `./le verify worktree` (with any of `commit`, `keep`, `first-red`,
 `part <i> of <m>`, `all of <m>`), `./le verify current`, `current fast`, and the
-host side of `./le verify evidence release-candidate` are release checks. Each
+host side of `./le verify evidence release-candidate` are release checks Thomas starts. Each
 declares `WholeTree` where it registers (`leaction.Action.WholeTree`), and the
 dispatcher refuses the line with exit 2 unless stdin and stdout are both
 terminals (`Area.admit`, `internal/le/le/action/leaction.go`, calling
@@ -1169,8 +1168,9 @@ on a gated verb that gains a keyword nobody reviewed. A Go test that drives a
 gated verb installs `leaction.SetWholeTreeAdmission`; a functional fixture that
 drives one runs it under a pseudo-terminal (`terminalCommand`,
 `internal/test/fixture/misc_fixture_runner.go`), standing where Thomas stands.
-The release-candidate container gets `docker run -t` for its inner
-`./le verify current` (`docs/architecture/testing/interop.md`). The gate stops a
+The release-candidate container gets `docker run -t` for the inner
+`./le verify current` of the release check Thomas starts
+(`docs/architecture/testing/interop.md`). The gate stops a
 tool call, not a program that fakes a terminal; the rule that an agent never
 runs a full verification covers that case.
 
@@ -1196,7 +1196,7 @@ light, from the same registration (`leroot.Admits`). Anything else is admitted b
 typing it after `./le job run label <label> command`. The rest of the heavy
 population joins in
 `plan/post-release/engineering/spec-native-action-job-admission.md`, so a second `./le verify current
-fast` does NOT block on the first: only its lint stage does.
+fast` that Thomas starts does NOT block on the first: only its lint stage does.
 
 `ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core
 share this machine holds (`defaultSlots`, `internal/le/job/job.go`), which is four

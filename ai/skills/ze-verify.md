@@ -62,7 +62,7 @@ phase itself.
    - **Scoped:** run `./le verify changed`, which judges the change set since
      the upstream in a fresh worktree at HEAD; `commit <revision>` names
      another commit. Its record is what a push owes.
-   - **Full:** run nothing. Report the exact command for Thomas to run at his
+   - **Full:** run nothing. Hand Thomas the exact command to run at his
      terminal: `./le verify current`, or `./le verify worktree commit
      <revision>` for a commit other than HEAD.
 3. **Parse results:** On failure, search the log:

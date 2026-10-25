@@ -855,7 +855,7 @@ Before marking implementation complete:
 
 ```
 [ ] Verify the agreed implementation boundary through ./le verify changed
-    (the full ./le verify worktree is Thomas's release check: give him the command)
+    (the full run is Thomas's release check: give him the command)
 [ ] Fuzz targets pass: ./le test fuzz run
 [ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check

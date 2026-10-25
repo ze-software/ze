@@ -68,7 +68,7 @@
 - **A crash is not the only reproduction, so `./le test stress-repro run` MUST carry its `any-failure` keyword for a load-dependent failure that is not a crash.** By default only a crash signature (panic, `DATA RACE`, runtime error) counts and everything else is discarded down to the last 500 bytes, so an assertion flake exits non-zero, matches nothing, and the run reports "not reproduced" while throwing the evidence away.
 
 - **A no-build stress reproduction tests the isolated binary set it was given, so after changing daemon source you MUST rebuild before trusting its verdict**, otherwise a fixed bug still "reproduces" against the stale binary. Run the owning `./le test functional <suite>` action once; `internal/le/test/functional.Prepare` rebuilds the isolated daemon and runner pair.
-- **A flake MUST NOT be hunted by looping `./le test functional gating` or `./le verify worktree`**: use `./le test stress-repro` against the suspected suite.
+- **A flake MUST NOT be hunted by looping `./le test functional gating` or `./le verify worktree`** (which an agent never runs): use `./le test stress-repro` against the suspected suite.
 
 ## CI Sleep Justification
 

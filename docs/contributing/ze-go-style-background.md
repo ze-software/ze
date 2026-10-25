@@ -49,7 +49,7 @@ no upstream, it is the merge base of HEAD and `refs/remotes/origin/HEAD`.
 The gate is owed before a push, so it judges the unpushed range. The next run
 still judges a guard that was committed without a verify. A clean checkout of
 pushed code judges nothing, because that code was judged before its push. The
-base reads refs only, so the detached worktree that `./le verify worktree` makes
+base reads refs only, so the detached worktree that Thomas's release check, `./le verify worktree`, makes
 answers the same range. When no base resolves, the check exits 2 and names why.
 
 The tree held about 3,000 such guards when the gate was written. A package or

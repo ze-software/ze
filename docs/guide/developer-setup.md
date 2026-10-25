@@ -573,15 +573,19 @@ section governs each of them.
 
 ## After Setup
 
-Verify everything works with the scoped run, which is the day-to-day evidence:
+Check that the checkout builds and its tests run with one scoped package test:
 
 ```bash
-./le verify changed
+./le job run label unit-pkg command go test ./internal/core/textbuf/
 ```
 
-The full verification, `./le verify current`, is the release check. It refuses
-unless stdin and stdout are a terminal, so it is started by hand at one when a
-release needs it, never from an agent or a script.
+`./le verify changed` is the day-to-day evidence once you have a change: it
+judges only the change set against the upstream, so on a fresh clone it judges
+nothing and proves nothing about the setup.
+
+The full verification, `./le verify current`, is Thomas's release check. It
+refuses unless stdin and stdout are a terminal, so it is started by hand at one
+when a release needs it, never from an agent or a script.
 
 Check that appliance tools are detected:
 

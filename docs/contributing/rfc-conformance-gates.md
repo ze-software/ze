@@ -180,7 +180,7 @@ summary stem and positive ordinal, and `parseSummaryText` rejects duplicate IDs.
 `checkIDAllocation` requires an ID known to be absent from the `HEAD^` baseline
 to match the row's cited section, using `x` when it has no citation. A readable
 baseline with no requirements still enforces this rule. The baseline is
-`HEAD^` and not HEAD because `./le verify worktree` checks the commit under test
+`HEAD^` and not HEAD because Thomas's release check, `./le verify worktree`, checks the commit under test
 out detached, where the tree equals HEAD: a HEAD baseline already held every id
 that commit added, so the guard judged nothing at the one gate that runs. The
 id, level and retirement ratchets share that baseline, `baselineLevels`
@@ -1067,7 +1067,7 @@ refusals exist today.
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
 | A record whose `producer` no longer resolves in the tree | The break was applied to code that is gone |
 | A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit. HEAD and the tree are compared at the granularity the record FINGERPRINTS, which is the producer or unit FUNCTION: comparing whole files let any unrelated uncommitted edit elsewhere in that file silence the author's own violation |
-| A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and `./le verify worktree` checks the commit under test out detached, where a tag that commit added IS the tip. A carrier file the tip RENAMED with its bytes unchanged added nothing: the baseline follows a rename whose blob id is identical, so its covers keep their proofs and owe none. A rename that changes even one byte is reviewed as an edit, and every unproven cover in it is owed |
+| A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and Thomas's release check, `./le verify worktree`, checks the commit under test out detached, where a tag that commit added IS the tip. A carrier file the tip RENAMED with its bytes unchanged added nothing: the baseline follows a rename whose blob id is identical, so its covers keep their proofs and owe none. A rename that changes even one byte is reviewed as an edit, and every unproven cover in it is owed |
 | A record committed at HEAD, deleted from the tree, while the tag it proved is still there | The proven set only goes up. Deleting a record beside a standing tag takes a proof off the published ledger and leaves the claim behind it |
 | Nothing, when a record's TAG is gone | A record dies with the tag it proves, so an orphan has nothing left to be wrong about. It is REPORTED as removable, on a `discrimination:` line of its own, and counted as proven by nothing |
 | A functional or interop record citing an assertion its carrier does not contain, or citing none | No generated break reaches either carrier, so the citation is what ties the recorded red to one assertion rather than to the whole suite. An interop citation is checked against the numbers the checker WRITES OUT, so an assertion numbered by expression -- `fail(index+2, err)` inside a loop -- cannot be cited until its checker writes the number |
@@ -1114,7 +1114,7 @@ that renders at all renders `0 owed`.
 Both sides of that comparison are COMMITTED (owner decision, 2026-09-01). A tag
 that sits only in the working tree bills nobody: several sessions share this
 checkout, and judging the tree instead put the violation in front of every
-bystander and in front of the author never, because `./le verify worktree`
+bystander and in front of the author never, because Thomas's release check, `./le verify worktree`,
 checks the commit under test out DETACHED and a tag that commit added is at HEAD
 there. The tip commit is the one change whose author can still record a proof.
 

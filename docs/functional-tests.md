@@ -27,9 +27,9 @@ nowhere and a gate added to it needs no duplicate list in this page. Run
 An earlier version of this paragraph enumerated the stages and went eight
 stages out of date. Keep the producer in Go and the prose at this level.
 
-Broadly, `./le verify current` runs the static gates first, then
+Broadly, Thomas's release check, `./le verify current`, runs the static gates first, then
 `./le verify deps vulnerability` before unit, functional, and ExaBGP stages.
-`./le verify current fast` substitutes changed-only lint and unit
+Its fast form, `./le verify current fast`, is Thomas's release check too and substitutes changed-only lint and unit
 stages. Both modes run the same vulnerability scan. It needs network access to
 the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
 `TestStagesForModeMatchesGolden` in `internal/le/verify/engine` pin the two lists.
@@ -61,7 +61,7 @@ rewrites the index's log paths to the saved copy under
 | `tmp/verify/<mode>-<random>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
-| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current fast` run in another session republishes the shared path |
+| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current fast` run that Thomas starts elsewhere republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 | `tmp/ze-verify-stage-times.tsv` | One line per reached stage of every run, appended at the checkout; the next uncut run orders its stages from it (`docs/contributing/running-commands.md`, "Stage times, and stopping at the first red") |
 | `tmp/ze-verify-manifest.txt` | One fingerprint per path that differs from `HEAD`, so a session can ask about its own file list rather than the whole tree |
@@ -167,7 +167,7 @@ run. Queue a runner selection with
 <!-- source: internal/le/test/functional/actions.go -- Actions -->
 <!-- source: internal/le/test/integration/actions.go -- Actions -->
 
-Clean release-candidate evidence can be run with `./le verify evidence release-candidate`.
+Thomas runs clean release-candidate evidence with `./le verify evidence release-candidate`.
 The action refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
 `./le verify current` there.
@@ -276,7 +276,8 @@ le test bgp plugin --draft --all
 ## Writing a Test: Draft First
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `./le verify current` in the checkout runs it, including runs by other
+live: every release check Thomas runs over the checkout (`./le verify current`)
+runs it, and so does every suite run by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression. The same applies to CHANGING an existing
 test.
@@ -697,7 +698,7 @@ component-group targets to test only the area you changed:
 | `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
 | `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
-| `./le verify current` (release check, at a terminal) | Every unit group plus repository gates | about 5 minutes |
+| `./le verify current` (Thomas's release check, at a terminal) | Every unit group plus repository gates | about 5 minutes |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
 on Linux and Darwin. These race-built test executables never ship or serve as
@@ -722,7 +723,7 @@ run in the ordinary unit passes (no build tag):
 | `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | batch order preservation, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
 | `TestFilterChainRandomUpdatesProperty` | `internal/component/bgp/reactor` | `buildModifiedPayload` never panics and only emits well-formed UPDATE bodies over random payloads+ops; `LessOrder` is a strict total order. |
 
-### Evidence / release-tier stress and perf tests (build-tagged, out of `./le verify current`)
+### Evidence / release-tier stress and perf tests (build-tagged, out of Thomas's release check)
 
 Resource-heavy, host-dependent tests stay out of the pre-commit gate. Their
 native integration actions supply the required build tags:
@@ -812,7 +813,7 @@ software emulation. The guest, its packages and the macOS status are in
 harness in the guest".
 <!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
 
-### netlab template render check (`./le test netlab render-check`, out of `./le verify current`)
+### netlab template render check (`./le test netlab render-check`, out of Thomas's release check)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
@@ -821,7 +822,7 @@ and runs `netlab create`. It then compares each rendered node configuration agai
 golden file, and runs `ze config validate` on each golden. It never writes to the
 golden file. `./le test netlab render-update` rewrites the golden files.
 
-It is out of `./le verify current` because it needs netlab installed, and `./le verify current` must run on
+It is out of Thomas's release check, `./le verify current`, because it needs netlab installed, and that check must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
 skip:** a check that passes without its dependency reports "no drift" about a render it
 never performed. `NETLAB=/path/to/netlab` names a specific install.
@@ -1377,9 +1378,9 @@ the canonical bare names.
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
-`./le verify current` is the full verification, a release check that starts
+`./le verify current` is the full verification, a release check Thomas starts
 only at a terminal. It runs in a fresh detached worktree at
-HEAD, as `./le verify worktree` does, so it judges the last commit; `./le verify
+HEAD, as Thomas's release check `./le verify worktree` does, so it judges the last commit; `./le verify
 current fast` judges the working tree in place. Its unit stages run a two-pass
 strategy:
 1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
@@ -3642,7 +3643,7 @@ FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le test fuzz run
 action.
 <!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 
-Fuzz tests are not part of `./le verify current` (they're time-bounded, not pass/fail
+Fuzz tests are not part of Thomas's release check, `./le verify current`, (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
 
 ### Fuzz Target Areas
@@ -3702,7 +3703,7 @@ func FuzzParseMyProtocol(f *testing.F) {
 ## Live Tests (Docker + Internet)
 
 Live tests run against real external infrastructure inside Docker containers.
-They are **not** part of `./le verify current` and require both Docker and internet access.
+They are **not** part of Thomas's release check, `./le verify current`, and require both Docker and internet access.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
 
@@ -3779,8 +3780,10 @@ guest with the registered integration population.
 
 ### Deployment Evidence
 
+Thomas runs `./le verify evidence release-candidate` at a terminal. The
+deployment and install tests run with:
+
 ```bash
-./le verify evidence release-candidate
 ./le test deployment vpp-test
 ./le test deployment l2tp-test
 ./le test deployment l2tp-ppp-test

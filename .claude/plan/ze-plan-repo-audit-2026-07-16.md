@@ -26,7 +26,7 @@ Audit against three baselines:
 
 ## Ground rules
 
-- Strictly read-only: no code changes, no commits, no heavy gates rerun (no `./le verify current mode full`).
+- Strictly read-only: no code changes, no commits, no heavy gates rerun (an agent never runs `./le verify current mode full`).
 - Agents may run cheap read-only commands (grep, git log, single-package `go vet`); no full builds or test suites. Current cheap analysis runs through the named `./le` action.
 - Every finding must cite the producing code as `file:line` (`ai/rules/evidence.md`); uncited claims are dropped or labeled unverified.
 - BLOCKER/HIGH findings must survive adversarial verification (Phase 2) before entering the report.
