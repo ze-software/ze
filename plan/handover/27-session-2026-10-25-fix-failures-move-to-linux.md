@@ -29,9 +29,11 @@ pushed.
 
 ## Owed proof that needs Linux or CI
 
-- Three needs-linux functional tests the route-server work reaches:
-  `adj-rib-in-replay-rfc2545-next-hop`, `linklocal-only-multihop-withdraw`,
-  `rfc2545-joint-subnet`.
+- Done 2026-10-25 on Linux at 89b9c2eedb: the three needs-linux functional
+  tests the route-server work reaches (`adj-rib-in-replay-rfc2545-next-hop`,
+  `linklocal-only-multihop-withdraw`, `rfc2545-joint-subnet`) pass in the
+  QEMU guest. The commits above were pushed before the move, so the Linux
+  checkout already carries them.
 - The nightly gtsm gate's timeout, raised from 120 s to 600 s (54f414612a):
   `./le test integration gtsm` under sudo, alone on the host.
 - The nightly interop jobs' module-cache step (`./le setup appliance-modules`,

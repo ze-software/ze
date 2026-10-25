@@ -48,9 +48,10 @@ Still owed in Phase 3a:
   host can carry it.
 - Re-read the ~70 interop, perf and stress configs that load bgp-rs or bgp-rr
   (the `.ci` scan found no forward-all expectation).
-- 3 needs-linux functional tests not run on darwin:
-  `adj-rib-in-replay-rfc2545-next-hop`, `linklocal-only-multihop-withdraw`,
-  `rfc2545-joint-subnet`.
+- Done 2026-10-25 on the Linux host at 89b9c2eedb: the 3 needs-linux
+  functional tests `adj-rib-in-replay-rfc2545-next-hop`,
+  `linklocal-only-multihop-withdraw` and `rfc2545-joint-subnet` pass in the
+  QEMU guest (`le test qemu all-tests test <path>`, one guest, all three PASS).
 - Owned journal rows open in the spec: recovery builds each owed key's
   replacement alone (`bound-too-small-for-its-own-burst`, 2026-10-25).
 
