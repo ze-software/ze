@@ -122,9 +122,9 @@ const vpnWithdrawalReleasePrefix = "198.18.0.0/24"
 
 // vpnWithdrawalGatePrefixes are the routes the fixture sends the source
 // (127.0.0.1), one per gate, in order. A source script expects each one
-// (NLRI bytes 18C00002, 18C63364, 18CB0071, 18644000, 18644001) before its
-// next action.
-var vpnWithdrawalGatePrefixes = [...]string{"192.0.2.0/24", prefixTestNet2, "203.0.113.0/24", "100.64.0.0/24", "100.64.1.0/24"}
+// (NLRI bytes 18C00002, 18C63364, 18CB0071, 18644000, 18644001, 18644002)
+// before its next action.
+var vpnWithdrawalGatePrefixes = [...]string{"192.0.2.0/24", prefixTestNet2, "203.0.113.0/24", "100.64.0.0/24", "100.64.1.0/24", "100.64.2.0/24"}
 
 // vpnWithdrawalGatesDefault is the gate count when no `gates` pair is given.
 const vpnWithdrawalGatesDefault = 3

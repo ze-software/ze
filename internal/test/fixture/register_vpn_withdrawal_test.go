@@ -65,7 +65,7 @@ func TestVPNWithdrawalPeerArgs(t *testing.T) {
 // TestVPNWithdrawalGatesPair checks the `gates <n>` pair that sets how many
 // source actions the inventory fixture releases.
 //
-// VALIDATES: no pair gives the default of three gates, and 3 to 5 (the number
+// VALIDATES: no pair gives the default of three gates, and 3 to 6 (the number
 // of gate prefixes) are read as given, beside the peer pairs.
 // PREVENTS: a gate count the fixture has no prefix for, or a malformed one,
 // being read as a count, which would index past the gate prefixes or wait for
@@ -80,6 +80,7 @@ func TestVPNWithdrawalGatesPair(t *testing.T) {
 		{args: []string{"rr", "5", "gates", "3"}, gates: 3},
 		{args: []string{"rr", "5", "gates", "4", "release", "127.0.0.5"}, gates: 4},
 		{args: []string{"rr", "6", "gates", "5"}, gates: 5},
+		{args: []string{"rr", "7", "gates", "6"}, gates: 6},
 	}
 	for _, tc := range accepted {
 		got, err := vpnWithdrawalPeerArgs(tc.args)
@@ -96,7 +97,7 @@ func TestVPNWithdrawalGatesPair(t *testing.T) {
 		want string
 	}{
 		{args: []string{"rr", "5", "gates", "2"}, want: "gates 2 is below 3"},
-		{args: []string{"rr", "5", "gates", "6"}, want: "gates 6 is above 5"},
+		{args: []string{"rr", "5", "gates", "7"}, want: "gates 7 is above 6"},
 		{args: []string{"rr", "5", "gates", "four"}, want: "gates \"four\" is not a number"},
 		{args: []string{"rr", "5", "gates"}, want: "`gates <n>`"},
 	}
