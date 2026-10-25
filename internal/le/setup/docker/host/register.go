@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	// `le setup docker-host` is its own area: the image build and the Colima
+	// `le setup docker host` is its own area: the image build and the Colima
 	// lifecycle hold their own lock and Mac-only steps (spec D-8).
 	leroot.Register(dockerHostArea, leroot.GroupWorkflow, DockerHostAnswer, registry.Meta{
 		Description: "Build Ze's docker-host image and run it as the `ze` Colima profile, the macOS lab Docker host.",

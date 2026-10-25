@@ -207,7 +207,7 @@ func readColimaRecord(path string) (key, image string, err error) {
 	}
 	key, image, found := strings.Cut(strings.TrimSpace(string(data)), " ")
 	if !found {
-		return "", "", fmt.Errorf("%s holds %q, not `<key> <image path>`. Fix: delete it, then run `./le setup docker-host start`", path, string(data))
+		return "", "", fmt.Errorf("%s holds %q, not `<key> <image path>`. Fix: delete it, then run `./le setup docker host start`", path, string(data))
 	}
 	return key, image, nil
 }
@@ -248,7 +248,7 @@ func runColima(ctx context.Context, argv []string) error {
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
 		return fmt.Errorf("`%s` failed: %w (its output is above). Fix: read Colima's message, then run "+
-			"`colima delete --profile ze --force` and `./le setup docker-host start` if the profile is broken", strings.Join(argv, " "), err)
+			"`colima delete --profile ze --force` and `./le setup docker host start` if the profile is broken", strings.Join(argv, " "), err)
 	}
 	return nil
 }
@@ -263,7 +263,7 @@ func useDockerContext(ctx context.Context, name string) error {
 		return fmt.Errorf("the ze profile runs, but `docker context use %s` failed: %w, "+
 			"so a plain `docker` still talks to another daemon. Colima creates that context when it starts the profile. "+
 			"Fix: run `docker context use %s`; if docker says the context does not exist, run "+
-			"`colima stop --profile %s` and `./le setup docker-host start`", name, err, name, labhost.ZeProfile)
+			"`colima stop --profile %s` and `./le setup docker host start`", name, err, name, labhost.ZeProfile)
 	}
 	return nil
 }

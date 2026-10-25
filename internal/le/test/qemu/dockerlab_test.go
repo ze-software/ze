@@ -102,7 +102,7 @@ func TestDockerLabCidataPassesTheGuestParser(t *testing.T) {
 // reaches the check rather than the lab.
 func TestDockerLabHostLeTargetsTheForwardedSocket(t *testing.T) {
 	check := dockerLabCheckArgv("/ze", "/ze/tmp/qemu/linux-arm64/ze")
-	if got := strings.Join(check, " "); got != "/ze/le setup docker-kernel check ze /ze/tmp/qemu/linux-arm64/ze" {
+	if got := strings.Join(check, " "); got != "/ze/le setup docker kernel check ze /ze/tmp/qemu/linux-arm64/ze" {
 		t.Errorf("check argv %q", got)
 	}
 	lab := dockerLabHostArgv("/ze", []string{"test", "integration", "interop-ipsec"}, []string{"IPSEC_INTEROP_SCENARIO=mobike-initiator"})
@@ -208,7 +208,7 @@ func TestDockerLabForwardsOneInterruptThenStopsTheVM(t *testing.T) {
 		t.Fatalf("events %q, want check, lab, teardown, listing, qemu stopped", events)
 	}
 	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
-	for i, want := range []string{"le setup docker-kernel check ze /ze " + socket, "le test lab " + socket, "le teardown", "listing", "qemu stopped"} {
+	for i, want := range []string{"le setup docker kernel check ze /ze " + socket, "le test lab " + socket, "le teardown", "listing", "qemu stopped"} {
 		if !strings.HasPrefix(events[i], want) {
 			t.Errorf("event %d = %q, want it to start %q", i, events[i], want)
 		}
@@ -283,7 +283,7 @@ func TestDockerLabWithoutALabEndsAtTheCheck(t *testing.T) {
 	}
 	events := strings.Split(strings.TrimSpace(readLog(t, logPath)), "\n")
 	socket := "DOCKER_HOST=unix://" + filepath.Join(tree, "tmp", "qemu")
-	if len(events) == 0 || !strings.HasPrefix(events[0], "le setup docker-kernel check ze /ze "+socket) {
+	if len(events) == 0 || !strings.HasPrefix(events[0], "le setup docker kernel check ze /ze "+socket) {
 		t.Fatalf("events %q, want the kernel check first", events)
 	}
 	for _, event := range events[1:] {

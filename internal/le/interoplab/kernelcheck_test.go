@@ -307,10 +307,10 @@ func TestDockerKernelRouteNamesEachPlatformsNextStep(t *testing.T) {
 		environment []string
 		command     string
 	}{
-		{"linux", lab, nil, "./le setup docker-kernel install"},
-		{"linux", lab, selected, "./le setup docker-kernel install"},
-		{"darwin", lab, selected, "./le setup docker-host start"},
-		{"darwin", nil, nil, "./le setup docker-host start"},
+		{"linux", lab, nil, "./le setup docker kernel install"},
+		{"linux", lab, selected, "./le setup docker kernel install"},
+		{"darwin", lab, selected, "./le setup docker host start"},
+		{"darwin", nil, nil, "./le setup docker host start"},
 		{"freebsd", lab, nil, "./le test qemu docker-lab lab 'test integration interop ipsec'"},
 		{"freebsd", lab, selected, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'"},
 		{"freebsd", lab, []string{"A=1", "B=2"}, "./le test qemu docker-lab lab 'test integration interop ipsec' env 'A=1 B=2'"},
@@ -471,8 +471,8 @@ func TestDockerKernelRefusalNamesTheExactRouteCommand(t *testing.T) {
 	answer := `{"ready": false, "capabilities": [
  {"subsystem": "ipsec-mobike", "kernel": "CONFIG_XFRM_MIGRATE", "state": "absent", "reason": "invalid argument"}]}`
 	for goos, command := range map[string]string{
-		hostGOOSLinux:  "./le setup docker-kernel install",
-		hostGOOSDarwin: "./le setup docker-host start",
+		hostGOOSLinux:  "./le setup docker kernel install",
+		hostGOOSDarwin: "./le setup docker host start",
 		"freebsd":      "./le test qemu docker-lab lab 'test integration interop-ipsec' env 'IPSEC_INTEROP_SCENARIO=mobike-responder'",
 	} {
 		docker := newDocker(scriptedKernel(answer, 1, nil))
@@ -771,14 +771,14 @@ func TestStagedZeMissingNamesTheCommandThatStagesIt(t *testing.T) {
 }
 
 // VALIDATES: AC-8 (b) text: on macOS the kernel route names the `ze` Colima
-// profile, the image rebuild, and `./le setup docker-host start` on a line of
+// profile, the image rebuild, and `./le setup docker host start` on a line of
 // its own, never Colima's `default` profile or the QEMU guest; the Linux route
 // is unchanged, word for word.
 // PREVENTS: a Mac developer sent to a daemon the owner's standing decisions rule out.
 func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
 	darwin := DockerKernelRoute(hostGOOSDarwin, []string{"test", "integration", "interop-ipsec"}, nil)
-	requireCommandOnItsOwnLine(t, errors.New(darwin), "./le setup docker-host start")
-	for _, want := range []string{"the `ze` Colima profile", "./le setup docker-host build", "unset it"} {
+	requireCommandOnItsOwnLine(t, errors.New(darwin), "./le setup docker host start")
+	for _, want := range []string{"the `ze` Colima profile", "./le setup docker host build", "unset it"} {
 		if !strings.Contains(darwin, want) {
 			t.Errorf("darwin route lacks %q:\n%s", want, darwin)
 		}
@@ -790,7 +790,7 @@ func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
 	}
 	const linux = "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 		" The install prints its steps and runs none until you confirm the release:\n" +
-		"  ./le setup docker-kernel install"
+		"  ./le setup docker kernel install"
 	if got := DockerKernelRoute(hostGOOSLinux, nil, nil); got != linux {
 		t.Errorf("linux route changed:\n%s", got)
 	}

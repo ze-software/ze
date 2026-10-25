@@ -357,18 +357,18 @@ kernel that lacks one.
 
 - **macOS, the `ze` Colima profile:** the labs run on the Colima profile `ze`,
   which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
-  containerd). `./le setup docker-host start` builds the image when needed and
+  containerd). `./le setup docker host start` builds the image when needed and
   runs the profile, never touching Colima's `default` profile, then makes
   `colima-ze` the current Docker context so a plain `docker` reaches it. With DOCKER_HOST
   unset, every lab names the profile's socket, `ze/docker.sock` under
   Colima's home (`$COLIMA_HOME` when that directory exists, else
   `~/.colima`), itself, whatever the current Docker context says; when that socket is absent
   the lab stops before it builds anything and names
-  `./le setup docker-host start`. It never falls back to `default` or to
+  `./le setup docker host start`. It never falls back to `default` or to
   Docker Desktop. A DOCKER_HOST you set is used as it is, and the lab's Docker
-  kernel check judges that daemon. `./le setup docker-host check` names
+  kernel check judges that daemon. `./le setup docker host check` names
   anything missing (colima, lima, docker, `brew install e2fsprogs` for
-  `mkfs.ext4`), and `./le setup docker-host stop` stops it. The image build and
+  `mkfs.ext4`), and `./le setup docker host stop` stops it. The image build and
   the profile's lifecycle are in `docs/architecture/appliance/docker-host.md`.
 - **macOS, the QEMU guest:** the second route boots the same docker-host
   image under QEMU with HVF, on Ze's own arm64 runtime kernel, and runs the
@@ -380,23 +380,23 @@ kernel that lacks one.
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
   `lab` the action stops after the guest's Docker kernel check.
 - **Linux:** the labs run on the host's own Docker, on a kernel that carries
-  every registered feature. `./le setup docker-kernel check` asks the
+  every registered feature. `./le setup docker kernel check` asks the
   Docker daemon in hand and names each missing feature. It cross-builds the
   linux `ze` it probes with for the daemon's architecture
   (`tmp/qemu/linux-<arch>/ze`); `ze <path>` names another, which must be a
   linux executable for that architecture.
-  `./le setup docker-kernel install` puts Ze's cached runtime kernel under
+  `./le setup docker kernel install` puts Ze's cached runtime kernel under
   `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
   needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
   on macOS. A kernel built with `--builder qemu` on a host with Docker is
   installed with `builder qemu`, because the cache entry is keyed by backend. When the daemon applies AppArmor (Ubuntu's default), the check runs its
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
-  denies what the probe does; `./le setup docker-kernel apparmor confirm
+  denies what the probe does; `./le setup docker kernel apparmor confirm
   ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
   lab peers that write their network sysctls while they run (the VRRP
   scenarios' ze, strongSwan in some IPsec scenarios) run under the one generic
   profile `ze-lab-net-sysctl` the same way, loaded with
-  `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
+  `./le setup docker kernel apparmor confirm ze-lab-net-sysctl`; the action with no
   `confirm` lists every profile and the steps each one runs.
 - **BuildKit:** the interop labs build some images with a named build context,
   which only BuildKit accepts, and the docker CLI reaches BuildKit through its
@@ -431,7 +431,7 @@ guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (`docs/architecture/testing/ci-workflows.md`).
 
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->

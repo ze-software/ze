@@ -136,7 +136,7 @@ Ze profile. The AppArmor grant is the profile `ze-kernel-probe`
 (`kernelcap.ProbeAppArmorProfile`): docker-default with `deny mount,` replaced
 by exactly the three mounts the probe makes and the `/proc/sys` write deny
 replaced by a chain that leaves only `/proc/sys/net/mpls/platform_labels`
-writable. On a Docker host `./le setup docker-kernel apparmor` loads it
+writable. On a Docker host `./le setup docker kernel apparmor` loads it
 (`docs/architecture/testing/interop.md`, "The Docker host kernel check").
 
 <!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, readConfiningPolicy, classifyLabel -->

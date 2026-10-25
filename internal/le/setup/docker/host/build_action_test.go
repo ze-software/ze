@@ -250,7 +250,7 @@ func TestDockerHostBuildSizeBounds(t *testing.T) {
 		ok   bool
 	}{{"1", false}, {"2", true}, {"1024", true}, {"1025", false}, {"x", false}}
 	for _, tc := range cases {
-		_, err := parseBuildRequest("arm64", tc.size, filepath.Join("..", "..", "..", "..", PinFile))
+		_, err := parseBuildRequest("arm64", tc.size, filepath.Join("..", "..", "..", "..", "..", PinFile))
 		if (err == nil) != tc.ok {
 			t.Errorf("size %s: err %v, want ok %v", tc.size, err, tc.ok)
 		}

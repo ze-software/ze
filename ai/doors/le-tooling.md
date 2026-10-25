@@ -43,7 +43,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 | Every session, through the shared index | `./le commit create` stages only the named files | A loose `git add` carries another session's work (`ai/rules/git-safety.md`) |
 | Sessions sharing one machine | `./le job run` admission, `./le scratch`, the shared Docker daemon | Oversubscription, lost scratch, removed containers (`running-commands.md`, `ai/META-DECISIONS.md`) |
 | The owner's macOS and Linux machines, and a QEMU guest mounting the checkout | A machine whose platform differs from the newest build's header builds and runs `bin/builds/<time>-<sha>-<GOOS>-<GOARCH>/le`. The shipped tree type-checks on darwin | A gate whose verdict depends on the host (`plan/journal/gate-verdict-depends-on-the-machine.md`, one of the largest journal classes) |
-| CI (`.github/workflows/`) | `./le test qemu`, `./le test integration`, `./le build host-driver`, `./le setup docker-kernel` | A renamed action breaks a workflow nobody runs locally |
+| CI (`.github/workflows/`) | `./le test qemu`, `./le test integration`, `./le build host-driver`, `./le setup docker kernel` | A renamed action breaks a workflow nobody runs locally |
 | A Go version bump | le activates the patched GOROOT before dispatch, and a refusal leaves hooks and the commit flow working | All sessions lose their hooks if dispatch stops (`docs/contributing/patching-the-standard-library.md`) |
 
 ## Boundaries

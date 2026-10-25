@@ -1,8 +1,8 @@
 // Design: docs/architecture/testing/qemu-integration.md -- Docker labs on the docker-host image
 // Detail: cidata.go -- the cidata volume the guest reads at boot
 // Related: run.go -- the QEMU acceleration, firmware and VM records this boot reuses
-// Related: ../../setup/dockerhost/actions.go -- EnsureImage, the image this boot runs
-// Related: ../../setup/dockerkernel/dockerkernel.go -- `setup docker-kernel check`, run by the host le
+// Related: ../../setup/docker/host/actions.go -- EnsureImage, the image this boot runs
+// Related: ../../setup/docker/kernel/dockerkernel.go -- `setup docker kernel check`, run by the host le
 //
 // dockerlab.go is the one path the Mac (HVF, arm64) and the scheduled nightly
 // (KVM, amd64) share for a Docker lab that runs Ze (spec D-6): boot Ze's
@@ -37,7 +37,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	setupdockerhost "github.com/ze-software/ze/internal/le/setup/dockerhost"
+	setupdockerhost "github.com/ze-software/ze/internal/le/setup/docker/host"
 )
 
 const (
@@ -296,7 +296,7 @@ func dockerLabCommandLine(root string, lab, environment []string) string {
 // dockerLabCheckArgv is the host le's Docker kernel check, probing with the
 // linux ze at linuxZe.
 func dockerLabCheckArgv(root, linuxZe string) []string {
-	return []string{filepath.Join(root, "le"), "setup", "docker-kernel", "check", "ze", linuxZe}
+	return []string{filepath.Join(root, "le"), "setup", "docker", "kernel", "check", "ze", linuxZe}
 }
 
 // dockerLabHostArgv is the host le running the lab, under `env` with the

@@ -43,7 +43,7 @@ func takeLock(cacheDir string) (*hostLock, error) {
 		holder := lockHolder(file)
 		_ = file.Close() //nolint:errcheck // the refusal below is the answer
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, fmt.Errorf("another `./le setup docker-host` run (pid %s) holds %s, and two runs at once could delete "+
+			return nil, fmt.Errorf("another `./le setup docker host` run (pid %s) holds %s, and two runs at once could delete "+
 				"the profile under each other. Fix: wait for that run to finish, then run this command again", holder, path)
 		}
 		return nil, fmt.Errorf("lock %s: %w", path, err)

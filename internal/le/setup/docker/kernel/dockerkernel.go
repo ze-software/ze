@@ -1,11 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: register.go -- registers this area, a member of the `setup` namespace
-// Related: ../../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
-// Related: ../../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
-// Related: ../../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
+// Related: ../../../interoplab/kernelcheck.go -- DockerKernel, the check `check` runs
+// Related: ../../../test/qemu/dockerlab.go -- the macOS route, which runs `check` in the guest, and BuildLinuxZe, the ze `check` probes with
+// Related: ../../../test/deployment/gokrazyimage.go -- RuntimeKernelCacheDir, the kernel `install` places
 // Related: hostdeps.go -- what the host relies on its kernel for, which `install` refuses a kernel lacking
 //
-// dockerkernel.go is `le setup docker-kernel`: the Docker daemon's kernel must
+// dockerkernel.go is `le setup docker kernel`: the Docker daemon's kernel must
 // carry every feature Ze enrolls (owner D-4). `check` asks the daemon in hand.
 // `install` puts Ze's runtime kernel on a Linux Docker host and makes it GRUB's
 // default, through sudo, one stated step at a time, and never reboots (D-6). It
@@ -43,7 +43,7 @@ import (
 )
 
 // dockerKernelArea is the name this area is typed as.
-const dockerKernelArea = "setup docker-kernel"
+const dockerKernelArea = "setup docker kernel"
 
 const (
 	dockerKernelCheckVerb   = "check"
@@ -87,7 +87,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" the cache entry is keyed by (default: docker when the docker binary is on PATH, else qemu)." +
 			" Without `confirm <release>` it prints the steps and runs none; every step" +
 			" runs through sudo and is printed first; it never reboots. " +
-			"On macOS the labs run on the `ze` Colima profile, booted on Ze's kernel: ./le setup docker-host start",
+			"On macOS the labs run on the `ze` Colima profile, booted on Ze's kernel: ./le setup docker host start",
 		Parameters: []leaction.Parameter{
 			{Keyword: dockerKernelBuilderKeyword, Kind: leaction.KindString, Help: "the build backend that resolves the cached kernel", Value: "backend", Requirement: leaction.Optional},
 			{Keyword: dockerKernelConfirmKeyword, Kind: leaction.KindString, Help: "the kernel release this install places, typed to confirm it", Value: "release", Requirement: leaction.Optional},
@@ -96,6 +96,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 	},
 	leaction.Action{
 		Verb:    dockerKernelAppArmorVerb,
+		Does:    "install",
 		Writes:  true,
 		Summary: "install and load Ze's AppArmor lab profile",
 		Why: "Linux only: install and load a Ze AppArmor profile, which a lab container runs under on a daemon" +
@@ -115,7 +116,7 @@ func DockerKernelActions() leaction.List { return dockerKernelActions.Actions() 
 // DockerKernelSubs is the one-line hint help renders under the command.
 func DockerKernelSubs() string { return dockerKernelActions.Subs() }
 
-// DockerKernelAnswer is the `le setup docker-kernel` command.
+// DockerKernelAnswer is the `le setup docker kernel` command.
 func DockerKernelAnswer(args []string) (any, int) { return dockerKernelActions.Answer(args) }
 
 // runDockerKernelCheck runs the one Docker kernel check every Docker run that
@@ -367,7 +368,7 @@ func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int
 	}
 	return map[string]string{
 		"release": release,
-		"next":    "reboot when ready, then: ./le setup docker-kernel check",
+		"next":    "reboot when ready, then: ./le setup docker kernel check",
 	}, 0
 }
 
@@ -378,7 +379,7 @@ func dockerKernelInstallPlatform(goos string) error {
 		return nil
 	}
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("`le setup docker-kernel install` changes a Linux Docker host's boot kernel and runs on Linux only. ").
+	return errors.New(tb.Str("`le setup docker kernel install` changes a Linux Docker host's boot kernel and runs on Linux only. ").
 		Str(interoplab.DockerKernelRoute(goos, nil, nil)).String())
 }
 
@@ -468,7 +469,7 @@ func installConfirmed(args leaction.Arguments, release string) error {
 	}
 	var tb textbuf.Buffer
 	tb.Str("the steps above, then saving its GRUB menu entry as the default, run as root and none ran." +
-		" To run them, confirm the release:\n  ./le setup docker-kernel install ")
+		" To run them, confirm the release:\n  ./le setup docker kernel install ")
 	if builder := args.One(dockerKernelBuilderKeyword); builder != "" {
 		tb.Str(dockerKernelBuilderKeyword).Byte(' ').Str(builder).Byte(' ')
 	}
@@ -668,15 +669,15 @@ func installCommand(ctx context.Context, step installStep) *exec.Cmd {
 // change is incomplete, and running the verb again redoes every step.
 func installStopped(step installStep, err error) error {
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("setup docker-kernel was stopped by an interrupt or SIGTERM at the step to ").
+	return errors.New(tb.Str("setup docker kernel was stopped by an interrupt or SIGTERM at the step to ").
 		Str(step.Why).Str(" (").Err(err).Str("), so the change is only partly made. Every step is safe to ").
-		Str("repeat: run the same ./le setup docker-kernel command again to finish it.").String())
+		Str("repeat: run the same ./le setup docker kernel command again to finish it.").String())
 }
 
 // printInstallStep prints one step and its reason to stderr.
 func printInstallStep(step installStep) error {
 	var tb textbuf.Buffer
-	line := tb.Str("setup docker-kernel: ").Str(step.Why).Str(": ").Str(strings.Join(step.Argv, " ")).Byte('\n').String()
+	line := tb.Str("setup docker kernel: ").Str(step.Why).Str(": ").Str(strings.Join(step.Argv, " ")).Byte('\n').String()
 	_, err := os.Stderr.WriteString(line)
 	return err
 }

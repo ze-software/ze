@@ -625,7 +625,7 @@ transit MTU probe's mount and its `/proc/sys` write, and that row would read
 `denied` (owner D-7: the host is set up for Ze, never unconfined). On a Linux
 client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the
 check refuses before any container starts and names
-`./le setup docker-kernel apparmor confirm ze-kernel-probe`. An unreadable list
+`./le setup docker kernel apparmor confirm ze-kernel-probe`. An unreadable list
 (apparmorfs refuses it to a reader without policy-view privilege, such as a
 non-root user) is never read as "loaded": the probe runs, and
 when runc answers "unable to apply apparmor profile" the check refuses with the
@@ -637,7 +637,7 @@ one run. On a Mac both refusals, and a `denied` row's fix, name the same
 command and say that there it loads the profile into the Colima VM behind the
 Docker endpoint, and that the labs' `ze` profile boots Ze's kernel, which
 applies no AppArmor, so a daemon applying it is one DOCKER_HOST names
-(`appArmorColimaLoad`); then the macOS route, `./le setup docker-host start`.
+(`appArmorColimaLoad`); then the macOS route, `./le setup docker host start`.
 Colima's Ubuntu `default` VM applies AppArmor and holds only the profiles loaded inside it, so
 runc's "write ... attr/apparmor/exec: no such file or directory" is the
 kernel's answer for a profile it has not loaded (colima 29.5.2,
@@ -656,7 +656,7 @@ it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
 <!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, deniedFix, kernelProbeContainer -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel_apparmor.go -- appArmorLoadPlatform -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel_apparmor.go -- appArmorLoadPlatform -->
 <!-- source: internal/le/interoplab/apparmor.go -- appArmorColimaLoad -->
 
 The probe is the first container to run under a Ze profile, and the same rule
@@ -668,11 +668,11 @@ denies it, its text and the command to run once it is loaded. A peer names its
 profile in `PeerConfig.AppArmorProfile`. On a daemon that applies AppArmor the
 container starts with `--security-opt apparmor=<name>`; on a Linux client whose
 profile list lacks it, the lab refuses before the container starts, naming
-`./le setup docker-kernel apparmor confirm <name>`; where that list is
+`./le setup docker kernel apparmor confirm <name>`; where that list is
 unreadable the container runs, and when runc answers "unable to apply apparmor
 profile" the lab refuses naming the same command (`labAppArmorUnapplied`); on a
 Mac both refusals name the command, which loads the profile into Colima's VM,
-and then the macOS route, `./le setup docker-host start`; on any other client they name the route
+and then the macOS route, `./le setup docker host start`; on any other client they name the route
 instead of the command, which refuses there (`appArmorLoadUnreachable`); on a
 daemon that applies no AppArmor the option is left out. `ze-kernel-probe` parses with `apparmor_parser -Q`
 4.0.1 (Ubuntu 24.04).
@@ -730,7 +730,7 @@ It refuses when:
 
 | Answer | Refusal names |
 |--------|---------------|
-| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker-kernel install` and a reboot; on a daemon whose kernel release already ends in `-ze` (Ze's `CONFIG_LOCALVERSION`: the QEMU guest of `./le test qemu docker-lab`, or a host after the install), on any client system but macOS, Ze's runtime kernel's own fix instead (`dockerKernelRouteFor`: add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); on macOS the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel: unset a DOCKER_HOST that names another daemon, or add the options to `gokrazy/kernel/runtime.config` and `runtime.require` and rebuild the image with `./le setup docker-host build`, then `./le setup docker-host start`; on any other system the refused run's own le words against the Docker daemon of the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker-kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
+| a row is `absent`, `unknown` or `denied` | every such row by subsystem, `CONFIG_` symbol, state and reason, the daemon's kernel release, and the next step for the platform (`DockerKernelRoute`, owner D-6), its command on a line of its own: on Linux a kernel with every feature or `./le setup docker kernel install` and a reboot; on a daemon whose kernel release already ends in `-ze` (Ze's `CONFIG_LOCALVERSION`: the QEMU guest of `./le test qemu docker-lab`, or a host after the install), on any client system but macOS, Ze's runtime kernel's own fix instead (`dockerKernelRouteFor`: add the options to `gokrazy/kernel/runtime.config` and `runtime.require`, then rebuild the kernel cache entry with `./le build host-driver` and `./ze-host appliance kernel --target runtime --arch <arch>`); on macOS the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel: unset a DOCKER_HOST that names another daemon, or add the options to `gokrazy/kernel/runtime.config` and `runtime.require` and rebuild the image with `./le setup docker host build`, then `./le setup docker host start`; on any other system the refused run's own le words against the Docker daemon of the Ze-kernel QEMU guest, `./le test qemu docker-lab lab '<the words>'` printed with the words filled in, followed by `env '<NAME=value>'` with each scenario selector variable the suite declared to `ReadEnvironment` and the run set (`IPSEC_INTEROP_SCENARIO=mobike-responder`, for example), so the guest reruns the one scenario rather than the whole suite; or `./le test qemu docker-lab` (boot and check only) when the process is not le or a word or an assignment holds white space or a quote. A `denied` row adds, on a daemon applying AppArmor, `./le setup docker kernel apparmor confirm ze-kernel-probe`; on any other daemon it says the policy the row names must grant the probe its steps, and under SELinux names `sudo ausearch -m avc -ts recent` to read the denial |
 | the container fails, or prints no JSON | the command it ran, its exit code, stdout and stderr |
 | the answer holds no row | the command it ran |
 | every row is `present` but the probe exits non-zero or answers `ready` false | the command it ran, its exit code and the `ready` it read: the producer's verdict and its rows disagree, so the answer is unread, never a pass |
@@ -831,7 +831,7 @@ through `Docker.run`, the one route to the process runner), whatever
 `/var/run/docker.sock` or the current Docker context names. When that socket is
 absent the first docker command refuses, before any image build or container,
 naming the missing socket, that the labs on macOS run on the `ze` profile, and
-`./le setup docker-host start` on a line of its own; Colima's `default` profile
+`./le setup docker host start` on a line of its own; Colima's `default` profile
 and the context are never used in its place. A DOCKER_HOST the operator set is
 kept as it is, because it names a daemon on purpose (the QEMU docker-lab's
 forwarded socket is one), and the kernel check stays the gate that judges that
@@ -844,13 +844,13 @@ client and runs under le's own environment.
 <!-- source: internal/le/interoplab/docker.go -- NewDocker, Docker.run -->
 <!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.applianceEnv -->
 
-`./le setup docker-kernel check` asks the daemon in hand the same question. With
+`./le setup docker kernel check` asks the daemon in hand the same question. With
 no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture
 (`docker version`'s server arch) through `BuildLinuxZe`, the producer
 `./le test qemu docker-lab` uses; `ze <path>` names another. Either way the file
 must be an ELF executable for that architecture, or the check refuses before any
 container runs, naming the path, what it is instead (a directory, not ELF,
-another machine), and the build route. `./le setup docker-kernel apparmor` runs on
+another machine), and the build route. `./le setup docker kernel apparmor` runs on
 Linux, against this machine's kernel, and on macOS, against the Colima VM behind
 the client's Docker endpoint (`docker context inspect`, `dockerhost.ColimaProfile`):
 a `docker.sock` beside a `colima.yaml` names that directory's profile, under
@@ -858,7 +858,7 @@ any Colima home (`~/.colima`, `$XDG_CONFIG_HOME/colima` or `COLIMA_HOME`), and
 the `docker.sock` at a home's root, which Colima forwards for the default
 profile (its Lima instance `_lima/colima`), names `default`. It refuses any
 other macOS endpoint, such as Docker Desktop's, naming the macOS route,
-`./le setup docker-host start`. On macOS
+`./le setup docker host start`. On macOS
 every step runs inside the VM through `colima ssh --profile <profile> --`: a VM
 that does not answer `true` refuses naming `colima start --profile <profile>`, a
 missing `colima` or `docker` names its `brew install`, and a question that
@@ -871,7 +871,7 @@ start --profile <profile> --edit`. It refuses where
 `confirm` as `/etc/apparmor.d/<name>` (so it loads again at boot) and loads it
 with `apparmor_parser -r -W`; without `confirm` naming a registered profile it
 prints the two `sudo` steps of every registered profile, runs none, and names
-the command that loads each. `./le setup docker-kernel install` is the Linux
+the command that loads each. `./le setup docker kernel install` is the Linux
 route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
@@ -891,22 +891,22 @@ break, the missing options, and the rebuild (`hostdeps.go`). After the steps
 it reads `/boot/grub/grub.cfg`, through `sudo cat` when the host keeps it
 root-only, to find the entry's title. Without
 `confirm <release>` it prints the steps and runs none, because passwordless
-sudo asks nothing: `./le setup docker-kernel install confirm 7.2.9-ze`. The
+sudo asks nothing: `./le setup docker kernel install confirm 7.2.9-ze`. The
 cache entry is keyed by the backend that built the kernel, and ze-host answers
 docker's entry whenever the docker binary is on PATH, so a kernel built with
 QEMU on such a host is named with `builder qemu`
-(`./le setup docker-kernel install builder qemu confirm 7.2.9-ze`); the dry
+(`./le setup docker kernel install builder qemu confirm 7.2.9-ze`); the dry
 run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes `/lib/modules/<release>` and
 `/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
 the new modules inside the old tree. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses: on macOS it names the `ze` Colima
-profile, `./le setup docker-host start`; on any other system the guest route,
+profile, `./le setup docker host start`; on any other system the guest route,
 `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall, cachedKernelServesHost, readGrubConfig -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel_apparmor_colima.go -- appArmorDarwinHost, appArmorStagedVisible, vmCommandMissing, vmCommandHung -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- runDockerKernelCheck, dockerKernelProbeZe, linuxExecutableFor, runDockerKernelInstall, cachedKernelServesHost, readGrubConfig -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel_apparmor_colima.go -- appArmorDarwinHost, appArmorStagedVisible, vmCommandMissing, vmCommandHung -->
 <!-- source: internal/le/dockerhost/dockerhost.go -- ColimaProfile, ColimaSSH -->
-<!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
+<!-- source: internal/le/setup/docker/kernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions, readHostFacts, hostDependencies, zeKernelServesHost -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- BuildLinuxZe, GuestZeRel -->
 <!-- source: internal/le/interoplab/kernelcheck.go -- DockerKernelRoute, dockerKernelRouteFor, zeKernelReleaseSuffix -->
 

@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: kernelcheck.go -- the kernel probe, the first container run under a Ze profile
 // Related: register_apparmor.go -- the kernel probe's registration
-// Related: ../setup/dockerkernel/dockerkernel_apparmor.go -- the action that loads a registered profile
+// Related: ../setup/docker/kernel/dockerkernel_apparmor.go -- the action that loads a registered profile
 //
 // A lab container that needs more than Docker's docker-default AppArmor
 // profile grants runs under a Ze profile that grants exactly that, never
@@ -20,7 +20,7 @@ import (
 
 // AppArmorLoadCommandPrefix is the load action's command without the profile
 // name it confirms.
-const AppArmorLoadCommandPrefix = "./le setup docker-kernel apparmor confirm "
+const AppArmorLoadCommandPrefix = "./le setup docker kernel apparmor confirm "
 
 // AppArmorProfile is one Ze AppArmor profile a lab container runs under.
 type AppArmorProfile struct {
@@ -163,7 +163,7 @@ func labAppArmorRefusal(goos string, profile AppArmorProfile, finding string) er
 // appArmorColimaLoad says where the load command puts a profile on macOS, and
 // why a Mac reaches AppArmor at all. A Mac daemon runs in a Linux VM; the
 // command loads the profile into the Colima VM behind the client's Docker
-// endpoint and refuses any other daemon (internal/le/setup/dockerkernel,
+// endpoint and refuses any other daemon (internal/le/setup/docker/kernel,
 // appArmorDarwinHost). The labs' own VM, the `ze` profile, boots Ze's kernel,
 // which carries no AppArmor, so a daemon applying it is one DOCKER_HOST named
 // (dockerhost.Environment), and the route that follows returns to the profile.
@@ -172,15 +172,15 @@ const appArmorColimaLoad = "On macOS it loads the profile into the Colima VM beh
 	" a daemon that applies it is one DOCKER_HOST names, and the route below returns the labs to the profile."
 
 // appArmorLoadUnreachable says why a client on goos, which is neither Linux
-// nor macOS, is not told to load Ze's profile: `le setup docker-kernel
+// nor macOS, is not told to load Ze's profile: `le setup docker kernel
 // apparmor` loads it into the kernel of the Linux machine it runs on, or on
 // macOS into Colima's VM, and refuses every other system (appArmorLoadPlatform,
-// internal/le/setup/dockerkernel). A refusal on such a client names only the
+// internal/le/setup/docker/kernel). A refusal on such a client names only the
 // route that works there, the QEMU docker-lab guest from DockerKernelRoute.
 func appArmorLoadUnreachable(goos string) string {
 	system := systemName(goos)
 	return "Ze's profile cannot be loaded from " + system +
-		": `./le setup docker-kernel apparmor` loads it into the kernel of the Linux machine it runs on, or on macOS into Colima's VM, and refuses on " +
+		": `./le setup docker kernel apparmor` loads it into the kernel of the Linux machine it runs on, or on macOS into Colima's VM, and refuses on " +
 		system + "."
 }
 

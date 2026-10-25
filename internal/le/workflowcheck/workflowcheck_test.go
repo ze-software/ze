@@ -19,7 +19,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/setup"
-	_ "github.com/ze-software/ze/internal/le/setup/dockerkernel"
+	_ "github.com/ze-software/ze/internal/le/setup/docker/kernel"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/test/integration"
@@ -187,11 +187,12 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 	return jobs
 }
 
-// nativeActionPattern reads up to three words after le, because a command may
+// nativeActionPattern reads up to four words after le, because a command may
 // be a namespace and its member before its verb: `le verify deps vulnerability`
-// is one command of two words and one verb.
+// is one command of two words and one verb, and `le setup docker kernel check`
+// one command of three words and one verb.
 var nativeActionPattern = regexp.MustCompile(
-	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?`,
+	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?([[:space:]]+([a-z0-9-]+))?`,
 )
 
 // nativeActionsIn answers each `le` invocation in a workflow as command/verb,
@@ -212,9 +213,29 @@ func nativeActionsIn(source string) []string {
 	actions := make([]string, 0, len(matches))
 	for _, match := range matches {
 		first, second := source[match[6]:match[7]], source[match[8]:match[9]]
-		third := ""
+		third, fourth := "", ""
 		if match[12] >= 0 {
 			third = source[match[12]:match[13]]
+		}
+		if match[16] >= 0 {
+			fourth = source[match[16]:match[17]]
+		}
+		if third != "" && leroot.LookupCommand(first+" "+second+" "+third) != nil {
+			command := first + " " + second + " " + third
+			if fourth == "" {
+				actions = append(actions, command)
+				continue
+			}
+			actions = append(actions, command+"/"+fourth)
+			actions = append(actions, nestedLeActions(command, fourth, lineAfter(source, match[17]))...)
+			continue
+		}
+		// The fourth word was read only for a three-word command; a shorter
+		// command's nested line starts after its verb.
+		if third != "" {
+			match[1] = match[13]
+		} else {
+			match[1] = match[9]
 		}
 		if leroot.LookupCommand(first+" "+second) != nil {
 			if third == "" {
@@ -550,7 +571,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"test integration/traffic", "test integration/gtsm", "test integration/as112",
 		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
 		"test deployment/docker-l2tp-ppp-test", "test deployment/docker-pppoe-accel-test",
-		"test qemu/docker-lab", "setup docker-kernel/check", "setup/appliance-modules",
+		"test qemu/docker-lab", "setup docker kernel/check", "setup/appliance-modules",
 		"test integration/docker-peers", "test integration/live-rpki",
 	}
 	actions := nativeActions(t, name)
@@ -591,7 +612,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			"actions/cache/restore@v6", "actions/cache/save@v6",
 			"./le build host-driver",
 			"./ze-host appliance kernel --target runtime --arch amd64",
-			"./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze",
+			"./le setup docker kernel check ze tmp/qemu/linux-amd64/ze",
 			"hashFiles('tmp/qemu/linux-amd64/ze') != ''",
 		} {
 			if !strings.Contains(job.body, required) {

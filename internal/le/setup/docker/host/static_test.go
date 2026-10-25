@@ -14,7 +14,7 @@ import (
 // Without the preflight the docker client's own lookup failure surfaces as a
 // builder failure telling the operator to correct the build, and this fails.
 //
-// VALIDATES: review finding R2-1: `./le setup docker-host build` on a host
+// VALIDATES: review finding R2-1: `./le setup docker host build` on a host
 // with no docker CLI names the missing tool and how to install it.
 // PREVENTS: a missing CLI reported as a broken build recipe.
 func TestBuilderContainerRefusesWithoutTheDockerCLI(t *testing.T) {

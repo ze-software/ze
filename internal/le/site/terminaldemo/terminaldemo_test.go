@@ -667,7 +667,7 @@ func TestANetSysctlDemoRunsWithoutPrivilege(t *testing.T) {
 		for _, want := range []string{
 			"terminal demo browser writes /proc/sys/net",
 			"a container (a lab peer or a terminal demo)",
-			"\n  ./le setup docker-kernel apparmor confirm ze-lab-net-sysctl",
+			"\n  ./le setup docker kernel apparmor confirm ze-lab-net-sysctl",
 		} {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("error %q lacks %q", err, want)

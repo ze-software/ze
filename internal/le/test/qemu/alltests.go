@@ -387,10 +387,10 @@ var excludedIntegrationPackages = map[string]string{
 	"internal/le/interoplab": "TestDockerKernelCheckOnThisHost judges the host Docker daemon's kernel, which" +
 		" the guest cannot stand in for; run it through ./le job run as documented in" +
 		" docs/architecture/testing/interop.md",
-	"internal/le/setup/dockerkernel": "TestAppArmorColimaHostOnThisMac asks the Colima VM behind this Mac's" +
+	"internal/le/setup/docker/kernel": "TestAppArmorColimaHostOnThisMac asks the Colima VM behind this Mac's" +
 		" Docker client and skips on every other system, so the Linux guest cannot run it; run it on the Mac" +
 		" through ./le job run as its file header documents" +
-		" (internal/le/setup/dockerkernel/dockerkernel_apparmor_colima_integration_test.go)",
+		" (internal/le/setup/docker/kernel/dockerkernel_apparmor_colima_integration_test.go)",
 	"internal/le/test/deployment": "requires the host Docker daemon and privileged VPP containers;" +
 		" run TestVPPSRv6ServiceRoute through ./le job run as documented in docs/architecture/testing/interop.md",
 	"internal/le/test/qemu": "boots its own QEMU guest on the host (TestDockerLabGuestBootsZeKernel), so it" +

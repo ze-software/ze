@@ -493,7 +493,7 @@ func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 }
 
 // VALIDATES: applianceEnv names the `ze` Colima profile's socket on darwin,
-// refuses naming `./le setup docker-host start` when that socket is absent
+// refuses naming `./le setup docker host start` when that socket is absent
 // (even with Colima's `default` socket present), and keeps a DOCKER_HOST the
 // operator already set.
 // PREVENTS: `ze appliance build` running Docker on a daemon the owner's standing
@@ -519,7 +519,7 @@ func TestApplianceEnvNamesTheDockerSocket(t *testing.T) {
 
 	ops.Socket = func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
 	installer = &Installer{ops: ops}
-	if got, err := installer.applianceEnv("/work/appliances"); err == nil || !strings.Contains(err.Error(), "./le setup docker-host start") {
+	if got, err := installer.applianceEnv("/work/appliances"); err == nil || !strings.Contains(err.Error(), "./le setup docker host start") {
 		t.Fatalf("env=%q err=%v, want the refusal naming the docker-host start", got, err)
 	}
 

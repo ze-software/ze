@@ -125,7 +125,7 @@ func (b *builder) staticBinaries(ctx context.Context, req buildRequest, sources 
 	}
 	if !hasEveryBinary(partial) {
 		return "", fmt.Errorf("the builder container exited 0 but %s lacks one of %s. Fix: read the container's output above, "+
-			"correct staticRecipe in internal/le/setup/dockerhost/static.go", partial, strings.Join(staticBinaryNames, ", "))
+			"correct staticRecipe in internal/le/setup/docker/host/static.go", partial, strings.Join(staticBinaryNames, ", "))
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		return "", fmt.Errorf("clear %s: %w", dir, err)
@@ -177,10 +177,10 @@ func hasEveryBinary(dir string) bool {
 // errDockerCLIMissing is the refusal of a build on a host whose PATH holds no
 // docker CLI: the static binaries are built in a container, so the build
 // cannot start without one.
-var errDockerCLIMissing = errors.New("the docker CLI is not on PATH, and `./le setup docker-host build` " +
+var errDockerCLIMissing = errors.New("the docker CLI is not on PATH, and `./le setup docker host build` " +
 	"builds the static OpenSSH, sudo and iptables binaries in a container. " +
 	"Fix: install the docker CLI (macOS: `brew install docker`; Debian or Ubuntu: `sudo apt install docker.io`), " +
-	"point it at a running daemon, then run `./le setup docker-host build` again")
+	"point it at a running daemon, then run `./le setup docker host build` again")
 
 // builderTimeout bounds one builder container run: OpenSSH, sudo and
 // iptables built from source under emulation (an amd64 build on an arm64
@@ -217,7 +217,7 @@ func runBuilderContainer(ctx context.Context, run containerRun) error {
 	})
 	if err != nil {
 		return fmt.Errorf("the builder container failed: %w (its output is above). "+
-			"Fix: correct what the build names, then run `./le setup docker-host build` again", err)
+			"Fix: correct what the build names, then run `./le setup docker host build` again", err)
 	}
 	return nil
 }

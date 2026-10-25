@@ -22,10 +22,10 @@ host: device nodes they pass to a container (`/dev/vhost-net`, `/dev/net/tun`,
 loads a module (`plan/release/validation/spec-lab-containers-least-privilege.md`, D-7:
 the host is set up for Ze). Today nothing sets the host up. Each lab names its
 modules in a refusal string, and nothing in `./le setup` or in
-`./le setup docker-kernel install` knows what any lab needs.
+`./le setup docker kernel install` knows what any lab needs.
 
 The symptom, on this Linux dev host (2026-10-20): it runs Ze's runtime kernel
-`7.2.9-ze`, installed by `./le setup docker-kernel install`. `/proc/config.gz`
+`7.2.9-ze`, installed by `./le setup docker kernel install`. `/proc/config.gz`
 shows `# CONFIG_VHOST_NET is not set`, and `sudo modprobe vhost_net` fails with
 "Module vhost_net not found". `./le test deployment vpp-test` and
 `./le test deployment vpp-iface-test` fail at container start with a raw Docker
@@ -44,7 +44,7 @@ Owner decisions, 2026-10-20 ("ok"):
 | ID | Goal |
 |----|------|
 | G-1 | Each kernel feature a Docker lab or a deployment proof needs is declared once, by the lab that needs it, and every consumer derives from that declaration |
-| G-2 | `./le setup docker-kernel install` refuses a Ze kernel that lacks a feature a lab needs, naming the lab, the option and the fix |
+| G-2 | `./le setup docker kernel install` refuses a Ze kernel that lacks a feature a lab needs, naming the lab, the option and the fix |
 | G-3 | On a stock distro Linux kernel, `./le setup` loads the modules the labs need, persists them, and names each one the running kernel cannot provide |
 | G-4 | The runtime kernel carries `CONFIG_VHOST_NET` |
 | G-5 | A VPP proof on a host without `/dev/vhost-net` refuses before its container, naming the option and the fix |
@@ -53,7 +53,7 @@ Owner decisions, 2026-10-20 ("ok"):
 **Owner action (G-6).** An agent cannot do these steps. After AC-4 lands, the
 owner rebuilds the runtime kernel cache entry (`./le build host-driver`, then
 `./ze-host appliance kernel --target runtime --arch amd64`), installs it
-(`./le setup docker-kernel install confirm 7.2.9-ze`), and reboots. AC-6 runs
+(`./le setup docker kernel install confirm 7.2.9-ze`), and reboots. AC-6 runs
 after the reboot.
 
 ## Required Reading
@@ -80,8 +80,8 @@ after the reboot.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/setup/dockerkernel/hostdeps.go` - `readHostFacts` reads `/sys/class/net`, netplan's generated network files, `/proc/modules` and `/etc/ufw/ufw.conf`; `hostDependencies` turns them into `hostDependency` rows (what the host relies on, what breaks, the options); `zeKernelServesHost` refuses a kernel config that builds none of a row's options as `y` or `m`, naming each row. It knows only the host's own network and firewall, nothing a lab needs.
-- [ ] `internal/le/setup/dockerkernel/dockerkernel.go` - `runDockerKernelInstall` runs `cachedKernelServesHost` before any root step; without `confirm <release>` it prints the `installStep` list (`printInstallPlan`) and runs none; each step runs through sudo and is printed first; it never reboots.
+- [ ] `internal/le/setup/docker/kernel/hostdeps.go` - `readHostFacts` reads `/sys/class/net`, netplan's generated network files, `/proc/modules` and `/etc/ufw/ufw.conf`; `hostDependencies` turns them into `hostDependency` rows (what the host relies on, what breaks, the options); `zeKernelServesHost` refuses a kernel config that builds none of a row's options as `y` or `m`, naming each row. It knows only the host's own network and firewall, nothing a lab needs.
+- [ ] `internal/le/setup/docker/kernel/dockerkernel.go` - `runDockerKernelInstall` runs `cachedKernelServesHost` before any root step; without `confirm <release>` it prints the `installStep` list (`printInstallPlan`) and runs none; each step runs through sudo and is printed first; it never reboots.
 - [ ] `internal/le/setup/setup.go` - `Setup.Run` visits tools, then on Linux the machine-state rows `visitUserns` and `visitKvm`, then `visitLoopback`; check mode returns the verdict before any change.
 - [ ] `internal/le/setup/system.go` - `privilegedStep` (argv, stdin, shown line) and `usernsSteps`: a drop-in written through `tee` plus a command for the running kernel, the pattern for "fix now and after reboot".
 - [ ] `internal/le/setup/proc.go` - `Shell.runPrivileged` prints each root command before it runs it and reports the failure detail.
@@ -116,7 +116,7 @@ Today's sites that state a lab kernel fact, as found on 2026-10-20 (an inventory
 **Behavior to change:**
 - Every row of the inventory above is declared once, by the lab package that needs it; the preflight probe, the refusal text, the `--device` argv, the help text, setup's module step and install's check derive from it.
 - `./le setup` gains a Linux machine-state row that loads and persists the lab modules.
-- `./le setup docker-kernel install` also refuses a kernel lacking a lab feature.
+- `./le setup docker kernel install` also refuses a kernel lacking a lab feature.
 - The VPP proofs gain a device preflight.
 - The runtime kernel gains `CONFIG_VHOST_NET`.
 
@@ -124,14 +124,14 @@ Today's sites that state a lab kernel fact, as found on 2026-10-20 (an inventory
 
 ### Entry Point
 - `./le setup install` and `./le setup check` (Linux).
-- `./le setup docker-kernel install [builder <b>] [confirm <release>]`.
+- `./le setup docker kernel install [builder <b>] [confirm <release>]`.
 - `./le test deployment vpp-test`, `vpp-iface-test`, `l2tp-test`, `docker-l2tp-ppp-test`, and each `./le test integration interop-*` lab with a preflight.
 
 ### Transformation Path
 1. Each lab and deployment proof package registers its kernel needs from its `register.go` init into one registry (fields below).
 2. The lab's container spec takes its `--device` list from its registered records, and its preflight builds its probe lines and its refusal from them.
 3. `./le setup` on Linux reads the whole registry: for each record it asks whether the running kernel provides the feature (the record's evidence), loads the module through `runPrivileged` when it does not, writes the persistent list, and reports a module the kernel cannot provide.
-4. `./le setup docker-kernel install` turns each record into a dependency row and refuses a cached kernel config that sets none of its options.
+4. `./le setup docker kernel install` turns each record into a dependency row and refuses a cached kernel config that sets none of its options.
 
 One record (a table, not a type):
 
@@ -164,7 +164,7 @@ Two labs that need one feature name one record, owned by the package that declar
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | setup and install read the registry; no lab package is imported by setup by name |
-| No unintended coupling (components stay isolated) | Yes | the registry lives in a leaf package under `internal/le` that `interoplab`, `test/deployment`, `test/runner`, `setup` and `setup/dockerkernel` import; `./le arch tier check` passes |
+| No unintended coupling (components stay isolated) | Yes | the registry lives in a leaf package under `internal/le` that `interoplab`, `test/deployment`, `test/runner`, `setup` and `setup/docker/kernel` import; `./le arch tier check` passes |
 | No duplicated functionality (extends existing, does not recreate) | Yes | install reuses `hostDependency`; setup reuses `privilegedStep`; the refusal reuses `DockerKernelRoute` |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | tooling, no wire path |
 | Registration over hardcoding, outbound | Yes | each lab registers its records in its own `register.go` |
@@ -204,7 +204,7 @@ Two labs that need one feature name one record, owned by the package that declar
 |-------------|---|--------------|------|
 | a lab's `register.go` init | → | the registry, then every consumer | `TestLabKernelNeedReachesEveryConsumer` (a test record reaches the container argv, the preflight probe, the refusal, setup's step list and install's rows with no other edit) |
 | `./le setup install` on Linux | → | `Setup.Run` → the lab-kernel row → `runPrivileged` | `TestSetupLoadsLabKernelModules` (`internal/le/setup`) |
-| `./le setup docker-kernel install` | → | `cachedKernelServesHost` → `zeKernelServesHost` with the lab rows | `TestInstallRefusesKernelWithoutLabFeature` (`internal/le/setup/dockerkernel`) |
+| `./le setup docker kernel install` | → | `cachedKernelServesHost` → `zeKernelServesHost` with the lab rows | `TestInstallRefusesKernelWithoutLabFeature` (`internal/le/setup/docker/kernel`) |
 | `./le test deployment vpp-test`, `vpp-iface-test` | → | the VPP device preflight | `TestVPPPreflightNamesTheKernelOption` (`internal/le/test/deployment`) |
 | every lab and deployment container spec | → | the registered devices | `TestEveryLabDeviceGrantIsRegistered` |
 
@@ -213,11 +213,11 @@ Two labs that need one feature name one record, owned by the package that declar
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | The kernel features the labs and deployment proofs need (the inventory under Current Behavior) | Each is declared once, by the package that needs it. The container `--device` argv, the preflight probe lines, the refusal's module names and `sudo modprobe` line, the `vpp-*` help text, setup's module step and install's rows all derive from it. Proof: `TestLabKernelNeedReachesEveryConsumer` passes; `TestEveryLabDeviceGrantIsRegistered` fails when a test adds a `--device` with no record; a grep over `internal/le/setup` and the lab packages for `modprobe` followed by a literal module name finds none outside the registry's renderer |
-| AC-2 | `./le setup docker-kernel install` (no `confirm`) with a cached kernel config that lacks `CONFIG_VHOST_NET` | exit 1 before any root step; the refusal names `vpp-test` and `vpp-iface-test`, `/dev/vhost-net`, `CONFIG_VHOST_NET`, and the fix (enable it in `gokrazy/kernel/runtime.config` and `runtime.require`, then the rebuild command `runtimeKernelRebuild` prints for the backend). Proof: `TestInstallRefusesKernelWithoutLabFeature`, and the real dry run on this host before AC-4's kernel is cached, output pasted |
-| AC-3 | `./le setup install` on Linux on a stock distro kernel where a lab module is not loaded | each missing module is loaded through setup's root route, each command printed before it runs; `/etc/modules-load.d/ze-labs.conf` lists every lab module the running kernel builds as a module; a feature already present (loaded or built in) gets no step. `./le setup check` prints the same commands, runs none, and exits nonzero while one is owed. A module the running kernel cannot provide is a FAIL row naming the lab, the module, the option and the fix (a kernel with the option, or `./le setup docker-kernel install`), and the run exits nonzero. Proof: `TestSetupLoadsLabKernelModules` over an injected shell and host root; a real run on a stock-kernel Linux host with output pasted; a real `./le setup check` on this host before the reboot, naming `vhost_net` and `CONFIG_VHOST_NET` |
+| AC-2 | `./le setup docker kernel install` (no `confirm`) with a cached kernel config that lacks `CONFIG_VHOST_NET` | exit 1 before any root step; the refusal names `vpp-test` and `vpp-iface-test`, `/dev/vhost-net`, `CONFIG_VHOST_NET`, and the fix (enable it in `gokrazy/kernel/runtime.config` and `runtime.require`, then the rebuild command `runtimeKernelRebuild` prints for the backend). Proof: `TestInstallRefusesKernelWithoutLabFeature`, and the real dry run on this host before AC-4's kernel is cached, output pasted |
+| AC-3 | `./le setup install` on Linux on a stock distro kernel where a lab module is not loaded | each missing module is loaded through setup's root route, each command printed before it runs; `/etc/modules-load.d/ze-labs.conf` lists every lab module the running kernel builds as a module; a feature already present (loaded or built in) gets no step. `./le setup check` prints the same commands, runs none, and exits nonzero while one is owed. A module the running kernel cannot provide is a FAIL row naming the lab, the module, the option and the fix (a kernel with the option, or `./le setup docker kernel install`), and the run exits nonzero. Proof: `TestSetupLoadsLabKernelModules` over an injected shell and host root; a real run on a stock-kernel Linux host with output pasted; a real `./le setup check` on this host before the reboot, naming `vhost_net` and `CONFIG_VHOST_NET` |
 | AC-4 | `gokrazy/kernel/runtime.config` and `runtime.require` | both carry `CONFIG_VHOST_NET`, set `=y`; `./ze-host appliance kernel --target runtime --arch amd64` exits 0 and its emitted config shows `CONFIG_VHOST_NET=y`; `TestHostDependencyOptionsAreInTheRuntimeProfile` (or its successor) also covers every registered lab option and fails when one is missing from the fragment |
-| AC-5 | `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` on a Docker host without `/dev/vhost-net` | each exits 1 before the image pull and the cross-compile, with no verdict; the message names the proof, `/dev/vhost-net`, `CONFIG_VHOST_NET`, the module `vhost_net`, and the fix on a line of its own (stock kernel: `./le setup install`; Ze kernel: the runtime option, the rebuild, `./le setup docker-kernel install`, a reboot; through `DockerKernelRoute` for the platform); the Docker error is kept as the cause, never shown alone. Proof: `TestVPPPreflightNamesTheKernelOption`, and both real runs on this host before the reboot, output pasted |
-| AC-6 | After the owner action (rebuild, `./le setup docker-kernel install confirm 7.2.9-ze`, reboot) on this host | `uname -r` prints `7.2.9-ze`; `/proc/config.gz` shows `CONFIG_VHOST_NET=y`; `/dev/vhost-net` is a character device; `./le setup check` reports the lab-kernel row present; `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` each start their container (`docker events --filter label=ze.lab` shows the start) and reach their verdict with no device refusal, output pasted |
+| AC-5 | `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` on a Docker host without `/dev/vhost-net` | each exits 1 before the image pull and the cross-compile, with no verdict; the message names the proof, `/dev/vhost-net`, `CONFIG_VHOST_NET`, the module `vhost_net`, and the fix on a line of its own (stock kernel: `./le setup install`; Ze kernel: the runtime option, the rebuild, `./le setup docker kernel install`, a reboot; through `DockerKernelRoute` for the platform); the Docker error is kept as the cause, never shown alone. Proof: `TestVPPPreflightNamesTheKernelOption`, and both real runs on this host before the reboot, output pasted |
+| AC-6 | After the owner action (rebuild, `./le setup docker kernel install confirm 7.2.9-ze`, reboot) on this host | `uname -r` prints `7.2.9-ze`; `/proc/config.gz` shows `CONFIG_VHOST_NET=y`; `/dev/vhost-net` is a character device; `./le setup check` reports the lab-kernel row present; `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` each start their container (`docker events --filter label=ze.lab` shows the start) and reach their verdict with no device refusal, output pasted |
 
 ## 🧪 TDD Test Plan
 
@@ -227,10 +227,10 @@ Two labs that need one feature name one record, owned by the package that declar
 | `TestLabKernelNeedReachesEveryConsumer` | the registry package's `_test.go` | AC-1: one record reaches all six consumers | |
 | `TestEveryLabDeviceGrantIsRegistered` | `internal/le/interoplab/grantcheck` or the registry package | AC-1, R-5: every `--device` in a lab or deployment argv has a record | |
 | `TestRegistryRefusesDuplicateAndIncompleteRecords` | the registry package | a record with no lab, no evidence or no option, or a second record for one device, panics at init | |
-| `TestInstallRefusesKernelWithoutLabFeature` | `internal/le/setup/dockerkernel/hostdeps_test.go` | AC-2: the refusal text and that no step ran | |
+| `TestInstallRefusesKernelWithoutLabFeature` | `internal/le/setup/docker/kernel/hostdeps_test.go` | AC-2: the refusal text and that no step ran | |
 | `TestSetupLoadsLabKernelModules` | `internal/le/setup/labkernel_test.go` | AC-3: load, persist, skip present, refuse absent, check mode runs nothing | |
 | `TestSetupReportsModuleTheKernelLacks` | `internal/le/setup/labkernel_test.go` | AC-3: the FAIL row names lab, module, option, fix | |
-| `TestHostDependencyOptionsAreInTheRuntimeProfile` (extended) | `internal/le/setup/dockerkernel/hostdeps_test.go` | AC-4: lab options are in `runtime.config` and `runtime.require` | |
+| `TestHostDependencyOptionsAreInTheRuntimeProfile` (extended) | `internal/le/setup/docker/kernel/hostdeps_test.go` | AC-4: lab options are in `runtime.config` and `runtime.require` | |
 | `TestVPPPreflightNamesTheKernelOption` | `internal/le/test/deployment/vppiface_test.go` | AC-5: the refusal over a Docker device error | |
 | existing grant tests (`TestVPPDeploymentContainerRunsWithoutPrivilege` and the lab grant tests) | their packages | the grant sets do not change | |
 
@@ -242,7 +242,7 @@ Two labs that need one feature name one record, owned by the package that declar
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le setup docker-kernel install` dry run | this host, output pasted here | AC-2 | |
+| `./le setup docker kernel install` dry run | this host, output pasted here | AC-2 | |
 | `./le setup check` before the reboot | this host, output pasted here | AC-3 (absent module) | |
 | `./le setup install` on a stock distro kernel | a Linux host on its distro kernel, output pasted here | AC-3 (load and persist) | |
 | `./le test deployment vpp-test`, `vpp-iface-test` before the reboot | this host, output pasted here | AC-5 | |
@@ -252,8 +252,8 @@ Two labs that need one feature name one record, owned by the package that declar
 N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs run against a real VPP daemon on this host.
 
 ## Files to Modify
-- `internal/le/setup/dockerkernel/hostdeps.go` - the lab rows join `hostDependencies`.
-- `internal/le/setup/dockerkernel/dockerkernel.go` - `cachedKernelServesHost` passes the lab rows.
+- `internal/le/setup/docker/kernel/hostdeps.go` - the lab rows join `hostDependencies`.
+- `internal/le/setup/docker/kernel/dockerkernel.go` - `cachedKernelServesHost` passes the lab rows.
 - `internal/le/setup/setup.go` - the Linux machine-state block visits the lab-kernel row.
 - `internal/le/setup/system.go` or a new file beside it - the row's state, steps and apply.
 - `internal/le/interoplab/pppdevice.go` - `/dev/ppp` becomes a record; probe and refusal derive.
@@ -273,7 +273,7 @@ N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs 
 | YANG schema (new RPCs/config) | N-A | no Ze config |
 | YANG validation constraints | N-A | no YANG |
 | YANG custom validators | N-A | no YANG |
-| CLI commands/flags | N-A | no new verb or keyword; existing `./le setup` and `./le setup docker-kernel install` gain a row and a check |
+| CLI commands/flags | N-A | no new verb or keyword; existing `./le setup` and `./le setup docker kernel install` gain a row and a check |
 | CLI grammar (keyword before value) | N-A | no new keyword |
 | Editor autocomplete | N-A | not a ze command |
 | Functional test for new RPC/API | N-A | no RPC |
@@ -302,7 +302,7 @@ N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs 
 | 14 | Prometheus counters added/changed? | N-A | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | no plugin or command |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/post-release/engineering/spec-lab-kernel-features-in-setup.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `./le setup docker-kernel install` refusal and the `sudo modprobe` lines quoted in `interop.md` are checked against the new output |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `./le setup docker kernel install` refusal and the `sudo modprobe` lines quoted in `interop.md` are checked against the new output |
 
 ## Implementation Steps
 

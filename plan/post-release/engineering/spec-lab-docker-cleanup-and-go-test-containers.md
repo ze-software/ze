@@ -86,7 +86,7 @@ so G-1's labels plus the next-start sweep stand in for it.
 - [ ] `internal/le/interoplab/docker.go` - `Docker` wraps the CLI through `processRunner`. `runContainer` argv is `docker run -d --name <c> --network <n> --ip ...` with no `--rm` and no `--label`. `createNetwork` has no `--label` and treats "already exists" as success (adopts a foreign network of the same name). `Build` tags `build.Tag` plus `ze-interop-retained:<rand.Text()>`, no `--label`. `RunOneShot` is `docker run --rm` foreground. `RemoveContainer` is `docker rm -f <name>`; `releaseImage` is `docker image rm --no-prune <retained tag>`.
 - [ ] `internal/le/interoplab/process.go` - `systemProcessRunner.Run` uses `exec.CommandContext`; no process group, no Pdeathsig. Killing le kills nothing the daemon owns.
 - [ ] `internal/le/interoplab/discover.go` - `ReadEnvironment`: suffix defaults to `os.Getpid()`, overridable per lab (`ZE_IPSEC_INTEROP_SUFFIX`, `ZE_L2TP_INTEROP_SUFFIX`, `ZE_RSVPTE_INTEROP_SUFFIX`, ...).
-- [ ] `internal/le/interoplab/kernelcheck.go` - `kernelProbeArgv`: `docker run --rm --network none` one-shot, no label. Callers: `setup docker-kernel`, `verify/evidence`, `perf/bench`, `site/terminaldemo`, `test/deployment/daemonkernel`.
+- [ ] `internal/le/interoplab/kernelcheck.go` - `kernelProbeArgv`: `docker run --rm --network none` one-shot, no label. Callers: `setup docker kernel`, `verify/evidence`, `perf/bench`, `site/terminaldemo`, `test/deployment/daemonkernel`.
 - [ ] `internal/le/test/integration/actions.go` - `nativeRunner` calls `run(context.Background(), root)`: no `signal.NotifyContext`. `ipsec.Run` and `radius.Run` also root on `context.Background()`.
 - [ ] `internal/le/job/job.go` - `forwardSignals` forwards SIGINT/SIGTERM to the child; the child has no handler, so Go's default action terminates it without running defers.
 - [ ] `internal/le/session/reap.go` - `ScanProcesses`, `Process{PID, Start, StartedAt, Argv}`, `procFact` (Linux `/proc` stat field), `scanProcessesWithPS` (`ps -eo pid=,lstart=,...`, macOS and BSD).
@@ -393,13 +393,13 @@ were not raised.
 
 Searched: `exec.Command*("docker"`, `DockerExecutable`, `"docker",` argv,
 `"run", "-d"` / `"--rm"`, `"network", "create"`, `.sh`, Makefile and workflow
-`docker` uses, `.ci` and `.et` files, `internal/le/{verify/evidence,test/deployment,test/qemu,setup/dockerkernel,perf,feature,site/terminaldemo,test/integration}`,
+`docker` uses, `.ci` and `.et` files, `internal/le/{verify/evidence,test/deployment,test/qemu,setup/docker/kernel,perf,feature,site/terminaldemo,test/integration}`,
 `internal/test/*`, `internal/appliance`, `contrib/`, `.github/workflows`.
 
 | # | Site | What it starts | Through `interoplab.Docker`? | Labels / cleanup today | Verdict | AC / decision |
 |---|------|----------------|------------------------------|------------------------|---------|---------------|
 | M-1 | `interoplab.Suite` labs: bgp, ipsec, radius, radiussubscriber, rsvpte, l2tp, pppoe | networks, detached peers, built images and retained tags, preflight one-shots | yes | none; defer-only teardown; Ctrl-C leaks | MUST | AC-1..AC-10 |
-| M-2 | `interoplab/kernelcheck.go` kernel probe (used by setup docker-kernel, evidence, perf, terminal demo, deployment) | `run --rm` one-shot | own argv inside `interoplab` | none | MUST (move onto `RunOneShot`) | AC-1 |
+| M-2 | `interoplab/kernelcheck.go` kernel probe (used by setup docker kernel, evidence, perf, terminal demo, deployment) | `run --rm` one-shot | own argv inside `interoplab` | none | MUST (move onto `RunOneShot`) | AC-1 |
 | M-3 | `internal/le/test/deployment` (`docker-l2tp-ppp-test`, the VPP proofs, `ensureImage`, `removeContainer`) | privileged `run --rm -d ... sleep infinity`, `docker exec` daemons, pulls | no, own `exec.Command("docker")` | none; removal error discarded; SIGKILL leaves `sleep infinity` forever | MUST | AC-11, AC-8 |
 | M-4 | `internal/test/perfrunner/run.go` (`./le perf`) | network, DUT containers, `sleep 3600` sender, image builds | no | none; `rm -f` errors discarded | MUST | AC-12, AC-8 |
 | M-5 | `internal/le/verify/evidence/evidence.go` | long privileged `run --rm` build container | no | none; persistent cache volumes (kept) | MUST | AC-13, AC-8 |
@@ -419,7 +419,7 @@ Searched: `exec.Command*("docker"`, `DockerExecutable`, `"docker",` argv,
 | N-4 | `internal/appliance/kernelbuilder` (`ze-host appliance kernel --builder docker`), and `deployment/gokrazyimage.go`, which runs it | `run --rm` kernel build | no | journal row in `stop-leaves-the-work-running.md` (2026-10-11), open | NOT here: `ze-host` is a shipped host-driver binary and may not import `internal/le` | Q-7 |
 | N-5 | `internal/component/host/platform_linux.go` | nothing (detects running inside a container) | - | - | NOT: starts nothing | Q-7 |
 | N-6 | `internal/le/setup/tools.go`, `internal/test/toolstub`, `internal/test/fixture` install fixtures, `test/install/*.ci`, `test/ui/doctor-*.ci` | a stubbed `docker`, no daemon | - | - | NOT: no real resource | Q-7 |
-| N-7 | `internal/plugins/vrrp/lab_profile_linux_test.go`, `internal/le/feature/recordrun.go`, `internal/le/setup/dockerkernel` | nothing of their own (registry read, catalog run, kernel check) | inherit M-1, M-2 | - | NOT: covered by M-1 and M-2 | Q-7 |
+| N-7 | `internal/plugins/vrrp/lab_profile_linux_test.go`, `internal/le/feature/recordrun.go`, `internal/le/setup/docker/kernel` | nothing of their own (registry read, catalog run, kernel check) | inherit M-1, M-2 | - | NOT: covered by M-1 and M-2 | Q-7 |
 | N-8 | `internal/le/test/integration` stress verbs, `interoplab/ipsec` mobike native lab | network namespaces, not Docker | - | - | NOT: no Docker; a namespace leak is a different resource and class | Q-7 |
 | N-9 | `contrib/netlab` (containerlab) | an operator-run containerlab topology | no | containerlab owns its lifecycle | NOT: an operator-facing integration, not Ze's test tooling | Q-7 |
 | N-10 | `.github/workflows/*` (evidence-nightly through `qemu docker-lab`, perf-nightly through `./le perf`) | through M-1 and M-4 on ephemeral runners | inherit | runner discarded | NOT: inherit M-1 and M-4 | Q-7 |

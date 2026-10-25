@@ -239,7 +239,7 @@ the current upstream, remove the cache entry that
 
 ## The docker-host image cache
 
-`./le setup docker-host build` keeps its own cache under
+`./le setup docker host build` keeps its own cache under
 `~/.cache/ze/docker-host/`: `downloads/` holds each pinned input checked
 against its sha256, `<arch>/static-<key>/` the static OpenSSH, sudo and
 iptables binaries the builder container made, and `<arch>/<key>/docker-host.img`
@@ -249,8 +249,8 @@ image digest. The key covers the pins, the runtime kernel key and the source
 of every path that shapes the image, so a change to any of them builds a new
 entry instead of reusing a stale one (`docker-host.md`, "Building the image").
 
-<!-- source: internal/le/setup/dockerhost/build.go -- digestRoots, sourceDigest -->
-<!-- source: internal/le/setup/dockerhost/pins.go -- LoadPins, ImageKey -->
+<!-- source: internal/le/setup/docker/host/build.go -- digestRoots, sourceDigest -->
+<!-- source: internal/le/setup/docker/host/pins.go -- LoadPins, ImageKey -->
 
 ## Related
 

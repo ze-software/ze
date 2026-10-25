@@ -32,7 +32,7 @@ func (r *ctxRecorder) Run(ctx context.Context, _ interoplab.ProcessCommand) (int
 	return interoplab.ProcessResult{Stdout: "amd64\n"}, nil
 }
 
-// VALIDATES: `./le setup docker-kernel check` runs its docker commands under
+// VALIDATES: `./le setup docker kernel check` runs its docker commands under
 // the verb's root, so the root ending (a Ctrl-C reaching the signal root)
 // ends them.
 // METHOD: the check runs under a canceled root against a recording double;
@@ -136,7 +136,7 @@ func stageInstallTree(t *testing.T) (string, string) {
 	return tree, record
 }
 
-// VALIDATES: `./le setup docker-kernel install` resolves its cache entry
+// VALIDATES: `./le setup docker kernel install` resolves its cache entry
 // under the verb's root, so a Ctrl-C ends the ze-host compile behind the
 // query, which heads a process group of its own and never sees the signal.
 // METHOD: installCache runs the real runtime-kernel query under a canceled
@@ -226,7 +226,7 @@ func exists(path string) bool {
 // architecture query live and then cancels the root, and the builder records
 // whether its ctx had ended. A build closure that passes
 // context.Background builds under a live ctx.
-// PREVENTS: the cross-compile behind `setup docker-kernel check` running on
+// PREVENTS: the cross-compile behind `setup docker kernel check` running on
 // in its own process group after the operator stopped the check.
 func TestDockerKernelCheckBuildsUnderTheVerbRoot(t *testing.T) {
 	saved := linuxZe

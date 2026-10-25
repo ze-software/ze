@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel_apparmor.go -- the action this file serves on macOS
-// Related: ../../dockerhost/dockerhost.go -- ColimaProfile and ColimaSSH
+// Related: ../../../dockerhost/dockerhost.go -- ColimaProfile and ColimaSSH
 //
 // On macOS the Docker daemon runs in a Linux VM. Colima's Ubuntu VM applies
 // AppArmor, and its kernel holds only the
@@ -8,7 +8,7 @@
 // there until something loads it: runc then fails writing
 // attr/apparmor/exec, which is what the kernel answers for a profile it has
 // not loaded (colima 29.5.2, Ubuntu 24.04, 6.8.0-117-generic, 2026-10-21).
-// `le setup docker-kernel apparmor` therefore runs on macOS too: it finds the
+// `le setup docker kernel apparmor` therefore runs on macOS too: it finds the
 // Colima profile behind the client's Docker endpoint, asks that VM whether it
 // can load a profile, and runs the same two root steps inside it through
 // `colima ssh`. The labs' own VM, the `ze` profile, boots Ze's kernel, which
@@ -110,7 +110,7 @@ func runVMCommand(ctx context.Context, argv []string) (vmResult, error) {
 // docker, is not installed, naming the Homebrew formula that installs it.
 func vmCommandMissing(argv []string) error {
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("`").Str(argv[0]).Str("` is not installed, and `le setup docker-kernel apparmor` asks it which VM runs the Docker daemon. Install it with:\n  brew install ").
+	return errors.New(tb.Str("`").Str(argv[0]).Str("` is not installed, and `le setup docker kernel apparmor` asks it which VM runs the Docker daemon. Install it with:\n  brew install ").
 		Str(argv[0]).String())
 }
 
@@ -162,7 +162,7 @@ func appArmorDarwinHost(ctx context.Context, run vmRun, exists func(string) bool
 	if !colima {
 		var tb textbuf.Buffer
 		return appArmorHost{}, errors.New(tb.Str("the Docker client uses ").Str(endpoint).
-			Str(", which is not a Colima VM's socket. On macOS `le setup docker-kernel apparmor` loads a profile only into the Colima VM that runs the Docker daemon. ").
+			Str(", which is not a Colima VM's socket. On macOS `le setup docker kernel apparmor` loads a profile only into the Colima VM that runs the Docker daemon. ").
 			Str(interoplab.DockerKernelRoute(osDarwin, nil, nil)).String())
 	}
 	via := dockerhost.ColimaSSH(profile)

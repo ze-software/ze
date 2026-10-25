@@ -401,7 +401,7 @@ The gok source is vendored under `vendor/github.com/gokrazy/`. The small
 
 The tree above is the build *input*; no build runs inside it. Every image build
 first copies the instance it names (`gokrazy/ze` for the appliance,
-`gokrazy/docker-host` for `./le setup docker-host build`) to a fresh directory
+`gokrazy/docker-host` for `./le setup docker host build`) to a fresh directory
 under the project `tmp/`, including the whole `builddir`, rewriting each filesystem-path `replace` to an
 absolute path so it still resolves from the new depth. gok is then pointed at the
 copy, and the copy is deleted afterwards.

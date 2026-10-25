@@ -174,6 +174,10 @@ var renames = []Rename{
 	{Retired: "yang glue write", Command: "yang glue", Action: "update"},
 	{Retired: "verify status write", Command: "verify status", Action: "record"},
 	{Retired: "worktree update", Command: "worktree", Action: "rebase"},
+	// Two siblings sharing the left word docker made it a namespace (rule R9
+	// of le cli grammar), so the hyphenated areas split into two tokens.
+	{Retired: "setup docker-host", Command: "setup docker host"},
+	{Retired: "setup docker-kernel", Command: "setup docker kernel"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

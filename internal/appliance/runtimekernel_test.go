@@ -284,7 +284,7 @@ func TestForeignArchBuildFetchesNoFirmware(t *testing.T) {
 //
 // VALIDATES: spec-ze-image-docker-host AC-4 (the amd64 image's refusal on an
 // arm64 host).
-// PREVENTS: `./le setup docker-host build arch amd64` on a Mac answering a
+// PREVENTS: `./le setup docker host build arch amd64` on a Mac answering a
 // command that cannot make it succeed.
 func TestImageRuntimeKernelTreeNamesTheImageBuild(t *testing.T) {
 	t.Chdir(t.TempDir())
@@ -298,7 +298,7 @@ func TestImageRuntimeKernelTreeNamesTheImageBuild(t *testing.T) {
 		t.Fatalf("a %s kernel build started on a %s host", foreign, runtime.GOARCH)
 		return nil
 	})
-	imageBuild := func(arch string) string { return "./le setup docker-host build arch " + arch }
+	imageBuild := func(arch string) string { return "./le setup docker host build arch " + arch }
 
 	_, err := ImageRuntimeKernelTree(foreign, imageBuild)
 	if err == nil {
@@ -306,8 +306,8 @@ func TestImageRuntimeKernelTreeNamesTheImageBuild(t *testing.T) {
 	}
 	for _, want := range []string{
 		"this " + runtime.GOARCH + " host cannot build it",
-		"build the image on an " + foreign + " host:\n./le setup docker-host build arch " + foreign,
-		"or build an " + runtime.GOARCH + " image here:\n./le setup docker-host build arch " + runtime.GOARCH,
+		"build the image on an " + foreign + " host:\n./le setup docker host build arch " + foreign,
+		"or build an " + runtime.GOARCH + " image here:\n./le setup docker host build arch " + runtime.GOARCH,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not name %q:\n%v", want, err)

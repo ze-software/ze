@@ -71,7 +71,7 @@ second into the boot, after the kernel printed its own banner. Then it:
    `sudoers.d/90-lima-users`, and the user's `authorized_keys`;
 7. sets the host name, mounts each `mounts` entry of `user-data` at its own
    path (the host's home over virtiofs, so a bind mount of a host path such
-   as `./le setup docker-kernel check` makes resolves in the guest, and
+   as `./le setup docker kernel check` makes resolves in the guest, and
    Rosetta's share), and creates `/run/user/<uid>/systemd/private`, the file
    `boot.sh` waits for before it runs user provisioning scripts. The mount
    options cloud-init would hand to mount(8) are translated: `defaults`,
@@ -180,7 +180,7 @@ it writes its own, and the copy needs a file to copy.
 `gokrazy/docker-host/binaries.json` is the only home of the third-party
 versions and sums: the builder container image (by digest), Docker's static
 release per arch, and the OpenSSH, sudo and iptables source tarballs. le's
-`setup docker-host` area (`internal/le/setup/dockerhost`) loads it with
+`setup docker host` area (`internal/le/setup/docker/host`) loads it with
 `LoadPins`, which refuses an unknown key, a sum that is not 64 lowercase hex
 digits, a download for an arch Ze does not build, and a builder not pinned by
 digest. `Fetcher.Fetch` downloads into `~/.cache/ze/docker-host/downloads/`
@@ -190,17 +190,17 @@ leaves nothing in the cache. `ImageKey` digests the builder, the arch's Docker
 pin, every source pin, the runtime kernel key and the guest source digest, so
 the same inputs always give the same key and a change to any gives a new one.
 
-<!-- source: internal/le/setup/dockerhost/pins.go -- LoadPins, ImageKey -->
-<!-- source: internal/le/setup/dockerhost/fetch.go -- Fetcher.Fetch -->
+<!-- source: internal/le/setup/docker/host/pins.go -- LoadPins, ImageKey -->
+<!-- source: internal/le/setup/docker/host/fetch.go -- Fetcher.Fetch -->
 
-## Building the image: `./le setup docker-host build`
+## Building the image: `./le setup docker host build`
 
-`./le setup docker-host build [arch <amd64|arm64>] [size <GiB>] [pins <file>]`
+`./le setup docker host build [arch <amd64|arm64>] [size <GiB>] [pins <file>]`
 writes the raw image to
 `~/.cache/ze/docker-host/<arch>/<key>/docker-host.img` and prints its path.
 The key is `ImageKey` over the pins, the runtime kernel cache entry's name and
 a source digest of `cmd/ze-docker-host`, `internal/appliance/dockerhost`,
-`gokrazy/docker-host` (the extra files tar excepted), `internal/le/setup/dockerhost`,
+`gokrazy/docker-host` (the extra files tar excepted), `internal/le/setup/docker/host`,
 `internal/appliance/instance` and `internal/le/build/gokrazy` (test files and
 `testdata` excepted, `digestRoots`), the arch's busybox tar,
 the builder recipe and the size. When the entry holds the image, the build
@@ -211,7 +211,7 @@ host of that arch. On a host of the other arch with no cache entry, it refuses
 and names this command on a host of that arch, or the same command for this
 host's arch, never a bare kernel build, which would fill the other host's
 cache and leave this one refused. Otherwise, in this order:
-<!-- source: internal/le/setup/dockerhost/build.go -- dockerHostRuntimeKernel -->
+<!-- source: internal/le/setup/docker/host/build.go -- dockerHostRuntimeKernel -->
 <!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 
 1. every pinned input is fetched and checked against its sha256, so a
@@ -244,15 +244,15 @@ cache and leave this one refused. Otherwise, in this order:
 `~/.cache/ze/docker-host/setup.lock`; a second run refuses at once naming the
 holder's pid.
 
-<!-- source: internal/le/setup/dockerhost/build.go -- builder.build, sourceDigest -->
-<!-- source: internal/le/setup/dockerhost/static.go -- staticRecipe, runBuilderContainer -->
-<!-- source: internal/le/setup/dockerhost/extrafiles.go -- writeExtraFiles -->
-<!-- source: internal/le/setup/dockerhost/perm.go -- formatPerm, permPartition -->
-<!-- source: internal/le/setup/dockerhost/lock.go -- takeLock -->
+<!-- source: internal/le/setup/docker/host/build.go -- builder.build, sourceDigest -->
+<!-- source: internal/le/setup/docker/host/static.go -- staticRecipe, runBuilderContainer -->
+<!-- source: internal/le/setup/docker/host/extrafiles.go -- writeExtraFiles -->
+<!-- source: internal/le/setup/docker/host/perm.go -- formatPerm, permPartition -->
+<!-- source: internal/le/setup/docker/host/lock.go -- takeLock -->
 
 ## The `ze` Colima profile: `start`, `stop`, `check`
 
-On macOS, `./le setup docker-host start` builds the host arch's image when
+On macOS, `./le setup docker host start` builds the host arch's image when
 needed and boots it as the Colima profile `ze`:
 `colima start --profile ze --vm-type vz --arch <aarch64|x86_64> --runtime docker
 --disk-image <image> --force-disk-image --mount-type virtiofs --cpus 4
@@ -282,8 +282,8 @@ and `mkfs.ext4`, the recorded image, whether the profile runs and whether its
 socket exists, and exits 1 naming the fix for each failure.
 
 <!-- source: internal/le/dockerhost/dockerhost.go -- ColimaHome, ZeSocket, ZeProfile -->
-<!-- source: internal/le/setup/dockerhost/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start, colimaHost.activate, useDockerContext -->
-<!-- source: internal/le/setup/dockerhost/actions.go -- checkRows -->
+<!-- source: internal/le/setup/docker/host/colima.go -- colimaArgv, colimaStartArgv, colimaHost.start, colimaHost.activate, useDockerContext -->
+<!-- source: internal/le/setup/docker/host/actions.go -- checkRows -->
 
 ## Kernel
 

@@ -173,7 +173,7 @@ func hostDependencies(facts hostFacts) ([]hostDependency, error) {
 		}
 		if _, known := netfilterModuleOptions[module]; !known {
 			return nil, errors.New("the netfilter module " + module + " is loaded, and this check does not know which kernel" +
-				" option provides it; add it to netfilterModuleOptions in internal/le/setup/dockerkernel/hostdeps.go")
+				" option provides it; add it to netfilterModuleOptions in internal/le/setup/docker/kernel/hostdeps.go")
 		}
 		loaded = append(loaded, module)
 	}

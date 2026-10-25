@@ -163,7 +163,7 @@ func TestReadHostFacts(t *testing.T) {
 // profile, so the kernel Ze builds serves every host the check knows.
 // PREVENTS: the check and the profile drifting apart.
 func TestHostDependencyOptionsAreInTheRuntimeProfile(t *testing.T) {
-	config, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "gokrazy", "kernel", "runtime.config"))
+	config, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "gokrazy", "kernel", "runtime.config"))
 	if err != nil {
 		t.Fatalf("read runtime.config: %v", err)
 	}

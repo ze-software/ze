@@ -1,7 +1,7 @@
 // Design: docs/architecture/appliance/docker-host.md -- the pin file and the image key
 // Related: fetch.go -- Fetcher, which checks every download against these pins
 
-// Package dockerhost is le's `setup docker-host` area: it builds Ze's
+// Package dockerhost is le's `setup docker host` area: it builds Ze's
 // docker-host image from pinned inputs and runs it as the `ze` Colima
 // profile.
 package dockerhost

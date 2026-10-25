@@ -1,4 +1,4 @@
-// Design: docs/architecture/appliance/docker-host.md -- `./le setup docker-host`
+// Design: docs/architecture/appliance/docker-host.md -- `./le setup docker host`
 // Related: register.go -- the area registration
 // Related: build.go -- the image build
 // Related: colima.go -- the ze Colima profile
@@ -26,7 +26,7 @@ import (
 )
 
 // dockerHostArea is the name this area is typed as.
-const dockerHostArea = "setup docker-host"
+const dockerHostArea = "setup docker host"
 
 const (
 	archKeyword  = "arch"
@@ -92,7 +92,7 @@ func DockerHostActions() leaction.List { return dockerHostActions.Actions() }
 // DockerHostSubs is the one-line hint help renders under the command.
 func DockerHostSubs() string { return dockerHostActions.Subs() }
 
-// DockerHostAnswer is the `le setup docker-host` command.
+// DockerHostAnswer is the `le setup docker host` command.
 func DockerHostAnswer(args []string) (any, int) { return dockerHostActions.Answer(args) }
 
 // runBuild builds the image for the named arch under the setup lock.
@@ -274,10 +274,10 @@ func imageRow() checkRow {
 		return checkRow{checkImage, verdictFail, err.Error()}
 	}
 	if key == "" {
-		return checkRow{checkImage, verdictFail, "the ze profile was never started by setup. Fix: ./le setup docker-host start"}
+		return checkRow{checkImage, verdictFail, "the ze profile was never started by setup. Fix: ./le setup docker host start"}
 	}
 	if _, err := os.Stat(image); err != nil {
-		return checkRow{checkImage, verdictFail, "the started image " + image + " is gone (" + err.Error() + "). Fix: ./le setup docker-host start"}
+		return checkRow{checkImage, verdictFail, "the started image " + image + " is gone (" + err.Error() + "). Fix: ./le setup docker host start"}
 	}
 	return checkRow{checkImage, verdictPass, key + " " + image}
 }
@@ -289,7 +289,7 @@ func profileRow(ctx context.Context) checkRow {
 		return checkRow{checkProfile, verdictFail, err.Error()}
 	}
 	if !state.running {
-		return checkRow{checkProfile, verdictFail, "not running. Fix: ./le setup docker-host start"}
+		return checkRow{checkProfile, verdictFail, "not running. Fix: ./le setup docker host start"}
 	}
 	return checkRow{checkProfile, verdictPass, "running"}
 }
@@ -302,13 +302,13 @@ func socketRow() checkRow {
 	}
 	info, err := os.Stat(socket)
 	if errors.Is(err, fs.ErrNotExist) {
-		return checkRow{checkSocket, verdictFail, socket + " does not exist. Fix: ./le setup docker-host start"}
+		return checkRow{checkSocket, verdictFail, socket + " does not exist. Fix: ./le setup docker host start"}
 	}
 	if err != nil {
 		return checkRow{checkSocket, verdictFail, err.Error()}
 	}
 	if info.Mode()&fs.ModeSocket == 0 {
-		return checkRow{checkSocket, verdictFail, socket + " is not a socket. Fix: colima delete --profile ze --force, then ./le setup docker-host start"}
+		return checkRow{checkSocket, verdictFail, socket + " is not a socket. Fix: colima delete --profile ze --force, then ./le setup docker host start"}
 	}
 	return checkRow{checkSocket, verdictPass, socket}
 }
@@ -354,8 +354,8 @@ func refuseOffDarwin(verb string) error {
 	if runtime.GOOS == darwinOS {
 		return nil
 	}
-	return fmt.Errorf("`./le setup docker-host %s` drives the ze Colima profile, which is the macOS lab host; on %s, labs use "+
-		"this host's Docker daemon booted on Ze's kernel. Fix: ./le setup docker-kernel install", verb, runtime.GOOS)
+	return fmt.Errorf("`./le setup docker host %s` drives the ze Colima profile, which is the macOS lab host; on %s, labs use "+
+		"this host's Docker daemon booted on Ze's kernel. Fix: ./le setup docker kernel install", verb, runtime.GOOS)
 }
 
 // dockerHostCacheDir is the docker-host cache root, ~/.cache/ze/docker-host.

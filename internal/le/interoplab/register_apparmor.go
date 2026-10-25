@@ -11,6 +11,6 @@ func init() {
 		Runs:  "the kernel probe",
 		Needs: "the probe's mount and its /proc/sys write",
 		Text:  kernelcap.ProbeAppArmorProfile,
-		Next:  "./le setup docker-kernel check",
+		Next:  "./le setup docker kernel check",
 	})
 }

@@ -81,8 +81,8 @@ and the Colima disk gives freed space back to the host.
 - [ ] `internal/le/scratch/livetrim.go` - liveness rows, `trimTestTemp`, `olderThan`, `removeLivenessEntry`, `measureEntry`, `sessionProcessVisible`
 - [ ] `internal/le/interoplab/docker.go` - `(*Docker).Build` (shared tag, `ze-*-retained:<rand>`, owner labels), `ReleaseImage`, `Pull`
 - [ ] `internal/le/interoplab/orphans.go` - `CleanupOrphans`, `listResources` (skips `:<none>`), `ownerIdentity.labelArguments`, `ownerJudge.judge`
-- [ ] `internal/le/setup/dockerhost/build.go` - `(*builder).build`, `EnsureImage`, `ImageKey`, `sourceDigest`; no eviction
-- [ ] `internal/le/setup/dockerhost/colima.go` - `readColimaRecord` (`colima-ze.started`), `colimaHost.start`, `zeDockerContext`
+- [ ] `internal/le/setup/docker/host/build.go` - `(*builder).build`, `EnsureImage`, `ImageKey`, `sourceDigest`; no eviction
+- [ ] `internal/le/setup/docker/host/colima.go` - `readColimaRecord` (`colima-ze.started`), `colimaHost.start`, `zeDockerContext`
 - [ ] `internal/le/test/qemu/run.go` - `ensureScratch`, `setupCommand` (`go-dl`), `keepAliveProfile`
 - [ ] `internal/le/test/qemu/vmrecord.go` - `recordVM`, `reapOrphanVMs`, `reapOne`
 - [ ] `internal/le/test/qemu/mplsboot.go` - `workDir` (`MkdirTemp run-`), deferred removal unless `Keep`
@@ -130,7 +130,7 @@ and the Colima disk gives freed space back to the host.
 - `trimStoresScanning` (`storetrim.go`) - the new rows
 - `ownerJudge.judge`, `ownerIdentity` (`interoplab/orphans.go`) - liveness for images and run directories
 - `evictKeepN` (`appliance/cache.go`) - reused for the docker-host image cache
-- docker-host image build (`setup/dockerhost`) - the daemon configuration gains the build cache bound
+- docker-host image build (`setup/docker/host`) - the daemon configuration gains the build cache bound
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -202,7 +202,7 @@ and the Colima disk gives freed space back to the host.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTrimDockerHostImagesKeepsRecordedCurrentAndNewest` | `internal/le/setup/dockerhost/build_test.go` | AC-1, R-1 | |
+| `TestTrimDockerHostImagesKeepsRecordedCurrentAndNewest` | `internal/le/setup/docker/host/build_test.go` | AC-1, R-1 | |
 | `TestQEMURunDirCarriesOwnerMarker` | `internal/le/test/qemu/mplsboot_test.go` | marker written | |
 | `TestTrimQEMURunDirs` | `internal/le/scratch/storetrim_test.go` | AC-2, AC-3, AC-4 | |
 | `TestTrimQEMULeftovers` | `internal/le/scratch/storetrim_test.go` | AC-5, AC-6, AC-7 | |
@@ -231,7 +231,7 @@ N-A: tooling, no protocol peer.
 
 ## Files to Modify
 - `internal/le/scratch/storetrim.go`, `livetrim.go`, `cacheclean.go` - new rows, kernel guard on each
-- `internal/le/setup/dockerhost/build.go` - eviction entry point; daemon configuration with the build cache bound
+- `internal/le/setup/docker/host/build.go` - eviction entry point; daemon configuration with the build cache bound
 - `internal/le/interoplab/orphans.go` - untagged dead-owner images; volumes by label
 - `internal/appliance/kernelbuilder/recipe.go` - owner labels on image and volumes
 - `internal/le/test/qemu/mplsboot.go`, `hugepages.go`, `dockerlab.go` - owner marker; `hugepages.go` stale comment

@@ -65,13 +65,13 @@ func DockerKernelRoute(goos string, lab, environment []string) string {
 	if goos == "linux" {
 		return "Run Docker on a kernel with every feature, or install Ze's kernel and reboot." +
 			" The install prints its steps and runs none until you confirm the release:\n" +
-			"  ./le setup docker-kernel install"
+			"  ./le setup docker kernel install"
 	}
 	if goos == hostGOOSDarwin {
 		return "On macOS the labs run on the `ze` Colima profile, which boots Ze's docker-host image on Ze's runtime kernel." +
 			" If DOCKER_HOST names another daemon, unset it so the labs reach the profile." +
 			" If the profile's kernel lacks the feature, add its options to gokrazy/kernel/runtime.config" +
-			" and gokrazy/kernel/runtime.require, then rebuild the image with `./le setup docker-host build`." +
+			" and gokrazy/kernel/runtime.require, then rebuild the image with `./le setup docker host build`." +
 			" Start the profile, recreated on a rebuilt image, with:\n" +
 			"  " + dockerhost.DockerHostStart
 	}
@@ -95,7 +95,7 @@ const zeKernelReleaseSuffix = "-ze"
 
 // dockerKernelRouteFor is DockerKernelRoute for a daemon whose kernel release
 // was read. A daemon on Linux already running Ze's kernel (the QEMU guest of
-// `./le test qemu docker-lab`, or a host after `./le setup docker-kernel
+// `./le test qemu docker-lab`, or a host after `./le setup docker kernel
 // install`) gains nothing from installing Ze's kernel again: what it lacks is
 // missing from the runtime kernel's config, so the step is that config and the
 // kernel cache rebuild. macOS keeps its own route, which already names that

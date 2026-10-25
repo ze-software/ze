@@ -41,7 +41,7 @@ func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
 	if err == nil {
 		t.Fatal("darwin was accepted")
 	}
-	for _, want := range []string{"Linux", "\n  ./le setup docker-host start"} {
+	for _, want := range []string{"Linux", "\n  ./le setup docker host start"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}
@@ -141,7 +141,7 @@ func TestDockerKernelReleaseNeedsTheZeSuffix(t *testing.T) {
 // PREVENTS: the install refusing every kernel Ze builds, or a build that
 // ships a bare upstream release name.
 func TestRuntimeKernelConfigDeclaresALocalVersion(t *testing.T) {
-	config, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "gokrazy", "kernel", "runtime.config"))
+	config, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "gokrazy", "kernel", "runtime.config"))
 	if err != nil {
 		t.Fatalf("read runtime.config: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 			continue
 		}
-		if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker-kernel install confirm 7.2.9-ze") {
+		if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install confirm 7.2.9-ze") {
 			t.Errorf("%s: refusal does not carry the confirming command on a line of its own: %v", name, err)
 		}
 	}

@@ -13,14 +13,14 @@ import (
 // VALIDATES: review R1-3: a change to the guest program, the instance, this
 // package (extra files, modes, static recipe), the instance preparation or
 // the gok run gives a new image key; a test file or testdata does not.
-// PREVENTS: `./le setup docker-host start` reusing a cached image built
+// PREVENTS: `./le setup docker host start` reusing a cached image built
 // from code that has since changed.
 func TestSourceDigestCoversEveryPathThatShapesTheImage(t *testing.T) {
 	shaping := []string{
 		"cmd/ze-docker-host",
 		"internal/appliance/dockerhost",
 		"gokrazy/docker-host",
-		"internal/le/setup/dockerhost",
+		"internal/le/setup/docker/host",
 		"internal/appliance/instance",
 		"internal/le/build/gokrazy",
 	}

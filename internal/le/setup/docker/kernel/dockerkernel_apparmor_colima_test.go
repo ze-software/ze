@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel_apparmor_colima.go -- the macOS half these tests drive
 //
-// On macOS `le setup docker-kernel apparmor` loads a Ze profile into the Colima
+// On macOS `le setup docker kernel apparmor` loads a Ze profile into the Colima
 // VM that runs the Docker daemon, through `colima ssh`. Every command it runs
 // before the root steps goes through a scripted runner here, and the root
 // steps are read as a plan, never run.
@@ -105,13 +105,13 @@ func TestAppArmorColimaHost(t *testing.T) {
 			edit: func(r map[string]vmResult) {
 				r[dockerEndpointCommand] = vmResult{Stdout: "unix:///Users/me/.docker/run/docker.sock\n"}
 			},
-			want: []string{"unix:///Users/me/.docker/run/docker.sock", "Colima", "\n  ./le setup docker-host start"},
+			want: []string{"unix:///Users/me/.docker/run/docker.sock", "Colima", "\n  ./le setup docker host start"},
 		},
 		"no endpoint": {
 			edit: func(r map[string]vmResult) {
 				r[dockerEndpointCommand] = vmResult{Exit: 1, Stderr: "context not found"}
 			},
-			want: []string{dockerEndpointCommand, "context not found", "\n  ./le setup docker-host start"},
+			want: []string{dockerEndpointCommand, "context not found", "\n  ./le setup docker host start"},
 		},
 		"VM stopped": {
 			edit: func(r map[string]vmResult) {

@@ -167,7 +167,7 @@ func TestKernelProbeProfileIsRegistered(t *testing.T) {
 	if profile.Text() != kernelcap.ProbeAppArmorProfile() {
 		t.Error("the registered text is not kernelcap's probe profile")
 	}
-	if got, want := AppArmorLoadCommandFor(profile.Name), "./le setup docker-kernel apparmor confirm ze-kernel-probe"; got != want {
+	if got, want := AppArmorLoadCommandFor(profile.Name), "./le setup docker kernel apparmor confirm ze-kernel-probe"; got != want {
 		t.Errorf("load command %q, want %q", got, want)
 	}
 	if !slices.Contains(AppArmorProfileNames(), profile.Name) {
@@ -177,7 +177,7 @@ func TestKernelProbeProfileIsRegistered(t *testing.T) {
 
 // VALIDATES: owner decision 2026-10-21 ("find the colima issue so that setup
 // can have it working"). On a darwin client every AppArmor refusal names
-// `./le setup docker-kernel apparmor confirm <profile>` on its own line, says
+// `./le setup docker kernel apparmor confirm <profile>` on its own line, says
 // that on macOS it loads the profile into the Colima VM that runs the daemon,
 // and still names the QEMU docker-lab route and the daemon's kernel release,
 // because the profile adds no kernel feature; on a Linux client the texts are
@@ -226,7 +226,7 @@ func TestAppArmorRefusalOnDarwinNamesTheColimaLoad(t *testing.T) {
 	probe := appArmorRefusal(hostGOOSLinux, "6.8.0-117-generic", "the daemon could not apply (x)")
 	wantProbe := "the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ze-kernel-probe," +
 		" which the daemon could not apply (x). Docker's docker-default profile denies the probe's mount and its" +
-		" /proc/sys write. Load Ze's profile with:\n  ./le setup docker-kernel apparmor confirm ze-kernel-probe\n" +
+		" /proc/sys write. Load Ze's profile with:\n  ./le setup docker kernel apparmor confirm ze-kernel-probe\n" +
 		"The profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel" +
 		" (6.8.0-117-generic) lacks, MOBIKE's xfrm migrate for example, is then named.\n" +
 		DockerKernelRoute(hostGOOSLinux, leWords(), selectorEnvironment())
@@ -249,7 +249,7 @@ func TestAppArmorRefusalOnDarwinNamesTheColimaLoad(t *testing.T) {
 	linux := labAppArmorRefusal(hostGOOSLinux, profile, "the daemon could not apply (x)")
 	want := "the Docker daemon applies AppArmor, and the test lab's router runs under Ze's profile ze-test-lab," +
 		" which the daemon could not apply (x). Docker's docker-default profile denies its sysctl writes." +
-		" Load Ze's profile with:\n  ./le setup docker-kernel apparmor confirm ze-test-lab"
+		" Load Ze's profile with:\n  ./le setup docker kernel apparmor confirm ze-test-lab"
 	if linux.Error() != want {
 		t.Errorf("the Linux lab refusal changed:\n%v\nwant\n%v", linux, want)
 	}

@@ -498,7 +498,7 @@ because a lab under TCG measures the emulator. It then:
 6. forwards the guest's `/var/run/docker.sock` with `ssh -N -L` to
    `tmp/qemu/docker-lab-<n>/docker.sock`, created mode 0600
    (`StreamLocalBindMask=0177`; any other mode refuses the run);
-7. runs, on the host, `./le setup docker-kernel check ze <linux ze>` with
+7. runs, on the host, `./le setup docker kernel check ze <linux ze>` with
    `DOCKER_HOST` naming that socket, and, when it passes and a `lab` is named,
    `./le <lab>` under the same `DOCKER_HOST` and under `env` with the lab's
    assignments;
@@ -525,7 +525,7 @@ group. Only then does le list the leftovers, and only after that does the VM
 stop (spec AC-10).
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe, refuseUnmountableShare -->
 <!-- source: internal/le/test/qemu/cidata.go -- cidataISO -->
-<!-- source: internal/le/setup/dockerhost/actions.go -- EnsureImage -->
+<!-- source: internal/le/setup/docker/host/actions.go -- EnsureImage -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
 <!-- test: internal/le/job/runcontext_test.go TestRunContextEndsTheWaitForASlot, TestRunContextStartsNoChildUnderADoneRoot, TestRunContextStopsARunningChildWithSIGTERM, TestRunContextEndsTheFollowOfASharedRun, TestRunContextNotesAStopRatherThanItsError -->
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot, TestDockerLabBuildsSayTheyWereStopped -->

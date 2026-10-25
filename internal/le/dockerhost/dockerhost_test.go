@@ -45,7 +45,7 @@ func TestEnvironmentSelectsTheZeProfileSocket(t *testing.T) {
 
 // VALIDATES: AC-8 (b): on macOS with no DOCKER_HOST and no `ze` socket, the
 // selection refuses, naming the missing socket, that the labs run on the `ze`
-// profile, and `./le setup docker-host start` on a line of its own, while the
+// profile, and `./le setup docker host start` on a line of its own, while the
 // `default` socket and /var/run/docker.sock are present.
 // METHOD: a fake home under t.TempDir() through the real IsSocket, holding a
 // listening `default` socket and no `ze` directory.
@@ -76,7 +76,7 @@ func TestEnvironmentRefusesWithoutTheZeSocket(t *testing.T) {
 	for _, want := range []string{
 		filepath.Join(home, ".colima", "ze", "docker.sock"),
 		"On macOS the labs run on the `ze` profile",
-		"\n  ./le setup docker-host start",
+		"\n  ./le setup docker host start",
 	} {
 		if !strings.Contains(message, want) {
 			t.Errorf("refusal lacks %q:\n%s", want, message)

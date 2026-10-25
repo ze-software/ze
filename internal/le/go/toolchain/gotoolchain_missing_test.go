@@ -4,7 +4,7 @@
 // on PATH: the Go side in New, and the launcher script before it builds bin/le.
 // Each message names the missing program, the version go.mod pins, and the fix.
 // PREVENTS: the owner's Linux run of 2026-10-10, where a non-interactive shell
-// had no go on PATH and `./le setup docker-kernel check` answered only
+// had no go on PATH and `./le setup docker kernel check` answered only
 // `exec: "go": executable file not found in $PATH` and `exited 127`.
 
 package gotoolchain

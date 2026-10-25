@@ -110,7 +110,7 @@ jobs:
   # docker-host image, built from Ze's runtime kernel, under KVM and runs the
   # lab from the runner's le against the guest's forwarded Docker socket,
   # through `./le test qemu docker-lab`: the path the Mac shares under HVF
-  # (owner D-6). The le runs `./le setup docker-kernel check` before the lab,
+  # (owner D-6). The le runs `./le setup docker kernel check` before the lab,
   # so a kernel that lacks a feature fails in seconds and names it. The kernel
   # cache entry is the one qemu-nightly.yml builds and saves, under the same key.
   # The last step asks the hosted runner's own kernel too, as information: when
@@ -173,7 +173,7 @@ jobs:
         # before building it leaves nothing to probe.
         if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
+        run: ./le setup docker kernel check ze tmp/qemu/linux-amd64/ze
 
   # The strongSwan lab programs XFRM state in privileged containers. It remains
   # scheduled and advisory, never part of a merge gate.
@@ -232,7 +232,7 @@ jobs:
         # before building it leaves nothing to probe.
         if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
+        run: ./le setup docker kernel check ze tmp/qemu/linux-amd64/ze
 
   # Ze's admin login against a real FreeRADIUS server. Every other RADIUS proof
   # ze holds runs against a mock ze wrote, and a mock built beside ze's own
@@ -300,7 +300,7 @@ jobs:
         # before building it leaves nothing to probe.
         if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
+        run: ./le setup docker kernel check ze tmp/qemu/linux-amd64/ze
 
   # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
   # PPPoL2TP in the Docker host's kernel, which the Ze-kernel guest carries. It
@@ -368,7 +368,7 @@ jobs:
         # before building it leaves nothing to probe.
         if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
+        run: ./le setup docker kernel check ze tmp/qemu/linux-amd64/ze
 
   # Ze's PPPoE client against a real accel-ppp access concentrator. Same tiering
   # reason as the L2TP lab above, and the same advisory posture: it needs PPPoE
@@ -428,4 +428,4 @@ jobs:
         # before building it leaves nothing to probe.
         if: ${{ !cancelled() && hashFiles('tmp/qemu/linux-amd64/ze') != '' }}
         continue-on-error: true
-        run: ./le setup docker-kernel check ze tmp/qemu/linux-amd64/ze
+        run: ./le setup docker kernel check ze tmp/qemu/linux-amd64/ze

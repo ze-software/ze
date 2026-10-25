@@ -198,7 +198,7 @@ func runGok(arch string, args []string) error {
 // gok spawns read the image arch from GOARCH, Run sets CGO_ENABLED, GOMODCACHE,
 // GOFLAGS and GOPROXY, and gok applies the instance's Environment (GOOS=linux)
 // with os.Setenv. le does not exit after the build: `./le test qemu docker-lab`
-// and `./le setup docker-host start` go on to run commands that inherit
+// and `./le setup docker host start` go on to run commands that inherit
 // os.Environ(), and a GOOS=linux reaching the host le makes its launcher build
 // a linux binary. So the environment is restored to the snapshot taken here
 // before runGokWith returns, whether Run answered success or failure. A failed
@@ -216,7 +216,7 @@ func runGokWith(run func(args []string) int, arch string, args []string) (err er
 	}
 	if code := run(args); code != 0 {
 		return fmt.Errorf("gok exited %d building the docker-host image (its output is above). "+
-			"Fix: correct what gok names, then run `./le setup docker-host build` again", code)
+			"Fix: correct what gok names, then run `./le setup docker host build` again", code)
 	}
 	return nil
 }
@@ -260,7 +260,7 @@ var digestRoots = []string{
 	"cmd/ze-docker-host",
 	"internal/appliance/dockerhost",
 	"gokrazy/docker-host",
-	"internal/le/setup/dockerhost",
+	"internal/le/setup/docker/host",
 	"internal/appliance/instance",
 	"internal/le/build/gokrazy",
 }
@@ -320,7 +320,7 @@ func sourceDigest(repo, arch string, sizeGiB int) (string, error) {
 // would fill another host's cache.
 func dockerHostRuntimeKernel(arch string) (string, error) {
 	return appliance.ImageRuntimeKernelTree(arch, func(arch string) string {
-		return "./le setup docker-host build arch " + arch
+		return "./le setup docker host build arch " + arch
 	})
 }
 

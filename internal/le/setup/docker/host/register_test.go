@@ -7,7 +7,7 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// VALIDATES: `./le setup docker-host` is registered with le's dispatcher and
+// VALIDATES: `./le setup docker host` is registered with le's dispatcher and
 // lists build, start, stop and check, with build's arch, size and pins
 // keywords.
 // PREVENTS: an area that compiles but that `./le` cannot reach.

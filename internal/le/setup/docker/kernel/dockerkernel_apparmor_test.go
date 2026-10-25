@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel_apparmor.go -- the action these tests drive
 //
-// `le setup docker-kernel apparmor` loads any registered Ze AppArmor profile on
+// `le setup docker kernel apparmor` loads any registered Ze AppArmor profile on
 // a Linux Docker host. Its root steps never run here: the tests read the plan,
 // the refusals and the commands the lab refusals name. interoplab registers the
 // generic lab profile ze-lab-net-sysctl, so the registry holds more than the
@@ -27,7 +27,7 @@ import (
 // PREVENTS: a refusal naming a command that does not exist.
 func TestAppArmorLoadCommandIsThisAction(t *testing.T) {
 	for _, name := range interoplab.AppArmorProfileNames() {
-		want := "./le setup docker-kernel " + dockerKernelAppArmorVerb + " " + dockerKernelConfirmKeyword + " " + name
+		want := "./le setup docker kernel " + dockerKernelAppArmorVerb + " " + dockerKernelConfirmKeyword + " " + name
 		if got := interoplab.AppArmorLoadCommandFor(name); got != want {
 			t.Errorf("the refusal names %q, the action is %q", got, want)
 		}

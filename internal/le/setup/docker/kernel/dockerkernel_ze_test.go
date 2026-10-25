@@ -126,7 +126,7 @@ func TestDockerKernelProbeZeRefusesAnythingButTheDaemonsLinuxBinary(t *testing.T
 }
 
 // VALIDATES: `ze` is optional on check, so the owner's bare
-// `./le setup docker-kernel check` resolves the binary rather than refusing.
+// `./le setup docker kernel check` resolves the binary rather than refusing.
 func TestDockerKernelCheckZeIsOptional(t *testing.T) {
 	for _, action := range DockerKernelActions().Actions {
 		if action.Verb != dockerKernelCheckVerb {

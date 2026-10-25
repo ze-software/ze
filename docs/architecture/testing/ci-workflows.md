@@ -68,7 +68,7 @@ kernel --target runtime --arch amd64`, and saves it. It then runs its lab as
 `./le test qemu docker-lab lab "<le words>"`: Ze's docker-host image for amd64,
 built from that kernel on a miss of its own cache, boots under KVM, never TCG;
 its Docker socket is forwarded over ssh, and the runner's own le runs
-`./le setup docker-kernel check` against it and only then the lab. A last step runs the same check against the hosted runner's
+`./le setup docker kernel check` against it and only then the lab. A last step runs the same check against the hosted runner's
 own Docker daemon, as information: it may fail without failing the job, and its
 log shows the day GitHub's kernel starts to pass. `radius-interop` is among
 them although its admin path needs no kernel feature: the lab stages a ze that

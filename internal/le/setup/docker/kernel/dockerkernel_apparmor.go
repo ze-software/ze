@@ -1,9 +1,9 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: dockerkernel.go -- the area this verb belongs to
-// Related: ../../interoplab/apparmor.go -- the profile registry, and the load command its refusals name
-// Related: ../../../component/kernelcap/apparmor.go -- DockerDefaultProfile, the base of every profile
+// Related: ../../../interoplab/apparmor.go -- the profile registry, and the load command its refusals name
+// Related: ../../../../component/kernelcap/apparmor.go -- DockerDefaultProfile, the base of every profile
 //
-// `le setup docker-kernel apparmor` loads a Ze AppArmor profile on a Linux
+// `le setup docker kernel apparmor` loads a Ze AppArmor profile on a Linux
 // Docker host whose daemon applies AppArmor (D-7), and on macOS into the
 // Colima VM that runs the daemon (dockerkernel_apparmor_colima.go). A lab container that needs
 // more than Docker's docker-default profile grants runs under a Ze profile that
@@ -154,7 +154,7 @@ func appArmorLoadPlatform(goos string) error {
 		return nil
 	}
 	var tb textbuf.Buffer
-	return errors.New(tb.Str("`le setup docker-kernel apparmor` loads an AppArmor profile into a Linux Docker host's kernel, or on macOS into Colima's VM, and runs on Linux and macOS only. ").
+	return errors.New(tb.Str("`le setup docker kernel apparmor` loads an AppArmor profile into a Linux Docker host's kernel, or on macOS into Colima's VM, and runs on Linux and macOS only. ").
 		Str(interoplab.DockerKernelRoute(goos, nil, nil)).String())
 }
 
@@ -196,7 +196,7 @@ func appArmorHostReady(enabled, parser string) error {
 	if strings.TrimSpace(enabled) != "Y" {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("AppArmor is not enabled in this kernel (").Str(appArmorEnabledPath).
-			Str(" does not read Y), so Docker applies no AppArmor profile and the probe needs none: run ./le setup docker-kernel check").String())
+			Str(" does not read Y), so Docker applies no AppArmor profile and the probe needs none: run ./le setup docker kernel check").String())
 	}
 	if parser == "" {
 		return errors.New("AppArmor is enabled but apparmor_parser is not installed (Debian and Ubuntu: the apparmor package), so no profile can be loaded")

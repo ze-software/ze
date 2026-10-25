@@ -32,7 +32,7 @@ func ExecuteGok(ctx context.Context, args []string) error {
 // in. gok's commands chdir into the instance directory and never chdir back
 // (gokrazy/tools internal/gok, overwrite.go), and `le build gokrazy` builds
 // from a prepared instance it removes afterwards. A caller that keeps working
-// after the build, as `./le setup docker-host start` does when it then runs
+// after the build, as `./le setup docker host start` does when it then runs
 // Colima, would otherwise hand every child a removed working directory: Lima
 // then fails to cd into it inside the guest and Colima cannot enable Rosetta.
 func keepWorkingDir(run func() error) error {

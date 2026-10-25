@@ -6,7 +6,7 @@
 // Run by hand on a Mac whose Docker client uses Colima:
 //
 //	./le job run label colima-apparmor command go test -tags integration -count=1 \
-//	  -run '^TestAppArmorColimaHostOnThisMac$' ./internal/le/setup/dockerkernel/
+//	  -run '^TestAppArmorColimaHostOnThisMac$' ./internal/le/setup/docker/kernel/
 
 package dockerkernel
 

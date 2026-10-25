@@ -47,7 +47,7 @@ func TestDockerKernelInstallConfirmKeepsTheBuilder(t *testing.T) {
 	if err == nil {
 		t.Fatal("no confirm was accepted")
 	}
-	if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker-kernel install builder qemu confirm 7.2.9-ze") {
+	if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install builder qemu confirm 7.2.9-ze") {
 		t.Errorf("refusal does not carry the confirming command with its builder: %v", err)
 	}
 }

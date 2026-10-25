@@ -33,7 +33,7 @@ func TestApplianceEnvKeepsTheOperatorsDaemon(t *testing.T) {
 }
 
 // VALIDATES: on macOS, with no DOCKER_HOST and no `ze` Colima profile socket,
-// the run is refused naming `./le setup docker-host start`; elsewhere it runs.
+// the run is refused naming `./le setup docker host start`; elsewhere it runs.
 // PREVENTS: `ze appliance build` running Docker on the client's current
 // context, which the owner's standing decisions rule out (it ran on os.Environ() before).
 func TestApplianceEnvRefusesWithoutTheZeProfile(t *testing.T) {
@@ -43,7 +43,7 @@ func TestApplianceEnvRefusesWithoutTheZeProfile(t *testing.T) {
 
 	got, err := run.applianceEnv("/work/appliances")
 	if runtime.GOOS == "darwin" {
-		if err == nil || !strings.Contains(err.Error(), "./le setup docker-host start") {
+		if err == nil || !strings.Contains(err.Error(), "./le setup docker host start") {
 			t.Fatalf("env=%q err=%v, want the refusal naming the docker-host start", got, err)
 		}
 		return

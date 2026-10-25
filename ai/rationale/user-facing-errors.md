@@ -32,7 +32,7 @@ own carries a trigger that names every surface.
 
 ## The case that prompted it
 
-On a Linux host, from a non-interactive shell, `./le setup docker-kernel check`
+On a Linux host, from a non-interactive shell, `./le setup docker kernel check`
 answered `cannot run go: exec: "go": executable file not found in $PATH` and
 `exited 127`. Every word was true and none told the reader what to do.
 `gotoolchain.New` (`internal/le/go/toolchain`), the one place le resolves the Go

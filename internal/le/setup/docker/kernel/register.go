@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	// `le setup docker-kernel` is its own area: its install changes a host's
+	// `le setup docker kernel` is its own area: its install changes a host's
 	// boot kernel, so it never shares the `setup install` run (dockerkernel.go).
 	leroot.Register(dockerKernelArea, leroot.GroupWorkflow, DockerKernelAnswer, registry.Meta{
 		Description: "The Docker daemon's kernel: check it carries every feature Ze's labs need, or install Ze's own runtime kernel and AppArmor profile on a Linux Docker host.",

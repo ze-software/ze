@@ -5,7 +5,7 @@
 //
 // On macOS every lab Docker daemon runs on Ze's kernel and Ze's system (owner
 // decision, ai/META-DECISIONS.md): the `ze` Colima profile, which boots
-// Ze's image (`./le setup docker-host start`). Colima serves that profile's
+// Ze's image (`./le setup docker host start`). Colima serves that profile's
 // daemon on ze/docker.sock under its configuration root (ZeSocket), which
 // ColimaHome resolves as Colima does: COLIMA_HOME when it exists, else
 // ~/.colima. Environment names that socket as DOCKER_HOST whenever the
@@ -17,7 +17,7 @@
 //
 // A DOCKER_HOST the operator set is kept as it is. It is an explicit choice of
 // daemon (the QEMU docker-lab's forwarded socket is one), and the Docker kernel
-// check every lab runs first (`./le setup docker-kernel check`,
+// check every lab runs first (`./le setup docker kernel check`,
 // interoplab.DockerKernel) stays the gate that refuses a daemon whose kernel
 // lacks a feature.
 package dockerhost
@@ -44,7 +44,7 @@ const ZeProfile = "ze"
 
 // DockerHostStart is the command that starts the `ze` profile, recreating it
 // when the image changed. A refusal names it on a line of its own.
-const DockerHostStart = "./le setup docker-host start"
+const DockerHostStart = "./le setup docker host start"
 
 // ZeSocket answers where Colima serves the `ze` profile's Docker daemon under
 // colimaHome, the root ColimaHome answers.

@@ -163,7 +163,7 @@ from `TCP_MD5SIG`; enabling the separate `CRYPTO_MD5` module is not the fix.
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_TCP_MD5SIG -->
 
 A Linux Docker host boots the runtime kernel in place of its distro kernel
-(`le setup docker-kernel install`), so the profile also carries what such a
+(`le setup docker kernel install`), so the profile also carries what such a
 host relies on to come up. `CONFIG_HOTPLUG_PCI`, `CONFIG_HOTPLUG_PCI_ACPI` and
 `CONFIG_HOTPLUG_PCI_PCIE` publish `/sys/bus/pci/slots`, from which udev names
 an interface by its slot (`ens18` on QEMU and Proxmox). Without them udev names
@@ -174,23 +174,23 @@ beside the `multiport`, `comment`, `addrtype` and `conntrack` matches Docker
 already needs; without them `ufw.service` fails with "Extension limit revision
 0 not supported". `ipv6header` and `state`, which hand-written rule sets load,
 were set only by the defconfig and are now requested too. Each is built in and
-declared in `runtime.require`. `le setup docker-kernel install` refuses a
+declared in `runtime.require`. `le setup docker kernel install` refuses a
 cached kernel that lacks an option the host relies on, and
 `TestHostDependencyOptionsAreInTheRuntimeProfile` fails when its tables name an
 option this fragment does not set (`docs/architecture/testing/interop.md`).
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_HOTPLUG_PCI_ACPI, CONFIG_NETFILTER_XT_MATCH_LIMIT -->
 <!-- source: gokrazy/kernel/runtime.require -- CONFIG_HOTPLUG_PCI_ACPI, CONFIG_NETFILTER_XT_MATCH_LIMIT -->
-<!-- source: internal/le/setup/dockerkernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions -->
+<!-- source: internal/le/setup/docker/kernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions -->
 
 The runtime fragment sets `CONFIG_LOCALVERSION="-ze"`, so the runtime kernel's
 release is the pinned version with that suffix (`7.2.9-ze`) and its `/boot`
 and `/lib/modules` entries never share a name with another kernel built from
-the same upstream release. `le setup docker-kernel install` reads the suffix
+the same upstream release. `le setup docker kernel install` reads the suffix
 from the cache entry's emitted `config` and refuses a release that does not end
 with it, because a reinstall removes the trees it replaces. The QEMU guest
 release check accepts the suffixed release.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_LOCALVERSION -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
 <!-- source: internal/le/test/qemu/run_exec.go -- Run.assertRuntimeKernel -->
 
 

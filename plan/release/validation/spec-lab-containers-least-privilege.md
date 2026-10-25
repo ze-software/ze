@@ -31,13 +31,13 @@ Goals.
 |----|------|
 | G-1 | No lab container runs `--privileged` unless this spec records a verdict that its need is unbounded |
 | G-2 | Every grant a container keeps is proven necessary: removing it makes the lab fail |
-| G-3 | A container that needs more than docker-default's AppArmor rules runs under a registered Ze profile, loaded by `./le setup docker-kernel apparmor confirm <name>`, never unconfined |
+| G-3 | A container that needs more than docker-default's AppArmor rules runs under a registered Ze profile, loaded by `./le setup docker kernel apparmor confirm <name>`, never unconfined |
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/testing/interop.md` - the Docker host kernel check and the AppArmor profile registry
-  → Decision: a lab's profile registers with `interoplab.RegisterAppArmorProfile` from a `register_apparmor.go` in the lab's own package; a peer names it in `PeerConfig.AppArmorProfile`; `runContainer` adds `--security-opt apparmor=<name>` only on a daemon that reports AppArmor and refuses on a Linux client whose `/sys/kernel/security/apparmor/profiles` lacks it, naming `./le setup docker-kernel apparmor confirm <name>`. One registry, no list.
+  → Decision: a lab's profile registers with `interoplab.RegisterAppArmorProfile` from a `register_apparmor.go` in the lab's own package; a peer names it in `PeerConfig.AppArmorProfile`; `runContainer` adds `--security-opt apparmor=<name>` only on a daemon that reports AppArmor and refuses on a Linux client whose `/sys/kernel/security/apparmor/profiles` lacks it, naming `./le setup docker kernel apparmor confirm <name>`. One registry, no list.
   → Constraint: a profile is built with `kernelcap.DockerDefaultProfile(name, procSysDenies, mounts)` and `kernelcap.ProcSysWriteDenies(keep)`; `keep` is ONE path, a trailing slash grants the directory, any other keep is one file and everything longer is denied. Two disjoint keeps cannot be expressed, because each deny chain refuses the other.
 - [ ] `docs/architecture/core-design.md` - declared by the deployment and terminal-demo files
   → Constraint: unaffected; this spec changes container argv only, no package boundary or registration
@@ -108,7 +108,7 @@ Goals.
 | container ↔ host kernel | capabilities, devices, sysctls, AppArmor | lab runs on Ze's kernel through `docker-lab` |
 
 ### Integration Points
-- `interoplab.RegisterAppArmorProfile` and `./le setup docker-kernel apparmor confirm <name>`: a new profile is loadable with no edit to the setup action.
+- `interoplab.RegisterAppArmorProfile` and `./le setup docker kernel apparmor confirm <name>`: a new profile is loadable with no edit to the setup action.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -118,7 +118,7 @@ Goals.
 | No duplicated functionality (extends existing, does not recreate) | Yes | profiles use `kernelcap.DockerDefaultProfile` and `ProcSysWriteDenies` |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | tooling argv |
 | Registration over hardcoding, outbound | Yes | a profile registers from the lab's `register_apparmor.go` |
-| Registration over hardcoding, inbound | Yes | `internal/le/setup/dockerkernel/dockerkernel_apparmor.go` iterates `AppArmorProfileNames()`; no list names the new profiles |
+| Registration over hardcoding, inbound | Yes | `internal/le/setup/docker/kernel/dockerkernel_apparmor.go` iterates `AppArmorProfileNames()`; no list names the new profiles |
 
 ## Risks & Assumptions
 
@@ -157,7 +157,7 @@ Goals.
 | `./le test integration interop-rsvpte` | → | `zePeer`, `mplsPreflight` | `TestRSVPTELabPeersRunWithoutPrivilege`, `TestRSVPTEPreflightRunsWithoutPrivilege` (`internal/le/interoplab/rsvpte/privilege_test.go`) |
 | `./le test deployment l2tp-test` | → | `L2TP.containerArgs` | `TestL2TPDeploymentContainerRunsWithoutPrivilege` (`internal/le/test/deployment/privilege_test.go`) |
 | `./le test deployment vpp-iface-test` | → | `vppIface.containerArgs` | `TestVPPDeploymentContainerRunsWithoutPrivilege` (same file) |
-| `./le setup docker-kernel apparmor confirm <name>` | → | `appArmorLoadConfirmed` over the registry | existing `internal/le/setup/dockerkernel/dockerkernel_apparmor_test.go`, which iterates every registered profile |
+| `./le setup docker kernel apparmor confirm <name>` | → | `appArmorLoadConfirmed` over the registry | existing `internal/le/setup/docker/kernel/dockerkernel_apparmor_test.go`, which iterates every registered profile |
 
 ## Acceptance Criteria
 
@@ -220,7 +220,7 @@ N-A: no numeric input.
 |------|----------|-------------------|--------|
 | interop-ipsec on Ze's kernel | `./le test qemu docker-lab lab "test integration interop-ipsec"` | AC-8, AC-9 | owed |
 | L2TP, PPPoE, RSVP-TE labs | `./le test qemu docker-lab lab "<lab action>"` | AC-8, AC-9 | owed |
-| deployment proofs | `./le test deployment l2tp-test`, `vpp-iface-test` | AC-8, AC-9 | owed. 2026-10-10 on `ssh claude` from a clone at 8f52f9b540 (this spec's code through 28df8df562): `vpp-iface-test` and `vpp-test` both refused before any container, at the Docker kernel check: `the Docker daemon's kernel 6.8.0-146-generic lacks 2 kernel feature(s) Ze needs`, `ipsec-mobike (CONFIG_XFRM_MIGRATE)` and `mpls-transit-mtu (CONFIG_MPLS_IP_MTU)`, fix `./le setup docker-kernel install` (a host install, not done). The Ze-kernel route, `./le test qemu docker-lab lab "test deployment vpp-iface-test"`, refused too: the amd64 runtime-kernel cache entry `7.2.9-runtime-amd64-runtime-7c0d8f79-fd63186e` is not built there (fix `./ze appliance kernel --target runtime --arch amd64`); the build was not started because the host had 15 GB free against a 10 GB floor. A first `vpp-iface-test` attempt failed on `docker info` taking 17 s against the 15 s `dockerInfoTimeout` (a transient daemon stall; the next call took 0.1 s) |
+| deployment proofs | `./le test deployment l2tp-test`, `vpp-iface-test` | AC-8, AC-9 | owed. 2026-10-10 on `ssh claude` from a clone at 8f52f9b540 (this spec's code through 28df8df562): `vpp-iface-test` and `vpp-test` both refused before any container, at the Docker kernel check: `the Docker daemon's kernel 6.8.0-146-generic lacks 2 kernel feature(s) Ze needs`, `ipsec-mobike (CONFIG_XFRM_MIGRATE)` and `mpls-transit-mtu (CONFIG_MPLS_IP_MTU)`, fix `./le setup docker kernel install` (a host install, not done). The Ze-kernel route, `./le test qemu docker-lab lab "test deployment vpp-iface-test"`, refused too: the amd64 runtime-kernel cache entry `7.2.9-runtime-amd64-runtime-7c0d8f79-fd63186e` is not built there (fix `./ze appliance kernel --target runtime --arch amd64`); the build was not started because the host had 15 GB free against a 10 GB floor. A first `vpp-iface-test` attempt failed on `docker info` taking 17 s against the 15 s `dockerInfoTimeout` (a transient daemon stall; the next call took 0.1 s) |
 | profile parse | `apparmor_parser -Q` in `ubuntu:24.04` | AC-2, AC-5 | passed 2026-10-10 on the `ssh claude` host itself (Ubuntu 24.04.5, AppArmor parser 4.0.1): the text `interoplab.LookupAppArmorProfile("ze-lab-net-sysctl").Text()` answers at 244f78b1f5 (50 lines, sha256 `a5a09c44...`) parsed with `apparmor_parser -Q -K -T`, exit 0; the same text with one invalid rule inserted exited 1 (`syntax error, unexpected TOK_ID`), so the parse discriminates. Not loaded (no root) |
 
 ### Interop Tests (Scope: protocol)
@@ -265,7 +265,7 @@ N-A as new scenarios: no protocol behavior changes; the existing scenarios are t
 | Functional test for new RPC/API | No | no RPC |
 | Pipe completeness | No | no output change |
 | Env var registration | No | none |
-| Doctor check for runtime dependencies | No | lab containers, not a ze runtime dependency; the host check is `./le setup docker-kernel check` |
+| Doctor check for runtime dependencies | No | lab containers, not a ze runtime dependency; the host check is `./le setup docker kernel check` |
 | Prometheus counters/metrics | No | none |
 | BGP family surface (new SAFI / capability / attribute) | No | none |
 
@@ -333,8 +333,8 @@ What remains owed before closure:
 |------|-----|----------------|
 | Owner approval | Thomas | his answer to the verification-debt rows for 2e16e9e966, 11e3964084 and 61e717df0c (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` per unit) |
 | AC-8 and AC-9 lab runs | main thread | the amd64 runtime kernel cache entry built on a host with room, then every lab and proof run in the docker-lab guest (AC-8 row), then one grant-removal red per grant (AC-9 row) |
-| AC-2 AppArmor load | main thread, root on an AppArmor host | `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl` loads and enforces the profile |
-| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib`. Attempted 2026-10-11 on `ssh claude` with the renderer image built there (`ze-terminal-demo-render-all:...-liberation-2.1.5`, id `1245f714befa`) at 14e552532b: `./le site terminal-demo render name rib-fib` refused at the Docker host kernel check (stock 6.8.0-146-generic lacks `CONFIG_XFRM_MIGRATE` and `CONFIG_MPLS_IP_MTU`; fix `./le setup docker-kernel install`), before the `net-sysctl` grant or the AppArmor profile was reached. Whether `ze-lab-net-sysctl` is loaded there is unknown: the profile list is root-only and was not read with `sudo` |
+| AC-2 AppArmor load | main thread, root on an AppArmor host | `./le setup docker kernel apparmor confirm ze-lab-net-sysctl` loads and enforces the profile |
+| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib`. Attempted 2026-10-11 on `ssh claude` with the renderer image built there (`ze-terminal-demo-render-all:...-liberation-2.1.5`, id `1245f714befa`) at 14e552532b: `./le site terminal-demo render name rib-fib` refused at the Docker host kernel check (stock 6.8.0-146-generic lacks `CONFIG_XFRM_MIGRATE` and `CONFIG_MPLS_IP_MTU`; fix `./le setup docker kernel install`), before the `net-sysctl` grant or the AppArmor profile was reached. Whether `ze-lab-net-sysctl` is loaded there is unknown: the profile list is root-only and was not read with `sudo` |
 | Full lint and verify | main thread or a fresh agent | `./le go lint run` and `./le verify worktree` over the tree |
 
 ### Round 4 (2026-10-10, independent reviewer): fixes
@@ -475,7 +475,7 @@ Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`,
 | AC | Evidence | Owed, and where |
 |----|----------|-----------------|
 | AC-1 | `TestIPsecLabPeersRunWithoutPrivilege` (argv, `--sysctl` set, NAT script writes no sysctl, `peerReassemblyMarks` under the grant), dba10b4c75 | lab run on Ze's kernel (AC-8) |
-| AC-2 | `TestNetSysctlAppArmorProfileGrantsOnlyNetWrites`, `TestNetSysctlGrantedFollowsTheProfile`; `apparmor_parser -Q` exit 0 on Ubuntu 24.04.5 / parser 4.0.1, invalid-rule control exit 1 (TDD Functional Tests row) | load and enforce on an AppArmor host (needs root: `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`) |
+| AC-2 | `TestNetSysctlAppArmorProfileGrantsOnlyNetWrites`, `TestNetSysctlGrantedFollowsTheProfile`; `apparmor_parser -Q` exit 0 on Ubuntu 24.04.5 / parser 4.0.1, invalid-rule control exit 1 (TDD Functional Tests row) | load and enforce on an AppArmor host (needs root: `./le setup docker kernel apparmor confirm ze-lab-net-sysctl`) |
 | AC-3 | `TestL2TPLabPeersRunWithoutPrivilege` (argv, preflight argv, refusal text), 6d6f2fb308; A-2 resolved at the producer | lab run (AC-8) |
 | AC-4 | `TestPPPoELabPeersRunWithoutPrivilege`, entrypoints carry no `modprobe`, bdee1599a3 | lab run (AC-8); A-3 unvalidated until then |
 | AC-5 | `TestRSVPTELabPeersRunWithoutPrivilege` (every setup-script key derived through `NetSysctlGranted`), `TestRSVPTEPreflightRunsWithoutPrivilege`, 9cf91dc469 | lab run (AC-8) |

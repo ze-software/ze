@@ -41,7 +41,7 @@ func TestColdCacheErrorNamesTheEntryAndTheRemedy(t *testing.T) {
 
 // VALIDATES: the cache-dir query carries the backend the operator named as
 // --builder, and carries none when the operator named none.
-// PREVENTS: `le setup docker-kernel install builder qemu` looking in the docker
+// PREVENTS: `le setup docker kernel install builder qemu` looking in the docker
 // entry because the backend never reached ze-host's cache key.
 func TestRuntimeKernelCacheDirArgvCarriesTheBuilder(t *testing.T) {
 	named := strings.Join(runtimeKernelCacheDirArgv("amd64", "qemu"), " ")
