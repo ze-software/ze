@@ -105,7 +105,7 @@ names it.
 | Tool verdicts | Where a gate reads a tool, the exit code decides and a printed summary is never read as the verdict. An exit code that disagrees with the summary is red and names both |
 | Assertion span | A mid-file foreground helper's span closes when the helper exits, so a later command's output cannot satisfy its assertions |
 | Capability-bound tests | A `.ci` whose feature needs a kernel capability declares it; the runner skips with the missing capability named, and never passes one whose install was refused |
-| ze-peer session routing | `action=send:conn=N` under `conn_map` writes to session N, or refuses |
+| `le test peer` session routing | `action=send:conn=N` under `conn_map` writes to session N, or refuses |
 | Discrimination | A red counts only when the run reached the tagged unit and failed the assertion the record cites. A build failure, setup failure or zero-assertion run is refused with its cause |
 
 The check that stops it coming back: a self-test corpus, one broken run per

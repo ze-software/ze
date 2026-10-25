@@ -89,7 +89,7 @@ is deleted once both read the shared answer.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- every gate, hook and runner listed in "Owned journal rows": `./le commit create`, `./le commit audit`, `./le rfc check`, `./le rfc discriminate-record`, `./le doc check verify`, `./le doc wiring`, `./le repository check`, `./le go lint run`, `./le job run`, `./le test qemu`, the `pretool-bash` and `pretool-writeedit` hooks
+- every gate, hook and runner listed in "Owned journal rows": `./le commit create`, `./le commit audit`, `./le rfc check`, `./le rfc discriminate-record`, `./le doc check verify`, `./le doc wiring`, `./le repo check`, `./le go lint run`, `./le job run`, `./le test qemu`, the `pretool-bash` and `pretool-writeedit` hooks
 
 ### Transformation Path
 1. The gate names the population question it asks (P1 to P4 below)

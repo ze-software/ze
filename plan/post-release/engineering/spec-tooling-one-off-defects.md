@@ -98,7 +98,7 @@ The verification-debt shards, the session directory, the hook registry.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze-test bgp <mistyped-verb>` | → | `zeTestParseRunCLI` | unit asserting a non-zero exit and usage |
+| `le test bgp <mistyped-verb>` | → | `zeTestParseRunCLI` | unit asserting a non-zero exit and usage |
 | `./le commit create ... remove <path>` | → | generated script | fixture asserting the path is gone from disk after the commit |
 
 ## Acceptance Criteria

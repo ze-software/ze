@@ -4,7 +4,7 @@
 # given Path Identifier replaces a previous advertisement for the same address
 # prefix and Path Identifier."
 # VALIDATES: ze negotiates ADD-PATH receive with the source for ipv4/unicast
-# (ze-peer inverts it, invertedAddPath in internal/test/peer/open_capability.go);
+# (le test peer inverts it, invertedAddPath in internal/test/peer/open_capability.go);
 # the receiver negotiates no ADD-PATH. The source announces 10.0.0.0/8 with
 # Path Identifiers 11 and 12 (0x0B, 0x0C) and withdraws path 11. The receiver
 # carries no Path Identifier, so it sees 10.0.0.0/8 announced as a bare

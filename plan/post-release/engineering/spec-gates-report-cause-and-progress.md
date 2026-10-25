@@ -272,7 +272,7 @@ renders no cause.
 | Class file | Date | Surface (short) | Evidence today |
 |------------|------|-----------------|----------------|
 | `failing-gate-prints-no-cause.md` | 2026-10-18 | `./le go lint run scope <pkg>` without `./` | scope entries are prefixed with `./` (`verifylint.go` 497-502) |
-| `failing-gate-prints-no-cause.md` | 2026-09-01 | `le integration` sweep drops a native report | `Sweep.Text` renders a failing prose row above the summary (`leaction.go` 803-829); the non-prose case is AC-4 |
+| `failing-gate-prints-no-cause.md` | 2026-09-01 | `le test integration` sweep drops a native report | `Sweep.Text` renders a failing prose row above the summary (`leaction.go` 803-829); the non-prose case is AC-4 |
 | `failing-gate-prints-no-cause.md` | 2026-09-02 | `verify deps vulnerability` exit 127, no cause | `planVulnerability` returns "resolve installed govulncheck" through `ReportError` (`verifydeps.go` 534-537, `actions.go` 72) |
 | `lint-contract-not-applied.md` | 2026-08-19 | retired `scripts/evidence` l2tp diag findings | `scripts/evidence` no longer exists |
 

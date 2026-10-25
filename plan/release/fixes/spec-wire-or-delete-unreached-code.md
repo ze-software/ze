@@ -87,7 +87,7 @@ exported symbols to every declaration kind above.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le commit create` with Go files in the commit; `./le repository check`.
+- `./le commit create` with Go files in the commit; `./le repo check`.
 
 ### Transformation Path
 1. Load the packages of the commit's Go files with type information.
@@ -127,7 +127,7 @@ exported symbols to every declaration kind above.
    (with its `allowlist.go`) by one type-checked reachability check. Delete the
    two first, then build the one (`ai/rules/no-layering.md`).
 2. Run it on every commit that carries Go, over the declarations the commit
-   adds or changes, and in `./le repository check` over the whole tree.
+   adds or changes, and in `./le repo check` over the whole tree.
 3. Wire or delete every owned row. Wiring means the entry point reaches the
    symbol and a test drives that entry point; a seam kept on purpose
    (`FeatureEntry.SrcAS`) is wired to its consumer or removed with its writer.
@@ -138,7 +138,7 @@ exported symbols to every declaration kind above.
 |-------------|----|--------------|------|
 | `./le commit create` with a planted unexported function with no caller | -> | reachability check | `TestReachabilityRefusesUncalledUnexportedFunc` (new) |
 | `./le commit create` with a planted variable that is only loaded | -> | reachability check | `TestReachabilityRefusesNeverWrittenVar` (new) |
-| `./le repository check` over the tree | -> | reachability check, whole-tree mode | `TestReachabilityTreeModeOnRealCheckout` (new) |
+| `./le repo check` over the tree | -> | reachability check, whole-tree mode | `TestReachabilityTreeModeOnRealCheckout` (new) |
 
 ## Acceptance Criteria
 | AC ID | Input / Condition | Expected Behavior |
@@ -148,7 +148,7 @@ exported symbols to every declaration kind above.
 | AC-3 | A commit adds a parameter every non-test caller fills with the same constant | refused |
 | AC-4 | A symbol reached only through a declared exemption (registry, interface dispatch, generated code) | accepted; an exemption without a reason is refused |
 | AC-5 | The old checks | `internal/le/repo/wiring.go` and `internal/le/doc/wiring/wiring.go` with `allowlist.go` are gone; no caller names them |
-| AC-6 | `./le repository check` over the tree at closure | zero reachability findings |
+| AC-6 | `./le repo check` over the tree at closure | zero reachability findings |
 | AC-7 | Each owned row | its symbol is reached from the entry point named in the row, with a test through that entry point, or it is deleted together with its tests |
 | AC-8 | Reproduce: revert the wiring of one owned row (`fwdDedupMetricsPtr` store) | the check refuses it again |
 

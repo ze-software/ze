@@ -79,7 +79,7 @@ expect=output:contains=idle-hold:timeout=10
 command=request peer peer1 enable
 command=show bgp peer list
 expect=output:contains=established:timeout=15
-# 3. Disabled again with a Shutdown Communication; ze-peer asserts the bytes.
+# 3. Disabled again with a Shutdown Communication; le test peer asserts the bytes.
 command=request peer peer1 disable back soon
 command=show bgp peer list
 expect=output:contains=idle-hold:timeout=10

@@ -161,6 +161,41 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 	}
 }
 
+func TestRetiredCommandSweepSkipsOwnedJournalRows(t *testing.T) {
+	// VALIDATES: a spec's owned journal rows section is skipped from its
+	// exact heading to the next heading, because its rows copy plan/journal/
+	// text verbatim and the journal is a historical record. The same name
+	// above the section, after it, and in a non-spec file carrying the same
+	// heading is still found.
+	// PREVENTS: an exemption that swallows the rest of the spec, and one that
+	// reaches a file which owns no journal rows.
+	const spec = "plan/release/fixes/spec-sample.md"
+	const other = "docs/sample.md"
+	text := strings.Join([]string{
+		"./le test-unit all",
+		"## Owned journal rows",
+		"",
+		"| Class file | Date | Surface |",
+		"| `x.md` | 2026-10-01 | ran ./le test-unit all |",
+		"### Next",
+		"./le test-unit all",
+		"",
+	}, "\n")
+	root := fixtureRepository(t, map[string]string{spec: text, other: text})
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := retiredLinesOf(report, spec), []string{"le test-unit@1", "le test-unit@7"}; !slices.Equal(got, want) {
+		t.Errorf("%s matched %v, want %v", spec, got, want)
+	}
+	if got, want := retiredLinesOf(report, other), []string{"le test-unit@1", "le test-unit@5", "le test-unit@7"}; !slices.Equal(got, want) {
+		t.Errorf("%s matched %v, want %v", other, got, want)
+	}
+}
+
 func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 	// VALIDATES: a declared word that contains a retired name (the skill,
 	// the EAP identity, the two old make targets, the chaos MCP server name, the

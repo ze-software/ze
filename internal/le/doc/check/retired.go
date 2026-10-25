@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
@@ -403,6 +404,37 @@ func retiredExcluded(rel string) bool {
 	return false
 }
 
+// retiredOwnsRows reports whether a tracked file is a spec under plan/, the
+// only file whose owned journal rows section is a journal ownership table
+// (plan/journal/README.md, "Owned rows").
+func retiredOwnsRows(rel string) bool {
+	if !strings.HasPrefix(rel, "plan/") {
+		return false
+	}
+	base := rel[strings.LastIndexByte(rel, '/')+1:]
+	if !strings.HasPrefix(base, "spec-") {
+		return false
+	}
+	return strings.HasSuffix(base, ".md")
+}
+
+// retiredOwnedRowsAfter answers whether line sits inside a spec's owned
+// journal rows section, given whether the line before it did. The section
+// opens at its exact heading and runs to the next heading, as the journal
+// owner check reads it. Its rows copy journal text verbatim, and plan/journal/
+// is a historical record, so rewriting the copy would make it disagree with
+// the row it names.
+func retiredOwnedRowsAfter(inside bool, line string) bool {
+	trimmed := strings.TrimRight(line, " \t\r")
+	if trimmed == specjournal.OwnedRowsHeading {
+		return true
+	}
+	if strings.HasPrefix(trimmed, "#") {
+		return false
+	}
+	return inside
+}
+
 // retiredExempt reports whether one old spelling is declared legitimate in one
 // file.
 func retiredExempt(rel, old string) bool {
@@ -674,6 +706,8 @@ func sweepRetired(root string) (retiredReport, error) {
 		}
 		// A needle is checked on the line before its expression runs: most
 		// lines of a file that names an old form somewhere name none.
+		ownsRows := retiredOwnsRows(rel)
+		inOwnedRows := false
 		lineNo := 0
 		for start := 0; start <= len(text); {
 			end := strings.IndexByte(text[start:], '\n')
@@ -685,6 +719,12 @@ func sweepRetired(root string) (retiredReport, error) {
 			lineNo++
 			line, folded := text[start:end], normalized[start:end]
 			start = end + 1
+			if ownsRows {
+				inOwnedRows = retiredOwnedRowsAfter(inOwnedRows, line)
+				if inOwnedRows {
+					continue
+				}
+			}
 			for _, index := range candidates {
 				pattern := patterns[index]
 				if !strings.Contains(folded, pattern.needle) {

@@ -191,7 +191,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | one sandbox provider for every test entry | per-suite fixes, one per row | 60 rows, one mechanism; per-row fixes are how the backlog grew |
-| unmet need is `not-run`, never `pass` | skip silently | a skip read as green is the `./le integration traffic` row |
+| unmet need is `not-run`, never `pass` | skip silently | a skip read as green is the `./le test integration traffic` row |
 | keep the shared checkout | a worktree per session | owner rule; the sandbox removes what tests take from the checkout instead |
 
 ## Known Limitations
