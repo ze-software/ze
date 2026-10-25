@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -187,8 +188,14 @@ type routeServer struct {
 	peers   map[string]*PeerState
 	mu      sync.RWMutex
 	workers *workerPool
-	downWG  sync.WaitGroup  // SDK event delivery MUST stop before shutdown waits.
-	downCtx context.Context // Canceled before downWG.Wait; no command deadline owns DOWN.
+	downCtx context.Context // Canceled before stopDepartures; no command deadline owns DOWN.
+
+	// departures is the one worker that sends each departed source's routes
+	// to the engine (sendBatchedWithdrawals), in the order the sources went
+	// down. It starts on first use (departureQueue). SDK event delivery MUST
+	// stop and downCtx MUST be canceled before stopDepartures.
+	departureOnce sync.Once
+	departures    *syncutil.Coalescer[string, map[withdrawalKey]withdrawalEntry]
 
 	// clk is the time source for peer-up replay convergence (replayForPeer).
 	// Production sets clock.RealClock{}; a test injects a fake so the catch-up
@@ -348,7 +355,7 @@ func RunRouteServer(conn net.Conn) int {
 		onClose:   rs.dropParkedValidations,
 	})
 	defer rs.workers.Stop()
-	defer rs.downWG.Wait()
+	defer rs.stopDepartures()
 	defer stopDown()
 	if bus := validationBus.Load(); bus != nil {
 		unsubscribe := ribevents.ValidationChange.Subscribe(*bus, rs.validationChanged)

@@ -52,7 +52,7 @@ func newPeerDownReflector(t *testing.T) (*routeReflector, chan peerDownRequest) 
 // VALIDATES: the departure goes to the engine as a source-DOWN recovery: the
 // request carries meta recovery-source naming the departed peer, excludes that
 // peer, names both paths under the source's own identifiers, and the down's
-// lifecycle goroutine ends (downWG).
+// departure worker sent it before it stopped (stopDepartures).
 // PREVENTS: a plain withdrawal, which the engine writes with the source's
 // Path Identifier as given. ze re-advertised each path to an ADD-PATH
 // destination under its own identifier, so that destination kept both paths.
@@ -99,7 +99,7 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("peer-down sent no request")
 			}
-			rr.downWG.Wait()
+			rr.stopDepartures()
 			if got.command != tt.command {
 				t.Fatalf("peer-down command = %q, want %q", got.command, tt.command)
 			}
@@ -169,13 +169,13 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 			rrApplyVPN(t, rr, vpn.IPv4VPN, true, 14, append(append([]byte{}, vpn11...), vpn12...))
 			rr.handleStateDown(source)
 
-			// Read before the lifecycle goroutine is awaited: retention belongs
+			// Read before the departure worker is stopped: retention belongs
 			// to the DOWN event, not to its asynchronous requests.
 			want := map[family.Family]int{family.IPv4Unicast: 1, vpn.IPv4VPN: 1}
 			if !maps.Equal(queries, want) {
 				t.Fatalf("retention queries = %v, want one per family %v", queries, want)
 			}
-			rr.downWG.Wait()
+			rr.stopDepartures()
 			close(requests)
 			var got []string
 			for request := range requests {

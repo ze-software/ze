@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -151,7 +152,8 @@ func (rs *routeServer) handleState(event *Event) {
 const withdrawalBatchSize = 500
 
 // handleStateDown processes peer session teardown.
-// Reconciles sent ownership asynchronously in one joined lifecycle goroutine.
+// Reconciles sent ownership asynchronously on the plugin's one departure
+// worker (departureQueue), never on the event delivery goroutine.
 // Batches native/text identities by family; the RIB elects any replacement.
 func (rs *routeServer) handleStateDown(peerAddr string) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
@@ -182,15 +184,40 @@ func (rs *routeServer) handleStateDown(peerAddr string) {
 		}
 	}
 
-	rs.downWG.Add(1)
-	go rs.sendPeerDown(peerAddr, entries)
+	if len(entries) == 0 {
+		return
+	}
+	if !rs.departureQueue().Enqueue(peerAddr, entries) {
+		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
+	}
 }
 
-// sendPeerDown owns one DOWN lifecycle. Shutdown MUST stop event delivery and
-// wait for downWG before releasing the plugin connection.
-func (rs *routeServer) sendPeerDown(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
-	defer rs.downWG.Done()
-	rs.sendBatchedWithdrawals(peerAddr, entries)
+// departureQueue answers the plugin's one departure worker, starting it on
+// first use. A source that goes down again before the worker took its
+// waiting departure is merged into it, the later announcement of a route
+// winning, so the queue holds at most one departure per source and
+// handleStateDown never blocks the event delivery goroutine: blocking it would
+// hold back the events the engine's recovery of an earlier departure may wait
+// on.
+func (rs *routeServer) departureQueue() *syncutil.Coalescer[string, map[withdrawalKey]withdrawalEntry] {
+	rs.departureOnce.Do(func() {
+		rs.departures = syncutil.NewCoalescer(
+			func(waiting, next map[withdrawalKey]withdrawalEntry) map[withdrawalKey]withdrawalEntry {
+				maps.Copy(waiting, next)
+				return waiting
+			},
+			rs.sendBatchedWithdrawals,
+		)
+	})
+	return rs.departures
+}
+
+// stopDepartures stops the departure worker after it sent every queued
+// departure. MUST be called after downCtx is canceled, so a request the
+// engine has not answered ends rather than holding shutdown, and before the
+// plugin connection is released.
+func (rs *routeServer) stopDepartures() {
+	rs.departureQueue().Stop()
 }
 
 // withdrawalGroup names one batched withdrawal command: every entry in it

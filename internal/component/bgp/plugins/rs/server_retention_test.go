@@ -188,7 +188,7 @@ func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
 			require.False(t, deadline, "required DOWN recovery must not inherit an invented RPC expiry")
 			joined := make(chan struct{})
 			go func() {
-				rs.downWG.Wait()
+				rs.stopDepartures()
 				close(joined)
 			}()
 			select {

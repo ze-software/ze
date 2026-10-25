@@ -2,6 +2,7 @@ package rr
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -60,55 +61,54 @@ func TestNlriKey(t *testing.T) {
 	assert.Equal(t, "2001:db8::/32", nlriKey("prefix 2001:db8::/32"))
 }
 
-// TestHandleStateDown_BatchesByFamily verifies that handleStateDown groups
-// withdrawals by family and respects the batch size limit.
+// TestHandleStateDown_BatchesByFamily takes down a source holding 501 IPv4
+// and two IPv6 unicast routes, through handleStateDown and the departure
+// worker, and reads the commands the engine received.
 //
-// VALIDATES: Withdrawal batching reduces RPCs from N to ceil(N/batchSize) per family.
-// PREVENTS: One RPC per route on peer-down with large routing table.
+// VALIDATES: the departure is batched per family, at most withdrawalBatchSize
+// routes per command (two IPv4 commands, one IPv6), and every route carries
+// its own del keyword, so the engine parses each one as a prefix
+// (nlriDelCmd); the withdrawal map is cleared for the downed peer.
+// PREVENTS: one RPC per route on peer-down with a large table, and the
+// comma-joined form ("del prefix 10.0.0.0/24,prefix 10.0.0.1/32") the engine
+// refused whole as one invalid prefix, so a client kept every unicast route
+// of a departed source that held more than one.
 func TestHandleStateDown_BatchesByFamily(t *testing.T) {
-	t.Parallel()
-
-	rr := &routeReflector{
-		peers:       make(map[string]*peerState),
-		withdrawals: make(map[string]map[string]withdrawalInfo),
+	const source = "10.0.0.1"
+	rr, requests := newPeerDownReflector(t)
+	routes := make(map[string]withdrawalInfo)
+	ipv4 := make(map[string]bool)
+	for i := range withdrawalBatchSize + 1 {
+		prefix := fmt.Sprintf("prefix 10.%d.%d.0/24", i/256, i%256)
+		routes["ipv4/unicast|"+prefix] = withdrawalInfo{Family: family.IPv4Unicast, Prefix: prefix}
+		ipv4[prefix] = true
 	}
+	routes["ipv6/unicast|2001:db8::/32"] = withdrawalInfo{Family: family.IPv6Unicast, Prefix: "prefix 2001:db8::/32"}
+	routes["ipv6/unicast|2001:db8:1::/48"] = withdrawalInfo{Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"}
+	rr.withdrawals[source] = routes
 
-	// Populate withdrawal map: 3 IPv4 routes + 2 IPv6 routes from peer 10.0.0.1.
-	rr.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.1.0/24"},
-		"ipv4/unicast|10.0.2.0/24":     {Family: family.IPv4Unicast, Prefix: "prefix 10.0.2.0/24"},
-		"ipv6/unicast|2001:db8::/32":   {Family: family.IPv6Unicast, Prefix: "prefix 2001:db8::/32"},
-		"ipv6/unicast|2001:db8:1::/48": {Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"},
-	}
+	rr.handleStateDown(source)
+	rr.stopDepartures()
+	close(requests)
 
-	// No SDK plugin, so updateRoute will panic. Capture the batched commands instead.
-	var commands []string
-	rr.plugin = nil // handleStateDown uses a goroutine; we test the grouping synchronously.
-
-	// Extract the grouping logic directly instead of calling handleStateDown
-	// (which spawns a goroutine and calls updateRoute which needs a plugin).
-	rr.withdrawalMu.Lock()
-	entries := rr.withdrawals["10.0.0.1"]
-	delete(rr.withdrawals, "10.0.0.1")
-	rr.withdrawalMu.Unlock()
-
-	byFamily := make(map[family.Family][]string)
-	for _, info := range entries {
-		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
-	}
-
-	for fam, prefixes := range byFamily {
-		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
-			end := min(i+withdrawalBatchSize, len(prefixes))
-			cmd := fmt.Sprintf("update text nlri %s del %s", fam, strings.Join(prefixes[i:end], ","))
-			commands = append(commands, cmd)
+	var batchSizes []int
+	var ipv6Commands []string
+	for request := range requests {
+		if rest, ok := strings.CutPrefix(request.command, "update text nlri"); ok {
+			words := strings.Split(rest, " del ")
+			require.Empty(t, words[0], "IPv4 command %q has text before its first del", request.command)
+			for _, prefix := range words[1:] {
+				require.True(t, ipv4[prefix], "IPv4 command names %q, which is not one route the source held", prefix)
+				delete(ipv4, prefix)
+			}
+			batchSizes = append(batchSizes, len(words)-1)
+			continue
 		}
+		ipv6Commands = append(ipv6Commands, request.command)
 	}
-
-	// Should produce exactly 2 commands: one per family (all within batch limit).
-	require.Len(t, commands, 2, "one command per family")
-
-	// Verify withdrawal map is cleared.
-	assert.Nil(t, rr.withdrawals["10.0.0.1"], "withdrawal map cleared for downed peer")
+	assert.Empty(t, ipv4, "IPv4 routes no command withdrew")
+	slices.Sort(batchSizes)
+	assert.Equal(t, []int{1, withdrawalBatchSize}, batchSizes, "IPv4 routes per command")
+	assert.Equal(t, []string{"update text mp ipv6/unicast del prefix 2001:db8:1::/48 del prefix 2001:db8::/32"}, ipv6Commands)
+	assert.Nil(t, rr.withdrawals[source], "withdrawal map cleared for downed peer")
 }

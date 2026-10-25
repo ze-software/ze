@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -105,10 +107,13 @@ type routeReflector struct {
 	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
 	withdrawals map[string]map[string]withdrawalInfo
 
-	// downWG counts the running peer-down lifecycles (sendPeerDown). Event
-	// delivery MUST stop and downCtx MUST be canceled before downWG.Wait, and
-	// the wait MUST end before the plugin connection is released.
-	downWG sync.WaitGroup
+	// departures is the one worker that sends each departed source's routes
+	// to the engine (sendPeerDown), in the order the sources went down. It
+	// starts on first use (departureQueue). Event delivery MUST stop and
+	// downCtx MUST be canceled before stopDepartures, and stopDepartures MUST
+	// return before the plugin connection is released.
+	departureOnce sync.Once
+	departures    *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo]
 	// downCtx bounds every peer-down recovery request. It is canceled at
 	// shutdown and carries no deadline: the engine keeps a departure's keys
 	// owed until it decides them, so a command timeout would only stop the
@@ -143,7 +148,7 @@ func runRouteReflector(conn net.Conn) int {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 		downCtx:     downCtx,
 	}
-	defer rr.downWG.Wait()
+	defer rr.stopDepartures()
 	defer stopDown()
 
 	// Register structured event handler for DirectBridge delivery (hot path).
@@ -363,8 +368,8 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 // names what each destination is sent: the best surviving route, or the
 // withdrawal under the Path Identifier ze advertised to that destination, which
 // differs from the source's own toward a destination that negotiated ADD-PATH
-// send (RFC 7911 Section 2). The requests run in one joined lifecycle goroutine
-// per down (sendPeerDown), never on the event delivery goroutine.
+// send (RFC 7911 Section 2). The requests run on the plugin's one departure
+// worker (departureQueue, sendPeerDown), never on the event delivery goroutine.
 //
 // Concurrency: OnStructuredEvent is called serially by the engine's delivery
 // goroutine, so handleStateDown and UPDATE processing for the same peer cannot
@@ -385,7 +390,7 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 	// peer for all the address families that were previously received in
 	// the Graceful Restart Capability". Resolve retention here,
 	// synchronously, as bgp-rs does: a reconnect or expiry must not change
-	// this DOWN decision before the lifecycle goroutine runs. The RIB owns a
+	// this DOWN decision before the departure worker sends it. The RIB owns a
 	// retained family's routes and their eventual purge, so a retained route
 	// MUST NOT reach the engine as a departure: the recovery would withdraw
 	// it from every destination during the restart window.
@@ -401,12 +406,7 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		}
 	}
 
-	byGroup := make(map[withdrawalGroup][]string)
-	for _, info := range entries {
-		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath}
-		byGroup[group] = append(byGroup[group], info.Prefix)
-	}
-	if len(byGroup) == 0 {
+	if len(entries) == 0 {
 		// Every route belonged to a retained family.
 		return
 	}
@@ -416,8 +416,36 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
 		return
 	}
-	rr.downWG.Add(1)
-	go rr.sendPeerDown(addr, byGroup)
+	if !rr.departureQueue().Enqueue(addr, entries) {
+		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
+	}
+}
+
+// departureQueue answers the plugin's one departure worker, starting it on
+// first use. A source that goes down again before the worker took its
+// waiting departure is merged into it, the later announcement of a route
+// winning, so the queue holds at most one departure per source and
+// handleStateDown never blocks the event delivery goroutine: blocking it would
+// hold back the events the engine's recovery of an earlier departure may wait
+// on.
+func (rr *routeReflector) departureQueue() *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo] {
+	rr.departureOnce.Do(func() {
+		rr.departures = syncutil.NewCoalescer(
+			func(waiting, next map[string]withdrawalInfo) map[string]withdrawalInfo {
+				maps.Copy(waiting, next)
+				return waiting
+			},
+			rr.sendPeerDown,
+		)
+	})
+	return rr.departures
+}
+
+// stopDepartures stops the departure worker after it sent every queued
+// departure. MUST be called after downCtx is canceled, so a request the
+// engine has not answered ends rather than holding shutdown.
+func (rr *routeReflector) stopDepartures() {
+	rr.departureQueue().Stop()
 }
 
 // withdrawalGroup names one batched peer-down command: every route in it shares
@@ -430,11 +458,16 @@ type withdrawalGroup struct {
 	addPath  bool
 }
 
-// sendPeerDown owns one DOWN lifecycle. It sends the departed source's routes
-// to every peer except that source, at most withdrawalBatchSize routes per
-// request to bound command length, and MUST call downWG.Done when it returns.
-func (rr *routeReflector) sendPeerDown(source netip.Addr, byGroup map[withdrawalGroup][]string) {
-	defer rr.downWG.Done()
+// sendPeerDown runs one departure on the departure worker. It sends the
+// departed source's routes to every peer except that source, grouped by
+// family, wire form and ADD-PATH, at most withdrawalBatchSize routes per
+// request to bound command length.
+func (rr *routeReflector) sendPeerDown(source netip.Addr, entries map[string]withdrawalInfo) {
+	byGroup := make(map[withdrawalGroup][]string)
+	for _, info := range entries {
+		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath}
+		byGroup[group] = append(byGroup[group], info.Prefix)
+	}
 
 	excludeSel := selector.ExcludeAddr(source)
 	recoverySource := source.String()

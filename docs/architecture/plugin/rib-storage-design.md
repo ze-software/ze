@@ -188,7 +188,10 @@ expiry and release encode their source-specific withdrawals here.
 
 RS drains the departed source's workers and submits its existing native/text
 withdrawal batches with the source address alone. RR submits its peer-down
-withdrawal batches the same way, as one joined lifecycle per down. RR has no
+withdrawal batches the same way. Each plugin sends its departures on one
+long-lived departure worker, in the order the sources went down; the event
+handler only queues a departure, merging it into one of the same source still
+waiting, so it never blocks event delivery. RR has no
 worker to drain: it forwards each UPDATE on the event delivery goroutine that
 also delivers the DOWN, so every earlier forward of the source was issued
 before the DOWN is handled. Both apply the same retention filter first: a
@@ -238,7 +241,9 @@ keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, departureQueue, sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, departureQueue -->
+<!-- source: internal/core/syncutil/coalescer.go -- Coalescer -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
@@ -367,8 +372,9 @@ withdrawn route. This carrier exercises the applied-event
 drain but does not independently discriminate that drain or external IPC.
 <!-- test: internal/component/bgp/reactor/forward_publication_ownership_test.go TestRecoveryWaitsForFilteredReceivedPublication -->
 
-There is no timer retry and no second route inventory. RS owns and joins each
-DOWN operation using its plugin lifecycle context, without an unrelated
+There is no timer retry and no second route inventory. RS and RR run each
+DOWN operation on their departure worker under the plugin lifecycle context,
+and stop and join that worker at shutdown, without an unrelated
 60-second command expiry. Unrelated output never cancels a
 required repair, and a newer target owner is protected at owe time: a
 departure owes nothing where another source, or the source's current session,
