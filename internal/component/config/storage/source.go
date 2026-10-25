@@ -41,6 +41,30 @@ func (c *configStore) AcquireLock(path string) (WriteGuard, error) {
 	return c.Storage.AcquireLock(path)
 }
 
+// ReadFile answers the boot bytes for the bound configuration name while the
+// boot record is pending, as ReadActiveConfig does: before the record lands
+// the store holds no file/active entry for it, and an editor opened in that
+// window (a runtime "update bgp config", an API session) would otherwise fail
+// on a configuration the daemon is running. Other names read the store.
+func (c *configStore) ReadFile(path string) ([]byte, error) {
+	if data, pending := pendingBootConfig(c, path); pending {
+		return data, nil
+	}
+	return c.Storage.ReadFile(path)
+}
+
+// Exists answers as ReadFile does: true for the bound configuration name while
+// the boot record is pending. Answering the store's miss in that window told a
+// caller that checks before it creates (the web server's startup, which writes
+// a placeholder for a missing config) to write over the name the daemon boots
+// from. Other names, and the bound name once the record landed, ask the store.
+func (c *configStore) Exists(path string) bool {
+	if _, pending := pendingBootConfig(c, path); pending {
+		return true
+	}
+	return c.Storage.Exists(path)
+}
+
 // BindConfigSource records the launch decision without opening another store.
 // Consumers borrow the result; only the original owner MUST close the handle.
 func BindConfigSource(store Storage, path string, mode ConfigSource) Storage {

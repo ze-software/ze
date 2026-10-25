@@ -76,6 +76,71 @@ func TestBootRecordPendingReadAnswersBootBytes(t *testing.T) {
 	_ = guard.Release()
 }
 
+// TestBootRecordPendingReadFileAnswersBootBytes: a plain ReadFile of the bound
+// name, the read an editor opens the configuration with, answers the boot bytes
+// while the record is pending, although the store holds no file/active entry
+// yet; once the record lands it answers the mirror the promotion wrote. Before
+// the gate covered ReadFile, a runtime "update bgp config" issued during the
+// window failed with "storage node .../file/active: no such file or directory".
+func TestBootRecordPendingReadFileAnswersBootBytes(t *testing.T) {
+	content := []byte("system { host-name a; }\n")
+	store, record, wrote, release := bootRecordFixtureStaged(t, content, nil)
+	<-wrote
+
+	got, err := store.ReadFile("/etc/ze/router.conf")
+	if err != nil {
+		close(release)
+		record.Wait()
+		t.Fatalf("ReadFile of the bound name while pending: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		close(release)
+		record.Wait()
+		t.Fatalf("pending ReadFile = %q, want boot bytes %q", got, content)
+	}
+	if _, err := store.ReadFile("/etc/ze/other.conf"); err == nil {
+		close(release)
+		record.Wait()
+		t.Fatal("ReadFile of another name answered while the record is pending, want its own miss")
+	}
+
+	close(release)
+	record.Wait()
+	landed, err := store.ReadFile("/etc/ze/router.conf")
+	if err != nil {
+		t.Fatalf("ReadFile after the record landed: %v", err)
+	}
+	if !bytes.Equal(landed, content) {
+		t.Fatalf("landed ReadFile = %q, want %q", landed, content)
+	}
+}
+
+// TestBootRecordPendingExistsAnswersLikeReadFile: Exists of the bound name
+// answers true while the record is pending, as ReadFile answers the boot bytes,
+// and another name keeps its own miss. Before the gate covered Exists, the web
+// server's startup check (cmd/ze/hub/service_web.go, startWebServer) saw no
+// file in that window and wrote a "# ze config" placeholder over the name the
+// daemon was booting from.
+func TestBootRecordPendingExistsAnswersLikeReadFile(t *testing.T) {
+	content := []byte("system { host-name a; }\n")
+	store, record, wrote, release := bootRecordFixtureStaged(t, content, nil)
+	<-wrote
+
+	pendingBound := store.Exists("/etc/ze/router.conf")
+	pendingOther := store.Exists("/etc/ze/other.conf")
+	close(release)
+	record.Wait()
+	if !pendingBound {
+		t.Fatal("Exists of the bound name while pending = false, want true: ReadFile answers its boot bytes")
+	}
+	if pendingOther {
+		t.Fatal("Exists of another name while pending = true, want its own miss")
+	}
+	if !store.Exists("/etc/ze/router.conf") {
+		t.Fatal("Exists of the bound name after the record landed = false, want true")
+	}
+}
+
 // TestBootRecordWriteWaitsThenLands: a commit attempted while the record is
 // pending does not run until the record lands, then lands on top of it; the
 // active pointer first names the boot bytes, then the commit.

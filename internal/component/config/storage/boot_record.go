@@ -133,8 +133,9 @@ func (r *BootRecord) pending() ([]byte, bool) {
 	return slices.Clone(r.content), true
 }
 
-// pendingBootConfig is the read gate for pointer.go: the boot bytes of the
-// bound name while its record has not landed.
+// pendingBootConfig is the read gate for pointer.go, configStore.ReadFile and
+// configStore.Exists (source.go): the boot bytes of the bound name while its
+// record has not landed.
 func pendingBootConfig(store Storage, path string) ([]byte, bool) {
 	bound, ok := store.(*configStore)
 	if !ok {

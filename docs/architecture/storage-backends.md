@@ -347,9 +347,14 @@ disk is slow; ...`). The wait has no bound, because abandoning the record would
 leave the previous configuration active for every offline reader; a second
 Ctrl+C forces the exit, and the next start records the same file.
 
-While the record is pending, `ReadActiveConfig` of the bound name answers the
-boot bytes from memory and `ReadCandidateConfig` answers no candidate: those
-bytes are the accepted configuration before they are durable. Every config
+While the record is pending, `ReadActiveConfig` of the bound name and the
+handle's own `ReadFile` of it (the read an editor opens the configuration with,
+so a runtime `update bgp config` or an API session started in that window)
+answer the boot bytes from memory, the handle's `Exists` of it answers true,
+and `ReadCandidateConfig` answers no candidate: those bytes are the accepted
+configuration before they are durable. `Exists` agrees with `ReadFile` so a
+caller that creates a missing file, as the web server does at startup with a
+placeholder, never writes over the name the daemon boots from. Every config
 write takes the config lock of the bound name, and `configStore.AcquireLock`
 holds that lock back until the record lands, at most 30 seconds. Past the bound
 the write is refused with an error naming the slow disk and the retry. A failed
@@ -373,7 +378,7 @@ leaves at most a candidate, which the next start's stale-candidate cleanup
 clears before it records.
 <!-- source: internal/component/config/storage/boot_record.go -- BootRecord, DeferBootRecord, await, covers, pendingBootConfig -->
 <!-- source: internal/component/config/cli/config_data.go -- withRuntimeStore -->
-<!-- source: internal/component/config/storage/source.go -- configStore.AcquireLock -->
+<!-- source: internal/component/config/storage/source.go -- configStore.AcquireLock, configStore.ReadFile, configStore.Exists -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 ### Content-addressed history
