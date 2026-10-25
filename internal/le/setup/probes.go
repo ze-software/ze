@@ -73,6 +73,11 @@ func (s *Setup) Probe(tool Tool) bool {
 		return false
 	}
 
+	// A shimmed tool found as its le shim is present only when a real copy
+	// stands behind the shim (presentPastShim, shims.go).
+	if tool.Shim {
+		return s.presentPastShim(tool.Probe[0])
+	}
 	if tool.ProbeAny {
 		return slices.ContainsFunc(tool.Probe, s.Shell.Present)
 	}

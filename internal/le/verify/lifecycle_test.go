@@ -986,29 +986,38 @@ func mustExistUnder(t *testing.T, root, rel string) {
 	}
 }
 
-// TestAWorktreeSharesTheCheckoutLintCache proves a worktree run lints against
-// the checkout's golangci-lint cache, and that removing the worktree leaves
-// that cache in place.
+// TestAWorktreeLintCacheResolvesUnderThePerUserTarget proves a worktree run
+// lints into the one per-user cache, and that removing the worktree leaves that
+// cache in place.
 //
-// Method: a kept run exposes the worktree, whose lint cache must be a link to
-// the checkout's; a marker in the checkout's cache must survive a run whose
-// worktree is removed. golangci-lint keys its cache on the module-relative
-// path, so the only thing that made each run lint cold was LintCache resolving
-// inside the worktree, which the removal deletes.
-func TestAWorktreeSharesTheCheckoutLintCache(t *testing.T) {
+// Method: a kept run exposes the worktree, whose LintCache must resolve, through
+// the worktree's cache/ link, to golangci-lint-cache under the per-user target;
+// a marker written there must survive a run whose worktree is removed. The
+// worktree has no lint link of its own: LintCache sits under cache/, so the one
+// cache/ link carries it.
+func TestAWorktreeLintCacheResolvesUnderThePerUserTarget(t *testing.T) {
+	cacheHome := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
 	repo := newFixtureRepo(t)
-	shared := gotoolchain.LintCache(repo.root)
 
 	kept := Run(context.Background(), repo.root, Options{Keep: true}, passingRunner)
 	if kept.Code != 0 {
 		t.Fatalf("kept run = %#v", kept)
 	}
-	target, err := os.Readlink(gotoolchain.LintCache(kept.Worktree))
-	if err != nil || target != shared {
-		t.Fatalf("worktree lint cache -> %q (%v), want a link to %q", target, err, shared)
+	lint := gotoolchain.LintCache(kept.Worktree)
+	if err := os.MkdirAll(lint, 0o750); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(kept.Text(), "verify-worktree: shared lint cache: ") {
-		t.Fatalf("the run never reported the lint cache link: %s", kept.Text())
+	resolved, err := filepath.EvalSymlinks(lint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, err := filepath.EvalSymlinks(filepath.Join(cacheHome, "ze", "golangci-lint-cache"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != shared {
+		t.Fatalf("the worktree's lint cache resolves to %s, want the per-user cache %s", resolved, shared)
 	}
 
 	marker := filepath.Join(shared, "marker")
@@ -1023,7 +1032,7 @@ func TestAWorktreeSharesTheCheckoutLintCache(t *testing.T) {
 		t.Fatalf("worktree remains: %v", err)
 	}
 	if _, err := os.Stat(marker); err != nil {
-		t.Fatalf("removing the worktree removed the checkout's lint cache: %v", err)
+		t.Fatalf("removing the worktree removed the per-user lint cache: %v", err)
 	}
 }
 

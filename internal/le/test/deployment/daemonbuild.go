@@ -127,7 +127,7 @@ func runDaemonBuild(ctx context.Context, tree, outRel string, extra []string, pr
 	build.Env = append(build.Env, extra...)
 	if os.Getenv("GOCACHE") == "" {
 		var tb textbuf.Buffer
-		build.Env = append(build.Env, tb.Str("GOCACHE=").Str(gotoolchain.BootstrapCache(tree)).String())
+		build.Env = append(build.Env, tb.Str("GOCACHE=").Str(gotoolchain.GoCache(tree)).String())
 	}
 
 	if err := build.Run(); err != nil {

@@ -121,7 +121,7 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 		}
 		for key, want := range map[string]string{
 			"GOCACHE":             filepath.Join(root, "cache", "go-cache"),
-			"GOLANGCI_LINT_CACHE": filepath.Join(root, "tmp", "golangci-lint-cache"),
+			"GOLANGCI_LINT_CACHE": filepath.Join(root, "cache", "golangci-lint-cache"),
 			"CGO_ENABLED":         "0",
 			"GOOS":                test.goos,
 			"GOARCH":              "arm64",

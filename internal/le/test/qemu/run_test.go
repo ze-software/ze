@@ -414,7 +414,7 @@ func TestRunBuildsBootstrapSetupAndSSHCommands(t *testing.T) {
 	}
 	for _, needle := range []string{
 		"apk add --no-cache xl2tpd ppp", "go" + fixtureGoRelease + ".linux-amd64.tar.gz",
-		"export GOCACHE=\"/workspace/tmp/qemu/go-cache\"",
+		"export GOCACHE=\"/workspace/cache/go-cache\"",
 		"mount -t tmpfs tmpfs /workspace/tmp/evidence",
 	} {
 		if !strings.Contains(plan.SetupCommand, needle) {

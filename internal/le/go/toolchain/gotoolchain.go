@@ -388,28 +388,25 @@ func GoCache(root string) string {
 // one checkout. It takes the root for the same reason GoCache does: emptying
 // the cache needs no manifest read (internal/le/scratch, CleanCaches).
 //
-// This cache is NOT under cache/, so the scratch relocation leaves it on the
-// checkout's own device, and no Go cache clean touches it. It was measured at
-// 9.5G on 2026-09-13, larger than both Go caches together
+// It sits under cache/ beside GoCache, so the checkout's cache/ link carries it
+// to the per-user target (scratch.CacheTarget) and every checkout and verify
+// worktree on the host lints into one cache. Under tmp/ it stayed on the
+// checkout's own device, measured at 9.5G on 2026-09-13
 // (plan/journal/full-disk-false-red.md).
 func LintCache(root string) string {
-	return filepath.Join(root, "tmp", "golangci-lint-cache")
+	return filepath.Join(root, "cache", "golangci-lint-cache")
 }
 
-// BootstrapCache answers the Go build cache used before, or instead of, the
-// checkout cache: the `le` bootstrap that builds bin/ze-le, the deployment
-// daemon and VPP evidence builds, and the QEMU guest. Each of those runs with
-// no inherited GOCACHE and would otherwise write the machine default.
-//
-// It is declared here because four writers spelled the same path themselves,
-// and the cache cleaner knew about none of them: `./le scratch cache-clean`
-// published that it empties every build cache this checkout fills, walked past
-// 1.3G of this one, and the operator had to be told about it by hand
-// (plan/journal/full-disk-false-red.md).
+// BootstrapCache answers the Go build cache the `le` launcher falls back to
+// when cache/ cannot be created: a QEMU guest that mounts the checkout without
+// the target of its cache/ link sees that link dangle. It is that fallback and
+// nothing else. Every other writer names GoCache, which the cache/ link
+// carries to the one per-user cache.
 //
 // The `le` shell script holds the one copy that cannot ask this function,
 // because it runs before any Go binary exists. `TestBootstrapCacheMatchesTheShellScript`
-// compares the two so the pair cannot drift.
+// compares the two so the pair cannot drift. The cache cleaner keeps a row
+// for it because the launcher can still write it.
 func BootstrapCache(root string) string {
 	return filepath.Join(root, "tmp", "go-cache")
 }

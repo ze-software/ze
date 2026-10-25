@@ -80,7 +80,7 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 				wantBuild := []string{
 					"cwd=" + fixture,
 					"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
-					"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "tmp", "golangci-lint-cache"),
+					"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "cache", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
 					"GOTOOLCHAIN=" + checkoutToolchain(t, root),
 					"arg=build",
@@ -185,6 +185,34 @@ func TestRootLaunchersExecExistingBinaryWithoutRebuild(t *testing.T) {
 
 // buildNameProbe exercises every character class the launcher accepts.
 const buildNameProbe = "probe.1_2-3"
+
+// TestLeLauncherBuildsForTheHostUnderACrossTarget: a caller's GOOS and GOARCH
+// reach the launcher when a tool shim starts it from a cross-target run
+// (golangci-lint under GOOS=linux on a Mac), and the launcher still builds the
+// generator and le for the host. The fake go refuses either step under a
+// target, so the run reaches the built binary only when the launcher dropped
+// it.
+// VALIDATES: le's build_le runs the generator and the le build with no
+// inherited GOOS or GOARCH.
+// PREVENTS: `exec format error` from a generator built for another system,
+// which stopped a linux lint pass whose golangci-lint went through its shim.
+func TestLeLauncherBuildsForTheHostUnderACrossTarget(t *testing.T) {
+	root := personalityRepoRoot(t)
+	fixture := launcherFixture(t, root, "le")
+	writeFakeGo(t, fixture)
+	execRecord := filepath.Join(fixture, "exec.record")
+	code := runLauncher(t, fixture, "le", []string{"probe"}, []string{
+		"GOOS=linux",
+		"GOARCH=amd64",
+		"ZE_GO_RECORD=" + filepath.Join(fixture, "go.record"),
+		"ZE_EXEC_RECORD=" + execRecord,
+		"ZE_EXEC_EXIT=37",
+	})
+	if code != 37 {
+		t.Fatalf("launcher exit = %d, want the built binary's 37", code)
+	}
+	assertLauncherRecord(t, execRecord, []string{"probe"})
+}
 
 // TestLeLauncherNameBuildsPrivateBinary drives `./le --name <name>` through both
 // option spellings and proves the three things the option promises: the build
@@ -827,11 +855,19 @@ if [ "${1-}" = run ]; then
 		echo "fake go: unexpected go run $*" >&2
 		exit 2
 	fi
+	if [ -n "${GOOS-}${GOARCH-}" ]; then
+		echo "fake go: go run under GOOS=${GOOS-} GOARCH=${GOARCH-}, but the generator is a host program" >&2
+		exit 3
+	fi
 	tree=$PWD/fakegoroot
 	mkdir -p "$tree/bin"
 	cp "$0" "$tree/bin/go"
 	printf '%s\n' "$tree"
 	exit 0
+fi
+if [ -n "${GOOS-}${GOARCH-}" ]; then
+	echo "fake go: go build under GOOS=${GOOS-} GOARCH=${GOARCH-}, but le is a host program" >&2
+	exit 3
 fi
 {
 	printf 'cwd=%s\n' "$PWD"

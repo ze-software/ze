@@ -3,11 +3,13 @@ package scratch
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/appliance"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -15,16 +17,26 @@ import (
 // store-trim target is a built-kernel cache namespace, sits inside one, or
 // contains one, so `./le scratch cache-clean` and disk-full recovery never
 // delete a kernel that takes about thirty minutes to rebuild.
-// Method: resolve the per-user target the way CleanCaches and trimStores do,
-// with XDG_CACHE_HOME pointing both sides at one temporary root, then compare
-// every target from cleanTargets (the list both commands walk) with
-// appliance.KernelCacheNamespaces.
+// Method: lay the checkout out as every le run leaves it, cache/ a link to the
+// per-user target with XDG_CACHE_HOME pointing both sides at one temporary
+// root, plus one stale cache copy, then compare every target from cleanTargets
+// (the list both commands walk), as spelled and where it lands through the
+// link, with appliance.KernelCacheNamespaces.
 func TestCleanTargetsNeverReachTheKernelCache(t *testing.T) {
 	cacheHome := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
 	root := t.TempDir()
 	perUser, err := New(root, os.Environ()).cacheTarget()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(perUser, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(perUser, filepath.Join(root, cacheName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, cacheName+staleCacheInfix+"20261024T000000Z-1"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	namespaces := appliance.KernelCacheNamespaces()
@@ -36,13 +48,19 @@ func TestCleanTargetsNeverReachTheKernelCache(t *testing.T) {
 			t.Fatalf("kernel cache %s is not under XDG_CACHE_HOME %s, so this test compares two different roots", namespace, cacheHome)
 		}
 	}
-	for _, target := range cleanTargets(root, filepath.Join(cacheHome, "go-build"), perUser) {
-		for _, namespace := range namespaces {
-			if pathWithin(target.path, namespace) {
-				t.Errorf("%s target %s is inside kernel cache %s", target.name, target.path, namespace)
-			}
-			if pathWithin(namespace, target.path) {
-				t.Errorf("%s target %s contains kernel cache %s", target.name, target.path, namespace)
+	targets := cleanTargets(root, filepath.Join(cacheHome, "go-build"))
+	if !slices.ContainsFunc(targets, func(target cleanTarget) bool { return target.kind == staleCopy }) {
+		t.Fatal("cleanTargets answered no stale copy row, so this test compares one row fewer than the trim walks")
+	}
+	for _, target := range targets {
+		for _, path := range []string{target.path, gen.Landing(root, target.path)} {
+			for _, namespace := range namespaces {
+				if pathWithin(path, namespace) {
+					t.Errorf("%s target %s is inside kernel cache %s", target.name, path, namespace)
+				}
+				if pathWithin(namespace, path) {
+					t.Errorf("%s target %s contains kernel cache %s", target.name, path, namespace)
+				}
 			}
 		}
 	}
@@ -65,7 +83,7 @@ func TestCleanTargetsSkipATargetHoldingTheKernelCache(t *testing.T) {
 		t.Fatal("appliance names no kernel cache namespace")
 	}
 	ambient := filepath.Dir(namespaces[0])
-	for _, target := range cleanTargets(t.TempDir(), ambient, filepath.Join(t.TempDir(), "per-user")) {
+	for _, target := range cleanTargets(t.TempDir(), ambient) {
 		if target.path != ambient {
 			continue
 		}
@@ -97,10 +115,10 @@ func TestTrimSkipsATargetHoldingTheKernelCache(t *testing.T) {
 	if len(namespaces) == 0 || !pathWithin(namespaces[0], checkout) {
 		t.Fatalf("kernel cache %v is not inside the checkout cache %s, so this test trims nothing that holds one", namespaces, checkout)
 	}
-	targets := cleanTargets(root, "", t.TempDir())
+	targets := cleanTargets(root, "")
 	old := seedEntry(t, checkout, "a0old-a", 5*time.Hour)
 
-	_, rows := trimCaches(t.Context(), targets, nil, budgetsOf(0, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
+	_, rows := trimCaches(t.Context(), targets, budgetsOf(0, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
 	if !exists(t, old) {
 		t.Error("the trim removed an entry from a store that holds the kernel cache")
 	}

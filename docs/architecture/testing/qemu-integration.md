@@ -367,11 +367,20 @@ for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
 both sit under `/workspace/tmp`.
 
 `./le test qemu run` also exports the checkout's `cache` link, tagged
-`zescratch-cache`, when `./le scratch links-ensure` made it a symlink
-(`cacheShare` in `internal/le/test/qemu/run.go`). Every le-driven Go build sets `GOCACHE` to
-`cache/go-cache`, whatever the guest exported, so a lab that cross-compiles
-inside the guest otherwise meets the link dangling and stops with `mkdir /workspace/cache: file exists`. The
-kernel builder runs no le-driven build in its guest and takes no cache share.
+`zescratch-cache`, when it is a symlink, which every le run on the host makes it
+(`ensureCacheLink`, `internal/le/register.go`; `cacheShare` in
+`internal/le/test/qemu/run.go`). The guest builds into the host's one Go
+cache through it: the setup command and the keep-alive profile export
+`GOCACHE=/workspace/cache/go-cache` (`setupCommand`, `keepAliveProfile`), and
+every le-driven Go build inside the guest sets `GOCACHE` to `cache/go-cache`
+too. The guest keeps no Go cache of its own under `tmp/qemu/`. Without the
+share a lab that cross-compiles inside the guest meets the link dangling and
+stops with `mkdir /workspace/cache: file exists`; the `le` launcher alone then
+falls back to `tmp/go-cache` (`gotoolchain.BootstrapCache`). The kernel builder
+runs no le-driven build in its guest and takes no cache share.
+<!-- source: internal/le/test/qemu/run.go -- setupCommand, ensureScratch -->
+<!-- source: internal/le/test/qemu/run_exec.go -- keepAliveProfile -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- BootstrapCache -->
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->
 <!-- source: internal/le/test/qemu/run.go -- cacheShare -->
 <!-- source: internal/le/test/qemu/run.go -- Run.scratchShares -->

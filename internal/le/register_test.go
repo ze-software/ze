@@ -29,8 +29,8 @@ func TestCompositionEqualsLiveRegisteringPackagePopulation(t *testing.T) {
 		t.Fatalf("find checkout: %v", err)
 	}
 
-	imports := blankImports(t, filepath.Join(root, "internal", "le", "register.go"))
 	registering := registeringPackages(t, filepath.Join(root, "internal", "le"))
+	imports := compositionImports(t, filepath.Join(root, "internal", "le", "register.go"), registering)
 	if len(imports) == 0 {
 		t.Fatal("internal/le/register.go blank-imports no registering package")
 	}
@@ -97,7 +97,12 @@ func TestEveryLeToolUsesFullPathAndParityAloneHasNoShape(t *testing.T) {
 	}
 }
 
-func blankImports(t *testing.T, path string) []string {
+// compositionImports answers the registering packages register.go imports:
+// every blank import, and a named or unnamed import of a package in
+// registering. run calls scratch by name (ensureCacheLink), and a second,
+// blank import of the same path would be a duplicate import; either form runs
+// the package's init, which is what puts its tool in the composition.
+func compositionImports(t *testing.T, path string, registering []string) []string {
 	t.Helper()
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
 	if err != nil {
@@ -105,12 +110,13 @@ func blankImports(t *testing.T, path string) []string {
 	}
 	imports := make([]string, 0, len(file.Imports))
 	for _, spec := range file.Imports {
-		if spec.Name == nil || spec.Name.Name != "_" {
-			continue
-		}
 		path, unquoteErr := strconv.Unquote(spec.Path.Value)
 		if unquoteErr != nil {
 			t.Fatalf("unquote import %s: %v", spec.Path.Value, unquoteErr)
+		}
+		blank := spec.Name != nil && spec.Name.Name == "_"
+		if !blank && !slices.Contains(registering, path) {
+			continue
 		}
 		if !strings.HasPrefix(path, leImportPrefix) {
 			t.Errorf("composition blank-imports non-le package %s", path)

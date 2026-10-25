@@ -1,0 +1,29 @@
+# Test: every le run links the checkout's cache/ to the per-user cache, and
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       repairs a real cache/ directory by renaming it aside.
+#
+# VALIDATES: spec-le-one-go-cache-per-host AC-1, AC-2 and AC-3, and the Wiring
+#            Test rows for `./le <action>` on a checkout with no cache/ and on
+#            one whose cache/ is a real directory, against the artifact a
+#            developer runs. With no cache/, the run leaves the link to
+#            $XDG_CACHE_HOME/ze. With a real cache/ holding an entry, the run
+#            moves it to cache.stale-*, names both paths and the size on
+#            stderr, and leaves the link. With the link right, the run prints
+#            nothing on stderr and the same stdout.
+# PREVENTS: a repair only the package tests reach. Between those tests and this
+#           file sit the build, the root handler (run, ensureCacheLink in
+#           internal/le/register.go) and the order against
+#           activatePatchedGOROOT, which creates cache/stdpatch.
+#
+# The checkout, the per-user cache and the Claude config are throwaway trees
+# the fixture names through ZE_REPO_ROOT, XDG_CACHE_HOME and CLAUDE_CONFIG_DIR,
+# so the real per-user cache is never touched.
+#
+# The timeout is declared because a cold build cache makes the first compile of
+# the cmd/ze le personality far slower than the steady state.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-cache-link-repair
+expect=exit:code=0
+expect=stdout:contains=OK

@@ -222,6 +222,9 @@ var activation struct {
 	done bool
 	tree string
 	err  error
+	// caller is the environment Activate found before it changed anything
+	// (CallerEnvironment).
+	caller callerValues
 }
 
 // Activate answers the patched GOROOT for root's pinned toolchain and selects
@@ -243,6 +246,7 @@ func Activate(root string) (string, error) {
 	defer activation.Unlock()
 
 	if !activation.done {
+		activation.caller = captureCaller()
 		activation.tree, activation.err = activate(root)
 		activation.done = true
 	}
@@ -315,14 +319,14 @@ func isUnder(path, dir string) bool {
 // Landing answers where path lands when a link inside root carries it out of
 // root, and path itself when it stays inside root or root cannot be resolved.
 //
-// A verify worktree reaches the shared caches through links: its cache/ is a
-// link to ~/.cache/ze, and its tmp/golangci-lint-cache a link to the
-// checkout's. Spelled through the worktree, every cache path differs between
-// two runs of one commit, and a Go test that reads such a variable through
-// os.Environ (internal/core/env does) is blind to the change, because cmd/go
-// keys its test cache only on what os.Getenv logged (computeTestInputsID,
-// cmd/go/internal/test/test.go). Naming where the link lands gives two runs
-// one spelling. A path that stays inside root keeps its spelling, so a
+// A checkout and every verify worktree reach the per-user caches through one
+// link: cache/ is a link to ~/.cache/ze, and the Go, golangci-lint and
+// Staticcheck caches all sit under it. Spelled through the worktree, every
+// cache path differs between two runs of one commit, and a Go test that reads
+// such a variable through os.Environ (internal/core/env does) is blind to the
+// change, because cmd/go keys its test cache only on what os.Getenv logged
+// (computeTestInputsID, cmd/go/internal/test/test.go). Naming where the link
+// lands gives two runs one spelling. A path that stays inside root keeps its spelling, so a
 // checkout with no links and a test fixture under a linked temp directory
 // (/var on macOS) answer what they did.
 //

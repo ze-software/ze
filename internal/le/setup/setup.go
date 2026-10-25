@@ -149,6 +149,12 @@ func (s *Setup) Run() (*Report, int) {
 		report.Add(s.visitTool(report, tool, manager, installer))
 	}
 
+	// gopls, golangci-lint and staticcheck reach the per-user cache through
+	// their shims, in a PATH directory ahead of the real tools; plain go
+	// reaches it through its go env GOCACHE setting.
+	s.visitShims(report)
+	report.Add(s.visitGoCacheSetting(report))
+
 	// A docker CLI on PATH is not the whole capability: the labs build through
 	// BuildKit, which the CLI reaches only through its buildx plugin. The tool
 	// row above has put docker there when it can.

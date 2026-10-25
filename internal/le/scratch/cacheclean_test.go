@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
@@ -58,17 +59,14 @@ func TestCleanCachesUsesTheToolchainCachePath(t *testing.T) {
 // together, on a volume with 1G left (plan/journal/full-disk-false-red.md).
 func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 	root := t.TempDir()
-	perUser := t.TempDir()
-	targets := cleanTargets(root, "/machine/default", perUser)
+	targets := cleanTargets(root, "/machine/default")
 
 	want := []struct{ name, path string }{
 		{checkoutCache, gotoolchain.GoCache(root)},
-		{sharedCache, filepath.Join(perUser, "go-cache")},
 		{ambientCache, "/machine/default"},
 		{bootstrapCache, gotoolchain.BootstrapCache(root)},
 		{lintCache, gotoolchain.LintCache(root)},
 		{staticcheckCache, gostaticcheck.CacheDir(root)},
-		{sharedStaticcheckCache, filepath.Join(perUser, "staticcheck-matrix")},
 	}
 	if len(targets) != len(want) {
 		t.Fatalf("targets = %d, want %d", len(targets), len(want))
@@ -89,7 +87,7 @@ func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 // while the other is still full.
 func TestCacheTargetsSkipAnAmbientThatIsTheCheckout(t *testing.T) {
 	root := t.TempDir()
-	targets := cleanTargets(root, gotoolchain.GoCache(root), t.TempDir())
+	targets := cleanTargets(root, gotoolchain.GoCache(root))
 
 	for _, target := range targets {
 		if target.name == ambientCache && target.skipped == "" {
@@ -182,7 +180,7 @@ func TestCleanReportTextStatesEveryOutcome(t *testing.T) {
 
 	// Every name a target carries is followed by at least one space, so the
 	// longest one does not run into its path ("bootstrap/path/...").
-	for _, target := range cleanTargets("/checkout", "/ambient", "/per-user") {
+	for _, target := range cleanTargets("/checkout", "/ambient") {
 		line := CleanReport{Caches: []CacheClean{{Name: target.name, Path: target.path}}}.Text()
 		if !strings.HasPrefix(line, target.name+" ") {
 			t.Errorf("row %q does not separate the name from the path", line)
@@ -267,14 +265,17 @@ func TestMeasureCleanStillRefusesWhenNothingWasFreed(t *testing.T) {
 // VALIDATES: the bootstrap cache is one of the caches this action empties.
 // PREVENTS: the published claim outrunning the behavior. The action states it
 // empties every build cache this checkout fills and walked past tmp/go-cache,
-// which four writers fill and which held 1.3G when an operator found it by hand
-// (plan/journal/full-disk-false-red.md).
+// which held 1.3G when an operator found it by hand
+// (plan/journal/full-disk-false-red.md). The `le` launcher still writes it when
+// cache/ cannot be created, so the row stays on a linked host too: AC-13 counts
+// the one Go cache a linked host fills, and AC-13a keeps this fallback's row
+// (spec-le-one-go-cache-per-host).
 func TestCacheTargetsCoverTheBootstrapCache(t *testing.T) {
 	root := t.TempDir()
 	want := gotoolchain.BootstrapCache(root)
 
 	var found bool
-	for _, target := range cleanTargets(root, filepath.Join(root, "ambient"), t.TempDir()) {
+	for _, target := range cleanTargets(root, filepath.Join(root, "ambient")) {
 		if target.path == want {
 			found = true
 		}
@@ -284,77 +285,184 @@ func TestCacheTargetsCoverTheBootstrapCache(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-19. The per-user Go cache a verify worktree fills is a row of
-// its own while the checkout's cache/ is a real directory, and a skipped row
-// naming the checkout cache once cache/ is linked to it. Every row carries the
-// kind and the budget the trim reads from the same list.
-// PREVENTS: cache-clean and the trim walking past ~/.cache/ze/go-cache, which
-// held 13G on 2026-10-05 beside an unlinked checkout cache, or emptying and
-// counting one cache twice when cache/ IS that target.
-func TestCleanTargetsNamesSharedCache(t *testing.T) {
+// VALIDATES: AC-13. On a checkout laid out as every le run leaves it, cache/ a
+// link to the per-user target, cleanTargets answers one Go cache row, one lint
+// row and one staticcheck row besides the ambient and the launcher's fallback,
+// each with the kind and budget the trim reads, and no two rows land in one
+// directory. A stale cache copy is a row of its own, removed whole past the
+// floor.
+// PREVENTS: a per-user row beside the checkout row that names the same
+// directory through the link, which cleaned one cache twice and counted it
+// twice against the budget.
+func TestCleanTargetsOneRowPerCache(t *testing.T) {
 	root := t.TempDir()
 	perUser := t.TempDir()
+	if err := os.Symlink(perUser, filepath.Join(root, cacheName)); err != nil {
+		t.Fatalf("link cache/: %v", err)
+	}
 
-	want := map[string]struct {
+	want := []struct {
+		name   string
 		kind   cacheKind
 		budget budgetGroup
 	}{
-		checkoutCache:          {goBuildCache, goCachesBudget},
-		sharedCache:            {goBuildCache, goCachesBudget},
-		ambientCache:           {goBuildCache, notTrimmed},
-		bootstrapCache:         {goBuildCache, goCachesBudget},
-		lintCache:              {copiedFormatCache, lintCacheBudget},
-		staticcheckCache:       {copiedFormatCache, staticcheckCacheBudget},
-		sharedStaticcheckCache: {copiedFormatCache, staticcheckCacheBudget},
+		{checkoutCache, goBuildCache, goCachesBudget},
+		{ambientCache, goBuildCache, notTrimmed},
+		{bootstrapCache, goBuildCache, goCachesBudget},
+		{lintCache, copiedFormatCache, lintCacheBudget},
+		{staticcheckCache, copiedFormatCache, staticcheckCacheBudget},
 	}
-	unlinked := cleanTargets(root, "/machine/default", perUser)
-	if len(unlinked) != len(want) {
-		t.Fatalf("targets = %d, want %d", len(unlinked), len(want))
+	targets := cleanTargets(root, "/machine/default")
+	if len(targets) != len(want) {
+		t.Fatalf("targets = %d, want %d: %+v", len(targets), len(want), targets)
 	}
-	for _, target := range unlinked {
-		expected, known := want[target.name]
-		if !known {
-			t.Errorf("unexpected target %q", target.name)
-			continue
+	landed := map[string]string{}
+	for index, expected := range want {
+		target := targets[index]
+		if target.name != expected.name || target.kind != expected.kind || target.budget != expected.budget {
+			t.Errorf("target %d = %s kind %d budget %d, want %s kind %d budget %d", index,
+				target.name, target.kind, target.budget, expected.name, expected.kind, expected.budget)
 		}
-		if target.kind != expected.kind || target.budget != expected.budget {
-			t.Errorf("%s: kind %d budget %d, want kind %d budget %d",
-				target.name, target.kind, target.budget, expected.kind, expected.budget)
+		if target.skipped != "" {
+			t.Errorf("the %s row was skipped: %s", target.name, target.skipped)
 		}
-		if target.name == sharedCache {
-			if target.path != filepath.Join(perUser, "go-cache") || target.skipped != "" {
-				t.Errorf("unlinked shared row = %q skipped %q, want %q emptied",
-					target.path, target.skipped, filepath.Join(perUser, "go-cache"))
-			}
+		where := gen.Landing(root, target.path)
+		if first, ok := landed[where]; ok {
+			t.Errorf("the %s and %s rows both land in %s", first, target.name, where)
+		}
+		landed[where] = target.name
+	}
+	for _, name := range []string{checkoutCache, lintCache, staticcheckCache} {
+		path := rowTarget(t, targets, name).path
+		if where := gen.Landing(root, path); !pathWithin(where, perUser) {
+			t.Errorf("the %s row %s lands in %s, outside the per-user target %s", name, path, where, perUser)
 		}
 	}
 
-	if err := os.Symlink(perUser, filepath.Join(root, "cache")); err != nil {
+	stale := filepath.Join(root, cacheName+staleCacheInfix+"20261024T101500Z-42")
+	if err := os.Mkdir(stale, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	withStale := cleanTargets(root, "/machine/default")
+	if len(withStale) != len(want)+1 {
+		t.Fatalf("targets with one stale copy = %d, want %d", len(withStale), len(want)+1)
+	}
+	last := withStale[len(withStale)-1]
+	if last.name != staleCopyName(0) || last.path != stale || last.kind != staleCopy || last.budget != pastFloor {
+		t.Errorf("stale row = %+v, want %s at %s, kind staleCopy, budget pastFloor", last, staleCopyName(0), stale)
+	}
+}
+
+// VALIDATES: AC-13. The ambient row is a skip when `go env GOCACHE` resolves
+// to the checkout cache, compared where both land, and is cleaned when it is
+// another directory.
+// PREVENTS: a host whose `go env -w GOCACHE` names the shared cache by its
+// per-user path, which differs as a string from cache/go-cache, cleaning one
+// directory twice under two rows.
+func TestAmbientSkippedWhenSameDirectory(t *testing.T) {
+	root := t.TempDir()
+	perUser := t.TempDir()
+	if err := os.Symlink(perUser, filepath.Join(root, cacheName)); err != nil {
 		t.Fatalf("link cache/: %v", err)
 	}
-	for _, target := range cleanTargets(root, "/machine/default", perUser) {
-		if target.name == sharedCache && !strings.Contains(target.skipped, "checkout cache") {
-			t.Errorf("linked shared row skipped = %q, want it named as the checkout cache", target.skipped)
+	shared := filepath.Join(perUser, "go-cache")
+	if err := os.MkdirAll(shared, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := rowTarget(t, cleanTargets(root, shared), ambientCache); !strings.Contains(got.skipped, "checkout cache") {
+		t.Errorf("ambient %s, which is cache/go-cache through the link: skipped = %q, want a skip naming the checkout cache", shared, got.skipped)
+	}
+	elsewhere := t.TempDir()
+	if got := rowTarget(t, cleanTargets(root, elsewhere), ambientCache); got.skipped != "" {
+		t.Errorf("ambient %s, another directory: skipped = %q, want it cleaned", elsewhere, got.skipped)
+	}
+}
+
+// VALIDATES: the stale copy rows follow the checkout, whatever its path holds.
+// Method: a checkout under a directory whose name carries `[`, which glob
+// syntax reads as an unclosed class, holds two stale copies and a file with
+// the same prefix; both copies are listed in name order and the file is not.
+// PREVENTS: a checkout path built into a glob pattern panicking cache-clean
+// and the store trim, or matching names that are not stale copies.
+func TestStaleCopiesListedUnderAGlobMetacharacterRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "work[1", "ze")
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	older := filepath.Join(root, cacheName+staleCacheInfix+"20261024T090000Z-7")
+	newer := filepath.Join(root, cacheName+staleCacheInfix+"20261024T101500Z-42")
+	for _, copied := range []string{newer, older} {
+		if err := os.Mkdir(copied, 0o750); err != nil {
+			t.Fatal(err)
 		}
-		if target.name == sharedStaticcheckCache && !strings.Contains(target.skipped, "checkout's staticcheck cache") {
-			t.Errorf("linked shared staticcheck row skipped = %q, want it named as the checkout's", target.skipped)
+	}
+	decoy := filepath.Join(root, cacheName+staleCacheInfix+"20261024T110000Z-9")
+	if err := os.WriteFile(decoy, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stale []cleanTarget
+	for _, target := range cleanTargets(root, "/machine/default") {
+		if target.kind == staleCopy {
+			stale = append(stale, target)
 		}
-		if target.name != sharedCache && target.name != sharedStaticcheckCache && target.skipped != "" {
-			t.Errorf("linked: the %s row was skipped: %s", target.name, target.skipped)
+	}
+	if len(stale) != 2 {
+		t.Fatalf("stale rows = %+v, want the two copies %s and %s and not the file %s", stale, older, newer, decoy)
+	}
+	for index, want := range []string{older, newer} {
+		if stale[index].path != want || stale[index].name != staleCopyName(index) || stale[index].failed != "" {
+			t.Errorf("stale row %d = %+v, want %s at %s, not failed", index, stale[index], staleCopyName(index), want)
 		}
 	}
 }
 
-// VALIDATES: `all` empties both Staticcheck matrix caches by deleting them,
+// VALIDATES: a checkout that cannot be listed answers one failed stale row.
+// Method: cleanTargets over a root that does not exist; the row names the
+// root and carries the listing error, and the store trim reports it as an
+// error rather than trimming or skipping it.
+// PREVENTS: an unlisted checkout reading as "no stale copy".
+func TestStaleCopiesUnlistedRootAnswersAFailedRow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "gone")
+
+	targets := cleanTargets(root, "/machine/default")
+	failed := rowTarget(t, targets, staleCacheCopy)
+	if failed.path != root || failed.kind != staleCopy || !strings.Contains(failed.failed, "cannot list") {
+		t.Fatalf("unlisted row = %+v, want %s at %s, kind staleCopy, failed naming the listing", failed, staleCacheCopy, root)
+	}
+	_, rows := trimCaches(t.Context(), targets, budgetsOf(1<<40, 1<<40, 1<<40), testPass(cacheEntryAgeFloor))
+	for _, row := range rows {
+		if row.Name != staleCacheCopy {
+			continue
+		}
+		if row.Error != failed.failed || row.EntriesRemoved != 0 || row.Skipped != "" {
+			t.Errorf("trim row = %+v, want error %q, nothing removed, no skip", row, failed.failed)
+		}
+	}
+}
+
+// rowTarget answers the target named name, failing the test when none is.
+func rowTarget(t *testing.T, targets []cleanTarget, name string) cleanTarget {
+	t.Helper()
+	for _, target := range targets {
+		if target.name == name {
+			return target
+		}
+	}
+	t.Fatalf("no %s target in %+v", name, targets)
+	return cleanTarget{}
+}
+
+// VALIDATES: `all` empties the Staticcheck matrix cache by deleting it,
 // because no `go clean` owns another tool's copy of Go's layout.
 // PREVENTS: a full empty that leaves the matrix cache, which Staticcheck trims
 // only daily, as the one cache still full.
 // Method: seed each matrix cache row cleanTargets answers, run its emptier.
 func TestStaticcheckCachesEmptiedByDeletion(t *testing.T) {
 	root := t.TempDir()
-	perUser := t.TempDir()
 	emptied := 0
-	for _, target := range cleanTargets(root, "/machine/default", perUser) {
+	for _, target := range cleanTargets(root, "/machine/default") {
 		if target.budget != staticcheckCacheBudget {
 			continue
 		}
@@ -373,7 +481,7 @@ func TestStaticcheckCachesEmptiedByDeletion(t *testing.T) {
 		}
 		emptied++
 	}
-	if emptied != 2 {
-		t.Errorf("emptied %d staticcheck caches, want the checkout's and the shared one", emptied)
+	if emptied != 1 {
+		t.Errorf("emptied %d staticcheck caches, want the one matrix cache", emptied)
 	}
 }

@@ -18,7 +18,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/scratch"
@@ -363,7 +362,6 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	report.Diagnostics = append(report.Diagnostics,
 		sharedCacheLink(path),
 		sharedModcacheLink(root, path),
-		sharedLintCacheLink(root, path),
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(population).String(),
 	)
@@ -627,34 +625,6 @@ func sharedCacheLink(path string) string {
 		return text.Str("verify-worktree: shared build cache: ").Err(err).String()
 	}
 	return text.Str("verify-worktree: shared build cache: ").Str(result.Line).String()
-}
-
-// sharedLintCacheLink points the worktree's golangci-lint cache at the
-// checkout's and answers the line that reports what it did.
-//
-// golangci-lint keys its package cache on the module-relative file path and
-// the content ((*Cache).computePkgHash in its internal/cache), so the cache is
-// path-independent; a worktree lost it only because LintCache resolves inside
-// the worktree, which the removal deletes. The target stays where LintCache
-// puts it at the checkout, off cache/ and under the scratch cleaner's lint
-// budget. The link is created only in this run's own fresh tmp/, and a path
-// already there is left alone rather than replaced. Like the build cache link
-// it is an optimization: a failure is REPORTED and lint runs cold.
-func sharedLintCacheLink(root, path string) string {
-	var text textbuf.Buffer
-	text.Str("verify-worktree: shared lint cache: ")
-	source := gotoolchain.LintCache(root)
-	target := gotoolchain.LintCache(path)
-	if err := os.MkdirAll(source, 0o750); err != nil {
-		return text.Err(err).Str(" (lint runs cold in this worktree)").String()
-	}
-	if _, err := os.Lstat(target); err == nil {
-		return text.Str(target).Str(" already exists and is left as it is (lint runs over it)").String()
-	}
-	if err := os.Symlink(source, target); err != nil {
-		return text.Err(err).Str(" (lint runs cold in this worktree)").String()
-	}
-	return text.Str(target).Str(" -> ").Str(source).String()
 }
 
 func worktreePath(root, sha, stamp string) string {

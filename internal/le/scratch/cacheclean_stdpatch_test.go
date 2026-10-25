@@ -16,8 +16,7 @@ import (
 // which fails that build with "no such file" errors that never name the cause.
 func TestCleanTargetsNeverReachThePatchedTrees(t *testing.T) {
 	root := t.TempDir()
-	perUser := filepath.Join(t.TempDir(), "per-user")
-	for _, target := range cleanTargets(root, filepath.Join(t.TempDir(), "ambient"), perUser) {
+	for _, target := range cleanTargets(root, filepath.Join(t.TempDir(), "ambient")) {
 		for _, dir := range gen.CacheDirs(root) {
 			if pathWithin(target.path, dir) {
 				t.Errorf("the %s cache %s lies within the patched GOROOT directory %s", target.name, target.path, dir)

@@ -262,7 +262,7 @@ func TestTheCacheSitsInsideTheCheckout(t *testing.T) {
 
 	for key, want := range map[string]string{
 		"GOCACHE":             filepath.Join(root, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE": filepath.Join(root, "tmp", "golangci-lint-cache"),
+		"GOLANGCI_LINT_CACHE": filepath.Join(root, "cache", "golangci-lint-cache"),
 	} {
 		if got := valueOf(over, key); got != want {
 			t.Errorf("%s = %q, want %q", key, got, want)
@@ -430,9 +430,10 @@ func TestALanguageVersionGoDirectiveYieldsNoPin(t *testing.T) {
 // VALIDATES: the `le` script and the Go declaration name the same directory.
 // PREVENTS: the drift that let `./le scratch cache-clean` walk past 1.3G. Four
 // writers spelled tmp/go-cache themselves and the cleaner knew about none of
-// them (plan/journal/full-disk-false-red.md). Three of the four now derive; the
-// script runs before any Go binary exists, so it keeps its literal and this
-// test is what holds the pair together.
+// them (plan/journal/full-disk-false-red.md). The script's unusable-cache
+// fallback is now its only writer; the script runs before any Go binary
+// exists, so it keeps its literal and this test is what holds the pair
+// together.
 func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
@@ -447,6 +448,41 @@ func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
 	want := "GOCACHE=$root/" + strings.TrimPrefix(BootstrapCache(""), string(filepath.Separator))
 	if !strings.Contains(string(script), want) {
 		t.Errorf("the le script does not assign %q, so the bootstrap cache it fills is not the one cache-clean empties", want)
+	}
+}
+
+// TestLintCacheIsUnderCache proves every le-driven lint run, and the `le`
+// launcher that starts them, name the golangci-lint cache under cache/, so the
+// checkout's cache/ link carries it to the one per-user cache (AC-5).
+//
+// VALIDATES: LintCache, the Overrides value and the script's assignment all
+// name <root>/cache/golangci-lint-cache, and the script assigns no tmp/ copy.
+// PREVENTS: a lint cache left on the checkout's own device, outside the cache
+// every other writer shares, which is how it reached 9.5G unseen.
+func TestLintCacheIsUnderCache(t *testing.T) {
+	const root = "/somewhere/checkout"
+	want := filepath.Join(root, "cache", "golangci-lint-cache")
+	if got := LintCache(root); got != want {
+		t.Errorf("LintCache(%q) = %q, want %q", root, got, want)
+	}
+	if got := valueOf(Toolchain{Root: root}.Overrides(EnvOptions{}), "GOLANGCI_LINT_CACHE"); got != want {
+		t.Errorf("Overrides GOLANGCI_LINT_CACHE = %q, want %q", got, want)
+	}
+
+	checkout, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	script, err := os.ReadFile(filepath.Join(checkout, "le"))
+	if err != nil {
+		t.Fatalf("read the le bootstrap script: %v", err)
+	}
+	assignment := "GOLANGCI_LINT_CACHE=$root/" + strings.TrimPrefix(LintCache(""), string(filepath.Separator))
+	if !strings.Contains(string(script), assignment) {
+		t.Errorf("the le script does not assign %q, so the lint cache it exports is not the one le names", assignment)
+	}
+	if strings.Contains(string(script), "GOLANGCI_LINT_CACHE=$root/tmp/") {
+		t.Errorf("the le script still assigns a lint cache under tmp/")
 	}
 }
 

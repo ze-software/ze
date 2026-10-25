@@ -21,13 +21,13 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{{Keyword: "quiet"}},
 		AnswerArgs: runEnsure},
 	leaction.Action{Verb: "cache-clean", Why: "clean EVERY build cache this checkout fills and report, for each, what it" +
-		" removed, what it kept and the disk space left: the checkout Go cache at cache/go-cache that every le" +
-		" action writes, the shared per-user Go cache at ~/.cache/ze/go-cache that" +
-		" every verify worktree writes (a SKIP row when cache/ links to it), the" +
-		" ambient Go cache a bare `go` command writes, the bootstrap Go cache at" +
-		" tmp/go-cache, the golangci-lint cache at tmp/golangci-lint-cache, and the Staticcheck" +
-		" matrix caches at cache/staticcheck-matrix and ~/.cache/ze/staticcheck-matrix (a SKIP" +
-		" row when cache/ links there)." +
+		" removed, what it kept and the disk space left: the one Go cache at cache/go-cache, which every le" +
+		" action and every verify worktree writes through the cache/ link to ~/.cache/ze, the" +
+		" ambient Go cache a bare `go` command writes (a SKIP row when `go env GOCACHE` is that same" +
+		" directory), the launcher's fallback Go cache at tmp/go-cache, written only when cache/ cannot" +
+		" be created, the golangci-lint cache at cache/golangci-lint-cache, the Staticcheck matrix" +
+		" cache at cache/staticcheck-matrix, and one row for each cache.stale-* copy the link repair" +
+		" renamed aside, removed whole once it is older than the floor." +
 		" By default it removes only the entries older than the store trim's 3h floor, so it is safe" +
 		" while other sessions build: an entry is safe for 2h after Go last looked it up (Go refreshes" +
 		" an entry's mtime at most hourly; the floor is 3h), and a build that later misses an older" +

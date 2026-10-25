@@ -4,6 +4,37 @@ set -eu
 root=$(CDPATH= cd "$(dirname "$0")" && pwd)
 binary=$root/bin/ze
 
+# Makes $root/cache the link to the per-user cache, the one Go build cache of
+# this host, before the build below writes GOCACHE under it, so a checkout whose
+# first command is ./ze never makes cache/ a real directory. This is a copy of
+# the le script's ensure_cache_link, whose comment carries the reasons, and
+# TestLauncherLinkMatchesCacheTarget holds the two bodies equal. A failure here
+# leaves cache/ as it was, and the compiler below reports it.
+ensure_cache_link() {
+	cache_link=$root/cache
+	if [ -L "$cache_link" ]; then
+		return 0
+	fi
+	if [ -z "${XDG_CACHE_HOME:-}${HOME:-}" ]; then
+		return 0
+	fi
+	cache_target=${XDG_CACHE_HOME:-$HOME/.cache}/ze
+	if [ -d "$cache_link" ]; then
+		cache_stale=$cache_link.stale-$(date -u +%Y%m%dT%H%M%SZ)-$$
+		# A failed move is another le moving it first, or a cache/ this user
+		# cannot move: either way the checks below and build_le decide.
+		if mv "$cache_link" "$cache_stale" 2>/dev/null; then
+			cache_size=$(du -sh "$cache_stale" 2>/dev/null | cut -f1) || cache_size=
+			echo "$(basename "$0"): $cache_link was a real directory (${cache_size:-size unknown}); moved it to $cache_stale and linked $cache_link -> $cache_target, so every build shares the one per-user Go cache. Nothing was deleted" >&2
+		fi
+	fi
+	if [ -e "$cache_link" ] || [ -L "$cache_link" ]; then
+		return 0
+	fi
+	mkdir -p "$cache_target" 2>/dev/null || return 0
+	ln -s "$cache_target" "$cache_link" 2>/dev/null || return 0
+}
+
 # This is an existence cache, not a freshness check. An existing binary is
 # deliberately executed without asking the toolchain whether sources changed.
 if [ ! -x "$binary" ]; then
@@ -13,8 +44,9 @@ if [ ! -x "$binary" ]; then
 	. "$root/feature-tags"
 	tags=ze_core,ze_distro,$(feature_tags "$root/feature-gates.txt" ",")
 
+	ensure_cache_link
 	GOCACHE=$root/cache/go-cache
-	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
+	GOLANGCI_LINT_CACHE=$root/cache/golangci-lint-cache
 	CGO_ENABLED=0
 	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
 	# A toolchain line wins; the go directive is the fallback, because a module

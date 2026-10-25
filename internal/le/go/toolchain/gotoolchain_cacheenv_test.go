@@ -110,7 +110,7 @@ var worktreeProbeModule = map[string]string{
 
 // TestTwoWorktreesGiveATestChildOneEnvironment builds two verify worktrees the
 // way the gate lays them out (internal/le/verify, lifecycle.go): cache/ a link
-// to one shared cache, tmp/golangci-lint-cache a link to the checkout's, and
+// to one shared cache, which carries both the Go and the lint cache, and
 // the variables the gate names to its stages pointing into each worktree. It
 // asserts Toolchain.Environment answers both the same test environment, then
 // runs a package that scans os.Environ first in one worktree and then in the
@@ -131,14 +131,11 @@ func TestTwoWorktreesGiveATestChildOneEnvironment(t *testing.T) {
 	t.Setenv("GOENV", goenv)
 
 	shared := filepath.Join(base, "shared-cache")
-	lint := filepath.Join(base, "checkout-lint-cache")
-	for _, dir := range []string{shared, lint} {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.MkdirAll(shared, 0o750); err != nil {
+		t.Fatal(err)
 	}
-	first := layOutWorktree(t, filepath.Join(base, "wt-first"), shared, lint)
-	second := layOutWorktree(t, filepath.Join(base, worktreeMarker), shared, lint)
+	first := layOutWorktree(t, filepath.Join(base, "wt-first"), shared)
+	second := layOutWorktree(t, filepath.Join(base, worktreeMarker), shared)
 
 	environments := make([][]string, 0, 2)
 	for _, root := range []string{first, second} {
@@ -171,18 +168,15 @@ func TestTwoWorktreesGiveATestChildOneEnvironment(t *testing.T) {
 	}
 }
 
-// layOutWorktree writes the probe module into root and links root's caches as
+// layOutWorktree writes the probe module into root and links root's cache/ as
 // the gate links a verify worktree's, and answers root.
-func layOutWorktree(t *testing.T, root, shared, lint string) string {
+func layOutWorktree(t *testing.T, root, shared string) string {
 	t.Helper()
 	writeModule(t, root, worktreeProbeModule)
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(shared, filepath.Join(root, "cache")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(lint, LintCache(root)); err != nil {
 		t.Fatal(err)
 	}
 	return root

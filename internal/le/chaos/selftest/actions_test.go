@@ -69,7 +69,7 @@ func chaosFixtureToolchain(t *testing.T) gotoolchain.Toolchain {
 func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	cache := filepath.Join(tc.Root, "cache", "go-cache")
-	lintCache := filepath.Join(tc.Root, "tmp", "golangci-lint-cache")
+	lintCache := filepath.Join(tc.Root, "cache", "golangci-lint-cache")
 
 	tests := []struct {
 		name      string

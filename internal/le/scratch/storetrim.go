@@ -106,7 +106,7 @@ func budgetEntry(group budgetGroup) (env.EnvEntry, bool) {
 		return lintCacheBudgetEntry, true
 	case staticcheckCacheBudget:
 		return staticcheckCacheBudgetEntry, true
-	case notTrimmed, unspecifiedBudget:
+	case notTrimmed, pastFloor, unspecifiedBudget:
 		return env.EnvEntry{}, false
 	default:
 		panic("BUG: cache target has an unknown budget group")
@@ -652,22 +652,13 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 	ctx, cancel := context.WithTimeout(context.Background(), storeTrimTimeout)
 	defer cancel()
 
-	// The per-user target is the one trimmed store path that can fail to
-	// resolve, and its failure refuses the rows under it alone. The ambient cache
-	// is not le's to trim (owner decision D-6), so its row is a skip either
-	// way; its path is still resolved, with the one `go env` run cache-clean
+	// The ambient cache is not le's to trim (owner decision D-6), so its row is
+	// a skip either way; its path is still resolved, with the one `go env` run cache-clean
 	// makes, so the row names the cache it leaves alone, or says why it cannot.
-	refused := map[string]string{}
-	perUser, perUserErr := New(root, os.Environ()).cacheTarget()
 	ambient, ambientErr := ambientGoCache(ctx)
-	targets := cleanTargets(root, ambient, perUser)
-	for _, target := range targets {
-		if target.perUser && perUserErr != nil {
-			refused[target.name] = perUserErr.Error()
-		}
-	}
+	targets := cleanTargets(root, ambient)
 	pass := cachePass{now: time.Now(), floor: cacheEntryAgeFloor, remove: removeCacheEntry, run: storeTrimRun}
-	report.Budgets, report.Stores = trimCaches(ctx, targets, refused, readBudget, pass)
+	report.Budgets, report.Stores = trimCaches(ctx, targets, readBudget, pass)
 	if ambientErr != nil {
 		for index := range report.Stores {
 			if report.Stores[index].Name == ambientCache {

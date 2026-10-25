@@ -363,7 +363,7 @@ func (r *Run) assertRuntimeKernel(ctx context.Context, plan *RunPlan) (string, e
 // tree selected over it (guestPatchedTree).
 var keepAliveProfile = []string{
 	"export PATH=/usr/local/go/bin:$PATH", "export GOROOT=/usr/local/go",
-	"export GOCACHE=/workspace/tmp/qemu/go-cache",
+	"export GOCACHE=/workspace/cache/go-cache",
 	"export GOMODCACHE=/workspace/tmp/qemu/gomodcache",
 	"export GOFLAGS=-buildvcs=false", "export CGO_ENABLED=0",
 	"export HOME=/root", "export TMPDIR=/tmp", "cd /workspace", guestPatchedTree,

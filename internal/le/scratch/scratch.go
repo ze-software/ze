@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -167,6 +168,19 @@ func (m *Manager) Ensure(repointCache bool) (Report, int) {
 
 // EnsureCache creates or repairs the cache link alone and leaves tmp untouched.
 //
+// A real cache/ directory is renamed to cache.stale-<UTC timestamp>-<pid> and
+// the link takes its place (moveRealCacheAside): Go's cache is content
+// addressed, so a build running through the old directory at that moment can
+// fail once, never get a wrong entry: an entry it wrote before the move is
+// gone from the path it reads back (measured 2026-10-25, "open
+// .../go-cache/62/<id>-d: no such file or directory"), and the next build
+// fills the target. The repair's stderr line names the move, so that one
+// failure is attributable. Nothing is deleted. The
+// answer is then the repairedResult line, which Announce marks for the start
+// of every le run (internal/le/register.go, ensureCacheLink). A link already
+// there, right or wrong, is left to ensureSymlink, so a QEMU guest's dangling
+// link to the host's cache stays as it is.
+//
 // A detached verify worktree needs this entry point rather than Ensure. GOCACHE
 // resolves to <root>/cache/go-cache (internal/le/go/toolchain, GoCache), so a
 // worktree with no cache link builds a private Go build cache from cold, which
@@ -183,7 +197,91 @@ func (m *Manager) EnsureCache(repointCache bool) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return m.ensureSymlink(filepath.Join(m.Root, cacheName), target, repointCache), nil
+	link := filepath.Join(m.Root, cacheName)
+	stale, moved, err := m.moveRealCacheAside(link)
+	if err != nil {
+		return errorResult(cacheName, err), nil
+	}
+	result := m.ensureSymlink(link, target, repointCache)
+	// refuse-by-default: guards repairedResult -- not moved means moveRealCacheAside found no real cache/, so ensureSymlink's own result is the whole answer and no repair is reported
+	if !moved {
+		return result, nil
+	}
+	if result.Status == verdictRefuse {
+		var text textbuf.Buffer
+		result.Line = text.Str(result.Line).Str(" (the real directory was moved to ").Str(stale).
+			Str(" first; nothing was deleted)").String()
+		return result, nil
+	}
+	return repairedResult(link, stale, target), nil
+}
+
+// staleCacheInfix joins cache/ to the timestamp of the copy a repair leaves.
+// The `le` script's ensure_cache_link writes the same spelling.
+const staleCacheInfix = ".stale-"
+
+// staleCacheStamp is the UTC timestamp layout of a stale cache copy's name.
+const staleCacheStamp = "20060102T150405Z"
+
+// statusRepaired is the status of an EnsureCache that moved a real cache/
+// directory aside and linked its place.
+const statusRepaired = "repaired"
+
+// Announce reports whether le prints this result when it starts: a repair
+// that moved a real directory, or a refusal. A created or correct link is
+// silent, and so is a link to another place, which this checkout may not own.
+func (r Result) Announce() bool {
+	if r.Status == statusRepaired {
+		return true
+	}
+	return r.Status == verdictRefuse
+}
+
+// moveRealCacheAside renames a real directory at link to a stale copy beside
+// it, so the link can take its place, and answers the copy's path. moved is
+// false when link is absent, a symbolic link, or not a directory, and when
+// another le renamed the directory first (R-7 of
+// spec-le-one-go-cache-per-host): that le makes the link, or ensureSymlink
+// does.
+func (m *Manager) moveRealCacheAside(link string) (stale string, moved bool, err error) {
+	info, err := os.Lstat(link)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("inspect %s: %w", link, err)
+	}
+	if !info.IsDir() {
+		return "", false, nil
+	}
+	var text textbuf.Buffer
+	stale = text.Str(link).Str(staleCacheInfix).Str(time.Now().UTC().Format(staleCacheStamp)).
+		Byte('-').Int(int64(os.Getpid())).String()
+	if err := m.fs.rename(link, stale); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("move the real directory %s aside to %s: %w", link, stale, err)
+	}
+	return stale, true, nil
+}
+
+// repairedResult answers the line naming what a repair moved, where, and how
+// large it is, so a build that fails in that minute is attributable and the
+// owner knows the space the copy holds.
+func repairedResult(link, stale, target string) Result {
+	size := "size unknown"
+	if bytes, err := treeBytes(stale); err == nil {
+		size = mebibytes(bytes)
+		if bytes >= bytesPerGiB {
+			size = gibibytes(bytes)
+		}
+	}
+	var text textbuf.Buffer
+	line := text.Str("le: ").Str(link).Str(" was a real directory (").Str(size).
+		Str("); moved it to ").Str(stale).Str(" and linked ").Str(link).Str(" -> ").Str(target).
+		Str(", so every build shares the one per-user Go cache. Nothing was deleted").String()
+	return Result{Path: cacheName, Status: statusRepaired, Line: line, Stderr: true}
 }
 
 // Migrate selectively moves tmp artifacts and moves the whole cache directory.
@@ -253,7 +351,8 @@ func (m *Manager) ensureExistingSymlink(link, target string, autoRepoint bool) R
 		return errorResult(filepath.Base(link), fmt.Errorf("read symlink: %w", err))
 	}
 	var text textbuf.Buffer
-	if current == target {
+	// Cleaned, so a link written as ~/.cache/ze/ is the target it names.
+	if filepath.Clean(current) == filepath.Clean(target) {
 		if err := os.MkdirAll(target, targetDirMode); err != nil {
 			return errorResult(filepath.Base(link), fmt.Errorf("create target: %w", err))
 		}

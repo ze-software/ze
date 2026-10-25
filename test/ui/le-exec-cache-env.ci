@@ -1,0 +1,30 @@
+# Test: the BUILT le binary's `le exec` points a program's caches at the one
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       per-user cache, and gives it Ze's patched GOROOT only inside a checkout.
+#
+# VALIDATES: spec-le-one-go-cache-per-host AC-7, AC-8 and AC-9, and the Wiring
+#            Test row for `le exec`, against the artifact a shim runs. The
+#            fixture runs `le exec /usr/bin/env` inside a throwaway checkout and
+#            from a directory outside it: GOCACHE, GOPLSCACHE,
+#            GOLANGCI_LINT_CACHE and STATICCHECK_CACHE name directories under
+#            the throwaway per-user cache in both; GOROOT is the patched tree
+#            inside, and exactly the caller's (set, or unset) outside, with no
+#            tree's bin left on PATH. `le exec /bin/sh -c 'exit 7'` exits 7.
+#            A shim carrying the marker and a missing path exit 1, name the
+#            path and ./le setup, and run nothing.
+# PREVENTS: a shim that loops on itself (R-1), and Ze's patched GOROOT leaking
+#           into gopls on another repository (R-8). Between the package tests
+#           and this file sit the build, the root handler's activation of the
+#           patched GOROOT, argv forwarding and the execve.
+#
+# The checkout and the per-user cache are throwaway trees the fixture names
+# through ZE_REPO_ROOT and XDG_CACHE_HOME; the automatic store trim is off.
+#
+# The timeout is declared because a cold build cache makes the first compile of
+# the cmd/ze le personality far slower than the steady state.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-exec-cache-env
+expect=exit:code=0
+expect=stdout:contains=OK

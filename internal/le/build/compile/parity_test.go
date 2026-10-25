@@ -51,7 +51,7 @@ func TestInstallerPlansPreserveBothArchitectureBuilds(t *testing.T) {
 			}
 			wantEnvironment := []string{
 				"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-				"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
+				"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "cache", "golangci-lint-cache"),
 				"CGO_ENABLED=0",
 				"GOOS=linux",
 				"GOARCH=" + arch,
@@ -91,7 +91,7 @@ func TestHostPlanUsesExactTagsVersionFlagsAndRootOutput(t *testing.T) {
 	}
 	wantEnvironment := []string{
 		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
+		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "cache", "golangci-lint-cache"),
 		"CGO_ENABLED=0",
 		"GOOS=" + runtime.GOOS,
 		"GOARCH=" + runtime.GOARCH,

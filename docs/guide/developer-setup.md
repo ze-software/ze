@@ -142,6 +142,124 @@ Run the slash command inside a Claude Code session. The plugin and the binary
 it names fail the same way and have different fixes, so the report says which
 of the two is absent.
 
+### Tool caches: `le exec`
+
+`./le exec <path> [args...]` runs a program with its caches in the one per-user
+cache, `$XDG_CACHE_HOME/ze`, else `~/.cache/ze`, instead of each tool's default
+folder (`~/Library/Caches` on macOS). It sets four variables, creates their
+directories, and then replaces itself with the program, so the program's exit
+status is the caller's and every argument after the path reaches it untouched.
+
+| Variable | Directory under the per-user cache |
+|----------|------------------------------------|
+| `GOCACHE` | `go-cache` |
+| `GOPLSCACHE` | `gopls` |
+| `GOLANGCI_LINT_CACHE` | `golangci-lint-cache` |
+| `STATICCHECK_CACHE` | `staticcheck-matrix` |
+
+When the working directory is inside a Ze checkout, the program also gets Ze's
+patched GOROOT, with `GOTOOLCHAIN=local` and the tree's `bin` first on PATH, so
+gopls analyzes the standard library Ze compiles. Anywhere else it gets the
+GOROOT, GOTOOLCHAIN and PATH its caller had, and never a patched tree, so a tool
+on another repository sees that repository's Go.
+
+A bare name is looked up on PATH, skipping any file that carries the shim
+marker. `le exec` refuses, with exit 1, a path that does not exist, is not an
+executable file, or is a shim `./le setup` wrote, because a shim handed back to
+`le exec` would start it again in a loop; each refusal names the path and
+`./le setup`. Warm, `./le exec /usr/bin/true` takes about 50 ms on an Apple
+silicon Mac.
+<!-- source: internal/le/exec/exec.go -- programEnvironment, resolve, ShimMarker -->
+<!-- source: internal/le/go/stdpatch/gen/caller.go -- CallerEnvironment -->
+
+### Tool shims, PATH and the Go cache setting
+
+`./le setup install` writes a shim for `gopls`, `golangci-lint` and
+`staticcheck`, the tool rows marked `Shim` in the setup table, into the shim
+directory it chooses from PATH. Each shim is a short `sh` script, mode 0755,
+that carries the `le exec` marker on its second line and ends with:
+
+```sh
+exec '/path/to/ze/le' exec '/path/to/real/gopls' "$@"
+```
+
+The shim directory is the earliest PATH entry that is:
+
+- an absolute path under HOME
+- an existing directory this user can write
+- outside any ze checkout (a directory holding `go.mod` beside `feature-gates.txt`, or under one)
+- ahead of every PATH directory holding a real `gopls`, `golangci-lint` or `staticcheck`
+
+The PATH judged here is the caller's: the one the shell that ran `./le` had,
+which is the one an editor or a new shell searches. le's own PATH is not it,
+because le puts the patched GOROOT's `bin` first before it runs any action
+(see above), and that tree lives under the per-user cache, so under HOME and
+writable. Setup restores the caller's PATH the way `le exec` does, dropping
+every patched tree's `bin` a parent le left on it, and judges the shim
+directory, the real tools and the `gopls-answers` row against that.
+
+A directory listed twice counts at its first position, the one a lookup
+reaches. The Go bin directory never qualifies, because it holds the real tools,
+and a shim there would be overwritten by the next `go install`. Only when no
+entry qualifies do the shims go in `~/bin`, and the `shim-dir` row is pending
+until PATH reaches `~/bin` first.
+
+The real tool is the first copy on PATH outside the shim directory that is not
+itself a shim. An editor, the Claude LSP or a shell that finds the tool by PATH
+then starts it through `le exec`, so its cache lands under `~/.cache/ze` with no
+shell variable. Each run rewrites a shim whose checkout or tool path changed,
+so after moving the checkout or reinstalling a tool, run `./le setup install`
+again. When the checkout a shim names is gone, the shim exits 1 and says which
+`le` is missing and that `./le setup install` from the current checkout
+rewrites it. Setup never overwrites a file in the shim directory that it did
+not write: the row is pending and prints the `mv` command that moves the file
+aside. A shimmed tool with no real copy on PATH is missing, and its own tool row
+installs it; a shim found first on PATH does not count as the tool.
+
+Once a tool's shim is current in the shim directory, the same run removes every
+older shim for that tool in `~/bin`, in every other directory of the caller's
+PATH, and in every directory of le's own PATH (the patched tree's `bin`, where
+an earlier setup wrote them), and the
+tool's row names each one it removed. Directories are compared by identity, so
+a second spelling of the shim directory (`~/Bin` for `~/bin` on a
+case-insensitive disk, or a link) is the same directory and keeps its shims. Only a file carrying the `le exec` marker
+under a shimmed tool's name is removed, so a file setup did not write is never
+touched. `check` removes nothing and reports the old shims as work left.
+
+| Row | Present when | Otherwise |
+|-----|--------------|-----------|
+| `<tool>-shim` | `<shim directory>/<tool>` runs `le exec` on the current real tool, and no older shim for it is left elsewhere | install writes it and removes the old shims; `check` reports it missing |
+| `shim-dir` | a PATH entry qualifies; the row names it | pending, with the shims in `~/bin` and the lines below |
+| `go-env-gocache` | `go env GOCACHE` names `<per-user cache>/go-cache`, links followed | install runs `go env -w GOCACHE=<that path>` and prints the old and new value; `check` reports it |
+
+le never edits a shell file. When no PATH entry qualifies, setup prints the
+line that puts `~/bin` first for `~/.zshenv` (`~/.profile` for another shell)
+and, when `nu` is on PATH, the line for the env file `nu -c '$nu.env-path'`
+names:
+
+```sh
+export PATH='/Users/you/bin':"$PATH"
+```
+
+```nu
+$env.PATH = ($env.PATH | split row (char esep) | prepend r#'/Users/you/bin'# | uniq)
+```
+
+Plain `go` outside le reads GOCACHE from `go env`, so the `go-env-gocache` row
+is what keeps `go build` in any shell out of `~/Library/Caches/go-build`. It
+reads the setting with GOCACHE removed from the environment, so le's own value
+does not hide it. When `go env -w` fails, for example under `GOENV=off`, the row
+fails with the reason and prints the exact `go env -w` command.
+
+With the shims in place, the `GOPLSCACHE`, `GOLANGCI_LINT_CACHE` and
+`STATICCHECK_CACHE` lines in `~/.zshenv` or `env.nu` are no longer needed:
+`le exec` sets them. The `gopls-answers` row names the gopls the caller's PATH
+reaches and whether it is the shim; a gopls started by absolute path, or one ahead of
+the shim directory, keeps its default cache.
+<!-- source: internal/le/setup/shims.go -- callerPath, chooseShimDir, shimDirRefusal, visitShim, strayShims, shimScript, realTool, visitShimDir, notePathLines, visitGoCacheSetting -->
+<!-- source: internal/le/setup/tools.go -- Tool.Shim -->
+<!-- source: internal/le/setup/servers.go -- goplsAnswerer -->
+
 ## What It Installs
 
 ### Build and Lint

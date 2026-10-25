@@ -5,7 +5,10 @@
 package le
 
 import (
+	"os"
+
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	_ "github.com/ze-software/ze/internal/le/ai/digest"
 	_ "github.com/ze-software/ze/internal/le/ai/hooks"
 	_ "github.com/ze-software/ze/internal/le/ai/rules"
@@ -43,6 +46,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/doc/ste"
 	_ "github.com/ze-software/ze/internal/le/doc/wiring"
 	_ "github.com/ze-software/ze/internal/le/doc/yangcontract"
+	_ "github.com/ze-software/ze/internal/le/exec"
 	_ "github.com/ze-software/ze/internal/le/feature"
 	_ "github.com/ze-software/ze/internal/le/go/extract"
 	_ "github.com/ze-software/ze/internal/le/go/lint"
@@ -76,7 +80,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/repo/workingtree"
 	_ "github.com/ze-software/ze/internal/le/rfc"
 	_ "github.com/ze-software/ze/internal/le/rfc/skeletons"
-	_ "github.com/ze-software/ze/internal/le/scratch"
+	"github.com/ze-software/ze/internal/le/scratch"
 	_ "github.com/ze-software/ze/internal/le/session"
 	_ "github.com/ze-software/ze/internal/le/setup"
 	_ "github.com/ze-software/ze/internal/le/setup/dockerhost"
@@ -183,15 +187,47 @@ func init() {
 }
 
 // run is the le root handler: every le command and native hook enters here.
-// Before dispatching it runs the hooks areas registered to run ahead of every
+// It links the checkout's cache/ (ensureCacheLink), then selects the patched
+// standard library (activatePatchedGOROOT), in that order and outside the
+// hook contract. Before dispatching it runs the hooks areas registered to run ahead of every
 // command (leroot.RegisterBeforeDispatch), such as the scratch store trim's
 // hourly chance to start. A hook never prints and returns nothing, so the
 // command's exit code and output are the dispatch's alone.
 func run(_ *registry.RuntimeContext, args []string) int {
 	program := leroot.InvocationName()
+	ensureCacheLink()
 	activatePatchedGOROOT()
 	leroot.RunBeforeDispatch(program)
 	return leroot.Dispatch(program, args)
+}
+
+// ensureCacheLink makes the checkout's cache/ the link to the per-user cache
+// (scratch.EnsureCache), and renames a real cache/ directory aside, before
+// activatePatchedGOROOT runs: its gen.CacheDir creates cache/stdpatch, which
+// would make a missing cache/ a real directory and grow a second Go build cache
+// in the checkout. It covers every le that the `le` script did not start, such
+// as bin/le run directly in a git-archive export. It is not a
+// leroot.BeforeDispatch hook, because that contract forbids printing, and a
+// repair or a refusal is printed on stderr, once, so stdout stays the action's
+// own. A correct link costs one Lstat and one Readlink, and no process.
+func ensureCacheLink() {
+	root, err := lepath.Root()
+	if err != nil {
+		return // no checkout: no cache/ to link
+	}
+	result, err := scratch.New(root, os.Environ()).EnsureCache(false)
+	var text textbuf.Buffer
+	if err != nil {
+		text.Str("le: cannot link ").Str(root).Str("/cache to the per-user cache: ").Err(err).
+			Str(". Set HOME or XDG_CACHE_HOME, then run `./le scratch links-ensure`\n")
+	}
+	if err == nil && result.Announce() {
+		text.Str(result.Line).Byte('\n')
+	}
+	if text.Len() == 0 {
+		return
+	}
+	_, _ = os.Stderr.WriteString(text.String()) //nolint:errcheck // stderr is the report channel; it has nowhere to report its own failure
 }
 
 // activatePatchedGOROOT selects the patched standard library for this process

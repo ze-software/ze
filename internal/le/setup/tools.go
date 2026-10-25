@@ -155,6 +155,11 @@ type Tool struct {
 	GoInstall string
 	// Required says the run fails without it.
 	Required bool
+	// Shim says `le setup` writes a shim for this tool in its shim directory that starts the
+	// real tool through `le exec`, so the cache it writes lands under the
+	// per-user target whoever started it: an editor, the agent LSP or a shell
+	// (shims.go).
+	Shim bool
 	// Note is a sentence for a reader who has to decide what to do about it.
 	Note string
 	// DoctorCheck is the appliance doctor check that requires this tool.
@@ -230,10 +235,10 @@ func requiredTools() []Tool {
 		{Name: toolGit, Probe: []string{toolGit}, Brew: toolGit, Apt: toolGit, Required: true},
 		{Name: "protobuf", Probe: []string{"protoc"}, Brew: "protobuf", Apt: "protobuf-compiler", Required: true},
 		{Name: "jq", Probe: []string{"jq"}, Brew: "jq", Apt: "jq", Required: true},
-		{Name: toolGolangCI, Probe: []string{toolGolangCI}, GoInstall: golangciTarget, Required: true},
-		{Name: toolStaticcheck, Probe: []string{toolStaticcheck}, GoInstall: staticcheckTarget, Required: true},
+		{Name: toolGolangCI, Probe: []string{toolGolangCI}, GoInstall: golangciTarget, Required: true, Shim: true},
+		{Name: toolStaticcheck, Probe: []string{toolStaticcheck}, GoInstall: staticcheckTarget, Required: true, Shim: true},
 		{Name: toolGoimports, Probe: []string{toolGoimports}, GoInstall: goimportsTarget, Required: true},
-		{Name: toolGopls, Probe: []string{toolGopls}, GoInstall: goplsTarget, Required: true, Note: goplsNote},
+		{Name: toolGopls, Probe: []string{toolGopls}, GoInstall: goplsTarget, Required: true, Shim: true, Note: goplsNote},
 		{Name: toolGovulncheck, Probe: []string{toolGovulncheck}, GoInstall: govulncheckTarget, Required: true},
 
 		{

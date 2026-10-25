@@ -407,7 +407,7 @@ func buildGuestZe(ctx context.Context, root, output string, overrideKeys ...stri
 	binary := filepath.Join(bindir, output)
 	environ := withGuestEnv(os.Environ(), map[string]string{
 		"CGO_ENABLED": "0",
-		"GOCACHE":     settingFromEnv("GOCACHE", gotoolchain.BootstrapCache(root)),
+		"GOCACHE":     settingFromEnv("GOCACHE", gotoolchain.GoCache(root)),
 	})
 	result, err := guestRun(ctx, "", []string{"go", goCommandBuild, tagsFlag, tags, "-o", binary, zeMainPackage}, environ)
 	if err != nil {

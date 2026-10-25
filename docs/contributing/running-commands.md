@@ -579,20 +579,51 @@ Read the device that holds the CACHE, by naming the cache path itself:
 ```
 df -h cache/go-cache          # follows cache/ to the device that fills, linked or not
 df -h ~/.cache/ze/go-cache    # the shared per-user cache verify worktrees write
-df -h tmp/golangci-lint-cache # the lint cache, which is NOT under cache/
+df -h cache/golangci-lint-cache # the lint cache, under cache/ with the others
 findmnt -T cache/go-cache     # Linux: which device that path is on
 ```
 
 `df` on the checkout ROOT can answer about the wrong device. The per-user cache
 target is `$XDG_CACHE_HOME/ze`, or `~/.cache/ze` (`internal/le/scratch/scratch.go`,
-`cacheTarget`), and that target is frequently its own filesystem. The checkout's
-`cache/` is a symlink to it only after `./le scratch links-ensure` or
-`./le scratch migrate` ran (`Ensure`, `EnsureCache`); nothing at le start
-creates the link. A checkout that ran neither has a plain `cache/` directory and
-TWO durable Go caches: `cache/go-cache`, which every le action writes, and
-`~/.cache/ze/go-cache`, which every verify worktree writes through its own link
-(see "A verify worktree shares that cache" below). Naming each cache path rather
-than the checkout is what makes `df` answer correctly.
+`cacheTarget`), and that target is frequently its own filesystem. Every le run
+makes the checkout's `cache/` the symlink to it before anything can create
+`cache/` as a real directory, so `cache/go-cache`, which every le action writes,
+and `~/.cache/ze/go-cache`, which every verify worktree writes through its own
+link (see "A verify worktree shares that cache" below), are ONE cache. The
+step runs in three places, because the `le` and `ze` scripts build their binary
+before any le binary exists: the `le` script's `ensure_cache_link` ahead of
+`build_le`'s `mkdir`, the same function in the root `ze` script ahead of the
+`GOCACHE` it builds `bin/ze` through, and `ensureCacheLink` in le's `run`
+(`internal/le/register.go`), ahead of the patched GOROOT that creates
+`cache/stdpatch`. The last covers a `bin/le` started directly, such as in a
+git-archive export. `TestLauncherLinkMatchesCacheTarget` (`internal/le/scratch`)
+runs both scripts' copies, compares the link each makes with `cacheTarget`, and
+fails when the two function bodies differ.
+
+What each run finds, and does:
+
+| `cache/` is | The run |
+|-------------|---------|
+| Absent | Creates the link, silently |
+| The link to the target, with or without a trailing slash | Nothing: one `Lstat`, one `Readlink`, no process |
+| A real directory | Renames it to `cache.stale-<UTC timestamp>-<pid>` beside it, creates the link, and prints one stderr line naming both paths and the copy's size. Nothing is deleted, and stdout stays the action's own |
+| A link to another place | Nothing, silently: a QEMU guest sees the host's link dangling, and the `le` script's fallback to `tmp/go-cache` handles that |
+
+Two le runs that find the same real directory both succeed: the one whose
+rename finds nothing to move, or finds the link already made, takes that as
+done. Go's cache is content addressed and written by rename, so a build running
+through the old directory during the move can fail once, and never gets a wrong
+entry: an entry it wrote before the move is gone from the path it reads back,
+and it stops with `open .../cache/go-cache/<xx>/<id>-d: no such file or
+directory`. Run it again: it builds into the per-user cache. The stderr line
+the repair printed names the move, so that failure is attributable. `./le scratch links-ensure` and `./le scratch migrate` still link
+`tmp/`; for `cache/`, `links-ensure` makes the same repair, and `migrate` moves
+the entries into the target instead. Naming each cache path rather than the
+checkout is still what makes `df` answer correctly.
+<!-- source: internal/le/scratch/scratch.go -- EnsureCache, moveRealCacheAside, repairedResult, Announce -->
+<!-- source: internal/le/register.go -- run, ensureCacheLink -->
+<!-- source: le -- ensure_cache_link, build_le -->
+<!-- source: ze -- ensure_cache_link -->
 
 The built kernels under the same per-user target, `~/.cache/ze/runtime-kernel/`
 and `~/.cache/ze/installer-kernel/`, are NOT a reclamation target, and no
@@ -619,26 +650,33 @@ nothing. The GNU filesystem mode exists only on Linux, and even there APFS-style
 purgeable accounting is what made one reading report terabytes free on a volume
 at 98 percent.
 
-Seven caches fill, and emptying one leaves the others full. Four are Go caches,
-on as many as three filesystems. The fifth is golangci-lint's, which no
-`go clean` reaches and which the scratch relocation leaves on the checkout's own
-device; it held 9.5G on 2026-09-13, more than the two Go caches measured beside
-it. The last two are the Staticcheck matrix's (`gostaticcheck.CacheDir`): the
-checkout's `cache/staticcheck-matrix`, and the per-user
-`~/.cache/ze/staticcheck-matrix` that every verify worktree fills through its
-`cache/` link. Staticcheck trims its own cache only once a day and keeps five
-days of entries, so the checkout's held 9.3G on 2026-10-23.
+Five caches fill, and emptying one leaves the others full. The checkout's
+`cache/` links to the per-user target, so its Go cache `cache/go-cache`, its
+golangci-lint cache `cache/golangci-lint-cache` and its Staticcheck matrix cache
+`cache/staticcheck-matrix` (`gostaticcheck.CacheDir`) are the host's one copy of
+each, shared by every checkout and verify worktree. The lint cache is not a Go
+cache, so no `go clean` reaches it; it held 9.5G on 2026-09-13, when it still
+sat under `tmp/` on the checkout's own device. Staticcheck trims its own cache
+only once a day and keeps five days of entries, so it held 9.3G on 2026-10-23.
+The ambient cache is the one a bare `go` command writes, and the bootstrap
+cache `tmp/go-cache` is the `le` launcher's fallback where `cache/` cannot be
+created. The launcher can still write it on any host, so its row stays on a
+linked host too, where it is normally a skip because the directory does not
+exist: a cache no row declares is one the cleaner walks past. Each
+`cache.stale-*` copy the link repair left is a row of its own too, named
+`stale-1`, `stale-2` and so on in repair order, oldest first, so two copies are
+two rows the report and the trim tell apart; the row's path carries the stamp.
 
 Reach for the safe tools first, in this order, because other sessions are
 building against these caches while you read this:
 
 1. `./le scratch store-trim` trims the caches to their budgets now (see below).
-2. `./le scratch cache-clean` cleans all seven caches. By default it removes every
+2. `./le scratch cache-clean` cleans every cache. By default it removes every
    cache entry older than 3h, the store trim's floor, and keeps the younger
    ones. It is safe while other sessions build: an entry is safe for 2h after Go
    last looked it up (Go refreshes an entry's mtime at most hourly; the floor is
    3h), and a build that later misses an older entry recompiles it.
-3. `./le scratch cache-clean all` empties all seven outright. Use it only when no
+3. `./le scratch cache-clean all` empties every cache outright. Use it only when no
    build runs: it refuses, and exits 1, while it sees any `go`, `compile`,
    `link`, `vet`, `asm`, `cgo`, `cover`, `staticcheck`, `golangci-lint` or
    compiled test binary (`*.test`) process, or any process holding a slot in
@@ -656,13 +694,12 @@ The default prints one row for each cache, in this shape:
 
 ```
 $ ./le scratch cache-clean
-checkout           /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
-shared             /Users/thomas/.cache/ze/go-cache                 removed 12.1G (60321 entries), kept 0.9G younger than 3h0m0s, freed 12.1G, free 127.5G
-ambient            /Users/thomas/Library/Caches/go-build            removed 1.2G (8812 entries), kept 0.0G younger than 3h0m0s, freed 1.2G, free 128.7G
-bootstrap          /path/to/checkout/tmp/go-cache                   removed 1.1G (5410 entries), kept 0.2G younger than 3h0m0s, freed 1.1G, free 129.8G
-lint               /path/to/checkout/tmp/golangci-lint-cache        removed 8.8G (90214 entries), kept 0.7G younger than 3h0m0s, freed 8.8G, free 138.6G
-staticcheck        /path/to/checkout/cache/staticcheck-matrix       removed 8.1G (51022 entries), kept 1.2G younger than 3h0m0s, freed 8.1G, free 146.7G
-staticcheck-shared /Users/thomas/.cache/ze/staticcheck-matrix       removed 0.4G (2210 entries), kept 0.1G younger than 3h0m0s, freed 0.4G, free 147.1G
+checkout    /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
+ambient     SKIP     /Users/thomas/.cache/ze/go-cache: the machine default is the checkout cache, which this run already cleaned
+bootstrap   SKIP     /path/to/checkout/tmp/go-cache: does not exist, so it holds nothing to trim
+lint        /path/to/checkout/cache/golangci-lint-cache      removed 8.8G (90214 entries), kept 0.7G younger than 3h0m0s, freed 8.8G, free 124.0G
+staticcheck /path/to/checkout/cache/staticcheck-matrix       removed 8.1G (51022 entries), kept 1.2G younger than 3h0m0s, freed 8.1G, free 132.1G
+stale-1     /path/to/checkout/cache.stale-20261024T101500Z-4242 removed 20.0G (1 entries), kept 0.0G younger than 3h0m0s, freed 20.0G, free 152.1G
 ```
 
 `removed` is the size of the entries past the floor that are gone after the run:
@@ -674,12 +711,18 @@ without the `removed` and `kept` parts. A cache that does not exist yet is a
 skip, not a refusal. `| json` renders each row with the keys `removed`,
 `entries-removed` and `kept-young` beside `freed`.
 
-With `cache/` linked to the per-user target, the shared row reads instead:
-
-```
-shared             SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already cleaned
-staticcheck-shared SKIP     /Users/thomas/.cache/ze/staticcheck-matrix: cache/ links here, so this is the checkout's staticcheck cache, which this run already cleaned
-```
+The ambient row is a SKIP when `go env GOCACHE` lands in the same directory as
+the checkout cache, compared through the link rather than as spelled, which is
+the case on a host where `go env -w GOCACHE` names the shared cache. When
+either path exists but cannot be resolved (a directory this user cannot
+search), the row is an error naming that path and nothing cleans it, because
+le cannot tell whether it is the checkout cache.
+<!-- source: internal/le/scratch/target.go -- SameDirectory -->
+A stale
+copy is removed whole once the repair stamp in its name is older than the 3h
+floor, and kept whole before that, because a build already running when the
+repair moved `cache/` aside may still read it. A name with no stamp is refused
+rather than given a guessed age.
 
 The patched GOROOT trees under `cache/stdpatch/` (or `tmp/stdpatch/` where
 `cache/` is not usable) are not emptied, because a build in another session may
@@ -698,45 +741,37 @@ stdpatch           DROP     /path/to/checkout/cache/stdpatch/398f…            
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `Overrides` (`internal/le/go/toolchain/gotoolchain.go`) points GOCACHE there, and
-`gotoolchain.GoCache` names it. The SHARED cache is the per-user
-`cacheTarget()/go-cache`, which every verify worktree writes; when the checkout's
-`cache/` links to that same directory, the row says SKIP because it IS the
-checkout cache, and it is cleaned once. The AMBIENT cache is the one a bare `go build`
-writes outside le. The action asks `go env GOCACHE` for that path with the
-inherited override removed, so a checkout whose default already IS the checkout
-cache gets a SKIP row rather than one cache cleaned twice. The BOOTSTRAP cache
-is `tmp/go-cache` (`gotoolchain.BootstrapCache`), which the `le` script's own
-build, the deployment builds and the QEMU guest write. The LINT cache is
-`tmp/golangci-lint-cache`, which `Overrides` names through
-`gotoolchain.LintCache`. It keeps Go's entry layout, so the default mode walks
-it with the same age rule; `all` empties it by deleting the directory, because
-no `go clean` owns it. A verify worktree's `tmp/golangci-lint-cache` is a link to
-the checkout's, so a worktree lint reuses what the last one cached and the
-worktree removal deletes only the link (`sharedLintCacheLink`,
-`internal/le/verify/lifecycle.go`). The two STATICCHECK caches keep the same
-layout, written by Staticcheck's copy of Go's cache code
+`gotoolchain.GoCache` names it; the `cache/` link carries it to the per-user
+target, which every verify worktree reaches through its own `cache/` link, so
+no second row names it. The AMBIENT cache is the one a bare `go` command writes
+outside le. The action asks `go env GOCACHE` for that path with the inherited
+override removed. The BOOTSTRAP cache is `tmp/go-cache`
+(`gotoolchain.BootstrapCache`), which only the `le` launcher writes, and only
+when `cache/` cannot be created. The LINT cache is `cache/golangci-lint-cache`,
+which `Overrides` names through `gotoolchain.LintCache`. It keeps Go's entry
+layout, so the default mode walks it with the same age rule; `all` empties it by
+deleting the directory, because no `go clean` owns it. The STATICCHECK cache
+keeps the same layout, written by Staticcheck's copy of Go's cache code
 (`honnef.co/go/tools/lintcmd/cache`, `DiskCache.fileName`), so the default mode
-walks them the same way and `all` deletes them. The shared one is the
-checkout's own when `cache/` links to the per-user target, and its row is then
-a SKIP. `all` is the equivalent of this by hand,
-which carries the same hazard and none of the refusal, so do not type it while
-a build runs:
+walks it the same way and `all` deletes it. `all` is the equivalent of this by
+hand, which carries the same hazard and none of the refusal, so do not type it
+while a build runs:
 
 ```
 go clean -cache                                    # the ambient cache
 env GOCACHE="$PWD/cache/go-cache" go clean -cache   # the checkout cache
-env GOCACHE="$HOME/.cache/ze/go-cache" go clean -cache  # the shared cache, unless cache/ links to it
 env GOCACHE="$PWD/tmp/go-cache" go clean -cache     # the bootstrap cache
-rm -rf tmp/golangci-lint-cache                     # the lint cache
-rm -rf cache/staticcheck-matrix                    # the checkout's staticcheck cache
-rm -rf "$HOME/.cache/ze/staticcheck-matrix"        # the shared staticcheck cache, unless cache/ links to it
+rm -rf cache/golangci-lint-cache                   # the lint cache
+rm -rf cache/staticcheck-matrix                    # the staticcheck cache
+rm -rf cache.stale-*                               # the stale copies
 ```
-<!-- source: internal/le/scratch/cacheclean.go -- CleanCaches, cleanOldCacheEntries, patchedTrees -->
+<!-- source: internal/le/scratch/cacheclean.go -- CleanCaches, cleanTargets, cleanOldCacheEntries, cleanStaleCopy, patchedTrees -->
+<!-- source: internal/le/scratch/cachetrim.go -- trimStaleCopy -->
 <!-- source: internal/le/scratch/cacheuse.go -- refuseFullEmpty, cacheUsers, cacheReaders -->
 <!-- source: internal/le/job/holders.go -- Holders -->
 
 The clean costs recompilation, which makes the next run slow once, so le also
-bounds six of the seven caches by itself, a little at a time. Every le
+bounds every cache but the ambient one by itself, a little at a time. Every le
 invocation reads `tmp/store-trim/stamp`. When the stamp is an hour old, one
 invocation takes `tmp/store-trim/stamp.lock`, rewrites the stamp and starts
 `le scratch store-trim background` as a detached child, so no command, hook
@@ -744,9 +779,10 @@ calls included, waits for the walk. The child trims:
 
 | Caches | Budget | Default |
 |--------|--------|---------|
-| checkout, shared and bootstrap, as ONE union | `ze.le.store.go-cache-budget` | `20G`, one total across the three |
+| checkout and bootstrap, as ONE union | `ze.le.store.go-cache-budget` | `20G`, one total across the two |
 | lint | `ze.le.store.lint-cache-budget` | `10G` |
-| staticcheck and staticcheck-shared, as ONE union | `ze.le.store.staticcheck-cache-budget` | `5G`, one total across the two |
+| staticcheck | `ze.le.store.staticcheck-cache-budget` | `5G` |
+| each `cache.stale-*` copy | none: removed whole once its repair stamp is past the 3h floor | - |
 
 Each pass removes `-a` and `-d` entries from the 256 two-hex-digit
 subdirectories, oldest mtime first, until the total is at or under the budget.

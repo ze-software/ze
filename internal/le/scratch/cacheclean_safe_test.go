@@ -126,7 +126,7 @@ func TestCleanOldCacheEntriesSkipsAnAbsentCache(t *testing.T) {
 // fails the test before anything is cleaned if the ambient cache does not.
 // The refusal tests use it too, so a refusal that regresses empties temp
 // directories rather than the developer's real caches.
-func isolatedManager(t *testing.T) (*Manager, string, string) {
+func isolatedManager(t *testing.T) (*Manager, string) {
 	t.Helper()
 	root := t.TempDir()
 	home := t.TempDir()
@@ -156,7 +156,7 @@ func isolatedManager(t *testing.T) (*Manager, string, string) {
 	if !pathWithin(ambient, home) {
 		t.Fatalf("the ambient cache resolved to %s, outside the test's home %s: refusing to clean a real cache", ambient, home)
 	}
-	return New(root, os.Environ()), ambient, filepath.Join(home, "cache", "ze", "go-cache")
+	return New(root, os.Environ()), ambient
 }
 
 // VALIDATES: the default mode reaches every cache target through the action's
@@ -164,18 +164,14 @@ func isolatedManager(t *testing.T) (*Manager, string, string) {
 // PREVENTS: one target (the lint cache is not Go's) still emptied outright.
 // Method: every target redirected to temp directories, then CleanCaches.
 func TestCleanCachesDefaultKeepsYoungEntriesInEveryTarget(t *testing.T) {
-	manager, ambient, shared := isolatedManager(t)
+	manager, ambient := isolatedManager(t)
 	now := time.Now()
 	caches := map[string]string{
-		checkoutCache:  gotoolchain.GoCache(manager.Root),
-		sharedCache:    shared,
-		ambientCache:   ambient,
-		bootstrapCache: gotoolchain.BootstrapCache(manager.Root),
-		lintCache:      gotoolchain.LintCache(manager.Root),
-		// The two Staticcheck matrix caches: the checkout's, and the per-user
-		// one beside the shared Go cache.
-		staticcheckCache:       gostaticcheck.CacheDir(manager.Root),
-		sharedStaticcheckCache: filepath.Join(filepath.Dir(shared), "staticcheck-matrix"),
+		checkoutCache:    gotoolchain.GoCache(manager.Root),
+		ambientCache:     ambient,
+		bootstrapCache:   gotoolchain.BootstrapCache(manager.Root),
+		lintCache:        gotoolchain.LintCache(manager.Root),
+		staticcheckCache: gostaticcheck.CacheDir(manager.Root),
 	}
 	seeded := map[string]seededCache{}
 	for name, dir := range caches {
@@ -211,7 +207,7 @@ func noHolders(string) ([]job.Holder, error) { return nil, nil }
 // PREVENTS: the full empty failing another session's build.
 // Method: a fake process lister answering one compile.
 func TestCleanCachesAllRefusesWhileABuildRuns(t *testing.T) {
-	manager, _, _ := isolatedManager(t)
+	manager, _ := isolatedManager(t)
 	root := manager.Root
 	cache := seedCache(t, gotoolchain.GoCache(root), time.Now())
 	pass := cleanPass{
@@ -241,7 +237,7 @@ func TestCleanCachesAllRefusesWhileABuildRuns(t *testing.T) {
 // empty even while no toolchain process runs under it, and the row names its label.
 // PREVENTS: an empty landing between two stages of a verify run.
 func TestCleanCachesAllRefusesWhileAJobHoldsASlot(t *testing.T) {
-	manager, _, _ := isolatedManager(t)
+	manager, _ := isolatedManager(t)
 	pass := cleanPass{
 		scan: func() ([]procscan.Process, error) {
 			return []procscan.Process{{PID: 777, Argv: []string{"/bin/le-darwin-arm64/le", "verify", "current"}}}, nil
@@ -261,7 +257,7 @@ func TestCleanCachesAllRefusesWhileAJobHoldsASlot(t *testing.T) {
 // VALIDATES: a process table that cannot be read refuses the full empty and
 // says why, rather than reading as "nothing runs".
 func TestCleanCachesAllRefusesWithoutAProcessTable(t *testing.T) {
-	manager, _, _ := isolatedManager(t)
+	manager, _ := isolatedManager(t)
 	root := manager.Root
 	cache := seedCache(t, gotoolchain.GoCache(root), time.Now())
 	pass := cleanPass{
@@ -339,7 +335,7 @@ func TestCleanCachesAllRefusesOnAnUnreadableRegistry(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode 000 directory, so the unreadable state cannot be built")
 	}
-	manager, _, _ := isolatedManager(t)
+	manager, _ := isolatedManager(t)
 	cache := seedCache(t, gotoolchain.GoCache(manager.Root), time.Now())
 	jobs := filepath.Join(manager.Root, job.JobsDir)
 	if err := os.MkdirAll(jobs, 0o750); err != nil {
@@ -372,7 +368,7 @@ func TestCleanCachesAllRefusesOnAnUnreadableRegistry(t *testing.T) {
 // VALIDATES: the refusal counts its processes in plain English: one process,
 // two processes.
 func TestRefusalCountsProcessesInEnglish(t *testing.T) {
-	manager, _, _ := isolatedManager(t)
+	manager, _ := isolatedManager(t)
 	for _, tc := range []struct {
 		processes []procscan.Process
 		want      string

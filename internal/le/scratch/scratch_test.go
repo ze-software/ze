@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -535,4 +536,242 @@ func assertLines(t *testing.T, report Report, want []string) {
 	if !slices.Equal(got, want) {
 		t.Errorf("lines = %q, want %q", got, want)
 	}
+}
+
+// VALIDATES: AC-1 of spec-le-one-go-cache-per-host. A checkout with no cache/
+// gets the link to the per-user target and no real directory.
+// PREVENTS: activatePatchedGOROOT or a build creating cache/ as a real
+// directory, which grows a second Go build cache inside the checkout.
+func TestEnsureCacheLinkCreatesMissing(t *testing.T) {
+	manager := fixtureManager(t)
+	target := mustCacheTarget(t, manager)
+
+	result, err := manager.EnsureCache(false)
+	if err != nil {
+		t.Fatalf("ensure cache: %v", err)
+	}
+	if result.Status != "created" {
+		t.Fatalf("result = %#v, want created", result)
+	}
+	if result.Announce() {
+		t.Errorf("creating a missing link is announced: %#v", result)
+	}
+	assertLink(t, filepath.Join(manager.Root, "cache"), target)
+	if info, err := os.Stat(target); err != nil || !info.IsDir() {
+		t.Errorf("target %s is not a directory: %v", target, err)
+	}
+}
+
+// VALIDATES: AC-2 and R-7. A real cache/ directory is renamed to
+// cache.stale-<timestamp>, the link takes its place, and the announced line
+// names both paths and the size; nothing is deleted. A second run finds the
+// link and moves nothing. A rename that loses the race to another le, which
+// moved the directory and made the link first, is success.
+// PREVENTS: the repair deleting a cache another session builds through, or
+// failing the action because two le runs repaired at once.
+func TestEnsureCacheLinkRenamesRealDirectory(t *testing.T) {
+	manager := fixtureManager(t)
+	target := mustCacheTarget(t, manager)
+	link := filepath.Join(manager.Root, "cache")
+	entry := filepath.Join(link, "go-cache", "00", "entry-a")
+	writeFile(t, entry, "built", 0o600)
+
+	result, err := manager.EnsureCache(false)
+	if err != nil {
+		t.Fatalf("ensure cache: %v", err)
+	}
+	stale, globErr := filepath.Glob(link + ".stale-*")
+	if globErr != nil || len(stale) != 1 {
+		t.Fatalf("stale copies = %v (%v), want exactly one", stale, globErr)
+	}
+	if result.Status != "repaired" || !result.Announce() {
+		t.Fatalf("result = %#v, want an announced repair", result)
+	}
+	for _, want := range []string{link, stale[0], target, "M)"} {
+		if !strings.Contains(result.Line, want) {
+			t.Errorf("repair line %q does not name %q", result.Line, want)
+		}
+	}
+	assertLink(t, link, target)
+	moved := filepath.Join(stale[0], "go-cache", "00", "entry-a")
+	if got := readFile(t, moved); got != "built" {
+		t.Errorf("moved entry = %q, want built", got)
+	}
+
+	again, err := manager.EnsureCache(false)
+	if err != nil {
+		t.Fatalf("second ensure cache: %v", err)
+	}
+	if again.Status != "ok" || again.Announce() {
+		t.Errorf("second result = %#v, want a silent ok", again)
+	}
+	if after, _ := filepath.Glob(link + ".stale-*"); len(after) != 1 {
+		t.Errorf("second run left stale copies %v", after)
+	}
+
+	raced := fixtureManager(t)
+	racedTarget := mustCacheTarget(t, raced)
+	racedLink := filepath.Join(raced.Root, "cache")
+	writeFile(t, filepath.Join(racedLink, "go-cache", "entry"), "built", 0o600)
+	raced.fs.rename = func(source, _ string) error {
+		// The other le wins: it moves the directory and links first.
+		if err := os.Rename(source, source+".stale-other"); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(racedTarget, 0o750); err != nil {
+			return err
+		}
+		if err := os.Symlink(racedTarget, source); err != nil {
+			return err
+		}
+		return &os.LinkError{Op: "rename", Old: source, New: source + ".stale-mine", Err: syscall.ENOENT}
+	}
+	result, err = raced.EnsureCache(false)
+	if err != nil {
+		t.Fatalf("raced ensure cache: %v", err)
+	}
+	if result.Status != "ok" || result.Announce() {
+		t.Errorf("raced result = %#v, want a silent ok", result)
+	}
+	assertLink(t, racedLink, racedTarget)
+}
+
+// VALIDATES: AC-3. A link to the target written with a trailing slash is the
+// correct link: nothing is renamed, repointed or announced.
+// PREVENTS: a raw string comparison reporting MISMATCH for a link the owner
+// made by hand as ~/.cache/ze/.
+func TestEnsureCacheLinkAcceptsTrailingSlash(t *testing.T) {
+	manager := fixtureManager(t)
+	target := mustCacheTarget(t, manager)
+	link := filepath.Join(manager.Root, "cache")
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		t.Fatalf("mkdir target: %v", err)
+	}
+	if err := os.Symlink(target+"/", link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	result, err := manager.EnsureCache(false)
+	if err != nil {
+		t.Fatalf("ensure cache: %v", err)
+	}
+	if result.Status != "ok" || result.Announce() {
+		t.Errorf("result = %#v, want a silent ok", result)
+	}
+	assertLink(t, link, target+"/")
+	if stale, _ := filepath.Glob(link + ".stale-*"); len(stale) != 0 {
+		t.Errorf("a correct link was moved aside: %v", stale)
+	}
+}
+
+// TestLauncherLinkMatchesCacheTarget runs the ensure_cache_link function of the
+// `le` and the root `ze` scripts, the shell copies of EnsureCache that run
+// before any le or ze binary exists, against throwaway checkouts.
+//
+// VALIDATES: R-6 of spec-le-one-go-cache-per-host. Each script links cache/ to
+// the directory cacheTarget names, under XDG_CACHE_HOME and under HOME, and
+// renames a real cache/ aside with the spelling EnsureCache uses; the two
+// scripts carry the same function body.
+// PREVENTS: the launchers and the binary linking cache/ to three places, or a
+// first `./ze` building into a real cache/ the next le run then moves aside.
+// It lives here, not beside TestBootstrapCacheMatchesTheShellScript in
+// internal/le/go/toolchain, because scratch imports that package.
+func TestLauncherLinkMatchesCacheTarget(t *testing.T) {
+	functions := map[string]string{}
+	for _, name := range []string{"le", "ze"} {
+		script, err := os.ReadFile(filepath.Join("..", "..", "..", name))
+		if err != nil {
+			t.Fatalf("read the %s script: %v", name, err)
+		}
+		functions[name] = launcherFunction(t, string(script), "ensure_cache_link")
+		if !strings.Contains(string(script), "\tensure_cache_link\n\tGOCACHE=$root/cache/go-cache\n") {
+			t.Errorf("the %s script does not call ensure_cache_link right before it sets GOCACHE under cache/", name)
+		}
+	}
+	if functions["le"] != functions["ze"] {
+		t.Errorf("the ze script's ensure_cache_link differs from the le script's:\nle:\n%s\nze:\n%s", functions["le"], functions["ze"])
+	}
+	for name, function := range functions {
+		t.Run(name, func(t *testing.T) { checkLauncherLink(t, function) })
+	}
+}
+
+// checkLauncherLink runs one script's ensure_cache_link under XDG_CACHE_HOME
+// and under HOME: a missing cache/ becomes the link cacheTarget names, and a
+// real one is renamed aside, named on stderr, and replaced by the link.
+func checkLauncherLink(t *testing.T, function string) {
+	t.Helper()
+	base := t.TempDir()
+	cases := []struct {
+		name    string
+		environ []string
+	}{
+		{"xdg", []string{"HOME=" + filepath.Join(base, "home"), "XDG_CACHE_HOME=" + filepath.Join(base, "xdg")}},
+		{"home", []string{"HOME=" + filepath.Join(base, "home")}},
+	}
+	for _, tc := range cases {
+		root := filepath.Join(base, tc.name)
+		if err := os.Mkdir(root, 0o755); err != nil {
+			t.Fatalf("mkdir checkout: %v", err)
+		}
+		want, err := New(root, tc.environ).cacheTarget()
+		if err != nil {
+			t.Fatalf("%s: cache target: %v", tc.name, err)
+		}
+		stderr := runLauncherFunction(t, function, root, tc.environ)
+		if stderr != "" {
+			t.Errorf("%s: creating the link printed %q", tc.name, stderr)
+		}
+		assertLink(t, filepath.Join(root, "cache"), want)
+
+		link := filepath.Join(root, "cache")
+		if err := os.Remove(link); err != nil {
+			t.Fatalf("remove link: %v", err)
+		}
+		writeFile(t, filepath.Join(link, "go-cache", "entry"), "built", 0o600)
+		stderr = runLauncherFunction(t, function, root, tc.environ)
+		stale, _ := filepath.Glob(link + ".stale-*")
+		if len(stale) != 1 {
+			t.Fatalf("%s: stale copies = %v, want one", tc.name, stale)
+		}
+		if got := readFile(t, filepath.Join(stale[0], "go-cache", "entry")); got != "built" {
+			t.Errorf("%s: moved entry = %q", tc.name, got)
+		}
+		for _, name := range []string{link, stale[0], want} {
+			if !strings.Contains(stderr, name) {
+				t.Errorf("%s: repair line %q does not name %q", tc.name, stderr, name)
+			}
+		}
+		assertLink(t, link, want)
+	}
+}
+
+// launcherFunction cuts one function, from its `name() {` line to the closing
+// brace at the start of a line, out of a launcher script.
+func launcherFunction(t *testing.T, script, name string) string {
+	t.Helper()
+	start := strings.Index(script, "\n"+name+"() {\n")
+	if start < 0 {
+		t.Fatalf("the launcher script defines no %s function", name)
+	}
+	body := script[start+1:]
+	end := strings.Index(body, "\n}\n")
+	if end < 0 {
+		t.Fatalf("the launcher script's %s function has no closing brace", name)
+	}
+	return body[:end+3]
+}
+
+// runLauncherFunction runs function under `sh -eu` with root set as the
+// script sets it, and answers its stderr.
+func runLauncherFunction(t *testing.T, function, root string, environ []string) string {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), "sh", "-euc", function+"root=$1\nensure_cache_link\n", "sh", root) //nolint:gosec // the test chooses the program and its arguments
+	command.Env = append([]string{"PATH=" + os.Getenv("PATH")}, environ...)
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		t.Fatalf("ensure_cache_link: %v\n%s", err, stderr.String())
+	}
+	return stderr.String()
 }

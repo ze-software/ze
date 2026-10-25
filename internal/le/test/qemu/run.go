@@ -513,7 +513,7 @@ func runQEMUBinary(goarch string) string {
 }
 
 func (r *Run) ensureScratch() error {
-	for _, name := range []string{"", "go-dl", "go-cache", "gomodcache"} {
+	for _, name := range []string{"", "go-dl", "gomodcache"} {
 		dir := filepath.Join(r.Tree, "tmp", "qemu", name)
 		if err := r.ops.FS.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("create QEMU cache directory %s: %w", dir, err)
@@ -649,12 +649,13 @@ func (r *Run) scratchShares() ([]tmplink.Share, error) {
 const cacheShareTag = "zescratch-cache"
 
 // cacheShare answers the export a guest needs to follow the checkout's `cache`
-// symlink (`./le scratch links-ensure` points it out of tree), and false when
+// symlink (every le run links it out of tree, scratch EnsureCache), and false when
 // cache is absent or a real directory, which the workspace share already
-// carries. Every le-driven Go build sets GOCACHE to cache/go-cache
-// (internal/le/go/toolchain, GoCache) whatever the guest exported, so a lab
-// that cross-compiles inside the guest (a `./le test qemu run` command) meets the
-// link dangling and fails with "mkdir /workspace/cache: file exists".
+// carries. The guest builds into the host's cache/go-cache through it: its own
+// GOCACHE is /workspace/cache/go-cache (setupCommand, keepAliveProfile), and
+// every le-driven Go build inside it sets GOCACHE to cache/go-cache
+// (internal/le/go/toolchain, GoCache). Without the export the link dangles and a
+// build fails with "mkdir /workspace/cache: file exists".
 //
 // It lives here rather than in tmplink because the kernel builder imports
 // tmplink and runs no le-driven build in its guest: an edit there changes the
@@ -811,7 +812,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"tar -C /usr/local -xzf \"$GO_TAR\"",
 		"export PATH=\"/usr/local/go/bin:$PATH\"",
 		"export GOROOT=\"/usr/local/go\"",
-		"export GOCACHE=\"/workspace/tmp/qemu/go-cache\"",
+		"export GOCACHE=\"/workspace/cache/go-cache\"",
 		"export GOMODCACHE=\"/workspace/tmp/qemu/gomodcache\"",
 		"export GOFLAGS=\"-buildvcs=false\"", "export CGO_ENABLED=\"0\"",
 		"export HOME=\"/root\"", "export TMPDIR=\"/tmp\"",

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leexec "github.com/ze-software/ze/internal/le/exec"
 )
 
 // Health says whether a language server answered, and if not, whose problem it
@@ -118,8 +119,35 @@ func (s *Setup) goplsHealth() serverAnswer {
 	}
 
 	var tb textbuf.Buffer
-	detail := tb.Int(int64(symbols)).Str(" symbols from ").Str(goplsProbeFile).String()
+	detail := tb.Int(int64(symbols)).Str(" symbols from ").Str(goplsProbeFile).Str(", ").Str(s.goplsAnswerer()).String()
 	return serverAnswer{Health: HealthOK, Detail: detail}
+}
+
+// goplsAnswerer names the gopls the caller's PATH (callerPath) reaches, and
+// whether it is the le exec shim. An editor or the agent LSP finds gopls the
+// same way, so a gopls that is not the shim writes its cache outside the
+// per-user target. le's own PATH is not asked: it starts with the patched
+// GOROOT's bin, which no shell of the developer's searches.
+func (s *Setup) goplsAnswerer() string {
+	callerPath, err := s.callerPath()
+	if err != nil {
+		var tb textbuf.Buffer
+		return tb.Str("answered by a gopls this run cannot name: ").Err(err).String()
+	}
+	path, ok := firstExecutable(callerPath, toolGopls)
+	if !ok {
+		return "answered by no gopls the caller's PATH names"
+	}
+	var tb textbuf.Buffer
+	tb.Str("answered by ").Str(path)
+	shim, err := leexec.IsShim(path)
+	if err != nil {
+		return tb.Str(" (unreadable: ").Err(err).Str(")").String()
+	}
+	if shim {
+		return tb.Str(", the le exec shim").String()
+	}
+	return tb.Str(", not the le exec shim, so its cache bypasses the per-user target").String()
 }
 
 // goplsProbe takes the seam when a test set one.

@@ -449,7 +449,7 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 		t.Run(group.Verb, func(t *testing.T) {
 			wantEnvironment := []string{
 				"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
-				"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
+				"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "cache", "golangci-lint-cache"),
 				"CGO_ENABLED=1",
 				"GOTMPDIR=" + fixtureTestTemp,
 				"GOMAXPROCS=8",
@@ -459,7 +459,7 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 				// the platform group runs without either and pins its GOOS.
 				wantEnvironment = []string{
 					"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
-					"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
+					"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "cache", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
 					"GOTMPDIR=" + fixtureTestTemp,
 					"GOMAXPROCS=8",

@@ -3,8 +3,8 @@
 // Related: cacheuse.go -- who may be using the caches, which a full empty refuses on
 // Related: cachetrim.go -- the entry walk, the age floor and the removal both share
 //
-// This file cleans the seven build caches a Ze checkout fills, and reports the
-// disk space each one returned. By default it removes only the entries older
+// This file cleans the five build caches a Ze checkout fills, and the stale
+// copies the link repair left, and reports the disk space each one returned. By default it removes only the entries older
 // than cacheEntryAgeFloor (3h), the floor the store trim keeps: other sessions
 // build against these caches all the time, and an entry is safe for 2h after
 // Go last looked it up, because Go refreshes an entry's mtime when it uses one
@@ -21,37 +21,35 @@
 // reads (storetrim.go): each target carries its kind and its budget, so the
 // caches are declared once for both.
 //
-// Four of them are Go caches, on as many filesystems, and a session that
-// empties one keeps filling the others. Every le action writes the checkout
-// cache, because gotoolchain.Overrides points GOCACHE at cache/go-cache. The
-// shared cache is the per-user target, cacheTarget()/go-cache, which every
-// verify worktree writes through its cache/ link (sharedCacheLink in
-// internal/le/verify). It is the checkout cache only when the checkout's own
-// cache/ is linked to it, which `le scratch links-ensure` or `le scratch
-// migrate` does and nothing does by itself; a checkout that ran neither fills
-// both, and the shared one was missed until 2026-10-05, at 13G. A bare
-// `go` command typed outside le writes the ambient cache, which is the machine
-// default. The bootstrap cache is what runs with no inherited GOCACHE at all:
-// the `le` script building bin/ze-le, the deployment daemon and VPP evidence
-// builds, and the QEMU guest. It was missed until 2026-09-20, because each of
-// those four writers spelled the path itself and this action could not know
-// about a path nobody declared; it held 1.3G and an operator found it by hand.
-// gotoolchain.BootstrapCache is the declaration all of them now read.
+// The checkout's cache/ is a link to the per-user target, cacheTarget(), which
+// every le run makes or repairs before it builds (EnsureCache), and which every
+// verify worktree's cache/ links to as well. So there is one Go build cache,
+// cache/go-cache, one golangci-lint cache, cache/golangci-lint-cache, and one
+// Staticcheck matrix cache, gostaticcheck.CacheDir, each a row of its own, and
+// no row names the per-user path a second time: before every run made the
+// link, a checkout that never ran `le scratch links-ensure` filled a private
+// cache/ beside the per-user one, and the per-user one was missed until
+// 2026-10-05, at 13G.
 //
-// The fifth is golangci-lint's, which no `go clean` reaches and which the
-// scratch relocation leaves on the checkout's own device. Emptying only the Go
-// caches left it growing unbounded: it was measured at 9.5G on 2026-09-13,
-// larger than both Go caches together, on a volume that had 1G left.
+// A bare `go` command typed outside le writes the ambient cache, `go env
+// GOCACHE`, which is the machine default unless `go env -w` named the shared
+// cache; its row is a skip when it resolves to the checkout's. The bootstrap
+// cache, gotoolchain.BootstrapCache, is the `le` launcher's fallback when cache/
+// cannot be created (a QEMU guest that sees the link dangle). The launcher can
+// still write it, so it keeps a row: a cache nobody declares is one this action
+// walks past, which is how 1.3G of it was found by hand on 2026-09-20.
 //
-// The last two are the Staticcheck matrix's, at gostaticcheck.CacheDir of the
-// tree that ran it: the checkout's, and the per-user one every verify worktree
-// fills through its cache/ link, which is the checkout's own only when the
-// checkout's cache/ links there too. Staticcheck trims its cache itself only
+// golangci-lint's cache is not a Go cache, so no `go clean` reaches it; it was
+// measured at 9.5G on 2026-09-13. The Staticcheck matrix trims its cache only
 // once a day and keeps five days of entries (honnef.co/go/tools/lintcmd/cache,
-// DiskCache.Trim), so on 2026-10-23 the checkout's held 9.3G with no cleaner
-// reaching it. Its layout is Go's, written by a copy of Go's cache code:
-// DiskCache.fileName puts an entry at "%02x"/<hex id>-a or -d, and its own
-// trimSubdir removes only those names.
+// DiskCache.Trim), so on 2026-10-23 it held 9.3G with no cleaner reaching it.
+// Both layouts are Go's, written by copies of Go's cache code: an entry at
+// "%02x"/<hex id>-a or -d, the only names their own trims remove.
+//
+// The last rows are the stale copies, one for each real cache/ directory the
+// link repair renamed aside to cache.stale-<stamp>-<pid> rather than delete
+// what a build might be reading. The store trim and cache-clean remove a copy
+// whole once the stamp in its name is older than the age floor.
 //
 // The cost of not having this action is recorded in
 // plan/journal/full-disk-false-red.md, one row for each time a full cache disk
@@ -75,6 +73,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -100,20 +99,20 @@ const goCacheKey = "GOCACHE"
 // The caches, named as a person reads them in the report.
 const (
 	checkoutCache    = "checkout"
-	sharedCache      = "shared"
 	ambientCache     = "ambient"
 	lintCache        = "lint"
 	bootstrapCache   = "bootstrap"
 	staticcheckCache = "staticcheck"
-	// sharedStaticcheckCache is the per-user matrix cache verify worktrees fill.
-	sharedStaticcheckCache = "staticcheck-shared"
+	// staleCacheCopy prefixes the name of each cache.stale-* copy the link
+	// repair left; staleCopyName numbers one copy.
+	staleCacheCopy = "stale"
 	// stdpatchTrees names the patched GOROOT rows, which are kept, not emptied.
 	stdpatchTrees = "stdpatch"
 )
 
 // cacheNameWidth is the report's name column: the longest name and one space,
 // so no name runs into its path.
-const cacheNameWidth = len(sharedStaticcheckCache) + 1
+const cacheNameWidth = len(staticcheckCache) + 1
 
 // bytesPerGiB converts a byte count to the unit the report prints.
 const bytesPerGiB = 1 << 30
@@ -416,24 +415,25 @@ func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int)
 	ctx, cancel := context.WithTimeout(context.Background(), cleanTimeout)
 	defer cancel()
 
-	// The ambient and shared rows are the only ones whose path has to be
-	// resolved, so they are the only ones that can fail before anything is
-	// emptied. Either failure refuses its own row and leaves the others.
+	// The ambient row is the only one whose path has to be resolved, so it is
+	// the only one that can fail before anything is emptied. Its failure
+	// refuses its own row and leaves the others.
 	ambient, ambientErr := ambientGoCache(ctx)
-	perUser, perUserErr := m.cacheTarget()
 
-	for _, target := range cleanTargets(m.Root, ambient, perUser) {
+	for _, target := range cleanTargets(m.Root, ambient) {
 		switch {
 		case target.name == ambientCache && ambientErr != nil:
 			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: ambientErr.Error()})
-		case target.perUser && perUserErr != nil:
-			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: perUserErr.Error()})
+		case target.failed != "":
+			report.Caches = append(report.Caches, CacheClean{Name: target.name, Path: target.path, Error: target.failed})
 		case target.skipped != "":
 			report.Caches = append(report.Caches, CacheClean{
 				Name: target.name, Path: target.path, Skipped: target.skipped,
 			})
 		case mode == cleanEverything:
 			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.emptier(ctx)))
+		case target.kind == staleCopy:
+			report.Caches = append(report.Caches, cleanStaleCopy(target, pass.entries))
 		default:
 			report.Caches = append(report.Caches, cleanOldCacheEntries(ctx, target, pass.entries))
 		}
@@ -455,6 +455,9 @@ const (
 	// copiedFormatCache is another tool's copy of that layout, golangci-lint's
 	// or Staticcheck's, which no `go clean` owns, so it is emptied by deleting it.
 	copiedFormatCache
+	// staleCopy is a whole cache/ directory the link repair renamed aside. It
+	// holds caches of every kind, and is removed whole, never walked.
+	staleCopy
 )
 
 // budgetGroup names the budget the store trim holds a cache to.
@@ -463,17 +466,22 @@ type budgetGroup uint8
 const (
 	// unspecifiedBudget is the zero value and never a valid group.
 	unspecifiedBudget budgetGroup = iota
-	// goCachesBudget is the ONE total across the checkout, shared and
-	// bootstrap Go caches, ze.le.store.go-cache-budget (owner decision D-1,
-	// 2026-10-05). A cache in this group is never held to a budget of its own.
+	// goCachesBudget is the ONE total across the checkout and bootstrap Go
+	// caches, ze.le.store.go-cache-budget (owner decision D-1, 2026-10-05). A
+	// cache in this group is never held to a budget of its own.
 	goCachesBudget
 	// lintCacheBudget is the lint cache's own budget,
 	// ze.le.store.lint-cache-budget, never mixed with the Go total (D-2).
 	lintCacheBudget
-	// staticcheckCacheBudget is ONE total across the checkout and shared
-	// Staticcheck matrix caches, ze.le.store.staticcheck-cache-budget, never
-	// mixed with the Go or lint budget.
+	// staticcheckCacheBudget is the Staticcheck matrix cache's budget,
+	// ze.le.store.staticcheck-cache-budget, never mixed with the Go or lint
+	// budget.
 	staticcheckCacheBudget
+	// pastFloor is held to no byte budget: the trim removes the copy whole once
+	// the repair stamp in its name is older than the age floor, because nothing
+	// builds through a renamed cache/ and only a build already running when
+	// the repair moved it can still read it.
+	pastFloor
 	// notTrimmed is a cache the trim leaves alone. The ambient cache is the
 	// machine's rather than le's, and Go's own five-day trim covers it (D-6).
 	notTrimmed
@@ -481,18 +489,17 @@ const (
 
 // cleanTarget is one cache: how a person reads it in the report, where it
 // lives, its kind, the budget the store trim holds it to, why this run skips
-// it when it does, and whether it lies within or holds a kernel cache, which
-// neither cache-clean nor the store trim may touch.
+// it when it does, why it could not be judged at all when it could not, and
+// whether it lies within or holds a kernel cache, which neither cache-clean nor
+// the store trim may touch.
 type cleanTarget struct {
 	name        string
 	path        string
 	kind        cacheKind
 	budget      budgetGroup
 	skipped     string
+	failed      string
 	holdsKernel bool
-	// perUser marks a row under the per-user target, whose path cannot be
-	// trusted when that target failed to resolve.
-	perUser bool
 }
 
 // emptier answers what emptying this target takes, derived from its kind.
@@ -502,6 +509,8 @@ func (target cleanTarget) emptier(ctx context.Context) func() error {
 		return func() error { return goCleanCache(ctx, target.path) }
 	case copiedFormatCache:
 		return func() error { return removeCache(target.path) }
+	case staleCopy:
+		return func() error { return removeCache(target.path) }
 	case unspecifiedCache:
 		return func() error { return fmt.Errorf("BUG: cache %s was declared with no kind", target.name) }
 	default:
@@ -509,49 +518,143 @@ func (target cleanTarget) emptier(ctx context.Context) func() error {
 	}
 }
 
+// heldKernelCache answers the first kernel cache namespace a row holds, judged
+// as spelled (path) and where the cache/ link lands (landed), and whether it
+// holds one.
+func heldKernelCache(path, landed string) (string, bool) {
+	for _, namespace := range appliance.KernelCacheNamespaces() {
+		if holdsKernelCache(path, namespace) {
+			return namespace, true
+		}
+		if holdsKernelCache(landed, namespace) {
+			return namespace, true
+		}
+	}
+	return "", false
+}
+
 // cleanTargets answers every cache a checkout at root fills, in report order.
 // It is the one store list: cache-clean empties every row, and the store trim
 // bounds the rows whose budget is not notTrimmed.
 //
-// It takes the ambient path and the per-user target rather than resolving
-// them, so the whole plan is readable without running a command, and so a
-// caller that failed to resolve one still gets the other rows.
-func cleanTargets(root, ambient, perUser string) []cleanTarget {
+// It takes the ambient path rather than resolving it, so a caller that failed
+// to resolve it still gets the other rows. The per-user target is no argument:
+// the checkout's cache/ links there, so every row under cache/ already names it.
+func cleanTargets(root, ambient string) []cleanTarget {
 	checkout := gotoolchain.GoCache(root)
-	matrix := gostaticcheck.CacheDir(root)
+	ambientTarget := cleanTarget{name: ambientCache, path: ambient, kind: goBuildCache, budget: notTrimmed}
+	// `go env -w GOCACHE` names the shared cache on a set-up host, and the
+	// checkout's cache/go-cache reaches it through the link, so the two are
+	// compared where they land on disk, never as spelled.
+	same, err := SameDirectory(ambient, checkout)
+	if err != nil {
+		// Unjudged, the ambient row could be the checkout cache cleaned twice or
+		// a cache nobody cleans, so it is a failed row and nothing touches it.
+		ambientTarget.failed = "cannot tell whether the machine default is the checkout cache: " + err.Error()
+	}
+	if same {
+		ambientTarget.skipped = "the machine default is the checkout cache, which this run already cleaned"
+	}
 
-	targets := []cleanTarget{
+	fixed := []cleanTarget{
 		{name: checkoutCache, path: checkout, kind: goBuildCache, budget: goCachesBudget},
-		{name: sharedCache, path: filepath.Join(perUser, filepath.Base(checkout)), kind: goBuildCache, budget: goCachesBudget, perUser: true},
-		{name: ambientCache, path: ambient, kind: goBuildCache, budget: notTrimmed},
+		ambientTarget,
 		{name: bootstrapCache, path: gotoolchain.BootstrapCache(root), kind: goBuildCache, budget: goCachesBudget},
 		{name: lintCache, path: gotoolchain.LintCache(root), kind: copiedFormatCache, budget: lintCacheBudget},
-		{name: staticcheckCache, path: matrix, kind: copiedFormatCache, budget: staticcheckCacheBudget},
-		{name: sharedStaticcheckCache, path: filepath.Join(perUser, filepath.Base(matrix)), kind: copiedFormatCache, budget: staticcheckCacheBudget, perUser: true},
+		{name: staticcheckCache, path: gostaticcheck.CacheDir(root), kind: copiedFormatCache, budget: staticcheckCacheBudget},
 	}
-	// The checkout's cache/ is linked to the per-user target only after
-	// links-ensure or migrate ran, so the two are compared on disk, not assumed.
-	if sameDirectory(filepath.Dir(checkout), perUser) {
-		targets[1].skipped = "cache/ links here, so this is the checkout cache, which this run already cleaned"
-		targets[6].skipped = "cache/ links here, so this is the checkout's staticcheck cache, which this run already cleaned"
+	copies, err := staleCacheCopies(root)
+	targets := make([]cleanTarget, 0, len(fixed)+len(copies)+1)
+	targets = append(targets, fixed...)
+	// A checkout whose listing failed holds an unknown number of copies, so it
+	// answers one failed row rather than none: no row would read as "no stale
+	// copy", a zero standing in for an answer.
+	if err != nil {
+		targets = append(targets, cleanTarget{
+			name: staleCacheCopy, path: root, kind: staleCopy, budget: pastFloor, failed: err.Error(),
+		})
 	}
-	if ambient == checkout {
-		targets[2].skipped = "the machine default is the checkout cache, which this run already cleaned"
+	for index, copied := range copies {
+		targets = append(targets, cleanTarget{name: staleCopyName(index), path: copied, kind: staleCopy, budget: pastFloor})
 	}
 	// A built kernel takes about thirty minutes to rebuild, on a host of its
 	// own arch, so no clean or trim reaches into a kernel cache, or empties a
-	// directory that holds one, whatever path a target resolved to.
+	// directory that holds one, whatever path a target resolved to. Each row is
+	// judged as spelled and where the cache/ link lands (gen.Landing), because
+	// every row under cache/ reaches the per-user target, beside the kernels.
 	for index := range targets {
-		for _, namespace := range appliance.KernelCacheNamespaces() {
-			if pathWithin(targets[index].path, namespace) || pathWithin(namespace, targets[index].path) {
-				targets[index].holdsKernel = true
-				targets[index].skipped = "it holds the kernel cache " + namespace +
-					", and a built kernel takes about thirty minutes to rebuild on a host of its own arch"
-				break
-			}
+		// A failed row names the checkout it could not list, which is no cache,
+		// and nothing touches it, so the guard has nothing to judge there.
+		if targets[index].failed != "" {
+			continue
+		}
+		namespace, held := heldKernelCache(targets[index].path, gen.Landing(root, targets[index].path))
+		if held {
+			targets[index].holdsKernel = true
+			targets[index].skipped = "it holds the kernel cache " + namespace +
+				", and a built kernel takes about thirty minutes to rebuild on a host of its own arch"
 		}
 	}
 	return targets
+}
+
+// staleCacheCopies answers each cache.stale-* directory at root, in name order,
+// which is repair order. It lists root and compares names rather than globbing,
+// because root is the operator's path: a checkout under a directory named with
+// `[`, `*` or `?` would make a glob pattern malformed or match other names. A
+// root it cannot list is an error, never an empty answer.
+func staleCacheCopies(root string) ([]string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("cannot list %s for %s%s* copies: %w", root, cacheName, staleCacheInfix, err)
+	}
+	var copies []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if !strings.HasPrefix(entry.Name(), cacheName+staleCacheInfix) {
+			continue
+		}
+		copies = append(copies, filepath.Join(root, entry.Name()))
+	}
+	return copies, nil
+}
+
+// staleCopyName names the stale copy at position index of staleCacheCopies,
+// counted from 1: stale-1 is the oldest repair. Every row of a report names one
+// store, so two copies need two names, and a number keeps the name inside the
+// report's name column, where the stamp would not fit; the row's path carries
+// the stamp.
+func staleCopyName(index int) string {
+	return staleCacheCopy + "-" + strconv.Itoa(index+1)
+}
+
+// staleCopyAge answers how long ago the link repair renamed the copy at path
+// aside, read from the stamp in its name, which a rename leaves as it was. The
+// directory's own times describe the last build that wrote it, not the repair.
+func staleCopyAge(path string, now time.Time) (time.Duration, error) {
+	stamp, found := strings.CutPrefix(filepath.Base(path), cacheName+staleCacheInfix)
+	if !found {
+		return 0, fmt.Errorf("%s is not named %s%s<stamp>, so its repair time is unknown", path, cacheName, staleCacheInfix)
+	}
+	if len(stamp) < len(staleCacheStamp) {
+		return 0, fmt.Errorf("%s carries no %s repair stamp, so its age is unknown; remove it by hand once no build reads it", path, staleCacheStamp)
+	}
+	repaired, err := time.Parse(staleCacheStamp, stamp[:len(staleCacheStamp)])
+	if err != nil {
+		return 0, fmt.Errorf("%s carries no %s repair stamp (%w), so its age is unknown; remove it by hand once no build reads it", path, staleCacheStamp, err)
+	}
+	return now.Sub(repaired), nil
+}
+
+// holdsKernelCache answers whether path lies within the kernel cache namespace
+// or holds it.
+func holdsKernelCache(path, namespace string) bool {
+	if pathWithin(path, namespace) {
+		return true
+	}
+	return pathWithin(namespace, path)
 }
 
 // pathWithin reports whether path is dir or below it.
@@ -561,21 +664,6 @@ func pathWithin(path, dir string) bool {
 		return false
 	}
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
-}
-
-// sameDirectory answers whether two paths resolve to one directory. A path
-// that does not resolve is not the other one: an absent cache/ is linked
-// nowhere, and an absent per-user target holds no cache yet.
-func sameDirectory(first, second string) bool {
-	firstReal, err := filepath.EvalSymlinks(first)
-	if err != nil {
-		return false
-	}
-	secondReal, err := filepath.EvalSymlinks(second)
-	if err != nil {
-		return false
-	}
-	return firstReal == secondReal
 }
 
 // verdict answers 1 when any cache refused, so a caller sees the failure.
@@ -787,4 +875,38 @@ func gibibytes(bytes int64) string {
 func mebibytes(bytes int64) string {
 	var text textbuf.Buffer
 	return text.Float(float64(bytes)/bytesPerMiB, 1).Str("M").String()
+}
+
+// cleanStaleCopy is cache-clean's default mode for a stale cache copy: the
+// store trim's rule, so a copy past the age floor is removed whole and a
+// younger one is kept and reported as kept young. The free space is read on
+// the directory holding the copy, which outlives its removal.
+func cleanStaleCopy(target cleanTarget, pass cachePass) CacheClean {
+	cache := CacheClean{Name: target.name, Path: target.path}
+	holder := filepath.Dir(target.path)
+	before, err := diskspace.Free(holder)
+	if err != nil {
+		cache.Error = err.Error()
+		return cache
+	}
+	cache.FreeBefore = before
+	row := StoreTrim{Name: target.name, Path: target.path}
+	trimStaleCopy(target, pass, &row)
+	if row.Error != "" {
+		cache.Error = row.Error
+		return cache
+	}
+	cache.Removed = row.SizeBefore - row.SizeAfter
+	cache.EntriesRemoved = row.EntriesRemoved
+	if row.Kept != 0 {
+		cache.KeptYoung = row.SizeBefore
+	}
+	after, err := diskspace.Free(holder)
+	if err != nil {
+		cache.Error = err.Error()
+		return cache
+	}
+	cache.FreeAfter = after
+	cache.Freed = int64(after) - int64(before) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+	return cache
 }

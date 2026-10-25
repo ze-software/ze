@@ -3,6 +3,43 @@ set -eu
 
 root=$(CDPATH= cd "$(dirname "$0")" && pwd)
 
+# Makes $root/cache the link to the per-user cache, the one Go build cache of
+# this host, before build_le's mkdir would make it a real directory. The Go copy
+# is EnsureCache (internal/le/scratch/scratch.go), which every le run calls, and
+# TestLauncherLinkMatchesCacheTarget runs this function against its cacheTarget.
+# The root ze script carries the same function, byte for byte, because it sets
+# the same GOCACHE when it builds bin/ze; the test holds the two copies equal.
+# They are copies rather than one sourced file because a missing sourced file
+# stops either launcher before it can say why.
+# A link already there is left alone, right or wrong: a QEMU guest sees the
+# host's link dangling, and build_le's fallback handles that. A real directory
+# is renamed aside, never deleted. Every failure here is left to build_le's
+# usable-cache check, so this function never stops a build.
+ensure_cache_link() {
+	cache_link=$root/cache
+	if [ -L "$cache_link" ]; then
+		return 0
+	fi
+	if [ -z "${XDG_CACHE_HOME:-}${HOME:-}" ]; then
+		return 0
+	fi
+	cache_target=${XDG_CACHE_HOME:-$HOME/.cache}/ze
+	if [ -d "$cache_link" ]; then
+		cache_stale=$cache_link.stale-$(date -u +%Y%m%dT%H%M%SZ)-$$
+		# A failed move is another le moving it first, or a cache/ this user
+		# cannot move: either way the checks below and build_le decide.
+		if mv "$cache_link" "$cache_stale" 2>/dev/null; then
+			cache_size=$(du -sh "$cache_stale" 2>/dev/null | cut -f1) || cache_size=
+			echo "$(basename "$0"): $cache_link was a real directory (${cache_size:-size unknown}); moved it to $cache_stale and linked $cache_link -> $cache_target, so every build shares the one per-user Go cache. Nothing was deleted" >&2
+		fi
+	fi
+	if [ -e "$cache_link" ] || [ -L "$cache_link" ]; then
+		return 0
+	fi
+	mkdir -p "$cache_target" 2>/dev/null || return 0
+	ln -s "$cache_target" "$cache_link" 2>/dev/null || return 0
+}
+
 # Builds the le personality into $1. Every caller shares this one block, so the
 # feature tags, the caches and the toolchain pin cannot drift between the shared
 # binary and a session-private one.
@@ -24,13 +61,14 @@ build_le() {
 	# usable rather than assuming the layout, and say so when it is not, because
 	# a cache silently in the wrong place is the shape of the full-disk false
 	# reds this repository records in plan/journal/full-disk-false-red.md.
+	ensure_cache_link
 	GOCACHE=$root/cache/go-cache
 	if ! mkdir -p "$GOCACHE" 2>/dev/null; then
 		GOCACHE=$root/tmp/go-cache
 		mkdir -p "$GOCACHE" || return 1
 		echo "le: $root/cache is not usable here, building through $GOCACHE" >&2
 	fi
-	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
+	GOLANGCI_LINT_CACHE=$root/cache/golangci-lint-cache
 	CGO_ENABLED=0
 	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
 	# A toolchain line wins; the go directive is the fallback, because a module
@@ -68,13 +106,21 @@ build_le() {
 	# refusal (a stale review stamp, a patch that no longer applies) stops the
 	# bootstrap with the generator's own repair text. The three values are set
 	# for this one build; le sets its own at its root handler.
-	tree=$(cd "$root" && go run ./internal/le/go/stdpatch/goroot) || {
+	#
+	# le and the generator are host programs, so neither build may take a target
+	# from the caller. A tool shim runs this launcher from inside a cross-target
+	# run (golangci-lint under GOOS=linux, started through its shim), and an
+	# inherited GOOS built the generator for the other system, which then failed
+	# to start with `exec format error`. Only these two subshells drop the
+	# target: le exec still hands the caller's GOOS to the tool it starts.
+	host_target_only='unset GOOS GOARCH GOARM GOARM64 GOAMD64 GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM'
+	tree=$(cd "$root" && eval "$host_target_only" && go run ./internal/le/go/stdpatch/goroot) || {
 		echo "le: the patched standard library could not be built, so le cannot be built; the message above says how to repair the patch" >&2
 		return 1
 	}
 
 	mkdir -p "$(dirname "$out")" || return 1
-	(cd "$root" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$out" ./cmd/ze)
+	(cd "$root" && eval "$host_target_only" && GOROOT="$tree" GOTOOLCHAIN=local PATH="$tree/bin:$PATH" "$tree/bin/go" build -tags "$tags" -o "$out" ./cmd/ze)
 }
 
 # Publishes $1 without exposing the compiler's writable output to another caller.

@@ -78,7 +78,7 @@ Linux refuses a hard link to a root-owned GOROOT file that the user does not own
 | The patch | `internal/le/go/stdpatch/patches/<name>.patch` | A git unified diff with paths relative to GOROOT (`a/src/crypto/tls/handshake_server.go`). Its leading text, which `git apply` skips, names this page, quotes the requirement, and carries the review stamp `Ze-Reviewed-Against: go1.27.3` (see "The review stamp") |
 | The generator | `internal/le/go/stdpatch/gen` | Builds the patched GOROOT for one toolchain. It imports only the standard library, so it compiles under the unpatched GOROOT, before any tree exists. `internal/le/go/stdpatch/goroot` is its bootstrap entry, which the routes that run before le exists start with `go run` |
 | The output | `cache/stdpatch/<key>/goroot` | The tree, keyed by a SHA-256 over a layout version, the `go version`, the real GOROOT path, the patch, and each original GOROOT file. The path is in the key because every symlink names an absolute path into that GOROOT and `cache/` is shared by every checkout |
-| The activation | `gen.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs |
+| The activation | `gen.Activate` | Answers the tree and sets the three values of "What a build sets" in the calling process's environment. le's root handler calls it before any command runs. It records the caller's three values first, and `gen.CallerEnvironment` gives them back, with any patched tree removed, to a program `le exec` starts outside a checkout |
 | The command | `./le go stdpatch goroot` (`internal/le/go/stdpatch`) | Prints the tree path for this checkout's toolchain, for plain `go` commands and editors, and for the routes that run before le exists |
 | The stamp check | `./le go patch-stamps check` (`internal/le/go/patchstamps`) | Compares every review stamp, standard-library and vendor, with the version it names. `./le verify` runs it in both modes. It is a package of its own because the generator imports only the standard library |
 
@@ -197,7 +197,11 @@ Outside le, each route runs the same generator itself:
 
 - The `./le` launcher script builds `cmd/ze` with the `ze_le` tag before le
   exists, and that binary links the EAP-TLS authenticator. The script runs the
-  generator with `go run`, then builds that one command under the tree.
+  generator with `go run`, then builds that one command under the tree. Both
+  steps drop any `GOOS`, `GOARCH` or per-architecture setting the caller
+  exported, because le and the generator run on this host: a tool shim starts
+  the launcher from inside a cross-target run, such as golangci-lint under
+  `GOOS=linux`, and the tool le exec then starts still gets the caller's target.
 - `ze appliance build`, in the ze-setup binary, runs the gokrazy build without
   le. It cannot activate the tree: ze-setup ships, and a shipped `ze` never
   links an `internal/le` package (`docs/architecture/core-design.md`). The
@@ -281,6 +285,12 @@ shell without the tree, it reports `undefined: tls.ZeServerChoosesSessionID` at
 the reference, while navigation, `gopls symbols`, definitions and references
 still work. Start the daemon from a shell that has the three exports, or expect
 that one diagnostic.
+
+`./le exec gopls` does the exports for you: run from inside the checkout, it
+starts gopls with the three values le activated, and run from anywhere else, it
+starts gopls with the caller's own GOROOT (`docs/guide/developer-setup.md`,
+"Tool caches").
+<!-- source: internal/le/exec/exec.go -- programEnvironment -->
 
 ## The review stamp
 

@@ -25,9 +25,11 @@ import (
 // The budget the fixture sets for the Go caches, and the shape of the seeded
 // cache that overruns it. Every entry is far older than the trim's 3h age
 // floor, so the floor never stops the trim, and the entries alternate between
-// the checkout and the shared cache so only one global oldest-first order over
-// the union leaves the right ones.
+// the checkout and the bootstrap cache so only one global oldest-first order
+// over the union leaves the right ones. leStoreTrimStaleAge is how long ago the
+// seeded stale cache copy was repaired, past the floor.
 const (
+	leStoreTrimStaleAge      = 10 * time.Hour
 	leStoreTrimBudget        = "1M"
 	leStoreTrimBudgetBytes   = 1 << 20
 	leStoreTrimEntryBytes    = 256 << 10
@@ -95,11 +97,29 @@ func leStoreTrimAnswers(ctx context.Context) error {
 		return err
 	}
 
+	// The checkout is laid out as every le run leaves one: cache/ a link to the
+	// per-user target, so the checkout cache IS the per-user cache, and a real
+	// cache/ here would be renamed aside by the first run before the trim saw
+	// it. The second Go store of the union is the launcher's fallback cache,
+	// tmp/go-cache, the only other one le trims against the same total.
 	checkout := filepath.Join(work, "checkout")
 	perUser := filepath.Join(work, "xdg")
+	if err := os.MkdirAll(filepath.Join(perUser, "ze"), 0o750); err != nil {
+		return leStoreTrimFailf("create the per-user target: %v", err)
+	}
+	if err := os.MkdirAll(checkout, 0o750); err != nil {
+		return leStoreTrimFailf("create the checkout: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(perUser, "ze"), filepath.Join(checkout, "cache")); err != nil {
+		return leStoreTrimFailf("link the checkout's cache/: %v", err)
+	}
 	checkoutCache := filepath.Join(checkout, "cache", "go-cache")
-	sharedCache := filepath.Join(perUser, "ze", "go-cache")
-	entries, err := leStoreTrimSeed(checkoutCache, sharedCache)
+	bootstrapCache := filepath.Join(checkout, "tmp", "go-cache")
+	entries, err := leStoreTrimSeed(checkoutCache, bootstrapCache)
+	if err != nil {
+		return err
+	}
+	stale, err := leStoreTrimSeedStale(checkout)
 	if err != nil {
 		return err
 	}
@@ -108,7 +128,7 @@ func leStoreTrimAnswers(ctx context.Context) error {
 		leStoreTrimLintBudgetKey:        leStoreTrimBudget,
 		leStoreTrimStaticcheckBudgetKey: leStoreTrimBudget,
 		leStoreTrimSwitchKey:            "on",
-		"XDG_CACHE_HOME":                perUser,
+		leCacheLinkXDGKey:               perUser,
 		"CLAUDE_CONFIG_DIR":             filepath.Join(work, "claude"),
 	})
 	le := func(args ...string) (leStoreTrimResult, error) {
@@ -137,6 +157,9 @@ func leStoreTrimAnswers(ctx context.Context) error {
 	}
 	if err := leStoreTrimUnderBudget(entries); err != nil {
 		return err
+	}
+	if _, err := os.Lstat(stale); !errors.Is(err, os.ErrNotExist) {
+		return leStoreTrimFailf("the stale cache copy %s, repaired %v ago, survived the trim: %v", stale, leStoreTrimStaleAge, err)
 	}
 	logBefore, err := os.ReadFile(logPath) //nolint:gosec // the fixture's own throwaway checkout
 	if err != nil {
@@ -204,17 +227,34 @@ func leStoreTrimBuild(ctx context.Context, source, work string) (string, error) 
 	return lePath, nil
 }
 
+// leStoreTrimSeedStale writes the copy of a real cache/ the link repair leaves
+// beside the checkout, named with a repair stamp leStoreTrimStaleAge old, past
+// the trim's 3h floor, holding one Go cache entry, and answers its path.
+func leStoreTrimSeedStale(checkout string) (string, error) {
+	var name textbuf.Buffer
+	stale := filepath.Join(checkout, name.Str("cache.stale-").
+		Str(time.Now().Add(-leStoreTrimStaleAge).UTC().Format("20060102T150405Z")).Str("-1").String())
+	entry := filepath.Join(stale, "go-cache", "00", "stale0-a")
+	if err := os.MkdirAll(filepath.Dir(entry), 0o750); err != nil {
+		return "", leStoreTrimFailf("create the stale cache copy: %v", err)
+	}
+	if err := os.WriteFile(entry, []byte("stale"), 0o600); err != nil {
+		return "", leStoreTrimFailf("seed the stale cache copy: %v", err)
+	}
+	return stale, nil
+}
+
 // leStoreTrimSeed writes leStoreTrimEntries Go cache entries of real data,
 // alternating between the two caches, the oldest first, each an hour younger
 // than the one before it.
-func leStoreTrimSeed(checkoutCache, sharedCache string) ([]leStoreTrimEntry, error) {
+func leStoreTrimSeed(checkoutCache, bootstrapCache string) ([]leStoreTrimEntry, error) {
 	data := bytes.Repeat([]byte{'z'}, leStoreTrimEntryBytes)
 	now := time.Now()
 	entries := make([]leStoreTrimEntry, 0, leStoreTrimEntries)
 	for index := range leStoreTrimEntries {
 		cache := checkoutCache
 		if index%2 == 1 {
-			cache = sharedCache
+			cache = bootstrapCache
 		}
 		subdirectory := filepath.Join(cache, "0"+strconv.Itoa(index%10))
 		if err := os.MkdirAll(subdirectory, 0o750); err != nil {

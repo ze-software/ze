@@ -55,8 +55,16 @@ interface editor.
 **le compiles Ze against a patched standard library, and its own process
 environment carries it.** Ze's EAP-TLS authenticator compiles only against a
 patched `crypto/tls`, so the le root handler calls `gen.Activate`
-(`internal/le/go/stdpatch/gen`) first, before any before-dispatch hook or
-action runs. It builds the patched GOROOT from the toolchain `go.mod` pins, then
+(`internal/le/go/stdpatch/gen`) before any before-dispatch hook or action runs.
+One step precedes it: `ensureCacheLink` makes the checkout's `cache/` the link
+to the per-user cache (`scratch.EnsureCache`), because `gen.CacheDir` creates
+`cache/stdpatch` and would otherwise turn a missing `cache/` into a real
+directory holding a second Go build cache. Neither step is a before-dispatch
+hook: that contract forbids printing and slow work, and the link step prints
+one stderr line when it renames a real `cache/` aside, while the first
+`Activate` per toolchain builds the tree. What the link step does in each case
+is in `docs/contributing/running-commands.md`, "When the disk is full".
+`gen.Activate` builds the patched GOROOT from the toolchain `go.mod` pins, then
 sets `GOROOT` to it, `GOTOOLCHAIN` to `local` and its `bin` first on `PATH`, in
 le's own process, once. Every child le starts from `os.Environ()` inherits the
 tree, including the many actions that never reach `internal/le/go/toolchain`.
@@ -68,7 +76,7 @@ it. A shipped `ze` links none of this, which is why `ze appliance build`
 refuses an environment that does not already select the tree. The technique,
 the review stamps and every build route are in
 `docs/contributing/patching-the-standard-library.md`.
-<!-- source: internal/le/register.go -- activatePatchedGOROOT -->
+<!-- source: internal/le/register.go -- run, ensureCacheLink, activatePatchedGOROOT -->
 <!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- Activate -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- New -->
 

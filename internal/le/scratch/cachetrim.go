@@ -2,7 +2,7 @@
 // Overview: storetrim.go -- the trigger, the report and the store-trim action
 // Related: cacheclean.go -- the store list the trim shares with cache-clean
 //
-// This file trims the Go-format caches: the three Go build caches as ONE union
+// This file trims the Go-format caches: the Go build caches as ONE union
 // against one total (owner decision D-1), and the golangci-lint cache against
 // its own budget. Both formats keep their entries as files, or for an
 // executable directories, named <hash>-a or <hash>-d inside 256 two-hex-digit
@@ -104,15 +104,15 @@ type cacheEntry struct {
 
 // trimCaches trims every store in targets that a budget bounds, one pass per
 // budget group, and answers one line per budget and one row per target, in
-// target order. refused names stores whose path could not be resolved; each
-// is refused by that reason and never walked. budgetOf answers a group's
+// target order. A stale cache copy is removed whole past the age floor
+// (trimStaleCopy) rather than held to a budget. budgetOf answers a group's
 // budget in bytes, or the refusal that keeps every store in the group
 // untouched while the other groups proceed (AC-13).
 //
 // It is not safe to run twice at once over one store: the background child
 // holds run.lock for that reason, and a foreground run beside it only costs
 // removals that answer ENOENT, which count as gone.
-func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]string,
+func trimCaches(ctx context.Context, targets []cleanTarget,
 	budgetOf func(budgetGroup) (int64, error), pass cachePass,
 ) ([]BudgetTrim, []StoreTrim) {
 	rows := make([]StoreTrim, len(targets))
@@ -121,8 +121,16 @@ func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]s
 	}
 	budgets := []BudgetTrim{}
 	for index, target := range targets {
+		if target.failed != "" {
+			rows[index].Error = target.failed
+			continue
+		}
 		if target.holdsKernel {
 			rows[index].Skipped = target.skipped
+			continue
+		}
+		if target.budget == pastFloor {
+			trimStaleCopy(target, pass, &rows[index])
 			continue
 		}
 		if target.budget == notTrimmed {
@@ -146,7 +154,7 @@ func trimCaches(ctx context.Context, targets []cleanTarget, refused map[string]s
 			continue
 		}
 		line.Budget = budget
-		entries := collectGroup(ctx, targets, target.budget, refused, rows, pass.run)
+		entries := collectGroup(ctx, targets, target.budget, rows, pass.run)
 		removeOldest(ctx, entries, pass, &line, rows)
 		budgets = append(budgets, line)
 	}
@@ -168,14 +176,13 @@ func refuseGroup(targets []cleanTarget, group budgetGroup, reason string, rows [
 // union counts it once (AC-7).
 //
 // A store root is walked only when it is an absolute path to a real
-// directory. A relative path, the shape the shared path takes when the
-// per-user target cannot be resolved, is refused: walked, it would trim
-// whatever directory le happened to run in. A root that is itself a symbolic
+// directory. A relative path, which a root that failed to resolve would give,
+// is refused: walked, it would trim whatever directory le happened to run in. A root that is itself a symbolic
 // link is refused too, so no link can lead the trim outside the store; a link
 // in a PARENT, such as a linked cache/, is how the stores are laid out and is
 // resolved rather than refused.
 func collectGroup(ctx context.Context, targets []cleanTarget, group budgetGroup,
-	refused map[string]string, rows []StoreTrim, run trimRun,
+	rows []StoreTrim, run trimRun,
 ) []cacheEntry {
 	seen := map[string]string{}
 	var entries []cacheEntry
@@ -183,10 +190,6 @@ func collectGroup(ctx context.Context, targets []cleanTarget, group budgetGroup,
 		// A store holding a kernel cache is never walked, even when another
 		// store of its group is what brought the trim here.
 		if target.budget != group || target.holdsKernel {
-			continue
-		}
-		if reason, ok := refused[target.name]; ok {
-			rows[index].Refused = reason
 			continue
 		}
 		if !filepath.IsAbs(target.path) {
@@ -451,4 +454,34 @@ func removeCacheEntry(path string, directory bool) error {
 		return os.RemoveAll(path)
 	}
 	return os.Remove(path)
+}
+
+// trimStaleCopy removes the stale cache copy at target whole once the repair
+// stamp in its name is older than the age floor, and records the outcome in
+// row. A younger copy is kept, counted as one kept: a build that was running
+// when the repair moved cache/ aside may still be reading it. A removal that
+// answers ENOENT counts as gone, as a cache entry's does.
+func trimStaleCopy(target cleanTarget, pass cachePass, row *StoreTrim) {
+	age, err := staleCopyAge(target.path, pass.now)
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	bytes, err := treeBytes(target.path)
+	if err != nil {
+		row.Error = err.Error()
+		return
+	}
+	row.SizeBefore = bytes
+	row.SizeAfter = bytes
+	if age < pass.floor {
+		row.Kept = 1
+		return
+	}
+	if err := pass.remove(target.path, true); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		row.Error = err.Error()
+		return
+	}
+	row.SizeAfter = 0
+	row.EntriesRemoved = 1
 }

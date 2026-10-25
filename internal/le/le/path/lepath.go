@@ -71,6 +71,17 @@ func Root() (string, error) {
 	return "", ErrNoCheckout
 }
 
+// CheckoutContaining answers the Ze checkout dir lies in, judged from dir and
+// its ancestors alone, and whether one does. It never consults ZE_REPO_ROOT or
+// the executable's location, which Root falls back to: a question about where a
+// program runs (`le exec` keeps the patched GOROOT only inside a checkout) has
+// to be answered from that directory, because le itself lives in a checkout
+// wherever it is started from.
+func CheckoutContaining(dir string) (string, bool) {
+	found := ancestorWithMarkers(dir)
+	return found, found != ""
+}
+
 // ancestorWithMarkers answers the nearest ancestor of start that carries every
 // marker, or "" when none does. The walk is bounded by the filesystem: each
 // step shortens the path by one element, and the loop ends when filepath.Dir
