@@ -247,6 +247,12 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | Failure accounting | A failed category does not prevent later categories and makes the final result fail |
 | Help and distribution caller | Both name the same registered matrix action |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-fires-outside-its-population.md` | 2026-10-25 | `le-evidence-answers` runs `verify evidence release-candidate` without a terminal, which the `WholeTree` terminal gate refuses |
+
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->

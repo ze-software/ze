@@ -9,8 +9,10 @@
 # Stages (the live-stages fixture orders them, the reload waits until processed):
 # 1. A sends U1 (10.0.0.0/24). Export `default` for a customer resolves to
 #    provider, rs and peer (RFC 9234 Section 5 defaults), so U1 is NOT sent to
-#    B, which receives a withdraw of it instead; the stage waits until the
-#    export-set suppression counter reads 1.
+#    B. B receives nothing for it, neither an announce nor a withdraw: B was
+#    never advertised 10.0.0.0/24, so the suppression owes it no withdrawal
+#    (RFC 4271 Section 3.1). The stage waits until the export-set suppression
+#    counter reads 1, which proves the role filter judged U1 for B.
 # 2. reload config2: A's export becomes [ default customer ]. Nothing else
 #    changes: the role value, which the OPEN carries, stays customer.
 # 3. route to A fences A's next UPDATE behind the processed reload; A sends U2
@@ -75,13 +77,16 @@ option=asn:value=65002
 # B declares Role customer. ze has no role toward B and so announces none.
 option=open:value=add-capability:code=9:hex=03
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# U1 is suppressed for B, and the suppression goes out as a withdraw of
-# 10.0.0.0/24 (never an announce of it).
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
-expect=bgp:conn=1:seq=3:announced=180A0001
-action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-first
-expect=bgp:conn=1:seq=4:announced=180A0002
-action=rewrite:conn=1:seq=4:source=marker.txt:dest=b-second
+# U2 is the first UPDATE B receives after its End-of-RIB: U1 is suppressed for B
+# and, never having been advertised to B, is not withdrawn from it either
+# (RFC 4271 Section 3.1). U2 and U3 are the positive fences; linger holds the
+# session so both rejections below cover the whole test.
+expect=bgp:conn=1:seq=2:announced=180A0001
+action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-first
+expect=bgp:conn=1:seq=3:announced=180A0002
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-second
+reject=bgp:conn=1:scope=announced:pattern=180A0000
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_DESTB
 
 tmpfs=marker.txt:terminator=EOF_MARKER

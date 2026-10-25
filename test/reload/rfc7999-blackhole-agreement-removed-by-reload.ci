@@ -10,11 +10,15 @@
 # 65002 agreed in ze-bgp.conf only; C 127.0.0.3 AS 65003 agreed in config3 only.
 #
 # Stages (the live-stages fixture orders them, each reload waits until processed):
-# 1. A sends U1 (10.0.0.0/24, BLACKHOLE). B receives it; C is refused (withdrawal).
+# 1. A sends U1 (10.0.0.0/24, BLACKHOLE). B receives it; C is refused, and is
+#    sent no withdrawal: C was never advertised the route (RFC 4271 Section 3.1).
 # 2. reload config2: B's blackhole container removed.
 # 3. route to A fences A's next UPDATE behind the processed reload; A sends U2
 #    (U1 with MED 2). B is now refused, so its earlier generation is withdrawn
-#    (A-6: no survivor here); C is still refused.
+#    (A-6: no survivor here); C is still refused, and still owed no withdrawal.
+#    A then sends F (10.0.1.0/24, no community), the fence: B and C both
+#    receive it, and C receives it as its first UPDATE, which proves U1 and U2
+#    were judged for C and sent nothing ahead of it.
 # 4. reload config3: C's blackhole container added.
 # 5. route to A; A sends U3 (MED 3). C receives it with 65535:666 intact.
 # Not claimed: whether a reload alone, with no new UPDATE from A, re-judges what B
@@ -22,6 +26,7 @@
 #
 # U1: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, COMMUNITY 65535:666, NLRI 180A0000
 # U2/U3: U1 plus MULTI_EXIT_DISC 80040400000002 / 80040400000003
+# F: U1 without COMMUNITY, NLRI 180A0001
 
 option=timeout:value=60s
 
@@ -34,6 +39,7 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:announced=18C0A801
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000002C00804FFFF029A180A0000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
 expect=bgp:conn=1:seq=3:announced=18C0A802
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000003C00804FFFF029A180A0000
 EOF_PEER
@@ -47,6 +53,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF029A
 action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-holds
 expect=bgp:conn=1:seq=3:withdrawn=180A0000
+expect=bgp:conn=1:seq=3:announced=180A0001
 action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-withdrawn
 EOF_DESTB
 
@@ -56,10 +63,16 @@ option=timeout:value=50s
 option=linger:value=true
 option=asn:value=65003
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:withdrawn=180A0000
-expect=bgp:conn=1:seq=3:withdrawn=180A0000
-expect=bgp:conn=1:seq=4:announced=180A0000:attribute=8,FFFF029A
-action=rewrite:conn=1:seq=4:source=marker.txt:dest=c-agreed
+# The fence F is C's first UPDATE after its End-of-RIB. A sent U1 and U2 ahead
+# of it, so a U1 or U2 that reached C while it was refused arrives before F,
+# matches nothing in this sequence, and fails the test.
+expect=bgp:conn=1:seq=2:announced=180A0001
+# After config3 added C's agreement, U3 reaches C with 65535:666 intact.
+expect=bgp:conn=1:seq=3:announced=180A0000:attribute=8,FFFF029A
+action=rewrite:conn=1:seq=3:source=marker.txt:dest=c-agreed
+# C was never advertised 10.0.0.0/24 while it was refused, so neither refusal
+# owes it a withdrawal (RFC 4271 Section 3.1). linger holds the session to the end.
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_DESTC
 
 tmpfs=marker.txt:terminator=EOF_MARKER

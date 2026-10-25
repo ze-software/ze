@@ -917,6 +917,12 @@ func vrrpShowPayload(ctx context.Context, plugin *sdk.Plugin, command, key strin
 }
 
 func vrrpShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
+	// The .ci expects the peer's EOR on the wire. Asserting before the
+	// session has sent it lets the daemon shut down first, because the
+	// quiesce barrier treats a peer still connecting as settled.
+	if !waitPeerEORSent(ctx, plugin, "*", 100) {
+		return errors.New("initial-sync EOR never reached the wire")
+	}
 	for _, assertion := range []struct {
 		command string
 		key     string

@@ -15,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 const apiUserRemovedByReloadName = "ui/api-user-removed-by-reload"
@@ -714,17 +716,18 @@ func statusText(status int) string {
 	return strconv.Itoa(status)
 }
 
+// uiApiUserRemovedByReloadReplaceEnv returns base with every spelling of each
+// key in values removed, then values appended. Removing only the exact spelling
+// is not enough: the runner hands this fixture `ze.config.dir`, and ze's env
+// lookup lets a dotted spelling win over ZE_CONFIG_DIR whatever their order
+// (internal/core/env, ensureCache), so `ze init` and the daemon would both use
+// the runner's directory instead of the one this fixture chose.
 func uiApiUserRemovedByReloadReplaceEnv(base []string, values map[string]string) []string {
-	out := make([]string, 0, len(base)+len(values))
-	for _, entry := range base {
-		key := entry
-		if before, _, found := strings.Cut(entry, "="); found {
-			key = before
-		}
-		if _, replaced := values[key]; !replaced {
-			out = append(out, entry)
-		}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
+	out := env.Without(base, keys...)
 	for key, value := range values {
 		out = append(out, key+"="+value)
 	}

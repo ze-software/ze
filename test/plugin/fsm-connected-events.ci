@@ -56,3 +56,6 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# The fixture judges the order and prints this line only when every event arrived
+# in it; ze exits 0 after the fixture's shutdown request whichever way it judged.
+expect=stderr:contains=OK: connected and fsm events delivered in order

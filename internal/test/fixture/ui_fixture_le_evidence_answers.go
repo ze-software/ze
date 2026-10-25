@@ -324,13 +324,19 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(appliance.code == 1,
 		"the appliance proof exited %d on the escape, want 1", appliance.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(ipRecord)) == 0, "the refused appliance run still made a lab")
+	// A refused appliance run never reached the proof, so it answers no
+	// verdict (runGokrazyL2TP through notReached): the refusal goes to stderr
+	// and the payload is empty, because the appliance proof starts no
+	// container whose removal could still be owed.
+	const applianceRefusal = "refusing to run with ZE_L2TP_SKIP_KERNEL_PROBE set; full proof must not skip the kernel probe"
+	uiLeEvidenceAnswersRequire(strings.Contains(appliance.stderr, applianceRefusal),
+		"the appliance refusal does not name the variable on stderr: %q", uiLeEvidenceAnswersTail(appliance.stderr, 400))
 	report = nil
 	err = json.Unmarshal([]byte(appliance.stdout), &report)
 	uiLeEvidenceAnswersRequire(err == nil, "the appliance JSON is invalid: %v; output %q", err, appliance.stdout)
-	for _, key := range []string{"arch", "accel", "appliance-address", "appliance-interface", "proven"} {
-		uiLeEvidenceAnswersRequire(hasKey(report, key), "the appliance report answered no %q key: %v", key, uiLeEvidenceAnswersSortedKeys(report))
-	}
-	uiLeEvidenceAnswersRequire(report["proven"] == false, "a refused appliance run reports itself proven")
+	uiLeEvidenceAnswersRequire(report != nil, "the appliance answered no JSON object: %q", appliance.stdout)
+	uiLeEvidenceAnswersRequire(len(report) == 0,
+		"a refused appliance run answered a verdict: %v", uiLeEvidenceAnswersSortedKeys(report))
 
 	// The shared operators render the same command payloads.
 	renderings := []struct{ name, verb, operator, needle string }{
