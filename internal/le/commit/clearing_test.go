@@ -43,7 +43,8 @@ func TestUnjudgedStageNamesNoAgentFullRun(t *testing.T) {
 // a Staticcheck part's red that a full run recorded and a changed run carried,
 // and says only the release check clears it: a changed run judges that part
 // over its scope's rows alone. A red the changed population judged on the same
-// part clears through ./le verify changed.
+// part, whole or as a cut piece (`changed-part-1-of-2`), clears through
+// ./le verify changed.
 // VALIDATES: AC-21. PREVENTS: an agent told a scoped run clears a full-run red.
 func TestAFullRedOnASharedStageNamesNoChangedClear(t *testing.T) {
 	part := ""
@@ -59,6 +60,10 @@ func TestAFullRedOnASharedStageNamesNoChangedClear(t *testing.T) {
 	for _, judge := range []struct{ mode, want, never string }{
 		{verifyengine.Mode, "give Thomas the command ./le verify worktree", "clears when ./le verify changed"},
 		{verifyengine.ChangedMode, "clears when ./le verify changed reaches it", "verify worktree"},
+		// A piece of a cut changed run is the changed population (BaseMode),
+		// so its red clears through ./le verify changed too (review round 5).
+		{verifyengine.Part{Index: 1, Of: 2}.Name(verifyengine.ChangedMode),
+			"clears when ./le verify changed reaches it", "verify worktree"},
 	} {
 		root := t.TempDir()
 		index := `{"format": ` + strconv.Itoa(verifyengine.FailureIndexFormat) + `, "mode": "` + verifyengine.ChangedMode +

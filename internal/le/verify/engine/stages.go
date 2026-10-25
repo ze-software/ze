@@ -71,9 +71,11 @@ type Stage struct {
 	// replaces a full red it did not re-judge. A stage that learns to read the
 	// scope therefore needs no edit here to stay correct; only the claim of a
 	// full judgement does, and TestAWholeStageReachesNoChangeScopeReader
-	// (internal/le) refuses that claim for a stage whose action's package, or
-	// a package it imports, reads the scope, unless the readers there were
-	// reviewed as ones the stage never reaches.
+	// (internal/le) refuses that claim for a stage whose action's own package
+	// reads the scope, unless the readers there were reviewed as ones the
+	// stage never reaches. That check is package-granular and does not follow
+	// imports: a reader in a package the action calls into is not seen, so a
+	// Whole claim over such an action rests on the reviewer of the claim.
 	Whole bool `json:"whole,omitempty"`
 }
 

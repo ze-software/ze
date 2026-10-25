@@ -192,7 +192,7 @@ func writeFailureIndex(root string, index artifactIndex) error {
 	index.CarryNote = note
 	index.Stages, err = carryForward(index.Stages, prior, index.Mode)
 	if err != nil {
-		return unpublished(fmt.Errorf("carry the earlier verdicts into this run's index: %w", err))
+		return unjudgeable(err)
 	}
 	data, err := json.MarshalIndent(index, "", "  ")
 	if err != nil {
@@ -223,6 +223,20 @@ func unpublished(err error) error {
 	return fmt.Errorf("%w; the earlier failure index at %s was left unchanged, so this run's reds were not published "+
 		"and the commit gate still reads the earlier run: fix what refused the write, then rerun the verify "+
 		"that wrote it ("+agentRerun+")", err, FailuresJSONPath)
+}
+
+// unjudgeable answers err for a run whose stages carryForward could not judge:
+// its mode names no population (BaseMode), or it holds a stage its population
+// does not (JudgesInPart). Both are defects in the code that started the run,
+// so the answer names that code and never a rerun, which would meet the same
+// refusal.
+func unjudgeable(err error) error {
+	return fmt.Errorf("this verify run's verdicts cannot be judged against the earlier ones: %w. "+
+		"The earlier failure index at %s was left unchanged, so this run's reds were not published "+
+		"and the commit gate still reads the earlier run. This is a defect in le verify, and a rerun "+
+		"meets the same refusal. Fix it in code: the run's mode must be one StagesForMode answers, or a "+
+		"cut of one written by Part.Name, and every stage it runs must belong to that population "+
+		"(internal/le/verify/engine/stages.go)", err, FailuresJSONPath)
 }
 
 // copyBehind answers err for a reader's copy that could not be written after

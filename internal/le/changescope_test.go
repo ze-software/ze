@@ -60,10 +60,11 @@ var reviewedReach = map[string][]string{
 // is judged in part, which is the safe answer.
 //
 // Method: scan every shipped Go file under internal/le for a read of the
-// scope, close each package over its internal/le imports, and refuse every
-// Whole stage of every population whose package reaches a reader, unless
-// reviewedReach holds exactly those readers for it. Every reviewed entry must
-// still be needed.
+// scope, and refuse every Whole stage of every population whose action's own
+// package holds a reader, unless reviewedReach holds exactly those readers for
+// it. Every reviewed entry must still be needed. The scan does not follow
+// imports, so a reader in a package the action imports is not seen: that is
+// the bound of this check (reach).
 func TestAWholeStageReachesNoChangeScopeReader(t *testing.T) {
 	scan := scanChangeScope(t)
 	if len(scan.readers) == 0 {

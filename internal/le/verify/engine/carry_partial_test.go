@@ -194,12 +194,38 @@ func TestACutPartialRunPieceIsJudgedAsItsPopulation(t *testing.T) {
 	}
 }
 
+// TestACutPartialRedIsClearedByItsOwnPopulation proves a red a cut piece of a
+// partial run judged (`changed-part-1-of-2`) is that population's own red, so
+// a later green of the same population clears it: an exact mode comparison
+// read the piece as another population and kept its red charged for good
+// (review round 4, finding 10; samePopulation).
+//
+// Method: for the changed and the fast population, publish a cut piece's red
+// on a Staticcheck part, then the uncut population's green, and require the
+// green as the run's own entry, not carried.
+func TestACutPartialRedIsClearedByItsOwnPopulation(t *testing.T) {
+	part := staticcheckStages()[0].Identity.Name
+	for _, mode := range []string{ChangedMode, FastMode} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			writeOneStage(t, root, part, "aaa", Part{Index: 1, Of: 2}.Name(mode), 1)
+			writeOneStage(t, root, part, "bbb", mode, 0)
+			entry := carriedEntry(t, readCarried(t, root), part)
+			if entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
+				t.Fatalf("%s after a %s piece's red then a %s green = %#v, want the green, not carried",
+					part, mode, mode, entry)
+			}
+		})
+	}
+}
+
 // TestAnUnknownModeIsRefused proves a mode that names no population is
 // refused by BaseMode, JudgesInPart and the index write, never answered as a
-// full judgement.
+// full judgement, and that the write's refusal names the code fix rather than
+// a rerun (unjudgeable).
 //
 // Method: ask about names that are no population or no valid cut of one, and
-// write an index under one over a full red.
+// write an index under one over a full red, reading the refusal's text.
 func TestAnUnknownModeIsRefused(t *testing.T) {
 	part := staticcheckStages()[0].Identity.Name
 	for _, mode := range []string{"", "partial", "changed-part-3-of-2", "changed-part-0-of-2",
@@ -215,8 +241,22 @@ func TestAnUnknownModeIsRefused(t *testing.T) {
 	writeOneStage(t, root, part, "aaa", Mode, 1)
 	index := artifactIndex{Format: FailureIndexFormat, Mode: "partial", Commit: "bbb", RunDir: "run-bbb",
 		Stages: []artifactStage{{Stage: part, Reached: true, ExitCode: 0}}}
-	if err := writeFailureIndex(root, index); err == nil {
+	err := writeFailureIndex(root, index)
+	if err == nil {
 		t.Fatal("an index under a mode that names no population was written, want a refusal")
+	}
+	// An unknown mode is a code defect, so the refusal names the code that
+	// fixes it and never sends the reader to rerun a verify (review round 5).
+	refusal := err.Error()
+	for _, want := range []string{`verify mode "partial" names no stage population`, "defect in le verify",
+		"a rerun meets the same refusal", "Fix it in code", "StagesForMode", "Part.Name",
+		"internal/le/verify/engine/stages.go", FailuresJSONPath} {
+		if !strings.Contains(refusal, want) {
+			t.Errorf("refusal for an unknown mode lacks %q:\n%s", want, refusal)
+		}
+	}
+	if strings.Contains(refusal, "rerun the verify") {
+		t.Errorf("refusal for an unknown mode tells the reader to rerun a verify, which cannot fix it:\n%s", refusal)
 	}
 	entry := carriedEntry(t, readCarried(t, root), part)
 	if entry.ExitCode != 1 {

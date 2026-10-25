@@ -493,7 +493,24 @@ not seen. Following imports refused the claims of ten stages (`doc check`,
 import), each of which would need a call-graph review before it could be
 accepted.
 
-Round 5, over the round-4 fix commit, is owed to the parent session, which runs
+Round 5, over `3a407dbb83`, ran in the parent session with an independent
+reviewer and found one BLOCKER, one ISSUE and one NOTE, and the doc wiring red
+that commit caused. All are fixed in the commit that carries this paragraph.
+Each new test was forced red by restoring the defect it guards, then the fix
+was put back.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 12 | BLOCKER: the `Stage.Whole` doc said the check refuses a claim when a package the action imports reads the scope, and the test doc said the scan closes each package over its imports; `reach` keys only on the action's own directory | Both comments now state the known bound above: the scan is package-granular and does not follow imports | None: a comment. It now agrees with `reach` and `docs/architecture/testing/verify-freshness-scope.md` |
+| 13 | ISSUE: `samePopulation` and the cut-judge branch of `clearingRuns` had no regression test | `TestACutPartialRedIsClearedByItsOwnPopulation` (verify/engine): a `changed-part-1-of-2` or `fast-part-1-of-2` red, then the population's green, holds the green. A `changed-part-1-of-2` row in `TestAFullRedOnASharedStageNamesNoChangedClear` (commit) | Red with `judgedBy(was, prior) != mode` in `carryForward` (the red stayed carried), and with `judgedBy == ChangedMode` in `clearingRuns` (the text named the release check) |
+| 14 | NOTE: an unknown mode reached `unpublished`, whose fix says to rerun the verify, which cannot fix a code defect | `carryForward`'s refusal goes through `unjudgeable`, which names the defect in le verify, says a rerun meets the same refusal, and names the fix in code (`StagesForMode`, `Part.Name`, `stages.go`) | `TestAnUnknownModeIsRefused` asserts that wording and that the text never says "rerun the verify" |
+| 15 | Doc wiring: `3a407dbb83` changed `fullStages` under claims in `feature-gates.md` and `gh-pages.md` | The population and its order are unchanged, so both claims hold: two reviewed rows in `plan/doc-reviewed/e827fce7.md` | `./le doc wiring` no longer names `fullStages` |
+
+`./le doc wiring` still reports two stale reviewed rows, `plan/doc-reviewed/6657e819.md`
+(`605ac0a373`) and `plan/doc-reviewed/a4042a10.md` (`f074233e43`), and two dangling
+references in `spec-prose-cites-symbols-not-facts.md`. None is this spec's.
+
+Round 6, over the round-5 fix commit, is owed to the parent session, which runs
 it with an independent reviewer. The scoped `./le verify changed` over the
 closing commits is owed with it.
 
