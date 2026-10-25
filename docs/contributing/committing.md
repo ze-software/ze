@@ -141,12 +141,20 @@ A pin taken over the working-tree file is stale, and a hunks path the artifact
 does not pin is unreviewed. Either way no review saw the content the commit
 carries, and the only fix is a new review of that content. The refusal says
 so, and names the verb the reviewer records the new verdict with as its usage
-shape, this commit's stem and each hunks path with its patch filled in, the
-reviewer's own words left as `...`:
+shape, this commit's stem and each stale or unreviewed hunks path with its
+patch filled in, the reviewer's own words left as `...`:
 
 ```
 ./le spec review record spec <stem> ... hunks <path> <patch-file>
 ```
+
+A record replaces the artifact rather than adding to it
+(`internal/le/spec/review.go`, `recordReview`), so the new record names every
+code file the commit carries, not only the paths the refusal named: each hunks
+path with `hunks <path> <patch-file>` and every other one with `file <path>`.
+A path the record leaves out is unreviewed at the next `./le commit create`.
+<!-- source: internal/le/spec/review.go -- recordReview -->
+<!-- source: internal/le/commit/review.go -- hunksReviewRefusal -->
 
 The refusal prints no command that pins anything by itself. A printed re-pin
 command was tried and removed: whatever it carried, pasting it vouched for
