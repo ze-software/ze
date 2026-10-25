@@ -247,6 +247,7 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 | gate-verdict-depends-on-the-machine.md | 2026-09-17 | test/plugin/exec-answer-unconditional.ci (271) and test/plugin/explicit-fil |
 | gate-verdict-depends-on-the-machine.md | 2026-09-20 | TestBFDClientReStampsTheEntryTimeOnlyOnAChange (internal/component/bgp/reac |
 | gate-verdict-depends-on-the-machine.md | 2026-10-14 | test/plugin/session-editor-commit-confirmed-boundary.ci |
+| gate-verdict-depends-on-the-machine.md | 2026-10-25 | internal/le/site under -race, TestBuildRendersEveryPublishedRoute |
 | startup-wait-expires-under-load.md | 2026-10-09 | terminal-demo startDaemon against ze start in the render container |
 | startup-wait-expires-under-load.md | 2026-10-17 | ze startup under fsync load (test/plugin/filter-irr.ci runs) |
 | startup-wait-expires-under-load.md | 2026-10-17 | drainSSHRestart 15s SSH poll (fixture/register_drain_signal.go), test/plugi |
