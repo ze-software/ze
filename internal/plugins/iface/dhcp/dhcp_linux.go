@@ -46,10 +46,15 @@ type DHCPClient struct {
 	config    dHCPConfig
 	stop      chan struct{}
 	done      chan struct{}
-	v4        bool
-	v6        bool
-	started   atomic.Bool
-	stopOnce  sync.Once
+	// life is cancelled by Stop together with closing stop. Each exchange
+	// derives its context from it (stoppableContext), so an exchange stops
+	// with the client and no goroutine per exchange watches stop.
+	life       context.Context
+	lifeCancel context.CancelFunc
+	v4         bool
+	v6         bool
+	started    atomic.Bool
+	stopOnce   sync.Once
 
 	// clock is the only time source of the DHCP workers: every wait and every
 	// lease deadline reads it, so a test drives lease timing with a fake
@@ -95,6 +100,7 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return nil, fmt.Errorf("iface dhcp: %w", err)
 	}
+	life, lifeCancel := context.WithCancel(context.Background())
 	return &DHCPClient{
 		ifaceName:  ifaceName,
 		unit:       unit,
@@ -102,6 +108,8 @@ func newDHCPClient(ifaceName, unit string, eventBus ze.EventBus, v4, v6 bool, cf
 		config:     cfg,
 		stop:       make(chan struct{}),
 		done:       make(chan struct{}),
+		life:       life,
+		lifeCancel: lifeCancel,
 		v4:         v4,
 		v6:         v6,
 		v4Owner:    "iface-dhcp-v4 " + ifaceName + " unit " + unit,
@@ -153,7 +161,10 @@ func (c *DHCPClient) Start() error {
 
 // Stop signals DHCP goroutines to exit and waits for completion.
 func (c *DHCPClient) Stop() {
-	c.stopOnce.Do(func() { close(c.stop) })
+	c.stopOnce.Do(func() {
+		close(c.stop)
+		c.lifeCancel()
+	})
 	if c.started.Load() {
 		<-c.done
 	}
@@ -192,16 +203,15 @@ func (c *DHCPClient) safeRunV6() {
 	c.runV6()
 }
 
+// stoppableContext is the context of one exchange: cancelled by Stop, or by
+// the returned cancel, which the caller MUST call when the exchange returns.
+//
+// It is a child of the client's life context, so the cancellation propagates
+// without a goroutine. A goroutine per exchange that watched stop outlived its
+// exchange until the scheduler ran it after cancel, so renewals grew the
+// goroutine count (ai/rules/goroutine-lifecycle.md).
 func (c *DHCPClient) stoppableContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		select {
-		case <-c.stop:
-			cancel()
-		case <-ctx.Done(): // context canceled normally
-		}
-	}()
-	return ctx, cancel
+	return context.WithCancel(c.life)
 }
 
 // sleepOrStop waits d on the client's clock. It answers true when the wait
