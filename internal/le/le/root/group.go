@@ -38,6 +38,10 @@ import (
 	"sync"
 )
 
+// ungroupedTag is the purpose tag a listing shows for a command registered
+// without a group: it says so rather than borrowing another group's name.
+const ungroupedTag = "ungrouped"
+
 // Group is the part of le's surface one command belongs to.
 type Group string
 

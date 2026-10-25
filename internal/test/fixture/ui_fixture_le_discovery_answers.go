@@ -159,7 +159,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(wiringJSON.stdout, &wiringFields); err != nil {
 		return uiLeDiscoveryAnswersFailf("doc-wiring JSON is invalid: %v\n%s", err, wiringJSON.stdout)
 	}
-	for _, key := range []string{"actions", "advisory", "changed", fieldChecks, "declared-groups", "dry-run", fieldError, outcomeFailed, "failure-groups"} {
+	for _, key := range []string{"actions", "advisory", "changed", fieldChecks, "declared-groups", fieldDryRun, fieldError, outcomeFailed, "failure-groups"} {
 		if _, ok := wiringFields[key]; !ok {
 			return uiLeDiscoveryAnswersFailf("the router answered no %q key: %v", key, uiLeDiscoveryAnswersSortedKeys(wiringFields))
 		}

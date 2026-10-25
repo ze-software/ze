@@ -249,11 +249,20 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		listing.code, listing.stdout, listing.stderr)
 	leRFCAnswersRequire(listing.stderr == "", "rfc listing wrote to stderr: %q", listing.stderr)
 	listed := map[string]string{}
+	// The area page opens with the area's name, then a Usage block, then an
+	// Actions block. An action row is indented two spaces and carries its
+	// name, its bracketed effect and a description; a wrapped description
+	// continues on lines indented further, which belong to the row above.
 	lines := strings.Split(listing.stdout, "\n")
-	leRFCAnswersRequire(strings.TrimSpace(lines[0]) == "rfc:",
+	leRFCAnswersRequire(strings.TrimSpace(lines[0]) == "le rfc",
 		"rfc listing has no area heading:\n%s", listing.stdout)
-	for _, line := range lines[1:] {
+	actionsAt := slices.Index(lines, "Actions:")
+	leRFCAnswersRequire(actionsAt > 0, "rfc listing has no Actions block:\n%s", listing.stdout)
+	for _, line := range lines[actionsAt+1:] {
 		if strings.TrimSpace(line) == "" {
+			break
+		}
+		if strings.HasPrefix(line, "   ") {
 			continue
 		}
 		fields := strings.Fields(line)
@@ -261,9 +270,10 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"rfc listing has an action without an effect or description: %q", line)
 		_, duplicate := listed[fields[0]]
 		leRFCAnswersRequire(!duplicate, "rfc listing repeats action %q", fields[0])
-		leRFCAnswersRequire(fields[1] == fieldChecks || fields[1] == wordWrites,
+		effect := strings.TrimSuffix(strings.TrimPrefix(fields[1], "["), "]")
+		leRFCAnswersRequire(fields[1] == "["+effect+"]" && (effect == fieldChecks || effect == wordWrites),
 			"rfc listing action %q has invalid effect %q", fields[0], fields[1])
-		listed[fields[0]] = fields[1]
+		listed[fields[0]] = effect
 	}
 	wantListed := map[string]string{
 		"extraction-create":   wordWrites,

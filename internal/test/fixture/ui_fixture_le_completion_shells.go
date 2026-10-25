@@ -137,7 +137,7 @@ func leCompletionShells(ctx context.Context) error {
 // at bin/le and a launcher script at le that records that it ran.
 func leCompletionShellsCheckout(work, lePath string) (string, string, error) {
 	checkout := filepath.Join(work, "checkout")
-	if err := os.MkdirAll(filepath.Join(checkout, "bin"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(checkout, "bin"), 0o750); err != nil {
 		return "", "", fmt.Errorf("create the checkout: %w", err)
 	}
 	if err := os.Link(lePath, filepath.Join(checkout, "bin", "le")); err != nil {
@@ -220,7 +220,7 @@ func leCompletionShellsInteractive(ctx context.Context, checkout string, env []s
 	if err != nil {
 		return fmt.Errorf("%s: %w", shell.name, err)
 	}
-	for _, live := range []string{"subject", "body", "file-list", "dry-run"} {
+	for _, live := range []string{"subject", "body", "file-list", fieldDryRun} {
 		if !strings.Contains(screen, live) {
 			return fmt.Errorf("%s: commit create does not list %q:\n%s", shell.name, live, screen)
 		}

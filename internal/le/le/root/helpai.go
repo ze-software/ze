@@ -120,7 +120,7 @@ func fillCommands(ref *reference.Reference, program string) {
 	for _, area := range manifestOf(program).Areas {
 		entry := reference.Command{Name: area.Name, Group: string(area.Group), Summary: area.Description, PassesTo: area.PassesTo}
 		if area.Group == "" {
-			entry.Group = "ungrouped"
+			entry.Group = ungroupedTag
 		}
 		for _, row := range area.Actions {
 			entry.Actions = append(entry.Actions, actionOf(row))

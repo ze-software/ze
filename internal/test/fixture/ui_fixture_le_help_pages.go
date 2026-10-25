@@ -175,9 +175,9 @@ func leHelpPagesNodes(run leHelpPagesRun, lePath string) error {
 // leHelpPagesRefusals checks AC-9 and AC-12: a spec claim with no spec is
 // refused naming that one action, under the program that ran.
 func leHelpPagesRefusals(run leHelpPagesRun, lePath, zePath string) error {
-	for _, program := range []struct{ path, name string }{{lePath, "le"}, {zePath, "ze le"}} {
-		args := []string{"spec", "claim"}
-		if program.name == "ze le" {
+	for _, program := range []struct{ path, name string }{{lePath, "le"}, {zePath, programZeLe}} {
+		args := []string{areaSpec, "claim"}
+		if program.name == programZeLe {
 			args = append([]string{"le"}, args...)
 		}
 		refused, err := run(program.path, args...)

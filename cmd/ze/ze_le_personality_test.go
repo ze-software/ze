@@ -134,7 +134,9 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 		t.Fatalf("help codes: le=%d ze-le=%d\nle: %s%s\nze: %s%s",
 			leHelp.code, zeHelp.code, leHelp.stdout, leHelp.stderr, zeHelp.stdout, zeHelp.stderr)
 	}
-	if leHelp.stdout != zeHelp.stdout {
+	// Help goes to stdout, and the ze personality names itself "ze le" where
+	// standalone le says "le", so both streams compare after that one rename.
+	if leHelp.stdout != strings.ReplaceAll(zeHelp.stdout, "ze le", "le") {
 		t.Errorf("help stdout differs:\nle: %q\nze le: %q", leHelp.stdout, zeHelp.stdout)
 	}
 	if leHelp.stderr != strings.ReplaceAll(zeHelp.stderr, "ze le", "le") {

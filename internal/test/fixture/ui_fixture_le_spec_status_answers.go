@@ -136,8 +136,10 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	if len(refused.stdout) != 0 {
 		return uiLeSpecStatusAnswersFailf("le spec status --json wrote unexpected stdout: %q", refused.stdout)
 	}
-	if !bytes.Contains(refused.stderr, []byte("usage: le spec status")) ||
-		!bytes.Contains(refused.stderr, []byte(`got "--json"`)) {
+	// The area's action table refuses the word it has no action for, names
+	// it, and lists the actions it does have.
+	if !bytes.Contains(refused.stderr, []byte("error: no such action in spec status: --json\n")) ||
+		!bytes.Contains(refused.stderr, []byte("try one of: report | closure")) {
 		return uiLeSpecStatusAnswersFailf("the refusal does not identify the invalid argument: %q", refused.stderr)
 	}
 

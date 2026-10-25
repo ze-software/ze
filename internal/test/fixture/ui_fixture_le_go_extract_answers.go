@@ -207,10 +207,12 @@ func leGoExtractAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: run bare go extract form: %w", err)
 	}
-	if refused.code != 1 {
-		return fmt.Errorf("FAIL: a bare positional exited %d, want 1", refused.code)
+	// A stray word reaches the action table, whose parser answers the usage
+	// code 2 and names the word it could not place (D-P3-stray).
+	if refused.code != 2 {
+		return fmt.Errorf("FAIL: a bare positional exited %d, want 2", refused.code)
 	}
-	if !strings.Contains(refused.stderr, "unknown keyword") {
+	if !strings.Contains(refused.stderr, `takes no argument keyword "sample.go"`) {
 		return fmt.Errorf("FAIL: the refusal does not name the problem:\n%s", refused.stderr)
 	}
 	bareFiles, err := readGoExtractFiles(bareDir)

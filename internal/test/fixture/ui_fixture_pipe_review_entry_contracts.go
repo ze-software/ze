@@ -86,7 +86,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	// The per-command machine contract is reached through the shipped help
 	// command. The local shortcut must not suppress the daemon operator surface.
 	versionResult := uiPipeReviewEntryContractsRunCommand(ctx,
-		[]string{"ze", "help", argCommand, cmdShowVersion, "--json"}, nil)
+		[]string{"ze", "help", argCommand, cmdShowVersion, flagJSON}, nil)
 	version, err := oneJSONObject(versionResult, "show version published contract")
 	if err != nil {
 		return err

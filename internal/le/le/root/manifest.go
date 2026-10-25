@@ -155,7 +155,7 @@ func (m Manifest) sections() []helpfmt.HelpSection {
 // areaText is one area's line on the root page: the purpose tag the area
 // declared, then the first sentence of its summary.
 func areaText(area ManifestArea) string {
-	tag := "ungrouped"
+	tag := ungroupedTag
 	if KnownGroup(area.Group) {
 		tag = string(area.Group)
 	}

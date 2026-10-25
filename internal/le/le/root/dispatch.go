@@ -418,7 +418,7 @@ func childEntries(name string) []helpfmt.HelpEntry {
 // the first sentence of its summary. A command registered without a group says
 // so rather than borrowing one.
 func entryText(name, summary string) string {
-	tag := "ungrouped"
+	tag := ungroupedTag
 	if group, declared := GroupOf(name); declared {
 		tag = string(group)
 	}

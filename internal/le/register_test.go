@@ -8,6 +8,8 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -49,9 +51,20 @@ func TestLeRegistersOneRootAndNoToolRoots(t *testing.T) {
 	if registry.LookupRoot("le") == nil {
 		t.Fatal("internal/le registered no le root")
 	}
+	// The rule is that le registers one root and no tool of its own as a
+	// second one. A product root ze registers from outside internal/le may
+	// share a tool's name: `le completion` lives under `le`, and `ze
+	// completion` is the product's own command (D-P6-root). So a same-named
+	// root fails only when its handler is defined inside internal/le.
 	for _, tool := range commandsAtStart {
-		if registry.LookupRoot(tool.Name) != nil {
-			t.Errorf("tool %q is also a top-level root", tool.Name)
+		handler := registry.LookupRoot(tool.Name)
+		if handler != nil {
+			owner := runtime.FuncForPC(reflect.ValueOf(handler).Pointer())
+			if owner == nil {
+				t.Errorf("tool %q shares a top-level root whose handler has no symbol", tool.Name)
+			} else if strings.HasPrefix(owner.Name(), leImportPrefix) {
+				t.Errorf("tool %q is also a top-level root, registered by %s", tool.Name, owner.Name())
+			}
 		}
 		if tool.Meta.ShortHelp == "" || tool.Meta.Mode == "" || tool.Meta.Section == "" {
 			t.Errorf("tool %q has incomplete help metadata: %#v", tool.Name, tool.Meta)

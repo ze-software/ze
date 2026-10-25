@@ -26,6 +26,12 @@
     ze debug help
   ze delete         [daemon ] Delete elements from the running configuration.
     ze delete help
+  ze fakeas112      [daemon ] Fakeas112 test commands.
+    ze fakeas112 help
+  ze fakel2tp       [daemon ] Fakel2tp test commands.
+    ze fakel2tp help
+  ze fakeredist     [daemon ] Fakeredist test commands.
+    ze fakeredist help
   ze help           [read-only] Show available commands at this level.
     ze help help
   ze monitor        [read-only] Continuous monitoring commands (Ctrl-C to stop).
@@ -56,6 +62,8 @@
     bash, zsh, fish, nushell
   ze config         [offline] Configuration editing, formatting, validation, and history
     activate, archive, cat, completion, deactivate, diff, dump, edit, fix, fmt, graph, history, import, list, migrate, rename, rollback, set, show, validate
+  ze connect        [offline] Manage SSH credentials for remote ze daemons
+    add <host> [--port] [--user], list, remove <host> [--port], default <host> [--port]
   ze data           [offline] Store keys and blob artifact management
     backup, restore, write, import, rm, list, cat, registered, check, repair, encode
   ze doctor         [offline] Check if this box is ready to run Ze
@@ -68,20 +76,25 @@
     show, apply
   ze init           [setup  ] Initialize a live store or appliance seed with SSH credentials
     --managed --force --yes --web-cert <address> --web-cert-name <name> --seed --from <source> --sha256 <hex>
+  ze install        [setup  ] Install ze binary, systemd service, or provision remote devices
+    disk, local, remote, systemd
   ze interface      [offline] Manage OS network interfaces
     addr, clear, create, delete, down, mac, migrate, mtu, neighbors, routes, scan, show, unit, up
   ze isis           [offline] Offline IS-IS wire tools
     decode [--pretty]
   ze l2tp           [offline] L2TP tools
     decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}
-  ze le             [offline] the Ze repository and development commands, in-process
   ze ospf           [offline] Offline OSPF wire tools
     decode [--pretty]
   ze passwd         [setup  ] Change stored SSH/HTTP passwords
+  ze pipe           [offline] Apply pipe operators to stdin
+    json [<option>], ndjson, table, text, yaml, raw, no-more, log, save <path>, match <text>, count, first <n>, last <n>, display <field>..., fill [<option>], resolve, origin
   ze schema         [offline] Schema discovery
     events, handlers, list, methods, protocol
   ze signal         [daemon ] Send signals to the daemon via SSH
     reload, stop, restart, quit
+  ze start          [setup  ] Start the Ze daemon from blob storage config
+    --web <port>, --web-only, --insecure-web, --mcp <port>
   ze status         [daemon ] Check if daemon is running
     exit 0 = running, 1 = not
   ze sysctl         [offline] Kernel sysctl helpers
@@ -89,6 +102,10 @@
     show
   ze traffic        [offline] Linux tc / VPP policer helpers
     control
+  ze uninstall      [setup  ] Remove ze binary or systemd service
+    local, systemd
+  ze version        [offline] Show the running Ze version and build date
+    --extended
   ze yang           [offline] YANG tree analysis
     completion, doc, tree
 
@@ -352,6 +369,15 @@ Format: wire-method (dispatch-key) description
     asn                      Autonomous System Number (REQUIRED)
   ze-resolve:peeringdb-max-prefix              (resolve peeringdb max-prefix  ) Look up maximum prefix counts for an ASN from PeeringDB. [read-only]
     asn                      Autonomous System Number (REQUIRED)
+  ze-test-fakeas112:emit                       (fakeas112 emit                ) Emit the AS112 covering prefixes as one route-change batch per family.
+  ze-test-fakeas112:help                       (fakeas112 help                ) Print the fakeas112 command surface.
+  ze-test-fakel2tp:emit                        (fakel2tp emit                 ) Emit one synthetic L2TP route-change batch.
+  ze-test-fakel2tp:help                        (fakel2tp help                 ) Print the fakel2tp command surface.
+  ze-test-fakeredist:consume                   (fakeredist consume            ) Register a synthetic redistribution consumer under a name.
+  ze-test-fakeredist:consumed                  (fakeredist consumed           ) List the prefixes a synthetic consumer currently holds.
+  ze-test-fakeredist:emit                      (fakeredist emit               ) Emit one synthetic route-change batch.
+  ze-test-fakeredist:emit-burst                (fakeredist emit-burst         ) Emit N synthetic batches with the host portion of the base prefix auto-incremented.
+  ze-test-fakeredist:help                      (fakeredist help               ) Print the fakeredist command surface.
   ze-traffic:show-traffic                      (show traffic control          ) Show traffic control state per interface. [read-only]
   ze-update:show-system-update                 (show system update            ) Show firmware update status. [read-only]
   ze-update:show-system-update-history         (show system update history    ) Show firmware update event history. [read-only]
@@ -745,12 +771,19 @@ Format: wire-method (dispatch-key) description
   cos                      802.1p class-of-service profile definitions
   crashes                  Crash capture: kernel crash record harvest at daemon start, crash reports
   ddos-detect              Automatic DDoS attack detector with two-stage detection
+  ddos-fake                Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)
   ddos-flowspec            DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear
   ddos-flowtriq            DDoS incident reporter for Flowtriq cloud API
   ddos-local               DDoS local responder: on-host nft drop on attack detection
   ddos-observe             DDoS observability: incident store and show ddos status/incidents CLI
   dhcpserver               DHCP server: address assignment for LAN clients (RFC 2131)
   exabgp-bridge            In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)
+  fakeas112                Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)
+  fakedrain                Test-only drain responder for the stop drain functional tests (use ze.fakedrain)
+  fakeenrich               Test-only in-process enricher (harmless when not invoked)
+  fakefib                  Test-only sysrib event emitter for FIB functional tests (use ze.fakefib)
+  fakel2tp                 Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)
+  fakeredist               Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked)
   fib-kernel               FIB kernel: programs OS routes from system RIB via netlink/route socket
   fib-p4                   FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime
   fib-vpp                  FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API
@@ -1305,13 +1338,12 @@ require tls-cert and tls-key.
     max-sessions         Maximum concurrent BMP sessions (default: 100)
     route-action         Action for received BMP Route Monitoring messages (default: monitor)
     server               BMP receiver listen endpoints
-    Env vars:  ze.gokrazy.enabled, ze.gokrazy.socket
+    Env vars:  ze.gnmi.enabled, ze.gnmi.listen, ze.gnmi.tls.cert, ze.gnmi.tls.key, ze.gnmi.token
 
   chaos: Chaos fault injection settings
     Config:    environment { chaos { rate 0.1; } }
     rate                 Fault probability per operation (0.0-1.0) (default: 0.1)
     seed                 PRNG seed (0 = disabled)
-    Env vars:  ze.chaos.bgp.port, ze.chaos.lg.port, ze.chaos.listen.base, ze.chaos.mcp, ze.chaos.metrics, ze.chaos.pprof, ze.chaos.ssh.port, ze.chaos.web, ze.chaos.web.ui.port, ze.chaos.ze.mcp.port
 
   cli: CLI session settings
     Config:    environment { cli { transcript disabled; } }
@@ -1385,7 +1417,7 @@ require tls-cert and tls-key.
     persist-path         Path of the file that holds the time across a restart. (default: /perm/ze/timefile)
     server               The NTP servers Ze queries.
     slew-threshold       Maximum offset in milliseconds for a gradual clock slew. (default: 128)
-    Env vars:  ze.mcp.auth-mode, ze.mcp.bind-remote, ze.mcp.enabled, ze.mcp.listen, ze.mcp.oauth.audience, ze.mcp.oauth.authorization-server, ze.mcp.oauth.required-scopes, ze.mcp.tls.cert, ze.mcp.tls.key, ze.mcp.token
+    Env vars:  ze.metrics.interval
 
   reactor: BGP reactor engine tuning.
     Config:    environment { reactor { cache-max 1000000; cache-ttl 60; forward-batch-limit 1024; forward-pool-headroom 0; forward-pool-max-bytes 0; forward-queue-size 256; forward-teardown-grace 5s; read-buffer-size 65536; speed 1.0; update-groups true; write-buffer-size 16384; } }

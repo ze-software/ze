@@ -13,6 +13,14 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
+// Command words and fields several le fixtures share.
+const (
+	areaSpec    = "spec"
+	fieldDryRun = "dry-run"
+	flagJSON    = "--json"
+	programZeLe = "ze le"
+)
+
 // Environment variables and build tags.
 const (
 	binaryLE           = "le"

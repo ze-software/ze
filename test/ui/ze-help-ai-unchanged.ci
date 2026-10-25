@@ -1,0 +1,16 @@
+# Test: ze's machine reference is what it was before le gained its own help ai.
+# accept-only: the registered native fixture runs the ze binary this run built,
+# under the full feature set, and compares `ze help ai` with its golden byte for
+# byte, and `ze help ai all` and `ze help ai --json` as their sorted lines
+# without the services' env-var lines, which list either of two tied prefixes
+# by map order. The goldens are internal/test/fixture/testdata/ze-help-ai-*.golden.
+#
+# VALIDATES: spec-le-cli-usability AC-41, through the product binary and its
+# real composition root.
+# PREVENTS: the shared reference type or the help renderer changing ze's
+# reference in passing.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture ui/ze-help-ai-unchanged
+expect=exit:code=0
+expect=stdout:contains=OK

@@ -3,6 +3,7 @@
 package leroot
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -120,7 +121,7 @@ func TestZeLeParity(t *testing.T) {
 	if errA != nil || errB != nil {
 		t.Fatal(errA, errB)
 	}
-	if string(a) != string(b) {
+	if !bytes.Equal(a, b) {
 		t.Error("ze le help ai differs from le help ai beyond the program name")
 	}
 	if !strings.Contains(helpAIOf(t, "ze le").Text(), "ze le help ai | json") {

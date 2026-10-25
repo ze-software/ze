@@ -166,11 +166,15 @@ func leWeeklyAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: `le weekly | yaml` answered nothing usable:\n%s", asYAML.stdout)
 	}
 
-	refused := run(filepath.Join(posts, "1999-01-04.md"))
-	if refused.exitCode != 1 {
-		return fmt.Errorf("FAIL: a bare path exited %d, want 1", refused.exitCode)
+	// A stray word reaches the action table, whose parser answers the usage
+	// code 2 and names the word it could not place (D-P3-stray).
+	barePath := filepath.Join(posts, "1999-01-04.md")
+	refused := run(barePath)
+	if refused.exitCode != 2 {
+		return fmt.Errorf("FAIL: a bare path exited %d, want 2", refused.exitCode)
 	}
-	if !strings.Contains(refused.stderr, "unknown keyword") {
+	if !strings.Contains(refused.stderr, "takes no argument keyword") ||
+		!strings.Contains(refused.stderr, barePath) {
 		return fmt.Errorf("FAIL: the refusal does not name the problem:\n%s", refused.stderr)
 	}
 

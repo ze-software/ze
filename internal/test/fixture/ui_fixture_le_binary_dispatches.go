@@ -244,7 +244,10 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("close transcript: %v", err)
 	}
 
-	fixtureArgs := []string{"ai", "tokens", "root", filepath.Dir(store), "project", "-fixture"}
+	// The project keyword takes a checkout path and derives the slug from it.
+	// "/fixture" names no directory, so it keeps its spelling and slugs to the
+	// store's "-fixture" on every host.
+	fixtureArgs := []string{"ai", "tokens", "root", filepath.Dir(store), "project", "/fixture"}
 	economy, err := le(fixtureArgs...)
 	if err != nil {
 		return err
@@ -297,7 +300,7 @@ func leBinaryDispatches(ctx context.Context) error {
 
 	// An absent store is stated explicitly, never rendered as a zero-valued
 	// report that could be mistaken for free work.
-	absent, err := le("ai", "tokens", "root", work, "project", "-nothing-here")
+	absent, err := le("ai", "tokens", "root", work, "project", "/nothing-here")
 	if err != nil {
 		return err
 	}

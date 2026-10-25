@@ -164,6 +164,12 @@ func TestVerifyLintRunActionGrammarRefusesMalformedScope(t *testing.T) {
 			want: "error: le go lint run takes no argument keyword \"./cmd/ze\"; use one of: le go lint run scope <packages>, le go lint run changed\n",
 		},
 	}
+	// A refusal prints its error line, then the one-action usage, so the
+	// operator sees the grammar that would have been accepted.
+	const usage = "usage: le go lint run [scope <packages>] [changed] [| json | yaml | table]\n\n" +
+		"Keywords:\n" +
+		"  scope <packages> string, optional: package patterns to lint instead of the whole tree\n" +
+		"  changed          switch, optional: lint only the packages the change set reaches\n\n"
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var answer any
@@ -174,8 +180,8 @@ func TestVerifyLintRunActionGrammarRefusesMalformedScope(t *testing.T) {
 			if answer != nil || code != 2 {
 				t.Fatalf("Answer(%q) = (%#v, %d), want (nil, 2)", test.args, answer, code)
 			}
-			if stdout != "" || stderr != test.want {
-				t.Fatalf("Answer(%q) output = stdout %q stderr %q, want stdout empty stderr %q", test.args, stdout, stderr, test.want)
+			if stdout != "" || stderr != test.want+usage {
+				t.Fatalf("Answer(%q) output = stdout %q stderr %q, want stdout empty stderr %q", test.args, stdout, stderr, test.want+usage)
 			}
 		})
 	}

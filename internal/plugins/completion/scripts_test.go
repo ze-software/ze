@@ -17,7 +17,9 @@ import (
 // loads for ze.
 func TestZeCompletionScriptsUnchanged(t *testing.T) {
 	for _, shell := range shells {
-		want, err := os.ReadFile("testdata/ze." + shell)
+		// The goldens carry a .golden suffix, so no tree scan reads a
+		// captured script as a shell source of its own.
+		want, err := os.ReadFile("testdata/ze." + shell + ".golden")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -26,7 +28,7 @@ func TestZeCompletionScriptsUnchanged(t *testing.T) {
 			t.Fatalf("%s: exit %d", shell, code)
 		}
 		if !bytes.Equal(got.Bytes(), want) {
-			t.Errorf("ze completion %s differs from testdata/ze.%s", shell, shell)
+			t.Errorf("ze completion %s differs from testdata/ze.%s.golden", shell, shell)
 		}
 	}
 }

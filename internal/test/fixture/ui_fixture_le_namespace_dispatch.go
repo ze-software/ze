@@ -66,7 +66,7 @@ func leNamespaceDispatch(ctx context.Context) error {
 		token string
 		held  []string
 	}{
-		{"spec", []string{"citation", "claim", "current", "journal", "state", "status"}},
+		{areaSpec, []string{"citation", "claim", "current", "journal", "state", "status"}},
 		{"go", []string{"extract", wordLint, "staticcheck"}},
 	} {
 		bare, err := leNamespaceRun(ctx, root, binary, probe.token)
