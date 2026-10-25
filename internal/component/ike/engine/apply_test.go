@@ -5,12 +5,17 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 )
+
+// applyTestStatesLive counts the engine states applyTestState has built and not yet
+// released; applyTestState refuses a second live one.
+var applyTestStatesLive atomic.Int32
 
 // applyTestState builds an engine state with its own SA table and peer map, and points
 // the IKE port override at a free high port so the sockets bind unprivileged. It also
@@ -19,8 +24,22 @@ import (
 //
 // Every socket and session the test leaves behind is released on cleanup, in the order
 // a rebind uses: the peers first, then the sockets they hold.
+//
+// One state is live at a time, and a second call while one is refuses the test. The
+// port override is the package variable ikeTestPortFn, which every session goroutine
+// reads each time it dials (ikeAddr). A second state rewrote it while the first state's
+// sessions still ran, and its cleanup restored it while they ran too: a data race, and
+// a session dialing a port its own state never reserved. A test that needs several
+// states takes each in its own subtest, whose cleanup stops that state's peers before
+// the next one starts.
 func applyTestState(t *testing.T) *ikeEngineState {
 	t.Helper()
+
+	if applyTestStatesLive.Add(1) > 1 {
+		applyTestStatesLive.Add(-1)
+		t.Fatal("applyTestState: another engine state is still live; take each state in its own t.Run subtest")
+	}
+	t.Cleanup(func() { applyTestStatesLive.Add(-1) })
 
 	var listener net.ListenConfig
 	probe, err := listener.ListenPacket(t.Context(), "udp", "127.0.0.1:0")

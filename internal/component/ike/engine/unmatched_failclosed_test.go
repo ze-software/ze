@@ -13,6 +13,7 @@ package engine
 import (
 	"errors"
 	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -57,7 +58,10 @@ func loadFailClosedBackend(t *testing.T, dp dataplane.Dataplane) {
 	name.WriteString("unmatched-failclosed-")
 	name.WriteString(t.Name())
 	name.WriteByte('-')
-	name.WriteByte(byte('a' + failClosedBackendSeq.Add(1)%26))
+	// The whole sequence number, never a letter taken modulo 26: the registry keeps
+	// every name for the life of the process, so a name that repeats under -count fails
+	// Register on the 27th call.
+	name.WriteString(strconv.FormatUint(failClosedBackendSeq.Add(1), 10))
 	if err := dataplane.Register(name.String(), func() (dataplane.Dataplane, error) { return dp, nil }); err != nil {
 		t.Fatalf("register backend: %v", err)
 	}
@@ -78,18 +82,21 @@ func loadFailClosedBackend(t *testing.T, dp dataplane.Dataplane) {
 func TestUnmatchedInstallFailureFailsTheApply(t *testing.T) {
 	loadFailClosedBackend(t, &bypassDP{installErr: errors.New("operation not permitted")})
 
+	// Each engine runs in its own subtest, so one is live at a time (applyTestState).
 	for _, phase := range []applyPhase{applyStartup, applyReload} {
 		for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
-			state := applyTestState(t)
-			cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
-			cfg.Unmatched = action
-			err := state.applyConfig(cfg, phase)
-			if err == nil {
-				t.Fatalf("phase %d action %d: a catch-all that failed to install was reported applied", phase, action)
-			}
-			if !strings.Contains(err.Error(), "catch-all") {
-				t.Errorf("phase %d action %d: error %q does not name the catch-all", phase, action, err)
-			}
+			t.Run(strconv.Itoa(int(phase))+"-"+strconv.Itoa(int(action)), func(t *testing.T) {
+				state := applyTestState(t)
+				cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
+				cfg.Unmatched = action
+				err := state.applyConfig(cfg, phase)
+				if err == nil {
+					t.Fatalf("phase %d action %d: a catch-all that failed to install was reported applied", phase, action)
+				}
+				if !strings.Contains(err.Error(), "catch-all") {
+					t.Errorf("phase %d action %d: error %q does not name the catch-all", phase, action, err)
+				}
+			})
 		}
 	}
 }

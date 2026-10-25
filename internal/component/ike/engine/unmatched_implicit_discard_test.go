@@ -97,15 +97,18 @@ func TestImplicitDiscardRefusedAtCommit(t *testing.T) {
 // OnConfigVerify passes it. After a discard apply it is accepted, because the box
 // already discards; after a bypass apply, and on an engine that applied nothing, it is
 // refused. A store that never runs, or one that records the wrong disposition, turns
-// one of the three red.
+// one of the three red. Each engine runs in its own subtest, so its peers stop before
+// the next engine points the shared port override elsewhere (applyTestState).
 func TestImplicitDiscardReadsWhatTheLastApplyInstalled(t *testing.T) {
 	loadFailClosedBackend(t, &catchAllDP{})
 	unset := implicitDiscardConfig(t, "", 0)
 
-	fresh := applyTestState(t)
-	if err := refuseImplicitDiscard(unset, fresh.discardInForce.Load()); err == nil {
-		t.Fatal("no apply yet: a leaf-unset commit was accepted, want the refusal")
-	}
+	t.Run("no apply yet: refused", func(t *testing.T) {
+		fresh := applyTestState(t)
+		if err := refuseImplicitDiscard(unset, fresh.discardInForce.Load()); err == nil {
+			t.Fatal("no apply yet: a leaf-unset commit was accepted, want the refusal")
+		}
+	})
 
 	cases := []struct {
 		name    string
@@ -116,16 +119,18 @@ func TestImplicitDiscardReadsWhatTheLastApplyInstalled(t *testing.T) {
 		{"after a bypass apply: refused", dataplane.SPActionBypass, true},
 	}
 	for _, c := range cases {
-		state := applyTestState(t)
-		cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
-		cfg.Unmatched = c.applied
-		if err := state.applyConfig(cfg, applyReload); err != nil {
-			t.Fatalf("%s: apply: %v", c.name, err)
-		}
-		err := refuseImplicitDiscard(unset, state.discardInForce.Load())
-		if c.refused != (err != nil) {
-			t.Fatalf("%s: refused = %v (%v), want %v", c.name, err != nil, err, c.refused)
-		}
+		t.Run(c.name, func(t *testing.T) {
+			state := applyTestState(t)
+			cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
+			cfg.Unmatched = c.applied
+			if err := state.applyConfig(cfg, applyReload); err != nil {
+				t.Fatalf("%s: apply: %v", c.name, err)
+			}
+			err := refuseImplicitDiscard(unset, state.discardInForce.Load())
+			if c.refused != (err != nil) {
+				t.Fatalf("%s: refused = %v (%v), want %v", c.name, err != nil, err, c.refused)
+			}
+		})
 	}
 }
 
