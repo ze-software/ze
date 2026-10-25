@@ -49,6 +49,11 @@ if [ ! -x "$binary" ]; then
 	GOLANGCI_LINT_CACHE=$root/cache/golangci-lint-cache
 	CGO_ENABLED=0
 	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
+	# bin/ze is this machine's program, so its build never takes a target from
+	# the caller: a tool running under GOOS=linux that reached this script while
+	# bin/ze was missing left a Linux binary here, which then failed to start
+	# with "cannot execute binary file" until it was removed by hand.
+	unset GOOS GOARCH GOARM GOARM64 GOAMD64 GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM
 	# A toolchain line wins; the go directive is the fallback, because a module
 	# stating `go 1.27.0` and no toolchain line still pins go1.27.0. Reading only
 	# the toolchain line left this build with no pin at all.
