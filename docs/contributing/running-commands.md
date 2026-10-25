@@ -136,7 +136,8 @@ still asks its own terminal question once the line is complete
 values, whether it is required and whether it repeats, and the program a
 pass-through area hands its words to; `groups` the purpose tags; `verbs` every
 verb in use; `exit-codes` what each code means and who answers another
-program's; `all` every section. Render it with the pipe layer, never a flag:
+program's; `launcher` the words the `./le` script reads before le starts
+(below); `all` every section. Render it with the pipe layer, never a flag:
 `./le help ai commands | json`, `./le help ai all | yaml`. A dash-leading word
 (`--json`, `--ai`) is refused with exit 2 and the refusal names
 `le help ai | json`; so is a section that does not exist. `ai` is the one
@@ -169,6 +170,63 @@ pass-through area) answers its program's own code.
 
 <!-- source: internal/le/le/root/exitcode.go -- exitCodes -->
 <!-- source: internal/le/le/action/parameter.go -- parseLine, checkValue -->
+
+A retired spelling is refused before le parses anything, with one line
+naming the spelling that does the same work now, the words typed after it
+carried over: `error: le verify lock was renamed: run le job run`. The rename
+map is declared once, in `internal/le/le/retired`, and `le doc check
+retired-commands` reads the same map to find callers that still name an old
+spelling.
+
+<!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
+<!-- source: internal/le/le/retired/retired.go -- Match -->
+
+### The words the launcher reads first
+
+The `./le` script reads some words before le starts, so they come first on
+the line: `--name <name>` and `--name=<name>` build the working tree as
+`bin/le-<name>/le` and run it, the value `session` naming this session's
+build; `rollback` sets the newest build aside. They are declared once in
+`leroot` (`rollback` by its own area), the root page lists them in its
+`Launcher` block, `./le help ai launcher` lists them, and completion offers
+them at the first word and `session` after `--name`. A test reads the words
+from the script itself and fails when the script and the declaration differ.
+
+<!-- source: internal/le/le/root/launcher.go -- launcherWords, launcherSection, afterLauncher -->
+<!-- source: internal/le/le/root/launcher_test.go -- scriptWords -->
+
+### Verb vocabulary
+
+le's action words form one closed vocabulary, declared once in
+`internal/le/le/action/vocabulary.go`. An action word is either a verb of the
+vocabulary, performing that verb's one meaning, or a name (a suite, scenario,
+platform, shell, artifact or selection, such as `test functional bgp`) that
+declares the verb it performs in `Does`. Three rules hold it closed:
+
+- a vocabulary verb never declares a different verb;
+- no hyphen part of a name is a vocabulary verb, `write`, `generate` or
+  `test`, so `condensed-update` and `ipsec-mobike-test` are refused;
+- `all` is the one name every area may use, meaning every member in table
+  order.
+
+The `le ai hooks <name>` words that `.claude/settings.json` calls are frozen:
+the rules do not judge them, and a test holds the frozen set equal to the
+settings file's calls. Each verb has a kind: `report` reads and prints, exit 0
+whenever it answered; `gate` reads and exits 1 on a defect; `regenerate`
+rewrites a committed artifact from its source; `record` appends to a ledger;
+`render` produces a published artifact this repository does not commit; `run`
+has side effects outside the tree's committed files. `update` regenerates a
+committed artifact; `write` and `generate` are not verbs.
+
+The tests in `internal/le/vocabulary_test.go` judge every registered action.
+While the renames of `spec-le-cli-usability` Phase 4 land in batches, the
+findings the tree still holds are listed in
+`internal/le/testdata/vocabulary-owed.txt`, each with the rename or
+declaration that clears it. A new finding fails, and a listed finding the tree
+no longer holds fails too, so the list only shrinks.
+
+<!-- source: internal/le/le/action/vocabulary.go -- vocabulary, ForbiddenNamePart -->
+<!-- source: internal/le/vocabulary_test.go -- vocabularyFindings, judgeAction -->
 
 ### Install completion
 

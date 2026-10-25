@@ -37,6 +37,7 @@ var actions = func() leaction.Area {
 	list := make([]leaction.Action, 0, 1+len(verbs))
 	list = append(list, leaction.Action{
 		Verb:    "unit",
+		Does:    "selftest",
 		Summary: "run every hook golden row and behavioral fixture",
 		Why:     "run every hook dispatcher golden row and every behavioral fixture category in-process",
 		Answer:  runHere,
@@ -44,7 +45,13 @@ var actions = func() leaction.Area {
 	for _, verb := range verbs {
 		kind := verb
 		list = append(list, leaction.Action{
-			Verb:    kind,
+			Verb: kind,
+			// A hook word is a name that runs its hook. Every one but session-id
+			// is spelled by .claude/settings.json, which le cannot rename with
+			// it, so those are frozen (D-P4-frozen); frozen_test.go holds the
+			// frozen set equal to the settings file's calls.
+			Does:    "run",
+			Frozen:  kind != categorySessionID,
 			Summary: "run the " + kind + " hook",
 			Why:     "run the " + kind + " hook JSON protocol in the native le process",
 			Answer: func() (any, int) {

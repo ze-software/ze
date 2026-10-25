@@ -48,6 +48,16 @@ type Action struct {
 	Why string
 	// Writes says this action changes the tree.
 	Writes bool
+	// Does is the vocabulary verb a NAME performs (vocabulary.go). A Verb
+	// that is itself a vocabulary verb leaves it empty; a name such as the
+	// suite `test functional bgp` declares `run`, so every action still has
+	// exactly one verb meaning without renaming a noun into a verb.
+	Does string
+	// Frozen exempts a word from the name rules because a caller outside le
+	// spells it and cannot be changed with it: the `le ai hooks <name>` words
+	// .claude/settings.json calls (D-hooks, D-P4-frozen). A test holds the
+	// frozen set equal to the settings file's calls, so it covers no other word.
+	Frozen bool
 	// Alone says this action names the whole area rather than one member of
 	// it, so it MUST be the only verb on the line and a sweep refuses it beside
 	// another. `le test functional gating` names a run list of 24 suites and `le
@@ -178,6 +188,11 @@ type Row struct {
 	Writes  bool   `json:"writes"`
 	Summary string `json:"summary"`
 	Why     string `json:"why"`
+	// Does publishes the vocabulary verb a name performs (Action.Does).
+	Does string `json:"does,omitempty"`
+	// Frozen publishes that a caller outside le spells this word, so the name
+	// rules do not judge it (Action.Frozen).
+	Frozen bool `json:"frozen,omitempty"`
 	// Alone publishes that this verb cannot share a line with another, so a
 	// reader planning a multi-verb line learns it from the manifest rather than
 	// by typing the mistake. It is also what lets a test read the claim back:
@@ -248,7 +263,8 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: act.Verb, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
+			Verb: act.Verb, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Does: act.Does, Frozen: act.Frozen,
+			Alone: act.Alone, WholeTree: act.WholeTree,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			// Retired keywords are left out: nothing renders or offers one.

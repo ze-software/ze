@@ -35,6 +35,9 @@ type Reference struct {
 	Verbs []Entry `json:"verbs,omitempty"`
 	// ExitCodes is what each exit code means, and who answers another.
 	ExitCodes []ExitCode `json:"exit-codes,omitempty"`
+	// Launcher is the words a launcher script reads before the program
+	// starts (le's ./le), each with its meaning.
+	Launcher []Entry `json:"launcher,omitempty"`
 }
 
 // Entry is one named row and its one-line meaning.
@@ -113,7 +116,7 @@ type ExitCode struct {
 func (r Reference) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("# ").Str(r.Program).Str(" AI reference\n# Generated from code -- always matches this binary.\n\n")
-	if len(r.Commands) == 0 && len(r.Groups) == 0 && len(r.Verbs) == 0 && len(r.ExitCodes) == 0 {
+	if len(r.Commands) == 0 && len(r.Groups) == 0 && len(r.Verbs) == 0 && len(r.ExitCodes) == 0 && len(r.Launcher) == 0 {
 		r.writeIndex(&tb)
 		return tb.String()
 	}
@@ -122,6 +125,7 @@ func (r Reference) Text() string {
 	writeEntries(&tb, "Groups", r.Groups)
 	writeEntries(&tb, "Verbs", r.Verbs)
 	r.writeExitCodes(&tb)
+	writeEntries(&tb, "Launcher", r.Launcher)
 	return tb.String()
 }
 

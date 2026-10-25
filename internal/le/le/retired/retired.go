@@ -1,17 +1,18 @@
-// Design: docs/architecture/core-design.md -- native documentation verifier actions
-// Related: retired.go -- the sweep that reads this map and gates on what it finds
+// Design: docs/architecture/core-design.md -- the rename map, read by the sweep and by dispatch
+// Related: ../root/dispatch.go -- refuses a typed retired spelling, naming its successor
+// Related: ../../doc/check/retired.go -- the sweep that finds callers still naming an old form
 //
-// This file is the ONE declaration of every name the subject-first rename
-// retired (spec-le-subject-first-command-tree): the le commands, the
-// programs folded into le, the build tags, the harness file names and the
-// harness variables. `le doc check retired-commands` reads it to find the
-// callers that still name an old form. No other surface lists an old name.
+// Package leretired is the ONE declaration of every name le retired: the le
+// commands, the programs folded into le, the build tags, the harness file names
+// and the harness variables. Two readers use it and no other surface lists an
+// old name. `le doc check retired-commands` scans the tracked files for callers
+// that still name an old form, and leroot.Dispatch refuses a typed old spelling
+// before any parameter is parsed, naming the command that answers it now
+// (D-retired of spec-le-cli-usability).
 //
-// Dispatch does not read it. The old names ran as their new commands while
-// the rename landed, and Phase 3 deleted that rewrite, so an old name answers
-// `unknown command` like any other word le does not register.
-
-package doccheck
+// It is a leaf: it imports nothing from le, so the dispatcher and the
+// documentation gate can both read it without either importing the other.
+package leretired
 
 import (
 	"slices"
@@ -164,6 +165,38 @@ var renames = []Rename{
 // declaration order.
 func Renames() []Rename {
 	return slices.Clone(renames)
+}
+
+// Match answers the row a typed line names, and whether one does. A row
+// matches when its old words open the line; the longest such row wins, so
+// `spec session claim` answers its own row and not the bare `spec session`
+// one. words is the line le was given, its own words only (no pipe).
+func Match(words []string) (Rename, bool) {
+	best := -1
+	for index, row := range renames {
+		old := row.Old()
+		if len(old) > len(words) {
+			continue
+		}
+		if !slices.Equal(words[:len(old)], old) {
+			continue
+		}
+		if best >= 0 && len(old) <= len(renames[best].Old()) {
+			continue
+		}
+		best = index
+	}
+	if best < 0 {
+		return Rename{}, false
+	}
+	return renames[best], true
+}
+
+// Successor answers the line a caller types now in place of words, which row
+// matched: the row's new words, then every word the caller typed after the old
+// ones, so `verify lock run x` answers `job run x`.
+func (r Rename) Successor(words []string) []string {
+	return append(r.New(), words[len(r.Old()):]...)
 }
 
 // RetiredKind says what sort of name a Retirement retires. The zero value is

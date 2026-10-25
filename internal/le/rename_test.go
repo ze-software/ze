@@ -14,12 +14,12 @@ import (
 	"strings"
 	"testing"
 
-	doccheck "github.com/ze-software/ze/internal/le/doc/check"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leretired "github.com/ze-software/ze/internal/le/le/retired"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// TestEveryNewNameResolvesToItsArea reads the rename map in doccheck, the one
+// TestEveryNewNameResolvesToItsArea reads the rename map in leretired, the one
 // declaration of old and new names, and resolves each new command three
 // ways: through the dispatcher's lookup, in the manifest `./le '|' json`
 // prints, and at the package directory directoryFor predicts.
@@ -33,7 +33,7 @@ func TestEveryNewNameResolvesToItsArea(t *testing.T) {
 		listed[command.Name] = true
 	}
 
-	for _, row := range doccheck.Renames() {
+	for _, row := range leretired.Renames() {
 		t.Run(strings.Join(row.Old(), " "), func(t *testing.T) {
 			// A row whose new words are a namespace (`test harness` to `test`)
 			// resolves through its members, which the forwarding test in

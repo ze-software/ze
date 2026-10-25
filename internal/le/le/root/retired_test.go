@@ -1,8 +1,10 @@
 // VALIDATES: every row of the rename map, against the registry le really
-// composes. Each retired name answers `unknown command` and exit 1 through
-// Dispatch (AC-17), and no retired command stays in the manifest (AC-2).
+// composes. Each retired name is refused through Dispatch naming its
+// successor, exit 2 (D-retired of spec-le-cli-usability), and no retired
+// command stays in the manifest (AC-2 of spec-le-subject-first-command-tree).
 // PREVENTS: an old name that still runs, whether through a surviving alias or
-// through a command registered under the retired spelling.
+// through a command registered under the retired spelling, and an old name
+// refused with a bare `unknown command` that leaves the caller guessing.
 //
 // This file is an external test package so it can link internal/le, the
 // composition root, which imports leroot and every area. The package's own
@@ -11,11 +13,13 @@ package leroot_test
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
 	_ "github.com/ze-software/ze/internal/le"
-	doccheck "github.com/ze-software/ze/internal/le/doc/check"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	leretired "github.com/ze-software/ze/internal/le/le/retired"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -61,48 +65,64 @@ func streams(t *testing.T, fn func()) (stdout, stderr string) {
 	return collectOut(), collectErr()
 }
 
-// TestEveryRetiredNameAnswersUnknownCommand drives every row of the rename map
-// through Dispatch, as a caller typing the old words would, and proves AC-17:
-// the old name is refused with no rename line and runs nothing. The refusal
-// depends on what the old words now meet.
-//
-//   - A word le does not register answers `unknown command` and exit 1.
-//   - A first word that is now a namespace (`spec session`, `test harness`)
-//     is refused as a word that names no member of it, exit 1.
-//   - A retired ACTION of a command that is still registered (`verify lock`,
-//     `repo tracked-build`) reaches that command's closed action table, which
-//     refuses the verb with `no such action` and exit 2 before any work runs
-//     (leaction.Area.refuseVerb).
-func TestEveryRetiredNameAnswersUnknownCommand(t *testing.T) {
-	for _, row := range doccheck.Renames() {
+// TestRetiredSpellingNamesItsSuccessor drives every row of the rename map
+// through Dispatch, as a caller typing the old words would, with one trailing
+// word, and proves D-retired: the old spelling is refused before anything
+// parses it, exit 2, with one line naming the spelling that does the work now,
+// the caller's trailing word carried over. The successor is a line le really
+// holds, and the old words are not a line le still holds, so the refusal can
+// never shadow a live command.
+func TestRetiredSpellingNamesItsSuccessor(t *testing.T) {
+	for _, row := range leretired.Renames() {
 		old := row.Old()
 		t.Run(strings.Join(old, " "), func(t *testing.T) {
-			code := 0
-			_, stderr := streams(t, func() { code = leroot.Dispatch("le", old) })
-			if strings.Contains(stderr, "is renamed") {
-				t.Errorf("wrote a rename line, so an alias survives:\n%s", stderr)
-			}
 			if leroot.LookupCommand(strings.Join(old, " ")) != nil {
 				t.Fatalf("the retired command `le %s` is still registered", strings.Join(old, " "))
 			}
-			if len(old) > 1 && leroot.LookupCommand(old[0]) != nil {
-				refusal := "error: no such action in " + old[0] + ": " + old[1]
-				if code != 2 || !strings.Contains(stderr, refusal) {
-					t.Errorf("answered %d with\n%s\nwant 2 and %q", code, stderr, refusal)
+			for cut := 1; cut < len(old); cut++ {
+				list, tabled := leroot.ActionsOf(strings.Join(old[:cut], " "))
+				for _, action := range list.Actions {
+					if tabled && action.Verb == old[cut] {
+						t.Fatalf("the retired line `le %s` is the live action %q of `le %s`",
+							strings.Join(old, " "), action.Verb, strings.Join(old[:cut], " "))
+					}
 				}
-				return
 			}
-			// A retired spelling is an unknown command, a usage error (D-Q8): 2.
+			if leroot.LookupCommand(row.Command) == nil && !namespaceHolds(row.Command) {
+				t.Fatalf("the successor `le %s` is not registered", row.Command)
+			}
+			// A forwarding area's words belong to the program it runs (`test
+			// wire isis`), so only a table's own verb can be checked here.
+			if list, tabled := leroot.ActionsOf(row.Command); row.Action != "" && tabled && list.PassesTo == "" {
+				if !slices.ContainsFunc(list.Actions, func(action leaction.Row) bool { return action.Verb == row.Action }) {
+					t.Errorf("the successor `le %s %s` names an action `le %s` does not hold", row.Command, row.Action, row.Command)
+				}
+			}
+
+			line := append(slices.Clone(old), "trailing")
+			code := 0
+			_, stderr := streams(t, func() { code = leroot.Dispatch("le", line) })
 			if code != 2 {
-				t.Errorf("answered %d, want 2", code)
+				t.Errorf("answered %d, want 2: a retired spelling is a usage error", code)
 			}
-			refused := strings.Contains(stderr, "unknown command: "+old[0]) ||
-				strings.Contains(stderr, "error: "+old[0]+" is a namespace; it needs one of:")
-			if !refused {
-				t.Errorf("the refusal names neither an unknown command nor a namespace member:\n%s", stderr)
+			want := "error: le " + strings.Join(old, " ") + " was renamed: run le " +
+				strings.Join(append(row.New(), "trailing"), " ") + "\n"
+			if stderr != want {
+				t.Errorf("stderr is\n%q\nwant\n%q", stderr, want)
 			}
 		})
 	}
+}
+
+// namespaceHolds reports whether some registered command sits under the
+// namespace word sequence: `test harness` is answered by the members of `test`.
+func namespaceHolds(namespace string) bool {
+	for _, command := range leroot.Commands() {
+		if strings.HasPrefix(command.Name, namespace+" ") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRetiredNamesAreNotInTheManifest(t *testing.T) {
@@ -112,7 +132,7 @@ func TestRetiredNamesAreNotInTheManifest(t *testing.T) {
 	}
 
 	reported := make(map[string]bool, 64)
-	for _, row := range doccheck.Renames() {
+	for _, row := range leretired.Renames() {
 		if reported[row.Retired] {
 			continue
 		}

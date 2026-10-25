@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	leretired "github.com/ze-software/ze/internal/le/le/retired"
 )
 
 // isHelpArg reports whether the word asks for usage rather than naming a
@@ -167,6 +168,14 @@ func Dispatch(program string, args []string) int {
 // (fillLine); fromMenu says the reader built the line at the menu, so it is
 // echoed even when nothing was missing.
 func dispatchLine(program string, args []string, fromMenu bool) int {
+	// A retired spelling is refused before anything resolves or parses it,
+	// naming the line that does the work now (D-retired). The rename map is
+	// the one leretired declares, which the documentation sweep also reads.
+	if own, _ := splitChain(args); len(own) != 0 {
+		if row, ok := leretired.Match(own); ok {
+			return refuseRetired(program, row, own)
+		}
+	}
 	name, handler, toolArgs := resolve(args)
 	if handler != nil {
 		// A help word the reader typed LAST asks what this command takes, and
@@ -209,6 +218,17 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 	var tb textbuf.Buffer
 	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
+	return 2
+}
+
+// refuseRetired says the line names a retired spelling, and the exact line that
+// does the same work now, then answers the usage code: the caller typed a line
+// le does not accept, and nothing ran.
+func refuseRetired(program string, row leretired.Rename, words []string) int {
+	var tb textbuf.Buffer
+	tb.Str("error: ").Str(program).Byte(' ').Join(row.Old(), " ").
+		Str(" was renamed: run ").Str(program).Byte(' ').Join(row.Successor(words), " ").Byte('\n').
+		StdErr() //nolint:errcheck // CLI output
 	return 2
 }
 

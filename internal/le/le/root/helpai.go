@@ -30,6 +30,7 @@ const (
 	sectionGroups    = "groups"
 	sectionVerbs     = "verbs"
 	sectionExitCodes = "exit-codes"
+	sectionLauncher  = "launcher"
 	sectionAll       = "all"
 )
 
@@ -44,6 +45,7 @@ var aiSections = []struct {
 	{sectionGroups, "the purpose tags a command declares, and what each means", fillGroups},
 	{sectionVerbs, "every verb an action is spelled with, and how many commands use it", fillVerbs},
 	{sectionExitCodes, "what each exit code means, and the commands that answer another program's code", fillExitCodes},
+	{sectionLauncher, "the words the ./le launcher reads before le starts, and what each does", fillLauncher},
 }
 
 // helpAI answers `le help ai [<section>...]`, rendered by the pipe the

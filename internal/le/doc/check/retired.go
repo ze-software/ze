@@ -1,11 +1,11 @@
 // Design: docs/architecture/core-design.md -- native documentation verifier actions
 // Related: repository.go -- the tracked-file walk this sweep shares with links
-// Related: retirednames.go -- the rename map the sweep reads
+// Related: ../../le/retired/retired.go -- the rename map the sweep reads
 //
-// The retired-name sweep finds every tracked line that still names a form the
-// subject-first rename retires (spec-le-subject-first-command-tree).
-// It reads the one rename map retirednames.go declares and holds no list of its
-// own. It is a gate: a line that names an old form outside the declared
+// The retired-name sweep finds every tracked line that still names a form le
+// retired (spec-le-subject-first-command-tree, spec-le-cli-usability).
+// It reads the one rename map package leretired declares, which dispatch also
+// reads to refuse a typed old spelling, and holds no list of its own. It is a gate: a line that names an old form outside the declared
 // records and exceptions makes it exit 1, and it runs as a stage of the full
 // verify (internal/le/verify/engine/stages.go).
 
@@ -17,15 +17,16 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	leretired "github.com/ze-software/ze/internal/le/le/retired"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
 // their tests. They name every old form by necessity, so they are not callers.
-// The two leroot tests name old forms to prove each one answers `unknown
-// command`.
+// The two leroot tests name old forms to prove each one is refused naming its
+// successor.
 var retiredDeclarations = [...]string{
-	"internal/le/doc/check/retirednames.go",
+	"internal/le/le/retired/retired.go",
 	"internal/le/doc/check/retired.go",
 	"internal/le/doc/check/retired_test.go",
 	"internal/le/le/root/retired_test.go",
@@ -503,7 +504,7 @@ const leCallee = `(?:le|[A-Za-z0-9_]*[a-z](?:Le|LE))(?:[A-Z0-9_][A-Za-z0-9_]*)?\
 // (`run(ctx, le, "<w1>")`), or a helper named for le whose first literal
 // argument is the command (`runLE(nil, "<w1>")`). A literal in any other call
 // is not read as an argv: `filepath.Join(root, "qemu")` names a directory.
-func commandPattern(row Rename) retiredPattern {
+func commandPattern(row leretired.Rename) retiredPattern {
 	old := row.Old()
 	quoted := make([]string, 0, len(old))
 	longest := ""
@@ -534,12 +535,12 @@ func commandPattern(row Rename) retiredPattern {
 
 // namePattern compiles the form a retired program, build tag, file or
 // variable is written in.
-func namePattern(retired Retirement) retiredPattern {
+func namePattern(retired leretired.Retirement) retiredPattern {
 	var tb textbuf.Buffer
 	switch retired.Kind {
-	case RetiredTag:
+	case leretired.RetiredTag:
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
-	case RetiredVariable:
+	case leretired.RetiredVariable:
 		// A key is read as `ze.test.bin`, `ZE_TEST_BIN` or `ze-test-bin`, in
 		// any case: the env registry treats them as one variable.
 		parts := strings.Split(retired.Old, ".")
@@ -547,14 +548,14 @@ func namePattern(retired Retirement) retiredPattern {
 			parts[index] = regexp.QuoteMeta(part)
 		}
 		tb.Str(`(?i)(?:^|[^a-z0-9])`).Join(parts, `[._-]`).Str(`(?:$|[^a-z0-9])`)
-	case RetiredFile:
+	case leretired.RetiredFile:
 		// A name that ends in a separator is a prefix: `bin/ze-test-linux-`
 		// takes every architecture after it.
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old))
 		if !strings.HasSuffix(retired.Old, "-") {
 			tb.Str(edgeAfterName)
 		}
-	case RetiredProgram:
+	case leretired.RetiredProgram:
 		if retired.ProgramPositionOnly {
 			programPosition(&tb, regexp.QuoteMeta(retired.Old))
 			break
@@ -562,8 +563,8 @@ func namePattern(retired Retirement) retiredPattern {
 		// A program name continues into its file names, `ze-test-linux-amd64`
 		// among them, so only a letter or digit ends the match.
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
-	case RetiredKindUnspecified:
-		panic("BUG: doccheck.namePattern: a retired name declares no kind; see retirements")
+	case leretired.RetiredKindUnspecified:
+		panic("BUG: doccheck.namePattern: a retired name declares no kind; see leretired.Retirements")
 	default:
 		panic("BUG: retired name has an unknown kind")
 	}
@@ -616,10 +617,10 @@ func programPosition(tb *textbuf.Buffer, name string) {
 }
 
 // retiredPatterns compiles the whole rename map, commands first, in the order
-// retirednames.go declares it.
+// package leretired declares it.
 func retiredPatterns() []retiredPattern {
-	rows := Renames()
-	names := Retirements()
+	rows := leretired.Renames()
+	names := leretired.Retirements()
 	patterns := make([]retiredPattern, 0, len(rows)+len(names))
 	for _, row := range rows {
 		patterns = append(patterns, commandPattern(row))

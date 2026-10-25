@@ -116,7 +116,7 @@ func (m Manifest) page() helpfmt.Page {
 		Command:   m.Program,
 		ShortHelp: m.Summary,
 		Usage:     []string{tb.Str(m.Program).Str(" <command> [options] [| json | yaml | table]").String()},
-		Sections:  m.sections(),
+		Sections:  append(m.sections(), launcherSection()),
 	}
 }
 

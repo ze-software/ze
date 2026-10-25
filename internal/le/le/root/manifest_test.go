@@ -42,6 +42,11 @@ const rootHelpToday = "le - the Ze repository and development entry point\n" +
 	"  manifest-probe-alpha [workflow] the first probe\n" +
 	"  manifest-probe-gate  [gate] the second probe\n" +
 	"  manifest-probe-loose [ungrouped] a probe that named no group\n" +
+	"\n" +
+	"Launcher: words ./le reads before le starts; they come first\n" +
+	"  --name <name>    build the working tree as bin/le-<name>/le and run it; session names this\n" +
+	"                   session's build\n" +
+	"  --name=<name>    the same as --name <name>, written as one word\n" +
 	"\n"
 
 func TestManifestTextIsTheRootHelpAReaderSeesToday(t *testing.T) {

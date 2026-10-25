@@ -178,19 +178,20 @@ and the package it goes in.
 <!-- source: internal/le/le/root/describe.go -- requireEveryItemHasText -->
 <!-- source: internal/le/le/action/valuehelp.go -- ValueCandidates -->
 
-**A retired name runs as the command that replaced it.** The subject-first
-rename (`spec-le-subject-first-command-tree`) moves every le command to
-`le <subject> <action>`. `internal/le/doc/check/retirednames.go` declares the
-rename map once: each row maps a retired command, or one retired action of a
-command, to the command and action that replace it, and a second table lists
-the retired programs, build tags, harness file names and harness variables.
-`Dispatch` does not read the map. A retired name is never registered, so it
-answers `unknown command` and exit 2 like any other word le does not know, and
-it is absent from `./le '|' json` and from the help page. An old name whose
-first word is now a namespace is refused as a word that names no member of
-that namespace, and a retired action of a command that is still registered is
-refused by that command's closed action table with exit 2. `le doc check
-retired-commands` reads the
+**A retired name is refused, naming the command that replaced it.** The
+subject-first rename (`spec-le-subject-first-command-tree`) moved every le
+command to `le <subject> <action>`, and `spec-le-cli-usability` renames more.
+The leaf package `internal/le/le/retired` declares the rename map once: each
+row maps a retired command, or one retired action of a command, to the command
+and action that replace it, and a second table lists the retired programs,
+build tags, harness file names and harness variables. Two readers use it.
+`Dispatch` matches the typed words against the map before anything resolves or
+parses them, the longest matching row winning, and refuses a match with exit 2
+and one line: `error: le <old> was renamed: run le <new> <the words typed
+after it>`. A retired name is never registered, so it is absent from
+`./le '|' json` and from the help page, and a test refuses a row whose old
+words are still a live command or action, so the refusal can never shadow one.
+`le doc check retired-commands` reads the
 map and names the file and line of every tracked line that still names an old
 form, outside the declared historical records and exceptions. The owned
 journal rows section of a `spec-*.md` under `plan/` is skipped too, from its
@@ -199,7 +200,8 @@ found as `le <old>` after any path prefix, and as a Go argv of literals whose
 program is the literal `"le"`, a variable named `le`, or a helper named for le
 (`runLE(nil, "<old>")`). It exits 1 on any such line and runs as a stage of
 the full verify.
-<!-- source: internal/le/doc/check/retirednames.go -- Renames -->
+<!-- source: internal/le/le/retired/retired.go -- Renames, Match -->
+<!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 <!-- source: internal/le/doc/check/retired.go -- retiredOwnedRowsAfter -->
 

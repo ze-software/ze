@@ -203,7 +203,7 @@ key, so `le doc check retired-commands` refuses a line that names one.
 product setting.
 
 <!-- source: internal/test/runner/runner.go -- NoBuild -->
-<!-- source: internal/le/doc/check/retirednames.go -- retirements -->
+<!-- source: internal/le/le/retired/retired.go -- retirements -->
 
 ---
 

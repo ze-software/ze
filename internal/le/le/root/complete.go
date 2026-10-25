@@ -35,7 +35,20 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 	if len(words) == 0 {
 		words = []string{""}
 	}
+	// A launcher word comes first and is the ./le script's, not the tree's: its
+	// value is completed from its declaration, and the line after it is an
+	// ordinary le line (launcher.go).
+	values, atValue, rest := afterLauncher(words)
+	if atValue {
+		return withPrefix(values, words[len(words)-1]), nil
+	}
+	if len(rest) != len(words) {
+		return Complete(rest)
+	}
 	typed, partial := words[:len(words)-1], words[len(words)-1]
+	if len(typed) == 0 {
+		return withPrefix(append(childrenOf(Tree()), launcherCandidates()...), partial), nil
+	}
 	node := Tree()
 	var path []string
 	for index, word := range typed {

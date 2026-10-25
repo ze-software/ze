@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	leretired "github.com/ze-software/ze/internal/le/le/retired"
 )
 
 // commandWordsMax is the dispatcher's bound: a command is at most two words
@@ -357,7 +359,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"docs/architecture/testing/qemu-integration.md": "nft list table inet ze_test\n",
 		"docs/metrics.md":                               "ze_chaos_peers_total\n//go:build zetest\nZE_TEST_BGP_PORT=1790 ze_test_bgp_port\nwhile tier holds\n./le test-unitx\n",
 		"docs/elsewhere.md":                             "exec=ze-test bgp\n",
-		"internal/le/doc/check/retirednames.go":         "{Retired: \"test-unit\"} ze-chaos ze_test\n",
+		"internal/le/le/retired/retired.go":             "{Retired: \"test-unit\"} ze-chaos ze_test\n",
 		"vendor/example.com/x/ze_test.txt":              "ze-chaos ze_test\n",
 	})
 
@@ -370,7 +372,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"internal/component/firewall/validate_test.go",
 		"docs/architecture/testing/qemu-integration.md",
 		"docs/metrics.md",
-		"internal/le/doc/check/retirednames.go",
+		"internal/le/le/retired/retired.go",
 		"vendor/example.com/x/ze_test.txt",
 	} {
 		if found := retiredLinesOf(report, file); len(found) != 0 {
@@ -386,7 +388,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 // reads: every row names both sides, no two rows retire one word sequence, and
 // no old word sequence starts a new invocation.
 func TestRenameMapRowsAreDisjoint(t *testing.T) {
-	rows := Renames()
+	rows := leretired.Renames()
 	seen := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		old := strings.Join(row.Old(), " ")
@@ -415,9 +417,9 @@ func TestRenameMapRowsAreDisjoint(t *testing.T) {
 		}
 	}
 
-	names := make(map[string]bool, len(Retirements()))
-	for _, retired := range Retirements() {
-		if retired.Kind == RetiredKindUnspecified {
+	names := make(map[string]bool, len(leretired.Retirements()))
+	for _, retired := range leretired.Retirements() {
+		if retired.Kind == leretired.RetiredKindUnspecified {
 			t.Errorf("retired name %q declares no kind", retired.Old)
 		}
 		if retired.Replacement == "" {
