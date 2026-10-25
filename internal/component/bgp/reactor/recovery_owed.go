@@ -258,12 +258,12 @@ func (w *recoveryWorker) stallWait(stalls int) bool {
 	if stalls < 8 {
 		wait = min(recoveryStallWaitMin<<(stalls-1), recoveryStallWaitMax)
 	}
-	timer := time.NewTimer(wait)
+	timer := w.session.clock.NewTimer(wait)
 	defer timer.Stop()
 	select {
 	case <-w.ctx.Done():
 		return false
-	case <-timer.C:
+	case <-timer.C():
 		return true
 	}
 }
