@@ -140,7 +140,7 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 // and that le accepts the call. Method: build the client environment for a
 // named build whose le is not beside the ze under test, and read PATH and the
 // build-name variable the daemon's children inherit.
-// PREVENTS: conf-watchdog's `le test interop-bgp exabgp-api watchdog` finding
+// PREVENTS: a config's `le test interop-bgp exabgp-api <profile>` finding
 // no le (buildZe puts ze alone in the session bin/), or finding the named
 // build and being refused by it because ZE_LE_BUILD_NAME named a build a bare
 // `le` invocation cannot match (cmd/ze/le_build_name.go, refuseWrongBuildName).

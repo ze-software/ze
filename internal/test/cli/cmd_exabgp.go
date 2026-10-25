@@ -1004,12 +1004,13 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, leBinary, config
 		// Each daemon gets its own store. Without it they share the one derived
 		// from the binary's location and corrupt each other's zefs and CA.
 		tb.Reset().Str("ze.config.dir=").Str(filepath.Dir(configPath)).String(),
-		// The daemon FORKS the helper a config's process block names, and
-		// conf-watchdog names `le test interop-bgp exabgp-api watchdog`. That le
-		// is the one running this suite, and it does not always sit beside the
-		// ze under test: buildZe puts ze alone in the session bin/, and a named
-		// build's le is bin/le-<name>/le. So the running le's directory comes
-		// first, then ze's, then the inherited PATH.
+		// The daemon FORKS the helper a config's process block names, and a
+		// config may name `le` there, as `le test interop-bgp exabgp-api
+		// <profile>`. That le is the one running this suite, and it does not
+		// always sit beside the ze under test: buildZe puts ze alone in the
+		// session bin/, and a named build's le is bin/le-<name>/le. So the
+		// running le's directory comes first, then ze's, then the inherited
+		// PATH.
 		tb.Reset().Str("PATH=").Str(filepath.Dir(leBinary)).Byte(os.PathListSeparator).
 			Str(filepath.Dir(zeBinary)).Byte(os.PathListSeparator).Str(os.Getenv("PATH")).String(),
 		// Appended AFTER os.Environ() so the verified binary wins over any
@@ -1099,9 +1100,9 @@ func absoluteBridgeRun(migrated, configDir string) string {
 		}
 		command = strings.Trim(command, `"`)
 		// Only an EXPLICITLY relative command is rooted at the config. A bare
-		// name is resolved through PATH: conf-watchdog's api-watchdog.conf runs
-		// `le test interop-bgp exabgp-api watchdog`, unquoted argv words, and
-		// absolutising its first word would make it a path under the config
+		// name is resolved through PATH: a run line such as `le test
+		// interop-bgp exabgp-api <profile>`, written as unquoted argv words,
+		// would have its first word absolutised into a path under the config
 		// directory, so the bridge would fork a file that does not exist.
 		if !strings.HasPrefix(command, "./") && !strings.HasPrefix(command, "../") {
 			continue
