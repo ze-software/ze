@@ -80,7 +80,7 @@ func TestANamedImportOfARegisteringPackageIsWired(t *testing.T) {
 	if !slices.Equal(wired, []string{"alpha", "beta", "gamma"}) {
 		t.Fatalf("wired = %v, want alpha beta gamma", wired)
 	}
-	if broken := Compare(wired, registering, []string{"a", "b", "g"}); len(broken) != 0 {
+	if broken := Compare(wired, registering, nil, []string{"a", "b", "g"}); len(broken) != 0 {
 		t.Errorf("a named import of a registering package was reported broken: %v", broken)
 	}
 }
@@ -194,7 +194,7 @@ func TestTheUsageLineIsNotACommandOnAGroupedPage(t *testing.T) {
 // --- The comparison ---------------------------------------------------------
 
 func TestAgreementIsClean(t *testing.T) {
-	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, []string{"alpha", "beta"})
+	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, []string{"alpha", "beta"})
 	if len(broken) != 0 {
 		t.Errorf("a tree that agrees reported %v", broken)
 	}
@@ -204,7 +204,7 @@ func TestAgreementIsClean(t *testing.T) {
 // this gate exists for: the tool is committed, it compiles, and le does not
 // carry it.
 func TestAPackageThatRegistersAndIsNotImportedIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha"}, []string{"alpha", "beta"}, []string{"alpha"})
+	broken := Compare([]string{"alpha"}, []string{"alpha", "beta"}, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -216,7 +216,7 @@ func TestAPackageThatRegistersAndIsNotImportedIsBroken(t *testing.T) {
 // TestAnImportOfAPackageThatRegistersNothingIsBroken is the mirror: an import
 // that adds no command is a tool that was wired and never written.
 func TestAnImportOfAPackageThatRegistersNothingIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha", "ghost"}, []string{"alpha"}, []string{"alpha"})
+	broken := Compare([]string{"alpha", "ghost"}, []string{"alpha"}, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -229,7 +229,7 @@ func TestAnImportOfAPackageThatRegistersNothingIsBroken(t *testing.T) {
 // halves can agree while the built binary offers fewer commands, which is what
 // an init() that registered under another name looks like.
 func TestACommandTheBinaryDoesNotOfferIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, []string{"alpha"})
+	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -241,8 +241,107 @@ func TestACommandTheBinaryDoesNotOfferIsBroken(t *testing.T) {
 // TestAnEmptyCommittedTreeIsBroken is the vacuity guard. A registry that lists
 // nothing would make every assertion above answer clean.
 func TestAnEmptyCommittedTreeIsBroken(t *testing.T) {
-	if broken := Compare(nil, nil, nil); len(broken) == 0 {
+	if broken := Compare(nil, nil, nil, nil); len(broken) == 0 {
 		t.Error("a commit carrying no tool at all was reported clean")
+	}
+}
+
+// TestANamespacePackageIsWiredAndOffersNoRow is the case that reddened HEAD at
+// 145da76fb9. A namespace package (internal/le/ai) holds only its summary: the
+// root page prints it as the heading "ai: <short>" over its members' rows, so
+// it offers no row of its own. Counting it as a wired row made the page look
+// short by one row for every namespace.
+func TestANamespacePackageIsWiredAndOffersNoRow(t *testing.T) {
+	broken := Compare([]string{"ai", "ai/rules", "commit"}, []string{"ai/rules", "commit"}, []string{"ai"},
+		[]string{"commit", "ai"})
+	if len(broken) != 0 {
+		t.Errorf("a wired namespace package was reported broken: %v", broken)
+	}
+}
+
+// TestANamespaceTheRootDoesNotImportIsBroken keeps the namespace population
+// checked: a namespace package nobody imports leaves its members with no
+// summary, which le refuses at startup.
+func TestANamespaceTheRootDoesNotImportIsBroken(t *testing.T) {
+	broken := Compare([]string{"ai/rules"}, []string{"ai/rules"}, []string{"ai"}, []string{"ai"})
+	if len(broken) != 1 {
+		t.Fatalf("Compare = %v, want one finding", broken)
+	}
+	if broken[0].Package != "ai" {
+		t.Errorf("the finding names %q, want ai", broken[0].Package)
+	}
+	if !strings.Contains(broken[0].Detail, "namespace") {
+		t.Errorf("the finding reads %q", broken[0].Detail)
+	}
+}
+
+// fileDeclaresCases pins which leroot calls a source file makes. The calls are
+// parsed, so the spelling inside a string literal or a comment calls nothing:
+// le/root's own panic text names `leroot.RegisterNamespace(` to tell the
+// author which call to add, and that file registers nothing.
+var fileDeclaresCases = []struct {
+	name string
+	src  string
+	want declaration
+}{
+	{"a tool", `package a
+import leroot "github.com/ze-software/ze/internal/le/le/root"
+func init() { leroot.Register("a", 0, nil, nil) }
+`, declaration{tool: true}},
+	{"a namespace", `package ai
+import leroot "github.com/ze-software/ze/internal/le/le/root"
+func init() {
+	leroot.RegisterNamespace("ai", "agent tooling", "Agent tooling.")
+}
+`, declaration{namespace: true}},
+	{"an unrenamed import", `package a
+import "github.com/ze-software/ze/internal/le/le/root"
+func init() { leroot.Register("a", 0, nil, nil) }
+`, declaration{tool: true}},
+	{"a renamed import", `package a
+import root "github.com/ze-software/ze/internal/le/le/root"
+func init() { root.RegisterNamespace("a", "s", "d") }
+`, declaration{namespace: true}},
+	{"the spelling in a string and a comment", `package leroot
+// Call leroot.Register( from init.
+func missing(name string) {
+	panic("BUG: call leroot.RegisterNamespace(\"" + name + "\")")
+}
+`, declaration{}},
+	{"another package's Register", `package a
+import "github.com/ze-software/ze/internal/core/registry"
+func init() { registry.Register("a") }
+`, declaration{}},
+	{"another leroot call", `package a
+import leroot "github.com/ze-software/ze/internal/le/le/root"
+func init() { leroot.RegisterActions("a", nil) }
+`, declaration{}},
+}
+
+func TestFileDeclaresReadsTheCallsNotTheText(t *testing.T) {
+	for _, tc := range fileDeclaresCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := fileDeclares("case.go", []byte(tc.src))
+			if err != nil {
+				t.Fatalf("fileDeclares: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("fileDeclares = %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestADotImportOfLerootIsRefused: a dot import makes the calls unqualified,
+// so the scan could not see them and would answer "no call" for a package that
+// registers. It answers an error instead.
+func TestADotImportOfLerootIsRefused(t *testing.T) {
+	src := `package a
+import . "github.com/ze-software/ze/internal/le/le/root"
+func init() { Register("a", 0, nil, nil) }
+`
+	if _, err := fileDeclares("case.go", []byte(src)); err == nil {
+		t.Error("a dot import of leroot answered a declaration")
 	}
 }
 

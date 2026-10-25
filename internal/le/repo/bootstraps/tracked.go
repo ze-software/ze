@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -56,11 +57,21 @@ const registerPath = "internal/le/register.go"
 // toolsDir is where the tool packages live, relative to the checkout.
 const toolsDir = "internal/le"
 
-// registerCalls are the source texts that put a package on le's root page.
-// leroot.Register joins the shared local-data registry as a tool, and
-// leroot.RegisterNamespace declares a namespace (`le ai`, `le go`) whose
-// package holds only its summary: both give the root page a row.
-var registerCalls = [...]string{"leroot.Register(", "leroot.RegisterNamespace("}
+// leRootPath is the package whose calls put a package on le's root page.
+const leRootPath = leTree + "le/root"
+
+// leRootName is the name leRootPath declares in its package clause, so it is
+// what a file that imports the package without renaming it calls it by.
+const leRootName = "leroot"
+
+// The two leroot calls this check reads. leroot.Register joins the shared
+// local-data registry as a tool, and the root page gives that tool one row.
+// leroot.RegisterNamespace declares a namespace (`le ai`, `le go`): the page
+// prints it as a heading over its members' rows, and a heading is no row.
+const (
+	registerToolCall      = "Register"
+	registerNamespaceCall = "RegisterNamespace"
+)
 
 // DefaultDeadline bounds the whole run. A wedged `git archive` or `go build`
 // would otherwise stall a post-commit check with no limit at all.
@@ -160,14 +171,15 @@ func toolImports(src []byte) (rootImports, error) {
 }
 
 // wired returns the sorted short names of the packages the composition root
-// links and expects to produce a command: every blank import, and every named
-// import whose package registers one. A named support package that registers
-// nothing (leroot, lepath) is not a composition entry and is left out.
-func (r rootImports) wired(registering []string) []string {
-	registeringSet := setOf(registering)
+// links as composition entries: every blank import, and every named import
+// whose package registers a tool or declares a namespace. A named support
+// package that declares nothing (leroot, lepath) is not a composition entry
+// and is left out.
+func (r rootImports) wired(declared []string) []string {
+	declaredSet := setOf(declared)
 	names := slices.Clone(r.blank)
 	for _, name := range r.named {
-		if registeringSet[name] {
+		if declaredSet[name] {
 			names = append(names, name)
 		}
 	}
@@ -175,78 +187,186 @@ func (r rootImports) wired(registering []string) []string {
 	return names
 }
 
-// registeringPackages returns the sorted short names of all tool packages under
-// root that join the shared local-data registry.
+// registrations is what the packages under internal/le declare, split by the
+// row each one gives the root page. A package that declares a namespace and
+// also registers a tool is a tool: its tool gives the page a row.
+type registrations struct {
+	// tools are the sorted short names of the packages that register a tool.
+	tools []string
+	// namespaces are the sorted short names of the packages that declare a
+	// namespace and register no tool.
+	namespaces []string
+}
+
+// declared answers every package that calls leroot, tool or namespace, which
+// is the population the composition root MUST import.
+func (r registrations) declared() []string {
+	names := slices.Concat(r.tools, r.namespaces)
+	slices.Sort(names)
+	return names
+}
+
+// declaration is what the files of one package call.
+type declaration struct {
+	tool      bool
+	namespace bool
+}
+
+// add files one package's declaration under its short name.
+func (r *registrations) add(name string, held declaration) {
+	if held.tool {
+		r.tools = append(r.tools, name)
+		return
+	}
+	if held.namespace {
+		r.namespaces = append(r.namespaces, name)
+	}
+}
+
+// registeringPackages returns what every package under root declares to le.
 //
 // The test checks for the CALL, not a naming convention. A package gets a
 // command by creating it. A directory that contains only helpers is not a tool.
-func registeringPackages(root string) ([]string, error) {
+func registeringPackages(root string) (registrations, error) {
 	base := filepath.Join(root, toolsDir)
 	entries, err := os.ReadDir(base)
 	if err != nil {
-		return nil, err
+		return registrations{}, err
 	}
 
-	var names []string
+	var found registrations
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		registers, checkErr := packageRegisters(filepath.Join(base, entry.Name()))
+		held, checkErr := packageDeclares(filepath.Join(base, entry.Name()))
 		if checkErr != nil {
-			return nil, checkErr
+			return registrations{}, checkErr
 		}
-		if registers {
-			names = append(names, entry.Name())
-		}
+		found.add(entry.Name(), held)
 		// A namespace member sits one level below its object, so
 		// internal/le/go/lint registers `le go lint`. An object that is
 		// also a command of its own registers at both levels and is named at
 		// each. The walk stops here: two words is the whole grammar.
 		members, readErr := os.ReadDir(filepath.Join(base, entry.Name()))
 		if readErr != nil {
-			return nil, readErr
+			return registrations{}, readErr
 		}
 		for _, member := range members {
 			if !member.IsDir() {
 				continue
 			}
-			held, memberErr := packageRegisters(filepath.Join(base, entry.Name(), member.Name()))
+			memberHeld, memberErr := packageDeclares(filepath.Join(base, entry.Name(), member.Name()))
 			if memberErr != nil {
-				return nil, memberErr
+				return registrations{}, memberErr
 			}
-			if held {
-				names = append(names, entry.Name()+"/"+member.Name())
-			}
+			found.add(entry.Name()+"/"+member.Name(), memberHeld)
 		}
 	}
-	slices.Sort(names)
-	return names, nil
+	slices.Sort(found.tools)
+	slices.Sort(found.namespaces)
+	return found, nil
 }
 
-// packageRegisters reports whether any non-test file of one package calls
-// leroot.Register or leroot.RegisterNamespace.
-func packageRegisters(dir string) (bool, error) {
+// packageDeclares reports which leroot calls the non-test files of one
+// package make.
+//
+// It parses the files and reads the calls, rather than searching the text for
+// the call's spelling: a string literal or a comment that holds the spelling
+// (the panic text in le/root that names the call to fix, the constants in
+// this file) calls nothing.
+func packageDeclares(dir string) (declaration, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return false, err
+		return declaration{}, err
 	}
+	var held declaration
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		raw, readErr := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // a build tool reads the tree it was pointed at
+		path := filepath.Join(dir, name)
+		raw, readErr := os.ReadFile(path) //nolint:gosec // a build tool reads the tree it was pointed at
 		if readErr != nil {
-			return false, readErr
+			return declaration{}, readErr
 		}
-		for _, call := range registerCalls {
-			if bytes.Contains(raw, []byte(call)) {
-				return true, nil
-			}
+		fileHeld, parseErr := fileDeclares(path, raw)
+		if parseErr != nil {
+			return declaration{}, parseErr
 		}
+		held.tool = held.tool || fileHeld.tool
+		held.namespace = held.namespace || fileHeld.namespace
 	}
-	return false, nil
+	return held, nil
+}
+
+// fileDeclares reports which leroot calls one source file makes. A file that
+// does not import leroot makes none.
+func fileDeclares(path string, src []byte) (declaration, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), path, src, parser.SkipObjectResolution)
+	if err != nil {
+		return declaration{}, err
+	}
+	local, err := leRootLocalName(path, file)
+	if err != nil {
+		return declaration{}, err
+	}
+	var held declaration
+	if local == "" {
+		return held, nil
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, isCall := node.(*ast.CallExpr)
+		if !isCall {
+			return true
+		}
+		selector, isSelector := call.Fun.(*ast.SelectorExpr)
+		if !isSelector {
+			return true
+		}
+		receiver, isIdent := selector.X.(*ast.Ident)
+		if !isIdent {
+			return true
+		}
+		if receiver.Name != local {
+			return true
+		}
+		switch selector.Sel.Name {
+		case registerToolCall:
+			held.tool = true
+		case registerNamespaceCall:
+			held.namespace = true
+		}
+		return true
+	})
+	return held, nil
+}
+
+// leRootLocalName answers the name one file calls leroot by, or "" when the
+// file does not import it. A dot import would make the calls unqualified and
+// invisible to the selector match, so it is refused rather than read as no
+// call.
+func leRootLocalName(path string, file *ast.File) (string, error) {
+	for _, spec := range file.Imports {
+		imported, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			return "", err
+		}
+		if imported != leRootPath {
+			continue
+		}
+		if spec.Name == nil {
+			return leRootName, nil
+		}
+		if spec.Name.Name == "." {
+			var tb textbuf.Buffer
+			return "", errors.New(tb.Str(path).Str(" dot-imports ").Str(leRootPath).
+				Str(", so its calls cannot be read: import it as leroot").String())
+		}
+		return spec.Name.Name, nil
+	}
+	return "", nil
 }
 
 // commandNames returns the root commands in the order in which the help page
@@ -299,15 +419,30 @@ func isSectionHeading(line, trimmed string) bool {
 	return strings.HasSuffix(trimmed, ":")
 }
 
-// Compare returns all disagreements between three lists. The lists contain
-// imported packages, registered packages, and commands that the built binary
-// offers.
+// wiredTools counts the packages expected to produce a root-page row: each is
+// imported by the composition root AND registers a tool. A namespace package
+// is imported too, and gives the page a heading rather than a row, so it is
+// left out.
+func wiredTools(imported, tools []string) int {
+	toolSet := setOf(tools)
+	wired := 0
+	for _, name := range imported {
+		if toolSet[name] {
+			wired++
+		}
+	}
+	return wired
+}
+
+// Compare returns all disagreements between the packages the composition root
+// imports, the packages that register a tool, the packages that declare a
+// namespace and no tool, and the commands that the built binary offers.
 //
-// An EMPTY commit is a finding, not a clean result. If a tree wires nothing,
-// each comparison below has nothing to compare and would report no difference.
-// This check must report that condition as breakage.
-func Compare(imported, registering, offered []string) []Broken {
-	if len(imported) == 0 && len(registering) == 0 {
+// An EMPTY commit is a finding, not a clean result. If a tree registers no
+// tool, each comparison below has nothing to compare and would report no
+// difference. This check must report that condition as breakage.
+func Compare(imported, tools, namespaces, offered []string) []Broken {
+	if len(tools) == 0 {
 		return []Broken{{
 			Package: registerPath,
 			Detail:  "the commit wires no tool into le at all",
@@ -315,22 +450,16 @@ func Compare(imported, registering, offered []string) []Broken {
 	}
 
 	importedSet := setOf(imported)
-	registeringSet := setOf(registering)
+	toolSet := setOf(tools)
+	namespaceSet := setOf(namespaces)
 
-	// wired contains the packages expected to produce a command. Each package is
-	// imported by the composition root AND registers a command. The check counts
-	// against this population instead of the import list. This gives one finding
-	// for each disagreement and does not also report an unwired tool as a missing
-	// command.
-	wired := 0
-	for _, name := range imported {
-		if registeringSet[name] {
-			wired++
-		}
-	}
+	// The count runs over the wired tools instead of the import list. This gives
+	// one finding for each disagreement and does not also report an unwired tool
+	// as a missing command.
+	wired := wiredTools(imported, tools)
 
 	var broken []Broken
-	for _, name := range registering {
+	for _, name := range tools {
 		if !importedSet[name] {
 			broken = append(broken, Broken{
 				Package: name,
@@ -338,13 +467,25 @@ func Compare(imported, registering, offered []string) []Broken {
 			})
 		}
 	}
-	for _, name := range imported {
-		if !registeringSet[name] {
+	for _, name := range namespaces {
+		if !importedSet[name] {
 			broken = append(broken, Broken{
 				Package: name,
-				Detail:  "is imported by internal/le/register.go and registers no command",
+				Detail:  "declares a namespace and internal/le/register.go does not import it",
 			})
 		}
+	}
+	for _, name := range imported {
+		if toolSet[name] {
+			continue
+		}
+		if namespaceSet[name] {
+			continue
+		}
+		broken = append(broken, Broken{
+			Package: name,
+			Detail:  "is imported by internal/le/register.go and registers no command and no namespace",
+		})
 	}
 
 	// Compare the binary's result with the wiring that produced it. Use a count
@@ -406,12 +547,12 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 		return verdict, 2, err
 	}
 
-	registering, err := registeringPackages(dest)
+	found, err := registeringPackages(dest)
 	if err != nil {
 		return verdict, 2, err
 	}
-	imported := rootImported.wired(registering)
-	verdict.Areas = len(imported)
+	imported := rootImported.wired(found.declared())
+	verdict.Areas = wiredTools(imported, found.tools)
 
 	offered, err := buildAndList(ctx, dest)
 	if err != nil {
@@ -419,7 +560,7 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 	}
 	verdict.Commands = offered
 
-	verdict.Broken = Compare(imported, registering, offered)
+	verdict.Broken = Compare(imported, found.tools, found.namespaces, offered)
 	if len(verdict.Broken) > 0 {
 		return verdict, 1, nil
 	}
