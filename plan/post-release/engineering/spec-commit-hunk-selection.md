@@ -147,7 +147,7 @@ None: `./le commit create` is driven by its package tests over a real repository
 - The blob is computed at create time, against the same HEAD recorded as `PreparedHead`, so the existing guarantee holds unchanged: the script commits the blob create read and refuses when a peer changed the path since.
 - Gates read through one `Selection.Read`, so a hunk path has exactly one content source at create time.
 - The journal readers take the content the commit carries: `specjournal.Reader`, passed to `ValidateCarried` and `UnownedOpenRows` by `closureStemSelected` as `selection.Read`, so an owner entry or an open row only the working tree holds counts as absent. `ValidateFile` and the post-write hook keep the working tree (`specjournal.WorkingTree`).
-- The review pin compares like with like. The reviewer vouches for the bytes that land, so `./le spec review record ... hunks <path> <patch-file>` pins HEAD's blob with the patch applied (`spec.recordedHash` through `hunks.Content`), and `checkReviewSelected` hashes the selected blob. Pinning the working-tree file and comparing it with the working tree was rejected: a patch can carry lines the working tree never held, which no reviewer read. A pin over the working-tree file is stale, and the refusal names the `hunks` record that clears it.
+- The review pin compares like with like. The reviewer vouches for the bytes that land, so `./le spec review record ... hunks <path> <patch-file>` pins HEAD's blob with the patch applied (`spec.recordedHash` through `hunks.Content`), and `checkReviewSelected` hashes the selected blob. Pinning the working-tree file and comparing it with the working tree was rejected: a patch can carry lines the working tree never held, which no reviewer read. A pin over the working-tree file is stale, and a hunks path the artifact does not pin is unreviewed. Either way the one fix is a new review of the content the commit carries, so the refusal says that and names the record verb's usage shape with this commit's values filled in, `./le spec review record spec <stem> ... hunks <path> <patch-file>`, the reviewer's own words left as `...`. It prints no command that pins anything by itself. A printed re-pin command was rejected after three review rounds each found a way it cleared the gate with no review: a pin nobody reviewed has no correct automatic fix (round 4 below).
 - A binary patch, an empty patch and a path git quotes are refused in `hunks.Apply` before any blob is built, each with its fix (`file <path>`; save the patch again; rename the path).
 
 ## Known Limitations
@@ -234,10 +234,10 @@ None: `./le commit create` is driven by its package tests over a real repository
 
 | Field | Value |
 |-------|-------|
-| Artifact | not yet recorded: the round 4 re-review is owed |
+| Artifact | not yet recorded: the round 5 re-review is owed |
 | `./le spec review check` | not run |
-| Rounds | round 1 over 322391f9eb; round 2 over 322391f9eb and f442e95663; round 3 over those and e77cbf6d17 (findings below); round 4 owed over the round 3 fix commit, run by the parent session |
-| Reviewer lenses used | rounds 1 to 3: independent reviewer in the parent session |
+| Rounds | round 1 over 322391f9eb; round 2 over 322391f9eb and f442e95663; round 3 over those and e77cbf6d17; round 4 over those and 1c6784bbc8 (findings below); round 5 owed over the round 4 fix commit, run by the parent session |
+| Reviewer lenses used | rounds 1 to 4: independent reviewer in the parent session |
 
 The agent that wrote the round 1 fixes holds no Agent tool and authored them, so
 it cannot review them. The parent session runs the independent round 2 re-review
@@ -291,6 +291,23 @@ round 4 is owed over it, run by the parent session.
 Each round 3 test was forced red by breaking its producer (the freshness check,
 the verdict check, a reason cut to its first line, the coverage `continue`, an
 empty `worktreeText`), then restored green.
+
+### Round 4
+
+Round 4 ran in the parent session over 322391f9eb, f442e95663, e77cbf6d17 and
+1c6784bbc8. The fixes below are in the round 4 fix commit; round 5 is owed over
+it, run by the parent session.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The generated re-pin command had a defect again, as in rounds 2 and 3 | `internal/le/commit/review.go` hunksReviewRepin, parseRecordedReview | Deleted `hunksReviewRepin` and `parseRecordedReview` (round 3's replacement for `hunksReviewRecord`), their constants and their tests (`TestReviewHunksStaleNamesExactRecord`, `TestReviewHunksRepinRefusesWhatNobodyReviewed`). A stale or unreviewed pin has one correct fix, a new review of the content, so any command that re-pins without one is a way around the review gate, and patching it a fourth time would not change that (`ai/rules/simplicity.md`). `hunksReviewRefusal` says what is wrong, why, and that the content must be re-reviewed, and names `./le spec review record spec <stem> ... hunks <path> <patch>` with this commit's values; `TestReviewHunksRefusalPrintsNoRecordCommand` (stale pin, unreviewed path) runs every record line of the refusal through the real recorder and expects a refusal and an unchanged artifact; `TestReviewHunksComparesLikeWithLike` kept |
+| 2 | ISSUE | "no-test cannot waive a malformed entry" was tested only through the helper | `internal/le/commit/prepare.go` checkSourceGates | `TestSourceGatesNoTestCannotWaiveMalformedEntry` drives `checkSourceGates` with `NoTest` set and a malformed entry on a code file and on a test file; both are refused, by the prospective commit, which reads the entry first |
+| 3 | ISSUE | A malformed entry on a `_test.go` hunks path counted as the commit's test in `testCoverageProblemsSelected` without being read | `internal/le/commit/prepare.go` testCoverageProblemsSelected | The entry point already refused it (row 2), but the gate itself did not; a selected test path is now read before it counts, and the read error is returned; `TestCoverageHunksMalformedEntryFailsClosed` (test-file case) |
+
+Row 1's test was forced red by restoring a printed `record ... verdict 'clean'
+rounds 1 hunks ...` line in the refusal: the recorder accepted it and the test
+failed on that line. Row 3's test was forced red by skipping the new read.
+Both were restored green.
 
 ## Pre-Commit Verification
 

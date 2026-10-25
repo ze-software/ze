@@ -515,11 +515,18 @@ func normalizePaths(root string, raw []string, validate func(string, string) err
 // testCoverageProblemsSelected answers whether a commit carrying Go carries a
 // test too, judging each hunks path by the selected blob. A path it cannot read is an error that
 // no-test cannot waive: the gate cannot say whether that path owes a test, and
-// a hunks entry that names no blob would otherwise pass unjudged.
+// a hunks entry that names no blob would otherwise pass unjudged. A hunks test
+// path is read before it counts as the commit's test, for the same reason: an
+// entry that names no blob carries no test.
 func testCoverageProblemsSelected(root string, paths []string, selection hunks.Selection) ([]string, error) {
 	owing := make([]string, 0)
 	hasTest := false
 	for _, path := range paths {
+		if isCommitTestPath(path) && selection.Selected(path) {
+			if _, err := selection.Read(root, path); err != nil {
+				return nil, fmt.Errorf("test-coverage gate cannot read %s: %w", path, err)
+			}
+		}
 		if isCommitTestPath(path) {
 			hasTest = true
 		}

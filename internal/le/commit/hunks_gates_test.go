@@ -232,135 +232,127 @@ func TestScriptHunksRefusesPeerCommitOnPath(t *testing.T) {
 	}
 }
 
-// TestReviewHunksStaleNamesExactRecord proves the stale-pin refusal prints a
-// command that pastes and reproduces the artifact: recorded by the real
-// recorder with a two-line reason holding a single quote, the review pins the
-// working-tree file of a hunks path, the printed command is run through the
-// same recorder, and the gate is then clean with the reason carried whole.
+// TestReviewHunksRefusalPrintsNoRecordCommand proves the refusal for a stale
+// hunks pin, and for one nobody recorded, asks for a new review and prints no
+// command that records a clean verdict: every record line it carries is run
+// through the real recorder, which refuses it, and the artifact is unchanged.
 //
-// VALIDATES: hunksReviewRepin rebuilds every value the artifact holds.
-// PREVENTS: a command that drops a reason, a pin or a reviewer, or that no
-// shell can paste.
-func TestReviewHunksStaleNamesExactRecord(t *testing.T) {
-	const reason = "the reviewer's third pass\nfound a product defect"
-	root, path, other, selection := reviewRepinFixture(t)
-	recordFixtureReview(t, root, "spec", "demo", "verdict", "clean", "rounds", "2", "reviewers", "alice bob",
-		"rounds-reason", reason, "file", path, "file", other, "file", "docs/extra.md")
-
-	result := checkReviewSelected(root, "demo", []string{path, other}, selection)
-	if result.Clean {
-		t.Fatal("a pin over the working-tree file vouched for the selected content")
-	}
-	command := repinCommand(t, result)
-	want := "./le spec review record spec 'demo' verdict clean rounds 2 reviewers 'alice bob' rounds-reason " +
-		shellQuote(reason) + " file 'docs/extra.md' file 'pkg/other.go' hunks 'pkg/shared one.go' " + shellQuote(patchOf(selection, path))
-	if command != want {
-		t.Fatalf("the stale refusal does not carry the exact record command\n got: %s\nwant: %s", command, want)
-	}
-	before := artifactBody(t, root)
-	words := parseShellWords(strings.TrimPrefix(command, "./le spec review "))
-	wantWords := []string{"record", "spec", "demo", "verdict", "clean", "rounds", "2", "reviewers", "alice bob",
-		"rounds-reason", reason, "file", "docs/extra.md", "file", other, "hunks", path, patchOf(selection, path)}
-	if strings.Join(words, "|") != strings.Join(wantWords, "|") {
-		t.Fatalf("the command parses to %q, want %q", words, wantWords)
-	}
-	if strings.Contains(command, "...") || strings.Contains(command, "<") {
-		t.Fatalf("the command still carries a placeholder: %s", command)
-	}
-	recordFixtureReview(t, root, words[1:]...)
-	if again := checkReviewSelected(root, "demo", []string{path, other}, selection); !again.Clean {
-		t.Fatalf("the pasted command left the gate refusing: %v", again.Problems)
-	}
-	after := artifactBody(t, root)
-	if !strings.Contains(after, "\nrounds-reason: "+reason+"\n") {
-		t.Fatalf("the re-recorded artifact lost the reason:\n%s", after)
-	}
-	if strings.Count(after, "\n  ") != strings.Count(before, "\n  ") {
-		t.Fatalf("the re-recorded artifact pins another population\nbefore:\n%s\nafter:\n%s", before, after)
-	}
-}
-
-// TestReviewHunksRepinRefusesWhatNobodyReviewed proves the stale-pin refusal
-// prints no record command when pasting it would vouch for content no review
-// saw, or would lose what the artifact holds: another code file changed after
-// the review, a findings verdict, findings under a clean verdict, and an
-// artifact the recorder did not write.
-//
-// VALIDATES: hunksReviewRepin refuses each case and says what comes first.
-// PREVENTS: a pasted command clearing the gate's own refusal with no review.
-func TestReviewHunksRepinRefusesWhatNobodyReviewed(t *testing.T) {
+// VALIDATES: hunksReviewRefusal names the record verb's usage shape only.
+// PREVENTS: a pasted line re-pinning content no review saw, which is how the
+// deleted re-pin command cleared the gate's own refusal.
+func TestReviewHunksRefusalPrintsNoRecordCommand(t *testing.T) {
 	cases := []struct {
-		name   string
-		record func(t *testing.T, root, path, other string)
-		want   string
+		name  string
+		files []string
 	}{
-		{name: "another file changed after the review", want: "1 path(s) not committed by hunks are stale or unreviewed: pkg/other.go",
-			record: func(t *testing.T, root, path, other string) {
-				recordFixtureReview(t, root, "spec", "demo", "verdict", "clean", "rounds", "1", "file", path, "file", other)
-				writeCommitFixture(t, root, other, "package pkg\n\n// Changed after the review.\n")
-			}},
-		{name: "another file never reviewed", want: "1 path(s) not committed by hunks are stale or unreviewed: pkg/other.go",
-			record: func(t *testing.T, root, path, _ string) {
-				recordFixtureReview(t, root, "spec", "demo", "verdict", "clean", "rounds", "1", "file", path)
-			}},
-		{name: "findings verdict", want: "verdict is findings, which blocks first",
-			record: func(t *testing.T, root, path, other string) {
-				writeCommitFixture(t, root, "tmp/findings.md", "ISSUE in pkg/other.go\n")
-				recordFixtureReview(t, root, "spec", "demo", "verdict", "findings", "rounds", "1",
-					"findings-file", "tmp/findings.md", "file", path, "file", other)
-			}},
-		{name: "findings under a clean verdict", want: "the artifact records findings, and a pasted command cannot carry them",
-			record: func(t *testing.T, root, path, other string) {
-				writeCommitFixture(t, root, "tmp/findings.md", "NOTE in pkg/other.go\n")
-				recordFixtureReview(t, root, "spec", "demo", "verdict", "clean", "rounds", "1",
-					"findings-file", "tmp/findings.md", "file", path, "file", other)
-			}},
-		{name: "hand-written artifact", want: "not in the shape `./le spec review record` writes",
-			record: func(t *testing.T, root, path, other string) {
-				relative, err := spec.ReviewArtifactPath(root, "demo")
-				if err != nil {
-					t.Fatal(err)
-				}
-				writeCommitFixture(t, root, relative, "<!-- ze-review spec=demo verdict=clean -->\nfiles:\n"+
-					"  "+reviewHash(filepath.Join(root, filepath.FromSlash(path)))+"  "+path+"\n"+
-					"  "+reviewHash(filepath.Join(root, other))+"  "+other+"\n")
-			}},
+		{name: "stale pin", files: []string{"shared", "other"}},
+		{name: "unreviewed path", files: []string{"other"}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			root, path, other, selection := reviewRepinFixture(t)
-			test.record(t, root, path, other)
+			named := map[string]string{"shared": path, "other": other}
+			args := []string{"spec", "demo", "verdict", "clean", "rounds", "1"}
+			for _, file := range test.files {
+				args = append(args, "file", named[file])
+			}
+			recordFixtureReview(t, root, args...)
+			before := artifactBody(t, root)
+
 			result := checkReviewSelected(root, "demo", []string{path, other}, selection)
-			problems := strings.Join(result.Problems, "\n")
 			if result.Clean {
-				t.Fatal("a pin over the working-tree file vouched for the selected content")
+				t.Fatal("a pin that is not over the selected content vouched for it")
 			}
-			if strings.Contains(problems, "record it again with:") {
-				t.Fatalf("the refusal prints a record command that vouches for no review:\n%s", problems)
+			problems := strings.Join(result.Problems, "\n")
+			usage := "./le spec review record spec 'demo' ... hunks " + shellQuote(path) + " " +
+				shellQuote(patchOf(selection, path))
+			if !strings.Contains(problems, "re-run the independent review") || !strings.Contains(problems, usage) {
+				t.Fatalf("the refusal does not ask for a review with the record usage %q:\n%s", usage, problems)
 			}
-			if !strings.Contains(problems, "no record command is printed: ") || !strings.Contains(problems, test.want) {
-				t.Fatalf("the refusal does not say why no command is printed\n got: %s\nwant: %s", problems, test.want)
+			if strings.Contains(problems, "verdict clean") {
+				t.Fatalf("the refusal prints a clean verdict a paste would record:\n%s", problems)
+			}
+			for line := range strings.SplitSeq(problems, "\n") {
+				_, command, found := strings.Cut(line, "./le spec review ")
+				if !found {
+					continue
+				}
+				if _, code := spec.Review(parseShellWords(command)); code == 0 {
+					t.Fatalf("the refusal prints a command the recorder accepts: %s", line)
+				}
+			}
+			if after := artifactBody(t, root); after != before {
+				t.Fatalf("a printed line changed the review artifact\nbefore:\n%s\nafter:\n%s", before, after)
 			}
 		})
 	}
 }
 
 // TestCoverageHunksMalformedEntryFailsClosed proves the test-coverage gate
-// refuses a hunks entry that names no blob, even beside a test file that would
-// otherwise discharge it, and that no-test cannot waive it.
+// refuses a hunks entry that names no blob: on a code file, even beside a test
+// file that would otherwise discharge it, and on a test file, which would
+// otherwise count as the commit's test unread.
 //
 // VALIDATES: testCoverageProblemsSelected returns the read error.
 // PREVENTS: a malformed selection passing the gate unjudged.
 func TestCoverageHunksMalformedEntryFailsClosed(t *testing.T) {
-	root := t.TempDir()
-	const path = "pkg/shared.go"
-	selection := hunks.Selection{path: {Entry: "not an index line", Patch: "tmp/mine.patch"}}
-	_, err := testCoverageProblemsSelected(root, []string{path, "pkg/shared_test.go"}, selection)
-	if err == nil {
-		t.Fatal("a malformed hunks entry passed the test-coverage gate unjudged")
+	const code, test = "pkg/shared.go", "pkg/shared_test.go"
+	for _, selected := range []string{code, test} {
+		t.Run(selected, func(t *testing.T) {
+			root := t.TempDir()
+			writeCommitFixture(t, root, code, "package pkg\n")
+			writeCommitFixture(t, root, test, "package pkg\n")
+			selection := hunks.Selection{selected: {Entry: "not an index line", Patch: "tmp/mine.patch"}}
+			_, err := testCoverageProblemsSelected(root, []string{code, test}, selection)
+			if err == nil {
+				t.Fatal("a malformed hunks entry passed the test-coverage gate unjudged")
+			}
+			if !strings.Contains(err.Error(), "is not a `git ls-files -s` line") {
+				t.Fatalf("the refusal does not name the malformed entry: %v", err)
+			}
+		})
 	}
-	if !strings.Contains(err.Error(), "is not a `git ls-files -s` line") {
-		t.Fatalf("the refusal does not name the malformed entry: %v", err)
+}
+
+// TestSourceGatesNoTestCannotWaiveMalformedEntry proves through the gate's
+// entry point that no-test waives no malformed hunks entry: checkSourceGates,
+// with no-test named, refuses an entry that names no blob on a code file, and
+// on a test file the coverage gate would otherwise count as the commit's test.
+//
+// VALIDATES: checkSourceGates returns the unreadable-entry refusal.
+// PREVENTS: no-test, or an unjudged test path, carrying an unread selection.
+func TestSourceGatesNoTestCannotWaiveMalformedEntry(t *testing.T) {
+	const code, test = "pkg/shared.go", "pkg/shared_test.go"
+	cases := []struct {
+		name     string
+		selected string
+	}{
+		{name: "code file", selected: code},
+		{name: "test file", selected: test},
+	}
+	for _, each := range cases {
+		t.Run(each.name, func(t *testing.T) {
+			root := newCommitRepository(t)
+			configureCommitAuthor(t, root)
+			commitFixture(t, root, "base", map[string]string{
+				code: "package pkg\n", test: "package pkg\n",
+			}, nil)
+			writeCommitFixture(t, root, code, "package pkg\n\n// Changed.\n")
+			writeCommitFixture(t, root, test, "package pkg\n\n// Changed.\n")
+			selection := hunks.Selection{each.selected: {Entry: "not an index line", Patch: "tmp/mine.patch"}}
+			options := &Options{NoTest: "a truthful reason", Session: "malformed-entry-fixture"}
+
+			err := checkSourceGates(root, options, &Prepared{}, []string{code, test}, nil,
+				"malformed-entry-fixture", selection)
+			if err == nil {
+				t.Fatal("no-test waived a malformed hunks entry")
+			}
+			// The prospective commit is the first reader of the entry, so its
+			// refusal is the one this entry point answers.
+			if !strings.Contains(err.Error(), "malformed index info not an index line") {
+				t.Fatalf("the refusal does not name the malformed entry: %v", err)
+			}
+		})
 	}
 }
 
@@ -405,20 +397,6 @@ func recordFixtureReview(t *testing.T, root string, args ...string) {
 	if payload, code := spec.Review(append([]string{"record"}, args...)); code != 0 {
 		t.Fatalf("review record %q = (%#v, %d)", args, payload, code)
 	}
-}
-
-// repinCommand answers the record command a refusal ends with. A quoted
-// value may span lines, so the command runs to the end of its problem.
-func repinCommand(t *testing.T, result ReviewResult) string {
-	t.Helper()
-	const marker = "\n  ./le spec review record "
-	for _, problem := range result.Problems {
-		if index := strings.Index(problem, marker); index >= 0 {
-			return problem[index+3:]
-		}
-	}
-	t.Fatalf("the refusal prints no record command: %v", result.Problems)
-	return ""
 }
 
 // artifactBody answers the demo review artifact below its header line.

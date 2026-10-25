@@ -123,7 +123,9 @@ selected and committed as one path.
 
 A selected path whose entry is not a `git ls-files -s` line for that path is an
 error at every gate that reads it, never a fall back to the working-tree file,
-which holds hunks the commit does not carry.
+which holds hunks the commit does not carry. `no-test` does not waive it, and
+a test file selected that way does not count as the commit's test: the
+test-coverage gate reads it first.
 
 These gates judge the selected blob, never the working-tree file, because each
 reads a hunks path through `hunks.Selection.Read`: the weakening gate and the
@@ -135,20 +137,20 @@ spec-closure sides, and the review pin.
 The review pin compares like with like. Record the review of a hunks code file
 with the same pair, `./le spec review record spec <stem> verdict clean rounds
 <n> hunks <path> <patch-file>`, which pins HEAD's blob with the patch applied.
-A pin taken over the working-tree file is stale, and the refusal prints the
-whole record command to paste: the rounds, reviewers, rounds reason and owner
-authorization the artifact holds, each hunks path with the patch the commit
-names, and every other path the artifact pins or the commit carries as `file`,
-each value shell-quoted, so a path with a space or a reason with a quote or a
-line break pastes as one word. A record replaces the artifact, so the command
-names the whole population, never only the stale path.
+A pin taken over the working-tree file is stale, and a hunks path the artifact
+does not pin is unreviewed. Either way no review saw the content the commit
+carries, and the only fix is a new review of that content. The refusal says
+so, and names the verb the reviewer records the new verdict with as its usage
+shape, this commit's stem and each hunks path with its patch filled in, the
+reviewer's own words left as `...`:
 
-Pasting that command MUST NOT vouch for content nobody reviewed, so the refusal
-prints none, and says why, when the verdict is not clean (the findings block
-first), when a path the command would pin as `file` changed after the review
-or was never reviewed (it needs a re-review first), when the artifact records
-findings (a pasted command cannot carry them; record again with
-`findings-file`), or when the artifact is not in the shape `record` writes.
+```
+./le spec review record spec <stem> ... hunks <path> <patch-file>
+```
+
+The refusal prints no command that pins anything by itself. A printed re-pin
+command was tried and removed: whatever it carried, pasting it vouched for
+content no reviewer had read, which cleared the gate's own refusal.
 
 Three judgements do not read the selected blob, and each says so:
 
@@ -169,7 +171,7 @@ unstaged changes against the new commit. `./le repo compiles check` after the
 script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
 <!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
-<!-- source: internal/le/commit/review.go -- hunksReviewRepin, parseRecordedReview -->
+<!-- source: internal/le/commit/review.go -- hunksReviewRefusal -->
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 <!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
 <!-- source: internal/le/spec/review.go -- recordedHash -->
