@@ -186,15 +186,20 @@ func (s *Sweeper) orDefault(value, fallback string) string {
 
 // namedArgv builds the invocation for a caller-selected target.
 // Unlike Target.Command, it leaves the name unanchored because the caller can supply a regexp.
+// The -run takes the same regexp, so the package's unit tests stay out of the run for
+// the reason Target.Command gives.
 func (s *Sweeper) namedArgv() []string {
 	var tb textbuf.Buffer
-	name := tb.Str("-fuzz=").Str(s.orDefault(s.Name, DefaultName)).String()
+	target := s.orDefault(s.Name, DefaultName)
+	name := tb.Str("-fuzz=").Str(target).String()
+	tb.Reset()
+	only := tb.Str("-run=").Str(target).String()
 	tb.Reset()
 	budget := tb.Str("-fuzztime=").Str(s.budget()).String()
 	tb.Reset()
 	ceiling := tb.Str("-timeout=").Str(s.ceiling()).String()
 
-	return s.Chain.GoTest(gotoolchain.TestOptions{}, name, budget, ceiling,
+	return s.Chain.GoTest(gotoolchain.TestOptions{}, name, only, budget, ceiling,
 		s.orDefault(s.Package, DefaultPackage))
 }
 

@@ -82,15 +82,22 @@ type Target struct {
 
 // Command answers the `go test` invocation for this target: anchored, and over
 // one package directory.
+//
+// The -run selects the target alone. Without it `go test -fuzz` first runs every
+// test in the package, under the same -timeout as the fuzzing, so a package whose
+// unit tests take a minute (internal/component/ike/engine) timed out before it
+// fuzzed anything. The unit tests have their own runs; this one is the fuzzer's.
 func (t Target) Command(chain gotoolchain.Toolchain, fuzztime, timeout string) []string {
 	var tb textbuf.Buffer
 	name := tb.Str("-fuzz=^").Str(t.Name).Byte('$').String()
+	tb.Reset()
+	only := tb.Str("-run=^").Str(t.Name).Byte('$').String()
 	tb.Reset()
 	budget := tb.Str("-fuzztime=").Str(fuzztime).String()
 	tb.Reset()
 	ceiling := tb.Str("-timeout=").Str(timeout).String()
 
-	return chain.GoTest(gotoolchain.TestOptions{}, name, budget, ceiling, t.Package)
+	return chain.GoTest(gotoolchain.TestOptions{}, name, only, budget, ceiling, t.Package)
 }
 
 // Discover answers every `func Fuzz` under internal/, sorted by package then

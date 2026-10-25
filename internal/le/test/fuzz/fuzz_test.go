@@ -341,6 +341,27 @@ func TestARegexpNameReachesGoUnaltered(t *testing.T) {
 	}
 }
 
+// TestTheUnitTestsStayOutOfTheFuzzBudget proves a fuzz invocation runs no unit test
+// beside the target. Method: both argv builders, the discovered target's and the named
+// run's, must carry a -run that selects the fuzz target alone. Without one, `go test
+// -fuzz` first runs every test in the package under the same -timeout, and
+// internal/component/ike/engine, whose unit tests take about a minute, timed out at
+// 60s in the nightly evidence run before it fuzzed anything.
+func TestTheUnitTestsStayOutOfTheFuzzBudget(t *testing.T) {
+	argv := Target{Name: "FuzzX", Package: "./internal/x"}.Command(probeChain(), DefaultFuzzTime, DefaultTimeout)
+	if !slices.Contains(argv, "-run=^FuzzX$") {
+		t.Errorf("the discovered target's command runs the package's tests too: %v", argv)
+	}
+
+	plan := planOf(t, &Sweeper{Chain: probeChain(), Name: "FuzzParse.*"})
+	if len(plan.Runs) != 1 {
+		t.Fatalf("a named run planned %d runs", len(plan.Runs))
+	}
+	if !slices.Contains(plan.Runs[0].Argv, "-run=FuzzParse.*") {
+		t.Errorf("the named run's command runs the package's tests too: %v", plan.Runs[0].Argv)
+	}
+}
+
 func TestAWildcardPackageReachesGoUnaltered(t *testing.T) {
 	plan := planOf(t, &Sweeper{Chain: probeChain(), Package: "./internal/component/bgp/wireu/..."})
 	if len(plan.Runs) != 1 {

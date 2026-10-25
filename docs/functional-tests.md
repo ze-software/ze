@@ -3632,6 +3632,13 @@ The target list is not maintained at all. `./le test fuzz` walks `internal/` for
 per target against that target's exact package. A new fuzzer is included by the
 existing action.
 
+Each invocation also carries `-run=^<Name>$` (a named run, `-run=<FUZZ>`), so
+the package's unit tests stay out of it. Without that, `go test -fuzz` runs
+every test in the package first, under the same `-timeout`, and a package whose
+unit tests take a minute times out before it fuzzes anything.
+<!-- source: internal/le/test/fuzz/discover.go -- Target.Command -->
+<!-- source: internal/le/test/fuzz/sweep.go -- namedArgv -->
+
 ```bash
 ./le test fuzz run                               # every target, 10s each
 ./le test fuzz list                              # what would run, and where
