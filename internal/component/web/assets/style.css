@@ -836,12 +836,6 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   white-space: nowrap;
 }
 
-.error-panel.collapsed .error-toggle {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 0.75rem 0.35rem;
-}
-
 .error-list {
   flex: 1;
   overflow-y: auto;

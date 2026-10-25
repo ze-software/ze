@@ -239,10 +239,19 @@ User blurs a text input (or clicks a toggle, or changes a select)
   HTMX:    OOB-swaps #commit-bar to show "N pending changes"
 
 On error:
-  Server:  Returns OOB error item appended to #error-list (oob_error template)
-           Opens #error-panel by swapping its class to remove "collapsed"
-  HTMX:    OOB-swaps error panel content
+  Server:  Returns the error fragment for the field, then one OOB error item
+           appended to #error-list (oob_error template). No htmx swap can set
+           a class, so the server does not open the panel
+  HTMX:    swaps the fragment into the field's target, appends the item
+  cli.js:  syncErrorPanel, on htmx:after:settle over #error-list, removes
+           "collapsed" from #error-panel while the list holds an item
 ```
+
+With no errors the panel carries `collapsed`, which `style.css` renders fully
+off screen (`translateX(100%)`, `pointer-events: none`), so it covers nothing.
+Its Errors toggle sits inside the panel: it closes an open panel, and dismissing
+the last error collapses it again. A collapsed panel's toggle is off screen with
+it, so once the operator closes the panel only a new error reopens it.
 
 ## Commit Flow
 

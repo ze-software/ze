@@ -1,16 +1,60 @@
-# Test: error panel button is clickable
-# VALIDATES: clicking Errors button does not crash page
-# PREVENTS: error panel JS broken, button not wired
+# Test: the error drawer stays hidden with no errors, slides in when a refused
+#       edit adds one, and its own Errors toggle closes it
+# VALIDATES: with an empty #error-list the panel carries "collapsed", which
+#   style.css renders off screen (translateX(100%), pointer-events: none). A
+#   refused set appends an error out of band and cli.js (syncErrorPanel, on
+#   htmx:after:settle over #error-list) removes "collapsed". The toggle
+#   (data-action="toggle-error-panel") then closes it, a second refused set
+#   opens it again, and the toggle closes it again. The page keeps rendering.
+# PREVENTS: a drawer that opens on page load and covers the CLI button
+#   (81c79729a1), a refused edit that never opens it, and a toggle that is not
+#   wired or does not close it.
+#
+# Every state is asserted POSITIVELY on the panel's own class attribute, so each
+# expectation polls until the state lands rather than judging one snapshot. The
+# open state is the attribute closing on "error-panel" alone; the closed state
+# carries "collapsed".
+#
+# Not asserted: reopening the drawer by its toggle once the operator closed it.
+# The toggle lives inside the panel, so the collapsed panel takes it off screen
+# and agent-browser refuses the click ("outside the viewport"). That is a
+# product gap, not a test choice.
 
-option=timeout:value=30s
+option=timeout:value=60s
 
-action=open:path=/show/bgp/
-expect=element:text=Errors
+action=open:path=/show/system/dns/
+expect=element:id=input-system-sdns-stimeout
 
-action=click:text=Errors
-action=wait:ms=500
+# No errors: the drawer is collapsed, so hidden, and its list is empty.
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+expect=html:not-contains=class="error-item"
 
-# The page is still rendering its own content after the click. router-id is the
-# leaf NAME, which is the editor's accessible name; the YANG description this
-# asserted before was the name an unbound editor fell back to.
-expect=element:text=router-id
+# 70000 is one above the uint16 ceiling, so config.ValidateValue refuses it and
+# the handler answers 400 with the out-of-band error. Enter sends it at once
+# (initEnterSubmit in cli.js) instead of after the input's debounce.
+action=fill:id=input-system-sdns-stimeout:value=70000
+action=press:key=Enter
+
+# The error reached the list and the drawer slid in by itself.
+expect=html:contains=class="error-item"
+expect=element:text=invalid uint16
+expect=html:contains=id="error-panel" class="error-panel">
+
+# The drawer is open, so its toggle is on screen and takes the click. It closes.
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+
+# A second refused edit opens the closed drawer again. It goes to another field:
+# htmx 4 swapped the first refusal's error fragment into the timeout field's own
+# target, so that input is no longer on the page. 99999999999 overflows uint32.
+action=fill:id=input-system-sdns-scache--size:value=99999999999
+action=press:key=Enter
+expect=element:text=99999999999
+expect=html:contains=id="error-panel" class="error-panel">
+
+# And the toggle closes it again.
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+
+# The page is still rendering its own content after the clicks.
+expect=element:id=input-system-sdns-sresolv--conf--path
