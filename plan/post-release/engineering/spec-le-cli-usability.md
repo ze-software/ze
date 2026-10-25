@@ -7,11 +7,52 @@
 | Priority | P3 |
 | Release reason | Developer tooling only: `le` is never shipped (`TestNormalZeLinksNoInternalLe`), so its usability is release-independent engineering work |
 | Depends | - |
-| Phase | 2/7 |
-| Handoff | - |
+| Phase | 4/7 (phases 1, 2, 3, 5, 6, 7 committed; phase 4 part 1 committed; phase 4 bulk renames owed) |
+| Handoff | see "Current state" below |
 | Updated | 2026-10-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Current state (handoff, 2026-10-25)
+
+Everything below "Current state" is the original spec, with decisions appended
+as the work went. This section is the starting point for the next session.
+
+### Done (committed)
+
+| Work | Commits |
+|------|---------|
+| Spec, and the two absorbed skeletons retired | 86a15ce6ff, plus the two skeleton removals |
+| Phase 1: typed parameters (kind, help, values, pair, source, retired) and the derived command tree | f21dd47e50 |
+| Phases 2+3: help pages by tree on stdout, one renderer, per-keyword pages, one-action usage errors; every area on one action table (30 hand-rolled parsers migrated, commit included; 56 forwarding areas declare pass-through); le refuses to start on an area with no table | f293c0323d |
+| Phase 6: `le completion bash|zsh|fish` (callback skips the launcher and hooks), `le help ai` with sections and `| json` / `| yaml` | dbf0dbd866, 896e8e1d9c |
+| Phase 7: bare `le` at a terminal opens the menu shared with ze; prompting for missing required values with Tab completion and an echo of the full line | e52b525724, de4403eab5 |
+| Phase 5: exit codes 0 success, 1 found a problem, 2 usage, 3 could not run; parse-time refusal of a missing or malformed value; hook and pass-through exemptions | 9181e95fd8, 19df13723d |
+| Fixes for reds these phases caused | 167d602b5b, a4b66a41b8, 93e3bfbfbd, ddc2138f10 |
+| Owned journal rows fixed (`ze help ai` determinism and env-var attribution; bootstrap named import) | f9b0be585d, 292fbbeae6 |
+| Namespace summaries (AC-53), every item described (AC-54), short and long text with the menu header (AC-55) | e537b1b87e, 87c8b38c9d, a18841e271, 145da76fb9 |
+| Phase 4 part 1: rename map in `internal/le/le/retired` (old spelling refused naming its successor), the 36-verb vocabulary with its tests and the shrink-only `internal/le/testdata/vocabulary-owed.txt`, launcher words in help (AC-51) | d390bcb148 |
+| Owner rule "le help covers every le word, launcher words included" | 7dc5beeddf (`ai/META-DECISIONS.md`, Developer tooling) |
+
+### Owed, in order
+
+| # | Item | Notes |
+|---|------|-------|
+| 1 | `./le verify changed` over the unverified range (last run covered up to 19df13723d; 145da76fb9, ddc2138f10, d390bcb148 are not yet verified) | Classify reds as this spec's, another session's, or load. Known others' reds at the time: bgp reactor owed-key, `cli/dispatch` on `adj_rib_in`, plugin/all watchdog, pki config claims, gatedtable, `plugin/imports` |
+| 2 | Phase 4 bulk renames: the "Phase 4 rename map" table (113 retired spellings; 36 verbs per "Verb vocabulary") | Drive it from `vocabulary-owed.txt` (303 findings at d390bcb148; a listed finding that disappears must be removed, a new one fails). Each rename: delete the old spelling, add its row to `internal/le/le/retired`, update every consumer (ai/, docs/, .claude/, live plan/, test/, internal/, .github/) in the same commit. `le ai hooks` words stay frozen. Includes `setup docker host` / `setup docker kernel` (clears functional `le-checks-answers` R9), `spec claim <file>`, `le mock <name>`, `rfc discriminate-record` to `rfc record`, `doc check verify` to `doc check all`, `commit audit` to `test weakened check` |
+| 3 | Phase 4 leftovers from part 1 | `le help ai verbs` renders the vocabulary; `TestEveryWordLeAcceptsIsInHelp`; the two `.ci` tests (`le-retired-spellings`, `le-launcher-words`); `./le rollback <extra words>` refused with exit 2 (a change to the `le` launcher script, owned by spec-le-built-from-head: coordinate before editing it) |
+| 4 | AC-37 proof: `TestCompletionCallbackAnswersWithinBudget` (100 ms median) on a quiet machine | It passes at moderate load and fails at load above about 100. Do not loosen the budget |
+| 5 | Review Gate: `/ze-review` until 0 BLOCKER and 0 ISSUE | No phase has had an independent review yet. Notable points to check: the 46 rfc exit-code expectation changes (audited against D-Q8 once), the `| save` exit 3 path (D-P5-save), the probe-safety of `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` (a probe once reached `commit push` preparation and a mock DNS server) |
+| 6 | Goal Validation table, then `/ze-close` (two closure commits) | Interop is N/A: tooling with no protocol peer |
+| 7 | Release check | Thomas runs `./le verify worktree` when the machine is quiet |
+
+### Traps the next session should know
+
+- The shared `./le` runs the newest COMMITTED build (spec-le-built-from-head). Test working-tree le code with `./le --name <name> ...`.
+- le refuses to start when any area lacks a table or any item lacks its short or long text. A working-tree change that adds an area or action without them breaks every `./le --name` build in this checkout until filled.
+- The weakening gate counts assertions per test function: moving checks into a helper reads as a weakening, and deleting or renaming a test needs Thomas's words in this session (not relayed from another session).
+- Agents run out at about 100 tool calls: brief each to commit a coherent green part before then.
+- Per-spec session digests: `tmp/session/2026-10-25-main-fd/state/session-state-spec-le-cli-usability-main-fd.md`.
 
 ## Task
 
