@@ -915,6 +915,44 @@ The last two are DEBT, and the ledger publishes them as debt. An `unresolved`
 line drains when somebody fetches and summarises the successor. An `unextracted`
 line drains by an extraction pass over the successor's summary.
 
+## The updated-by marker
+
+`{superseded}` is for a document another RFC obsoletes. A document another RFC
+only UPDATES keeps its obligations, and some of its rows are rewritten: RFC 7606
+Section 3.d replaces RFC 4271's session reset for a missing well-known attribute
+with treat-as-withdraw. Such a row carries one marker naming the updater's
+requirement that rewrites it, with the reason:
+
+```
+- [ ] [RFC4271-6.3-7] [MUST] <text> (§6.3) {updated-by: RFC7606-3.d-1; RFC 7606 Section 3.d replaces the reset for a missing well-known mandatory attribute with treat-as-withdraw}
+```
+
+`parseUpdatedBy` (`internal/le/rfc/summary.go`) refuses a marker with an empty
+body, no reason, or anything but exactly one requirement id. Where several rows
+of the updater rewrite one row, the marker names the governing one, and the
+others stay reachable through the updater's own summary. A row carries at most
+one `{updated-by}`, and it composes with a coverage annotation and a
+`{superseded}` marker on the same line, one of each kind (`stripMarkers`).
+
+`checkUpdatedBy` (`internal/le/rfc/check_core.go`) holds the pointer against
+the updater, and refuses, naming the fix, when:
+
+| Refusal | Fix |
+|---------|-----|
+| The updater's summary is not in `rfc/short/` | Summarise the updater first, or remove the marker |
+| The updater's Meta `Updates` cell does not name this RFC | Add it to that cell when the updater's header lists it under Updates, otherwise remove the marker |
+| The updater's summary does not declare the id | Name the row that rewrites this one, or extract it first |
+
+The `Updates` cell is the source of the update edge today. The RFC header is the
+authority, and the cell is the summary's declaration of it. `updatesFrom`
+(`internal/le/rfc/meta.go`) reads the cell as a comma list of RFC numbers,
+drops parentheticals first, takes `-` or `None` as no update, and refuses any
+other item.
+
+The marker changes no count. The row stays gated, tagged and counted in its own
+RFC exactly as before: it says where the row is ordered, never that Ze stops
+owing it (`TestAnUpdatedByMarkerChangesNoCount`).
+
 ## The extraction sign-off
 
 `./le rfc check` verifies that every requirement LISTED in a summary is covered.

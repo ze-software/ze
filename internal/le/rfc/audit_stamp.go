@@ -147,9 +147,10 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampRepor
 	}
 
 	rows := map[string]Requirement{}
-	for _, req := range collected.Requirements {
+	for i := range collected.Requirements {
+		req := &collected.Requirements[i]
 		if req.RFC == rfcStem {
-			rows[req.RID] = req
+			rows[req.RID] = *req
 		}
 	}
 	byRID := map[string][]Tag{}

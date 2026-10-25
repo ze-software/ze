@@ -104,6 +104,7 @@ func implementationNamesAnImplementer(kind string) bool {
 // real successor were read as current.
 const (
 	metaTitle                = "Title"
+	metaUpdates              = "Updates"
 	metaEnrolment            = "Enrolment"
 	metaEnrolmentReason      = "Enrolment reason"
 	metaImplementation       = "Implementation"
@@ -264,6 +265,10 @@ type Meta struct {
 	// Successor is the stem of the document that obsoletes this one, and is
 	// empty when nothing does.
 	Successor string
+	// Updates is the stems of the RFCs this document declares it updates, from
+	// the Meta `Updates` cell, in the order the cell writes them. Empty when the
+	// cell is absent, `-` or `None`.
+	Updates []string
 	// Enrolment is a member of enrolmentKinds, and EnrolmentReason is why.
 	Enrolment       string
 	EnrolmentReason string
@@ -378,6 +383,9 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	}
 	out := Meta{Title: values[metaTitle], Name: values[metaSupportName]}
 	if out.Successor, err = successorFrom(values, stem, where); err != nil {
+		return Meta{}, err
+	}
+	if out.Updates, err = updatesFrom(values[metaUpdates], where); err != nil {
 		return Meta{}, err
 	}
 	if err := readEnrolment(values, &out, where); err != nil {
@@ -682,6 +690,49 @@ func successorFrom(values map[string]string, stem, where string) (string, error)
 			Str(", which is this document. A summary cannot obsolete itself"))
 	}
 	return successor, nil
+}
+
+// updatesItemRE is one item of the `Updates` cell: an RFC number, with or
+// without its `RFC` word. updatesNoteRE is a parenthetical, cut from the cell
+// first, so the errata number in `RFC 4271 (verified errata 7915)` is never
+// read as an RFC.
+var (
+	updatesItemRE = regexp.MustCompile(`(?i)^(?:RFC\s*)?(\d{3,5})$`)
+	updatesNoteRE = regexp.MustCompile(`\([^()]*\)`)
+)
+
+// updatesFrom reads the Meta `Updates` cell into the stems it names.
+//
+// The cell is this summary's declaration of the RFC header's `Updates:` line,
+// and today it is the source checkUpdatedBy holds an {updated-by} marker
+// against. An item that names no RFC is refused rather than skipped: a skipped
+// item is an update the check would then refuse every marker for.
+func updatesFrom(value, where string) ([]string, error) {
+	// Parentheticals go first, before the comma split: they carry prose, an
+	// erratum number or a comma of their own, and never the updated RFC.
+	value = strings.TrimSpace(updatesNoteRE.ReplaceAllString(value, ""))
+	if value == "" {
+		return nil, nil
+	}
+	if value == "-" {
+		return nil, nil
+	}
+	if strings.EqualFold(value, "none") {
+		return nil, nil
+	}
+	var out []string
+	for item := range strings.SplitSeq(value, ",") {
+		found := updatesItemRE.FindStringSubmatch(strings.TrimSpace(item))
+		if found == nil {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": the Meta `Updates` cell item ").
+				Str(pyRepr(strings.TrimSpace(item))).Str(" names no RFC. Write the updated RFCs as ").
+				Str("a comma list of numbers, e.g. `RFC 1997, 4271`, or write `None`"))
+		}
+		var stem textbuf.Buffer
+		out = append(out, stem.Str("rfc").Str(found[1]).String())
+	}
+	return out, nil
 }
 
 // sortMetaStems orders a stem set for a message, so two runs name it alike.

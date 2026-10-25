@@ -124,7 +124,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	kind = strings.TrimSpace(kind)
 	rest = strings.TrimSpace(rest)
 	if !annotationKinds[kind] {
-		known := append(AnnotationKinds(), SupersededKind)
+		known := append(AnnotationKinds(), SupersededKind, UpdatedByKind)
 		slices.Sort(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
@@ -506,52 +506,129 @@ func parseSuccessor(body, where string) (*Successor, error) {
 	return &Successor{Disposition: disposition, Reason: reason}, nil
 }
 
+// parseUpdatedBy reads `{updated-by: RFC7606-3.d-1; why}`: exactly one
+// requirement id of the updating RFC, and a reason. The reason is mandatory for
+// the same cause as on {superseded}: a pointer nobody explained is a pointer
+// nobody checked.
+func parseUpdatedBy(body, where string) (*UpdatedBy, error) {
+	var tb textbuf.Buffer
+	_, rest, _ := strings.Cut(body, ":")
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return nil, parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).
+			Str("} has an empty body. Name the requirement of the updating RFC that rewrites ").
+			Str("this row: {").Str(UpdatedByKind).Str(": <ID>; why}, e.g. {").Str(UpdatedByKind).
+			Str(": RFC7606-3.d-1; RFC 7606 Section 3.d replaces the session reset}"))
+	}
+	head, reason, found := strings.Cut(rest, ";")
+	reason = strings.TrimSpace(reason)
+	if !found || reason == "" {
+		return nil, parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).Str(": ").
+			Str(strings.TrimSpace(head)).Str("} has no reason. A pointer nobody explained is a ").
+			Str("pointer nobody checked; say what the updater does to this row (replaces, ").
+			Str("narrows, relaxes or strengthens it). Format: {").Str(UpdatedByKind).Str(": <ID>; why}"))
+	}
+	ids := strings.Fields(head)
+	if len(ids) != 1 {
+		return nil, parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).
+			Str("} needs exactly one requirement id, got ").Str(pyRepr(strings.TrimSpace(head))).
+			Str(". Where several rows of the updater rewrite this one, name the governing row; ").
+			Str("the others stay reachable through the updater's own summary. Format: {").
+			Str(UpdatedByKind).Str(": <ID>; why}"))
+	}
+	if _, ok := ridStem(ids[0]); !ok {
+		return nil, parseErr(tb.Str(where).Str(": {").Str(UpdatedByKind).Str(": ").Str(ids[0]).
+			Str("} is not a requirement id. Name a row of the updating RFC's summary, ").
+			Str("<PREFIX>-<section>-<n>, e.g. RFC7606-3.d-1"))
+	}
+	return &UpdatedBy{Target: ids[0], Reason: reason}, nil
+}
+
+// ridStem answers the summary stem a requirement id belongs to, the inverse of
+// Prefix, and false when the id is not shaped `<PREFIX>-<section>-<n>`.
+func ridStem(rid string) (string, bool) {
+	found := idRE.FindStringSubmatch(rid)
+	if found == nil {
+		return "", false
+	}
+	head := found[1]
+	split := strings.LastIndexByte(head, '-')
+	if split < 1 {
+		return "", false
+	}
+	if !idSectionRE.MatchString(head[split+1:]) {
+		return "", false
+	}
+	return strings.ToLower(head[:split]), true
+}
+
+// rowMarkers are the trailing `{...}` groups one requirement line carries, one
+// of each kind at most.
+type rowMarkers struct {
+	annotation *Annotation
+	successor  *Successor
+	updatedBy  *UpdatedBy
+}
+
 // stripMarkers peels every trailing `{...}` group off a requirement line.
 //
-// A line carries at most one coverage annotation AND at most one {superseded}
-// marker, in either order, and the two COMPOSE. The loop is what makes that
+// A line carries at most one coverage annotation, at most one {superseded}
+// marker AND at most one {updated-by} marker, in any order, and they COMPOSE:
+// a row can be un-testable here, restated by a successor and rewritten by an
+// updater at once, and each says a different thing. The loop is what makes that
 // possible: the pattern anchors at end of line and matches ONE group, so a
 // single search would leave the second group inside the requirement TEXT,
 // unparsed and dragged into extractSection as if it were prose.
-func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
-	var annotation *Annotation
-	var successor *Successor
+func stripMarkers(rest, where string) (rowMarkers, string, error) {
+	var markers rowMarkers
 	for {
 		loc := annotationRE.FindStringSubmatchIndex(rest)
 		if loc == nil {
 			if hasPartialMarker(rest) {
-				return nil, nil, "", &ParseError{msg: where + ": malformed {partial} marker; literal braces are unsupported"}
+				return rowMarkers{}, "", &ParseError{msg: where + ": malformed {partial} marker; literal braces are unsupported"}
 			}
-			return annotation, successor, rest, nil
+			return markers, rest, nil
 		}
 		body := strings.TrimSpace(rest[loc[2]:loc[3]])
 		kind := strings.TrimSpace(strings.SplitN(body, ":", 2)[0])
-		var tb textbuf.Buffer
-		if kind == SupersededKind {
-			if successor != nil {
-				return nil, nil, "", parseErr(tb.Str(where).Str(": two {").Str(SupersededKind).
-					Str("} markers on one line. An obligation has one destination"))
-			}
-			parsed, err := parseSuccessor(body, where)
-			if err != nil {
-				return nil, nil, "", err
-			}
-			successor = parsed
-		} else {
-			if annotation != nil {
-				return nil, nil, "", parseErr(tb.Str(where).
-					Str(": two coverage annotations on one line ({").Str(annotation.Kind).
-					Str("} and {").Str(kind).
-					Str("}). A requirement has one coverage disposition"))
-			}
-			parsed, err := parseAnnotation(body, where)
-			if err != nil {
-				return nil, nil, "", err
-			}
-			annotation = parsed
+		if err := markers.add(kind, body, where); err != nil {
+			return rowMarkers{}, "", err
 		}
 		rest = strings.TrimSpace(rest[:loc[0]])
 	}
+}
+
+// add parses one marker body into its slot, refusing a second of a kind.
+func (m *rowMarkers) add(kind, body, where string) error {
+	var tb textbuf.Buffer
+	if kind == SupersededKind {
+		if m.successor != nil {
+			return parseErr(tb.Str(where).Str(": two {").Str(SupersededKind).
+				Str("} markers on one line. An obligation has one destination"))
+		}
+		parsed, err := parseSuccessor(body, where)
+		m.successor = parsed
+		return err
+	}
+	if kind == UpdatedByKind {
+		if m.updatedBy != nil {
+			return parseErr(tb.Str(where).Str(": two {").Str(UpdatedByKind).
+				Str("} markers on one line. Name the governing row of the updater once; ").
+				Str("its other rows stay reachable through its own summary"))
+		}
+		parsed, err := parseUpdatedBy(body, where)
+		m.updatedBy = parsed
+		return err
+	}
+	if m.annotation != nil {
+		return parseErr(tb.Str(where).
+			Str(": two coverage annotations on one line ({").Str(m.annotation.Kind).
+			Str("} and {").Str(kind).
+			Str("}). A requirement has one coverage disposition"))
+	}
+	parsed, err := parseAnnotation(body, where)
+	m.annotation = parsed
+	return err
 }
 
 // hasPartialMarker recognizes the same whitespace-trimmed kind that
@@ -646,7 +723,7 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	}
 
 	rest := strings.TrimSpace(found[4])
-	annotation, successor, rest, err := stripMarkers(rest, where)
+	markers, rest, err := stripMarkers(rest, where)
 	if err != nil {
 		return nil, err
 	}
@@ -656,8 +733,8 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	}
 	req := &Requirement{
 		RFC: stem, RID: rid, Level: found[3], Text: rest, Section: section,
-		Annotation: annotation, Source: source, Line: lineno,
-		Ticked: ticked, Superseded: successor,
+		Annotation: markers.annotation, Source: source, Line: lineno,
+		Ticked: ticked, Superseded: markers.successor, UpdatedBy: markers.updatedBy,
 	}
 	if refusal := partialScopeRefusal(req); refusal != "" {
 		return nil, &ParseError{msg: where + ": {partial} " + refusal}

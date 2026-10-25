@@ -298,7 +298,8 @@ func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
 			unreadable[stem] = true
 			continue
 		}
-		for _, req := range requirements {
+		for i := range requirements {
+			req := &requirements[i]
 			out[req.RID] = req.Level
 		}
 	}

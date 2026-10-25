@@ -472,6 +472,24 @@ The last two dispositions are DEBT, and `ai/RFC-REQUIREMENTS.md` publishes them 
 debt. Draining one is separate work: fetch and summarise the successor, or extract the
 rows its summary is missing.
 
+## Updated Documents Name the Row That Rewrites Them
+
+A document another RFC UPDATES, rather than obsoletes, keeps its obligations. A row
+the updater rewrites (replaces, narrows, relaxes or strengthens) carries one
+`{updated-by: <ID>; why}` marker naming the updater's governing requirement, with a
+reason that names the updater's section and the kind of rewrite. Read the updater's
+text before writing the reason, and do not claim more than it says:
+
+```
+- [ ] [RFC4271-6.3-7] [MUST] <text> (§6.3) {updated-by: RFC7606-3.d-1; RFC 7606 Section 3.d replaces the reset for a missing well-known mandatory attribute with treat-as-withdraw}
+```
+
+`./le rfc check` refuses the marker unless the updater's summary exists, its Meta
+`Updates` cell names this RFC, and it declares the id. Like `{superseded}`, the marker
+composes with a coverage annotation and changes no count: the row stays gated and
+counted in its own RFC. The full contract: `docs/contributing/rfc-conformance-gates.md`,
+"The updated-by marker".
+
 ## Linking Requirements to Tests
 
 The link is two-way, but only ONE side is authored: the test tags itself.

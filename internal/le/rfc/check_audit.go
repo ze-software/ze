@@ -43,9 +43,10 @@ func checkAuditFiles(tree string, enrolled, stems map[string]bool) ([]string, er
 func checkAuditSchema(requirements []Requirement, tags []Tag, audits map[string]Audit) []string {
 	byRID := tagsByRID(tags)
 	known := map[string]Requirement{}
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if _, held := known[req.RID]; !held {
-			known[req.RID] = req
+			known[req.RID] = *req
 		}
 	}
 	var errs []string
@@ -187,12 +188,13 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 
 func checkAuditFreshness(requirements []Requirement, states map[string]Freshness) []string {
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		state, held := states[req.RID]
 		if !held || state.State == FreshState {
 			continue
 		}
-		where := requirementWhere(req)
+		where := requirementWhere(*req)
 		switch state.State {
 		case ShiftedState:
 			detail := strings.Join(state.Moved, ", ")
@@ -233,7 +235,8 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 	enrolled map[string]bool, audits map[string]Audit) []string {
 	seen := map[string]bool{}
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if !enrolled[req.RFC] || seen[req.RID] {
 			continue
 		}
@@ -268,7 +271,8 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 	}
 	seen := map[string]bool{}
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if !enrolled[req.RFC] || seen[req.RID] {
 			continue
 		}
@@ -345,7 +349,8 @@ func checkAuditVerdictRatchet(requirements []Requirement, enrolled map[string]bo
 	}
 	seen := map[string]bool{}
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if !enrolled[req.RFC] || !baselineEnrolled[req.RFC] || seen[req.RID] {
 			continue
 		}
@@ -369,7 +374,8 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 	index := newScopeIndex()
 	seen := map[string]bool{}
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if !enrolled[req.RFC] || seen[req.RID] {
 			continue
 		}
@@ -458,7 +464,8 @@ func partialCoverRefusals(rid string, covers map[Cover][]Tag, verdicts []Discrim
 func checkPartialProofs(requirements []Requirement, audits map[string]Audit,
 	covers map[Cover][]Tag, verdicts []DiscriminationVerdict) []string {
 	var errs []string
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		verdict, held := audits[req.RFC].Verdict(req.RID)
 		if held && verdictValue(verdict) == VerdictPartial {
 			errs = append(errs, partialCoverRefusals(req.RID, covers, verdicts)...)

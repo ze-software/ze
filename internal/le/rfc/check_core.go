@@ -47,7 +47,8 @@ func annotationBarsATest(kind string) bool {
 // the same fields through deriveRollups.
 func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) []Finding {
 	known := map[string]bool{}
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		known[req.RID] = true
 	}
 	var errs []Finding
@@ -62,7 +63,8 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 	// A tag naming no requirement is keyed under an id no row reads.
 	byRID := tagsByRID(tags)
 	newRollupDeriver(requirements, byRID, enrolled).fill(requirements)
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if !enrolled[req.RFC] {
 			continue
 		}
@@ -71,11 +73,11 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 		for _, tag := range found {
 			polarity[tag.Polarity] = true
 		}
-		where := requirementWhere(req)
+		where := requirementWhere(*req)
 		if req.Ticked {
 			var tb textbuf.Buffer
 			const issue = "has a ticked checkbox, which is a claim rather than coverage"
-			errs = append(errs, requirementFinding(req, issue, tb.Str(where).Str(": ").Str(req.RID).
+			errs = append(errs, requirementFinding(*req, issue, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String()))
 		}
 		annotation := req.Annotation
@@ -88,7 +90,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				}
 				var tb textbuf.Buffer
 				var issue textbuf.Buffer
-				errs = append(errs, requirementFinding(req,
+				errs = append(errs, requirementFinding(*req,
 					issue.Str("is annotated {").Str(annotation.Kind).Str("} and IS tested, so the annotation is stale").String(),
 					tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {").
 						Str(annotation.Kind).Str("} but IS tested (").Str(strings.Join(locations, ", ")).
@@ -105,7 +107,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			for _, value := range []string{PolarityPositive, PolarityNegative} {
 				if !polarity[value] {
 					var tb textbuf.Buffer
-					errs = append(errs, requirementFinding(req, "partial scope lacks "+value+" test",
+					errs = append(errs, requirementFinding(*req, "partial scope lacks "+value+" test",
 						tb.Str(where).Str(": ").Str(req.RID).Str(" {partial} tested scope requires both polarities; missing ").Str(value).String()))
 				}
 			}
@@ -129,7 +131,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				}
 				var tb textbuf.Buffer
 				var issue textbuf.Buffer
-				errs = append(errs, requirementFinding(req,
+				errs = append(errs, requirementFinding(*req,
 					issue.Str("is annotated {single-polarity: ").Str(annotation.Polarity).
 						Str("} and a ").Str(other).Str(" test exists, so the annotation is stale").String(),
 					tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {single-polarity: ").
@@ -139,7 +141,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			if !polarity[annotation.Polarity] {
 				var tb textbuf.Buffer
 				var issue textbuf.Buffer
-				errs = append(errs, requirementFinding(req,
+				errs = append(errs, requirementFinding(*req,
 					issue.Str("has no ").Str(annotation.Polarity).Str(" test, which its annotation requires").String(),
 					tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
 						Str("] has no ").Str(annotation.Polarity).Str(" test: ").Str(truncateRunes(req.Text, 70)).String()))
@@ -148,7 +150,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 		}
 		if len(found) == 0 {
 			var tb textbuf.Buffer
-			errs = append(errs, requirementFinding(req, "has no test and no annotation",
+			errs = append(errs, requirementFinding(*req, "has no test and no annotation",
 				tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
 					Str("] has no test and no annotation: ").Str(truncateRunes(req.Text, 70)).String()))
 			continue
@@ -168,7 +170,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			slices.Sort(held)
 			var tb textbuf.Buffer
 			var issue textbuf.Buffer
-			errs = append(errs, requirementFinding(req,
+			errs = append(errs, requirementFinding(*req,
 				issue.Str("has no ").Str(value).Str(" test, only ").Str(strings.Join(held, "/")).String(),
 				tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
 					Str("] has no ").Str(value).Str(" test (only ").Str(strings.Join(held, "/")).
@@ -189,15 +191,17 @@ func truncateRunes(text string, maximum int) string {
 func checkSuperseded(tree string, requirements []Requirement, successors map[string]string,
 	stems map[string]bool) []string {
 	idsByStem := map[string]map[string]bool{}
-	for _, req := range requirements {
+	for i := range requirements {
+		req := &requirements[i]
 		if idsByStem[req.RFC] == nil {
 			idsByStem[req.RFC] = map[string]bool{}
 		}
 		idsByStem[req.RFC][req.RID] = true
 	}
 	var errs []string
-	for _, req := range requirements {
-		where := requirementWhere(req)
+	for i := range requirements {
+		req := &requirements[i]
+		where := requirementWhere(*req)
 		successor := successors[req.RFC]
 		mark := req.Superseded
 		if successor == "" {
@@ -253,6 +257,79 @@ func checkSuperseded(tree string, requirements []Requirement, successors map[str
 		}
 	}
 	return errs
+}
+
+// checkUpdatedBy holds every {updated-by} marker against the updater it names:
+// the updater's summary is in the repository, its Meta `Updates` cell names
+// the marked row's RFC, and it declares the id. The marker changes no count,
+// so this is the only place it is judged.
+//
+// The `Updates` cell is the source of the update edge today: the RFC header is
+// the authority, and the cell is the summary's declaration of it.
+func checkUpdatedBy(requirements []Requirement, metas map[string]Meta, stems map[string]bool) []string {
+	idsByStem := map[string]map[string]bool{}
+	for i := range requirements {
+		req := &requirements[i]
+		if idsByStem[req.RFC] == nil {
+			idsByStem[req.RFC] = map[string]bool{}
+		}
+		idsByStem[req.RFC][req.RID] = true
+	}
+	var errs []string
+	for i := range requirements {
+		req := &requirements[i]
+		mark := req.UpdatedBy
+		if mark == nil {
+			continue
+		}
+		// parseUpdatedBy refused an id ridStem cannot read, so this answers.
+		updater, _ := ridStem(mark.Target)
+		if refusal := updatedByRefusal(*req, updater, metas, stems, idsByStem); refusal != "" {
+			errs = append(errs, refusal)
+		}
+	}
+	return errs
+}
+
+// updatedByRefusal answers why one marker's pointer dangles, and "" when it
+// holds.
+func updatedByRefusal(req Requirement, updater string, metas map[string]Meta, stems map[string]bool,
+	idsByStem map[string]map[string]bool) string {
+	var tb textbuf.Buffer
+	tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).Str(" carries {").Str(UpdatedByKind).
+		Str(": ").Str(req.UpdatedBy.Target).Str("}, but rfc/short/").Str(updater).Str(".md ")
+	if !stems[updater] {
+		return tb.Str("is not in this repository, so nothing can say the id exists. Write the summary of ").
+			Str(rfcName(updater)).Str(" first (ai/skills/ze-rfc.md), or remove the marker").String()
+	}
+	meta, parsed := metas[updater]
+	if !parsed {
+		// Its Meta table did not parse, and that refusal is already reported.
+		return ""
+	}
+	if !slices.Contains(meta.Updates, req.RFC) {
+		return tb.Str("does not name ").Str(rfcName(req.RFC)).Str(" in its Meta `Updates` cell, so ").
+			Str("nothing says ").Str(rfcName(updater)).Str(" updates this document. If the ").
+			Str(rfcName(updater)).Str(" header lists ").Str(rfcName(req.RFC)).
+			Str(" under Updates, add it to that cell; otherwise remove the marker, because only an ").
+			Str("updating RFC rewrites a row").String()
+	}
+	if !idsByStem[updater][req.UpdatedBy.Target] {
+		return tb.Str("does not declare that id. Name the row of ").Str(rfcName(updater)).
+			Str(" that rewrites this one, or extract it into that summary first").String()
+	}
+	return ""
+}
+
+// rfcName answers the reader's spelling of a stem: rfc4271 is "RFC 4271", and
+// a stem that is not an RFC number is its own name.
+func rfcName(stem string) string {
+	number, isRFC := strings.CutPrefix(stem, "rfc")
+	if !isRFC {
+		return stem
+	}
+	var tb textbuf.Buffer
+	return tb.Str("RFC ").Str(number).String()
 }
 
 // checkLowerLayerProducer holds every {lower-layer} annotation against the

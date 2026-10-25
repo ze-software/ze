@@ -273,6 +273,10 @@ func AnnotationKinds() []string { return sortedKeys(annotationKinds) }
 
 const SupersededKind = "superseded"
 
+// UpdatedByKind is the row marker naming the requirement of an UPDATING RFC
+// that rewrites this row. It orders the row; it changes no count.
+const UpdatedByKind = "updated-by"
+
 // What a superseded document's obligation became. A closed set, because free
 // text lets "the RFC was replaced" read as "Ze need not comply".
 const (
@@ -454,6 +458,16 @@ type Successor struct {
 	Reason      string `json:"reason"`
 }
 
+// UpdatedBy names the requirement of an updating RFC that rewrites one row of
+// the RFC it updates: replaces, narrows, relaxes or strengthens it.
+//
+// Target is exactly one requirement id of the updater, and Reason says what the
+// updater does to the row. The row stays gated and counted in its own RFC.
+type UpdatedBy struct {
+	Target string `json:"target"`
+	Reason string `json:"reason"`
+}
+
 // Requirement is one Compliance Checklist line.
 type Requirement struct {
 	RFC     string `json:"rfc"`
@@ -468,15 +482,18 @@ type Requirement struct {
 	// Ticked records a hand-written "- [x]". Recorded, not obeyed: coverage is
 	// DERIVED from test tags, so a tick is someone's claim, not evidence.
 	Ticked bool `json:"ticked"`
-	// Superseded is where this obligation now lives, when the document stating
-	// it has been obsoleted. Its OWN field, never a member of Annotation.
-	Superseded *Successor `json:"superseded,omitempty"`
 	// Derived is the state a {rollup} row takes from the rows it names, and
 	// RollupNone on every other row. rollupDeriver.fill writes it, for evaluate
 	// and for deriveRollups (check_core.go). A reader that finds RollupNone on
 	// a rollup row is reading a requirement nobody has evaluated, never a
 	// rollup with no state.
 	Derived RollupState `json:"derived,omitempty"`
+	// Superseded is where this obligation now lives, when the document stating
+	// it has been obsoleted. Its OWN field, never a member of Annotation.
+	Superseded *Successor `json:"superseded,omitempty"`
+	// UpdatedBy is the updating RFC's requirement that rewrites this row, and
+	// nil when no updater touches it. Its OWN field, like Superseded.
+	UpdatedBy *UpdatedBy `json:"updated-by,omitempty"`
 	// DerivedCause is the sentence naming the first target that decided a
 	// derived gap or unproven state, and empty on a met rollup and on every
 	// other row. The gate raises no finding for a rollup, so this is the one
@@ -520,7 +537,7 @@ func (r Requirement) DerivedMark() string {
 // value: rollupDeriver.answer settles a gap before an unproven row by reading
 // the targets in author order, because a rollup over one gap and nine
 // untested rows owes the gap first.
-type RollupState int
+type RollupState uint8
 
 const (
 	RollupNone RollupState = iota

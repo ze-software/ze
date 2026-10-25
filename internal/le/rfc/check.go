@@ -193,7 +193,8 @@ func (r *CheckReport) Text() string {
 			Str("`RFC requirement: <ID> gap` tag on a Go test that calls rfcgap.Demonstrate.\n").
 			Str("See ai/skills/ze-rfc.md.\n")
 		tb.Str("partial: ").Int(int64(r.Partial)).Str(" gated rows; zero whole-requirement credit.\n")
-		for _, req := range r.PartialScopes {
+		for i := range r.PartialScopes {
+			req := &r.PartialScopes[i]
 			tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
 		}
 		return tb.String()
@@ -210,7 +211,8 @@ func (r *CheckReport) Text() string {
 		Int(int64(r.GapsDemonstrated + r.GapsDescribed)).Str(" {gap} row(s) in every summary").
 		Str(demonstratedStemsPhrase(r.GapsByStem)).Str(".\n")
 	tb.Str("partial: ").Int(int64(r.Partial)).Str(" gated rows with scoped evidence and a remaining gap; zero whole-requirement credit.\n")
-	for _, req := range r.PartialScopes {
+	for i := range r.PartialScopes {
+		req := &r.PartialScopes[i]
 		tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
 	}
 	tb.Str("extraction: ").Str(registerPhrase(r.SignedByRegister)).Str(" signed off of ").Int(int64(r.Enrolled)).
@@ -452,6 +454,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)
 	successors := successorsFrom(collected.Metas)
 	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
+	findings = append(findings, notes(checkUpdatedBy(collected.Requirements, collected.Metas, stems))...)
 	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err
@@ -526,7 +529,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	headRecords, headRecordsKnown := baselineDiscrimination(tree)
 	headRecordBlobs, headRecordBlobsKnown := baselineRecordBlobs(tree, records)
 	gated := map[string]bool{}
-	for _, req := range collected.Requirements {
+	for i := range collected.Requirements {
+		req := &collected.Requirements[i]
 		if req.Gated() && collected.Enrolled[req.RFC] {
 			gated[req.RID] = true
 		}
@@ -550,7 +554,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, notes(checkDrainFloor(tree, collected.Enrolled, signed, today))...)
 
 	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
-	for _, req := range collected.Requirements {
+	for i := range collected.Requirements {
+		req := &collected.Requirements[i]
 		if req.Gated() && collected.Enrolled[req.RFC] {
 			report.Gated++
 		}
@@ -569,9 +574,10 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 		}
 	}
 	report.PartialScopes = []Requirement{}
-	for _, req := range collected.Requirements {
+	for i := range collected.Requirements {
+		req := &collected.Requirements[i]
 		if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
-			report.PartialScopes = append(report.PartialScopes, req)
+			report.PartialScopes = append(report.PartialScopes, *req)
 		}
 	}
 	report.Evidence = evidenceCounts(collected.Tags, carriers)

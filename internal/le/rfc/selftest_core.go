@@ -39,6 +39,13 @@ const (
 	selftestSummaryRelSecond = "rfc/short/rfc8888.md"
 )
 
+// The successor stem the fixture's superseded and updated-by markers name, and
+// the requirement id they point at in it.
+const (
+	selftestStemUpdater = "rfc10000"
+	selftestRIDUpdater  = "RFC10000-3-1"
+)
+
 // selftestMeta is the fixture summary's `## Meta` table: the one place a
 // summary declares its own enrolment and its own public row.
 const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
@@ -112,7 +119,11 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 	successorOK := first.Superseded != nil
 	if successorOK {
 		successorOK = first.Superseded.Disposition == successorRestated
-		successorOK = successorOK && first.Superseded.Target == "RFC10000-3-1"
+		successorOK = successorOK && first.Superseded.Target == selftestRIDUpdater
+	}
+	updatedByOK, err := updatedBySelftestHolds()
+	if err != nil {
+		return nil, err
 	}
 	corrections := parseCorrections(fixture.text)
 	correctionOK := len(corrections) == 1
@@ -131,9 +142,44 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 			"the single-polarity annotation did not retain its polarity and reason"),
 		selftestResult("summary/successor", successorOK,
 			"the successor marker did not compose with the coverage annotation"),
+		selftestResult("summary/updated-by", updatedByOK,
+			"the updated-by marker did not parse, or the check did not accept a declared update and refuse an undeclared one"),
 		selftestResult("summary/correction", correctionOK,
 			"the correction paragraph did not retain its id and quote"),
 	}, nil
+}
+
+// selftestUpdatedByRow is a fixture row of the updated RFC, rewritten by a row
+// of rfc10000. Its own line rather than a marker on selftestSummaryHead, so the
+// other selftests' population carries no pointer they would have to resolve.
+const selftestUpdatedByRow = "- [ ] [RFC9999-2-3] [MUST] A speaker MUST reset the session (§2) " +
+	"{updated-by: RFC10000-3-1; RFC 10000 Section 3 replaces the reset with a withdrawal}\n"
+
+// updatedBySelftestHolds parses the marked row, then checks that
+// checkUpdatedBy accepts it while rfc10000 declares it updates rfc9999 and
+// refuses it once that declaration is gone.
+func updatedBySelftestHolds() (bool, error) {
+	marked, err := parseSummaryText(selftestUpdatedByRow, selftestStem, selftestSummaryRel)
+	if err != nil {
+		return false, err
+	}
+	if len(marked) != 1 {
+		return false, nil
+	}
+	if marked[0].UpdatedBy == nil {
+		return false, nil
+	}
+	if marked[0].UpdatedBy.Target != selftestRIDUpdater {
+		return false, nil
+	}
+	updaterRow := Requirement{RFC: selftestStemUpdater, RID: selftestRIDUpdater, Level: levelMust}
+	requirements := []Requirement{marked[0], updaterRow}
+	stems := map[string]bool{selftestStem: true, selftestStemUpdater: true}
+	declared := map[string]Meta{selftestStem: {}, selftestStemUpdater: {Updates: []string{selftestStem}}}
+	undeclared := map[string]Meta{selftestStem: {}, selftestStemUpdater: {}}
+	accepted := len(checkUpdatedBy(requirements, declared, stems)) == 0
+	refused := len(checkUpdatedBy(requirements, undeclared, stems)) == 1
+	return accepted && refused, nil
 }
 
 func runCarrierSelftest() ([]leroot.SelftestResult, error) {

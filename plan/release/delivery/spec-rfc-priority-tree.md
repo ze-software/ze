@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
@@ -226,7 +226,7 @@ Agreed shape (owner, 2026-10-25):
 | `TestGraphCycleSharesLevel` | `internal/le/rfc/graph/graph_test.go` | AC-3 | |
 | `TestIndexUpdateWritesGraph` | `internal/le/rfc/write_test.go` | AC-1 wiring and freshness | |
 | `TestSupportNamesAggregate` | `internal/le/rfc/meta_test.go` | AC-4 | |
-| `TestCheckRefusesUpdatedByWithoutHeaderLink` | `internal/le/rfc/check_test.go` | AC-5 | |
+| `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater`, `TestAMalformedUpdatedByMarkerIsRefused`, `TestAnUpdatedByMarkerParsesItsTargetAndItsReason`, `TestTheUpdatesCellNamesTheStemsItUpdates`, `TestAnUpdatedByMarkerChangesNoCount` | `internal/le/rfc/updatedby_test.go` | AC-5 | |
 | `TestCheckRefusesMetaLinkHeaderMismatch` | `internal/le/rfc/check_test.go` | AC-14 | |
 | `TestStatusPageRowSetUnchanged` | `internal/le/rfc/render_ledger_test.go` | AC-6 | |
 | `TestCoverageMandatoryOptional` | `internal/le/rfc/profilecoverage_test.go` | AC-7, AC-8 | |
@@ -437,6 +437,9 @@ Mapped 2026-10-25 from `rfc/full/rfc7606.txt` against `rfc/full/rfc4271.txt` Sec
 Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-security, bgp-communities-policy, bgp-vpn-evpn, bgp-flowspec, bgp-ls, bgp-sr-tunnel, bgp-monitoring, rpki, bfd, isis, ospf, mpls, ikev2-ipsec, eap, ppp-access, radius-tacacs, oauth-mgmt, dns, dhcp-provisioning, flow-telemetry, route-archival, fhrp, management, tunnels, primitives, drafts. Membership per research 2026-10-25; the 36 summaries without a row are assigned in Phase 1.
 
 ## Design Insights
+
+- The marker is `{updated-by: <ID>; why}`: the reason is mandatory, as on `{superseded}`, because a pointer nobody explained is a pointer nobody checked. One `{updated-by}` per row, composing with one coverage annotation and one `{superseded}` (`stripMarkers`, `rowMarkers`).
+- Until the graph lands, AC-5's "header Updated-by set" is read from the UPDATER's Meta `Updates` cell (`Meta.Updates`, `updatesFrom`), not from the updated summary's `Updated by` cell: the updater's own header carries the `Updates:` line, while the updated RFC's published text predates its updaters (`rfc/full/rfc4271.txt` names no RFC 7606). `updatesFrom` refuses a cell item that names no RFC, so `rfc/short/rfc2966.md`'s prose cell was corrected to its header (None).
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
