@@ -238,10 +238,11 @@ with the reason, instead of being matched or missed by a pattern.
 
 ## Owned journal rows
 
-119 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
+120 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| gate-fires-outside-its-population | 2026-10-25 | weakening detector `skipPattern` (`internal/le/test/weakened/detector.go`), a `t.Skip(` inside a fixture string |
 | gate-fires-outside-its-population | 2026-10-21 | `checkPlanningInputs` (`internal/le/go/lint/verifylint.go`) over `job.InputHash` |
 | gate-fires-outside-its-population | 2026-10-06 | `countFuzzTargets`, `internal/le/doc/yangcontract/scan.go` |
 | gate-fires-outside-its-population | 2026-09-05 | `./le cli-grammar`, its `--flag in YANG` check |

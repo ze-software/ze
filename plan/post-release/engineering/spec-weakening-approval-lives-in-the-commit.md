@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-24 |
+| Updated | 2026-10-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -507,3 +507,163 @@ Later approvals by Thomas on 2026-10-24, each for exactly the change stated:
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `./le test weakened approve unit <package>.<TestName> reason "<owner words>"` (`approveAnswer`, `Approve` in `internal/le/test/weakened/approve.go`) writes one row to `tmp/commit-weakening-approved-<main ns>.md` through the one writer `rfc.ApproveInto` (`internal/le/rfc/approve.go`).
+- One loader, `LoadApprovals` (`internal/le/test/weakened/ledger.go`), serves the edit hook (`proposedApprovals`), the commit gate (`Check`, `rfcChangeProblems`) and the audit's worktree pass (`liveApprovalRows`). It fails closed on a malformed file or a bare unit, and marks a row whose trailer landed (`rfc.TrailerLanded`).
+- `checkSourceGates` (`internal/le/commit/prepare.go`) carries one `Weakening-approved:` line per used row. A unit changed in two directories is refused (`SharedUnitProblems`). An RFC row that admits a weakening is carried once (`mergeRFCApprovals`). The script prunes each approval file after `git commit` (`renderApprovalPrune`, `commitBlock.Approvals`).
+- `declaredTrailers` (`internal/le/commit/actions.go`) gains `Weakening-approved: `, so `refuseHandWrittenTrailer` refuses a forged line.
+- The audit (`acceptedRows`, `auditFile.judge` in `internal/le/test/weakened/audit.go`) reads the audited commit's approval lines per unit. Its RFC branch splits units with `rfc.ChangedUnits` (`internal/le/rfc/changedunits.go`), which the commit gate also calls.
+- Removed: `shard.go` (ReadShards, ForeignShardProblems, CarriedShards, PruneLanded), scoped and bare rows, `ChildCommitSessions`, the `check` verb, the `test weakened/check` verify stage, and 148 tracked shards plus the three transitional ones.
+
+### Bugs Found/Fixed
+- Review round 1: bare units admitted, a spent row reusable at the hook, the RFC/weakening key split in the audit, duplicate RFC trailers. Pinned by `TestABareApprovalUnitIsRefusedByEveryReader`, `TestProposedRefusesAnApprovalALandedCommitAlreadyUsed`, `TestAuditHonoursApprovalTrailersOfTheAuditedCommit`, `TestOneRFCApprovalCarriesOneTrailerForATaggedWeakening`.
+- Review round 2: a prose message line could block every later audit, and one unit in two directories was admitted. Pinned by `TestAuditReadsPastAProseLineThatStartsWithATrailerKey`, `TestAuditRefusesAnApprovalNamingTwoDirectoriesUnits`, `TestCreateRefusesAnApprovalNamingTwoDirectoriesUnits`.
+- Review round 3: `rfc-change-ok` admitted a two-directory unit, a moved test, and `TrailerLanded` exemption width. Pinned by `TestRFCChangeOKAdmitsNoUnitInTwoDirectories`, `TestAMovedWeakenedTestIsOneSite`, `TestTrailerLandedAnswersOnlyWhatGitCanAnswer`.
+
+### Documentation Updates
+- `docs/architecture/testing/test-health.md` "The per-commit weakening record" (anchors on `Check`, `loadApprovalFile`, `claimFinding`, `Approve`, `LoadApprovals`, `SharedUnits`, `acceptedRows`, `checkSourceGates`, `writeWeakening`, `renderApprovalPrune`, `TrailerLanded`); `docs/contributing/testing.md`; `docs/contributing/committing.md`; `docs/contributing/running-commands.md` (1d2c330f99); `docs/functional-tests.md`; `docs/contributing/rfc-conformance-gates.md`; `docs/contributing/rfc-implementation-guide.md`; `docs/architecture/testing/verify-freshness-scope.md`; `.claude/hooks/README.md`; `ai/INDEX.md`; `ai/doors/le-tooling.md`; three rule points and `ai/skills/ze-rfc.md`, regenerated.
+- `./le doc check verify` 2026-10-25: "Documentation tests PASSED".
+
+### Deviations from Plan
+- AC-14: four shards stay tracked, `test/weakened/{485edca9,5122291c,920463e1,fd04e285}.md`. Each holds another session's uncommitted rows, and Thomas approved leaving them on disk and reporting them (R-1). Deleting them is his pending decision.
+- 518a1e3b63 was made with the old binary, which had no `Weakening-approved:` key. It carries its approvals as the "Existing tests changed" tables of this spec, plus two `RFC-approved:` lines. So `./le commit audit base 518a1e3b63~1` still reports its approved test edits, and that commit's message cannot be changed. Each finding maps to an approved row (Pre-Commit Verification, AC-11).
+- The stage removal in `internal/le/verify/engine/stages.go` and its two tests landed in another session's commit 711d82b4d2, because those files carried that session's hunks.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The old binary's edit hook refused new fixtures that hold `t.Skip(` inside a Go string. Three transitional shards were needed | `skipPattern` counts by regular expression over raw source | the same fixtures read `adding t.Skip` at file level in `./le commit audit base 518a1e3b63~1` | journal row 2026-10-25 in `plan/journal/gate-fires-outside-its-population.md`, owned by `spec-gates-share-one-semantic-population` |
+| approach | The owned 2026-10-14 row (`PruneLanded` unlocked rewrite) was resolved by deleting its producer. The successor files keep the same unlocked read-rewrite | `rfc.ApproveInto` and `renderApprovalPrune` share no lock; a lost row fails closed | closure review | journal row 2026-10-25 in `plan/journal/concurrent-session-corruption.md`, owned by `spec-snapshot-builds-and-built-commits` (its AC-8) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Weakening needs Thomas's approval, asked before the edit | Done | `Proposed`, `unapprovedProblem`, `ProposedReport.Text` | refusal text says "ask Thomas first" |
+| His words in an untracked file the hook and the gate read | Done | `ApprovalPath`, `LoadApprovals` | `tmp/` |
+| One `Weakening-approved:` line per test | Done | `claimFinding`, `checkSourceGates` | |
+| No tracked ledger | Done | b55bbfea0a | four held shards per R-1 |
+| Audit reads both approval keys | Done | `acceptedRows`, `auditFile.judge` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWeakeningApproveWritesTheSessionFile` | |
+| AC-2 | Done | `TestWeakeningApproveRefusesBadUnitOrReason` | |
+| AC-3 | Done | `TestProposedWeakeningNeedsAnOwnerApproval` | |
+| AC-4 | Done | `TestProposedWeakeningNeedsAnOwnerApproval`, `TestProposedRFCApprovalAcceptsTheUnitsWeakening` | |
+| AC-5 | Done | `TestWeakeningApprovalReachesASubagentEdit` | |
+| AC-6 | Done | `TestCreateRefusesAnUnapprovedWeakening` | |
+| AC-7 | Done | `TestCreateCarriesWeakeningApprovedTrailer` | |
+| AC-8 | Done | `TestScriptPrunesUsedWeakeningApprovals` | |
+| AC-9 | Done | `TestALandedWeakeningApprovalApprovesNothingFurther` | |
+| AC-10 | Done | `TestMessageRefusesDeclaredTrailerInBody` | iterates `declaredTrailers` |
+| AC-11 | Done | `TestAuditHonoursApprovalTrailersOfTheAuditedCommit` | |
+| AC-12 | Done | same test; live: audit over 224b0ef514 | |
+| AC-13 | Done | `TestAuditWorktreePassReadsLiveApprovals` | |
+| AC-14 | Changed | `git ls-files test/weakened`, `./le test weakened check`, `./le verify list full` | four held shards, owner-approved (Deviations) |
+| AC-15 | Done | `git grep test/weakened` over `internal docs ai .claude` | only `TEST-RELAX-AUDIT.md`, the Go package path, the selftest fixture path and one retired-producer reason |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| all 18 rows of the TDD table | Done | files named in the table | each `func Test...(` found by `git grep` 2026-10-25 |
+| `./le ai hooks unit` | Done | `internal/le/ai/hooks/fixture_catalog.go` | 30/30 after `./le --update` |
+| `./le test weakened selftest` | Done | `internal/le/test/weakened/selftest.go` | PASS after `./le --update` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every row of Files to Modify and Files to Create | Done | 518a1e3b63, b55bbfea0a, 1d2c330f99, and 711d82b4d2 for `stages.go` |
+
+### Audit Summary
+- **Total items:** 5 requirements, 15 AC, 20 tests, all planned files
+- **Done:** all but AC-14
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-14 (four held shards, owner-approved at the write gate, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An agent cannot weaken a test without Thomas's recorded approval | functional (hook binary) | `./le ai hooks unit` 30/30: site `weakened-missing-row-refuses-the-edit` exits 2 and prints `./le test weakened approve unit ` and "ask Thomas first"; `weakened-row-opens-the-hatch` exits 0 |
+| The commit is the record; no tracked ledger | functional | `./le test weakened selftest` PASS (it checks that each used approval becomes one trailer); `./le test weakened check` answers "no such action"; `git ls-files test/weakened` holds only the four owner-held shards |
+| An owner-approved commit stops reading WEAKENED in later reviews | live audit | `./le commit audit base 224b0ef514~1` (2026-10-25) reports none of the eight units 224b0ef514's `RFC-approved:` lines name; `./le commit audit base 518a1e3b63~1` omits the two units its `RFC-approved:` lines name |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| One lock over the owner approval files' writer and prune | the shape predates this spec in the RFC route, and a lost row fails closed | `plan/post-release/engineering/spec-snapshot-builds-and-built-commits.md` (AC-8, owned row 2026-10-25) |
+| `skipPattern` reads a `t.Skip(` inside a Go string as a skip | detector untouched by design (Key insights) | `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` (owned row 2026-10-25) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/weakening-approval-lives-in-the-commit-1f613300-e8c7-4c35-93e0-dab8663705f9.md` (60 files) |
+| `./le spec review check` | clean: "OK (46 code files, clean, hashes match)" |
+| Rounds | 4 |
+| Reviewer lenses used | rounds 1-3: logic and wiring, edge cases and security, fail-closed guards; round 4 (closure, over 518a1e3b63 and 1d2c330f99): wiring, removed behavior, guard audit, forgery, style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | bare approval unit admitted by a reader | `LoadApprovals` | round 1 fix, `TestABareApprovalUnitIsRefusedByEveryReader` |
+| 2 | ISSUE | spent row still admitted an edit at the hook | `proposedApprovals` | round 1 fix, `TestProposedRefusesAnApprovalALandedCommitAlreadyUsed` |
+| 3 | ISSUE | `Weakening-approved:` admitted an RFC-tagged change in the audit | `auditApprovals` | round 1 fix |
+| 4 | ISSUE | two `RFC-approved:` lines for one row | `mergeRFCApprovals` | round 1 fix, `TestOneRFCApprovalCarriesOneTrailerForATaggedWeakening` |
+| 5 | ISSUE | a prose message line refused every later audit | `acceptedRows` | round 2 fix |
+| 6 | ISSUE | one unit in two directories admitted by one approval | `SharedUnits`, `checkSourceGates` | round 2 fix |
+| 7 | ISSUE | `TrailerLanded` exemption had no test | `rfc.TrailerLanded` | round 3, `TestTrailerLandedAnswersOnlyWhatGitCanAnswer` |
+
+### Run 4 (closure)
+0 BLOCKER, 0 ISSUE. NOTEs: (a) the unlocked approval-file read-rewrite, homed above; (b) the detector's string-literal skip, homed above; (c) `rfc.TrailerLanded` returns both `carrier` and `landed`, and `landed` is always `carrier != ""`. That return shape moved unchanged from `commit.trailerLanded`. Style pass over every changed Go file: no `panic()`, every new loop is over a bounded file or message, names say what each value is.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/weakened/approve.go` | yes | `ls`: 3.0K, 2026-10-24 |
+| `internal/le/test/weakened/approve_test.go` | yes | `ls`: 3.0K, 2026-10-24 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-13 | each named test exists and passed | `git grep 'func <Test>('` finds all 18 (2026-10-25); scoped `go test -race` green for rfc, test/weakened, commit, hookruntime, le/path, ai/hooks, doc/check, doc/citation, verify, verify/engine (state file, third-review handoff) |
+| AC-11 | every finding `./le commit audit base 518a1e3b63~1` reports in this spec's files is an approved edit | 25 findings: 22 name units that are rows of "Existing tests changed" (`readPrunedShard` is the helper of the approved deletion of `shard_prune_test.go`); the 3 file-level `adding t.Skip` findings (`ledger_test`, `writeedit_test`, `audit_test`) are fixture strings (journal row 2026-10-25). `internal/le/changescope_test.go` findings are another session's uncommitted edit |
+| AC-14 | verb, stage and shards | `./le test weakened check` -> "no such action in test weakened: check"; `./le verify list full` has 0 lines naming `weakened`; HEAD `stages.go` has 0 `test weakened`; `git ls-files test/weakened` = 4 held shards |
+| AC-15 | no live reference | `git grep test/weakened -- internal docs ai .claude` outside the package path and fixtures: `TEST-RELAX-AUDIT.md` (historical) and the retired-producer reason in `completeness_record_test.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test weakened approve` | none (le tooling, no `.ci`) | `approve` registered in `actions` (`actions.go`), `TestWeakenedAreaPublishesNativeActions` |
+| Write/Edit hook | hook self-check, `./le ai hooks unit` | `writeWeakening` -> `testweakened.Proposed`; 30/30 |
+| `./le commit create` | none | `checkSourceGates` -> `testweakened.Check`; `TestCreateCarriesWeakeningApprovedTrailer` |
+| `./le commit audit` | none | `Audit` -> `acceptedRows`; live run over 224b0ef514~1 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestWeakeningApprovalReachesASubagentEdit` |
+| A-2 | confirmed | no `.ci`/`.et` names `weakened check` or `commit audit` |
+| A-3 | confirmed | `./le doc check links` 2026-10-25 with the new binary: 10 broken references, all `rfc/audit/` or `rfc/discrimination/` JSON paths, none under `test/weakened/` |
+| A-4 | confirmed | `rfc.ChangedUnits` builds; `commit` and `test/weakened` call it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| test-health.md: refused at commit time by `checkSourceGates` running `testweakened.Check` | `checkSourceGates` (`prepare.go`) calls `testweakened.Check` | yes |
+| test-health.md: a row is pruned only after `git commit` | `renderBlock` renders `renderApprovalPrune` after the publish under `set -e` | yes |
+| test-health.md: the audit admits a tagged unit's change only on `RFC-approved:` | `acceptedRows` appends to `accepted.rfc` only for `rfc.ApprovalTrailer` | yes |
+| all anchors | `./le doc check verify` PASSED 2026-10-25 | yes |

@@ -130,7 +130,7 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | AC-10 | every row in "Owned journal rows" | re-checked after the change: fixed, or still red with a cause that is not the live tree, an unbuilt commit, or an unkeyed artifact |
 | AC-11 | the post-commit shared-index sync meets `.git/index.lock` that no live process holds (an empty file left by a killed git, seen twice on 2026-10-23) | the sync tells a dead lock from a held one, says which it found, and either repairs the index or prints the exact repair; a held lock is retried with bounded backoff, as the 2026-10-23 concurrent-session-corruption row asks |
 
-AC-8 holds no weakening ledger: `spec-weakening-approval-lives-in-the-commit` removes the tracked ledger and its unlocked rewrite (`PruneLanded`), and owns the 2026-10-14 concurrent-session-corruption row that named it.
+AC-8 holds no weakening ledger: `spec-weakening-approval-lives-in-the-commit` removes the tracked ledger and its unlocked rewrite (`PruneLanded`), and closes the 2026-10-14 concurrent-session-corruption row that named it. AC-8 does cover the two owner approval files that replaced it, `tmp/commit-weakening-approved-<ns>.md` and `tmp/commit-rfc-approved-<ns>.md`: their writer `rfc.ApproveInto` and the commit script's prune `renderApprovalPrune` share one lock (the 2026-10-25 row).
 
 ## 🧪 TDD Test Plan
 
@@ -207,6 +207,7 @@ AC-8 holds no weakening ledger: `spec-weakening-approval-lives-in-the-commit` re
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| concurrent-session-corruption.md | 2026-10-25 | owner approval files: `rfc.ApproveInto` against the commit script's `renderApprovalPrune` |
 | concurrent-session-corruption.md | 2026-10-24 | `git diff` callers under a timeout outside `gitenv.ReadOnly` |
 | concurrent-session-corruption.md | 2026-10-23 | Generated post-commit shared-index sync, handover 20 |
 | concurrent-session-corruption.md | 2026-10-23 | ./le test qemu docker-lab, building the docker-host image over the live che |
