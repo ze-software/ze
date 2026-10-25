@@ -76,7 +76,12 @@ func TestRunnerHangStacksLieOutsideTempDir(t *testing.T) {
 	assert.Equal(t, filepath.Clean(os.TempDir()), filepath.Dir(stacks), "stacks %s must lie outside the run's temp dir", stacks)
 	content, err := os.ReadFile(stacks) //nolint:gosec // path the runner just named
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "runTestCaseWorker")
+	// The worker is the one goroutine runTestCase starts, so its "created by"
+	// line identifies it in every state. Its frame name does not: a 1ns
+	// budget can expire before the scheduler first runs the worker, and the
+	// runtime then prints it under the go statement's wrapper
+	// (runTestCase.gowrap1), with no runTestCaseWorker frame yet.
+	assert.Contains(t, string(content), "created by github.com/ze-software/ze/internal/component/cli/testing.runTestCase in goroutine")
 }
 
 // TestRunnerRefusesInvalidTimeout proves a timeout the runner cannot parse
