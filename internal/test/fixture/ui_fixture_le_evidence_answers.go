@@ -76,6 +76,18 @@ func uiLeEvidenceAnswersRunCommand(ctx context.Context, dir, program string, arg
 	return uiLeEvidenceAnswersCommandResult{stdout: stdout.String(), stderr: stderr.String(), code: code, err: err}
 }
 
+// uiLeEvidenceAnswersRunAtTerminal runs a whole-tree verb the way Thomas
+// starts it: stdin and stdout on a terminal. `verify evidence
+// release-candidate` declares leaction.Action.WholeTree, so the dispatcher
+// refuses it with exit 2 before its body unless both are terminals
+// (human.RequireTerminal); over pipes the fixture would only ever see that
+// refusal. stderr stays a separate stream, so the assertions keep reading
+// stdout and stderr apart.
+func uiLeEvidenceAnswersRunAtTerminal(ctx context.Context, dir, program string, args, env []string) uiLeEvidenceAnswersCommandResult {
+	stdout, stderr, code, err := terminalCommandStreams(ctx, dir, env, program, args...)
+	return uiLeEvidenceAnswersCommandResult{stdout: stdout, stderr: stderr, code: code, err: err}
+}
+
 func uiLeEvidenceAnswersEnvironment(overrides map[string]string) []string {
 	return childEnvironment(os.Environ(), overrides)
 }
@@ -195,7 +207,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		"ZE_RECORD_IP":         ipRecord,
 	}
 
-	le := func(args []string, status, exitCode, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {
+	environment := func(status, exitCode, record string, extra map[string]string) []string {
 		overrides := make(map[string]string, len(baseOverrides)+len(extra))
 		maps.Copy(overrides, baseOverrides)
 		overrides["ZE_GIT_STATUS"] = status
@@ -206,7 +218,14 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 			overrides["ZE_RECORD_DOCKER"] = record
 		}
 		maps.Copy(overrides, extra)
-		return uiLeEvidenceAnswersRunCommand(ctx, work, binary, args, uiLeEvidenceAnswersEnvironment(overrides))
+		return uiLeEvidenceAnswersEnvironment(overrides)
+	}
+	le := func(args []string, status, exitCode, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {
+		return uiLeEvidenceAnswersRunCommand(ctx, work, binary, args, environment(status, exitCode, record, extra))
+	}
+	// leAtTerminal runs a whole-tree verb, which refuses pipes by design.
+	leAtTerminal := func(args []string, status, exitCode, record string) uiLeEvidenceAnswersCommandResult {
+		return uiLeEvidenceAnswersRunAtTerminal(ctx, work, binary, args, environment(status, exitCode, record, nil))
 	}
 
 	// Both commands must be present in the composition root used by help.
@@ -234,7 +253,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// A clean release-candidate check starts exactly one container.
 	rcRecord := filepath.Join(work, "rc-argv")
-	answer := le([]string{areaEvidence, actionReleaseCandidate}, "", "", rcRecord, nil)
+	answer := leAtTerminal([]string{areaEvidence, actionReleaseCandidate}, "", "", rcRecord)
 	uiLeEvidenceAnswersRequire(answer.code == 0,
 		"the release-candidate check exited %d: %s", answer.code, uiLeEvidenceAnswersTail(answer.stderr, 800))
 	calls := uiLeEvidenceAnswersRecorded(rcRecord)
@@ -244,8 +263,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(strings.Contains(calls[0], "git clone --no-local /host /work/src"),
 		"the container program does not clone the mount")
 
-	rendered := le([]string{areaEvidence, actionReleaseCandidate, "|", renderJSON}, "", "",
-		filepath.Join(work, "rc-json"), nil)
+	rendered := leAtTerminal([]string{areaEvidence, actionReleaseCandidate, "|", renderJSON}, "", "",
+		filepath.Join(work, "rc-json"))
 	var report map[string]any
 	err = json.Unmarshal([]byte(rendered.stdout), &report)
 	uiLeEvidenceAnswersRequire(err == nil, "the release-candidate JSON is invalid: %v; output %q", err, rendered.stdout)
@@ -257,8 +276,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Preserve the container's exact status rather than flattening it.
 	for _, code := range []string{"2", "3", "125"} {
-		failed := le([]string{areaEvidence, actionReleaseCandidate}, "", code,
-			filepath.Join(work, "rc-"+code), nil)
+		failed := leAtTerminal([]string{areaEvidence, actionReleaseCandidate}, "", code,
+			filepath.Join(work, "rc-"+code))
 		want, _ := strconv.Atoi(code)
 		uiLeEvidenceAnswersRequire(failed.code == want,
 			"a container that exited %s made the command exit %d", code, failed.code)
@@ -266,8 +285,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Dirty trees are rejected before any container is started.
 	dirtyRecord := filepath.Join(work, "rc-dirty")
-	dirty := le([]string{areaEvidence, actionReleaseCandidate}, " M internal/a.go\n", "",
-		dirtyRecord, nil)
+	dirty := leAtTerminal([]string{areaEvidence, actionReleaseCandidate}, " M internal/a.go\n", "",
+		dirtyRecord)
 	uiLeEvidenceAnswersRequire(dirty.code == 1, "a dirty tree exited %d, want 1", dirty.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(dirtyRecord)) == 0, "a container was started over a dirty tree")
 	uiLeEvidenceAnswersRequire(strings.Contains(dirty.stdout, "internal/a.go"),
@@ -338,14 +357,24 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(len(report) == 0,
 		"a refused appliance run answered a verdict: %v", uiLeEvidenceAnswersSortedKeys(report))
 
-	// The shared operators render the same command payloads.
-	renderings := []struct{ name, verb, operator, needle string }{
-		{areaEvidence, actionReleaseCandidate, renderYAML, "passed:"},
-		{areaDeployment, actionL2TPTest, renderYAML, "peer:"},
+	// The shared operators render the same command payloads. The whole-tree
+	// verb runs at a terminal, the deployment proof over pipes.
+	renderings := []struct {
+		name, verb, operator, needle string
+		wholeTree                    bool
+	}{
+		{areaEvidence, actionReleaseCandidate, renderYAML, "passed:", true},
+		{areaDeployment, actionL2TPTest, renderYAML, "peer:", false},
 	}
 	for _, item := range renderings {
-		out := le([]string{item.name, item.verb, "|", item.operator}, "", "",
-			filepath.Join(work, item.name+"-"+item.operator), nil)
+		args := []string{item.name, item.verb, "|", item.operator}
+		record := filepath.Join(work, item.name+"-"+item.operator)
+		var out uiLeEvidenceAnswersCommandResult
+		if item.wholeTree {
+			out = leAtTerminal(args, "", "", record)
+		} else {
+			out = le(args, "", "", record, nil)
+		}
 		uiLeEvidenceAnswersRequire(strings.Contains(out.stdout, item.needle),
 			"`le %s %s | %s` did not render the payload: %q",
 			item.name, item.verb, item.operator, uiLeEvidenceAnswersTail(out.stdout, 200))

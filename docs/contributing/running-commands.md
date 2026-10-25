@@ -1333,7 +1333,8 @@ No keyword, flag or environment variable skips the gate.
 registered verbs and fails on one that starts a run without the declaration, or
 on a gated verb that gains a keyword nobody reviewed. A Go test that drives a
 gated verb installs `leaction.SetWholeTreeAdmission`; a functional fixture that
-drives one runs it under a pseudo-terminal (`terminalCommand`,
+drives one runs it under a pseudo-terminal (`terminalCommand`, or
+`terminalCommandStreams` when its assertions read stderr apart from stdout,
 `internal/test/fixture/misc_fixture_runner.go`), standing where Thomas stands.
 The release-candidate container gets `docker run -t` for the inner
 `./le verify current` of the release check Thomas starts

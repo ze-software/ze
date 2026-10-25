@@ -121,7 +121,30 @@ func terminalCommand(ctx context.Context, dir string, env []string, name string,
 	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	command.Env = env
+	return runAtTerminal(command)
+}
 
+// terminalCommandStreams is terminalCommand with stderr kept apart: stdin and
+// stdout are the pseudo-terminal, which is all the whole-tree gate asks of
+// them (human.RequireTerminal), and stderr goes to its own buffer, as a shell
+// at a terminal gives it with `2>file`. A fixture that parses stdout as JSON,
+// or asserts which stream carried a message, needs the two kept apart.
+func terminalCommandStreams(ctx context.Context, dir string, env []string, name string, args ...string) (string, string, int, error) {
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
+	command.Dir = dir
+	command.Env = env
+	var stderr bytes.Buffer
+	// pty.Start fills only the streams left nil, so stderr stays this buffer.
+	command.Stderr = &stderr
+	stdout, code, err := runAtTerminal(command)
+	return stdout, stderr.String(), code, err
+}
+
+// runAtTerminal starts command with a new pseudo-terminal on every stream it
+// leaves nil, as the controlling terminal of a new session, and answers what
+// the terminal carried with LF line ends, the exit code, and an error only when
+// the program could not be started or waited for.
+func runAtTerminal(command *exec.Cmd) (string, int, error) {
 	terminal, err := pty.Start(command)
 	if err != nil {
 		return "", -1, err
