@@ -93,8 +93,7 @@ func TestRaceChangedExecutesGoCommittedBeforeClosure(t *testing.T) {
 		if out, ok := anchorAnswer(plan); ok {
 			return out, childFrom(plan, 0)
 		}
-		switch strings.Join(plan.Command, " ") {
-		case "git diff --name-only anchor HEAD -- *.go":
+		if strings.Join(plan.Command, " ") == "git diff --name-only anchor HEAD -- *.go" {
 			return "internal/component/bgp/wire/update.go\n", childFrom(plan, 0)
 		}
 		if slices.Contains(plan.Command, "-race") {
@@ -152,8 +151,7 @@ func TestRaceChangedRefusesPartiallyUnresolvedPopulation(t *testing.T) {
 		if out, ok := anchorAnswer(plan); ok {
 			return out, childFrom(plan, 0)
 		}
-		switch strings.Join(plan.Command, " ") {
-		case "git diff --name-only -- *.go":
+		if strings.Join(plan.Command, " ") == "git diff --name-only -- *.go" {
 			return "internal/core/env/env.go\ninternal/le/gone/gone.go\n", childFrom(plan, 0)
 		}
 		if slices.Contains(plan.Command, "-race") {
@@ -177,8 +175,7 @@ func TestRaceChangedRefusesAnUnreadableCommittedRange(t *testing.T) {
 		if out, ok := anchorAnswer(plan); ok {
 			return out, childFrom(plan, 0)
 		}
-		switch strings.Join(plan.Command, " ") {
-		case "git diff --name-only anchor HEAD -- *.go":
+		if strings.Join(plan.Command, " ") == "git diff --name-only anchor HEAD -- *.go" {
 			return "", childFrom(plan, 7)
 		}
 		if slices.Contains(plan.Command, "-race") {

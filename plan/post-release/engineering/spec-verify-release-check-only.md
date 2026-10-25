@@ -437,9 +437,37 @@ compile. The whole-package runs of `commit`, `verify/...`, `hookruntime` and
 ### Review Gate
 
 Round 1 ran before Phase 6. Round 2, over `35421aae45`, `a10bb89497` and
-`96135d911c`, is owed to the parent session, which runs it with an independent
-reviewer: the implementation agent did not review its own work. The scoped
-`./le verify changed` over the closing commits is owed with it.
+`96135d911c`, ran in the parent session with an independent reviewer and found
+six defects. All six are fixed in `bc6ade2c02`, and each fix's test was forced
+red by breaking its producer, then restored.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 1 | A partial run's red on a stage it judges only over its scope was held as its own, so a full red, then a changed red, then a changed green cleared the full red over tags the scope never judged | `carryForward` carries another population's red on such a stage whatever the partial verdict (green, red or unreached); `redVerdict` and its exemption are gone | `TestAPartialRedThenGreenKeepsAFullRedCharged` (changed and fast subtests) |
+| 2 | The unreadable-certificate and unreadable-manifest messages told an agent to run a full verify | `agentRerun` in `status.go`: the next verify run replaces it, `./le verify changed` for an agent, a release check is Thomas's | `TestAnUnreadableVerifyRecordNamesTheScopedRun` |
+| 3 | `clearingRuns` tested population membership, which disagreed with the carry rule on a stage judged at full identity | It reads `JudgesInPart(ChangedMode, name)`, the same answer `carryForward` reads | `TestAFullRedOnAFullIdentityStageClearsThroughTheScopedRun` |
+| 4 | `noUpstreamError` read a failed or empty `symbolic-ref` answer as a detached HEAD and named the wrong fix | It asks `git rev-parse --abbrev-ref HEAD`: `HEAD` is detached, a name is a branch, and a failure or no answer is a git error naming that command | `TestNoUpstreamNamesTheFixForWhatGitReported` (four cases) |
+| 5 | Stages a partial run judges at full identity (fast `go lint run`, `go patch-stamps check`, the race pieces) would have been held back by fix 1 | The rule is keyed on `Stage.Scoped`, so they take the partial verdict | `TestAFullIdentityStageTakesAPartialRunsVerdict` |
+| 6 | `ze-close` and `ze-status` still told an agent to run the full gate; the race fixture matched the old `symbolic-ref` literal | Both skills name the scoped verify; `anchorBranchQuery` holds the query once | `TestRaceChangedRefusesWithNoAnchor` |
+
+The carry rule now reads: a stage is judged in part when it sits in both a
+partial population (changed or fast) and the full one, and is marked
+`Stage.Scoped` because its action reads the published change set
+(`JudgesInPart`). On such a stage an earlier red another population judged is
+carried whatever the partial run said, and only a run that judges the stage in
+full replaces it. A partial red over a green, or over its own population's red,
+is held as its own. A stage judged at full identity takes the partial verdict.
+`docs/architecture/testing/verify-freshness-scope.md` states it.
+
+After the fixes the scoped lint over `verify`, `repo/changed`, `commit` and
+`hookruntime` found three `singleCaseSwitch` findings in
+`verify/deps/racecoverage_test.go` (left by this spec's `e915f3858b`), fixed in
+the spec commit. Its fourth finding, `slicesbackward` in `useEnvironment`
+(`repo/changed/actions_test.go`), comes from `533c3080f3`, outside this spec.
+
+Round 3, over `bc6ade2c02` and the spec commit, is owed to the parent session,
+which runs it with an independent reviewer. The scoped `./le verify changed`
+over the closing commits is owed with it.
 
 ## Design Insights
 
