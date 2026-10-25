@@ -23,6 +23,10 @@ const zeHelpAiGoldenDir = "internal/test/fixture/testdata"
 // line-sorted comparison leaves out (zeHelpAiSortedLines).
 const zeHelpAiEnvVarsPrefix = "    Env vars:  "
 
+// zeHelpAiAll is the ze help ai section that prints every page, and the
+// name of its golden.
+const zeHelpAiAll = "all"
+
 // zeHelpAiForm is one output form of ze help ai and how it is compared.
 type zeHelpAiForm struct {
 	name      string   // the golden is ze-help-ai-<name>.golden
@@ -35,8 +39,8 @@ type zeHelpAiForm struct {
 // golden of them can hold, and they are compared as their sorted lines.
 var zeHelpAiForms = []zeHelpAiForm{
 	{name: "summary", byteExact: true},
-	{name: "all", args: []string{"all"}},
-	{name: "json", args: []string{"--json"}},
+	{name: zeHelpAiAll, args: []string{zeHelpAiAll}},
+	{name: renderJSON, args: []string{"--json"}},
 }
 
 // zeHelpAiUnchanged runs the ze binary this run built, under the full feature
@@ -72,7 +76,7 @@ func zeHelpAiCompare(ctx context.Context, root, zePath string, form zeHelpAiForm
 	if err != nil {
 		return fmt.Errorf("read the %s golden: %w", form.name, err)
 	}
-	cmd := exec.CommandContext(ctx, zePath, append([]string{"help", "ai"}, form.args...)...) //nolint:gosec // the fixture chooses the program and its arguments
+	cmd := exec.CommandContext(ctx, zePath, append([]string{leHelpPagesHelpWord, "ai"}, form.args...)...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = root
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
