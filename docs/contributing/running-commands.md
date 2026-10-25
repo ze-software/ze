@@ -365,9 +365,10 @@ session directory and its scratch, and owns what follows:
 
 | Artifact | Keyed on | Main thread's file | An agent's file | Producer |
 |----------|----------|--------------------|-----------------|----------|
-| Commit namespace (8 hex): the commit script, the message, `test/weakened/<ns>.md` | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
+| Commit namespace (8 hex): the commit script and the message | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
 | Spec claim | session and agent | `tmp/session/.session-<session>` | `tmp/session/.session-<session>+<agent>` | `lepath.SpecClaimMarker` |
 | RFC approval | the session alone, because the owner approves to the main thread | `tmp/commit-rfc-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
+| Test weakening approval | the session alone, for the same reason | `tmp/commit-weakening-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
 
 A session id and an agent id hold only letters, digits, `.`, `_` and `-`, so the
 `+` splits a name one way only, and no session can pose as another's agent.
@@ -375,20 +376,19 @@ The session reaper removes a dead session's agent markers with its own
 (`lepath.MarkerOwnedBy`).
 
 An agent that claimed no spec reads its parent's claim, and its `release`
-removes only its own claim. A main thread commits the work its subagents did:
-`lepath.ChildCommitSessions` reads the namespaces of this session's agents from
-the file names above, and `ForeignShardProblems` lets the main thread carry
-their shards. The shard of an unrelated session's agent stays refused, and so
-does a sibling's or the parent's shard carried by an agent.
+removes only its own claim. Nothing an agent writes for a commit has to be
+carried by its parent: the owner's approvals are keyed on the main thread's
+namespace, and the commit carries them as trailers, so a main thread commits
+its subagents' work with no file of theirs in it.
 
 The shared scratch still means one file name is one file for every agent. A tool
 that writes into it picks a per-run name (`cover-<pid>.out`, the discrimination
 `run-*/` directory in `writeOverlay`). A file you write there yourself carries
 a name of your own.
-<!-- source: internal/le/le/path/commitsession.go -- CommitSession, ChildCommitSessions, SessionCommitSession -->
+<!-- source: internal/le/le/path/commitsession.go -- CommitSession, SessionCommitSession -->
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
 <!-- source: internal/le/hookruntime/session.go -- writeParentSessionPrefix -->
-<!-- source: internal/le/test/weakened/shard.go -- ForeignShardProblems, CarriedShards -->
+<!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
 
 ## When the storage stalls
 
