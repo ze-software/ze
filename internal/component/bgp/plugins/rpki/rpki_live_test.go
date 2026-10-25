@@ -25,6 +25,20 @@ const stayrtrImage = "docker.io/rpki/stayrtr:v0.6.4"
 // stayrtrLogLines is the stayrtr log tail a failed live test receives.
 const stayrtrLogLines = 100
 
+// stayrtrNegotiation makes stayrtr answer a query above its version the way
+// draft-ietf-sidrops-8210bis Section 7 requires: "If the cache which supports
+// C as its highest version receives a query of version Q > C, the cache MUST
+// send an Error Report PDU with Protocol Version C and Error Code 4."
+//
+// StayRTR v0.6.4 run with its default negotiation does not: it builds the
+// Error Report before it has set the connection's version, so the report
+// carries version 0 (lib/server.go, checkVersion and SendPDU), and a router
+// that retries at C, as ze does, is told to speak v0. Pinning the cache at v1
+// with -enforce.version sets that version when the connection opens, so the
+// report carries 1 and ze's v2 query falls back to v1. The interop lab image
+// runs stayrtr with the same two flags (test/interop/Dockerfile.stayrtr).
+var stayrtrNegotiation = []string{"-protocol", "1", "-enforce.version=true"}
+
 // startStayRTR starts stayrtr serving the live RPKI data through labtest,
 // published on the host loopback, and answers its port once it accepts a
 // connection. labtest skips the test with no docker binary or, run ad hoc,
@@ -33,7 +47,7 @@ func startStayRTR(t *testing.T, name string) uint16 {
 	t.Helper()
 	address := labtest.Start(t, labtest.Spec{
 		Name: name, Image: stayrtrImage,
-		Command: []string{"-cache", rpkiDataURL, "-bind", ":3323"},
+		Command: append([]string{"-cache", rpkiDataURL, "-bind", ":3323"}, stayrtrNegotiation...),
 		Port:    interoplab.TCPPort(3323), Ready: labtest.TCPReady, ReadyTimeout: 60 * time.Second, LogLines: stayrtrLogLines,
 	})
 	return address.Port()
@@ -164,7 +178,9 @@ func TestLiveRPKIValidation(t *testing.T) {
 // PREVENTS: Wire format incompatibility with production RTR implementations.
 func TestLiveASPAValidation(t *testing.T) {
 	// Synthetic RPKI JSON with ROA + ASPA records (rpki-client JSON format).
-	// stayrtr parses provider_authorizations and serves them as ASPA PDU type 11 over RTR v2.
+	// A cache that speaks RTR v2 serves provider_authorizations as ASPA PDU type 11.
+	// StayRTR v0.6.4 speaks v0 and v1 only (cmd/stayrtr protoverToLib), so against
+	// it the session syncs the ROA at v1 and the test skips its ASPA assertions.
 	const aspaJSON = `{
   "metadata": {"generated": 1700000000, "valid": 1700086400},
   "roas": [{"prefix": "10.0.0.0/8", "maxLength": 24, "asn": "AS64502", "ta": "test"}],
@@ -201,8 +217,8 @@ func TestLiveASPAValidation(t *testing.T) {
 	}
 	address := labtest.Start(t, labtest.Spec{
 		Name: "rpki-aspa", Image: stayrtrImage,
-		Command: []string{"-cache", "http://" + cacheHost + ":" + httpPort + "/rpki.json",
-			"-bind", ":3324", "-checktime=false"},
+		Command: append([]string{"-cache", "http://" + cacheHost + ":" + httpPort + "/rpki.json",
+			"-bind", ":3324", "-checktime=false"}, stayrtrNegotiation...),
 		Port: interoplab.TCPPort(3324), HostNetwork: !isDockerDesktop(),
 		Ready: labtest.TCPReady, ReadyTimeout: 30 * time.Second, LogLines: stayrtrLogLines,
 	})

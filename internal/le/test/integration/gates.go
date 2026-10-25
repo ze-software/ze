@@ -247,7 +247,11 @@ func Table() []Action {
 		},
 		{
 			Verb: "gtsm",
-			Argv: goTest("120s", "./internal/core/network/...", "./internal/component/bgp/reactor/...",
+			// The reactor package carries its whole unit suite beside the two
+			// integration tests, and under -race on a GitHub runner that suite
+			// alone runs 240 to 265 s (evidence-nightly verify shards), so a
+			// 120 s bound killed the binary every night before it could report.
+			Argv: goTest("600s", "./internal/core/network/...", "./internal/component/bgp/reactor/...",
 				"./internal/component/gtsm/..."),
 			Why: "BGP GTSM and TTL-security, which live in a socket option only a Linux" +
 				" kernel can answer for, and the route metric and nftables filter of a" +

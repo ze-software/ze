@@ -3736,6 +3736,13 @@ RPKI data, connects ze's RTR client, and validates known prefixes:
 | `82.212.0.0/16` | 64496 | NotFound | No ROA coverage |
 | `1.1.1.0/24` | 64496 | Invalid | Wrong origin for covered prefix |
 
+**Cache version:** stayrtr runs with `-protocol 1 -enforce.version=true`, as the
+interop lab image does. StayRTR v0.6.4 with its default negotiation answers ze's v2
+Reset Query with an Error Report carrying version 0 instead of its own version 1,
+so a router that retries at the version the report names, as draft-ietf-sidrops-8210bis
+Section 7 asks, is sent to v0. Pinned at v1, the report carries 1 and ze falls back
+to v1. v0.6.4 does not speak v2, so `TestLiveASPAValidation` syncs the ROA and skips
+its ASPA assertions.
 **Requirements:** Docker, internet access (fetches ~5 MB rpki.json from Cloudflare).
 **Timeout:** 180s (includes image pull, data fetch, RTR sync).
 **Skip behavior:** Test skips gracefully if Docker is unavailable or image cannot be pulled.

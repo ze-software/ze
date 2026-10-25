@@ -69,7 +69,9 @@ StayRTR v0.6.4 needs `-protocol 1 -enforce.version=true` for this exchange.
 Without enforcement, its unsupported-version reply can carry the new client's
 initial version 0 even though the server supports version 1. Enforcement
 initializes the client at version 1 before it rejects Ze's version-2 query.
-This cache setting leaves Ze's version negotiation unchanged.
+This cache setting leaves Ze's version negotiation unchanged. StayRTR fixed
+the reply upstream in pull request 167, after v0.6.4: a release that includes
+it needs neither flag. Run v0.6.4 with both flags, or a later release.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- newRTRSession, handlePDU -->
 <!-- source: test/interop/Dockerfile.stayrtr -- pinned v1 cache configuration -->
 
