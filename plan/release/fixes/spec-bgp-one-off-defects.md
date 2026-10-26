@@ -325,6 +325,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `unwired-feature` | 2026-08-12 | received LARGE_COMMUNITY in `rib show` |
 | `unwired-feature` | 2026-08-17 | normal selected-route egress |
 | `unwired-feature` | 2026-09-07 | `interface-event-reactions.md` cease subcode 6 paragraph |
+| `unwired-feature` | 2026-10-26 | `buildWithdrawNLRI` left with no production caller |
 | `validated-value-discarded-by-its-caller` | 2026-09-03 | `announceAndTrack` lifetime |
 | `validated-value-discarded-by-its-caller` | 2026-09-05 | `SendRoutes` discards `Commit` error |
 | `validated-value-discarded-by-its-caller` | 2026-09-20 | `DecodeNLRIHex` discards `rest` |
