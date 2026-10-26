@@ -158,6 +158,17 @@
             "blocking": true
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks posttool-bash",
+            "timeout": 10,
+            "blocking": true
+          }
+        ]
       }
     ]
   }

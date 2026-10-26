@@ -401,7 +401,7 @@ func TestRunFailsClosedWhenHookPopulationIsMissing(t *testing.T) {
 
 func TestActionOwnsUnitAndEveryRuntimeHook(t *testing.T) {
 	listing := Actions()
-	if listing.Area != area || len(listing.Actions) != 16 {
+	if listing.Area != area || len(listing.Actions) != 17 {
 		t.Fatalf("listing = %+v", listing)
 	}
 	verbs := make(map[string]bool, len(listing.Actions))
@@ -412,7 +412,7 @@ func TestActionOwnsUnitAndEveryRuntimeHook(t *testing.T) {
 		verbs[row.Verb] = true
 	}
 	for _, required := range []string{"unit", "pretool-bash", "pretool-writeedit",
-		"posttool-writeedit", "session-start", "validate-spec"} {
+		"posttool-writeedit", "posttool-bash", "session-start", "validate-spec"} {
 		if !verbs[required] {
 			t.Errorf("missing hook action %q", required)
 		}
@@ -448,8 +448,8 @@ func TestEveryConfiguredHookUsesRegisteredNativeAction(t *testing.T) {
 		}
 		configured++
 	}
-	if configured != 14 {
-		t.Fatalf("configured native hooks = %d, want 14", configured)
+	if configured != 15 {
+		t.Fatalf("configured native hooks = %d, want 15", configured)
 	}
 }
 

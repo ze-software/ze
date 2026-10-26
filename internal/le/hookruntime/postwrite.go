@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,30 +93,78 @@ func postFormatGo(ctx context) *verdict {
 		_, _ = command.CombinedOutput()
 		cancel()
 	}
-	if binary, err := exec.LookPath("golangci-lint"); err == nil {
-		relative, _ := filepath.Rel(module, absolutePath(ctx))
-		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 60*time.Second)
-		command := postLintCommand(timeout, binary, module, relative)
-		output, _ := command.CombinedOutput()
-		cancel()
-		text := string(output)
-		if text != "" && !strings.Contains(text, "no issues") && !strings.HasPrefix(text, "0 issues") {
-			lines := make([]string, 0, 3)
-			issues := 0
-			for line := range strings.SplitSeq(text, "\n") {
-				if strings.Contains(line, ":") {
-					issues++
-				}
-				if line != "" && len(lines) < 3 {
-					lines = append(lines, "  "+dim+line+reset)
-				}
-			}
-			if issues != 0 {
-				return &verdict{2, fmt.Sprintf("%s⚠ lint: %d issues%s\n%s", yellow, issues, reset, strings.Join(lines, "\n"))}
-			}
+	relative, _ := filepath.Rel(module, absolutePath(ctx))
+	pkg := "./" + filepath.ToSlash(filepath.Dir(relative)) + "/..."
+	binary, err := exec.LookPath("golangci-lint")
+	if err != nil {
+		return lintNotRun(pkg, "golangci-lint is not on PATH", "", "./le setup tools")
+	}
+	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), postLintBudget)
+	output, runErr := postLintCommand(timeout, binary, module, relative).CombinedOutput()
+	expired := timeout.Err() != nil
+	cancel()
+	return postLintVerdict(pkg, string(output), runErr, expired)
+}
+
+// postLintBudget is how long the post-edit lint may take, the wait for
+// golangci-lint's machine-wide lock included. The hook's own timeout in
+// .claude/settings.json is 90s, so the verdict is written before it fires.
+const postLintBudget = 60 * time.Second
+
+// lintIssuesFound is golangci-lint's exit code for a run that completed and
+// found issues (pkg/exitcodes IssuesFound). Every other non-zero code is a run
+// that did not complete: a failure, its own timeout, a load error.
+const lintIssuesFound = 1
+
+// postLintVerdict reads one post-edit lint run. Only a clean exit is a pass and
+// only exit 1 is a list of issues; a run killed at the budget, stopped at its
+// own timeout or failed before analysis is said as a run that did NOT happen.
+// Before this distinction a killed run printed nothing and read as clean, so
+// the author was told nothing about a package no linter had looked at.
+func postLintVerdict(pkg, output string, runErr error, expired bool) *verdict {
+	if expired {
+		return lintNotRun(pkg, "it ran past "+postLintBudget.String()+", most often waiting behind another session's lint", output, "")
+	}
+	if runErr == nil {
+		return nil
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(runErr, &exitErr) {
+		return lintNotRun(pkg, runErr.Error(), output, "")
+	}
+	if exitErr.ExitCode() != lintIssuesFound {
+		return lintNotRun(pkg, "golangci-lint stopped with "+exitErr.String(), output, "")
+	}
+	lines := make([]string, 0, 3)
+	issues := 0
+	for line := range strings.SplitSeq(output, "\n") {
+		if strings.Contains(line, ":") {
+			issues++
+		}
+		if line != "" && len(lines) < 3 {
+			lines = append(lines, "  "+dim+line+reset)
 		}
 	}
-	return nil
+	return &verdict{2, yellow + "⚠ lint: " + strconv.Itoa(issues) + " issues" + reset + "\n" + strings.Join(lines, "\n")}
+}
+
+// lintNotRun is the verdict for a lint run that did not complete. It blocks
+// (code 2) because only a blocking post-tool verdict reaches the agent, and an
+// agent that is not told keeps reading the silence as a pass. fix replaces the
+// default command when the cure is not a rerun.
+func lintNotRun(pkg, why, output, fix string) *verdict {
+	if fix == "" {
+		fix = "./le go lint run scope \"" + pkg + "\""
+	}
+	lines := make([]string, 0, 5)
+	lines = append(lines, yellow+"⚠ lint did NOT run on "+pkg+": "+why+reset)
+	for line := range strings.SplitSeq(output, "\n") {
+		if line != "" && len(lines) < 4 {
+			lines = append(lines, "  "+dim+line+reset)
+		}
+	}
+	lines = append(lines, "  Run: "+fix)
+	return &verdict{2, strings.Join(lines, "\n")}
 }
 
 // ze point: none -- the 1,000-line advisory is Go style guidance outside the rule corpus

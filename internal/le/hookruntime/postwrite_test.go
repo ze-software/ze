@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -294,5 +295,50 @@ func TestPostLintCommandTakesNoIndexLock(t *testing.T) {
 	}
 	if command.Dir != "/repo" {
 		t.Errorf("lint runs in %q, want the module root", command.Dir)
+	}
+}
+
+// exitWith answers the error a process exiting with code gives, so a verdict is
+// read from the real exec type rather than a stand-in.
+func exitWith(t *testing.T, code int) error {
+	t.Helper()
+	err := exec.CommandContext(t.Context(), "sh", "-c", "exit "+strconv.Itoa(code)).Run()
+	if err == nil {
+		t.Fatalf("sh exit %d answered no error", code)
+	}
+	return err
+}
+
+// VALIDATES: only a clean exit passes and only golangci-lint's exit 1 is a list
+// of issues; a run past the budget, any other exit code and a run that never
+// started are each said as a lint that did NOT run.
+// PREVENTS: the silent pass. A run killed while it waited behind another
+// session's lint printed nothing, and the empty output read as a clean package.
+func TestPostLintVerdictTellsANotRunFromAPass(t *testing.T) {
+	const pkg = "./internal/le/x/..."
+	if result := postLintVerdict(pkg, "0 issues.\n", nil, false); result != nil {
+		t.Errorf("a clean run was reported: %q", result.message)
+	}
+
+	issues := postLintVerdict(pkg, "x.go:1:1: unused (unused)\n", exitWith(t, lintIssuesFound), false)
+	if issues == nil || issues.code != 2 || !strings.Contains(issues.message, "lint: 1 issues") {
+		t.Errorf("exit 1 was not reported as issues: %+v", issues)
+	}
+
+	notRun := map[string]*verdict{
+		"killed at the budget":  postLintVerdict(pkg, "", exitWith(t, 1), true),
+		"golangci-lint failure": postLintVerdict(pkg, "typecheck failed\n", exitWith(t, 3), false),
+		"its own timeout":       postLintVerdict(pkg, "", exitWith(t, 4), false),
+		"a binary that is gone": postLintVerdict(pkg, "", exec.ErrNotFound, false),
+		"an error it logged":    postLintVerdict(pkg, "", exitWith(t, 7), false),
+	}
+	for name, result := range notRun {
+		if result == nil || result.code != 2 || !strings.Contains(result.message, "lint did NOT run on "+pkg) {
+			t.Errorf("%s: not reported as a lint that did not run: %+v", name, result)
+			continue
+		}
+		if !strings.Contains(result.message, "./le go lint run scope") {
+			t.Errorf("%s: the message names no command that reruns it: %q", name, result.message)
+		}
 	}
 }

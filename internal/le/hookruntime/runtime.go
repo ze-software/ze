@@ -2,6 +2,7 @@
 // Detail: bash.go -- command guards
 // Detail: writeedit.go -- edit guards
 // Detail: postwrite.go -- post-edit guards
+// Detail: postbash.go -- post-command guards
 //
 // Package hookruntime implements the Claude hook JSON protocol without an
 // interpreter or a shell wrapper.
@@ -98,6 +99,10 @@ var nativeHookActions = map[string]hookAction{
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
 			writeCallBudget,
 		},
+	},
+	"posttool-bash": {
+		tools:  []string{"Bash"},
+		checks: []hookCheck{postBashGofmt},
 	},
 	"posttool-writeedit": {
 		tools: []string{toolWrite, "Edit"},

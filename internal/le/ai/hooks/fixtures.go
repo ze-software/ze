@@ -269,11 +269,17 @@ var (
 	// Re-sealed 2026-10-26 for the Phase 4 move of `le commit audit` to `le
 	// test weakened check`: weakened/actions.go gains the check action and a
 	// Does word on proposed. The proposed hook's answer is unchanged.
+	// Re-sealed 2026-10-26: postFormatGo says a lint run that did not complete
+	// as not run instead of passing it, and posttool-bash (postbash.go, now in
+	// hookSourcePaths) names Go files a shell command left unformatted. Neither
+	// refuses an edit this population describes: both report after the tool
+	// ran, and their polarities are driven through Probe and postLintVerdict in
+	// internal/le/hookruntime (postbash_test.go, postwrite_test.go).
 	hookSourcesDigest = [sha256.Size]byte{
-		0xa7, 0x87, 0x2f, 0x5c, 0x03, 0x14, 0x3b, 0xe4,
-		0x6a, 0x88, 0xfe, 0x2e, 0x89, 0x90, 0xa0, 0xcb,
-		0x2e, 0x4f, 0xc1, 0x91, 0x43, 0xd9, 0x41, 0x65,
-		0xb7, 0x14, 0x85, 0x31, 0x77, 0xc0, 0x0b, 0xa0,
+		0x72, 0xc2, 0x63, 0x74, 0x1c, 0x73, 0x39, 0xf7,
+		0x5f, 0x7f, 0x8b, 0x06, 0x79, 0x9b, 0x71, 0xf1,
+		0x16, 0x31, 0x44, 0x85, 0x39, 0xa4, 0xf2, 0xb7,
+		0xdd, 0x75, 0x91, 0xd4, 0x7e, 0x6e, 0x79, 0x85,
 	}
 )
 
@@ -379,6 +385,7 @@ var hookSourcePaths = [...]string{
 	hookBashFile,
 	hookWriteEditFile,
 	hookPostWriteFile,
+	"internal/le/hookruntime/postbash.go",
 	hookLifecycleFile,
 	"internal/le/hookruntime/readgate.go",
 	weakenedActionsFile,

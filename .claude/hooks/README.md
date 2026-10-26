@@ -48,6 +48,7 @@ in-process rather than launching a second implementation.
 | PostToolUse | `Read` | `mark-source-read` |
 | PostToolUse | `Task\|Agent` | `mark-agent-spawned` |
 | PostToolUse | `Write\|Edit` | `validate-spec`, `posttool-writeedit` |
+| PostToolUse | `Bash` | `posttool-bash` |
 | PreCompact | every | `pre-compact-save` |
 | Stop | every | `block-premature-stop`, `rule-coverage-report`, `session-end-summary`, `session-end-deferrals` |
 | SubagentStart | every | `subagent-context` |
@@ -127,7 +128,7 @@ the calls the hook sees, under a tenth short of the agent's total.
 
 | Check | Enforces | What it does |
 |---|---|---|
-| `postFormatGo` | `quality.md` | Formats the edited Go file, then refuses it while the linter still reports an issue in its package. |
+| `postFormatGo` | `quality.md` | Formats the edited Go file, then refuses it while the linter still reports an issue in its package. A lint run that does not complete (past its 60s budget, a golangci-lint failure, no binary) is reported as not run, never read as clean. |
 | `postFileSize` | Go style guidance, no rule point | Reports a Go file past the 1,000-line advisory. |
 | `postDeferral` | heuristic advisory, no rule point | Reports deferral language in a document that is not a deferral. |
 | `postJournal` | journal format, no rule point | Reports a journal file that `./le commit create` would refuse. |
@@ -137,6 +138,14 @@ the calls the hook sees, under a tenth short of the agent's total.
 | `postVague` | Go style guidance, no rule point | Reports a vague variable name in the edited Go file. |
 | `postBoundary` | advisory, no rule point | Reports numeric validation whose sibling test names no boundary. |
 | `postInvalidateDerived` | `principles.md` | Removes every derived artifact the written file feeds, so a later reader rebuilds it rather than reading a map of the tree as it stood before the edit. |
+
+## PostToolUse: Bash (`internal/le/hookruntime/postbash.go`)
+
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt -->
+
+| Check | Enforces | What it does |
+|---|---|---|
+| `postBashGofmt` | `quality.md` | Names every uncommitted Go file changed in the last two minutes that gofmt would reshape, so an edit made from the shell (sed, a heredoc, a scripted rename) is checked as a Write or an Edit is. It only reports: the window cannot tell this session's write from another session's. |
 
 ## Lifecycle actions (`internal/le/hookruntime/lifecycle.go`)
 
