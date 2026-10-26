@@ -165,6 +165,7 @@ The verification-debt shards, the session directory, the hook registry.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
 | `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` |
 | `blanket-mechanism-hid-missing-cases` | 2026-08-10 | Stop hook classifier |
 | `bulk-rename-corruption` | 2026-08-10 | lint `unused` on l2tp |

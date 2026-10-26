@@ -2,21 +2,13 @@
 // Detail: treehash.go -- the tree an entry records
 // Detail: jobkey.go -- the work an entry records
 //
-// tmp/.ze-jobs/<label>.<pid>.job contains one FIELD=VALUE line per field, and
-// its PRESENCE is the claim on a slot. No separate record identifies the
-// running job. The holder removes its entry when it exits. A waiter removes an
-// entry if its process is gone. Thus, a crashed job causes a delay of one poll
-// interval and does not require an operator.
+// tmp/.ze-jobs/<label>.<pid>.<claim>.job records one slot claim. Only its
+// holder removes its files. A waiter counts live or unassessable work as
+// occupied and ignores demonstrably dead work without changing its evidence.
 //
-// The format matches internal/le/job/answer.go field for field and file name for
-// file name. Both implementations read and write this directory during the
-// migration. If a field is renamed here, the other implementation cannot see
-// that job.
-//
-// The initial alternative used plain flock over more targets and no registry.
-// It provides no method to identify the slot holder, remove a crashed holder
-// without an operator, or record the tree hash. The tree hash later lets a
-// second asker share the result of a running job.
+// Readers use the fields, not the filename, for holder identity. The unique
+// claim suffix keeps retained evidence safe across PID reuse and repeat runs.
+// The tree hash lets a second asker share the result of equivalent work.
 
 package job
 
@@ -42,12 +34,8 @@ import (
 // the registry lock.
 const aliveTimeout = 5 * time.Second
 
-// killGrace is how long a stalled holder is given to die on a TERM before it
-// is killed outright.
-const killGrace = 3 * time.Second
-
-// One job owns three suffixes in the registry. They identify the entry that IS
-// its claim, the log that supplies liveness, and the result that holds a verdict.
+// One job owns three suffixes in the registry: its entry, progress log and
+// completed verdict. Waiters never remove any of them.
 const (
 	entrySuffix  = ".job"
 	logSuffix    = ".log"
@@ -93,7 +81,7 @@ type outcome struct {
 	// err refuses a scan whose inputs could not be measured.
 	err error
 	// entry is the registry entry, relative to the root: this job's when the
-	// state is claimed, the holder's when it is attach.
+	// state is claimed, the holder's when it is attach or busy.
 	entry string
 	// log is that entry's log, relative to the root.
 	log string
@@ -102,7 +90,9 @@ type outcome struct {
 	// holder names what is occupying a slot, for the waiting banner.
 	holder  string
 	elapsed time.Duration
-	started time.Time
+	// liveness is a process-query failure, not evidence of a free slot.
+	liveness error
+	started  time.Time
 }
 
 // entry is one registry file, parsed.
@@ -111,7 +101,6 @@ type entry struct {
 	path  string
 	label string
 	pid   int
-	pgid  int
 	tree  string
 	key   string
 	// log is the entry's LOG field as written: relative to the root.
@@ -122,23 +111,23 @@ type entry struct {
 
 // claim asks the registry once, under the registry lock, and answers what it
 // decided.
-func (a *Admission) claim(job *pending) outcome {
-	lock, err := a.lockRegistry()
+func (a *Admission) claim(ctx context.Context, job *pending) outcome {
+	lock, err := a.lockRegistry(ctx)
 	if err != nil {
 		// The process failed to inspect the registry, so it does not admit a job.
 		return outcome{state: stateBusy, holder: "registry lock"}
 	}
 	defer lock.release(a)
 
-	return a.scanAndClaim(job)
+	return a.scanAndClaim(ctx, job)
 }
 
-// scanAndClaim removes dead entries, counts the live entries, and then shares
-// an equivalent job, claims a slot, or reports the holder.
+// scanAndClaim counts live and unassessable entries, then shares an equivalent
+// job, claims a slot, or reports the holder. Foreign files are never changed.
 //
 // MUST run with the registry lock. It counts directory entries and then writes
 // an entry. If two scans overlap, both detect the same free slot.
-func (a *Admission) scanAndClaim(job *pending) outcome {
+func (a *Admission) scanAndClaim(ctx context.Context, job *pending) outcome {
 	now := time.Now()
 	occupied := 0
 	result := outcome{state: stateBusy, holder: "?"}
@@ -153,50 +142,33 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 	slices.Sort(names)
 
 	for _, path := range names {
+		if err := ctx.Err(); err != nil {
+			return outcome{err: err}
+		}
 		held, ok := a.readEntry(path)
 		if !ok {
-			// FAIL CLOSED: an entry that cannot be read is a job that cannot
-			// be proven gone. It has no readable LOG to judge, so this one
-			// case still goes by age, and it only DROPS the entry -- nothing
-			// is signaled. The window is shared so the registry stays bounded
-			// by one number.
-			age := now.Sub(fileTime(path))
-			if age > a.Stall {
-				a.reap(path)
-				continue
-			}
+			// Age cannot prove that an unreadable entry's process has ended.
+			// Keep its capacity occupied and leave all of its files intact.
 			occupied++
 			if result.holder == "?" {
 				var tb textbuf.Buffer
 				result.holder = tb.Str("unreadable entry ").Str(filepath.Base(path)).String()
-				result.elapsed = age
+				result.entry = a.rel(path)
 			}
 			continue
 		}
 
-		if !alive(held.pid) {
-			a.reap(path)
-			continue
+		running, queryErr := alive(ctx, held.pid)
+		if err := ctx.Err(); err != nil {
+			return outcome{err: err}
 		}
-
-		elapsed := now.Sub(held.started)
-
-		// The holder is alive. Its log, not the clock, determines whether it is
-		// WORKING. Each write updates the file's mtime. Thus, a log that grew
-		// during the stall window identifies a job that is still producing
-		// output. If the log is unreadable or absent, the holder keeps its slot.
-		//
-		// The system cannot assess that holder. Admission of a second job would
-		// oversubscribe the box, and a kill without evidence would destroy a run.
-		if written := fileTime(a.abs(held.log)); held.log != "" && !written.IsZero() {
-			static := now.Sub(written)
-			if static > a.Stall {
-				a.breakStalled(held, static, elapsed)
+		if queryErr == nil {
+			if !running {
 				continue
 			}
 		}
 
-		if share == nil {
+		if share == nil && queryErr == nil {
 			shared, err := a.shares(job, held)
 			if err != nil {
 				return outcome{err: err}
@@ -210,19 +182,22 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 		if result.holder == "?" {
 			result.holder = held.label
 			result.pid = held.pid
-			result.elapsed = elapsed
+			result.elapsed = now.Sub(held.started)
+			result.entry = a.rel(path)
+			result.liveness = queryErr
 			// The log the waiting banner reads the holder's current stage from.
 			result.log = held.log
 		}
 	}
-
-	a.retireResults(now)
 
 	if share != nil {
 		return outcome{state: stateAttach, entry: a.rel(share.path), log: share.log, pid: share.pid}
 	}
 	if occupied >= a.Slots {
 		return result
+	}
+	if err := ctx.Err(); err != nil {
+		return outcome{err: err}
 	}
 	return a.take(job, now)
 }
@@ -272,8 +247,10 @@ func (a *Admission) shares(job *pending, held entry) (bool, error) {
 	return true, nil
 }
 
-// take writes this job's entry, which IS its claim on a slot.
-func (a *Admission) take(job *pending, now time.Time) outcome {
+// take creates a unique claim and its log without overwriting earlier evidence.
+// It MUST run under the registry lock, which keeps another scan from reading
+// the entry before its fields have been written.
+func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 	// A later asker uses TREE to attach, so TREE must identify the inputs that
 	// this job will judge. A job can wait behind a twenty minute holder. During
 	// that wait, the inputs the job originally requested can change.
@@ -286,8 +263,41 @@ func (a *Admission) take(job *pending, now time.Time) outcome {
 	}
 
 	pid := os.Getpid()
-	rel := filepath.Join(JobsDir, entryName(job.label, pid, entrySuffix))
-	logRel := filepath.Join(JobsDir, entryName(job.label, pid, logSuffix))
+	file, err := os.CreateTemp(a.jobsDir(), entryName(job.label, pid, ".*"+entrySuffix))
+	if err != nil {
+		return outcome{err: err}
+	}
+	if err := file.Close(); err != nil {
+		a.remove(file.Name())
+		return outcome{err: err}
+	}
+	defer func() {
+		if result.state != stateClaimed {
+			a.remove(file.Name())
+		}
+	}()
+	rel := a.rel(file.Name())
+	logRel := swapSuffix(rel, logSuffix)
+	logFile, err := os.OpenFile(a.abs(logRel), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // the owned registry log is shared with followers
+	if err != nil {
+		return outcome{err: err}
+	}
+	defer func() {
+		if result.state != stateClaimed {
+			a.remove(a.abs(logRel))
+		}
+	}()
+	if err := logFile.Close(); err != nil {
+		return outcome{err: err}
+	}
+	// A completed receipt can outlive its entry. Never select that name for
+	// new work, even if the temporary filename generator reused its suffix.
+	if _, err := os.Lstat(a.abs(swapSuffix(rel, resultSuffix))); !errors.Is(err, fs.ErrNotExist) {
+		if err != nil {
+			return outcome{err: err}
+		}
+		return outcome{err: errors.New("the new job's result path already exists; retry admission without changing that file")}
+	}
 
 	var tb textbuf.Buffer
 	tb.Str("LABEL=").Str(job.label).Byte('\n')
@@ -302,104 +312,14 @@ func (a *Admission) take(job *pending, now time.Time) outcome {
 	tb.Str("CMD=").Join(job.argv, " ").Byte('\n')
 	written := []byte(tb.String())
 
-	if err := os.WriteFile(a.abs(rel), written, 0o644); err != nil { //nolint:gosec // the registry is a shared checkout's tmp/, read by every session on this machine
-		a.note(errorLine(err))
-		return outcome{state: stateBusy, holder: "unwritable registry"}
+	if err := os.WriteFile(file.Name(), written, 0o644); err != nil { //nolint:gosec // this invocation exclusively created the entry above
+		return outcome{err: err}
 	}
-	if err := os.WriteFile(a.abs(logRel), nil, 0o644); err != nil { //nolint:gosec // same registry, same readers
-		a.note(errorLine(err))
-	}
-	if err := os.WriteFile(a.abs(OwnerFile), written, 0o644); err != nil { //nolint:gosec // the documented view of the holder, which ai/rules tells readers to open
-		a.note(errorLine(err))
+	if err := os.Chmod(file.Name(), 0o644); err != nil { //nolint:gosec // followers read the completed registry entry
+		return outcome{err: err}
 	}
 
 	return outcome{state: stateClaimed, entry: rel, log: logRel, pid: pid, started: now}
-}
-
-// breakStalled kills a live holder that stopped producing output and then
-// removes its entry.
-//
-// The kill message includes the evidence that justified the kill. It identifies
-// the file that stopped growing and the duration without growth. Elapsed time
-// is context and is never the reason. An operator who reads
-// "20 minutes elapsed" cannot determine if the kill was correct. One who reads
-// "no output for 31 minutes" can.
-//
-// This method replaced a decision based on age. A holder older than 1800
-// seconds previously had its process group killed. The threshold was justified
-// by "verify targets ~2 min", but recorded history gives 12m45s. A full run
-// under load on 2026-08-17 took more than 20 minutes. Under the contention that
-// this package manages, the first waiter killed a valid run. The waiter then
-// ran slowly, and the next waiter killed it.
-func (a *Admission) breakStalled(held entry, static, elapsed time.Duration) {
-	target, ok := signalTarget(held)
-	if !ok {
-		// Nothing safe to signal: leave the entry alone rather than kill this
-		// session's own process group.
-		return
-	}
-
-	colors := textbuf.C
-	var tb textbuf.Buffer
-	tb.SetColor(a.Color)
-	tb.Colored(colors.BoldRed).Byte('[').Str(held.label).Str("] breaking STALLED job: pid ").
-		Int(int64(held.pid)).Str(", pgid ").Int(int64(held.pgid)).Colored(colors.Reset)
-	a.note(tb.String())
-
-	tb.SetColor(a.Color)
-	tb.Colored(colors.BoldRed).Str("  evidence: ").Str(held.log).
-		Str(" has not grown for ").Int(int64(static / time.Second)).
-		Str("s (stall window ").Int(int64(a.Stall / time.Second)).
-		Str("s); the job had been running ").Int(int64(elapsed / time.Second)).Str("s").
-		Colored(colors.Reset)
-	a.note(tb.String())
-
-	if err := syscall.Kill(target, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
-		a.note(errorLine(err))
-	}
-	deadline := time.Now().Add(killGrace)
-	for alive(held.pid) && time.Now().Before(deadline) {
-		time.Sleep(time.Second)
-	}
-	if err := syscall.Kill(target, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		a.note(errorLine(err))
-	}
-
-	a.reap(held.path)
-}
-
-// signalTarget returns the target for the signal that stops a stalled holder.
-// It also reports whether the target can be signaled safely.
-//
-// The process GROUP is the target because a job is a process tree. If only the
-// leader is killed, the remaining processes continue to use the machine. Two
-// targets are never signaled: process group 0, which includes every process in
-// the session, and this process's own group.
-func signalTarget(held entry) (int, bool) {
-	if held.pgid > 0 && held.pgid != processGroup() {
-		return -held.pgid, true
-	}
-	if held.pid > 0 && held.pid != os.Getpid() {
-		return held.pid, true
-	}
-	return 0, false
-}
-
-// retireResults removes results for jobs whose attachers did not return.
-//
-// An attacher reads a result shortly after it is written. No operation deletes
-// the result for its reader, so age limits this part of the registry. Results
-// use the same window as entries.
-func (a *Admission) retireResults(now time.Time) {
-	names, err := filepath.Glob(filepath.Join(a.jobsDir(), "*"+resultSuffix))
-	if err != nil {
-		return
-	}
-	for _, path := range names {
-		if now.Sub(fileTime(path)) > a.Stall {
-			a.remove(path)
-		}
-	}
 }
 
 // writeResult records a finished job's verdict where a follower can find it.
@@ -412,7 +332,15 @@ func (a *Admission) writeResult(entryRel string, code int) {
 	var tb textbuf.Buffer
 	body := tb.Int(int64(code)).Byte('\n').String()
 
-	if err := os.WriteFile(a.abs(swapSuffix(entryRel, resultSuffix)), []byte(body), 0o644); err != nil { //nolint:gosec // the registry is a shared checkout's tmp/, read by every session on this machine
+	file, err := os.OpenFile(a.abs(swapSuffix(entryRel, resultSuffix)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // followers read the owned result; an existing file is never overwritten
+	if err != nil {
+		a.note(errorLine(err))
+		return
+	}
+	if _, err := file.WriteString(body); err != nil {
+		a.note(errorLine(err))
+	}
+	if err := file.Close(); err != nil {
 		a.note(errorLine(err))
 	}
 }
@@ -480,26 +408,41 @@ func (a *Admission) reportPrevious(label string) {
 
 // reportBusy writes the banner a waiting job repeats while it waits.
 //
-// The banner carries the holder's current STAGE as well as its name and its
-// elapsed time. A waiter that reads only a name and a growing number cannot
-// tell a run that is progressing from one that is stuck, and a twenty minute
-// wait behind a full verification is the ordinary case on this machine. The
-// stage is the holder's own last output line, which is the per-stage banner
-// its runner already writes (docs/functional-tests.md), so nothing new is
-// produced for this: it is read.
-//
-// A holder with no readable log gets the banner without a stage, because
-// silence about progress is not evidence of a stage.
+// The banner reports observed log silence, never a verdict that silence proves
+// a stalled process. Missing metadata stays unknown, not a zero-age holder.
 func (a *Admission) reportBusy(label string, result outcome) {
 	colors := textbuf.C
 	var tb textbuf.Buffer
 	tb.SetColor(a.Color)
-	tb.Colored(colors.BrightYellow).Byte('[').Str(label).Str("] waiting: ").Str(result.holder).
-		Str(" running (pid ").Int(int64(result.pid)).Str(", ").
-		Int(int64(result.elapsed / time.Second)).Str("s elapsed)")
-
-	if stage := lastLine(a.abs(result.log)); stage != "" {
-		tb.Str(": ").Str(stage)
+	tb.Colored(colors.BrightYellow).Byte('[').Str(label).Str("] waiting: ").Str(result.holder)
+	switch {
+	case result.pid == 0:
+		tb.Str(" (capacity occupied, holder identity unavailable)")
+	case result.liveness != nil:
+		tb.Str(" (pid ").Int(int64(result.pid)).Str(", liveness unknown: ").Err(result.liveness).Byte(')')
+	default:
+		tb.Str(" running (pid ").Int(int64(result.pid)).Str(", ").
+			Int(int64(result.elapsed / time.Second)).Str("s elapsed)")
+	}
+	if result.entry != "" {
+		tb.Str("; entry ").Str(result.entry)
+	}
+	if result.log != "" {
+		written := fileTime(a.abs(result.log))
+		if written.IsZero() {
+			tb.Str("; log progress unavailable: ").Str(result.log)
+		} else {
+			silence := max(time.Since(written), 0)
+			tb.Str("; ").Str(result.log).Str(" has not grown for ").
+				Int(int64(silence / time.Second)).Byte('s')
+			if silence > a.Stall {
+				tb.Str(" (quiet window ").Int(int64(a.Stall / time.Second)).
+					Str("s exceeded; holder kept occupied, ask its owner)")
+			}
+		}
+		if stage := lastLine(a.abs(result.log)); stage != "" {
+			tb.Str(": ").Str(stage)
+		}
 	}
 
 	tb.Str("...").Colored(colors.Reset)
@@ -614,9 +557,6 @@ func (a *Admission) readEntry(path string) (entry, bool) {
 		log:   registryLog(field(body, "LOG")),
 		state: field(body, "STATE"),
 	}
-	if pgid, err := strconv.Atoi(field(body, "PGID")); err == nil {
-		held.pgid = pgid
-	}
 	// A STARTED nobody wrote leaves the job as old as this instant, which
 	// makes its elapsed time zero rather than fifty years. Elapsed time is
 	// reported and never acted on, so a missing one costs a banner's accuracy
@@ -682,16 +622,8 @@ func swapSuffix(path, suffix string) string {
 	return tb.Str(strings.TrimSuffix(path, entrySuffix)).Str(suffix).String()
 }
 
-// reap drops an entry and its log together, which is what makes a follower
-// hold its own descriptor rather than reopen a path.
-func (a *Admission) reap(path string) {
-	a.remove(path)
-	a.remove(swapSuffix(path, logSuffix))
-}
-
-// remove deletes one registry file. An absent file is normal because another
-// waiter can remove it first. A file that cannot be deleted requires a log
-// line because an entry that cannot be removed holds a slot indefinitely.
+// remove deletes only a file this invocation created. Callers MUST hold that
+// ownership, not infer it from the file's age, PID or session identity.
 func (a *Admission) remove(path string) {
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		a.note(errorLine(err))
@@ -723,9 +655,8 @@ func fileTime(path string) time.Time {
 	return info.ModTime()
 }
 
-// processGroup answers this process's group, or its pid when the group cannot
-// be asked. The fallback is the safe direction: signalTarget refuses to signal
-// its own group, and a group it cannot name is one it must not signal.
+// processGroup records this process's group as metadata. If the group cannot
+// be queried, the process PID is recorded instead. Waiters never signal it.
 func processGroup() int {
 	pgid, err := syscall.Getpgid(os.Getpid())
 	if err != nil {
@@ -734,7 +665,7 @@ func processGroup() int {
 	return pgid
 }
 
-// alive reports whether a process is still running a job.
+// alive reports whether a process is running, or why its state is unknown.
 //
 // It queries the process table because the two less expensive checks answer
 // different questions. `kill -0` tests whether this process can SIGNAL the
@@ -748,25 +679,33 @@ func processGroup() int {
 // A follower would also wait for a run that ended. Linux prints the state as
 // one letter, and macOS appends flags to it. Therefore, the state is the first
 // letter on both systems.
-func alive(pid int) bool {
+func alive(parent context.Context, pid int) (bool, error) {
 	if pid <= 0 {
-		return false
+		return false, errors.New("a process query needs a positive PID")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), aliveTimeout)
+	ctx, cancel := context.WithTimeout(parent, aliveTimeout)
 	defer cancel()
 
 	var tb textbuf.Buffer
 	//nolint:gosec // the argument is a number this package printed from a registry entry's PID field
 	out, err := exec.CommandContext(ctx, "ps", "-o", "state=", "-p", tb.Int(int64(pid)).String()).Output()
-	if err != nil {
-		return false
-	}
 	reported := strings.TrimSpace(string(out))
-	if reported == "" || strings.HasPrefix(reported, "Z") {
-		return false
+	if err != nil {
+		// ps exits 1 with no output when the selected PID is absent. Every
+		// other failure, including cancellation, leaves liveness unknown.
+		var exit *exec.ExitError
+		if ctx.Err() == nil && errors.As(err, &exit) {
+			if exit.ExitCode() == 1 && reported == "" && len(exit.Stderr) == 0 {
+				return false, nil
+			}
+		}
+		return false, err
 	}
-	return true
+	if reported == "" {
+		return false, errors.New("the process query returned no state")
+	}
+	return !strings.HasPrefix(reported, "Z"), nil
 }
 
 // registryLock is the flock this package takes for the length of a scan.
@@ -779,7 +718,7 @@ type registryLock struct {
 // The lock covers the scan and its subsequent write. It covers nothing else.
 // The lock is never held for the length of a job. The entries hold that claim,
 // and a long-lived lock would prevent every waiter's banner.
-func (a *Admission) lockRegistry() (registryLock, error) {
+func (a *Admission) lockRegistry(ctx context.Context) (registryLock, error) {
 	path := filepath.Join(a.jobsDir(), lockName)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644) //nolint:gosec // the registry lock is shared by every session on this machine
 	if err != nil {
@@ -788,6 +727,12 @@ func (a *Admission) lockRegistry() (registryLock, error) {
 
 	deadline := time.Now().Add(lockWait)
 	for {
+		if err := ctx.Err(); err != nil {
+			if closeErr := file.Close(); closeErr != nil {
+				a.note(errorLine(closeErr))
+			}
+			return registryLock{}, err
+		}
 		err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if err == nil {
 			return registryLock{file: file}, nil
@@ -798,7 +743,7 @@ func (a *Admission) lockRegistry() (registryLock, error) {
 			}
 			return registryLock{}, err
 		}
-		time.Sleep(lockRetry)
+		pause(ctx, lockRetry)
 	}
 }
 

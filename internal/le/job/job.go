@@ -14,36 +14,26 @@
 // three concurrent sessions and "running the linting by hand can cause the
 // machine to freeze".
 //
-// This package is a port of internal/le/job/answer.go. It preserves the registry
-// format field for field and file name for file name. Thus, a job admitted by
-// the shell and a job admitted here can detect each other. During migration,
-// the two implementations use one queue and do not admit themselves separately.
+// The command in answer.go and native library callers use this same registry.
 //
 // Five properties define the design. If one property is removed, the
 // 2026-08-17 failure can occur again.
 //
-//   - A REGISTRY, not a lock. tmp/.ze-jobs/<label>.<pid>.job contains one
-//     FIELD=VALUE line per field, and its PRESENCE is the claim. No separate
-//     record identifies the running job. The holder removes its entry when it
-//     exits. A waiter removes an entry if its process is gone. Thus, a crashed
-//     job causes a delay of one poll interval and does not require an operator.
+//   - A REGISTRY, not a lock. tmp/.ze-jobs/<label>.<pid>.<claim>.job contains
+//     one FIELD=VALUE line per field. Its holder removes its entry at release.
+//     Waiters ignore demonstrably dead work without deleting its evidence.
 //
-//   - FAIL CLOSED. An entry that cannot be read counts as OCCUPIED. If
-//     "cannot parse" meant "nothing is running", all sessions would start at
-//     the same time. This package prevents that failure. An unreadable entry
-//     is removed only after it is older than the stall window. This rule keeps
-//     the registry bounded.
+//   - FAIL CLOSED. An unreadable entry or an unsuccessful process query counts
+//     as OCCUPIED regardless of age. Unknown work is never a free slot.
 //
 //   - ATTACH on identical work. Serialization alone would make eight sessions
 //     wait for eight runs of the same work. If a second asker's label, tree,
 //     and work key match a running job, it follows that job's log and uses its
 //     exit code. One run supplies both answers.
 //
-//   - Break a stalled holder on EVIDENCE. A slot is broken if the holder's
-//     process is gone. It is also broken if the holder is alive and its log
-//     has not grown during the stall window. Elapsed time alone is never the
-//     reason. An operator who reads "20 minutes elapsed" cannot determine if
-//     the kill was correct. One who reads "no output for 31 minutes" can.
+//   - Observe foreign holders without changing them. A quiet holder keeps its
+//     slot. Its log's modification time supplies a silence diagnostic, never
+//     authority to signal a process or remove its files.
 //
 //   - NESTING. A wrapped job can run wrapped stages. For example, a verify
 //     holds a slot and then runs a lint that is also wrapped. If the inner job
@@ -92,22 +82,14 @@ const (
 	// is held for the length of a directory scan rather than for the length of
 	// a job.
 	lockName = ".registry.lock"
-	// OwnerFile is the documented view of the current holder: ai/rules/git-safety.md
-	// and ai/rules/commands.md both tell readers this file names it. It is a
-	// copy of the entry, written and removed with it.
-	OwnerFile = "tmp/.ze-verify.lock.owner"
 	// DurationFile records how long each job took, one tab-separated line per
 	// finished job. A waiting session reads it to say what the previous run of
 	// this label cost.
 	DurationFile = "tmp/.ze-verify-duration.txt"
 )
 
-// These are the bounds and default for the stall window. The window measures
-// SILENCE, not run time. A job that continues to write to its log is never
-// broken, regardless of its run time. The default exceeds the longest silent
-// interval measured in this repository. On 2026-08-17, golangci-lint was silent
-// for about 18 minutes during a 20 minute verify. Thus, a real run has spare
-// time, and a wedged run is reclaimed within one hour.
+// These are the bounds and default for the informational quiet window.
+// It measures log silence, never permission to stop work or free capacity.
 const (
 	StallMin     = 60 * time.Second
 	StallMax     = 3600 * time.Second
@@ -171,7 +153,7 @@ const (
 const (
 	// SlotsKey is how many admitted jobs run at once.
 	SlotsKey = "ze.run.slots"
-	// StallKey is the silence budget, in seconds.
+	// StallKey is the informational quiet window, in seconds.
 	StallKey = "ze.job.stall.seconds"
 	// ParentKey names the entry of the job this one runs inside. A wrapper
 	// exports it, and a job that finds it runs in its parent's slot.
@@ -207,10 +189,8 @@ var stallEntry = env.MustRegister(env.EnvEntry{
 	Key:         StallKey,
 	Type:        typeInt,
 	Default:     "1800",
-	Description: "how long a live job may write nothing before its slot is broken, in seconds",
-	// This is the older spelling. ai/rules/git-safety.md instructs readers to
-	// increase it, so that instruction must remain effective. It now permits a
-	// longer SILENCE, which is not necessary for a healthy slow job.
+	Description: "seconds of log silence before the waiting banner adds a quiet diagnostic; never stops a job",
+	// The existing alias selects the same informational window.
 	Aliases: []string{"ZE_VERIFY_MAX_LOCK_AGE"},
 	Private: true,
 })
@@ -249,8 +229,8 @@ type Admission struct {
 	Root string
 	// Slots specifies the maximum number of jobs that can run at the same time.
 	Slots int
-	// Stall specifies the SILENCE limit. If a live holder does not write during
-	// this interval, the breaker breaks its slot.
+	// Stall specifies when the waiting banner diagnoses log silence.
+	// A holder remains occupied after this interval.
 	Stall time.Duration
 	// Poll is how often a waiting job re-checks the registry.
 	Poll time.Duration
@@ -289,11 +269,8 @@ func New() (*Admission, error) {
 // NewIn returns the admission manager for one named checkout. Tests use it,
 // as do tools that already know their root.
 //
-// Values outside the permitted range cause an error and are not clamped. A
-// stall window that is too small kills a healthy job between two log lines. A
-// stall window that is too large lets a wedged job hold the only slot for
-// hours. The caller must not receive a policy different from the value it
-// specified.
+// Values outside the permitted range cause an error and are not clamped.
+// The quiet window changes diagnostics only, never a holder's capacity.
 func NewIn(root string) (*Admission, error) {
 	adm := &Admission{
 		Root:       root,
@@ -313,15 +290,9 @@ func NewIn(root string) (*Admission, error) {
 	return adm, nil
 }
 
-// stallWindow returns the SILENCE limit specified by the environment. It
-// accepts either of the two spellings that specify this limit.
-//
-// The alias is read EXPLICITLY because env.Get resolves an alias only when the
-// caller passes the alias. If the caller requests the canonical key, env.Get
-// reads only the canonical spelling. Therefore, a session that exports
-// ZE_VERIFY_MAX_LOCK_AGE would otherwise receive the default. The file
-// ai/rules/git-safety.md instructs readers to increase that name, so it must
-// remain effective. internal/le/go/toolchain reads its two aliases in the same way.
+// stallWindow returns the informational quiet window specified by the
+// environment, accepting its existing spellings. The alias is read explicitly
+// because env.Get on the canonical key does not read the alias.
 //
 // A value that is not a number produces zero instead of the default. Zero is
 // outside the permitted range, so Validate rejects and identifies it. An
@@ -372,8 +343,8 @@ func (a *Admission) Validate() error {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("stall window ").Int(int64(a.Stall / time.Second)).
 			Str("s is out of range (").Int(int64(StallMin / time.Second)).Str("..").
-			Int(int64(StallMax / time.Second)).Str(" seconds); set ZE_JOB_STALL_SECONDS. It budgets SILENCE, ").
-			Str("not run time: a job that keeps writing to its log is never broken, however long it runs").
+			Int(int64(StallMax / time.Second)).Str(" seconds); set ZE_JOB_STALL_SECONDS. It diagnoses log silence, ").
+			Str("never stops a job or frees its slot").
 			String())
 	}
 
@@ -431,11 +402,9 @@ func (k Kind) String() string {
 // once. All other kinds hold no slot, and Release is a no-op for them. Thus, a
 // caller can defer the call unconditionally.
 //
-// A holder MUST write its progress to Log while it works. The breaker uses
-// that file as liveness evidence, and a follower reads it for replay. If a
-// holder remains silent, the breaker breaks its slot while it works. Run
-// writes the progress for a job that is another program. A caller that does
-// the work in-process has the same responsibility.
+// A holder MUST write its actual progress to Log for waiting diagnostics and
+// follower replay. Silence does not permit another job to stop it. Run writes
+// the progress for a child program; an in-process caller owns that obligation.
 type Ticket struct {
 	// Label is the job's name, and the first component of its entry.
 	Label string
@@ -486,7 +455,6 @@ func (t *Ticket) Release(code int) {
 	adm.writeResult(t.Entry, code)
 	adm.remove(adm.abs(t.Entry))
 	adm.remove(adm.abs(t.Log))
-	adm.remove(adm.abs(OwnerFile))
 }
 
 // Admit waits until this job can run and then returns its admission result.
@@ -558,10 +526,9 @@ func (a *Admission) admit(ctx context.Context, label string, argv []string) (*Ti
 // queue is the admission loop. It queries the registry and then runs, shares,
 // or waits before it queries the registry again.
 //
-// The loop intentionally has no iteration limit. A job waits while the
-// machine is busy, for as long as one hour. The registry controls this wait.
-// Each holder in the registry is alive and writing, or the registry reaps it.
-// See registry.go. ctx is the one other end: a done ctx answers its error.
+// The loop intentionally has no iteration limit. It waits while capacity is
+// occupied, including by a silent or unassessable holder. Only availability or
+// the caller's cancellation ends that wait; a waiter never breaks a holder.
 func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 	started := time.Now()
 	var lastBanner time.Time
@@ -570,7 +537,7 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		result := a.claim(job)
+		result := a.claim(ctx, job)
 		if result.err != nil {
 			return nil, result.err
 		}
@@ -639,8 +606,8 @@ func (a *Admission) insideParent() (string, bool) {
 // environ, or os.Environ when environ is nil. The function adds this job's
 // entry. Thus, a wrapped stage uses this slot and does not queue behind it.
 //
-// The child's stdout and stderr are merged and teed to the job's log, which is
-// what a follower replays and what the breaker judges. The cost, stated
+// The child's stdout and stderr are merged and teed to the job's log, which
+// followers replay and waiting banners observe. The cost, stated
 // because it is visible: the child's stdout is a pipe, so a tool that colors
 // only for a terminal stops coloring.
 func (a *Admission) Run(label string, argv []string, dir string, environ []string) (Report, int) {
@@ -663,8 +630,8 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 		// contains $(MAKE) even under -n, -t, and -q. This behavior lets
 		// recursive make participate in those modes.
 		//
-		// Without this branch, the job queues for a slot and writes no log. No
-		// scan sees progress, and `make -n` hangs until the stall window expires.
+		// Without this branch, a dry run could queue behind a real job even
+		// though it will execute no heavy work.
 		report.Admission = KindUnadmitted.String()
 		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
 		a.noteStopped(ctx, label, report.Code)
@@ -862,9 +829,8 @@ func (a *Admission) stream(ctx context.Context, argv []string, dir string, envir
 	return 0
 }
 
-// forwardSignals sends an interrupt to the child. Thus, this job finishes its
-// wait, releases its slot, and answers a code. It does not leave an entry for
-// the next scan to reap.
+// forwardSignals sends an interrupt to this invocation's own child. The job
+// then finishes its wait and releases its own slot.
 //
 // The returned function MUST be called after the child has been waited for. The
 // call stops delivery and ends the goroutine. That is the complete life of this

@@ -91,12 +91,19 @@ func (a *Admission) follow(ctx context.Context, target outcome) {
 		// The entry going is the job ending: it is removed after the result is
 		// recorded. A killed job leaves its entry behind, so the process is
 		// asked too.
-		if !exists(a.abs(target.entry)) || !alive(target.pid) {
+		if ctx.Err() != nil {
+			break
+		}
+		if !exists(a.abs(target.entry)) {
 			a.copyTail(file)
 			break
 		}
-		if ctx.Err() != nil {
-			break
+		running, err := alive(ctx, target.pid)
+		if err == nil {
+			if !running {
+				a.copyTail(file)
+				break
+			}
 		}
 		pause(ctx, a.Poll)
 	}

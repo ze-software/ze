@@ -1289,7 +1289,7 @@ killed process and a real defect read the same in a log. The repository-wide
 verify lock says this for one target; the one-owner rule says it for every suite
 and names who holds the right to run one.
 
-## How long a verify takes, and when a slow one is broken
+## How long a verify takes, and what silence means
 
 Never take a timeout from a duration written in a rule. How long a full pass takes
 depends on the machine and on what else that machine is doing, so the figures in
@@ -1299,13 +1299,25 @@ two different rules are different hardware rather than a contradiction. `ticket.
 so that file is the only per-machine record there is. Read it as an expectation,
 never as a threshold.
 
-A slow run is not a broken run, and there is no threshold to raise. A waiter breaks
-a holder's slot only when that holder is DEAD, or when it has made no progress for
-the stall window: `scanAndClaim` (`internal/le/job/registry.go`) judges progress by
-the mtime of the job's log, never by elapsed time. `ZE_JOB_STALL_SECONDS`
-(`StallKey`) sets that window, defaults to 1800 seconds, and is bounded to 60..3600
-(`StallMin`, `StallMax`, `internal/le/job/job.go`). A value outside the range is
-refused before the job starts.
+A slow or silent run is not proof of a broken run. Admission waiters only
+observe other jobs: a live quiet holder keeps its slot, and an unreadable
+entry counts as occupied regardless of age. A demonstrably absent or zombie
+process consumes no capacity, but its entry and log remain untouched.
+An unsuccessful process query does not prove that a holder is gone.
+Waiters never signal holders, delete their files, or prune their result receipts.
+Only the holder releases its own ticket and removes its own entry and log.
+<!-- source: internal/le/job/registry.go -- scanAndClaim, alive -->
+<!-- source: internal/le/job/job.go -- Ticket.Release -->
+
+The waiting banner names the holder and entry, the log, and its actual silence.
+`ZE_JOB_STALL_SECONDS` (`StallKey`) sets the informational quiet window,
+defaulting to 1800 seconds and bounded to 60..3600 (`StallMin`, `StallMax`).
+An out-of-range value is refused before admission. Exceeding that window adds
+a diagnostic, not permission to stop a process or free its slot. Ask the
+holder's owner to investigate. A caller's cancellation ends its own queue or
+attachment without changing the holder.
+<!-- source: internal/le/job/registry.go -- reportBusy -->
+<!-- source: internal/le/job/job.go -- Validate, RunContext, queue -->
 
 ## Stage times, and stopping at the first red
 
@@ -1459,12 +1471,14 @@ on the 32-core development box, because `internal/le/go/toolchain` already caps 
 job at a quarter of the cores (`CoresPerJob`, which is the same number it uses for
 `GOMAXPROCS` and for the linter's `-j`).
 
-Admission state is one file per running job, `tmp/.ze-jobs/<label>.<pid>.job`. There
-is no `tmp/.ze-verify.lock`: nothing takes that flock. The only flock in the
-registry is held for the length of one scan (`registryLock`,
-`internal/le/job/registry.go`). A job started INSIDE another job's slot runs straight
-through instead of queueing behind its own parent, which is how every stage of a
-verify run runs.
+Admission state is one file per running job,
+`tmp/.ze-jobs/<label>.<pid>.<claim>.job`. The unique claim suffix prevents a
+reused PID or a repeated invocation from overwriting earlier evidence.
+There is no `tmp/.ze-verify.lock`: nothing takes that flock. The registry lock
+is held for one scan and claim, not for the job's lifetime. A job started
+inside another job's slot uses its parent's entry rather than queueing behind it.
+<!-- source: internal/le/job/registry.go -- take, registryLock -->
+<!-- source: internal/le/job/job.go -- Admission.insideParent -->
 
 ## Testing one package while you develop it
 
@@ -1544,12 +1558,13 @@ composes a scratch path, a redirect, an exit-code echo and a `grep` is writing
 this command by hand, and each hand-written copy picks a different set of lines
 to keep.
 
-The job log under `tmp/.ze-jobs/` is not that file. It is the breaker's
-liveness evidence and a follower's replay source, and `ticket.Release`
-(`internal/le/job/registry.go`) removes it when the job ends, so a reader who
-arrives after the run finds nothing. The quiet log is the session's own and
-stays until the session's scratch directory goes. Two runs of one label in one
-session overwrite it.
+The job log under `tmp/.ze-jobs/` is not that file. It supplies the waiting
+banner's progress observation and a follower's replay.
+`Ticket.Release` removes its own registry log when the job ends.
+The quiet log is the session's own and stays until the session's scratch
+directory goes. Two runs of one label in one session overwrite it.
+<!-- source: internal/le/job/job.go -- Ticket.Release -->
+<!-- source: internal/le/job/registry.go -- reportBusy -->
 
 An ordinary run still streams to the terminal, which is what every wrapped
 recipe needs.
@@ -1563,11 +1578,14 @@ and RFC freshness. `internal/le/repo` owns the generated repository artifacts.
 
 ## Waiting for another session's job
 
-`tmp/.ze-jobs/<label>.<pid>.job` holds one entry per running job, with its label,
-pid and log (`JobsDir`, `internal/le/job/job.go`). It is a registry, not a lock.
-`tmp/.ze-verify.lock.owner` (`OwnerFile`) is a copy of ONE entry, so read the
-directory when more than one job can run. `./le verify status check` reports the
-last verify's verdict.
+Read `tmp/.ze-jobs/*.job` for each holder's label, PID and log.
+Dead entries and old result receipts can remain: their presence alone does
+not prove that work is running. The registry is not a lock, and there is no
+shared owner-copy file. A waiter leaves foreign evidence untouched even when
+it cannot read it or the process has ended.
+`./le verify status check` reports the last verify's verdict.
+<!-- source: internal/le/job/registry.go -- scanAndClaim, take -->
+<!-- source: internal/le/job/holders.go -- Holders -->
 
 Raw heavy work that no registered action owns is admitted with
 `./le job run label <label> command <argv...>`. One job runs and its peers queue

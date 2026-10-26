@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -219,48 +220,82 @@ func TestAnUnreadableEntryCountsAsOccupied(t *testing.T) {
 	}
 }
 
-// TestAnUnreadableEntryIsDroppedOnceItIsOlderThanTheStallWindow is what keeps
-// the registry bounded. Failing closed for ever would leave one corrupt file
-// blocking the machine until somebody deleted it by hand.
+// TestAnUnreadableEntryIsDroppedOnceItIsOlderThanTheStallWindow retains the
+// regression's original name. Age must NOT authorize dropping an unreadable
+// foreign entry: repeated scans keep its capacity occupied and its files intact.
 func TestAnUnreadableEntryIsDroppedOnceItIsOlderThanTheStallWindow(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
-	entry := writeEntry(t, root, "corrupt", "PID=not-a-number\nSTATE=running\n")
+	holder := sleeper(t)
+	entry, logPath := heldEntry(t, root, "corrupt", holder.Process.Pid)
+	if err := os.WriteFile(entry, []byte("PID=not-a-number\nSTATE=running\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	age(t, entry, 2*StallDefault)
+	age(t, logPath, 2*StallDefault)
+	unchanged := preserveRegistryFiles(t, entry, logPath)
 
-	if _, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
-		t.Fatalf("the job answered %d, want it admitted past an entry older than the window", code)
+	out := observeQueue(t, root, "unreadable entry", "sh", "-c", record(ran, "admitted"))
+	if !strings.Contains(out, filepath.Base(entry)) {
+		t.Errorf("waiter did not identify the unreadable entry: %s", out)
 	}
-	if _, err := os.Stat(entry); err == nil {
-		t.Error("the stale unreadable entry survived, so the registry is not bounded")
+	if _, err := os.Stat(ran); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("a job ran past the unreadable entry, or its marker cannot be inspected: %v", err)
 	}
+	if running, err := alive(t.Context(), holder.Process.Pid); err != nil || !running {
+		t.Error("the unreadable entry's foreign process did not survive")
+	}
+	unchanged()
 }
 
-// TestAStalledHolderIsBrokenOnItsSilence verifies the liveness rule. The holder
-// remains alive, but its log stops growing. The system breaks its slot, and the
-// evidence that justifies the kill names the file and the silence.
+// TestAStalledHolderIsBrokenOnItsSilence retains the regression's original
+// name. A real foreign process with an aged log must NOT be killed or lose its
+// slot. Repeated queue observations and SIGINT exercise the real waiter loop.
 func TestAStalledHolderIsBrokenOnItsSilence(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
 
 	holder := sleeper(t)
-	entry, logPath := heldEntry(t, root, "wedged", holder.Process.Pid)
+	entry, logPath := heldEntry(t, root, "quiet-holder", holder.Process.Pid)
 	age(t, logPath, 2*StallDefault)
+	unchanged := preserveRegistryFiles(t, entry, logPath)
 
-	out, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted"))
-	if code != 0 {
-		t.Fatalf("the job answered %d: %s", code, out)
+	out := observeQueue(t, root, "has not grown for", "sh", "-c", record(ran, "admitted"))
+	if running, err := alive(t.Context(), holder.Process.Pid); err != nil || !running {
+		t.Error("the foreign quiet holder was killed")
 	}
+	if _, err := os.Stat(ran); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the waiter ran past an occupied slot, or its marker cannot be inspected: %v", err)
+	}
+	for _, want := range []string{"quiet-holder", "pid " + strconv.Itoa(holder.Process.Pid), filepath.Base(entry), filepath.Base(logPath), "quiet window", "holder kept occupied"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("waiter omitted %q from its evidence: %s", want, out)
+		}
+	}
+	_, silenceText, found := strings.Cut(out, " has not grown for ")
+	if !found {
+		t.Fatal("waiter reported no measured silence")
+	}
+	secondsText, _, found := strings.Cut(silenceText, "s")
+	seconds, err := strconv.ParseInt(secondsText, 10, 64)
+	if !found || err != nil {
+		t.Fatalf("waiter reported unreadable silence %q: %v", silenceText, err)
+	}
+	if seconds < int64(2*StallDefault/time.Second) || seconds > int64(time.Since(fileTime(logPath))/time.Second) {
+		t.Errorf("reported silence %ds does not match the aged log", seconds)
+	}
+	unchanged()
 
-	if err := holder.Wait(); err == nil {
-		t.Error("the stalled holder exited cleanly, so nothing killed it")
+	// Only this test, which created the holder, ends it. The same registry must
+	// then admit work without deleting the foreign entry or log.
+	stop(t, holder)
+	if out, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
+		t.Fatalf("the owner ended the holder, but the queue did not advance: %d: %s", code, out)
 	}
-	if _, err := os.Stat(entry); err == nil {
-		t.Error("the broken holder's entry survived")
+	if got := read(t, ran); got != "admitted\n" {
+		t.Errorf("work after the holder ended = %q, want one admission", got)
 	}
-	if !strings.Contains(out, "has not grown for") || !strings.Contains(out, filepath.Base(logPath)) {
-		t.Errorf("the kill's evidence is %q, want the file that stopped growing and for how long", out)
-	}
+	unchanged()
 }
 
 // TestALongRunningHolderThatKeepsWritingIsLeftAlone verifies that age alone does
@@ -279,7 +314,7 @@ func TestALongRunningHolderThatKeepsWritingIsLeftAlone(t *testing.T) {
 	if waitingHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")) {
 		t.Error("a job was admitted past a holder that is still producing output")
 	}
-	if !alive(holder.Process.Pid) {
+	if running, err := alive(t.Context(), holder.Process.Pid); err != nil || !running {
 		t.Error("the holder is gone: an hour of elapsed time was read as a reason to kill it")
 	}
 	if _, err := os.Stat(entry); err != nil {
@@ -288,8 +323,8 @@ func TestALongRunningHolderThatKeepsWritingIsLeftAlone(t *testing.T) {
 	stop(t, holder)
 }
 
-// TestADeadHoldersEntryIsReaped is what makes a crashed job cost one poll
-// interval rather than an operator.
+// TestADeadHoldersEntryIsReaped retains the regression's original name. A
+// demonstrably dead process consumes no capacity, but its evidence stays intact.
 func TestADeadHoldersEntryIsReaped(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
@@ -298,13 +333,17 @@ func TestADeadHoldersEntryIsReaped(t *testing.T) {
 	pid := gone.Process.Pid
 	stop(t, gone)
 
-	entry, _ := heldEntry(t, root, "crashed", pid)
-	if _, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
-		t.Fatalf("the job answered %d, want it admitted past a holder that is gone", code)
+	entry, logPath := heldEntry(t, root, "crashed", pid)
+	age(t, entry, 2*StallDefault)
+	age(t, logPath, 2*StallDefault)
+	unchanged := preserveRegistryFiles(t, entry, logPath)
+	if out, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
+		t.Fatalf("the job answered %d, want admission past a dead holder: %s", code, out)
 	}
-	if _, err := os.Stat(entry); err == nil {
-		t.Error("the dead holder's entry survived, so its slot is held for ever")
+	if got := read(t, ran); got != "admitted\n" {
+		t.Errorf("work after a dead holder = %q, want one admission", got)
 	}
+	unchanged()
 }
 
 // TestANestedJobRunsInsideItsParentsSlot verifies the rule that prevents a
@@ -367,8 +406,8 @@ func TestTheJobsOwnExitCodeReachesTheCaller(t *testing.T) {
 }
 
 // TestMakesNoExecuteModesTakeNoSlot verifies the one route that skips admission.
-// A wrapped recipe passes `$(MAKE) ...`, which GNU make runs even under -n. If
-// a job queued there, `make -n` would hang until the stall window expired.
+// A wrapped recipe passes `$(MAKE) ...`, which GNU make runs even under -n.
+// A dry run must not queue behind work it will never execute.
 func TestMakesNoExecuteModesTakeNoSlot(t *testing.T) {
 	root := fixtureRepo(t)
 	ran := filepath.Join(root, "tmp", "ran")
@@ -409,8 +448,8 @@ func TestAPolicyOutsideItsRangeIsRefusedRatherThanClamped(t *testing.T) {
 	}{
 		{"no slots at all queues every job for ever", 0, StallDefault},
 		{"more slots than cores is not admission", 1 << 20, StallDefault},
-		{"a stall window under the floor kills a healthy job between two lines", 1, time.Second},
-		{"a stall window over the ceiling leaves a wedged job holding the slot", 1, 10 * time.Hour},
+		{"a quiet diagnostic window under the floor is refused", 1, time.Second},
+		{"a quiet diagnostic window over the ceiling is refused", 1, 10 * time.Hour},
 	}
 
 	for _, tc := range cases {
@@ -802,9 +841,8 @@ func heldEntrySince(t *testing.T, root, label string, pid int, since time.Durati
 	var tb textbuf.Buffer
 	tb.Str("LABEL=").Str(label).Byte('\n')
 	tb.Str("PID=").Int(int64(pid)).Byte('\n')
-	// PGID=0 is never signaled, so a broken holder is stopped by its pid
-	// alone. A fabricated entry naming this session's real process group would
-	// have the case kill the test runner.
+	// The fixture names no process group. It owns only the sleeper PID, never
+	// the test runner's group, including when it runs against the old breaker.
 	tb.Str("PGID=0\n")
 	tb.Str("TREE=").Str(TreeHash(root)).Byte('\n')
 	tb.Str("KEY=fabricated\n")

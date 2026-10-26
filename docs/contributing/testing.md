@@ -407,11 +407,12 @@ first setting through `gitenv.ReadOnly`.
 `./le go lint run` claims the `lint` label in the shared job registry
 (`internal/le/job`) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
-`[lint] waiting: <holder> running (pid N, Ns elapsed): <the holder's last log
-line>` while it queues. That last line is the holder's current stage, read from
-the log the holder is writing (`reportBusy`, `internal/le/job/registry.go`), so
-a waiter can tell a run that is progressing from one that is stuck. A holder
-with no readable log gets the banner without it.
+`[lint] waiting: <holder> running (pid N, Ns elapsed)` while it queues.
+The banner also names the entry and log, the log's silence, and its last
+nonempty line. A quiet-window diagnostic does not establish that a job is
+stuck: the holder remains occupied and only its owner can stop it.
+An unreadable log has no stage or measured silence to report.
+An unreadable entry or an unsuccessful process query keeps capacity occupied.
 
 A second session asking for the SAME work over the SAME inputs does not queue.
 It attaches: it replays the running lint's output, takes that run's verdict, and
