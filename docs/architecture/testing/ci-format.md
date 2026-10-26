@@ -731,6 +731,14 @@ peer's AS.
 <!-- source: internal/test/peer/message.go -- asPathAttr; defaultRoute -->
 <!-- source: internal/test/peer/open.go -- ebgpSenderAS -->
 
+These two generated-route behaviors include `LOCAL_PREF=100` on iBGP and omit
+LOCAL_PREF on eBGP, including labeled `send-route` UPDATEs. The session kind
+comes from the OPEN exchange, not an option in the fixture. RFC 4271 Section
+5.1.5 requires LOCAL_PREF on internal advertisements and forbids it on external
+advertisements except within confederations. Raw `hex=` injection remains
+unchanged, so a test can still send deliberately malformed attributes.
+<!-- source: internal/test/peer/message.go -- buildIPv4RouteMsg; buildLabeledRouteMsg -->
+
 **Generating one oversize UPDATE (`max-msg`):**
 
 ```

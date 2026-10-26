@@ -347,8 +347,14 @@ func buildIPv4RouteMsg(route RouteToSend) ([]byte, error) {
 	nextHop = append(nextHop, 0x40, 0x03, 0x04)
 	nextHop = append(nextHop, nhIP...)
 
-	// LOCAL_PREF: 100 - flags=0x40, type=5, len=4
-	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+	// LOCAL_PREF: flags(1)=0x40 | type(1)=5 | length(1)=4 | value(4)=100.
+	// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute
+	// in UPDATE messages it sends to external peers, except in the case of
+	// BGP Confederations [RFC3065]."
+	var localPref []byte
+	if route.SenderAS == 0 {
+		localPref = []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+	}
 
 	// Total path attributes
 	attrs := make([]byte, 0, len(origin)+len(asPath)+len(nextHop)+len(localPref)+12)
@@ -419,7 +425,14 @@ func buildLabeledRouteMsg(route RouteToSend) ([]byte, error) {
 
 	asPath := asPathAttr(route)
 
-	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+	// LOCAL_PREF: flags(1)=0x40 | type(1)=5 | length(1)=4 | value(4)=100.
+	// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute
+	// in UPDATE messages it sends to external peers, except in the case of
+	// BGP Confederations [RFC3065]."
+	var localPref []byte
+	if route.SenderAS == 0 {
+		localPref = []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+	}
 
 	// RFC 8277 labeled NLRI: [totalBits][label(3)*N][prefix-bytes]
 	labelBytes := make([]byte, 0, len(route.Labels)*3)
