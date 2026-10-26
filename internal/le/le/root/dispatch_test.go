@@ -882,3 +882,58 @@ func TestKeywordHelpPage(t *testing.T) {
 		t.Errorf("a keyword question ran the area %d time(s)", ran)
 	}
 }
+
+// VALIDATES: AC-27 and R-15 -- `le help ai` answers the agent reference, while
+// `le ai help`, `le ai --help` and a bare `le ai` answer the `ai` namespace
+// page, each with exit 0. `ai` is the one reserved word after the help word,
+// and the reservation does not reach the namespace's own spellings.
+// PREVENTS: `le help ai` swallowing the namespace page (R-15) and, the other
+// way round, `le ai help` answering the reference, so neither question is left
+// with no spelling that answers it.
+// Method: register one probe member under `ai`, then dispatch the four lines
+// with stdout on a pipe. The reference names `le help ai | json` and every
+// section and no member; the namespace page names the probe member and its
+// summary and not the reference's pipe line.
+func TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage(t *testing.T) {
+	const member = aiWord + " namespace-page-probe"
+	const summary = "the ai probe member's own summary"
+	Register(member, GroupReport, func([]string) (any, int) { return nil, 0 },
+		registry.Meta{Description: "A probe area for this test.", ShortHelp: summary, Mode: "offline", Section: registry.SectionTest})
+	area := leaction.New(member, leaction.Action{Summary: "show the member", Verb: "show", Why: "show the member", Answer: func() (any, int) { return nil, 0 }})
+	RegisterActions(member, area.Actions)
+	RegisterShape(member, command.ShapeDoc)
+	const referenceLine = "le help ai | json"
+
+	code := -1
+	reference := captureStdout(t, func() { code = Dispatch("le", []string{"help", aiWord}) })
+	if code != 0 {
+		t.Errorf("le help ai answered %d, want 0", code)
+	}
+	if !strings.Contains(reference, referenceLine) {
+		t.Errorf("le help ai does not answer the reference, which names %q:\n%s", referenceLine, reference)
+	}
+	for _, section := range sectionNames() {
+		if !strings.Contains(reference, "  "+section+" ") {
+			t.Errorf("le help ai does not name the reference section %q:\n%s", section, reference)
+		}
+	}
+	if strings.Contains(reference, summary) {
+		t.Errorf("le help ai answered the ai namespace page, which lists %q:\n%s", summary, reference)
+	}
+
+	for _, line := range [][]string{{aiWord, "help"}, {aiWord, "--help"}, {aiWord}} {
+		code = -1
+		page := captureStdout(t, func() { code = Dispatch("le", line) })
+		if code != 0 {
+			t.Errorf("le %s answered %d, want 0", strings.Join(line, " "), code)
+		}
+		for _, want := range []string{"le ai <command> ...", "namespace-page-probe", summary} {
+			if !strings.Contains(page, want) {
+				t.Errorf("le %s does not answer the ai namespace page, which names %q:\n%s", strings.Join(line, " "), want, page)
+			}
+		}
+		if strings.Contains(page, referenceLine) {
+			t.Errorf("le %s answered the agent reference, not the ai namespace page:\n%s", strings.Join(line, " "), page)
+		}
+	}
+}
