@@ -27,7 +27,9 @@ enforces this.
 ## /ze-review Gate (Completion Checklist)
 
 Invoke `/ze-review` to satisfy the Review Gate defined in `ai/rules/planning.md`.
-Fill the `## Review Gate` section in the spec. Loop until 0 BLOCKER, 0 ISSUE.
+Fill the `## Review Gate` section in the spec. Round 1 covers the whole diff;
+each later round covers only the previous round's fixes. Stop at the first round
+with 0 BLOCKER and 0 ISSUE inside its scope; five rounds are the session's.
 
 ## Spec Status Transitions
 
