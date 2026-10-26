@@ -1,13 +1,13 @@
 // Design: docs/architecture/core-design.md -- the perf area, as one command
 // Overview: nudge.go -- the nudge the suggest and record actions run
-// Related: bench.go -- the three verbs that execute a benchmark
+// Related: bench.go -- run, and the record targets that execute a benchmark
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
 // refusals are internal/le/le/action, which every ported area shares.
 //
-// The area is perf. Two verbs read the checkout and answer at once, three run
-// the benchmark chain in bench.go, and three run the benchmark program in
-// internal/perf/cli with every word after the verb.
+// The area is perf. suggest and bare record read the checkout and answer at once;
+// run, record history and record evidence run the benchmark chain in bench.go;
+// send, compare and track run internal/perf/cli with every word after the verb.
 // The action table is the sole command surface.
 
 package perf
@@ -28,8 +28,8 @@ import (
 const (
 	// sendVerb sends the benchmark traffic at one DUT and writes the result.
 	sendVerb = "send"
-	// reportVerb renders result files as a comparison.
-	reportVerb = "report"
+	// compareVerb renders result files as a comparison.
+	compareVerb = "compare"
 	// trackVerb reads a result history and detects regressions.
 	trackVerb = "track"
 	// suggestVerb is the nudge that says a perf run is overdue.
@@ -39,11 +39,12 @@ const (
 // programVerbs maps each verb that runs the benchmark program to the
 // internal/perf/cli subcommand it runs. `send` is the subcommand the retired
 // perf program called `run`: `perf run` is the multi-DUT suite, so the one-DUT sender
-// takes the word for what it does.
+// takes the word for what it does. `compare` runs the `report` subcommand,
+// because what it does to the files it is given is compare them.
 var programVerbs = map[string]string{
-	sendVerb:   "run",
-	reportVerb: "report",
-	trackVerb:  "track",
+	sendVerb:    "run",
+	compareVerb: "report",
+	trackVerb:   "track",
 }
 
 // runParameters is the grammar of `perf run`: the DUT selection of perf-bench
@@ -67,9 +68,22 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    recordVerb,
 		Summary: "record HEAD as the commit perf last ran at",
-		Why:     "record the current HEAD as the commit perf last ran at, which clears the suggestion",
-		Writes:  true,
-		Answer:  recordHere,
+		Why: "record the current HEAD as the commit perf last ran at, which clears the suggestion." +
+			" `history` instead appends every result of the last measurement to its DUT's committed" +
+			" NDJSON history under " + historyDir + ", then records the run; `evidence` is the release" +
+			" gate: measure the ze DUT, append its result to the committed history, and exit non-zero" +
+			" when that history shows a regression",
+		Writes: true,
+		Parameters: []leaction.Parameter{{
+			Kind: leaction.KindEnum, Value: recordTarget, Requirement: leaction.Optional,
+			Help:   "record a measurement instead of only the commit perf ran at",
+			Values: []string{recordHistory, recordEvidence},
+			ValueHelp: map[string]string{
+				recordHistory:  "append the last results to the committed history",
+				recordEvidence: "run the release perf gate on the ze DUT",
+			},
+		}},
+		AnswerArgs: recordSelection,
 	},
 	leaction.Action{
 		Verb:    runVerb,
@@ -83,22 +97,6 @@ var actions = leaction.New(area,
 		AnswerArgs: runHere,
 	},
 	leaction.Action{
-		Verb:    historyVerb,
-		Summary: "append the last results to the committed history",
-		Why: "append every result of the last measurement to its DUT's committed" +
-			" NDJSON history under " + historyDir + ", then record the run",
-		Writes: true,
-		Answer: historyHere,
-	},
-	leaction.Action{
-		Verb:    evidenceVerb,
-		Summary: "run the release perf gate on the ze DUT",
-		Why: "the release evidence gate: measure the ze DUT, append its result to the" +
-			" committed history, and exit non-zero when that history shows a regression",
-		Writes: true,
-		Answer: evidenceHere,
-	},
-	leaction.Action{
 		Verb:    sendVerb,
 		Summary: "send benchmark traffic at one DUT",
 		Why: "send benchmark traffic at one DUT and write the result, with the options" +
@@ -106,10 +104,10 @@ var actions = leaction.New(area,
 		AnswerWords: func(words []string) (any, int) { return runProgram(sendVerb, words) },
 	},
 	leaction.Action{
-		Verb:        reportVerb,
+		Verb:        compareVerb,
 		Summary:     "compare benchmark result files",
 		Why:         "render benchmark result files as a comparison, with the options and files typed after the verb",
-		AnswerWords: func(words []string) (any, int) { return runProgram(reportVerb, words) },
+		AnswerWords: func(words []string) (any, int) { return runProgram(compareVerb, words) },
 	},
 	leaction.Action{
 		Verb:    trackVerb,
@@ -151,6 +149,26 @@ func suggestHere() (any, int) {
 		return Report{Error: err.Error()}, 0
 	}
 	return run.Suggest()
+}
+
+// The targets `perf record` takes in its first slot. Bare, it records HEAD.
+const (
+	recordTarget   = "target"
+	recordHistory  = "history"
+	recordEvidence = "evidence"
+)
+
+// recordSelection is the `le perf record [history|evidence]` action.
+func recordSelection(args leaction.Arguments) (any, int) {
+	switch args.One(recordTarget) {
+	case "":
+		return recordHere()
+	case recordHistory:
+		return historyHere()
+	case recordEvidence:
+		return evidenceHere()
+	}
+	panic("BUG: perf: a declared record target has no answer: " + args.One(recordTarget))
 }
 
 // recordHere writes the marker for the checkout this command was run in.

@@ -10,7 +10,7 @@
 //
 // No standalone benchmark program is built. The runner cross-builds a linux le
 // for the sender container, and the le running this command renders the report
-// and runs the regression check as `le perf report` and `le perf track`.
+// and runs the regression check as `le perf compare` and `le perf track`.
 package perf
 
 import (
@@ -41,9 +41,9 @@ const (
 	// runVerb measures every DUT the runner knows, or the ones named.
 	runVerb = "run"
 	// historyVerb appends the results of the last measurement to the history.
-	historyVerb = "history-record"
+	historyVerb = "record history"
 	// evidenceVerb is the release gate: measure ze, record it, fail on a regression.
-	evidenceVerb = "evidence-record"
+	evidenceVerb = "record evidence"
 
 	// dutKeyword selects the DUTs a run measures.
 	dutKeyword = "dut"
@@ -171,7 +171,7 @@ type stageStep func(ctx context.Context, root string) error
 // Bench is one benchmark chain over a checkout. The two process seams are
 // fields so a package test pins what each verb runs without Docker, a compiler,
 // or minutes of machine time. Self is the le running this command, which
-// answers `perf report` and `perf track` for the chain.
+// answers `perf compare` and `perf track` for the chain.
 type Bench struct {
 	Root      string
 	Self      string
@@ -267,7 +267,7 @@ func streamCommand(action string, argv []string, dir string, environ []string) i
 // is rendered by the le running this command, so no host benchmark program is
 // built or looked up.
 func measureDUTs(ctx context.Context, run suite) int {
-	runner := perfrunner.New(run.Root, []string{run.Self, area, reportVerb}, os.Stdout, os.Stderr)
+	runner := perfrunner.New(run.Root, []string{run.Self, area, compareVerb}, os.Stdout, os.Stderr)
 	runner.LinuxTags = run.LinuxTags
 	return runner.Execute(ctx, run.Steps, run.DUTs)
 }

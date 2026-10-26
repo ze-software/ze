@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- le perf report subcommand
+// Design: docs/architecture/system-architecture.md -- le perf compare subcommand
 
 package cli
 
@@ -15,14 +15,14 @@ import (
 )
 
 func cmdReport(args []string) int {
-	fs := flag.NewFlagSet("le perf report", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le perf compare", flag.ContinueOnError)
 
 	_ = fs.Bool("md", true, "Markdown comparison table (default)")
 	html := fs.Bool("html", false, "Self-contained HTML report")
 	doc := fs.Bool("doc", false, "Full performance.md document with disclaimers and methodology")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: le perf report [flags] <file> [file...]\n\nGenerate a comparison report from one or more result JSON files.\n\nExamples:\n  le perf report result-ze.json result-gobgp.json\n  le perf report --html result-ze.json result-gobgp.json > report.html\n  le perf report --doc result-*.json > docs/performance.md\n\nFlags:\n")
+		fmt.Fprint(os.Stderr, "Usage: le perf compare [flags] <file> [file...]\n\nGenerate a comparison report from one or more result JSON files.\n\nExamples:\n  le perf compare result-ze.json result-gobgp.json\n  le perf compare --html result-ze.json result-gobgp.json > report.html\n  le perf compare --doc result-*.json > docs/performance.md\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 

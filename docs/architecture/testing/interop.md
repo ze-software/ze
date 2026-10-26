@@ -532,7 +532,7 @@ raises no SIGTTIN ("How a suite's child processes end" in
 <!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
 <!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
 
-The multi-DUT benchmark (`./le perf run`, `./le perf evidence-record`) is the
+The multi-DUT benchmark (`./le perf run`, `./le perf record evidence`) is the
 other such caller. Its network goes through `Docker.CreateNetwork` and
 `Docker.RemoveNetwork` with the owner labels, each DUT and the sender through
 `Docker.RunDetached`, the readiness wait through `Docker.ContainerRunning`,
@@ -757,7 +757,7 @@ both make the same check, through one shared preflight, with the demo binary
 (`tmp/terminal-demos/bin/ze`) after confirming that binary exists and before the
 renderer image is inspected or any container starts.
 
-`./le perf run` and `./le perf evidence-record` run the ze DUT in a container,
+`./le perf run` and `./le perf record evidence` run the ze DUT in a container,
 so a run that tests the ze DUT (every DUT, or `ze` named) first cross-compiles
 the ze the DUT image carries, `test/interop/ze-linux` (the path the BGP lab
 declares, through the BGP lab's own staging), then makes the same check with it

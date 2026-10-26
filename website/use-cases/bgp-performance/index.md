@@ -48,7 +48,7 @@ Use the native Docker runner from the main Ze checkout when you want the whole s
 
 ```text
 ./le perf run dut frr
-./le perf report test/perf/results/*.json
+./le perf compare test/perf/results/*.json
 ```
 
 Run a smaller wiring test first when you are adding a new DUT target.
@@ -90,7 +90,7 @@ The sender and receiver addresses must be valid local addresses in the lab where
 Then render the report.
 
 ```text
-./le perf report results/frr-100k.json
+./le perf compare results/frr-100k.json
 ```
 
 Use `--family ipv6/unicast` for IPv6. Use `--force-mp` to encode IPv4 NLRI through MP_REACH_NLRI and test the DUT multiprotocol path. Use `--batch-size 1` when you want one prefix per UPDATE instead of packed UPDATEs.
@@ -242,7 +242,7 @@ Run the Ze performance suite from the main checkout:
 
 ```text
 ./le perf run dut "frr bird gobgp"
-./le perf report test/perf/results/*.json
+./le perf compare test/perf/results/*.json
 ```
 
 The full benchmarking guide is at [docs/guide/benchmarking](../../guides/benchmarking/).

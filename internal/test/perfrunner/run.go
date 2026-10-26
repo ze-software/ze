@@ -200,7 +200,7 @@ type Runner struct {
 
 // New answers a Runner over the checkout at root. reporter is the argv prefix
 // that renders a result set, for example the running le followed by
-// `perf report`. It MUST NOT be empty: Execute renders every result through it.
+// `perf compare`. It MUST NOT be empty: Execute renders every result through it.
 func New(root string, reporter []string, stdout, stderr io.Writer) *Runner {
 	if len(reporter) == 0 {
 		panic("BUG: perfrunner.New needs the argv that renders a result set")

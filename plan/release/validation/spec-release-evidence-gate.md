@@ -76,7 +76,7 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
   → Constraint: use same run_suite() pattern for category tracking
 - [x] `internal/le/integration/gates.go` - all heavy test targets and ze-deployment-preflight
   → Constraint: preflight checks tools before starting, exits non-zero on missing
-- [x] `internal/le/perfbench/actions.go` - `le perf run` and `le perf history-record` targets
+- [x] `internal/le/perfbench/actions.go` - `le perf run` and `le perf record history` targets
   → Decision: le perf track --check already exits non-zero on regression
 - [x] `internal/le/testchaos/actions.go` - chaos test targets
   → Constraint: chaos tests run in-process, no external infra needed
@@ -148,7 +148,7 @@ The historical Make dry-runs below remain dated evidence of the retired runner.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Registered release-matrix action | → | Native composition over existing category actions | A command-level run records every category, continues after an injected category failure and exits nonzero |
-| `./le perf evidence-record` | → | `Bench.EvidenceRecord` | Existing perf evidence tests plus a capable-host regression-check run |
+| `./le perf record evidence` | → | `Bench.EvidenceRecord` | Existing perf evidence tests plus a capable-host regression-check run |
 
 ## Acceptance Criteria
 
@@ -158,7 +158,7 @@ The historical Make dry-runs below remain dated evidence of the retired runner.
 | AC-2 | Registered release-matrix action on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP and a summary |
 | AC-3 | One category fails | Remaining categories still run, summary shows which failed, exit code non-zero |
 | AC-4 | `ZE_RELEASE_SKIP=interop,perf` on the matrix action | Named categories are skipped and shown as SKIPPED in the summary |
-| AC-5 | `./le perf evidence-record` | Runs the Ze benchmark, appends history and runs `le perf track --check`, exiting nonzero on regression |
+| AC-5 | `./le perf record evidence` | Runs the Ze benchmark, appends history and runs `le perf track --check`, exiting nonzero on regression |
 | AC-6 | Matrix action with no QEMU | QEMU category is skipped explicitly, others still run |
 | AC-7 | Native action help | Shows the matrix entry point, preflight and perf evidence actions with their exact invocation syntax |
 | AC-8 | All categories pass | Summary shows all green, exit code 0 |
@@ -218,7 +218,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 1. Register the matrix as `./le verify release` and resolve the current action for each category above.
 2. Implement preflight, continue-after-failure, `ZE_RELEASE_SKIP` accounting and summary through existing native runners.
-3. Preserve the independent clean-clone action and use `./le perf evidence-record` for the perf chain.
+3. Preserve the independent clean-clone action and use `./le perf record evidence` for the perf chain.
 4. Prove the matrix through its command, including failure and skip cases, and keep AC-9/AC-10's scheduled Linux evidence.
 
 ### Phase 2: Documentation and capable-host evidence
@@ -243,7 +243,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 |-------------|---------------------|
 | Native release matrix | Command-level output accounts for every required category |
 | Preflight | Docker absence fails, QEMU absence is an explicit skip |
-| Perf evidence | `./le perf evidence-record` runs the benchmark/history/check chain |
+| Perf evidence | `./le perf record evidence` runs the benchmark/history/check chain |
 | Failure accounting | A failed category does not prevent later categories and makes the final result fail |
 | Help and distribution caller | Both name the same registered matrix action |
 

@@ -372,7 +372,7 @@ func TestActionTableDeclaresTheThreeBenchmarkVerbs(t *testing.T) {
 	for _, row := range Actions().Actions {
 		rows[row.Verb] = row
 	}
-	for _, verb := range []string{runVerb, historyVerb, evidenceVerb} {
+	for _, verb := range []string{runVerb, recordVerb} {
 		row, ok := rows[verb]
 		if !ok {
 			t.Fatalf("the area declares no %q verb: %v", verb, rows)
@@ -382,6 +382,25 @@ func TestActionTableDeclaresTheThreeBenchmarkVerbs(t *testing.T) {
 		}
 		if row.Why == "" {
 			t.Errorf("%q renders a blank reason in the listing", verb)
+		}
+	}
+	// The two retired measuring targets are reached through `record`'s
+	// positional, so it declares exactly them, each with its own help.
+	var positional *leaction.Parameter
+	for i := range rows[recordVerb].Parameters {
+		if rows[recordVerb].Parameters[i].Keyword == "" {
+			positional = &rows[recordVerb].Parameters[i]
+		}
+	}
+	if positional == nil {
+		t.Fatalf("%q declares no positional, so `history` and `evidence` are unreachable", recordVerb)
+	}
+	if want := []string{recordHistory, recordEvidence}; !reflect.DeepEqual(positional.Values, want) {
+		t.Errorf("%q positional declares %v, want exactly %v", recordVerb, positional.Values, want)
+	}
+	for _, value := range []string{recordHistory, recordEvidence} {
+		if positional.ValueHelp[value] == "" {
+			t.Errorf("%q positional value %q carries no ValueHelp", recordVerb, value)
 		}
 	}
 	// The two verbs that read the checkout stay, because the nudge and its

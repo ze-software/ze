@@ -81,7 +81,7 @@ func TestPerfVerbsAnswerAsTheirPredecessors(t *testing.T) {
 	for _, row := range Actions().Actions {
 		verbs = append(verbs, row.Verb)
 	}
-	want := []string{suggestVerb, recordVerb, runVerb, historyVerb, evidenceVerb, sendVerb, reportVerb, trackVerb}
+	want := []string{suggestVerb, recordVerb, runVerb, sendVerb, compareVerb, trackVerb}
 	if !slices.Equal(verbs, want) {
 		t.Fatalf("perf verbs = %q, want %q", verbs, want)
 	}
@@ -111,9 +111,9 @@ func TestPerfVerbsAnswerAsTheirPredecessors(t *testing.T) {
 
 	// report and send reach their subcommands with the trailing words: a
 	// missing file and an unknown option are the programs' own refusals.
-	captureStderr(t, func() { _, code = Answer([]string{reportVerb, filepath.Join(dir, "absent.json")}) })
+	captureStderr(t, func() { _, code = Answer([]string{compareVerb, filepath.Join(dir, "absent.json")}) })
 	if code == 0 {
-		t.Fatal("`perf report <absent file>` exited 0, so the file never reached ze-perf report")
+		t.Fatal("`perf compare <absent file>` exited 0, so the file never reached ze-perf report")
 	}
 	stderr := captureStderr(t, func() { _, code = Answer([]string{sendVerb, "--no-such-option"}) })
 	if code == 0 || !strings.Contains(stderr, "no-such-option") {

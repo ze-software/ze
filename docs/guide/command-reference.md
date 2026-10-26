@@ -2450,7 +2450,7 @@ BGP propagation latency benchmark tool, run by the development tool `le`.
 
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-`le perf send` runs one benchmark against a DUT, `le perf report` compares
+`le perf send` runs one benchmark against a DUT, `le perf compare` compares
 result files, and `le perf track` follows the history.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 
@@ -2530,15 +2530,15 @@ measures how quickly they propagate through to the receiver.
 
 Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
 
-#### le perf report
+#### le perf compare
 
 Generate a comparison report from one or more result JSON files.
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 
 ```
-./le perf report result-ze.json result-gobgp.json
-./le perf report --html result-ze.json result-gobgp.json > report.html
+./le perf compare result-ze.json result-gobgp.json
+./le perf compare --html result-ze.json result-gobgp.json > report.html
 ```
 
 | Flag | Type | Default | Purpose |
