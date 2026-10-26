@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-26 | spec-ike-unbound-peer-inner-address | IKE inner-selector registry (`adoptStrandedLocked`, `ike/engine/inner_selectors.go`) | Adoption of a stranded policy by its re-installing owner assumes XFRM's upsert; VPP adds a second SPD entry instead, so the old entry (dead SA id) leaves the retry and stays in the SPD beside the live one until Close. Latent: `vppPolicyInterface` refuses every IKE policy with IfIndex 0 today | open: when VPP IKE policies become reachable, give the VPP backend a replace keyed on the selector (or keep the old entry in the retry) |

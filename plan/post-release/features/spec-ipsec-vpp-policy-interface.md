@@ -136,6 +136,12 @@ Two shapes answer it, and choosing between them is part of this spec's design wo
 the VPP backend a replace step keyed on the selector, or give the engine a way to say
 "this policy now names a different SA" that both backends honor.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `upsert-assumed-across-backends.md` | 2026-10-26 | `adoptStrandedLocked` assumes XFRM upsert; VPP keeps the old SPD entry |
+
 ## Known Limitations
 
 Until this is built, **the VPP IPsec backend cannot be driven by IKE.** It
