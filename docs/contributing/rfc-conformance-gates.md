@@ -67,6 +67,7 @@ claimed test with and without its break.
 | `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc index-update`: the PUBLIC support claim, one row per summary that declares a section. Its `Proof` column is the exception to that: it is derived from the checklist and the tags, and states each stem's gated count partitioned into proven, annotated and untested |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
+| `rfc/graph.tsv` | GENERATED from the RFC texts by `./le rfc index-update`: the dependency graph, one `from`, `kind`, `to` row per in-corpus edge ("The dependency graph") |
 
 The audit verdicts and the discrimination records are stored one file per
 requirement, never one per RFC. Several sessions work the same RFC at once, and
@@ -84,10 +85,10 @@ carries another session's uncommitted edits.
 <!-- source: internal/le/rfc/evidence_layout.go -- listEvidence, evidenceAt, retiredLayoutErr -->
 <!-- source: internal/le/rfc/evidence_split.go -- splitEvidence -->
 
-Five of those paths are DERIVED and none of the five is tracked:
+Six of those paths are DERIVED and none of the six is tracked:
 `ai/RFC-REQUIREMENTS.md`, `rfc/requirements/`, `rfc/enrolled.txt`,
-`rfc/not-enrolled.txt` and `docs/features/rfc-status.md`. `IndexUpdate`
-(`internal/le/rfc/write.go`) writes all five in one run, and
+`rfc/not-enrolled.txt`, `docs/features/rfc-status.md` and `rfc/graph.tsv`.
+`IndexUpdate` (`internal/le/rfc/write.go`) writes all six in one run, and
 `internal/le/rfc/register.go` registers each in `internal/le/derived`, so writing
 a summary, an audit verdict, a discrimination record or any tag carrier REMOVES
 them and a shell command naming one REBUILDS it first. A `git ls-files` over any
@@ -990,18 +991,68 @@ the updater, and refuses, naming the fix, when:
 | Refusal | Fix |
 |---------|-----|
 | The updater's summary is not in `rfc/short/` | Summarise the updater first, or remove the marker |
-| The updater's Meta `Updates` cell does not name this RFC | Add it to that cell when the updater's header lists it under Updates, otherwise remove the marker |
+| The updater has no text under `rfc/full/` or `rfc/drafts/` | Fetch the text; the refusal prints the `curl` line |
+| The updater's RFC header has no `Updates:` line naming this RFC | Remove the marker, or name the RFC whose header updates this one: only an updating RFC rewrites a row |
 | The updater's summary does not declare the id | Name the row that rewrites this one, or extract it first |
 
-The `Updates` cell is the source of the update edge today. The RFC header is the
-authority, and the cell is the summary's declaration of it. `updatesFrom`
-(`internal/le/rfc/meta.go`) reads the cell as a comma list of RFC numbers,
-drops parentheticals first, takes `-` or `None` as no update, and refuses any
-other item.
+The update edge is the updater's own RFC header, read from the dependency graph
+(`graph.Graph.HeaderUpdates`), never a summary's Meta cell. The cell is held to
+the header by `checkHeaderLinks` ("The dependency graph").
+<!-- source: internal/le/rfc/check_core.go -- checkUpdatedBy, updatedByRefusal -->
 
 The marker changes no count. The row stays gated, tagged and counted in its own
 RFC exactly as before: it says where the row is ordered, never that Ze stops
 owing it (`TestAnUpdatedByMarkerChangesNoCount`).
+
+## The dependency graph
+
+`internal/le/rfc/graph` reads every text under `rfc/full/` and `rfc/drafts/`
+into a graph with one node per text. Three edge kinds come from the texts, and
+none is authored:
+
+| Kind | From |
+|------|------|
+| `builds-on` | A citation in the Normative References section. A text with no separate one gives its combined References section instead, which over-reaches on purpose: a profile may reach more RFCs than it needs, never fewer |
+| `updates`, `obsoletes` | The `Updates:` and `Obsoletes:` header lines, continuation lines included, or the front-matter sentence (`This memo obsoletes RFC 1234`) an old RFC states them in |
+
+`Parse` (`graph/parse.go`) reads a heading only at column 0, because the table
+of contents repeats every heading indented; it skips page headers and footers,
+reads `RFC` wrapped onto the next line and `RFC-NNNN` alike, bounds an RFC
+number to five digits, and cuts a draft's version suffix so a citation of `-05`
+and a corpus file at `-16` are one node. The oldest texts (RFC 791, 905, 1071)
+indent their References heading, and an indented line that is only that heading
+opens the section too. `TestEveryCorpusTextYieldsReferences` holds every corpus
+text to yielding a section, or to the named `noReferences` list.
+
+`Build` (`graph/graph.go`) keeps an edge only when its target is a corpus
+text, drops RFC 2119 and RFC 8174 (they say how to read a document, not what it
+builds on) and self-edges, and points a `builds-on` edge at an obsoleted RFC to
+its successor, the corpus text whose header obsoletes it, followed down the
+chain. Header edges keep the RFC the header names, because they ARE the header.
+Citation cycles (RFC 4301, 4302 and 4303 cite each other) collapse into one
+component; a component's level is 0 when it builds on nothing in the corpus,
+else one above the highest component it builds on.
+
+`./le rfc index-update` writes the edges to `rfc/graph.tsv`, a derived file
+like the ledger family. `./le rfc check` parses the texts itself on every run
+(`graph.Load`), so no check reads a stale copy.
+
+`checkHeaderLinks` (`internal/le/rfc/check_headerlinks.go`) holds each
+summary's Meta lineage cells to the headers, because the header is the
+authority. It refuses, naming the summary, the cell, both values and the fix:
+
+| Cell | Must |
+|------|------|
+| `Updates`, `Obsoletes` | Name exactly the RFCs the summary's own header names, parentheticals cut; `None` or `-` for none |
+| `Updated by` | Name no corpus RFC whose header does not update this one. An RFC outside the corpus is not judged, and an updater the cell omits is not refused: the graph holds that reverse relation, so the cell need not copy it |
+
+`Obsoleted by` is not judged against the headers: it declares the successor the
+`{superseded}` markers resolve against, a reading that can name an RFC whose
+header says Updates (RFC 8210 restates RFC 6810), and `checkSuperseded` holds
+it. A summary whose text is not in the repository has no header to compare.
+<!-- source: internal/le/rfc/graph/parse.go -- Parse, headerLinks, proseLinks, referenceSection -->
+<!-- source: internal/le/rfc/graph/graph.go -- Load, Build, collapse -->
+<!-- source: internal/le/rfc/check_headerlinks.go -- checkHeaderLinks -->
 
 ## The extraction sign-off
 

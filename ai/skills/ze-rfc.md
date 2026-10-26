@@ -157,7 +157,10 @@ requirement rows under their own message or charged a verification-debt row for 
 
 ### Meta
 - RFC title, number, status, date
-- Obsoletes / Updates / Obsoleted-by
+- Obsoletes / Updates / Obsoleted-by. Copy `Updates` and `Obsoletes` from the RFC's own
+  header lines (`None` when it has none): `./le rfc check` refuses a cell that disagrees
+  with the header, and an `Updated by` cell naming a corpus RFC whose header does not
+  update this one ("The dependency graph" in `docs/contributing/rfc-conformance-gates.md`)
 - `Enrolment` and `Enrolment reason`, and the `Support` rows (step 6b). The parser
   refuses the summary without them, so a new file cannot omit them
 - Purpose (1-2 sentences)
@@ -485,8 +488,8 @@ text before writing the reason, and do not claim more than it says:
 - [ ] [RFC4271-6.3-7] [MUST] <text> (§6.3) {updated-by: RFC7606-3.d-1; RFC 7606 Section 3.d replaces the reset for a missing well-known mandatory attribute with treat-as-withdraw}
 ```
 
-`./le rfc check` refuses the marker unless the updater's summary exists, its Meta
-`Updates` cell names this RFC, and it declares the id. Like `{superseded}`, the marker
+`./le rfc check` refuses the marker unless the updater's summary and text exist, the
+`Updates:` line of the updater's RFC header names this RFC, and the summary declares the id. Like `{superseded}`, the marker
 composes with a coverage annotation and changes no count: the row stays gated and
 counted in its own RFC. The full contract: `docs/contributing/rfc-conformance-gates.md`,
 "The updated-by marker".

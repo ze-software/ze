@@ -7,9 +7,9 @@
 | Priority | P2 |
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 2/5 |
 | Handoff | - |
-| Updated | 2026-10-25 |
+| Updated | 2026-10-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -156,11 +156,11 @@ Agreed shape (owner, 2026-10-25):
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Normative references are extractable from column-0 headings | research 2026-10-25: 201 separate, 49 combined, 7 special cases | Missing edges make a profile reach too few RFCs | parser test over the whole corpus asserting every text yields a section or is on a named no-references list | unvalidated |
+| A-1 | Normative references are extractable from column-0 headings | research 2026-10-25: 201 separate, 49 combined, 7 special cases | Missing edges make a profile reach too few RFCs | parser test over the whole corpus asserting every text yields a section or is on a named no-references list | confirmed: `TestEveryCorpusTextYieldsReferences`; every text but rfc5301, rfc5396, rfc7457 (Informative only, listed) yields a section; 791, 905, 1071 indent the heading and are read |
 | A-2 | Optional rows can carry tags and discrimination records like mandatory rows | `rfc/short` rows carry SHOULD/MAY levels; tags bind by requirement id | Optional figure always 0 | grep tags naming a SHOULD row id; one fixture | unvalidated |
-| A-3 | The RFC header is the authority over summary Meta links | owner gate 2026-10-25; research found 24 disagreements | Wrong edges | the 24 rows reviewed one by one in Phase 2 | unvalidated |
+| A-3 | The RFC header is the authority over summary Meta links | owner gate 2026-10-25; research found 24 disagreements | Wrong edges | the 24 rows reviewed one by one in Phase 2 | confirmed: the parser reproduces the 24 (8 disagree, 16 omit, all in `Updates`/`Obsoletes`); the five disputed headers read by hand (2890, 905, 4486, 4724, 5250 carry no lineage line); corrected to the header |
 | A-4 | Collapsing a citation cycle into one level is acceptable ordering | research: 10 components, mostly genuine pairs (4301/4303, 2865/2866) | `next` names a component member arbitrarily | `next` names the whole component, members by RFC number | unvalidated |
-| A-5 | Drafts are nodes like RFCs | 15 drafts parse the same way; none cites another corpus draft | Draft edges missing | parser test on the drafts | unvalidated |
+| A-5 | Drafts are nodes like RFCs | 15 drafts parse the same way; none cites another corpus draft | Draft edges missing | parser test on the drafts | confirmed: the corpus test covers rfc/drafts/; a draft citation drops its `-NN` version |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -444,6 +444,10 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 - Until the graph lands, AC-5's "header Updated-by set" is read from the UPDATER's Meta `Updates` cell (`Meta.Updates`, `updatesFrom`), not from the updated summary's `Updated by` cell: the updater's own header carries the `Updates:` line, while the updated RFC's published text predates its updaters (`rfc/full/rfc4271.txt` names no RFC 7606). `updatesFrom` refuses a cell item that names no RFC, so `rfc/short/rfc2966.md`'s prose cell was corrected to its header (None).
 - Profile file format: a `| Field | Value |` table under `# Profile: <name>`. Use-case profiles carry Kind (use-case), Title, Release (yes/no), Roots (comma list of stems), Absent (comma list of `RFC <number>` not yet in rfc/short, or `-`). Technology aggregates carry Kind (technology), Title, Heading, Intro (`-` for none), Shape (wide/brief, replacing the `Brief` flag of `statusSections`), Release (n/a).
 - Phase 1 page order: aggregates in name order, rows by RFC number with non-RFC stems after them by name; the DAG level joins ahead of the number in Phase 3. A `{gap}` or `{partial}` row is never counted proven. A HEAD^ summary in the retired `<section> <rank>` shape is read by `retiredSectionRank` (`check_baseline.go`, git history only) so the migration commit keeps its ratchets.
+
+- Phase 2: `rfc/graph.tsv` is derived and gitignored like the ledger family. `8ae7424594` retired the committed ledgers and their freshness check, so "the same freshness check as `rfc/enrolled.txt`" now means the same derived-artifact registration. `./le rfc check` parses the texts itself through `graph.Load` (about 0.4 s of CPU), so no gate reads a stale copy.
+- Phase 2: the redirect to a successor applies to `builds-on` edges only; `updates` and `obsoletes` edges keep the RFC the header names, because the Meta link check compares against them.
+- Phase 2: `checkHeaderLinks` judges `Updates` and `Obsoletes` exactly and `Updated by` for false links only: an omitted updater is the graph's reverse relation, not a second copy to keep. `Obsoleted by` is not judged against headers, because it carries the `{superseded}` successor, and rfc6810's `Obsoleted by RFC 8210` reads a header that says `Updates: 6810`. Two `Updated by` cells beyond the 24 named a corpus RFC whose header does not update them (rfc2784: RFC 2890; rfc7011: RFC 7012) and were corrected.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

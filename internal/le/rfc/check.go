@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // Finding is one thing the gate refuses, in the PARTS the check had before it
@@ -454,7 +455,14 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)
 	successors := successorsFrom(collected.Metas)
 	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
-	findings = append(findings, notes(checkUpdatedBy(collected.Requirements, collected.Metas, stems))...)
+	// The dependency graph is parsed from the RFC texts on every check: it is
+	// the header authority both lineage checks read (graph.Load).
+	corpus, err := graph.Load(tree)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	findings = append(findings, notes(checkUpdatedBy(collected.Requirements, corpus, stems))...)
+	findings = append(findings, notes(checkHeaderLinks(collected.Metas, corpus))...)
 	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err

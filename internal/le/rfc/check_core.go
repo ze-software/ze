@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // annotationBarsATest answers the kinds whose claim is contradicted by a tagged
@@ -260,13 +261,14 @@ func checkSuperseded(tree string, requirements []Requirement, successors map[str
 }
 
 // checkUpdatedBy holds every {updated-by} marker against the updater it names:
-// the updater's summary is in the repository, its Meta `Updates` cell names
-// the marked row's RFC, and it declares the id. The marker changes no count,
-// so this is the only place it is judged.
+// the updater's summary is in the repository, the `Updates:` line of its RFC
+// header names the marked row's RFC, and it declares the id. The marker
+// changes no count, so this is the only place it is judged.
 //
-// The `Updates` cell is the source of the update edge today: the RFC header is
-// the authority, and the cell is the summary's declaration of it.
-func checkUpdatedBy(requirements []Requirement, metas map[string]Meta, stems map[string]bool) []string {
+// The header is read from the dependency graph (graph.Graph.HeaderUpdates),
+// never from a summary's Meta cell: the header is the authority, and
+// checkHeaderLinks holds the cell to it.
+func checkUpdatedBy(requirements []Requirement, g *graph.Graph, stems map[string]bool) []string {
 	idsByStem := map[string]map[string]bool{}
 	for i := range requirements {
 		req := &requirements[i]
@@ -284,7 +286,7 @@ func checkUpdatedBy(requirements []Requirement, metas map[string]Meta, stems map
 		}
 		// parseUpdatedBy refused an id ridStem cannot read, so this answers.
 		updater, _ := ridStem(mark.Target)
-		if refusal := updatedByRefusal(*req, updater, metas, stems, idsByStem); refusal != "" {
+		if refusal := updatedByRefusal(*req, updater, g, stems, idsByStem); refusal != "" {
 			errs = append(errs, refusal)
 		}
 	}
@@ -293,7 +295,7 @@ func checkUpdatedBy(requirements []Requirement, metas map[string]Meta, stems map
 
 // updatedByRefusal answers why one marker's pointer dangles, and "" when it
 // holds.
-func updatedByRefusal(req Requirement, updater string, metas map[string]Meta, stems map[string]bool,
+func updatedByRefusal(req Requirement, updater string, g *graph.Graph, stems map[string]bool,
 	idsByStem map[string]map[string]bool) string {
 	var tb textbuf.Buffer
 	tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).Str(" carries {").Str(UpdatedByKind).
@@ -302,18 +304,16 @@ func updatedByRefusal(req Requirement, updater string, metas map[string]Meta, st
 		return tb.Str("is not in this repository, so nothing can say the id exists. Write the summary of ").
 			Str(rfcName(updater)).Str(" first (ai/skills/ze-rfc.md), or remove the marker").String()
 	}
-	meta, parsed := metas[updater]
-	// Its Meta table did not parse, and that refusal is already reported.
-	// refuse-by-default: guards checkUpdatedBy -- "" keeps one unparsed Meta table from being refused twice
-	if !parsed {
-		return ""
+	header, held := g.HeaderUpdates(updater)
+	if !held {
+		return tb.Str("has no text under rfc/full/ or rfc/drafts/, so no header can say it updates ").
+			Str(rfcName(req.RFC)).Str(". Fetch it: curl -o rfc/full/").Str(updater).
+			Str(".txt https://www.rfc-editor.org/rfc/").Str(updater).Str(".txt").String()
 	}
-	if !slices.Contains(meta.Updates, req.RFC) {
-		return tb.Str("does not name ").Str(rfcName(req.RFC)).Str(" in its Meta `Updates` cell, so ").
-			Str("nothing says ").Str(rfcName(updater)).Str(" updates this document. If the ").
-			Str(rfcName(updater)).Str(" header lists ").Str(rfcName(req.RFC)).
-			Str(" under Updates, add it to that cell; otherwise remove the marker, because only an ").
-			Str("updating RFC rewrites a row").String()
+	if !slices.Contains(header, req.RFC) {
+		return tb.Str("names an RFC whose header `Updates:` line does not list ").Str(rfcName(req.RFC)).
+			Str(", so nothing says ").Str(rfcName(updater)).Str(" updates this document. Only an ").
+			Str("updating RFC rewrites a row: remove the marker, or name the RFC whose header updates this one").String()
 	}
 	if !idsByStem[updater][req.UpdatedBy.Target] {
 		return tb.Str("does not declare that id. Name the row of ").Str(rfcName(updater)).

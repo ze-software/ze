@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md -- the rfc area, as one command
 // Overview: render.go -- the two pages this driver emits
 //
-// write.go is `ze-rfc-index-update`. It emits ai/RFC-REQUIREMENTS.md and one
-// file per RFC under rfc/requirements/, then DELETES every shard the render no
-// longer produces.
+// write.go is `ze-rfc-index-update`. It emits ai/RFC-REQUIREMENTS.md, one
+// file per RFC under rfc/requirements/ and the dependency graph rfc/graph.tsv,
+// then DELETES every shard the render no longer produces.
 //
 // The delete is why this driver refuses more than the read-only ones do. An
 // incomplete collection is a destructive input, not a partial one: a summary
@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // stemRE is what a name has to look like to BE a summary stem.
@@ -111,7 +112,8 @@ type IndexReport struct {
 	Deleted []string `json:"deleted"`
 	// Files is every ledger file this run wrote beside the index and the
 	// shards: the enrolled set, the declared remainder and the public
-	// support page, each derived from the summaries.
+	// support page, each derived from the summaries, and rfc/graph.tsv,
+	// derived from the RFC texts.
 	Files []string `json:"files,omitempty"`
 }
 
@@ -168,6 +170,10 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	if err != nil {
 		return IndexReport{}, err
 	}
+	corpus, err := graph.Load(tree)
+	if err != nil {
+		return IndexReport{}, err
+	}
 	// ONE batch through derived.WriteAtomicAll, which syncs none of these
 	// files: one sync each was most of a run, and every one of them is derived,
 	// so this generator rewrites it whole on its next run.
@@ -188,7 +194,9 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	for _, rel := range ledgerPaths() {
 		batch = append(batch, derived.File{Path: treePath(tree, rel), Content: []byte(ledgers[rel])})
 	}
-	batch = append(batch, derived.File{Path: treePath(tree, ledgerRel), Content: pageBytes(index)})
+	batch = append(batch,
+		derived.File{Path: treePath(tree, graphRel), Content: []byte(corpus.TSV())},
+		derived.File{Path: treePath(tree, ledgerRel), Content: pageBytes(index)})
 	if err := publishBatch(batch); err != nil {
 		return IndexReport{}, err
 	}
@@ -203,7 +211,7 @@ func IndexUpdate(tree string) (IndexReport, error) {
 		return IndexReport{}, err
 	}
 	return IndexReport{Ledger: ledgerRel, Shards: len(shards), Deleted: removed,
-		Files: ledgerPaths()}, nil
+		Files: append(ledgerPaths(), graphRel)}, nil
 }
 
 // refuseToWrite is the destructive-input refusal, with every parse error above

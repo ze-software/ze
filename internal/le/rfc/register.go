@@ -39,10 +39,12 @@ func init() {
 	// that registers the command. A claim whose command never registered is
 	// red, so the count cannot fall for a tool nothing can reach.
 
-	// The five generated files are DERIVED, so none of them is tracked and no
+	// The six generated files are DERIVED, so none of them is tracked and no
 	// gate compares a re-render against a committed copy. A write to a file the
 	// render reads deletes them, and a command that names one rebuilds all five
-	// through one IndexUpdate. Each of the four is one file, published by one
+	// through one IndexUpdate. rfc/graph.tsv derives from the RFC texts under
+	// rfc/full/ and rfc/drafts/, which feedsRFCLedger already names. Each of
+	// the five is one file, published by one
 	// rename, so its name on disk already means a finished render.
 	//
 	// None of the five is built at SESSION START, and that is a budget
@@ -54,7 +56,7 @@ func init() {
 	// preMaterializeDerived builds them on the command that reads them, which
 	// is the difference from the three documentation indexes
 	// (derived.SessionStartPolicy).
-	for _, path := range []string{ledgerRel, enrolledRel, notEnrolledRel, statusRel} {
+	for _, path := range []string{ledgerRel, enrolledRel, notEnrolledRel, statusRel, graphRel} {
 		derived.Register(derived.Artifact{
 			Path:         path,
 			Feeds:        feedsRFCLedger,

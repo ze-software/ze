@@ -10,6 +10,8 @@ package rfc
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // updatedByRow is a rfc9999 row carrying the marker under test.
@@ -118,8 +120,9 @@ func TestTheUpdatesCellNamesTheStemsItUpdates(t *testing.T) {
 }
 
 // updatedByCorpus answers a two-summary corpus: rfc9999 carries one marked
-// row, and rfc10000 is the updater with the row the marker may name.
-func updatedByCorpus(target string, updates []string) ([]Requirement, map[string]Meta) {
+// row, and rfc10000 is the updater with the row the marker may name. What the
+// rfc10000 header updates is the caller's graph text, not a Meta cell.
+func updatedByCorpus(target string) ([]Requirement, map[string]Meta) {
 	requirements := []Requirement{
 		{RFC: "rfc9999", RID: "RFC9999-6.3-7", Level: levelMust, Source: "rfc/short/rfc9999.md", Line: 7,
 			UpdatedBy: &UpdatedBy{Target: target, Reason: "RFC 10000 Section 3 replaces the reset"}},
@@ -127,7 +130,7 @@ func updatedByCorpus(target string, updates []string) ([]Requirement, map[string
 	}
 	metas := map[string]Meta{
 		"rfc9999":  {Title: "Widgets"},
-		"rfc10000": {Title: "Widget errors", Updates: updates},
+		"rfc10000": {Title: "Widget errors"},
 	}
 	return requirements, metas
 }
@@ -140,6 +143,7 @@ func TestCheckUpdatedByHoldsThePointerAgainstTheUpdater(t *testing.T) {
 		name, target string
 		updates      []string
 		dropUpdater  bool
+		noText       bool
 		refused      []string
 	}{
 		{name: "accepted", target: "RFC10000-3-1", updates: []string{"rfc4271", "rfc9999"}},
@@ -154,6 +158,11 @@ func TestCheckUpdatedByHoldsThePointerAgainstTheUpdater(t *testing.T) {
 			refused: []string{"RFC10000-3-9", "rfc/short/rfc10000.md does not declare"},
 		},
 		{
+			name: "the updater has no text, so no header", target: "RFC10000-3-1",
+			updates: []string{"rfc9999"}, noText: true,
+			refused: []string{"rfc/short/rfc10000.md has no text under rfc/full/", "curl -o rfc/full/rfc10000.txt"},
+		},
+		{
 			name: "the updater summary is absent", target: "RFC10000-3-1",
 			updates: []string{"rfc9999"}, dropUpdater: true,
 			refused: []string{"rfc/short/rfc10000.md is not in this repository"},
@@ -161,7 +170,7 @@ func TestCheckUpdatedByHoldsThePointerAgainstTheUpdater(t *testing.T) {
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			requirements, metas := updatedByCorpus(one.target, one.updates)
+			requirements, metas := updatedByCorpus(one.target)
 			if one.dropUpdater {
 				delete(metas, "rfc10000")
 				requirements = requirements[:1]
@@ -170,7 +179,11 @@ func TestCheckUpdatedByHoldsThePointerAgainstTheUpdater(t *testing.T) {
 			for stem := range metas {
 				stems[stem] = true
 			}
-			errs := checkUpdatedBy(requirements, metas, stems)
+			texts := map[string]graph.Text{"rfc9999": {}}
+			if !one.noText {
+				texts["rfc10000"] = graph.Text{Updates: one.updates}
+			}
+			errs := checkUpdatedBy(requirements, graph.Build(texts), stems)
 			if len(one.refused) == 0 {
 				if len(errs) != 0 {
 					t.Fatalf("a well-formed pointer was refused: %q", errs)

@@ -9,7 +9,7 @@
 | Status | Internet Draft (Standards Track) |
 | Date | 13 August 2026 |
 | Authors | R. Bush (Arrcus, DRL & IIJ Research), R. Austein (Dragon Research Labs), T. Harrison (APNIC) |
-| Obsoletes | RFC 8210 (if approved) |
+| Obsoletes | None |
 | Enrolment | backlog |
 | Enrolment reason | Existing RTR v2 ledger awaiting requirement reattribution from the historical RFC 9582 identifiers. The cached authority is revision 27; proof relocation and enrolment must preserve the source requirements and their tests. |
 | Implementation | ze |

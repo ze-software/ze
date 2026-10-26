@@ -354,7 +354,7 @@ is named by nobody, so an unnamed search over an absent one reads nothing and
 reports nothing: the session start must build it, and the three documentation
 indexes declare `SessionStartBuild`. An artifact a COMMAND reads is always named
 on the command line, so the Bash hook already covers it and the session start
-must not pay for it: the five RFC artifacts declare `SessionStartDefer`, because
+must not pay for it: the six RFC artifacts declare `SessionStartDefer`, because
 rendering 194 requirement shards took the hook from 2.2 seconds to 5.32 against
 its 5 second budget. The zero value is invalid, so a new registration cannot
 default into either class. Both hooks build only what the tree does not hold

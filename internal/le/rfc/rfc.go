@@ -45,8 +45,11 @@ const area = "rfc"
 // filepath.FromSlash at each use, so one spelling serves the reader and the
 // message that names the file.
 const (
-	summaryRel        = "rfc/short"
-	enrolledRel       = "rfc/enrolled.txt"
+	summaryRel  = "rfc/short"
+	enrolledRel = "rfc/enrolled.txt"
+	// graphRel is the dependency graph, one row per in-corpus edge, rendered
+	// by graph.Graph.TSV from the RFC texts.
+	graphRel          = "rfc/graph.tsv"
 	extractionRel     = "rfc/extraction"
 	discriminationRel = "rfc/discrimination"
 	fullRel           = "rfc/full"

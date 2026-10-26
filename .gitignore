@@ -203,6 +203,10 @@ gokrazy/docker-host/extrafiles_*.tar
 /rfc/enrolled.txt
 /rfc/not-enrolled.txt
 /docs/features/rfc-status.md
+# The RFC dependency graph, written by the same run from rfc/full/ and
+# rfc/drafts/, and registered the same way.
+/rfc/graph.tsv
+/rfc/.*.tsv.tmp-*
 # Rendered from features/*.md by internal/le/feature (derived artifact).
 /docs/features.md
 # The temporaries derived.WriteAtomic renames over, for the two that do not sit

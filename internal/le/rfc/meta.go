@@ -104,6 +104,8 @@ func implementationNamesAnImplementer(kind string) bool {
 const (
 	metaTitle                = "Title"
 	metaUpdates              = "Updates"
+	metaUpdatedBy            = "Updated by"
+	metaObsoletes            = "Obsoletes"
 	metaEnrolment            = "Enrolment"
 	metaEnrolmentReason      = "Enrolment reason"
 	metaImplementation       = "Implementation"
@@ -271,6 +273,12 @@ type Meta struct {
 	// the Meta `Updates` cell, in the order the cell writes them. Empty when the
 	// cell is absent, `-` or `None`.
 	Updates []string
+	// Obsoletes and UpdatedBy are the RFC stems the `Obsoletes` and
+	// `Updated by` cells name, parentheticals cut, in the order the cell
+	// writes them. Read leniently, because these cells carry prose, and judged
+	// against the RFC headers by checkHeaderLinks rather than here.
+	Obsoletes []string
+	UpdatedBy []string
 	// Enrolment is a member of enrolmentKinds, and EnrolmentReason is why.
 	Enrolment       string
 	EnrolmentReason string
@@ -395,6 +403,8 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	if out.Updates, err = updatesFrom(values[metaUpdates], where); err != nil {
 		return Meta{}, err
 	}
+	out.Obsoletes = linkStemsFrom(values[metaObsoletes])
+	out.UpdatedBy = linkStemsFrom(values[metaUpdatedBy])
 	if err := readEnrolment(values, &out, where); err != nil {
 		return Meta{}, err
 	}
@@ -745,9 +755,9 @@ var (
 // updatesFrom reads the Meta `Updates` cell into the stems it names.
 //
 // The cell is this summary's declaration of the RFC header's `Updates:` line,
-// and today it is the source checkUpdatedBy holds an {updated-by} marker
-// against. An item that names no RFC is refused rather than skipped: a skipped
-// item is an update the check would then refuse every marker for.
+// and checkHeaderLinks holds it to that header. An item that names no RFC is
+// refused rather than skipped: a skipped item is an update the header check
+// would then report as missing.
 func updatesFrom(value, where string) ([]string, error) {
 	// Parentheticals go first, before the comma split: they carry prose, an
 	// erratum number or a comma of their own, and never the updated RFC.
@@ -774,6 +784,24 @@ func updatesFrom(value, where string) ([]string, error) {
 		out = append(out, stem.Str("rfc").Str(found[1]).String())
 	}
 	return out, nil
+}
+
+// linkNumberRE is one RFC number in a lineage cell, with or without `RFC`.
+var linkNumberRE = regexp.MustCompile(`(?i)(?:\bRFCs?\s*-?\s*)?\b(\d{3,5})\b`)
+
+// linkStemsFrom reads the RFC stems a lineage cell names, parentheticals cut
+// first so an erratum number or a date in a note is never read as an RFC.
+// `-`, `None` and prose naming no number all answer nothing.
+func linkStemsFrom(value string) []string {
+	var out []string
+	for _, found := range linkNumberRE.FindAllStringSubmatch(updatesNoteRE.ReplaceAllString(value, ""), -1) {
+		var stem textbuf.Buffer
+		name := stem.Str("rfc").Str(strings.TrimLeft(found[1], "0")).String()
+		if !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // sortMetaStems orders a stem set for a message, so two runs name it alike.

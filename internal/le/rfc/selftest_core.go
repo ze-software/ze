@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // The selftest's own fixture identity: one enrolled RFC, its two requirements,
@@ -156,8 +157,8 @@ const selftestUpdatedByRow = "- [ ] [RFC9999-2-3] [MUST] A speaker MUST reset th
 	"{updated-by: RFC10000-3-1; RFC 10000 Section 3 replaces the reset with a withdrawal}\n"
 
 // updatedBySelftestHolds parses the marked row, then checks that
-// checkUpdatedBy accepts it while rfc10000 declares it updates rfc9999 and
-// refuses it once that declaration is gone.
+// checkUpdatedBy accepts it while the rfc10000 header updates rfc9999 and
+// refuses it once that header line is gone.
 func updatedBySelftestHolds() (bool, error) {
 	marked, err := parseSummaryText(selftestUpdatedByRow, selftestStem, selftestSummaryRel)
 	if err != nil {
@@ -175,8 +176,8 @@ func updatedBySelftestHolds() (bool, error) {
 	updaterRow := Requirement{RFC: selftestStemUpdater, RID: selftestRIDUpdater, Level: levelMust}
 	requirements := []Requirement{marked[0], updaterRow}
 	stems := map[string]bool{selftestStem: true, selftestStemUpdater: true}
-	declared := map[string]Meta{selftestStem: {}, selftestStemUpdater: {Updates: []string{selftestStem}}}
-	undeclared := map[string]Meta{selftestStem: {}, selftestStemUpdater: {}}
+	declared := graph.Build(map[string]graph.Text{selftestStem: {}, selftestStemUpdater: {Updates: []string{selftestStem}}})
+	undeclared := graph.Build(map[string]graph.Text{selftestStem: {}, selftestStemUpdater: {}})
 	accepted := len(checkUpdatedBy(requirements, declared, stems)) == 0
 	refused := len(checkUpdatedBy(requirements, undeclared, stems)) == 1
 	return accepted && refused, nil
