@@ -332,9 +332,10 @@ func TestRetiredHarnessMatchesOnlyInProgramPosition(t *testing.T) {
 
 func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 	// VALIDATES: every row of retiredExceptions, the per-file ones for the
-	// Discord channel and the skill among them, hides its spelling in its own
-	// file and nowhere else. The method writes one matching line into the
-	// declared file and the same line into a file no exception names.
+	// Discord channel among them, hides its spelling on its declared lines in
+	// its own file and nowhere else. The method writes the declared lines into
+	// the declared file and a sample line of the spelling into a file no
+	// exception names.
 	// PREVENTS: an exception that hides nothing (a dead row) or that hides the
 	// spelling in every file. A new exception with no sample line fails here.
 	samples := map[string]string{
@@ -363,6 +364,9 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		"le tracked":                  `runLE(nil, "tracked", "|", "json")`,
 		"le dash-stdio":               `namesLeFinding(result, "dash-stdio")`,
 		"le verify lock":              "error: le verify lock was renamed: run le job run",
+		"le spec session":             "./le spec session",
+		"le spec session claim":       "./le spec session claim spec x",
+		"le rollback newest":          "./le rollback newest",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
@@ -371,7 +375,7 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 			continue
 		}
 		root := fixtureRepository(t, map[string]string{
-			exception.file:       sample + "\n",
+			exception.file:       strings.Join(exception.lines, "\n") + "\n",
 			"docs/unexcepted.md": sample + "\n",
 		})
 		report, err := sweepRetired(root)
@@ -388,6 +392,113 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 	}
 }
 
+func TestRetiredExceptionCoversOnlyItsLines(t *testing.T) {
+	// VALIDATES: an exception is line-scoped. Each row's declared file gets its
+	// first declared line, then a sample line of the same spelling that is
+	// none of the declared lines, as a live instruction would be: the first is
+	// hidden and the second is reported.
+	// PREVENTS: an exception that hides its spelling on every line of its file,
+	// so a live `./le verify lock` added anywhere in running-commands.md, the
+	// page that quotes the refusal, would pass the gate.
+	samples := map[string]string{
+		"ze-test":               "exec=ze-test bgp plugin",
+		"ze_test":               "//go:build ze_test",
+		"le rules":              "./le rules index-update",
+		"le qemu":               "./le qemu run",
+		"ze-terminal-pty":       "go build -o bin/ze-terminal-pty ./cmd/ze-terminal-pty",
+		"le.test.bin":           "LE_TEST_BIN=/stale/harness",
+		"ze.test.bin":           "ZE_TEST_BIN=/stale/harness",
+		"le.qemu.test.bin":      "LE_QEMU_TEST_BIN=/stale/harness",
+		"ze.qemu.test.bin":      "ZE_QEMU_TEST_BIN=/stale/harness",
+		"le-test":               "exec=le-test bgp plugin",
+		"bin/le-test":           "run bin/le-test ospf",
+		"ze-perf":               "ze-perf report results.json",
+		"ze-perf-run":           "go build -o bin/ze-perf-run ./cmd/ze-perf-run",
+		"ze-analyze":            "bin/ze-analyze density",
+		"ze-chaos":              "exec=ze-chaos --quiet",
+		"ze_chaos":              "//go:build ze_chaos",
+		"ze.test.no.build":      "ZE_TEST_NO_BUILD=1",
+		"ze-peer":               "exec=ze-peer --mode sink",
+		"bin/ze-perf":           "run bin/ze-perf track --check",
+		"le tracked":            "./le tracked",
+		"le dash-stdio":         "./le dash-stdio",
+		"le verify lock":        "./le verify lock",
+		"le rollback newest":    "./le rollback newest",
+		"le spec session":       "./le spec session",
+		"le spec session claim": "./le spec session claim spec x",
+	}
+	for _, exception := range retiredExceptions {
+		sample, known := samples[exception.old]
+		if !known {
+			t.Errorf("exception %s %q has no sample line in this test", exception.file, exception.old)
+			continue
+		}
+		root := fixtureRepository(t, map[string]string{
+			exception.file: exception.lines[0] + "\n" + sample + "\n",
+		})
+		report, err := sweepRetired(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if retiredFound(report, exception.old, exception.file, 1) {
+			t.Errorf("%s declares %q on %q, and the sweep listed that line", exception.file, exception.old, exception.lines[0])
+		}
+		if !retiredFound(report, exception.old, exception.file, 2) {
+			t.Errorf("the %q exception of %s hid %q, a line it does not declare", exception.old, exception.file, sample)
+		}
+	}
+}
+
+func TestRetiredEveryExceptionDeclaresItsLines(t *testing.T) {
+	// VALIDATES: every row of retiredExceptions declares at least one line, and
+	// no declared line is blank.
+	// PREVENTS: a row with no line, which hides nothing and reads as an
+	// exception, and a blank line, which every line of the file contains, so
+	// the row would hide its spelling in the whole file again.
+	for _, exception := range retiredExceptions {
+		if len(exception.lines) == 0 {
+			t.Errorf("exception %s %q declares no line", exception.file, exception.old)
+		}
+		for _, line := range exception.lines {
+			if strings.TrimSpace(line) == "" {
+				t.Errorf("exception %s %q declares a blank line, which covers the whole file", exception.file, exception.old)
+			}
+		}
+	}
+}
+
+func TestRetiredResealNoteOnlyInSealedSources(t *testing.T) {
+	// VALIDATES: a "// Re-sealed " comment hides the comment after it only in
+	// a non-test Go source directly in internal/le/ai/hooks, where the sealed
+	// digests live. The same two lines in another package, in a test of the
+	// sealed package, and in a package under it are swept whole.
+	// PREVENTS: a reseal skip that applies to every Go file, so any comment
+	// opening with "// Re-sealed " hides the retired instruction after it.
+	const sealed = "internal/le/ai/hooks/fixtures.go"
+	text := "// Re-sealed 2026-10-26 for a rename.\n// Run ./le test-unit all to refresh it.\n"
+	unsealed := []string{
+		"internal/le/doc/check/notes.go",
+		"internal/le/ai/hooks/fixtures_test.go",
+		"internal/le/ai/hooks/golden/rows.go",
+	}
+	files := map[string]string{sealed: text}
+	for _, rel := range unsealed {
+		files[rel] = text
+	}
+	report, err := sweepRetired(fixtureRepository(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found := retiredLinesOf(report, sealed); len(found) != 0 {
+		t.Errorf("the reseal note in %s was swept: %v", sealed, found)
+	}
+	for _, rel := range unsealed {
+		if !retiredFound(report, "le test-unit", rel, 2) {
+			t.Errorf("%s: the comment after a \"// Re-sealed \" line was hidden outside the sealed sources", rel)
+		}
+	}
+}
+
 func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 	// VALIDATES: a spelling that names something else is not a match: the
 	// ze-test publication channel, the nftables table ze_test, the ze_chaos_
@@ -397,9 +508,9 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 	// PREVENTS: a Phase 3 gate that can never be green, and an exception that
 	// silently hides the same word everywhere.
 	root := fixtureRepository(t, map[string]string{
-		"internal/le/weekly/answer.go":                  "package weekly\nvar channels = []string{\"ze-test\"}\n",
-		"internal/component/firewall/validate_test.go":  "package firewall\nconst table = \"ze_test\"\n",
-		"docs/architecture/testing/qemu-integration.md": "nft list table inet ze_test\n",
+		"internal/le/weekly/answer.go":                  "package weekly\n\tRequirement: leaction.Optional, Help: \"the channel to post to; ze-test is the rehearsal channel\"},\n",
+		"internal/component/firewall/validate_test.go":  "package firewall\n\t\tName:   \"ze_test\",\n",
+		"docs/architecture/testing/qemu-integration.md": "| Firewall table | nftables in netns | `nft add table ip ze_test` in an isolated namespace |\n",
 		"docs/metrics.md":                               "ze_chaos_peers_total\n//go:build zetest\nZE_TEST_BGP_PORT=1790 ze_test_bgp_port\nwhile tier holds\n./le test-unitx\n",
 		"docs/elsewhere.md":                             "exec=ze-test bgp\n",
 		"internal/le/le/retired/retired.go":             "{Retired: \"test-unit\"} ze-chaos ze_test\n",

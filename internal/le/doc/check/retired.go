@@ -89,12 +89,16 @@ var retiredRecords = [...]retiredRecord{
 type retiredException struct {
 	file string
 	old  string
-	why  string
+	// lines are the lines the exception covers, each written as its text with
+	// the indentation trimmed. A line is covered when it holds one of them, so
+	// a live instruction elsewhere in the same file is still found.
+	lines []string
+	why   string
 }
 
-// retiredExceptions are the declared exceptions of AC-16. Each names the file
-// and the old spelling it may keep, and why the spelling is not the retired
-// name.
+// retiredExceptions are the declared exceptions of AC-16. Each names the file,
+// the old spelling it may keep, the lines that keep it, and why the spelling
+// there is not the retired name.
 // discordChannelWhy is the reason shared by the files that name the Discord
 // channel.
 const discordChannelWhy = "the Discord channel named ze-test, not the harness binary"
@@ -104,178 +108,202 @@ const discordChannelWhy = "the Discord channel named ze-test, not the harness bi
 const retiredHookNegativeWhy = "the hook test feeds the retired name to prove the deleted harness admission refuses nothing"
 
 var retiredExceptions = [...]retiredException{
-	{file: "internal/le/hookruntime/bash_test.go", old: retiredZeTest, why: retiredHookNegativeWhy},
-	{file: "internal/le/hookruntime/bash_test.go", old: retiredLeTest, why: retiredHookNegativeWhy},
+	{file: "internal/le/hookruntime/bash_test.go", old: retiredZeTest, lines: []string{"\"ze-test bgp plugin 42\","}, why: retiredHookNegativeWhy},
+	{file: "internal/le/hookruntime/bash_test.go", old: retiredLeTest, lines: []string{"\"grep -n 'le-test bgp' internal/le/hookruntime/bash.go\","}, why: retiredHookNegativeWhy},
 	{
-		file: "internal/le/weekly/answer.go",
-		old:  retiredZeTest,
-		why:  "the publication channel named ze-test, not the harness binary",
+		file:  "internal/le/weekly/answer.go",
+		old:   retiredZeTest,
+		lines: []string{"Requirement: leaction.Optional, Help: \"the channel to post to; ze-test is the rehearsal channel\"},"},
+		why:   "the publication channel named ze-test, not the harness binary",
 	},
 	{
-		file: "internal/component/firewall/validate_test.go",
-		old:  retiredZeTestTag,
-		why:  "the nftables table named ze_test, not the build tag",
+		file:  "internal/component/firewall/validate_test.go",
+		old:   retiredZeTestTag,
+		lines: []string{"Name:   \"ze_test\","},
+		why:   "the nftables table named ze_test, not the build tag",
 	},
 	{
-		file: "docs/architecture/testing/qemu-integration.md",
-		old:  retiredZeTestTag,
-		why:  "the nftables table named ze_test, not the build tag",
+		file:  "docs/architecture/testing/qemu-integration.md",
+		old:   retiredZeTestTag,
+		lines: []string{"| Firewall table | nftables in netns | `nft add table ip ze_test` in an isolated namespace |"},
+		why:   "the nftables table named ze_test, not the build tag",
 	},
 	{
-		file: "internal/component/bgp/reactor/filter_flowspec.go",
-		old:  "le rules",
-		why:  "the FlowSpec prefix operators ge/le, not the le command",
+		file:  "internal/component/bgp/reactor/filter_flowspec.go",
+		old:   "le rules",
+		lines: []string{"// prefix/ge/le rules without discarding the rest of an accepted FlowSpec NLRI."},
+		why:   "the FlowSpec prefix operators ge/le, not the le command",
 	},
 	{
-		file: "ai/skills/ze-weekly-update.md",
-		old:  retiredZeTest,
-		why:  discordChannelWhy,
+		file:  "website/changes/discord/STYLE.md",
+		old:   retiredZeTest,
+		lines: []string{"ze-test confirm` for a rehearsal. The command splits at section boundaries"},
+		why:   discordChannelWhy,
 	},
 	{
-		file: ".claude/memory/reference_discord_bot.md",
-		old:  retiredZeTest,
-		why:  discordChannelWhy,
+		file:  "internal/le/le/action/leaction_test.go",
+		old:   "le qemu",
+		lines: []string{"want := \"le qemu run - boot a guest\\n\\n  boot a guest\\n\\nUsage:\\n\" +", "\"  le qemu run command <command> [timeout <duration>] [share <path>]... [keep-alive]\\n\" +", "if want := \"error: argument keyword \\\"timeout\\\" was provided more than once\\nusage: le qemu run \"; !strings.HasPrefix(refusal, want) {", "if !strings.HasPrefix(page, \"le qemu run - boot a guest\\n\") {"},
+		why:   "the usage line of a fixture area named qemu, not the qemu command",
 	},
 	{
-		file: "website/changes/discord/STYLE.md",
-		old:  retiredZeTest,
-		why:  discordChannelWhy,
+		file:  "internal/le/site/terminaldemo/terminaldemo_test.go",
+		old:   "ze-terminal-pty",
+		lines: []string{"if strings.Contains(strings.Join(recorder.Args, \" \"), \"ze-terminal-pty\") {", "t.Errorf(\"the demo build still builds ze-terminal-pty: %q\", recorder.Args)", "// PREVENTS: the container entrypoint or a validator still exec'ing ze-terminal-pty, which the demo build no longer writes."},
+		why:   "a test that proves the demo build no longer builds or runs the retired recorder",
 	},
 	{
-		file: "ai/skills/ze-test.md",
-		old:  retiredZeTest,
-		why:  "the skill named ze-test, not the harness binary",
+		file:  retiredGuestLeTestFile,
+		old:   retiredLeTestBin,
+		lines: []string{"for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: "internal/le/le/action/leaction_test.go",
-		old:  "le qemu",
-		why:  "the usage line of a fixture area named qemu, not the qemu command",
+		file:  retiredGuestLeTestFile,
+		old:   retiredZeTestBin,
+		lines: []string{"for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: "internal/le/site/terminaldemo/terminaldemo_test.go",
-		old:  "ze-terminal-pty",
-		why:  "a test that proves the demo build no longer builds or runs the retired recorder",
+		file:  retiredGuestLeTestFile,
+		old:   "le.qemu.test.bin",
+		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", "for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredGuestLeTestFile,
-		old:  retiredLeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredGuestLeTestFile,
+		old:   "ze.qemu.test.bin",
+		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", "for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredGuestLeTestFile,
-		old:  retiredZeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredQEMUKnobsTestFile,
+		old:   retiredLeTestBin,
+		lines: []string{"\"ZE_BIN\", \"ZE_STRIPPED_BIN\", \"ZE_TEST_BIN\", \"LE_TEST_BIN\","},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredGuestLeTestFile,
-		old:  "le.qemu.test.bin",
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredQEMUKnobsTestFile,
+		old:   retiredZeTestBin,
+		lines: []string{"\"ZE_BIN\", \"ZE_STRIPPED_BIN\", \"ZE_TEST_BIN\", \"LE_TEST_BIN\","},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredGuestLeTestFile,
-		old:  "ze.qemu.test.bin",
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredStressReproTestFile,
+		old:   retiredLeTestBin,
+		lines: []string{"for _, key := range []string{\"ze.bin\", \"ZE_BIN\", \"ze.test.bin\", \"ZE_TEST_BIN\", \"le.test.bin\", \"LE_TEST_BIN\"} {", "t.Setenv(\"LE_TEST_BIN\", absent)"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredQEMUKnobsTestFile,
-		old:  retiredLeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredStressReproTestFile,
+		old:   retiredZeTestBin,
+		lines: []string{"for _, key := range []string{\"ze.bin\", \"ZE_BIN\", \"ze.test.bin\", \"ZE_TEST_BIN\", \"le.test.bin\", \"LE_TEST_BIN\"} {"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredQEMUKnobsTestFile,
-		old:  retiredZeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  "internal/le/test/functional/exabgp_test.go",
+		old:   retiredLeTestBin,
+		lines: []string{"if value, present := environment[\"LE_TEST_BIN\"]; present {", "t.Fatalf(\"LE_TEST_BIN = %q, want it unset: the harness is the set's le\", value)"},
+		why:   retiredVariableIgnoredWhy,
 	},
 	{
-		file: retiredStressReproTestFile,
-		old:  retiredLeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredHostLoadTestFile,
+		old:   retiredLeTest,
+		lines: []string{"{\"/usr/bin/le-test ospf\", false},"},
+		why:   retiredHarnessRefusedWhy,
 	},
 	{
-		file: retiredStressReproTestFile,
-		old:  retiredZeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  retiredHostLoadTestFile,
+		old:   "bin/le-test",
+		lines: []string{"{\"/usr/bin/le-test ospf\", false},"},
+		why:   retiredHarnessRefusedWhy,
 	},
 	{
-		file: "internal/le/test/functional/exabgp_test.go",
-		old:  retiredLeTestBin,
-		why:  retiredVariableIgnoredWhy,
+		file:  "cmd/ze/login_test.go",
+		old:   retiredLeTest,
+		lines: []string{"{\"le-test does not trigger\", \"le-test\", false},"},
+		why:   retiredHarnessRefusedWhy,
 	},
 	{
-		file: retiredHostLoadTestFile,
-		old:  retiredLeTest,
-		why:  retiredHarnessRefusedWhy,
+		file:  retiredPerfTestFile,
+		old:   retiredZePerf,
+		lines: []string{"// selection of the retired ze-perf-run, and every perf verb answers as the", "// ze-perf run, report and track, with the trailing words and the exit code.", "// track --check keeps the exit code ze-perf track --check gave.", "t.Fatal(\"`perf compare <absent file>` exited 0, so the file never reached ze-perf report\")"},
+		why:   retiredParityWhy,
 	},
 	{
-		file: retiredHostLoadTestFile,
-		old:  "bin/le-test",
-		why:  retiredHarnessRefusedWhy,
+		file:  retiredPerfTestFile,
+		old:   "ze-perf-run",
+		lines: []string{"// selection of the retired ze-perf-run, and every perf verb answers as the"},
+		why:   retiredParityWhy,
 	},
 	{
-		file: "cmd/ze/login_test.go",
-		old:  retiredLeTest,
-		why:  retiredHarnessRefusedWhy,
+		file:  "internal/le/perf/bench_test.go",
+		old:   retiredZePerf,
+		lines: []string{"// VALIDATES: the retired ze-perf-bench, ze-perf-history-record and", "// PREVENTS: a benchmark action that looks for a host ze-perf, one that measures", "// way the ze-perf run subcommand emits a JSON document.", "// TestHistoryRecordAppendsOneCompactLinePerResult is the ze-perf-history-record"},
+		why:   retiredParityWhy,
 	},
 	{
-		file: retiredPerfTestFile,
-		old:  retiredZePerf,
-		why:  retiredParityWhy,
+		file:  "internal/le/mrt/mrt_test.go",
+		old:   "ze-analyze",
+		lines: []string{"// PREVENTS: a subcommand that ze-analyze ran and le does not, and a listing"},
+		why:   retiredParityWhy,
+	},
+	{file: retiredOwnershipTestFile, old: retiredZeTestTag, lines: []string{"\"a retired ze_test tag\":  {\"//go:build ze_test\\n\\npackage main\\n\\nfunc f() { registry.MustRegisterRootHandler(\\\"bgp\\\", nil, m) }\\n\", 1},"}, why: retiredTagRefusedWhy},
+	{file: retiredOwnershipTestFile, old: "ze_chaos", lines: []string{"// is allowlisted. No build tag exempts the file: the ze_chaos variant that once", "\"a retired ze_chaos tag\": {\"//go:build ze_chaos\\n\\npackage main\\n\\nfunc f() { registry.MustRegisterRootHandler(\\\"bgp\\\", nil, m) }\\n\", 1},"}, why: retiredTagRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredLeTestBin, lines: []string{"// Method: NewRunner with a stale LE_TEST_BIN exported, then read lePath and", "t.Setenv(\"LE_TEST_BIN\", \"/stale/harness\")"}, why: retiredVariableIgnoredWhy},
+	{file: retiredHarnessEnvTestFile, old: "ze.test.no.build", lines: []string{"if env.IsRegistered(\"ze.test.no.build\") {", "t.Fatal(\"ze.test.no.build is still registered\")", "t.Setenv(\"ZE_TEST_NO_BUILD\", tc.retired)"}, why: retiredVariableIgnoredWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredLeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZePeer, lines: []string{"// `ze-peer` are left to a PATH lookup.", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredParsingTestFile, old: retiredLeTest, lines: []string{"{\"le-test fixture storage/empty-tree\", \"le-test fixture storage/empty-tree\"},"}, why: retiredHarnessRefusedWhy},
+	{file: retiredParsingTestFile, old: retiredZeTest, lines: []string{"{\"ze-test fixture storage/empty-tree\", \"ze-test fixture storage/empty-tree\"},"}, why: retiredHarnessRefusedWhy},
+	{file: "internal/test/runner/peer_contract_test.go", old: retiredZePeer, lines: []string{"// that the retired head `ze-peer` no longer takes the peer role (AC-43)."}, why: retiredHarnessRefusedWhy},
+	{file: retiredPerfRunnerTestFile, old: retiredZePerf, lines: []string{"// bin/ze-perf path. The Docker argv is read where the wrapper renders it.", "if strings.Contains(word, filepath.Join(\"bin\", \"ze-perf\")) {", "t.Errorf(\"a command names a bin/ze-perf path: %q\", argv)"}, why: retiredPerfPathWhy},
+	{file: retiredPerfRunnerTestFile, old: "bin/ze-perf", lines: []string{"// bin/ze-perf path. The Docker argv is read where the wrapper renders it.", "t.Errorf(\"a command names a bin/ze-perf path: %q\", argv)"}, why: retiredPerfPathWhy},
+	{file: retiredWikiIndexFile, old: retiredZeTest, lines: []string{"\"summary\": \"ze-test is the test harness for Ze.\""}, why: retiredWikiIndexWhy},
+	{file: retiredWikiIndexFile, old: retiredZeChaos, lines: []string{"\"summary\": \"A chaos scenario in Ze is a configuration of ze-chaos: the number of mock peers, the address families they negotiate, the duration, the chaos seed and rate, and any explicit fault triggers.\"", "\"summary\": \"The chaos dashboard is a live web UI for ze-chaos.\"", "\"summary\": \"Property verification is the part of ze-chaos that turns \\\"did the run finish without crashing\\\" into something useful.\""}, why: retiredWikiIndexWhy},
+	{file: retiredWikiIndexFile, old: retiredZePerf, lines: []string{"\"summary\": \"ze-perf is a BGP propagation latency benchmark tool.\""}, why: retiredWikiIndexWhy},
+	{
+		file:  "internal/test/fixture/ui_fixture_le_checks_answers.go",
+		old:   "le tracked",
+		lines: []string{"trackedResult, err := runLE(nil, checkTestSensitivity, \"tracked\", \"|\", \"json\")"},
+		why:   "the tracked action of `le test sensitivity`, passed after the command constant, not the retired command",
 	},
 	{
-		file: retiredPerfTestFile,
-		old:  "ze-perf-run",
-		why:  retiredParityWhy,
+		file:  "internal/le/cli/grammar/cligrammar_test.go",
+		old:   "le dash-stdio",
+		lines: []string{"if namesLeFinding(result, \"dash-stdio\") {"},
+		why:   "a synthetic probe root the grammar test feeds its own gate, and namesLeFinding runs no le",
 	},
 	{
-		file: "internal/le/perf/bench_test.go",
-		old:  retiredZePerf,
-		why:  retiredParityWhy,
+		file:  "docs/contributing/running-commands.md",
+		old:   "le verify lock",
+		lines: []string{"`error: le verify lock was renamed: run le job run`"},
+		why:   "the page quotes the refusal le prints for the retired spelling, not an instruction to run it",
 	},
 	{
-		file: "internal/le/mrt/mrt_test.go",
-		old:  "ze-analyze",
-		why:  retiredParityWhy,
+		file:  "docs/contributing/running-commands.md",
+		old:   "le spec session",
+		lines: []string{"so `le spec session claim spec x`"},
+		why:   retiredTwoHopWhy,
 	},
 	{
-		file: "internal/le/chaos/run/run_test.go",
-		old:  retiredZeChaos,
-		why:  retiredParityWhy,
-	},
-	{file: retiredOwnershipTestFile, old: retiredZeTestTag, why: retiredTagRefusedWhy},
-	{file: retiredOwnershipTestFile, old: "ze_chaos", why: retiredTagRefusedWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredLeTestBin, why: retiredVariableIgnoredWhy},
-	{file: retiredHarnessEnvTestFile, old: "ze.test.no.build", why: retiredVariableIgnoredWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredLeTest, why: retiredHarnessRefusedWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredZeTest, why: retiredHarnessRefusedWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredZePeer, why: retiredHarnessRefusedWhy},
-	{file: retiredParsingTestFile, old: retiredLeTest, why: retiredHarnessRefusedWhy},
-	{file: retiredParsingTestFile, old: retiredZeTest, why: retiredHarnessRefusedWhy},
-	{file: retiredParsingTestFile, old: retiredZePeer, why: retiredHarnessRefusedWhy},
-	{file: "internal/test/runner/peer_contract_test.go", old: retiredZePeer, why: retiredHarnessRefusedWhy},
-	{file: retiredPerfRunnerTestFile, old: retiredZePerf, why: retiredPerfPathWhy},
-	{file: retiredPerfRunnerTestFile, old: "bin/ze-perf", why: retiredPerfPathWhy},
-	{file: retiredRoutingPlanFile, old: retiredZeTestTag, why: retiredLearnedQuoteWhy},
-	{file: retiredRoutingPlanFile, old: retiredZeChaos, why: retiredLearnedQuoteWhy},
-	{file: retiredWikiIndexFile, old: retiredZeTest, why: retiredWikiIndexWhy},
-	{file: retiredWikiIndexFile, old: retiredZeChaos, why: retiredWikiIndexWhy},
-	{file: retiredWikiIndexFile, old: retiredZePerf, why: retiredWikiIndexWhy},
-	{file: "docs/features/test-health.md", old: "le test-health", why: retiredTestHealthPageWhy},
-	{
-		file: "internal/test/fixture/ui_fixture_le_checks_answers.go",
-		old:  "le tracked",
-		why:  "the tracked action of `le test sensitivity`, passed after the command constant, not the retired command",
+		file:  "docs/contributing/running-commands.md",
+		old:   "le spec session claim",
+		lines: []string{"so `le spec session claim spec x`"},
+		why:   retiredTwoHopWhy,
 	},
 	{
-		file: "internal/le/cli/grammar/cligrammar_test.go",
-		old:  "le dash-stdio",
-		why:  "a synthetic probe root the grammar test feeds its own gate, and namesLeFinding runs no le",
-	},
-	{
-		file: "docs/contributing/running-commands.md",
-		old:  "le verify lock",
-		why:  "the page quotes the refusal le prints for the retired spelling, not an instruction to run it",
+		file:  "internal/test/fixture/ui_fixture_le_launcher_words.go",
+		old:   "le rollback newest",
+		lines: []string{`tb.Str("refused: ./le rollback newest, ./le rollback newest now,`},
+		why:   "the fixture's report names the retired verb it feeds the launcher to prove the refusal",
 	},
 }
+
+// retiredTwoHopWhy is the reason of the page that shows a retired spelling
+// whose successor was itself retired, to say the refusal names the final one.
+const retiredTwoHopWhy = "the page quotes a twice-renamed spelling to show the refusal follows the renames to their end"
 
 // The retired names that several exceptions declare.
 const (
@@ -301,7 +329,6 @@ const (
 	retiredHarnessEnvTestFile  = "internal/test/runner/harness_env_test.go"
 	retiredParsingTestFile     = "internal/test/runner/parsing_test.go"
 	retiredPerfRunnerTestFile  = "internal/test/perfrunner/run_test.go"
-	retiredRoutingPlanFile     = "plan/records/knowledge-routing-plan.md"
 	retiredWikiIndexFile       = "website/data/wiki.json"
 )
 
@@ -311,12 +338,9 @@ const (
 // follows on its next refresh.
 const retiredWikiIndexWhy = "derived by le site wiki update from the separate wiki repository, which still names the retired programs"
 
-// retiredTestHealthPageWhy is the reason of the generated test-health page.
 // Its producer, internal/le/test/health render.go, already writes `le test
 // health`; the page is stale until regenerated, and another session holds
 // uncommitted edits to it.
-const retiredTestHealthPageWhy = "generated by le test health update, whose producer writes the new name; stale until regenerated while another session holds uncommitted edits"
-
 // retiredTagRefusedWhy is the reason of the ownership test that feeds a
 // retired build tag to prove it no longer exempts a root handler.
 const retiredTagRefusedWhy = "a test sample that proves a retired build tag no longer exempts a root handler"
@@ -324,10 +348,6 @@ const retiredTagRefusedWhy = "a test sample that proves a retired build tag no l
 // retiredPerfPathWhy is the reason of the perf runner test that proves no
 // command it issues names the retired perf binary.
 const retiredPerfPathWhy = "a test that proves no perf runner command names the retired perf binary"
-
-// retiredLearnedQuoteWhy is the reason of the routing plan, which quotes two
-// learned summaries verbatim and names their files.
-const retiredLearnedQuoteWhy = "the plan quotes the learned summaries 861 and 862 verbatim and names their files"
 
 // retiredVariableIgnoredWhy is the reason shared by the tests that export a
 // retired variable to prove nothing reads it.
@@ -446,8 +466,31 @@ func retiredOwnedRowsAfter(inside bool, line string) bool {
 // sealed digest (internal/le/ai/hooks/fixtures.go, parity.go) was re-sealed.
 const retiredResealNotePrefix = "// Re-sealed "
 
-// retiredResealNoteAfter answers whether line sits inside a reseal note in a Go
-// file, given whether the line before it did. A note opens at a comment line
+// retiredSealedDir is the package whose sources hold the sealed digests and
+// their reseal notes. A reseal note is skipped only there: anywhere else a
+// comment that happens to open with retiredResealNotePrefix is an ordinary
+// comment, swept like every other line.
+const retiredSealedDir = "internal/le/ai/hooks/"
+
+// retiredSealed reports whether a tracked file is a source of the sealed
+// package: a non-test Go file directly in retiredSealedDir. Its tests are not
+// sealed, and neither is a package under it.
+func retiredSealed(rel string) bool {
+	name, found := strings.CutPrefix(rel, retiredSealedDir)
+	if !found {
+		return false
+	}
+	if strings.ContainsRune(name, '/') {
+		return false
+	}
+	if strings.HasSuffix(name, "_test.go") {
+		return false
+	}
+	return strings.HasSuffix(name, ".go")
+}
+
+// retiredResealNoteAfter answers whether line sits inside a reseal note in a
+// sealed source (retiredSealed), given whether the line before it did. A note opens at a comment line
 // that starts with retiredResealNotePrefix and runs through the comment lines
 // after it, to a bare `//` line or the first line that is not a comment. A
 // note records a past re-seal, so it names the spelling the source carried
@@ -467,15 +510,20 @@ func retiredResealNoteAfter(inside bool, line string) bool {
 	return false
 }
 
-// retiredExempt reports whether one old spelling is declared legitimate in one
-// file.
-func retiredExempt(rel, old string) bool {
+// retiredExempt reports whether one old spelling is declared legitimate on one
+// line of one file: an exception of that file and spelling lists the line.
+func retiredExempt(rel, old, line string) bool {
 	for _, exception := range &retiredExceptions {
 		if exception.file != rel {
 			continue
 		}
-		if exception.old == old {
-			return true
+		if exception.old != old {
+			continue
+		}
+		for _, covered := range exception.lines {
+			if strings.Contains(line, covered) {
+				return true
+			}
 		}
 	}
 	return false
@@ -740,7 +788,7 @@ func sweepRetired(root string) (retiredReport, error) {
 		// lines of a file that names an old form somewhere name none.
 		ownsRows := retiredOwnsRows(rel)
 		inOwnedRows := false
-		goSource := strings.HasSuffix(rel, ".go")
+		sealed := retiredSealed(rel)
 		inResealNote := false
 		lineNo := 0
 		for start := 0; start <= len(text); {
@@ -759,7 +807,7 @@ func sweepRetired(root string) (retiredReport, error) {
 					continue
 				}
 			}
-			if goSource {
+			if sealed {
 				inResealNote = retiredResealNoteAfter(inResealNote, line)
 				if inResealNote {
 					continue
@@ -773,7 +821,7 @@ func sweepRetired(root string) (retiredReport, error) {
 				if !pattern.match.MatchString(retiredMasked(line)) {
 					continue
 				}
-				if retiredExempt(rel, pattern.old) {
+				if retiredExempt(rel, pattern.old, line) {
 					continue
 				}
 				row := &report.Rows[index]
