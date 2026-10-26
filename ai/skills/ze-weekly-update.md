@@ -102,18 +102,29 @@ of those claims.
 
 ### The RFC MUST programme is a standing item
 
-Ze is being checked against every RFC it implements, one MUST at a time. Every
-weekly update says so: that the work has started rather than finished, where it
-stands, and the best two or three things it turned up that week. Owner
-instruction, 2026-08-10. One section, and it lives under the same budget as
+Every weekly update shows how the RFC gap closed that week, because that gap is
+the measure of progress toward release. One section, under the same budget as
 every other section.
+
+**Never open with a statement that the checking exists or continues** ("Ze is
+being checked against every RFC it implements, one MUST at a time. The work
+continues."). It read the same every week, and readers skip it. Open with the
+movement: how many MUST requirements became proven this week, where each release
+profile now stands, and what the checking found and fixed in the product.
+
+A MUST counts as covered only when a recorded break proved its test goes red
+(`ai/META-DECISIONS.md`). Report that figure first. The ledger's "checked" count
+is a weaker claim and comes second, if at all.
 
 Read the counts live. Never copy them from a commit message or a previous post.
 
 | Fact | Source |
 |------|--------|
-| Total requirements, MUST-level, how many are checked | the header of `ai/RFC-REQUIREMENTS.md` |
-| MUSTs still owing a test | the "Coverage by RFC" line in the same file |
+| MUSTs proven by a recorded break, overall and per RFC | `./le rfc tree \| json` (`mandatory-proven` over `mandatory-total`) |
+| Each release profile's position (MUST proven of owed, RFCs not yet walked) | `./le rfc tree profile <name> \| json` for every `rfc/profiles/*.md` whose `Release` is `yes` |
+| Movement over the week | distinct `rid` values under `rfc/discrimination/` at `release-from` and at `release-to` (`git show`), so the delta is pinned to the same revisions as the queue comparison |
+| Defects the checking surfaced and fixed | the closed fix specs and their commits in the range, verified at the producer like any shipped claim |
+| Total requirements, MUST-level, ledger count, MUSTs still owing a test | the header and "Coverage by RFC" line of `ai/RFC-REQUIREMENTS.md` |
 | Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction report` |
 
 Do not close the section with a stock caveat about what a green run does or
