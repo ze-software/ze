@@ -138,10 +138,11 @@ func fillCommands(ref *reference.Reference, program string) {
 	}
 }
 
-// actionOf projects one action row and its live parameters. A retired keyword
-// is refused, never offered, so it is not part of the grammar a reader learns.
+// actionOf projects one action row, the vocabulary verb it declares it
+// performs, and its live parameters. A retired keyword is refused, never
+// offered, so it is not part of the grammar a reader learns.
 func actionOf(row leaction.Row) reference.Action {
-	action := reference.Action{Verb: row.Verb, ShortHelp: row.Summary, Description: row.Why, Writes: row.Writes}
+	action := reference.Action{Verb: row.Verb, Does: row.Does, ShortHelp: row.Summary, Description: row.Why, Writes: row.Writes}
 	for _, parameter := range row.Parameters {
 		if parameter.Retired != "" {
 			continue

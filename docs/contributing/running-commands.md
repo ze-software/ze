@@ -132,7 +132,8 @@ still asks its own terminal question once the line is complete
 ### The whole surface for an agent: `le help ai`
 
 `./le help ai` prints the sections it answers. Each section is a word:
-`commands` lists every namespace with what it is for, then every area, each action and each parameter with its kind, its
+`commands` lists every namespace with what it is for, then every area, each action
+with the vocabulary verb it performs when its word is a name (`does`), and each parameter with its kind, its
 values, whether it is required and whether it repeats, and the program a
 pass-through area hands its words to, and every hidden area (one Ze spawns,
 absent from help pages and completion) marked hidden; `groups` the purpose tags; `verbs` the
@@ -145,8 +146,14 @@ program's; `launcher` the words the `./le` script reads before le starts
 reserved word after `help`, so the `ai` namespace's own page is
 `./le ai help`. `ze le help ai` answers the same, its program reading `ze le`.
 
-<!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI -->
-<!-- source: internal/component/aihelp/reference/reference.go -- Reference -->
+A verbless action, an area's sole action that the area word alone runs
+(`./le rollback`, `./le spec claim <spec>`), keeps the `verb` key with an
+empty value in the JSON and always carries `does`. The text puts `(no verb)`
+where the verb goes, so the summary after it never reads as one, and ends each
+action line that declares a verb with `(does <verb>)`.
+
+<!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI, actionOf -->
+<!-- source: internal/component/aihelp/reference/reference.go -- Reference, Action, VerblessColumn, writeCommands -->
 
 ### What le's exit codes mean
 

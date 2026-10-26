@@ -86,9 +86,20 @@ type Command struct {
 	Hidden bool `json:"hidden,omitempty"`
 }
 
-// Action is one verb of a command and the parameters it takes.
+// VerblessColumn is what the text rendering prints where a verb goes for a
+// verbless action, so the summary after it never reads as a verb.
+const VerblessColumn = "(no verb)"
+
+// Action is one action of a command and the parameters it takes.
 type Action struct {
+	// Verb is the word typed after the command name. It is empty for a
+	// verbless action, a command's sole action that the command name alone
+	// runs, and the key stays present then: a reader matches actions by it.
 	Verb string `json:"verb"`
+	// Does is the vocabulary verb the action performs when Verb is not that
+	// verb itself: a name such as a suite, or a verbless action, which always
+	// declares one. Empty when Verb is the vocabulary verb.
+	Does string `json:"does,omitempty"`
 	// ShortHelp is the action's one line, at most 60 characters.
 	ShortHelp string `json:"short-help"`
 	// Description is the action's long account of what it is for.
@@ -205,13 +216,20 @@ func (r Reference) writeCommands(tb *textbuf.Buffer) {
 			tb.Str("  <words>...  passed to ").Str(command.PassesTo).Byte('\n')
 		}
 		for _, action := range command.Actions {
-			// A verbless action (an area's sole action, run by the bare
-			// area line) has no verb word to print.
+			// A verbless action (a command's sole action, run by the bare
+			// command line) has no verb word, so the column says so rather
+			// than letting the summary's first word stand where a verb goes.
 			tb.Str("  ")
-			if action.Verb != "" {
-				tb.Str(action.Verb).Str("  ")
+			if action.Verb == "" {
+				tb.Str(VerblessColumn)
+			} else {
+				tb.Str(action.Verb)
 			}
-			tb.Str(action.ShortHelp).Byte('\n')
+			tb.Str("  ").Str(action.ShortHelp)
+			if action.Does != "" {
+				tb.Str("  (does ").Str(action.Does).Byte(')')
+			}
+			tb.Byte('\n')
 			writeDescription(tb, "      ", action.Description)
 			for _, parameter := range action.Parameters {
 				writeParameter(tb, parameter)
