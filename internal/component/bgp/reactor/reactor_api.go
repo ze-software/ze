@@ -140,6 +140,8 @@ type reactorAPIAdapter struct {
 	r *Reactor
 }
 
+var _ plugin.FSMHistoryProvider = (*reactorAPIAdapter)(nil)
+
 // Peers returns peer information for the API, in ascending peer-key order.
 //
 // The order is sorted rather than the Go map iteration order so that the row
@@ -862,6 +864,12 @@ func recordASNotation(tree map[string]any) {
 // (Reactor.UpdateDelayStatus, update_delay.go).
 func (a *reactorAPIAdapter) UpdateDelayStatus() plugin.UpdateDelayStatus {
 	return a.r.UpdateDelayStatus()
+}
+
+// PeerFSMHistory exposes the retained transitions through the adapter registered
+// with the coordinator, which is the reactor the command dispatcher receives.
+func (a *reactorAPIAdapter) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
+	return a.r.PeerFSMHistory(addr)
 }
 
 // Stats returns reactor statistics for the API.

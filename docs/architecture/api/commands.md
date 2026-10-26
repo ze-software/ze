@@ -679,6 +679,12 @@ request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
 
+`show bgp peer <selector> history` reads the peer's retained FSM transitions
+through the registered BGP adapter. Each row carries the source and destination
+states, plus the timestamp and reason when recorded.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- PeerFSMHistory -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handlePeerHistory -->
+
 `create bgp peer` (`ze-bgp:peer-create`) and `delete bgp peer`
 (`ze-bgp:peer-delete`) change the running peer set and never write the
 configuration file. A commit or a reload whose configuration does not declare a
