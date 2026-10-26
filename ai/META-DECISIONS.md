@@ -23,15 +23,19 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
   support.
-- RFC work is ordered by use-case profile and by the RFC dependency tree: a
-  release profile needs every mandatory requirement (MUST, MUST NOT, SHALL,
-  SHALL NOT, REQUIRED) of every RFC it reaches covered before release, and
-  work moves from root RFCs to leaves, except where a leaf updates a root's
-  requirements. A requirement counts as covered only when a recorded break
-  proved its test goes red. Optional requirements (SHOULD, SHOULD NOT,
-  RECOMMENDED, NOT RECOMMENDED, MAY, OPTIONAL) are reported as a second
-  figure and improved after mandatory coverage reaches 100%. RFCs no release
-  profile reaches wait until after the first release.
+- A release profile owes exactly the RFCs declared for it, the ones its role
+  implements, the way an established implementation of that role (BIRD for a
+  route server) does. A normative citation is never an obligation: the RFC
+  dependency graph only suggests candidates, and an optional transport or
+  feature is owed only when Ze ships it. A release profile needs every
+  mandatory requirement (MUST, MUST NOT, SHALL, SHALL NOT, REQUIRED) of every
+  declared RFC covered before release, and work moves from root RFCs to
+  leaves, except where a leaf updates a root's requirements. A requirement
+  counts as covered only when a recorded break proved its test goes red.
+  Optional requirements (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED,
+  MAY, OPTIONAL) are reported as a second figure and improved after mandatory
+  coverage reaches 100%. RFCs no release profile declares wait until after
+  the first release.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
