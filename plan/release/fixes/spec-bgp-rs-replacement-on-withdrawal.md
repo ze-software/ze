@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Priority | P1 |
 | Release reason | RS and RR clients must receive the elected surviving route on announcements and withdrawals. |
 | Scope | protocol |
@@ -1046,23 +1046,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Blocker
 
-2026-10-26, `/ze-close` handed back at `/ze-close` step 6 ("RFC proof records are fresh"): discrimination records this spec's implementation commits staled were never re-taken. Closure checks these records and does not write them, so `/ze-implement` re-takes them.
-
-`./le rfc check` cannot run in the shared tree (another session's untracked `reactor/delay_open_*_test.go` and `session_delay_open.go` form an import cycle in `go vet`), so it ran over a `git archive HEAD` export taken 2026-10-26 at f2dbc4a67c or a later meta-only commit (`ZE_REPO_ROOT` pointed at the export). Its `producer-changed` lines for this spec's producers:
-
-| Record | Unit | Producer that changed | Changed by |
-|--------|------|-----------------------|------------|
-| `rfc/discrimination/rfc4271/RFC4271-8.2.2-20.json` (negative) | `reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleAfterEstablishedKeepsCounter` | `reactor/peer_run.go::runOnce` | 8ad62e730f (`sessionDown` gains `publication`) |
-| `rfc/discrimination/rfc4271/RFC4271-9.2-9.json` (positive) | `reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers` | `reactor/reactor_api_batch.go::AnnounceNLRIBatch` | df98369ed9 (refuses message 0) |
-| `rfc/discrimination/rfc5575/RFC5575-4-1.json` (both) | `reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily` | `AnnounceNLRIBatch` | df98369ed9 |
-| `rfc/discrimination/rfc5575/RFC5575-4-2.json` (both) | same unit | `AnnounceNLRIBatch` | df98369ed9 |
-| `rfc/discrimination/rfc7752/RFC7752-3.2-1.json` (both) | `reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer`, `...NeverSentToIncapablePeer` | `AnnounceNLRIBatch` | df98369ed9 |
-| `rfc/discrimination/rfc9552/RFC9552-5.2-7.json` (both) | same two units | `AnnounceNLRIBatch` | df98369ed9 |
-| `rfc/discrimination/rfc9494/RFC9494-4.3-3.json` (positive) | `plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel` | `plugins/rib/rib_replay.go::collectGroupedRibOutRoutesFiltered` | rib_replay.go last changed by df98369ed9 |
-
-Not this spec's: the RFC4271-9.2-9 negative record (`WithdrawNLRIBatch`, changed by a306bd35f2), and the IKE records and audit verdicts (rfc3748, rfc3948, rfc4301, rfc4303, rfc7296). The export also prints "new id disagrees with its section" for long-standing rfc4271 and rfc7854 ids: an artifact of the export, which git sees as untracked, so every id reads as new. No audit verdict of this spec's stems is STALE: RFC4271-8.2.2-20, RFC4724-4-2 and RFC7854-x-10 pass.
-
-What clears it: `/ze-implement` re-takes the records above with `./le rfc discriminate` and `./le rfc discriminate-record` (in an export, as the reactor package does not compile in the shared tree), commits them, and sets the status back to `verification`. Closure then resumes at step 1.
+Resolved 2026-10-26. `/ze-close` had handed back at step 6 ("RFC proof records are fresh"): eleven discrimination records, in seven requirement files, were staled (`producer-changed`) by 8ad62e730f (`reactor/peer_run.go::runOnce`: RFC4271-8.2.2-20 negative) and df98369ed9 (`reactor/reactor_api_batch.go::AnnounceNLRIBatch`: RFC4271-9.2-9 positive, RFC5575-4-1, RFC5575-4-2, RFC7752-3.2-1 and RFC9552-5.2-7 both polarities; `plugins/rib/rib_replay.go::collectGroupedRibOutRoutesFiltered`: RFC9494-4.3-3 positive). `/ze-implement` re-took all eleven with `./le rfc record`, on the same `revert` route as before, in a `git archive HEAD` export (the shared tree's reactor package does not compile because of another session's untracked `delay_open_*` files), and `./le rfc check` in that export no longer reports any of them. Untouched as not this spec's: the RFC4271-9.2-9 negative record (`WithdrawNLRIBatch`, a306bd35f2) and the IKE records and audit verdicts. Closure resumes at step 1.
 
 What this hand-back already did, so the next closure does not repeat it:
 - Reviewed ee992f6425 and 8ad62e730f, which no implementation round covered (one `/ze-review` round plus a re-check of its fixes). No BLOCKER and no product defect. Two documentation ISSUEs, fixed in this commit: `docs/guide/operational-reports.md` listed only `tcp-failure` and `local-close` as `session-dropped` reasons, although `reactor/peer_session_end.go::sessionDown` now raises it with `adj-rib-in-invalid` too, and its source anchor named `peer_run.go` for a raise that lives in `sessionDown`; `docs/architecture/exabgp-bridge.md` and `docs/exabgp/exabgp-differences.md` did not say that `adj-rib-in-invalid` is `closing connection` (`bridge/bridge_event_state.go::exabgpDownReasons`). NOTEs: `reactor/peer_session_end.go::endNegotiatedSession` derives its close without `receivePublication.failed`, correct because a session that never reached Established delivered no UPDATE; `ReasonForbidsRetention` and `sessionCloseFor` quote RFC 4724 Section 4 byte-exact (checked against `rfc/full/rfc4724.txt`). `recoveryWorker.decide` (`reactor/recovery_owed.go`) is `newRecoveryAdmission`'s only caller, so no admission is built without its snapshot.

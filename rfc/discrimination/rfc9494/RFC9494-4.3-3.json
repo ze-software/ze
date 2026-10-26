@@ -56,17 +56,6 @@
   },
   {
     "rid": "RFC9494-4.3-3",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel",
-    "unit-sha": "674e0e18c62ab767",
-    "claim-sha": "126bc945209979b0",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesFiltered",
-    "producer-sha": "585ed1d9662cf6c0",
-    "break": "body of collectGroupedRibOutRoutesFiltered replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC9494-4.3-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel",
     "unit-sha": "674e0e18c62ab767",
@@ -75,6 +64,17 @@
     "producer": "internal/component/bgp/plugins/rib/storage/routeentry.go::AdvertisedStaleLevel",
     "producer-sha": "18bc3f80999abda6",
     "break": "body of AdvertisedStaleLevel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go::TestPeerUpReplayReportsSourceIngressLevel",
+    "unit-sha": "674e0e18c62ab767",
+    "claim-sha": "126bc945209979b0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesFiltered",
+    "producer-sha": "d2902fd1d9cef084",
+    "break": "body of collectGroupedRibOutRoutesFiltered replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
