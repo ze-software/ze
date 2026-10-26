@@ -191,7 +191,7 @@ func (p *Peer) sendQueuedRefreshMarker(marker []byte, session *Session) error {
 //
 // A nil update means the builder REJECTED the build: the message did not fit its
 // pooled 4096-byte slot and no bytes were produced (buildRIBRouteUpdate,
-// buildWithdrawNLRI, buildBatchAnnounceUpdate). Splitter.Split would dereference
+// buildBatchWithdrawUpdate, buildBatchAnnounceUpdate). Splitter.Split would dereference
 // it, so the nil is turned into errBuildRejected here, at the single choke point
 // every send passes through, rather than repeated at each builder's call site.
 func (p *Peer) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath bool) error {

@@ -154,6 +154,9 @@ type peerOp struct {
 	NextHopSelf bool           // Resolve against the session that drains this announcement.
 	Replay      bool           // Preserve the sent entry's origin when a refresh is queued.
 	NLRI        nlri.NLRI      // For PeerOpWithdraw
+	// Withdrawal is the command a PeerOpWithdraw came from, so the drain frames
+	// the same UPDATE the direct write would have (queuedWithdrawal).
+	Withdrawal *queuedWithdrawal // For PeerOpWithdraw
 	Notice      teardownNotice // For PeerOpTeardown: the NOTIFICATION it sends
 
 	// Automatic is set when the LOCAL SYSTEM chose this teardown rather than
@@ -2475,7 +2478,12 @@ func (p *Peer) raiseOpQueueFull(size int) {
 // Returns ErrOpQueueFull when the queue is at its cap and the withdrawal was
 // NOT queued. A dropped withdrawal is worse than a dropped announce: the peer
 // keeps forwarding to a prefix this speaker has taken back.
-func (p *Peer) QueueWithdraw(n nlri.NLRI) error {
+// Returns errQueuedWithdrawalShape, queuing nothing, when w is nil: the drain
+// could not frame the withdrawal the command asked for.
+func (p *Peer) QueueWithdraw(n nlri.NLRI, w *queuedWithdrawal) error {
+	if w == nil {
+		return errQueuedWithdrawalShape
+	}
 	p.mu.Lock()
 	if !p.queueGateClosedLocked() {
 		p.mu.Unlock()
@@ -2488,7 +2496,7 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI) error {
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
-	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpWithdraw, NLRI: n})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpWithdraw, NLRI: n, Withdrawal: w})
 	p.mu.Unlock()
 	return nil
 }

@@ -403,12 +403,12 @@ internal/component/plugin/registry/registry.go
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration, FatalOnConfigError, Lookup, All -->
 
-**Code generation keeps `all.go` in sync:** `internal/le/plugin/imports.Write` (invoked via `./le repo generate`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
+**Code generation keeps `all.go` in sync:** `internal/le/plugin/imports.Write` (invoked via `./le repo update`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
 **Adding a new plugin:**
 
 1. Create the plugin near its domain, for example `internal/component/bgp/plugins/<name>/register.go` for BGP plugins or `internal/plugins/<name>/register.go` for generic infrastructure plugins, with an `init()` calling `registry.Register()`
-2. Run `./le repo generate` to regenerate `all.go`
+2. Run `./le repo update` to regenerate `all.go`
 3. The plugin is now auto-loaded in every binary that imports `plugin/all`
 
 No other wiring is needed. The engine discovers it through registry queries, the CLI dispatches via `CLIHandler`, YANG schemas are picked up automatically, and dependency resolution handles startup ordering.
@@ -1718,7 +1718,11 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    `shouldQueue()` before this point and reaches `QueueAnnounce` or
    `QueueWithdraw` after it is refused with `errQueueGateOpen`, because nothing
    drains the queue again, and the batch rail sends it directly instead
-   (`queueGateClosedLocked`, `reactor_api_batch.go`). The separate live-forward replay fence
+   (`queueGateClosedLocked`, `reactor_api_batch.go`). A queued withdrawal keeps
+   the command it came from (`queuedWithdrawal`) and the drain frames it at
+   send time through `buildBatchWithdrawUpdate`, so it is the same UPDATE,
+   attributes included, that the direct write would have sent: one command
+   never reaches the wire in two shapes chosen by timing. The separate live-forward replay fence
    remains held until its named reporters finish. A teardown queued during this
    drain's sends stops it as it stops the first drain (`runQueuedTeardown`:
    End-of-RIB, then the NOTIFICATION, then the gate opens), and steps 9 and 10

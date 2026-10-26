@@ -921,11 +921,14 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 			// contract as the announce rail above.
 			refused := len(peerBatch.NLRIs)
 			var queueErr error
+			// One shape for every NLRI this peer queues: the drain reads its
+			// attributes, never its NLRIs (queuedWithdrawal).
+			shape := &queuedWithdrawal{adapter: a, batch: peerBatch}
 			for k, n := range peerBatch.NLRIs {
 				if err := ctx.Err(); err != nil {
 					return err
 				}
-				if err := peer.QueueWithdraw(n); err != nil {
+				if err := peer.QueueWithdraw(n, shape); err != nil {
 					refused, queueErr = k, err
 					break
 				}
@@ -1771,6 +1774,54 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		PathAttributes: attrBuf[:n],
 	}
 }
+
+// errQueuedWithdrawalShape refuses a withdrawal queued with no command to frame
+// it from: the drain would have to invent its attributes.
+var errQueuedWithdrawalShape = errors.New("BUG: a queued withdrawal names no command to frame it from")
+
+// queuedWithdrawal is the command a withdrawal waiting on a peer's opQueue came
+// from. Peer.shouldQueue sends the API rail's withdrawal to the queue while the
+// peer's initial sync runs, and the drain sends it once that sync is done.
+//
+// It exists so the queued withdrawal and the direct one are the SAME UPDATE.
+// Until 2026-10-25 the queue held the NLRI alone and the drain framed a bare
+// MP_UNREACH_NLRI (buildWithdrawNLRI), while the direct write carried what
+// buildBatchWithdrawUpdate plans. One command then reached the wire in two
+// shapes, chosen by whether it arrived before or after the initial sync ended:
+// test/plugin/update-text-sr-policy-addpath.ci saw the bare one on a loaded CI
+// host. RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI
+// is not required to carry any other path attributes", so both shapes conform,
+// and the command, not the timing, decides which one is sent.
+//
+// batch is read for its family and its attributes. Its NLRIs are not read: the
+// queue entry names its own (peerOp.NLRI), so one value serves every NLRI the
+// call queued. The facts are taken at drain time, from the session that sends
+// it, as a queued announce resolves its next hop (queueAnnounceForPeer).
+type queuedWithdrawal struct {
+	adapter *reactorAPIAdapter
+	batch   bgptypes.NLRIBatch
+}
+
+// update frames the withdrawal of n toward p into attrBuf and nlriBuf, the
+// pooled pair buildBatchWithdrawUpdate writes into, and answers it with the
+// ADD-PATH framing it used. A nil update is a build the buffers refused,
+// already logged. MUST be called without p.mu held: withdrawFactsFor reads the
+// peer through its locking accessors.
+func (w *queuedWithdrawal) update(p *Peer, n nlri.NLRI, attrBuf, nlriBuf []byte) (*message.Update, bool, error) {
+	nc := p.negotiated.Load()
+	if nc == nil {
+		return nil, false, errQueuedWithdrawalNoSession
+	}
+	unit := w.batch
+	one := [1]nlri.NLRI{n}
+	unit.NLRIs = one[:]
+	facts := withdrawFactsFor(p, unit, p.IsIBGP(), nc)
+	return w.adapter.buildBatchWithdrawUpdate(attrBuf, nlriBuf, unit, facts), facts.addPath, nil
+}
+
+// errQueuedWithdrawalNoSession reports a drain that found no negotiated
+// capabilities to frame a queued withdrawal against.
+var errQueuedWithdrawalNoSession = errors.New("queued withdrawal not sent: the peer has no negotiated session to frame it for")
 
 // logWithdrawTooLarge records a rejected withdraw: the "or say something" half of
 // buildBatchWithdrawUpdate's guard. WithdrawNLRIBatch also returns

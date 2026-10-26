@@ -283,6 +283,10 @@ func logRIBRouteTooLarge(n nlri.NLRI, bufLen int, stage string) {
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 //
+// No production caller remains: the opQueue drains frame a queued withdrawal
+// through queuedWithdrawal (reactor_api_batch.go). Deleting this function
+// deletes its bounds test, which needs the owner's approval.
+//
 // Returns nil when the NLRI does not fit, for the same reason
 // buildRIBRouteUpdate does. The two regions here share one pooled slot and BOTH
 // bounds matter: an NLRI longer than the tail region walks past len(buf) (a panic,

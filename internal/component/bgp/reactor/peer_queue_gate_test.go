@@ -27,7 +27,7 @@ func TestQueueRefusedAfterGateOpens(t *testing.T) {
 
 	route := testRoute("203.0.113.0/24")
 	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), errQueueGateOpen)
-	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI()), errQueueGateOpen)
+	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI(), &queuedWithdrawal{}), errQueueGateOpen)
 	peer.mu.RLock()
 	parked := len(peer.opQueue)
 	peer.mu.RUnlock()

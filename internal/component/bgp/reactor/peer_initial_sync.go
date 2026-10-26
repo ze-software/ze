@@ -220,15 +220,10 @@ func (p *Peer) sendInitialRoutes() {
 			continue
 
 		case PeerOpWithdraw:
-			// Send withdrawal using pooled buffer.
-			fam := op.NLRI.Family()
-			addPath := p.addPathFor(fam)
-			wdHandle := getBuildBuf()
-			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
+			// Framed as the direct write would have framed it (queuedWithdrawal).
 			p.mu.Unlock()
 			queueLocked = false
-			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
-			putBuildBuf(wdHandle)
+			sendErr := p.sendQueuedWithdrawal(op, opMaxMsgSize)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
@@ -438,6 +433,25 @@ func (p *Peer) sendInitialRoutes() {
 	p.initialSyncEOROwed.Store(false)
 }
 
+// sendQueuedWithdrawal sends one withdrawal the opQueue held, framed from the
+// command it came from (queuedWithdrawal.update) into a pooled buffer pair, so
+// the queued withdrawal and the direct one are the same UPDATE. Both drains call
+// it, so they cannot frame a withdrawal differently. A rejected build reaches
+// sendUpdateWithSplit as a nil update, which answers errBuildRejected.
+// MUST be called without p.mu held.
+func (p *Peer) sendQueuedWithdrawal(op peerOp, maxMsgSize int) error {
+	attrHandle := getBuildBuf()
+	nlriHandle := getBuildBuf()
+	defer putBuildBuf(attrHandle)
+	defer putBuildBuf(nlriHandle)
+
+	update, addPath, err := op.Withdrawal.update(p, op.NLRI, attrHandle.Buf, nlriHandle.Buf)
+	if err != nil {
+		return err
+	}
+	return p.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
+}
+
 // drainAndCloseQueueGate writes every operation the opQueue still holds, then
 // closes the queueing gate, both under one p.mu hold.
 //
@@ -514,14 +528,9 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 			finalProcessed++
 
 		case PeerOpWithdraw:
-			fam := op.NLRI.Family()
-			addPath := p.addPathFor(fam)
-			wdHandle := getBuildBuf()
-			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
 			queueLocked = false
-			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
-			putBuildBuf(wdHandle)
+			sendErr := p.sendQueuedWithdrawal(op, opMaxMsgSize)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()

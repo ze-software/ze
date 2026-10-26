@@ -557,7 +557,7 @@ func TestUpdateDelayQueueOverrunIsReportedNotSwallowed(t *testing.T) {
 
 	require.ErrorIs(t, p.QueueAnnounce(testRoute("10.0.1.0/24"), false, false), ErrOpQueueFull,
 		"an announce past the cap must be REFUSED, not dropped in silence")
-	require.ErrorIs(t, p.QueueWithdraw(testRoute("10.0.2.0/24").NLRI()), ErrOpQueueFull,
+	require.ErrorIs(t, p.QueueWithdraw(testRoute("10.0.2.0/24").NLRI(), &queuedWithdrawal{}), ErrOpQueueFull,
 		"a withdrawal past the cap must be refused too: the peer keeps forwarding to a prefix this speaker took back")
 
 	p.mu.RLock()

@@ -444,7 +444,7 @@ func TestPeerShouldQueue(t *testing.T) {
 	// The gate is open, so the queue refuses: nothing would drain the route.
 	route := testRoute("10.0.0.0/8")
 	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), errQueueGateOpen)
-	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI()), errQueueGateOpen)
+	require.ErrorIs(t, peer.QueueWithdraw(route.NLRI(), &queuedWithdrawal{}), errQueueGateOpen)
 	require.False(t, peer.shouldQueue(), "a refused operation must not close the gate")
 
 	// Queue has items → should queue (preserves insertion order)
