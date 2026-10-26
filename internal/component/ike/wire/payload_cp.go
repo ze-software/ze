@@ -2,7 +2,20 @@
 // RFC: rfc/short/rfc7296.md — Configuration payload (Section 3.15)
 package wire
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
+
+// CPAttrCountMax bounds the attributes one Configuration payload may carry. The payload is
+// shaped by an unauthenticated-until-IKE_AUTH-completes peer, and every attribute costs an
+// allocation, so the count is capped before the loop runs to completion. The largest request
+// seen from strongSwan, Windows and macOS clients carries fewer than 20 attributes.
+const CPAttrCountMax = 64
+
+// ErrCPTooManyAttrs reports a Configuration payload carrying more than CPAttrCountMax
+// attributes; the payload is refused as malformed.
+var ErrCPTooManyAttrs = errors.New("ike: configuration payload carries more than 64 attributes")
 
 // Configuration types (RFC 7296 Section 3.15).
 const (
@@ -27,11 +40,17 @@ const (
 	CPAttrInternalIP4Netmask uint16 = 2
 	CPAttrInternalIP4DNS     uint16 = 3
 	CPAttrInternalIP4NBNS    uint16 = 4
-	CPAttrInternalIP4DHCP    uint16 = 6
-	CPAttrApplicationVersion uint16 = 7
-	CPAttrInternalIP6Address uint16 = 8
-	CPAttrInternalIP6DNS     uint16 = 10
-	CPAttrInternalIP6DHCP    uint16 = 12
+	// CPAttrInternalAddressExpiry (5) is obsolete: RFC 7296 Section 1.7 removed it, and a
+	// receiver ignores it like any unrecognized attribute.
+	CPAttrInternalAddressExpiry uint16 = 5
+	CPAttrInternalIP4DHCP       uint16 = 6
+	CPAttrApplicationVersion    uint16 = 7
+	CPAttrInternalIP6Address    uint16 = 8
+	CPAttrInternalIP6DNS        uint16 = 10
+	CPAttrInternalIP6DHCP       uint16 = 12
+	CPAttrInternalIP4Subnet     uint16 = 13
+	CPAttrSupportedAttributes   uint16 = 14
+	CPAttrInternalIP6Subnet     uint16 = 15
 )
 
 // ConfigAttr is a single configuration attribute.
@@ -72,6 +91,21 @@ func (p *PayloadCP) Len() int {
 	return n
 }
 
+// ReadFrom decodes a Configuration payload body. Every attribute is a 4-octet header and its
+// value, so a trailing remnant shorter than a header is a truncated attribute and is refused,
+// as is a payload carrying more than CPAttrCountMax attributes.
+//
+//	                     1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   CFG Type    |                    RESERVED                   |  octets 0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|R|         Attribute Type      |            Length             |  octets 4-7
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	~                             Value                             ~
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// (RFC 7296 Sections 3.15 and 3.15.1.)
 func (p *PayloadCP) ReadFrom(data []byte) error {
 	if len(data) < 4 {
 		return ErrTruncated
@@ -79,7 +113,13 @@ func (p *PayloadCP) ReadFrom(data []byte) error {
 	p.CFGType = data[0]
 	p.Attrs = nil
 	off := 4
-	for off+4 <= len(data) {
+	for off < len(data) {
+		if off+4 > len(data) {
+			return ErrTruncated
+		}
+		if len(p.Attrs) == CPAttrCountMax {
+			return ErrCPTooManyAttrs
+		}
 		// Ignore the Reserved bit on receipt: only the low 15 bits name the attribute.
 		atype := binary.BigEndian.Uint16(data[off:]) & cpAttrTypeMask
 		alen := int(binary.BigEndian.Uint16(data[off+2:]))
