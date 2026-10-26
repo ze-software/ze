@@ -17,7 +17,7 @@ import (
 
 // testReporter is the report argv the tests hand New: the le that `le perf run`
 // passes, spelled as a developer types it.
-var testReporter = []string{"le", "perf", "report"}
+var testReporter = []string{"le", "perf", "compare"}
 
 func TestGenerateToFileNeverDestroysTheExistingReport(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "report.html")
@@ -29,7 +29,7 @@ func TestGenerateToFileNeverDestroysTheExistingReport(t *testing.T) {
 		return errors.New("generator failed")
 	}
 	var stderr strings.Builder
-	if generateToFile(context.Background(), failed, []string{"le", "perf", "report"}, destination, &stderr) {
+	if generateToFile(context.Background(), failed, []string{"le", "perf", "compare"}, destination, &stderr) {
 		t.Fatal("failing generator reported success")
 	}
 	content, err := os.ReadFile(destination)
@@ -50,7 +50,7 @@ func TestGenerateToFilePublishesOnlyACompleteResult(t *testing.T) {
 		_, _ = io.WriteString(stdout, "HTML\n")
 		return nil
 	}
-	if !generateToFile(context.Background(), succeeded, []string{"le", "perf", "report"}, destination, io.Discard) {
+	if !generateToFile(context.Background(), succeeded, []string{"le", "perf", "compare"}, destination, io.Discard) {
 		t.Fatal("successful generator reported failure")
 	}
 	content, err := os.ReadFile(destination)
