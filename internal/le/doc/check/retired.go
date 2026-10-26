@@ -270,6 +270,11 @@ var retiredExceptions = [...]retiredException{
 		old:  "le dash-stdio",
 		why:  "a synthetic probe root the grammar test feeds its own gate, and namesLeFinding runs no le",
 	},
+	{
+		file: "docs/contributing/running-commands.md",
+		old:  "le verify lock",
+		why:  "the page quotes the refusal le prints for the retired spelling, not an instruction to run it",
+	},
 }
 
 // The retired names that several exceptions declare.

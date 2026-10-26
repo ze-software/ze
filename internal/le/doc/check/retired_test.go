@@ -362,6 +362,7 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		"le test-health":              "./le test-health update",
 		"le tracked":                  `runLE(nil, "tracked", "|", "json")`,
 		"le dash-stdio":               `namesLeFinding(result, "dash-stdio")`,
+		"le verify lock":              "error: le verify lock was renamed: run le job run",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
