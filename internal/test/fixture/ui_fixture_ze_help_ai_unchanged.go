@@ -8,14 +8,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // zeHelpAiGoldenDir holds ze's help ai output captured before le gained its
-// own help ai, relative to the repository root.
+// own help ai, relative to the repository root. The goldens are per platform:
+// ze links linux-only plugins (iface-dhcp, iface-ra, memlock; `platformOnly`
+// in internal/component/plugin/all/all_test.go), so one feature set prints a
+// different plugin list on Linux than on darwin.
 const zeHelpAiGoldenDir = "internal/test/fixture/testdata"
 
 // zeHelpAiAll is the ze help ai section that prints every page, and the
@@ -24,7 +29,7 @@ const zeHelpAiAll = "all"
 
 // zeHelpAiForm is one output form of ze help ai.
 type zeHelpAiForm struct {
-	name string   // the golden is ze-help-ai-<name>.golden
+	name string   // the golden is ze-help-ai-<name>-<GOOS>.golden
 	args []string // after "help ai"
 }
 
@@ -63,14 +68,24 @@ func zeHelpAiUnchanged(ctx context.Context) error {
 	return nil
 }
 
-// zeHelpAiCompare runs one form and refuses any difference from its golden.
+// zeHelpAiCompare runs one form and refuses any difference from its golden
+// for the platform this run is on. A platform with no golden is a refusal,
+// never a pass: a pin that skipped where it had nothing to compare would read
+// green on a host it never judged.
 func zeHelpAiCompare(ctx context.Context, root, zePath string, form zeHelpAiForm) error {
-	goldenPath := filepath.Join(root, zeHelpAiGoldenDir, "ze-help-ai-"+form.name+".golden")
+	goldenName := "ze-help-ai-" + form.name + "-" + runtime.GOOS + ".golden"
+	goldenPath := filepath.Join(root, zeHelpAiGoldenDir, goldenName)
+	argv := append([]string{leHelpPagesHelpWord, "ai"}, form.args...)
 	want, err := os.ReadFile(goldenPath) //nolint:gosec // the path is the fixture's own golden under the repository root
-	if err != nil {
-		return fmt.Errorf("read the %s golden: %w", form.name, err)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("no %s golden for %s: %s does not exist; capture it on a %s host from the ze this run built, "+
+			"with `%s %s > %s`, then have an independent ze-test-judge agent judge the new golden before it is committed",
+			form.name, runtime.GOOS, goldenPath, runtime.GOOS, zePath, strings.Join(argv, " "), goldenPath)
 	}
-	cmd := exec.CommandContext(ctx, zePath, append([]string{leHelpPagesHelpWord, "ai"}, form.args...)...) //nolint:gosec // the fixture chooses the program and its arguments
+	if err != nil {
+		return fmt.Errorf("read the %s golden %s: %w", form.name, goldenPath, err)
+	}
+	cmd := exec.CommandContext(ctx, zePath, argv...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = root
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

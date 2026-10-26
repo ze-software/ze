@@ -1,0 +1,4468 @@
+{
+  "commands": [
+    {
+      "name": "clear",
+      "mode": "daemon",
+      "short-help": "Reset counters, caches, and operational state without changing configuration.",
+      "subs": "ze clear help"
+    },
+    {
+      "name": "create",
+      "mode": "daemon",
+      "short-help": "Create new resources.",
+      "subs": "ze create help"
+    },
+    {
+      "name": "debug",
+      "mode": "daemon",
+      "short-help": "OSPF debug LSA injection (spec-ospf-ext-14).",
+      "subs": "ze debug help"
+    },
+    {
+      "name": "delete",
+      "mode": "daemon",
+      "short-help": "Delete elements from the running configuration.",
+      "subs": "ze delete help"
+    },
+    {
+      "name": "fakeas112",
+      "mode": "daemon",
+      "short-help": "Fakeas112 test commands.",
+      "subs": "ze fakeas112 help"
+    },
+    {
+      "name": "fakel2tp",
+      "mode": "daemon",
+      "short-help": "Fakel2tp test commands.",
+      "subs": "ze fakel2tp help"
+    },
+    {
+      "name": "fakeredist",
+      "mode": "daemon",
+      "short-help": "Fakeredist test commands.",
+      "subs": "ze fakeredist help"
+    },
+    {
+      "name": "help",
+      "mode": "read-only",
+      "short-help": "Show available commands at this level.",
+      "subs": "ze help help"
+    },
+    {
+      "name": "monitor",
+      "mode": "read-only",
+      "short-help": "Continuous monitoring commands (Ctrl-C to stop).",
+      "subs": "ze monitor help"
+    },
+    {
+      "name": "plugin",
+      "mode": "read-only",
+      "short-help": "Configure how events are delivered to your plugin session.",
+      "subs": "ze plugin help"
+    },
+    {
+      "name": "request",
+      "mode": "daemon",
+      "short-help": "Commands that act on the running system.",
+      "subs": "ze request help"
+    },
+    {
+      "name": "resolve",
+      "mode": "read-only",
+      "short-help": "DNS, ASN, PeeringDB, and IRR resolution tools.",
+      "subs": "ze resolve help"
+    },
+    {
+      "name": "send",
+      "mode": "daemon",
+      "short-help": "Put an operator-supplied message on a wire.",
+      "subs": "ze send help"
+    },
+    {
+      "name": "set",
+      "mode": "daemon",
+      "short-help": "Modify running configuration parameters.",
+      "subs": "ze set help"
+    },
+    {
+      "name": "show",
+      "mode": "read-only",
+      "short-help": "Read-only commands to inspect system, protocol, and network state.",
+      "subs": "ze show help"
+    },
+    {
+      "name": "system",
+      "mode": "read-only",
+      "short-help": "Daemon introspection and command dispatch.",
+      "subs": "ze system help"
+    },
+    {
+      "name": "update",
+      "mode": "daemon",
+      "short-help": "Pull fresh data from external sources or manage firmware.",
+      "subs": "ze update help"
+    },
+    {
+      "name": "appliance",
+      "mode": "offline",
+      "short-help": "Manage gokrazy-based Ze appliance images",
+      "subs": "assemble, build, clone, config, config-push, export, import, init, initrd, iso, kernel, list, passwd, push, rekey, replace-cert, run, show, unlock"
+    },
+    {
+      "name": "bgp",
+      "mode": "offline",
+      "short-help": "BGP protocol tools",
+      "subs": "decode \u003chex\u003e | decode - | decode pcap \u003cfile\u003e, encode \u003croute\u003e, plugin"
+    },
+    {
+      "name": "cli",
+      "mode": "daemon",
+      "short-help": "Interactive CLI for the running daemon",
+      "subs": "-c \u003ccmd\u003e for single command"
+    },
+    {
+      "name": "completion",
+      "mode": "offline",
+      "short-help": "Shell completion scripts",
+      "subs": "bash, zsh, fish, nushell"
+    },
+    {
+      "name": "config",
+      "mode": "offline",
+      "short-help": "Configuration editing, formatting, validation, and history",
+      "subs": "activate, archive, cat, completion, deactivate, diff, dump, edit, fix, fmt, graph, history, import, list, migrate, rename, rollback, set, show, validate"
+    },
+    {
+      "name": "connect",
+      "mode": "offline",
+      "short-help": "Manage SSH credentials for remote ze daemons",
+      "subs": "add \u003chost\u003e [--port] [--user], list, remove \u003chost\u003e [--port], default \u003chost\u003e [--port]"
+    },
+    {
+      "name": "data",
+      "mode": "offline",
+      "short-help": "Store keys and blob artifact management",
+      "subs": "backup, restore, write, import, rm, list, cat, registered, check, repair, encode"
+    },
+    {
+      "name": "doctor",
+      "mode": "offline",
+      "short-help": "Check if this box is ready to run Ze",
+      "subs": "config \u003cfile\u003e, kernel-capabilities, --json"
+    },
+    {
+      "name": "env",
+      "mode": "offline",
+      "short-help": "Environment variable inspection",
+      "subs": "list, get, registered"
+    },
+    {
+      "name": "exabgp",
+      "mode": "offline",
+      "short-help": "ExaBGP bridge tools",
+      "subs": "plugin, migrate"
+    },
+    {
+      "name": "firewall",
+      "mode": "offline",
+      "short-help": "Firewall management",
+      "subs": "show, apply"
+    },
+    {
+      "name": "init",
+      "mode": "setup",
+      "short-help": "Initialize a live store or appliance seed with SSH credentials",
+      "subs": "--managed --force --yes --web-cert \u003caddress\u003e --web-cert-name \u003cname\u003e --seed --from \u003csource\u003e --sha256 \u003chex\u003e"
+    },
+    {
+      "name": "install",
+      "mode": "setup",
+      "short-help": "Install ze binary, systemd service, or provision remote devices",
+      "subs": "disk, local, remote, systemd"
+    },
+    {
+      "name": "interface",
+      "mode": "offline",
+      "short-help": "Manage OS network interfaces",
+      "subs": "addr, clear, create, delete, down, mac, migrate, mtu, neighbors, routes, scan, show, unit, up"
+    },
+    {
+      "name": "isis",
+      "mode": "offline",
+      "short-help": "Offline IS-IS wire tools",
+      "subs": "decode [--pretty]"
+    },
+    {
+      "name": "l2tp",
+      "mode": "offline",
+      "short-help": "L2TP tools",
+      "subs": "decode, show [--user] \u003cquery\u003e, tunnel [--user] {id \u003cid\u003e | all}, session [--user] {id \u003cid\u003e | all}"
+    },
+    {
+      "name": "ospf",
+      "mode": "offline",
+      "short-help": "Offline OSPF wire tools",
+      "subs": "decode [--pretty]"
+    },
+    {
+      "name": "passwd",
+      "mode": "setup",
+      "short-help": "Change stored SSH/HTTP passwords"
+    },
+    {
+      "name": "pipe",
+      "mode": "offline",
+      "short-help": "Apply pipe operators to stdin",
+      "subs": "json [\u003coption\u003e], ndjson, table, text, yaml, raw, no-more, log, save \u003cpath\u003e, match \u003ctext\u003e, count, first \u003cn\u003e, last \u003cn\u003e, display \u003cfield\u003e..., fill [\u003coption\u003e], resolve, origin"
+    },
+    {
+      "name": "schema",
+      "mode": "offline",
+      "short-help": "Schema discovery",
+      "subs": "events, handlers, list, methods, protocol"
+    },
+    {
+      "name": "signal",
+      "mode": "daemon",
+      "short-help": "Send signals to the daemon via SSH",
+      "subs": "reload, stop, restart, quit"
+    },
+    {
+      "name": "start",
+      "mode": "setup",
+      "short-help": "Start the Ze daemon from blob storage config",
+      "subs": "--web \u003cport\u003e, --web-only, --insecure-web, --mcp \u003cport\u003e"
+    },
+    {
+      "name": "status",
+      "mode": "daemon",
+      "short-help": "Check if daemon is running",
+      "subs": "exit 0 = running, 1 = not"
+    },
+    {
+      "name": "sysctl",
+      "mode": "offline",
+      "short-help": "Kernel sysctl helpers"
+    },
+    {
+      "name": "tacacs",
+      "mode": "offline",
+      "short-help": "TACACS+ client helpers",
+      "subs": "show"
+    },
+    {
+      "name": "traffic",
+      "mode": "offline",
+      "short-help": "Linux tc / VPP policer helpers",
+      "subs": "control"
+    },
+    {
+      "name": "uninstall",
+      "mode": "setup",
+      "short-help": "Remove ze binary or systemd service",
+      "subs": "local, systemd"
+    },
+    {
+      "name": "version",
+      "mode": "offline",
+      "short-help": "Show the running Ze version and build date",
+      "subs": "--extended"
+    },
+    {
+      "name": "yang",
+      "mode": "offline",
+      "short-help": "YANG tree analysis",
+      "subs": "completion, doc, tree"
+    }
+  ],
+  "rpcs": [
+    {
+      "wire-method": "ze-aaa:show-accounting"
+    },
+    {
+      "wire-method": "ze-anomaly:show-anomaly"
+    },
+    {
+      "wire-method": "ze-anomaly:show-observe"
+    },
+    {
+      "wire-method": "ze-anomaly:show-shape"
+    },
+    {
+      "wire-method": "ze-as112:health"
+    },
+    {
+      "wire-method": "ze-as112:show-as112"
+    },
+    {
+      "wire-method": "ze-bfd:show-profile",
+      "short-help": "Return resolved BFD profile parameters.",
+      "description": "Without a name every profile is answered. Each one carries the detect\nmultiplier, the desired transmit interval and the required receive interval in microseconds,\nand whether the profile is passive.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "short-help": "Profile name (empty returns every profile).",
+          "description": "With a name, the answer is that one profile object rather than\nan array. A name no profile carries fails with bfd: no profile named \u003cname\u003e."
+        }
+      ],
+      "output": [
+        {
+          "name": "profiles",
+          "type": "string",
+          "short-help": "JSON array of profile objects.",
+          "description": "The values are the ones in effect after inheritance, not the\nones typed in the configuration."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bfd:show-session",
+      "short-help": "Return one BFD session by peer address.",
+      "description": "The peer must be an IP address, and a value that does not parse is refused\nbefore the lookup. A peer with no session is reported as no session for that peer.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Peer IPv4 or IPv6 address.",
+          "description": "The address in its usual text form, with no prefix length. It\nis matched against the peer address of each session."
+        }
+      ],
+      "output": [
+        {
+          "name": "session",
+          "type": "string",
+          "short-help": "JSON object with session detail.",
+          "description": "The same fields a show-sessions row carries, for the one session\nthe peer selected."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bfd:show-sessions",
+      "short-help": "Return every live BFD session.",
+      "description": "Each row carries the peer, the state and the diagnostic code. It also\ncarries the two discriminators, the transmit, receive and detection intervals, the packet\ncounters and the recent state changes. The command fails with bfd: plugin not loaded when\nBFD is not running.",
+      "output": [
+        {
+          "name": "sessions",
+          "type": "string",
+          "short-help": "JSON array of session objects.",
+          "description": "One object per session, taken from a snapshot of the service at\nthe moment of the call. An empty array means BFD runs and holds no session."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:announce-blackhole",
+      "short-help": "Announce a route on demand (unicast, blackhole, flowspec).",
+      "description": "Ze tracks each announcement in a registry and gives it an id.\n'tag \u003ckey\u003e \u003cvalue\u003e' labels the announcement, and 'for \u003cduration\u003e' gives it an\nexpiry time. A key or a value longer than 128 characters is refused. Withdraw\nthe announcement later by id, by tag, or with 'withdraw all'."
+    },
+    {
+      "wire-method": "ze-bgp:announce-flowspec",
+      "short-help": "Announce a route on demand (unicast, blackhole, flowspec).",
+      "description": "Ze tracks each announcement in a registry and gives it an id.\n'tag \u003ckey\u003e \u003cvalue\u003e' labels the announcement, and 'for \u003cduration\u003e' gives it an\nexpiry time. A key or a value longer than 128 characters is refused. Withdraw\nthe announcement later by id, by tag, or with 'withdraw all'."
+    },
+    {
+      "wire-method": "ze-bgp:announce-unicast",
+      "short-help": "Announce a route on demand (unicast, blackhole, flowspec).",
+      "description": "Ze tracks each announcement in a registry and gives it an id.\n'tag \u003ckey\u003e \u003cvalue\u003e' labels the announcement, and 'for \u003cduration\u003e' gives it an\nexpiry time. A key or a value longer than 128 characters is refused. Withdraw\nthe announcement later by id, by tag, or with 'withdraw all'."
+    },
+    {
+      "wire-method": "ze-bgp:cache-expire"
+    },
+    {
+      "wire-method": "ze-bgp:cache-forward"
+    },
+    {
+      "wire-method": "ze-bgp:cache-list",
+      "short-help": "BGP message cache operations.",
+      "description": "The action is one of list, retain, release, expire and forward. Every action\nexcept list takes a message ID. 'forward' takes a peer selector as well. A\nmessage ID field holding a comma-separated list runs the action over each ID in\none call.",
+      "input": [
+        {
+          "name": "action",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Cache action (list|retain|release|expire|forward)",
+          "description": "One of list, retain, release, expire and forward. Every action except list\nneeds a message-id, and another word is refused."
+        },
+        {
+          "name": "message-id",
+          "type": "uint64",
+          "short-help": "Cache message ID",
+          "description": "The ID of a cached message, as the list action answers it. A comma-separated\nlist of IDs runs the action once for each ID."
+        },
+        {
+          "name": "peer-selector",
+          "type": "peer-selector",
+          "short-help": "Target peers (for forward)",
+          "description": "The peers a forwarded UPDATE goes to, as a peer address, a peer name, '*', or\na comma-separated list of them. Only the forward action reads it."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:cache-release"
+    },
+    {
+      "wire-method": "ze-bgp:cache-retain"
+    },
+    {
+      "wire-method": "ze-bgp:commit",
+      "short-help": "Named commit operations.",
+      "description": "The actions are start, end, eor, rollback, show, withdraw and list. Each one\nexcept list takes a name. 'withdraw' takes a route prefix after the name. 'list'\nanswers the open commit names and their count.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "short-help": "Commit name",
+          "description": "The name of the commit the action operates on. Every action except list needs\nit, and start is what first creates the name."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:monitor",
+      "short-help": "Stream live BGP events with optional filters.",
+      "description": "The filters are peer \u003cselector\u003e, event \u003ctype,type\u003e and direction, and each\none is given once. direction takes received or sent, and a peer selector can start with !\nto exclude the peers it matches."
+    },
+    {
+      "wire-method": "ze-bgp:overview",
+      "short-help": "Show the BGP overview (peer table with statistics).",
+      "description": "The answer opens with the daemon uptime, the count of configured peers, and the\ncount of peers in the Established state. The peer rows follow. A first argument\nthat names neither a subcommand nor an address family is refused.",
+      "output": [
+        {
+          "name": "uptime",
+          "type": "string",
+          "short-help": "Daemon uptime",
+          "description": "The time since the daemon started, truncated to whole seconds and written as a\nGo duration such as '1h2m3s'."
+        },
+        {
+          "name": "peers-configured",
+          "type": "uint32",
+          "short-help": "Total configured peers",
+          "description": "The number of peers in the running configuration, whatever FSM state each one\nis in."
+        },
+        {
+          "name": "peers-established",
+          "type": "uint32",
+          "short-help": "Peers in Established state",
+          "description": "The number of configured peers whose FSM is in the Established state at the\ntime of the answer."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-borr",
+      "short-help": "Send Beginning of Route Refresh.",
+      "description": "RFC 7313 Section 4 requires a BoRR message before the speaker starts a route\nrefresh. That holds for a local refresh and for one that answers a request from\nthe peer. The family names which Adj-RIB-Out the re-advertisement covers. Send\npeer-eorr once that re-advertisement is complete.",
+      "input": [
+        {
+          "name": "peer-selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Target peers",
+          "description": "The peers that receive the BoRR message, as a peer address, a peer name, '*',\nor a comma-separated list of them."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "mandatory": true,
+          "short-help": "Address family",
+          "description": "The address family the BoRR names. It is the Adj-RIB-Out the re-advertisement\nthat follows covers."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-capabilities",
+      "short-help": "Show negotiated capabilities for peer.",
+      "description": "The answer carries the peer address, the FSM state, and a boolean that is true\nonce the OPEN exchange completed. The selector is mandatory, so this RPC reads\none peer and never every peer.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter",
+          "description": "A peer address, a peer name, or a comma-separated list of them. The selector\nis mandatory, so no request reads every peer by default."
+        }
+      ],
+      "output": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Peer address",
+          "description": "The IP address of the peer the capabilities belong to."
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "short-help": "FSM state",
+          "description": "The name of the FSM state the session is in at the time of the answer."
+        },
+        {
+          "name": "negotiation-complete",
+          "type": "boolean",
+          "short-help": "True if OPEN exchange completed",
+          "description": "True once both OPEN messages were exchanged and the capabilities are known.\nWhile it is false the negotiated families and the add-path fields are absent."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-clear-soft",
+      "short-help": "Soft-clear peer (send ROUTE-REFRESH per negotiated family).",
+      "description": "The soft clear sends one ROUTE-REFRESH for each family the session negotiated,\nso the peer re-advertises its routes and the session stays up. RFC 2918 Section\n4 permits the message only after the peer sent the Route Refresh Capability. The\nselector resolves to one peer, and a wildcard is refused. The answer lists the\nfamilies that were refreshed.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer address",
+          "description": "A peer address or a peer name that resolves to one peer. A wildcard is\nrefused."
+        }
+      ],
+      "output": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Peer address",
+          "description": "The IP address of the peer that received the ROUTE-REFRESH messages."
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "short-help": "Always soft-clear",
+          "description": "The constant text 'soft-clear'. A caller reading a mixed stream of answers\nuses it to tell which operation produced this one."
+        },
+        {
+          "name": "families-refreshed",
+          "type": "address-family",
+          "short-help": "Families refreshed",
+          "description": "One entry for each negotiated address family a ROUTE-REFRESH was sent for."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-create",
+      "short-help": "Create a peer in the running daemon.",
+      "description": "The address and the ASN are required, and every other input is optional.\n'local-as' overrides the local ASN and 'router-id' overrides the router ID.\n'receive-hold-time' is the hold time RFC 4271 defines. 'send-hold-time' is the\nsend hold timer RFC 9687 defines, where 0 selects the automatic value. 'connect'\nand 'accept' each default to true, so the peer dials the address and answers a\nconnection from it. 'family' names the address families the OPEN offers, and\nwith no 'family' the OPEN carries no multiprotocol capability. 'attach' names\nthe plugin processes this peer feeds. The peer lives in the running daemon and\nthe running configuration, and nothing is written to the configuration file. A\ncommit or a reload whose configuration does not declare the peer keeps it\nrunning; 'delete bgp peer' is how it leaves, and 'ze-bgp:peer-save' is what\nwrites it to the file. 'create bgp peer \u003caddress\u003e asn \u003casn\u003e' is the CLI path.",
+      "input": [
+        {
+          "name": "address",
+          "type": "ip-address",
+          "mandatory": true,
+          "short-help": "Peer address",
+          "description": "The IPv4 or IPv6 address of the peer. It is the key of the peer, and\n'delete bgp peer' accepts the same address."
+        },
+        {
+          "name": "asn",
+          "type": "asn-notated",
+          "mandatory": true,
+          "short-help": "Peer ASN, in any notation RFC 5396 names",
+          "description": "The AS number the peer announces in its OPEN, 1 to 4294967295. Ze stores the\ndecimal form whichever notation was given."
+        },
+        {
+          "name": "local-as",
+          "type": "asn-notated",
+          "short-help": "Local ASN override, in any notation RFC 5396 names",
+          "description": "The AS number Ze announces in its own OPEN to this peer, 1 to 4294967295.\nWithout it the daemon's local AS applies."
+        },
+        {
+          "name": "local-address",
+          "type": "ip-address",
+          "short-help": "Local bind address",
+          "description": "The IPv4 or IPv6 address of this host that the TCP connection to the peer is\nbound to."
+        },
+        {
+          "name": "router-id",
+          "type": "ipv4-address",
+          "short-help": "Router ID override",
+          "description": "The BGP Identifier Ze sends in its OPEN to this peer, as a dotted quad.\n0.0.0.0 is refused, and without it the daemon's router ID applies."
+        },
+        {
+          "name": "receive-hold-time",
+          "type": "uint16",
+          "short-help": "Receive hold time (RFC 4271)",
+          "description": "The Hold Time in seconds that Ze proposes in its OPEN to this peer, 0 to\n65535."
+        },
+        {
+          "name": "send-hold-time",
+          "type": "uint16",
+          "short-help": "Send hold time (RFC 9687, 0=auto)",
+          "description": "The send hold time in seconds, 0 to 65535. A value of 0 lets Ze derive it."
+        },
+        {
+          "name": "connect-retry",
+          "type": "uint16",
+          "short-help": "Connect retry interval",
+          "description": "The seconds Ze waits between two connection attempts to the peer, 0 to\n65535."
+        },
+        {
+          "name": "connect",
+          "type": "boolean",
+          "short-help": "Dial the peer (default true)",
+          "description": "When true Ze dials the peer address. Set it false when the peer opens the\nconnection."
+        },
+        {
+          "name": "accept",
+          "type": "boolean",
+          "short-help": "Answer a connection from the peer (default true)",
+          "description": "When true Ze answers a TCP connection the peer opens. Set it false when Ze\nalone dials."
+        },
+        {
+          "name": "graceful-restart",
+          "type": "uint16",
+          "short-help": "Restart Time in seconds (RFC 4724)",
+          "description": "The Restart Time in seconds Ze advertises in its Graceful Restart capability,\n0 to 4095, which is the width of the field."
+        },
+        {
+          "name": "group-updates",
+          "type": "boolean",
+          "short-help": "Group this peer's UPDATEs with other peers (default true)",
+          "description": "When true this peer's UPDATEs are grouped with those of other peers that\ncarry the same attributes. When false they are built for this peer alone."
+        },
+        {
+          "name": "attach",
+          "type": "node-name",
+          "short-help": "Plugin process this peer feeds",
+          "description": "The name of a plugin process that receives every message from this peer and\ncan send every message type to it. Give one entry per process."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Address family to negotiate",
+          "description": "An address family the OPEN offers in its multiprotocol capability. A name no\nfamily registry entry matches is refused."
+        }
+      ],
+      "output": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Address of the peer created",
+          "description": "The IP address of the peer that was created, as the input gave it."
+        },
+        {
+          "name": "remote-as",
+          "type": "asn-notated",
+          "short-help": "Remote AS of the peer created, in the notation bgp/as-notation selects",
+          "description": "The AS number of the created peer. Its notation is the one the bgp/as-notation\nleaf selects, asplain or asdot."
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "short-help": "Always 'peer created'",
+          "description": "The constant text 'peer created'. It confirms the peer exists in the running\ndaemon and not in the configuration file."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-delete",
+      "short-help": "Delete a peer from the running daemon.",
+      "description": "The selector is a peer address or a configured peer name, and the\nwildcard is refused. Ze stops the TCP session and removes the peer from the\nrunning daemon. The configuration file on disk does not change, so a peer the\nfile declares comes back on a reload until 'ze-bgp:peer-save' takes it out."
+    },
+    {
+      "wire-method": "ze-bgp:peer-detail",
+      "short-help": "Show detailed peer information.",
+      "description": "The rows carry the same peer-info fields peer-list answers. Those are the\naddress, the name, the group, the two ASNs, the FSM state, the router ID, the\nthree timers, and the uptime. The selector is optional here, as it is for\npeer-list.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "short-help": "Peer filter",
+          "description": "A peer address, a peer name, '*', or a comma-separated list of them. With no\nselector every configured peer is shown."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-disable",
+      "short-help": "Hold a peer administratively down.",
+      "description": "Ze holds the peer administratively down. A running session is closed with a\nCease NOTIFICATION, subcode 2 (Administrative Shutdown), carrying the message as\nits RFC 9003 Shutdown Communication, truncated to the 255 octets the wire\ncarries. A peer with no session is held all the same: Ze opens no session and\nanswers an inbound connection with Cease subcode 5 (Connection Rejected), until\npeer-enable. The routes queued for the peer are kept and sent once it is enabled.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter",
+          "description": "A peer address or a peer name. A selector that matches more than one peer is\nrefused."
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "short-help": "Shutdown communication",
+          "description": "The RFC 9003 Shutdown Communication. Absent, the Cease carries none."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-enable",
+      "short-help": "Release a peer's administrative hold.",
+      "description": "Ze releases the administrative hold of peer-disable or of the peer shutdown\ncontainer, and the peer connects straight away. A peer that is not held is left\nas it is. The release lasts until a commit adds or removes the shutdown\ncontainer.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter",
+          "description": "A peer address or a peer name. A selector that matches more than one peer is\nrefused."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-eorr",
+      "short-help": "Send End of Route Refresh.",
+      "description": "RFC 7313 Section 4: 'After the speaker completes the re-advertisement of the\nentire Adj-RIB-Out to the peer, it MUST send an EoRR message.' The family MUST\nbe the one peer-borr opened. RFC 7313 Section 4 applies the procedure only after\nthe peer sent the Enhanced Route Refresh Capability.",
+      "input": [
+        {
+          "name": "peer-selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Target peers",
+          "description": "The peers that receive the EoRR message, as a peer address, a peer name, '*',\nor a comma-separated list of them."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "mandatory": true,
+          "short-help": "Address family",
+          "description": "The address family the EoRR closes. It MUST be the family the matching\npeer-borr opened."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-flush",
+      "short-help": "Wait for forward pool to drain (barrier).",
+      "description": "The RPC returns once the forward pool has drained, so a test asserts on what the\npeer received without a fixed sleep. A selector of '*', or no selector at all,\nflushes every peer. The wait is bounded at 30 seconds.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter (* for all)",
+          "description": "A peer address, a peer name, or '*'. '*' drains the forward pool of every\npeer, and a name that resolves to no peer is refused."
+        }
+      ],
+      "output": [
+        {
+          "name": "peer",
+          "type": "string",
+          "short-help": "Peer selector that was flushed",
+          "description": "What the barrier drained: the address of the one peer, or '*' when every\npeer was flushed."
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "short-help": "Always flush",
+          "description": "The constant text 'flush'. A caller reading a mixed stream of answers uses it\nto tell which operation produced this one."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-history"
+    },
+    {
+      "wire-method": "ze-bgp:peer-list",
+      "short-help": "List configured peers.",
+      "description": "Each row carries the peer address, its name, and its peer-group. The remote and\nlocal ASN, the local bind address, the FSM state and the router ID follow. The\nreceive hold time, the send hold time, the connect retry interval, and the\nseconds since the session became established close the row.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "short-help": "Peer filter",
+          "description": "A peer address, a peer name, '*', or a comma-separated list of them. With no\nselector every configured peer is listed."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-notify",
+      "short-help": "Close a peer session with a NOTIFICATION of any code and subcode.",
+      "description": "Ze closes the session with a NOTIFICATION carrying the given error code and\nerror subcode, any value an octet holds. Under Cease (6), subcode 2 or 4, the\ntext is the RFC 9003 Shutdown Communication; under every other pair it is the\nData field. Both are sent as UTF-8. With no text the Data field is empty. A\ntext that does not fit is refused and the session stays up: more than 128\noctets under Cease 2 or 4 (RFC 9003 Section 3), more than 4075 octets\notherwise, or text that is not UTF-8. The hex leaf, given in place of the text,\nis the Data field itself, sent octet for octet and refused over 4075 octets.\nThe answer echoes the Data field in hex.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter",
+          "description": "A peer address or a peer name. A selector that matches more than one peer is\nrefused."
+        },
+        {
+          "name": "code",
+          "type": "uint8",
+          "mandatory": true,
+          "short-help": "NOTIFICATION error code",
+          "description": "The NOTIFICATION error code, 0 to 255 (RFC 4271 Section 4.5)."
+        },
+        {
+          "name": "subcode",
+          "type": "uint8",
+          "mandatory": true,
+          "short-help": "NOTIFICATION error subcode",
+          "description": "The NOTIFICATION error subcode, 0 to 255."
+        },
+        {
+          "name": "hex",
+          "type": "string",
+          "short-help": "Data field octets in hexadecimal",
+          "description": "The Data field in hexadecimal, two digits for each octet, given in place of\nthe text. It is sent as it is, with no encoding. More than 4075 octets, an odd\nnumber of digits, or a character other than 0-9, a-f or A-F is refused."
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "short-help": "Data field text",
+          "description": "The Data field text: every word after the subcode, joined by one space."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-pause"
+    },
+    {
+      "wire-method": "ze-bgp:peer-raw",
+      "short-help": "Send raw bytes to peer (no validation).",
+      "description": "With a message type keyword, Ze builds the BGP header and the data carries the\npayload alone. Without one, the data MUST carry the marker and the header too.\nThe types are open, update, notification, keepalive and route-refresh, and the\nencodings are hex and b64. Nothing validates the bytes, so this RPC can put a\nmalformed message on the wire.",
+      "input": [
+        {
+          "name": "peer-selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Target peers",
+          "description": "The peers the bytes go to, as a peer address, a peer name, '*', or a\ncomma-separated list of them."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "short-help": "Message type hint",
+          "description": "One of open, update, notification, keepalive and route-refresh. With a type\nZe writes the marker and the header, and the data carries the payload alone."
+        },
+        {
+          "name": "encoding",
+          "type": "encoding-mode",
+          "mandatory": true,
+          "short-help": "Data encoding",
+          "description": "The encoding the data leaf is written in, hex or b64."
+        },
+        {
+          "name": "data",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Raw data",
+          "description": "The message bytes in the named encoding. Without a type they carry the marker,\nthe length and the type too, and nothing checks them."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-refresh",
+      "short-help": "Send ROUTE-REFRESH to peer for specified family.",
+      "description": "Give the family as one word, for example ipv4/unicast. An\nunknown word fails with 'invalid family'. RFC 2918 Section 4 permits the\nmessage only where the peer sent the Route Refresh capability. The answer\ncarries the peer selector and the family."
+    },
+    {
+      "wire-method": "ze-bgp:peer-resume"
+    },
+    {
+      "wire-method": "ze-bgp:peer-rib"
+    },
+    {
+      "wire-method": "ze-bgp:peer-save",
+      "short-help": "Write the running peer set to the configuration file.",
+      "description": "The method takes no argument and acts on the whole running peer\nset. It reconciles the configuration file to that set in both directions: a\npeer created through 'ze-bgp:peer-create' is written into the file, and a peer the\nfile declares that 'ze-bgp:peer-delete' removed is taken out of it. A peer both\nsides hold is not rewritten. Nothing about the running daemon changes. The\nanswer carries 'added', 'removed' and 'config', which names the file. An\nargument is refused, because after a removal no peer is left for a selector to\nname."
+    },
+    {
+      "wire-method": "ze-bgp:peer-statistics",
+      "short-help": "Show per-peer update statistics with rates.",
+      "description": "The answer carries the peer address, its ASN, the FSM state, and the session\nuptime. Six counters follow, for UPDATE, KEEPALIVE and End-of-RIB messages in\neach direction. Four rate fields give the UPDATE and KEEPALIVE traffic per\nsecond.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "short-help": "Peer filter",
+          "description": "A peer address, a peer name, '*', or a comma-separated list of them. A\nselector that matches no peer is refused."
+        }
+      ],
+      "output": [
+        {
+          "name": "address",
+          "type": "ip-address",
+          "short-help": "Peer address",
+          "description": "The IP address of the peer this row describes."
+        },
+        {
+          "name": "remote-as",
+          "type": "asn-notated",
+          "short-help": "Peer ASN, in the notation bgp/as-notation selects",
+          "description": "The AS number of the peer. Its notation is the one the bgp/as-notation leaf\nselects, asplain or asdot."
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "short-help": "FSM state",
+          "description": "The name of the FSM state the session is in at the time of the answer."
+        },
+        {
+          "name": "uptime",
+          "type": "string",
+          "short-help": "Session uptime",
+          "description": "The time since the session became Established, truncated to whole seconds\nand written as a Go duration such as '5m3s'. It is zero while the session is not\nEstablished."
+        },
+        {
+          "name": "updates-received",
+          "type": "uint32",
+          "short-help": "UPDATE messages received",
+          "description": "The count of UPDATE messages received from the peer. rate-updates-received\ndivides it by the uptime."
+        },
+        {
+          "name": "updates-sent",
+          "type": "uint32",
+          "short-help": "UPDATE messages sent",
+          "description": "The count of UPDATE messages sent to the peer. rate-updates-sent divides it\nby the uptime."
+        },
+        {
+          "name": "keepalives-received",
+          "type": "uint32",
+          "short-help": "KEEPALIVE messages received",
+          "description": "The count of KEEPALIVE messages received from the peer.\nrate-keepalives-received divides it by the uptime."
+        },
+        {
+          "name": "keepalives-sent",
+          "type": "uint32",
+          "short-help": "KEEPALIVE messages sent",
+          "description": "The count of KEEPALIVE messages sent to the peer. rate-keepalives-sent\ndivides it by the uptime."
+        },
+        {
+          "name": "eor-received",
+          "type": "uint32",
+          "short-help": "End-of-RIB markers received",
+          "description": "The count of End-of-RIB markers received from the peer, one for each address\nfamily whose initial table the peer finished sending."
+        },
+        {
+          "name": "eor-sent",
+          "type": "uint32",
+          "short-help": "End-of-RIB markers sent",
+          "description": "The count of End-of-RIB markers sent to the peer, one for each address family\nwhose initial table Ze finished sending."
+        },
+        {
+          "name": "rate-updates-received",
+          "type": "string",
+          "short-help": "Updates received per second",
+          "description": "The updates-received count divided by the uptime in seconds, as a decimal\nnumber. It is 0 while the uptime is zero."
+        },
+        {
+          "name": "rate-updates-sent",
+          "type": "string",
+          "short-help": "Updates sent per second",
+          "description": "The updates-sent count divided by the uptime in seconds, as a decimal number.\nIt is 0 while the uptime is zero."
+        },
+        {
+          "name": "rate-keepalives-received",
+          "type": "string",
+          "short-help": "Keepalives received per second",
+          "description": "The keepalives-received count divided by the uptime in seconds, as a decimal\nnumber. It is 0 while the uptime is zero."
+        },
+        {
+          "name": "rate-keepalives-sent",
+          "type": "string",
+          "short-help": "Keepalives sent per second",
+          "description": "The keepalives-sent count divided by the uptime in seconds, as a decimal\nnumber. It is 0 while the uptime is zero."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-teardown",
+      "short-help": "Teardown peer session with CEASE notification.",
+      "description": "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.\nZe sends an RFC 8203 shutdown communication message with subcode 2,\nadministrative shutdown, and with subcode 4, administrative reset, and with no\nother subcode. The message is truncated to the length the wire carries, and the\nanswer echoes the truncated text.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter",
+          "description": "A peer address, a peer name, or a comma-separated list of them. Every matched\nsession receives the NOTIFICATION, and the peer stays configured."
+        },
+        {
+          "name": "subcode",
+          "type": "uint8",
+          "short-help": "CEASE subcode",
+          "description": "The Cease subcode, 0 to 255, that the NOTIFICATION carries under error code\n6. Subcodes 2 and 4 can carry a shutdown communication message."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:peer-update",
+      "short-help": "Batch UPDATE with text/hex/b64 encoding.",
+      "description": "The encoding chooses the parser. 'text' reads the route DSL. 'hex' and 'b64'\nread encoded UPDATE bytes. 'cursor' reads a saved position. The text form\ncarries announce, withdraw and End-of-RIB in one command, and the answer counts\nthe NLRIs each way.",
+      "input": [
+        {
+          "name": "peer-selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Target peers",
+          "description": "The peers the UPDATE goes to, as a peer address, a peer name, '*', or a\ncomma-separated list of them."
+        },
+        {
+          "name": "encoding",
+          "type": "encoding-mode",
+          "mandatory": true,
+          "short-help": "Command encoding",
+          "description": "The parser the command goes to: 'text' for the route DSL, 'hex' or 'b64' for\nencoded UPDATE bytes."
+        },
+        {
+          "name": "command",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Route DSL command",
+          "description": "The route DSL text, or the encoded UPDATE bytes when the encoding is hex or\nb64. One text command can announce, withdraw and send End-of-RIB together."
+        }
+      ],
+      "output": [
+        {
+          "name": "announced",
+          "type": "uint32",
+          "short-help": "Number of NLRIs announced",
+          "description": "The number of NLRIs the command announced. It counts NLRIs and not UPDATE\nmessages."
+        },
+        {
+          "name": "withdrawn",
+          "type": "uint32",
+          "short-help": "Number of NLRIs withdrawn",
+          "description": "The number of NLRIs the command withdrew. It counts NLRIs and not UPDATE\nmessages."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:plugin-session-peer-ready",
+      "short-help": "Signal that this peer's plugin process finished its initialization.",
+      "description": "The daemon signals readiness for the one peer the process\nserves. A plugin process sends 'session \u003cinitial-replay token\u003e', with the token\ncaptured from that peer's UP event, and a request from a plugin process without\nthe token is refused. An operator request needs no token. The reactor's refusal\nof a token is answered with an error naming the peer. A request that names no\npeer, or that names the wildcard peer, is accepted and signals nothing.",
+      "input": [
+        {
+          "name": "session",
+          "type": "string",
+          "short-help": "Initial-replay session token",
+          "description": "Opaque nonzero uint64 initial-replay token captured when this replay began."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:pool-stats"
+    },
+    {
+      "wire-method": "ze-bgp:rib-best",
+      "short-help": "Show best-path per prefix (RFC 4271 §9.1.2).",
+      "description": "A filter is path \u003cpattern\u003e, prefix \u003cpattern\u003e, community \u003cvalue\u003e,\nfamily \u003cafi/safi\u003e, or match \u003ctext\u003e.\nA terminal is one of four.\ncount returns metadata only.\njson returns serialized output.\nhistogram returns the per-family prefix-length distribution.\ngraph returns the AS-path topology as box-drawing text.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Filter by peer",
+          "description": "A peer selector. Given, only a best path learned from a matching peer\nis shown. Absent, the best path of every prefix is shown."
+        },
+        {
+          "name": "args",
+          "type": "string",
+          "short-help": "Pipeline args: filters, terminal",
+          "description": "The words of the pipeline in order: filters, then one terminal. There\nis no scope word, because a best path is always a received route."
+        }
+      ],
+      "output": [
+        {
+          "name": "route-count",
+          "type": "uint32",
+          "short-help": "Number of best paths",
+          "description": "The count of prefixes with a best path that the filters matched. It\nis answered when the terminal is count."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-best-status",
+      "short-help": "Show best-path computation status.",
+      "description": "The peer count adds the BGP peers to the non-BGP redistribution sources\nthat feed the RIB. It can be larger than the BGP peer count, and the route count is the sum\nover both.",
+      "output": [
+        {
+          "name": "peers-with-rib",
+          "type": "uint32",
+          "short-help": "Peers with RIB entries",
+          "description": "The count of sources that hold an Adj-RIB-In: the BGP peers plus the\nnon-BGP redistribution sources. A peer with an empty table counts."
+        },
+        {
+          "name": "total-routes",
+          "type": "uint32",
+          "short-help": "Total route count across peers",
+          "description": "The sum of the routes held in those Adj-RIB-In tables, over all\naddress families. It counts received routes, not best paths."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-clear-advertised",
+      "short-help": "Withdraw the Adj-RIB-Out of the selected peers.",
+      "description": "Withdraws every route the selected peers' current sessions hold in their\nAdj-RIB-Out, configured routes included, and forgets the peers' configured route\nset so a reload sends it again. RFC 4271 Section 9.2 sends each withdrawal as an\nUPDATE. A selector that matches no peer is refused.",
+      "input": [
+        {
+          "name": "selector",
+          "type": "peer-selector",
+          "mandatory": true,
+          "short-help": "Peer filter (* for all)",
+          "description": "A peer address, a peer name, an AS pattern, a comma-separated list of them, or\n'*' for every peer."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Address family",
+          "description": "The one address family to withdraw. Absent, every family is withdrawn."
+        }
+      ],
+      "output": [
+        {
+          "name": "withdrawn",
+          "type": "uint32",
+          "description": "The count of routes withdrawn, summed over the selected peers."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-clear-in",
+      "short-help": "Clear Adj-RIB-In entries.",
+      "description": "A peer selector is required, and the command is refused without one. Each\nmatching peer loses its Adj-RIB-In and its entry in the peer table, and the best path is\nthen computed again.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Filter by peer",
+          "description": "A peer selector, one address or * for every peer. Each matching peer\nloses its Adj-RIB-In. The selector is required."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Filter by address family",
+          "description": "An afi/safi pair, for example ipv4/unicast. The handler does not read\nit: the Adj-RIB-In of a matching peer is cleared for every family."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-clear-out",
+      "short-help": "Resend the Adj-RIB-Out routes to the matching peers.",
+      "description": "The routes are replayed and nothing is deleted. A peer selector is\nrequired, and only a peer that is up is resent to. A second argument holding a slash scopes\nthe replay to one family.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Filter by peer",
+          "description": "A peer selector, one address or * for every peer. Each matching peer\nthat is up has its Adj-RIB-Out resent. The selector is required."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Filter by address family",
+          "description": "An afi/safi pair, for example ipv4/unicast. Given, only the routes of\nthat family are resent. Absent, every family is resent."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-fastpath"
+    },
+    {
+      "wire-method": "ze-bgp:rib-inject",
+      "short-help": "Insert route into Adj-RIB-In as if received from a peer.",
+      "description": "The peer address is a label; no live BGP session required.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "mandatory": true,
+          "short-help": "Peer address label",
+          "description": "The address the route is filed under in the Adj-RIB-In. A peer table\nthat does not exist yet is created, so no session is needed."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "mandatory": true,
+          "short-help": "Address family (e.g. ipv4/unicast)",
+          "description": "An afi/safi pair. It selects the Adj-RIB-In table and the NLRI\nencoding of the prefix."
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "CIDR prefix (e.g. 10.0.0.0/24)",
+          "description": "The prefix in CIDR form, address and length. It is encoded as the\nNLRI of the injected route."
+        },
+        {
+          "name": "origin",
+          "type": "string",
+          "short-help": "Origin: igp, egp, incomplete (default: igp)",
+          "description": "One of igp, egp and incomplete. Absent, the route carries igp. Any\nother word is refused with the three names."
+        },
+        {
+          "name": "nhop",
+          "type": "ip-address",
+          "short-help": "Next-hop IP address",
+          "description": "An IPv4 value fills the NEXT_HOP attribute. An IPv6 value travels in\nMP_REACH_NLRI, and for an IPv4 prefix the peer must have negotiated\nextended-nexthop."
+        },
+        {
+          "name": "nexthop",
+          "type": "ip-address",
+          "short-help": "Alias for nhop next-hop IP address",
+          "description": "The same argument as nhop under its long spelling. Give one of the\ntwo."
+        },
+        {
+          "name": "aspath",
+          "type": "string",
+          "short-help": "AS path as comma-separated ASNs (e.g. 64500,64501)",
+          "description": "The ASNs of the AS_PATH in order, separated by commas. Absent, the\npath is empty."
+        },
+        {
+          "name": "localpref",
+          "type": "uint32",
+          "short-help": "LOCAL_PREF value",
+          "description": "An integer that fills the LOCAL_PREF attribute. Absent, the route\ncarries no LOCAL_PREF."
+        },
+        {
+          "name": "med",
+          "type": "uint32",
+          "short-help": "MULTI_EXIT_DISC value",
+          "description": "An integer that fills the MULTI_EXIT_DISC attribute. Absent, the\nroute carries no MED."
+        }
+      ],
+      "output": [
+        {
+          "name": "injected",
+          "type": "string",
+          "short-help": "Prefix that was injected",
+          "description": "The prefix as it was given, echoed back once the route is in the\nAdj-RIB-In and the best path is computed again."
+        },
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Peer the route was injected for",
+          "description": "The peer address the route was filed under, echoed as given."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Address family",
+          "description": "The afi/safi pair the route was filed under, echoed as given."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-protocol"
+    },
+    {
+      "wire-method": "ze-bgp:rib-routes",
+      "short-help": "Show routes with pipeline filters.",
+      "description": "The scope is sent, received, or sent-received, which is the default.\nA filter is path \u003cpattern\u003e, prefix \u003cpattern\u003e, community \u003cvalue\u003e,\nfamily \u003cafi/safi\u003e, or match \u003ctext\u003e.\nA terminal is one of four.\ncount returns metadata only.\njson returns serialized output.\nhistogram returns the per-family prefix-length distribution.\ngraph returns the AS-path topology as box-drawing text.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Filter by peer",
+          "description": "A peer selector. Given, only the routes received from or sent to the\nmatching peers are shown. Absent, every peer is shown."
+        },
+        {
+          "name": "args",
+          "type": "string",
+          "short-help": "Pipeline args: scope, filters, terminal",
+          "description": "The words of the pipeline in order: an optional scope, then filters,\nthen one terminal. A keyword that is none of them is refused."
+        }
+      ],
+      "output": [
+        {
+          "name": "route-count",
+          "type": "uint32",
+          "short-help": "Number of routes (count terminal)",
+          "description": "The count of routes the filters matched. It is answered when the\nterminal is count, and the routes themselves are not."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-rpf"
+    },
+    {
+      "wire-method": "ze-bgp:rib-status",
+      "short-help": "RIB summary: peer count, route counts, GR state.",
+      "description": "The optional family argument scopes the per-peer route counts to one\naddress family. The routes-in and routes-out totals stay all-family counts whatever is\ngiven.",
+      "output": [
+        {
+          "name": "running",
+          "type": "boolean",
+          "short-help": "RIB plugin is running",
+          "description": "Always true in an answer, because the plugin that answers is the\none that runs. A stopped plugin answers nothing."
+        },
+        {
+          "name": "peers",
+          "type": "uint32",
+          "short-help": "Number of peers tracked",
+          "description": "The count of BGP peers whose session is up. A peer that is\nconfigured and down is not counted."
+        },
+        {
+          "name": "routes-in",
+          "type": "uint32",
+          "short-help": "Total Adj-RIB-In routes",
+          "description": "The sum of the routes held in every Adj-RIB-In, over all address\nfamilies. The redistribution sources count as well as the BGP peers."
+        },
+        {
+          "name": "routes-out",
+          "type": "uint32",
+          "short-help": "Total Adj-RIB-Out routes",
+          "description": "The sum of the routes held in every Adj-RIB-Out, over all peers and\nall address families."
+        },
+        {
+          "name": "stale-routes",
+          "type": "uint32",
+          "short-help": "Stale routes (GR)",
+          "description": "The count of Adj-RIB-In routes marked stale by graceful restart\n(RFC 4724) and not yet refreshed by the restarted peer."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:rib-withdraw",
+      "short-help": "Remove route from Adj-RIB-In.",
+      "description": "The peer, the family and the prefix are all required. The answer reports\nwhether the route existed, and the best path for that prefix is computed again.",
+      "input": [
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "mandatory": true,
+          "short-help": "Peer address label",
+          "description": "The address the route is filed under in the Adj-RIB-In. A value that\nis not an IP address is refused."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "mandatory": true,
+          "short-help": "Address family",
+          "description": "An afi/safi pair. It selects the Adj-RIB-In table and the NLRI\nencoding of the prefix."
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "CIDR prefix to withdraw",
+          "description": "The prefix in CIDR form, address and length. It is encoded as NLRI\nand removed from the table when the encoding matches."
+        }
+      ],
+      "output": [
+        {
+          "name": "withdrawn",
+          "type": "string",
+          "short-help": "Prefix that was withdrawn",
+          "description": "The prefix as it was given, echoed back once the best path for it\nis computed again."
+        },
+        {
+          "name": "peer",
+          "type": "ip-address",
+          "short-help": "Peer the route was withdrawn from",
+          "description": "The peer address the route was filed under, echoed as given."
+        },
+        {
+          "name": "family",
+          "type": "address-family",
+          "short-help": "Address family",
+          "description": "The afi/safi pair the route was filed under, echoed as given."
+        },
+        {
+          "name": "existed",
+          "type": "boolean",
+          "short-help": "Whether the route existed before withdrawal",
+          "description": "True when the table held the route and the withdraw removed it.\nFalse when there was nothing to remove, which is not an error."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-bgp:show-announcements",
+      "short-help": "List active on-demand announcements.",
+      "description": "Each row carries the id, the tag key and value, the family,\nthe peer selector, the source and the creation time. A row also carries an\nexpires time when that announcement has an expiry. The keywords tag, selector\nand family narrow the list."
+    },
+    {
+      "wire-method": "ze-bgp:show-bmp-collectors"
+    },
+    {
+      "wire-method": "ze-bgp:show-bmp-peers"
+    },
+    {
+      "wire-method": "ze-bgp:show-bmp-rib"
+    },
+    {
+      "wire-method": "ze-bgp:show-bmp-sessions"
+    },
+    {
+      "wire-method": "ze-bgp:show-health",
+      "short-help": "Show BGP peer health sorted by state and activity.",
+      "description": "Each row carries the peer address, the state, the remote AS and\nthe uptime. Beside the rows, count holds the peer total and not-established\nholds how many are down. The answer renders as a table, so '| match Idle |\ncount' answers how many peers are not established."
+    },
+    {
+      "wire-method": "ze-bgp:show-irr-check"
+    },
+    {
+      "wire-method": "ze-bgp:show-irr-prefix"
+    },
+    {
+      "wire-method": "ze-bgp:show-irr-status"
+    },
+    {
+      "wire-method": "ze-bgp:show-policy-chain"
+    },
+    {
+      "wire-method": "ze-bgp:show-policy-test"
+    },
+    {
+      "wire-method": "ze-bgp:show-reject-asn"
+    },
+    {
+      "wire-method": "ze-bgp:show-reject-asn-known-transit-free"
+    },
+    {
+      "wire-method": "ze-bgp:show-reject-asn-name"
+    },
+    {
+      "wire-method": "ze-bgp:show-rr-peers"
+    },
+    {
+      "wire-method": "ze-bgp:show-rr-status"
+    },
+    {
+      "wire-method": "ze-bgp:update-delay"
+    },
+    {
+      "wire-method": "ze-bgp:update-irr-all"
+    },
+    {
+      "wire-method": "ze-bgp:update-irr-as-set"
+    },
+    {
+      "wire-method": "ze-bgp:update-irr-asn"
+    },
+    {
+      "wire-method": "ze-bgp:update-peer-prefix"
+    },
+    {
+      "wire-method": "ze-bgp:watchdog-announce"
+    },
+    {
+      "wire-method": "ze-bgp:watchdog-forget"
+    },
+    {
+      "wire-method": "ze-bgp:watchdog-give"
+    },
+    {
+      "wire-method": "ze-bgp:watchdog-withdraw"
+    },
+    {
+      "wire-method": "ze-bgp:withdraw-all",
+      "short-help": "Withdraw on-demand announcements (by tag, id, or all).",
+      "description": "The three forms are 'withdraw tag \u003ckey\u003e \u003cvalue\u003e', 'withdraw id\n\u003cid\u003e' and 'withdraw all'. Every form answers with a withdrawn key, and that\nkey holds the number of tracked announcements the command removed."
+    },
+    {
+      "wire-method": "ze-bgp:withdraw-id",
+      "short-help": "Withdraw on-demand announcements (by tag, id, or all).",
+      "description": "The three forms are 'withdraw tag \u003ckey\u003e \u003cvalue\u003e', 'withdraw id\n\u003cid\u003e' and 'withdraw all'. Every form answers with a withdrawn key, and that\nkey holds the number of tracked announcements the command removed."
+    },
+    {
+      "wire-method": "ze-bgp:withdraw-tag",
+      "short-help": "Withdraw on-demand announcements (by tag, id, or all).",
+      "description": "The three forms are 'withdraw tag \u003ckey\u003e \u003cvalue\u003e', 'withdraw id\n\u003cid\u003e' and 'withdraw all'. Every form answers with a withdrawn key, and that\nkey holds the number of tracked announcements the command removed."
+    },
+    {
+      "wire-method": "ze-cli:editor-mode-command"
+    },
+    {
+      "wire-method": "ze-cli:editor-mode-edit"
+    },
+    {
+      "wire-method": "ze-cmd:bgp-metrics-list",
+      "short-help": "List metric names only.",
+      "description": "The names are sorted, and they carry no sample values beside them. Use\nmetrics-show for the values. When no Prometheus registry is installed the RPC\nanswers 'metrics not available'."
+    },
+    {
+      "wire-method": "ze-cmd:bgp-metrics-values",
+      "short-help": "Show Prometheus metrics in text format.",
+      "description": "The output is what the Prometheus HTTP handler writes for a GET on /metrics. It\ncarries every registered metric with its HELP and TYPE lines. When no Prometheus\nregistry is installed the RPC answers 'metrics not available'."
+    },
+    {
+      "wire-method": "ze-cmd:bgp-subscribe",
+      "short-help": "Subscribe to BGP events (streaming).",
+      "description": "An operator who types this at a running daemon creates a runtime override. The\nevent is delivered whether or not the peer's configuration grants the type, and\nthe next configuration apply discards the override. The configuration document\nstays the durable statement of what the daemon feeds.",
+      "input": [
+        {
+          "name": "events",
+          "type": "string",
+          "short-help": "Event types to subscribe to",
+          "description": "An event type name, as event-list answers it. Each name adds one runtime\nsubscription for the calling process."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-cmd:bgp-unsubscribe",
+      "short-help": "Unsubscribe from BGP events.",
+      "description": "The answer carries 'removed', which is false when the process held no matching\nsubscription. The namespace and the event type are echoed back, so a caller sees\nwhich subscription the arguments resolved to."
+    },
+    {
+      "wire-method": "ze-cmd:show-audit"
+    },
+    {
+      "wire-method": "ze-cmd:show-errors"
+    },
+    {
+      "wire-method": "ze-cmd:show-event-delivery",
+      "short-help": "Show which peers feed which attached processes.",
+      "description": "Ze reads the index delivery reads, and not the config document, so\nthe answer is what the daemon acts on. A granted token the event registry does\nnot know appears under unresolved, which is the one way an edge goes missing."
+    },
+    {
+      "wire-method": "ze-cmd:show-event-namespaces",
+      "short-help": "Show registered event namespaces with counts.",
+      "description": "Each row carries a namespace and the number of events the ring\nholds for it. The rows are sorted by namespace name. A namespace with no event\nin the ring does not appear."
+    },
+    {
+      "wire-method": "ze-cmd:show-event-recent",
+      "short-help": "Show recent events from global event ring.",
+      "description": "Each row carries the timestamp, the namespace and the event type,\nand it does not carry the payload. 'namespace \u003cname\u003e' reads one namespace and\n'count \u003cN\u003e' caps the rows. The ring holds a bounded history, so an event that\naged out is gone."
+    },
+    {
+      "wire-method": "ze-cmd:show-health",
+      "short-help": "Show aggregated component health status.",
+      "description": "The answer carries an overall status, one row per component and a\nchecked-at time. A component row carries a reason only where the component\nreported one."
+    },
+    {
+      "wire-method": "ze-cmd:show-metrics-query",
+      "short-help": "Query Prometheus metrics by name and label filter.",
+      "description": "Ze renders the Prometheus registry and then filters its text\nlines. Each label filter is written 'label \u003ckey\u003e \u003cvalue\u003e', filters repeat, and\nZe ANDs them. A key named twice states two conditions and matches nothing,\nwhich is deliberate."
+    },
+    {
+      "wire-method": "ze-cmd:show-policy-list"
+    },
+    {
+      "wire-method": "ze-cmd:show-reload-status"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-cpu"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-date"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-file-descriptors"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-goroutines"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-memory"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-memory-map"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-platform"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-profile"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-sockets"
+    },
+    {
+      "wire-method": "ze-cmd:show-system-subsystem-list"
+    },
+    {
+      "wire-method": "ze-cmd:show-uptime"
+    },
+    {
+      "wire-method": "ze-cmd:show-version"
+    },
+    {
+      "wire-method": "ze-cmd:show-warnings",
+      "short-help": "Show active prefix warnings (stale data, threshold exceeded).",
+      "description": "Two codes reach this answer. Ze raises prefix-stale where a peer's\nprefix data is old, and prefix-threshold where a family's prefix count passes\nthe warning limit. Both live on the report bus under the bgp source, and 'show\nwarnings' reads that same bus for every subsystem."
+    },
+    {
+      "wire-method": "ze-config:archive-trigger",
+      "short-help": "Trigger a named config archive destination.",
+      "description": "The name must match an archive block under system archive, and a name that\nmatches none is refused with the names that do exist. The config file is read from disk and\nparsed again, so the archive carries the saved config and not the running edits. The\ndestination in the answer has its credentials removed."
+    },
+    {
+      "wire-method": "ze-config:data-backup"
+    },
+    {
+      "wire-method": "ze-config:data-restore"
+    },
+    {
+      "wire-method": "ze-config:show-config-running"
+    },
+    {
+      "wire-method": "ze-crashes:show-crashes"
+    },
+    {
+      "wire-method": "ze-ddos:show-flowspec"
+    },
+    {
+      "wire-method": "ze-ddos:show-incidents"
+    },
+    {
+      "wire-method": "ze-ddos:show-local"
+    },
+    {
+      "wire-method": "ze-ddos:show-status"
+    },
+    {
+      "wire-method": "ze-debug:debug-state"
+    },
+    {
+      "wire-method": "ze-diag:show-capture",
+      "short-help": "Show captured control messages.",
+      "description": "Without a protocol word, Ze answers for both l2tp and bgp. 'peer\n\u003caddress\u003e' and 'count \u003cN\u003e' narrow the answer, and 'tunnel-id \u003cid\u003e' narrows the\nl2tp half. The l2tp half needs the ze_l2tp build tag and is absent from a\nbuild without it."
+    },
+    {
+      "wire-method": "ze-diag:show-capture-interface"
+    },
+    {
+      "wire-method": "ze-diag:show-capture-raw"
+    },
+    {
+      "wire-method": "ze-diag:show-tcp-check"
+    },
+    {
+      "wire-method": "ze-doctor:show-doctor"
+    },
+    {
+      "wire-method": "ze-firewall:clear-domain-group"
+    },
+    {
+      "wire-method": "ze-firewall:clear-irr-as-set"
+    },
+    {
+      "wire-method": "ze-firewall:clear-irr-asn"
+    },
+    {
+      "wire-method": "ze-firewall:show-domain-group-status"
+    },
+    {
+      "wire-method": "ze-firewall:show-group"
+    },
+    {
+      "wire-method": "ze-firewall:show-irr-prefix"
+    },
+    {
+      "wire-method": "ze-firewall:show-irr-status"
+    },
+    {
+      "wire-method": "ze-firewall:show-ruleset"
+    },
+    {
+      "wire-method": "ze-firewall:show-system-conntrack"
+    },
+    {
+      "wire-method": "ze-firewall:update-domain-group"
+    },
+    {
+      "wire-method": "ze-firewall:update-irr-all"
+    },
+    {
+      "wire-method": "ze-firewall:update-irr-as-set"
+    },
+    {
+      "wire-method": "ze-firewall:update-irr-asn"
+    },
+    {
+      "wire-method": "ze-flowexport:show-flow-export"
+    },
+    {
+      "wire-method": "ze-flowexport:show-flow-recent"
+    },
+    {
+      "wire-method": "ze-geodns:show-geodns"
+    },
+    {
+      "wire-method": "ze-gnmi:show-gnmi"
+    },
+    {
+      "wire-method": "ze-host:set-system-file-descriptors"
+    },
+    {
+      "wire-method": "ze-host:show-all"
+    },
+    {
+      "wire-method": "ze-host:show-cpu"
+    },
+    {
+      "wire-method": "ze-host:show-dmi"
+    },
+    {
+      "wire-method": "ze-host:show-kernel"
+    },
+    {
+      "wire-method": "ze-host:show-memory"
+    },
+    {
+      "wire-method": "ze-host:show-nic"
+    },
+    {
+      "wire-method": "ze-host:show-platform"
+    },
+    {
+      "wire-method": "ze-host:show-storage"
+    },
+    {
+      "wire-method": "ze-host:show-system-kernel-log"
+    },
+    {
+      "wire-method": "ze-host:show-thermal"
+    },
+    {
+      "wire-method": "ze-iface:clear-interface-counters",
+      "short-help": "Reset RX/TX counters on one or all interfaces.",
+      "description": "clear interface counters all clears every interface, and clear\ninterface name \u003cname\u003e counters clears one. The bare clear interface counters is\nrefused, because it names no target and Ze never clears everything unless all is\ntyped. Ze first\nasks the backend to zero the kernel counters. When the backend answers that\nthe counters cannot be reset, Ze records the current values as a baseline and\nsubtracts it from later reads. That baseline is held in memory, so a restart\nof Ze brings the raw kernel counts back."
+    },
+    {
+      "wire-method": "ze-iface:interface-addr-add",
+      "short-help": "Add an IP address to an interface.",
+      "description": "Write the address in CIDR form, for example 10.0.0.1/24. Ze\nresolves the interface name to its kernel device, then hands the prefix to the\nnetlink backend. The answer carries a message key that names the prefix and\nthe interface.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Interface name",
+          "description": "The interface that receives the address. It must be present in\nthe kernel before the call."
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "IP address in CIDR notation (e.g. 10.0.0.1/24)",
+          "description": "An IPv4 or IPv6 address with its prefix length. The string\ngoes to the netlink backend unchanged."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-addr-del",
+      "short-help": "Remove an IP address from an interface.",
+      "description": "Write the same CIDR form the add used, because Ze passes the\nstring to the netlink backend unchanged. Only that one address goes, and the\nother addresses on the interface stay.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Interface name",
+          "description": "The interface that holds the address. Its other addresses\nstay."
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "IP address in CIDR notation",
+          "description": "An IPv4 or IPv6 address with its prefix length, in the string\nform the add used."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-create-bridge"
+    },
+    {
+      "wire-method": "ze-iface:interface-create-dummy",
+      "short-help": "Create a dummy (loopback-like) interface.",
+      "description": "The command is idempotent. A dummy of that name already\npresent answers with created false and changes nothing. A name that holds an\ninterface of another type fails, and the error names both types.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Interface name",
+          "description": "The name of the dummy. The caller fills it, and a name in use\nby an interface of another type is refused."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-create-veth",
+      "short-help": "Create a veth pair.",
+      "description": "One call creates both ends, so the name and the peer name both\nappear in the kernel. The command is idempotent, and a veth of that name\nalready present answers with created false.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Interface name",
+          "description": "The name of the first end of the pair. The exists check and\nthe created flag in the answer are about this end."
+        },
+        {
+          "name": "peer",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Peer interface name",
+          "description": "The name of the second end. The one call creates it with the\nfirst."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-delete",
+      "short-help": "Delete an interface.",
+      "description": "Ze resolves the name to its kernel device first, so a name\nbound to hardware by a selector reaches the right port. The dispatcher calls\nthis same RPC to undo a compound create. An interface the dispatcher created\nis deleted when the unit or address step after it fails.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Interface name",
+          "description": "The interface to delete. The caller fills it with the Ze name,\nand the device that name resolves to is the one that goes."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-down"
+    },
+    {
+      "wire-method": "ze-iface:interface-mac"
+    },
+    {
+      "wire-method": "ze-iface:interface-migrate",
+      "short-help": "Make-before-break IP migration between interfaces.",
+      "description": "Ze runs five phases in a fixed order. It creates the\ndestination interface where a create keyword names dummy, veth or bridge, then\nadds the address there. Phase 3 waits for the BGP listener-ready event on the\nnew address. Phase 4 removes the address from the source, and phase 5 removes\nthe source interface. Phase 4 does not start until phase 3 confirms, and a\nfailure at any phase rolls the earlier phases back. The wait is 30 seconds\nwhere no timeout value is given.",
+      "input": [
+        {
+          "name": "from",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Source interface.unit (e.g. eth0.0)",
+          "description": "The source, written as name.unit, where unit 0 is the interface\nitself. The address leaves it in phase 4, after BGP confirms readiness on the destination."
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Destination interface.unit (e.g. eth1.0)",
+          "description": "The destination, written as name.unit. The address is added\nthere in phase 2, before it leaves the source."
+        },
+        {
+          "name": "address",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "IP address to migrate (CIDR)",
+          "description": "An IPv4 or IPv6 address with its prefix length. Phase 3 matches\nthe BGP listener-ready event on the address part alone."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-mtu"
+    },
+    {
+      "wire-method": "ze-iface:interface-unit-add",
+      "short-help": "Add a VLAN logical unit to an interface.",
+      "description": "The VLAN ID is 1 to 4094, and the dispatcher refuses a value\noutside that range before the handler runs. Ze names the new device\n\u003cname\u003e.\u003cvid\u003e. The parent interface is created first when it is absent, and\ndeleted again when this step fails.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Parent interface name",
+          "description": "The parent interface. The new device is named after it, as\n\u003cname\u003e.\u003cvid\u003e."
+        },
+        {
+          "name": "vid",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "VLAN ID (1-4094)",
+          "description": "The 802.1Q tag of the unit. A value outside 1 to 4094 is\nrefused before the handler runs."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-unit-del",
+      "short-help": "Delete a logical unit from an interface.",
+      "description": "The handler takes the parent interface name and the VLAN ID,\nand joins them into \u003cname\u003e.\u003cvid\u003e itself. The VLAN ID is 1 to 4094, and the\ndispatcher refuses a value outside that range before the handler runs. The\nparent interface stays.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Parent interface name",
+          "description": "The parent interface. The handler joins it with the VLAN ID\ninto \u003cname\u003e.\u003cvid\u003e and deletes that device."
+        },
+        {
+          "name": "vid",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "VLAN ID (1-4094)",
+          "description": "The 802.1Q tag of the unit to remove. The device deleted is\n\u003cname\u003e.\u003cvid\u003e. A tag outside 1 to 4094 is refused before the handler runs."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-iface:interface-up"
+    },
+    {
+      "wire-method": "ze-iface:monitor-interface-rate"
+    },
+    {
+      "wire-method": "ze-iface:monitor-system-netlink"
+    },
+    {
+      "wire-method": "ze-iface:show-arp"
+    },
+    {
+      "wire-method": "ze-iface:show-interface"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-brief"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-counters"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-detail"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-errors"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-rate"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-scan"
+    },
+    {
+      "wire-method": "ze-iface:show-interface-type"
+    },
+    {
+      "wire-method": "ze-iface:show-neighbor"
+    },
+    {
+      "wire-method": "ze-iface:show-route"
+    },
+    {
+      "wire-method": "ze-iface:show-route-lookup",
+      "short-help": "Longest-prefix-match route lookup for a destination IP.",
+      "description": "Ze asks the kernel FIB through the netlink backend, so the answer\nis the route the kernel picks and not the BGP RIB entry. Give one IP address.\nAn address it cannot parse fails with 'invalid destination'."
+    },
+    {
+      "wire-method": "ze-iface:show-vpp-runtime"
+    },
+    {
+      "wire-method": "ze-iface:show-vpp-trace-clear"
+    },
+    {
+      "wire-method": "ze-iface:show-vpp-trace-show"
+    },
+    {
+      "wire-method": "ze-iface:show-vpp-trace-start"
+    },
+    {
+      "wire-method": "ze-ike:clear-vpn-ipsec-sa"
+    },
+    {
+      "wire-method": "ze-ike:clear-vpn-ipsec-sa-peer"
+    },
+    {
+      "wire-method": "ze-ike:monitor-vpn-ipsec"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-dataplane-drift"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-dataplane-policy"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-dataplane-sa"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-peer"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-sa"
+    },
+    {
+      "wire-method": "ze-ike:show-vpn-ipsec-status"
+    },
+    {
+      "wire-method": "ze-isis:clear-adjacency"
+    },
+    {
+      "wire-method": "ze-isis:clear-counters"
+    },
+    {
+      "wire-method": "ze-isis:show-database"
+    },
+    {
+      "wire-method": "ze-isis:show-database-detail"
+    },
+    {
+      "wire-method": "ze-isis:show-hostname"
+    },
+    {
+      "wire-method": "ze-isis:show-interface"
+    },
+    {
+      "wire-method": "ze-isis:show-neighbor"
+    },
+    {
+      "wire-method": "ze-isis:show-route"
+    },
+    {
+      "wire-method": "ze-isis:show-route-ipv6"
+    },
+    {
+      "wire-method": "ze-isis:show-spf-log"
+    },
+    {
+      "wire-method": "ze-l2tp:config",
+      "short-help": "Return effective runtime configuration.",
+      "description": "Shared-secret is redacted to \u003cset\u003e/\u003cunset\u003e.",
+      "output": [
+        {
+          "name": "config",
+          "type": "string",
+          "short-help": "JSON object with effective config.",
+          "description": "The keys are enabled, max-tunnels, max-sessions, auth-method, allow-no-auth,\nhello-interval, hello-retries, shared-secret and listeners. hello-interval is\nin seconds, and listeners is an array of bound addresses as text."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:cqm",
+      "short-help": "Return per-login CQM bucket history.",
+      "description": "With a login argument, returns the bucket list. With 'summary',\nreturns aggregate state across all tracked logins.",
+      "input": [
+        {
+          "name": "login",
+          "type": "string",
+          "short-help": "Login name, or 'summary' for aggregate view.",
+          "description": "A login name selects the bucket list of that one subscriber. 'summary',\n'all' or no argument selects the per-login summary. A login with no CQM data\nis refused with 'no CQM data'."
+        }
+      ],
+      "output": [
+        {
+          "name": "cqm",
+          "type": "string",
+          "short-help": "JSON object with CQM buckets or login summaries.",
+          "description": "With a login the object carries login, buckets and count. Each bucket\ncarries start, state, echo-count, min-rtt-ms, max-rtt-ms and avg-rtt-ms. With\n'summary' the object carries logins and count, and each login carries\nbucket-count, last-state, echo-count and avg-rtt-ms."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:echo",
+      "short-help": "Return the current echo state of one login.",
+      "description": "The state is derived from the CQM buckets and carries the last\nRTT, the loss ratio, the echo interval, and the bucket state.",
+      "input": [
+        {
+          "name": "login",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Login name.",
+          "description": "The login name of the subscriber whose echo state is wanted. A login with\nno echo data is refused with 'no echo data'."
+        }
+      ],
+      "output": [
+        {
+          "name": "echo",
+          "type": "string",
+          "short-help": "JSON object with echo state.",
+          "description": "The keys are login, last-rtt-ms and bucket-state. echo-interval and\nloss-ratio are present only when an echo interval is set for the login."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:listeners",
+      "short-help": "List bound UDP listener endpoints.",
+      "description": "Each row carries the bound address and the UDP port. An empty array means that\nno listener is bound, which is the state 'summary' reports as a listener-count\nof 0.",
+      "output": [
+        {
+          "name": "listeners",
+          "type": "string",
+          "short-help": "JSON array of listener objects.",
+          "description": "Each object carries address and port. address is the bound IP address as\ntext, and port is the UDP port number."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:observer",
+      "short-help": "Return per-session event ring snapshot.",
+      "description": "With a session-id argument, returns the full event list. With\n'all', returns a summary of every active session ring.",
+      "input": [
+        {
+          "name": "session-id",
+          "type": "uint16",
+          "short-help": "Local session ID (1..65535), or omit for 'all'.",
+          "description": "A decimal local session ID selects the event ring of that one session.\n'all' or no argument selects the summary of every ring. A session with no ring\nis refused with 'no observer data'."
+        }
+      ],
+      "output": [
+        {
+          "name": "observer",
+          "type": "string",
+          "short-help": "JSON object with events or session summaries.",
+          "description": "With a session ID the object carries session-id, events and count. Each\nevent carries timestamp, type, tunnel-id and session-id, plus rtt-ms, actor,\nreason and cause when set. With 'all' the object carries sessions and count,\nand each entry carries session-id, event-count, last-event-type and\nlast-event-time."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:outgoing-call",
+      "short-help": "Place an LNS-side outgoing call toward a configured remote (RFC 2661 Section 10.4).",
+      "description": "Dials the remote if no tunnel is up, sends OCRQ, and blocks\nuntil the call establishes or fails. The response reports whether the call came\nup and, on failure, the cause and RFC 2661 Result Code (tunnel authentication\nreject, tie-breaker loss, peer CDN, or timeout). The named remote MUST have\noutgoing-calls enabled.",
+      "input": [
+        {
+          "name": "remote",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Name of a configured l2tp/remote dial target.",
+          "description": "The name of an l2tp/remote entry. The entry supplies the address and the\nshared secret Ze dials with when no tunnel to that peer is up. An unknown name,\nor an entry without outgoing-calls, is refused before any packet is sent."
+        },
+        {
+          "name": "called",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Called Number placed in the OCRQ (RFC 2661 Section 7.9).",
+          "description": "The number the remote LAC dials, as free text. Ze copies it into the Called\nNumber AVP of the OCRQ without validation, so its form is what the LAC\naccepts."
+        }
+      ],
+      "output": [
+        {
+          "name": "result",
+          "type": "string",
+          "short-help": "JSON object describing the call outcome.",
+          "description": "The keys are action, remote, called and established. A call that came up\nadds local-sid and remote-sid. A call that failed adds error and, when the peer\nor Ze supplied one, result-code."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:pppoe-interfaces",
+      "short-help": "List configured PPPoE access interfaces.",
+      "description": "Each row carries the interface name, its kernel index, its live session\ncount, its configured maximum and the service names it accepts.",
+      "output": [
+        {
+          "name": "interfaces",
+          "type": "string",
+          "short-help": "JSON array of interface objects.",
+          "description": "Each object carries name, ifindex, sessions, max-sessions and\nservice-names. service-names is an array of the Service-Name values the interface\naccepts."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:pppoe-session",
+      "short-help": "Return one session by session ID.",
+      "description": "The state is discovery, session or teardown. Session id 0 is refused\nbecause RFC 2516 reserves it, and an id no session holds is reported as no session with that\nsid.",
+      "input": [
+        {
+          "name": "session-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "PPPoE session ID (1..65535).",
+          "description": "The identifier of one PPPoE session, as a decimal number. It is the sid\nvalue of a 'sessions' row, and an unknown value is refused."
+        }
+      ],
+      "output": [
+        {
+          "name": "session",
+          "type": "string",
+          "short-help": "JSON object with session detail.",
+          "description": "The object carries the same keys as one 'sessions' row: sid, mac,\ninterface, service-name, state, unit and created-at."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:pppoe-sessions",
+      "short-help": "List every live PPPoE session across all interfaces.",
+      "description": "One snapshot answers every session. Each row carries the session id, the\nclient MAC address, the access interface, the service name, the state, the PPP unit and the\ncreation time.",
+      "output": [
+        {
+          "name": "sessions",
+          "type": "string",
+          "short-help": "JSON array of session objects.",
+          "description": "Each object carries sid, mac, interface, service-name, state, unit and\ncreated-at. state is discovery, session or teardown, and created-at is UTC in RFC 3339\nform."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:pppoe-statistics",
+      "short-help": "Return protocol counters: active sessions per interface, discovery packet counts.",
+      "description": "The answer is the active session count and one row for each access\ninterface. Each row carries the interface name, its live session count and its configured\nmaximum.",
+      "output": [
+        {
+          "name": "statistics",
+          "type": "string",
+          "short-help": "JSON object with counter values.",
+          "description": "The keys are sessions-active and interfaces. Each interfaces entry carries\ninterface, sessions and max-sessions."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:pppoe-summary",
+      "short-help": "Return subsystem summary: session count, interface count, aggregate state.",
+      "description": "The three numbers come from one snapshot, and the answer carries the time\nthat snapshot was taken. The command fails with pppoe: subsystem not running when PPPoE is\nnot started.",
+      "output": [
+        {
+          "name": "summary",
+          "type": "string",
+          "short-help": "JSON object with aggregate counters.",
+          "description": "The keys are session-count, interface-count and captured-at. Both counts\ncome from one snapshot, and captured-at is the UTC time of that snapshot in RFC 3339\nform."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:reliable",
+      "short-help": "Return the reliable transport window state of one tunnel.",
+      "description": "The state carries Ns, Nr, peer-Nr, the outstanding count, the\nretransmit count, cwnd, ssthresh, and the peer receive window size.",
+      "input": [
+        {
+          "name": "tunnel-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local tunnel ID (1..65535).",
+          "description": "The ID Ze assigned to the tunnel whose control channel window is wanted, as\na decimal number. Zero is refused because RFC 2661 reserves it. An unknown ID\nis refused with 'no tunnel with local-tid'."
+        }
+      ],
+      "output": [
+        {
+          "name": "reliable",
+          "type": "string",
+          "short-help": "JSON object with reliable transport state.",
+          "description": "The keys are tunnel-id, ns, nr, peer-nr, outstanding, retransmit-count,\ncwnd, ssthresh and peer-rws. ns and nr are the next sequence numbers to send\nand to receive, and peer-rws is the peer receive window size."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:session",
+      "short-help": "Return one session by local session ID.",
+      "description": "The ID reaches the handler as the 'id' selector or as a bare argument. The\nanswer is the detail form of the session. An unknown ID is refused with 'no\nsession with local-sid'.",
+      "input": [
+        {
+          "name": "session-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local session ID (1..65535).",
+          "description": "The ID Ze assigned to the session, as a decimal number. It is the local-sid\nvalue of a 'sessions' row. Zero is refused because RFC 2661 reserves it."
+        }
+      ],
+      "output": [
+        {
+          "name": "session",
+          "type": "string",
+          "short-help": "JSON object with session detail.",
+          "description": "The object carries every field of a 'sessions' row plus tx-connect-speed,\nrx-connect-speed, framing-type, sequencing-required, lns-mode and\nkernel-setup-needed."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:session-history",
+      "short-help": "Return FSM transition history for a session.",
+      "description": "Each transition carries the state it left, the state it reached, and a UTC\ntimestamp. A session the subsystem holds no history for is refused with 'no\nsession with local-sid'.",
+      "input": [
+        {
+          "name": "session-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local session ID (1..65535).",
+          "description": "The ID Ze assigned to the session whose transitions are wanted, as a\ndecimal number. Zero is refused because RFC 2661 reserves it."
+        }
+      ],
+      "output": [
+        {
+          "name": "history",
+          "type": "string",
+          "short-help": "JSON object with FSM transitions.",
+          "description": "The object carries transitions and count. Each transition carries from and\nto, plus timestamp in UTC RFC 3339 form and trigger when they were recorded."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:session-teardown",
+      "short-help": "Send CDN Result Code 3 (administrative) for the session with the given local session ID.",
+      "description": "The answer carries the session ID and a status of 'sent', which reports that the\nmessage left Ze and not that the peer answered. Optional actor, reason and cause\nkeywords are recorded against the session before the CDN goes out, and they are\nechoed in the answer. The tunnel stays up.",
+      "input": [
+        {
+          "name": "session-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local session ID (1..65535).",
+          "description": "The ID Ze assigned to the session to stop, as a decimal number. It is the\nlocal-sid value of a 'sessions' row. Zero is refused because RFC 2661 reserves\nit. The 'actor', 'reason' and 'cause' keywords after the ID are optional."
+        }
+      ],
+      "output": [
+        {
+          "name": "result",
+          "type": "string",
+          "short-help": "JSON object describing the teardown outcome.",
+          "description": "The keys are action, session-id and status. action is 'session-teardown',\nand status is 'sent' once the CDN has left Ze. reason and cause are present\nwhen the request carried them."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:session-teardown-all",
+      "short-help": "Stop every live session on every tunnel on every listener.",
+      "description": "The RPC sends CDN Result Code 3 (administrative) for each\nsession. The tunnels stay open.",
+      "output": [
+        {
+          "name": "result",
+          "type": "string",
+          "short-help": "JSON object with the number of sessions torn down.",
+          "description": "The keys are action and sessions-cleared. action is 'session-teardown-all',\nand sessions-cleared is a count that is 0 when no session was live."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:session-traffic"
+    },
+    {
+      "wire-method": "ze-l2tp:sessions",
+      "short-help": "List every live session across all tunnels.",
+      "description": "The rows are flattened across every tunnel, so a session's own tunnel is read\nfrom the row and not from where the row sits. Each row is the summary form, and\nthe 'session' RPC returns the detail form.",
+      "output": [
+        {
+          "name": "sessions",
+          "type": "string",
+          "short-help": "JSON array of session summary objects.",
+          "description": "Each object carries local-sid, remote-sid, tunnel-local-tid, state, username,\nassigned-addr, family and created-at. assigned-addr is empty when the session\nholds no address. created-at is UTC in RFC 3339 form."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:show-health",
+      "short-help": "Show L2TP session health sorted by echo loss.",
+      "description": "The rows are sorted by average round-trip time, highest first.\nEach row carries the login, the last state, the echo count, the average\nround-trip time in milliseconds and the bucket count. The degraded key counts\nthe logins whose last state is not established."
+    },
+    {
+      "wire-method": "ze-l2tp:statistics",
+      "short-help": "Return the L2TP protocol counters.",
+      "description": "The payload carries tunnels-active and sessions-active. Per-message counters are\nnot published here yet. Use 'listeners' for the bind state of each UDP endpoint.",
+      "output": [
+        {
+          "name": "statistics",
+          "type": "string",
+          "short-help": "JSON object with counter values.",
+          "description": "The keys are tunnels-active and sessions-active. Both come from one snapshot,\nso they agree with each other and with 'summary'."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:subscriber-detail"
+    },
+    {
+      "wire-method": "ze-l2tp:subscriber-summary"
+    },
+    {
+      "wire-method": "ze-l2tp:summary",
+      "short-help": "Return subsystem summary: tunnel count, session count, listener count, aggregate state.",
+      "description": "The payload carries tunnel-count, session-count, listener-count, and\ncaptured-at, which is the UTC time of the snapshot. When the L2TP subsystem is\nnot running, the RPC answers an error rather than a row of zeros.",
+      "output": [
+        {
+          "name": "summary",
+          "type": "string",
+          "short-help": "JSON object with aggregate counters.",
+          "description": "The keys are tunnel-count, session-count, listener-count and captured-at.\nThe counts come from one snapshot of the subsystem. captured-at is the UTC time\nof that snapshot in RFC 3339 form."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:tunnel",
+      "short-help": "Return one tunnel by local tunnel ID.",
+      "description": "The ID reaches the handler as the 'id' selector or as a bare argument, and both\nforms parse the same way. The answer is the detail form of the tunnel rather\nthan the summary form 'tunnels' returns. An unknown ID is refused with 'no\ntunnel with local-tid'.",
+      "input": [
+        {
+          "name": "tunnel-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local tunnel ID (1..65535).",
+          "description": "The ID Ze assigned to the tunnel, as a decimal number. It is the local-tid\nvalue of a 'tunnels' row. Zero is refused because RFC 2661 reserves it."
+        }
+      ],
+      "output": [
+        {
+          "name": "tunnel",
+          "type": "string",
+          "short-help": "JSON object with tunnel detail.",
+          "description": "The object carries every field of a 'tunnels' row plus peer-framing,\npeer-bearer, peer-recv-window and a sessions array. Each sessions entry is the\nsummary form of one session on that tunnel."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:tunnel-history",
+      "short-help": "Return FSM transition history for a tunnel.",
+      "description": "Each transition carries the state it left, the state it reached, and a UTC\ntimestamp. A tunnel the subsystem holds no history for is refused with 'no\ntunnel with local-tid'.",
+      "input": [
+        {
+          "name": "tunnel-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local tunnel ID (1..65535).",
+          "description": "The ID Ze assigned to the tunnel whose transitions are wanted, as a decimal\nnumber. Zero is refused because RFC 2661 reserves it."
+        }
+      ],
+      "output": [
+        {
+          "name": "history",
+          "type": "string",
+          "short-help": "JSON object with FSM transitions.",
+          "description": "The object carries transitions and count. Each transition carries from and\nto, plus timestamp in UTC RFC 3339 form and trigger when they were recorded."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:tunnel-teardown",
+      "short-help": "Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.",
+      "description": "The answer carries the tunnel ID and a status of 'sent', which reports that the\nmessage left Ze and not that the peer answered. Use 'session-teardown' to stop\none session and leave the tunnel up.",
+      "input": [
+        {
+          "name": "tunnel-id",
+          "type": "uint16",
+          "mandatory": true,
+          "short-help": "Local tunnel ID (1..65535).",
+          "description": "The ID Ze assigned to the tunnel to stop, as a decimal number. It is the\nlocal-tid value of a 'tunnels' row. Zero is refused because RFC 2661 reserves\nit."
+        }
+      ],
+      "output": [
+        {
+          "name": "result",
+          "type": "string",
+          "short-help": "JSON object describing the teardown outcome.",
+          "description": "The keys are action, tunnel-id and status. action is 'tunnel-teardown', and\nstatus is 'sent' once the StopCCN has left Ze."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:tunnel-teardown-all",
+      "short-help": "Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.",
+      "description": "The answer carries 'tunnels-cleared', the number of tunnels the subsystem tore\ndown. The RPC takes no input, so one named tunnel needs 'tunnel-teardown' with\nits local tunnel ID.",
+      "output": [
+        {
+          "name": "result",
+          "type": "string",
+          "short-help": "JSON object with the number of tunnels torn down.",
+          "description": "The keys are action and tunnels-cleared. action is 'tunnel-teardown-all',\nand tunnels-cleared is a count that is 0 when no tunnel was live."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-l2tp:tunnels",
+      "short-help": "List every live tunnel.",
+      "description": "Each row is the summary form of one tunnel, and the 'tunnel' RPC returns the\ndetail form. Every row comes from one snapshot, so the whole table was read at\nthe same instant.",
+      "output": [
+        {
+          "name": "tunnels",
+          "type": "string",
+          "short-help": "JSON array of tunnel summary objects.",
+          "description": "Each object carries local-tid, remote-tid, peer, peer-hostname, state,\nsession-count, created-at, last-activity and max-sessions. last-activity is\nempty when the tunnel has seen no activity. Timestamps are UTC in RFC 3339\nform."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-ldp:show-binding"
+    },
+    {
+      "wire-method": "ze-ldp:show-neighbor"
+    },
+    {
+      "wire-method": "ze-log:bgp-log-levels",
+      "short-help": "Show current log levels for all subsystems.",
+      "description": "The answer is one level for each subsystem that registered a logger, and\nthe count beside it. A subsystem that has registered no logger is not listed."
+    },
+    {
+      "wire-method": "ze-log:bgp-log-recent",
+      "short-help": "Show recent log entries from ring buffer with optional level/component/count filters.",
+      "description": "The buffer holds the entries in memory only, so it is empty after a\nrestart. The options are level, component and count, each one takes a value, and the count\nmust be a positive number."
+    },
+    {
+      "wire-method": "ze-log:bgp-log-set",
+      "short-help": "Set log level for a subsystem at runtime.",
+      "description": "The subsystem name and the level are both required. The new level takes\neffect at once and is not written to the configuration, so a restart returns the subsystem\nto its configured level."
+    },
+    {
+      "wire-method": "ze-meta:bgp-command-complete",
+      "short-help": "Complete BGP command/args.",
+      "description": "The match is a case-insensitive prefix over the builtin command names. Each\ncandidate carries its summary beside the name. A prefix that matches nothing\nanswers an empty list and not an error.",
+      "input": [
+        {
+          "name": "partial",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Partial command string",
+          "description": "The start of a command name. The match is a case-insensitive prefix over the\nbuiltin command names."
+        }
+      ],
+      "output": [
+        {
+          "name": "completions",
+          "type": "string",
+          "short-help": "Completion candidates",
+          "description": "One candidate for each builtin command whose name starts with the partial\nstring, with its summary beside the name. The list is empty when nothing matches."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:bgp-command-help",
+      "short-help": "Show BGP command details.",
+      "description": "The answer carries the one-line summary under 'short-help' and the long\nexplanation under 'description'. Neither text is derived from the other. The\nlookup reads the builtin table first and the plugin command registry after it.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Command name",
+          "description": "The full name of the command the answer describes. The lookup reads the\nbuiltin table first and the plugin command registry after it."
+        }
+      ],
+      "output": [
+        {
+          "name": "help",
+          "type": "string",
+          "short-help": "Detailed help text",
+          "description": "The long explanation of the named command, as its author registered it. The\none-line summary is answered beside it under 'short-help'."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:bgp-command-list",
+      "short-help": "List BGP commands.",
+      "description": "Each row carries the command name and its one-line summary. Give the 'verbose'\nargument and each row also carries its source, which is 'builtin'. The rows come\nfrom the dispatcher's builtin table."
+    },
+    {
+      "wire-method": "ze-meta:bgp-event-list",
+      "short-help": "List available event types.",
+      "description": "The answer holds the event type names registered in the BGP namespace, each with\nits description. subscribe takes its event names from that same registry."
+    },
+    {
+      "wire-method": "ze-meta:bgp-help",
+      "short-help": "List BGP subcommands.",
+      "description": "The answer holds one entry for each builtin command, and each entry joins the\ncommand name to its summary with a hyphen. A plugin's own command sits in the\ncommand registry and not in the builtin table, so command-help is the RPC that\nreaches it.",
+      "output": [
+        {
+          "name": "subcommands",
+          "type": "string",
+          "short-help": "Available subcommands",
+          "description": "One entry for each builtin command. Each entry joins the command name to its\nsummary with a hyphen. A plugin command is not in the list."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:bgp-plugin-ack",
+      "short-help": "Set ACK timing (sync|async).",
+      "description": "'sync' makes an announce or a withdraw wait for wire transmission before the\ndaemon answers the ACK. 'async' answers as soon as the command is accepted, and\nit is the default. The daemon holds the mode on the calling process.",
+      "input": [
+        {
+          "name": "mode",
+          "type": "ack-mode",
+          "mandatory": true,
+          "short-help": "ACK mode",
+          "description": "'sync' delays the ACK of an announce or a withdraw until the bytes are on the\nwire. 'async' answers when the command is accepted and is the default."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:bgp-plugin-encoding",
+      "short-help": "Set event encoding (json|text).",
+      "description": "The mode governs the events this plugin process receives. 'json' is the default.\nThe daemon holds the mode on the calling process, so it changes nothing for\nanother plugin.",
+      "input": [
+        {
+          "name": "encoding",
+          "type": "encoding-mode",
+          "mandatory": true,
+          "short-help": "Encoding format",
+          "description": "The encoding of every event the daemon sends to the calling plugin process.\nThe value takes effect for that process alone."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:bgp-plugin-format",
+      "short-help": "Set wire format (hex|base64|parsed|full).",
+      "description": "The format governs how the BGP wire bytes are rendered inside each event.\n'parsed' carries the decoded fields alone and is the default. 'hex' and 'base64'\ncarry the wire bytes in that encoding. 'full' carries the decoded fields and the\nwire bytes together.",
+      "input": [
+        {
+          "name": "format",
+          "type": "wire-format",
+          "mandatory": true,
+          "short-help": "Wire format",
+          "description": "How the BGP wire bytes are rendered inside each event the calling process\nreceives. 'parsed' is the default, and 'full' is the only value that carries the decoded\nfields and the bytes together."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-meta:event-monitor",
+      "short-help": "Stream live BGP events with optional filters.",
+      "description": "The filters are peer \u003cselector\u003e, event \u003ctype,type\u003e and direction, and each\none is given once. direction takes received or sent, and a peer selector can start with !\nto exclude the peers it matches."
+    },
+    {
+      "wire-method": "ze-mpls:show-forwarding"
+    },
+    {
+      "wire-method": "ze-mtu:show-mtu"
+    },
+    {
+      "wire-method": "ze-ntp:show-system-ntp"
+    },
+    {
+      "wire-method": "ze-ntp:show-system-ntp-peers"
+    },
+    {
+      "wire-method": "ze-ospf:clear-counters"
+    },
+    {
+      "wire-method": "ze-ospf:clear-neighbor"
+    },
+    {
+      "wire-method": "ze-ospf:clear-process"
+    },
+    {
+      "wire-method": "ze-ospf:debug-inject"
+    },
+    {
+      "wire-method": "ze-ospf:debug-inject-disable"
+    },
+    {
+      "wire-method": "ze-ospf:debug-inject-enable"
+    },
+    {
+      "wire-method": "ze-ospf:debug-ospfv3-inject"
+    },
+    {
+      "wire-method": "ze-ospf:graceful-restart-prepare"
+    },
+    {
+      "wire-method": "ze-ospf:show-border-routers"
+    },
+    {
+      "wire-method": "ze-ospf:show-database"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-asbr-summary"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-external"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-network"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-nssa-external"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-area"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-area-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-as"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-as-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-link"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-opaque-link-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-router"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-router-information"
+    },
+    {
+      "wire-method": "ze-ospf:show-database-summary"
+    },
+    {
+      "wire-method": "ze-ospf:show-graceful-restart"
+    },
+    {
+      "wire-method": "ze-ospf:show-instance"
+    },
+    {
+      "wire-method": "ze-ospf:show-interface"
+    },
+    {
+      "wire-method": "ze-ospf:show-interface-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ipv6"
+    },
+    {
+      "wire-method": "ze-ospf:show-ipv6-graceful-restart"
+    },
+    {
+      "wire-method": "ze-ospf:show-ipv6-interface"
+    },
+    {
+      "wire-method": "ze-ospf:show-ipv6-segment-routing"
+    },
+    {
+      "wire-method": "ze-ospf:show-ldp-sync"
+    },
+    {
+      "wire-method": "ze-ospf:show-neighbor"
+    },
+    {
+      "wire-method": "ze-ospf:show-neighbor-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospf"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-extended"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-router-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-router-information"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-scope-area"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-scope-as"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-scope-link"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-database-segment-routing"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-instance"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-interface-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-neighbor"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-neighbor-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-spf"
+    },
+    {
+      "wire-method": "ze-ospf:show-ospfv3-spf-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-route"
+    },
+    {
+      "wire-method": "ze-ospf:show-route-fast-reroute"
+    },
+    {
+      "wire-method": "ze-ospf:show-segment-routing"
+    },
+    {
+      "wire-method": "ze-ospf:show-spf"
+    },
+    {
+      "wire-method": "ze-ospf:show-spf-detail"
+    },
+    {
+      "wire-method": "ze-ospf:show-te-database"
+    },
+    {
+      "wire-method": "ze-ospf:show-virtual-links"
+    },
+    {
+      "wire-method": "ze-ping:monitor-ping"
+    },
+    {
+      "wire-method": "ze-ping:resolve-ping"
+    },
+    {
+      "wire-method": "ze-ping:show-ping",
+      "short-help": "ICMP ping from the router to a destination IP.",
+      "description": "The count is 5 without a value and its range is 1 to 100. The\ntimeout is 5 seconds without a value and its range is 1s to 30s. The payload\nsize range is 1 to 65507 bytes, and the engine picks the size where none is\ngiven."
+    },
+    {
+      "wire-method": "ze-pki:show-certificate",
+      "short-help": "Show details, PEM, bundle, or fingerprint of a named certificate.",
+      "description": "Sub-commands: pem, bundle pem, fingerprint\n[sha256|sha384|sha512].",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "short-help": "Certificate name to look up.",
+          "description": "The name a pki ca or pki certificate block declares. The CA store is\nsearched first, then the device store, and a miss fails with pki: certificate \u003cname\u003e not\nfound and the names that exist."
+        }
+      ],
+      "output": [
+        {
+          "name": "certificate",
+          "type": "string",
+          "short-help": "JSON object: certificate details, PEM text, or fingerprint\ndepending on sub-command.",
+          "description": "The shape follows the sub-command: details as fields, the PEM as one\ntext block, or the digest as a colon-separated hex string."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-pki:show-certificate-bundle-pem"
+    },
+    {
+      "wire-method": "ze-pki:show-certificate-fingerprint"
+    },
+    {
+      "wire-method": "ze-pki:show-certificate-pem"
+    },
+    {
+      "wire-method": "ze-pki:show-certificates",
+      "short-help": "List all loaded certificates (CA and device).",
+      "description": "Each row carries the name and the type, which is 'ca' or 'device'. The subject\nand issuer common names follow, then the not-after date, the key algorithm, and\na 'valid' flag. The flag compares the not-after date against the clock alone, so\nit does not say that the chain verifies. The rows are sorted by type and then by\nname, and a 'count' comes with them.",
+      "output": [
+        {
+          "name": "certificates",
+          "type": "string",
+          "short-help": "JSON array of certificate summary objects.",
+          "description": "One object per loaded CA or device certificate, sorted by type and\nthen by name. The array is empty when the store holds none."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-pki:show-local-ca-pem"
+    },
+    {
+      "wire-method": "ze-plugin:command-complete",
+      "short-help": "List the completion candidates for a partial plugin command.",
+      "description": "Ze matches the partial text against the plugin command\nregistry only, so a built-in command never appears here. The answer carries a\ncompletions list, and an empty list means no plugin command matched.",
+      "input": [
+        {
+          "name": "partial",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Partial command string",
+          "description": "The text the operator typed so far. Plugin command names that start\nwith it are the candidates."
+        }
+      ],
+      "output": [
+        {
+          "name": "completions",
+          "type": "string",
+          "short-help": "Completion candidates",
+          "description": "Each entry is one candidate with its summary. The answer succeeds\nwith an empty list when nothing matched."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:command-help",
+      "short-help": "Show one plugin command's summary, explanation, arguments, and source plugin.",
+      "description": "The answer carries command, short-help, description, args and\nsource. The source names the plugin process that registered the command. An\nunknown name fails with 'unknown plugin command: \u003cname\u003e'.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Command name",
+          "description": "The full command name, as command-list prints it. The lookup\nreads the plugin registry alone, so a built-in name is unknown here."
+        }
+      ],
+      "output": [
+        {
+          "name": "help",
+          "type": "string",
+          "short-help": "Detailed help text",
+          "description": "The answer carries the command name, its summary, its explanation,\nits argument names and the process name of the plugin that owns it."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:command-list",
+      "short-help": "List every command a plugin registered, with its summary.",
+      "description": "The list holds what a plugin registered and it holds no\nbuilt-in command. Each entry carries a name and a description, and the\ndescription is the one-line summary. Read the long explanation with 'plugin\ncommand help \u003cname\u003e'."
+    },
+    {
+      "wire-method": "ze-plugin:help",
+      "short-help": "List the subcommands the plugin verb accepts.",
+      "description": "The answer names two subcommands, session and command. The\nplugin verb accepts nothing else, so a third word is a mistake.",
+      "output": [
+        {
+          "name": "subcommands",
+          "type": "string",
+          "short-help": "Available subcommands",
+          "description": "The list is fixed at build time and holds the two words session\nand command. It reads no registry."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:session-bye",
+      "short-help": "Tell the daemon this session is disconnecting.",
+      "description": "The daemon acknowledges the disconnect with a status of\ngoodbye. It frees no client state today, so a client that stops without this\ncall loses nothing."
+    },
+    {
+      "wire-method": "ze-plugin:session-ping",
+      "short-help": "Answer a health check with the daemon process id.",
+      "description": "The answer carries the daemon process id under the pid key.\nA caller reads that id to tell one daemon from another after a restart.",
+      "output": [
+        {
+          "name": "pid",
+          "type": "uint32",
+          "short-help": "Process id of the daemon that answered",
+          "description": "The daemon writes its own process id here, so the value changes\nwhen the daemon restarts. Any answer at all means the daemon is alive."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:session-ready",
+      "short-help": "Signal that this plugin process finished its initialization.",
+      "description": "The daemon then tells the BGP reactor that the API is ready,\nwhich unblocks reactor startup. A process that serves one peer sends\nsession-peer-ready instead."
+    },
+    {
+      "wire-method": "ze-plugin:system-command-complete",
+      "short-help": "List the completion candidates for a partial command.",
+      "description": "The candidates match on a case-insensitive prefix. The form args \u003ccommand\u003e\n\u003cpartial\u003e completes one command's arguments instead, and it answers empty when the plugin\ndoes not declare that command completable.",
+      "input": [
+        {
+          "name": "partial",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Partial command string",
+          "description": "The text the operator typed so far. Built-in and plugin command\nnames that start with it, in any letter case, are the candidates."
+        },
+        {
+          "name": "arg",
+          "type": "string",
+          "short-help": "Current argument being completed",
+          "description": "The partial word of an argument, used with the args form. The\nengine forwards it to the plugin that owns the command."
+        }
+      ],
+      "output": [
+        {
+          "name": "completions",
+          "type": "string",
+          "short-help": "Completion candidates",
+          "description": "Each entry is one candidate with its summary. An empty list means\nnothing matched, and it is still a successful answer."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-command-help",
+      "short-help": "Show the detailed help for one command.",
+      "description": "The name is looked up in the built-in commands first, then in the plugin\nregistry. A plugin command also answers with its argument form, its source process, and its\ntimeout.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Command name",
+          "description": "The full command name, as command-list prints it. A name in\nneither registry fails with unknown command."
+        }
+      ],
+      "output": [
+        {
+          "name": "help",
+          "type": "string",
+          "short-help": "Detailed help text",
+          "description": "The answer carries the command name, its summary, its\nexplanation and its source, which is builtin or the plugin process name."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-command-list",
+      "short-help": "List every command the daemon knows.",
+      "description": "The answer is streamed one row for each command, so an operator who pipes\nit through first or match pays for the rows they keep. Built-in commands come first, then\nthe commands each plugin registered."
+    },
+    {
+      "wire-method": "ze-plugin:system-daemon-quit",
+      "short-help": "Dump every goroutine stack, then shut the daemon down.",
+      "description": "The stacks go to the log at warning level, up to 1 MB of them. The daemon\nthen stops through the same path daemon-shutdown uses."
+    },
+    {
+      "wire-method": "ze-plugin:system-daemon-reboot",
+      "short-help": "Shut the daemon down gracefully, then reboot the system (root is required on Linux).",
+      "description": "The command needs a running reactor. It fails with reboot not available\nwhen the daemon wired no reboot action, and the reboot runs after the answer is written."
+    },
+    {
+      "wire-method": "ze-plugin:system-daemon-reload",
+      "short-help": "Reload the configuration.",
+      "description": "The configuration is read from disk again, every plugin verifies it, and\neach one then applies it. A daemon with no config loader reconciles the BGP peers only."
+    },
+    {
+      "wire-method": "ze-plugin:system-daemon-shutdown",
+      "short-help": "Shut the daemon down gracefully.",
+      "description": "The daemon answers shutdown initiated first and stops after that answer is\nwritten, so the connection that asked is never closed before it. A daemon with no BGP\nreactor stops through the same path SIGTERM uses."
+    },
+    {
+      "wire-method": "ze-plugin:system-daemon-status",
+      "short-help": "Show the daemon uptime, peer count, and start time.",
+      "description": "A BGP reactor must be registered, so a daemon that runs without one refuses\nthe command. The uptime is truncated to a whole second.",
+      "output": [
+        {
+          "name": "uptime-seconds",
+          "type": "uint32",
+          "short-help": "Seconds since start",
+          "description": "The value is the time since the reactor started, rounded down to\nthe second. It is rendered as a duration string such as 3h2m1s."
+        },
+        {
+          "name": "peer-count",
+          "type": "uint32",
+          "short-help": "Number of configured peers",
+          "description": "The count is read from the reactor statistics and covers every\npeer the reactor holds, whatever its session state."
+        },
+        {
+          "name": "start-time",
+          "type": "string",
+          "short-help": "ISO 8601 start timestamp",
+          "description": "The time the reactor started, in the form 2006-01-02T15:04:05\nwith a numeric zone offset or Z."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-dispatch",
+      "short-help": "Dispatch a text command through the command dispatcher.",
+      "description": "The words are joined with one space and given to the same dispatcher the\nCLI uses, so a plugin command is reachable too. It fails with missing command when no word\nis given.",
+      "input": [
+        {
+          "name": "args",
+          "type": "string",
+          "short-help": "Command words to join and dispatch",
+          "description": "The words of the command in order. A word that holds a space is\njoined like any other, so quote it as the target command expects."
+        }
+      ],
+      "output": [
+        {
+          "name": "status",
+          "type": "string",
+          "short-help": "Result status (ok or error)",
+          "description": "The status the dispatched command answered with. It is passed\nthrough unchanged, so a plugin command's own vocabulary appears here."
+        },
+        {
+          "name": "data",
+          "type": "string",
+          "short-help": "Response data",
+          "description": "The answer the dispatched command produced, passed through\nunchanged."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-help",
+      "short-help": "List the subcommands the system verb accepts.",
+      "description": "The built-in commands come first, then the commands each running plugin\nregistered. A plugin command marked hidden is left out.",
+      "output": [
+        {
+          "name": "subcommands",
+          "type": "string",
+          "short-help": "Available subcommands",
+          "description": "Each entry is one line in the form name - summary. A plugin command\nthat declared arguments shows them between the name and the dash."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-quiesce",
+      "short-help": "Block until every subsystem drains its pending async work.",
+      "description": "It is a test and operator barrier that replaces a fixed sleep.",
+      "output": [
+        {
+          "name": "failed",
+          "type": "string",
+          "short-help": "Subsystems that failed or timed out",
+          "description": "Each entry names one subsystem whose drain returned an error or\ndid not finish in time. The list is absent when every drain succeeded."
+        },
+        {
+          "name": "quiesced",
+          "type": "string",
+          "short-help": "Subsystems that were asked to drain",
+          "description": "Each entry names one subsystem the daemon asked to drain. A\nsubsystem that failed appears here too, because the request was made."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-subsystem-list",
+      "short-help": "List the subsystems registered in the daemon.",
+      "description": "Each row carries the subsystem name, its stage, whether it runs, and how\nmany commands it registered. The command count is read from the dispatcher registry."
+    },
+    {
+      "wire-method": "ze-plugin:system-version-api",
+      "short-help": "Show the IPC protocol version.",
+      "description": "The number names the IPC protocol between the daemon and its clients, and\nit moves apart from the software version. The daemon reads it nowhere else, so the command\nreports the protocol rather than negotiates it.",
+      "output": [
+        {
+          "name": "version",
+          "type": "string",
+          "short-help": "API protocol version",
+          "description": "The value is the constant the daemon was compiled with. A client\ncompares it with its own to detect a protocol it does not speak."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-plugin:system-version-software",
+      "short-help": "Show the ze software version.",
+      "description": "The answer carries the version string and the build date the binary was\ncompiled with. Both are set at startup and never change while the daemon runs.",
+      "output": [
+        {
+          "name": "version",
+          "type": "string",
+          "short-help": "Software version string",
+          "description": "The string is the one the binary was built with. A build-date field\ncomes with it in the same answer."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-policyroute:show-policy-routes"
+    },
+    {
+      "wire-method": "ze-resolve:clear-cymru-cache-address"
+    },
+    {
+      "wire-method": "ze-resolve:clear-cymru-cache-all"
+    },
+    {
+      "wire-method": "ze-resolve:clear-dns-cache",
+      "short-help": "Flush DNS cache entries or reset cache counters.",
+      "description": "This RPC empties every cached record and it takes no argument.\nThe hit and miss counters keep their values. Two sibling commands act more\nnarrowly. 'clear dns cache stats' zeroes the counters and keeps the records,\nand 'clear dns cache record \u003cname\u003e' deletes one name."
+    },
+    {
+      "wire-method": "ze-resolve:clear-dns-cache-record"
+    },
+    {
+      "wire-method": "ze-resolve:clear-dns-cache-stats"
+    },
+    {
+      "wire-method": "ze-resolve:clear-irr-cache-all"
+    },
+    {
+      "wire-method": "ze-resolve:clear-irr-cache-as-set"
+    },
+    {
+      "wire-method": "ze-resolve:clear-peeringdb-cache-all"
+    },
+    {
+      "wire-method": "ze-resolve:clear-peeringdb-cache-asn"
+    },
+    {
+      "wire-method": "ze-resolve:cymru-asn-name",
+      "short-help": "Look up organization name for an ASN via Team Cymru DNS.",
+      "description": "Ze asks AS\u003cn\u003e.asn.cymru.com for a TXT record and takes the\norganization name from it. A DNS failure, an empty answer and a record it\ncannot parse all answer '(unknown)' rather than an error. Ze caches the name\nit found.",
+      "input": [
+        {
+          "name": "asn",
+          "type": "asn-notated",
+          "mandatory": true,
+          "short-help": "Autonomous System Number",
+          "description": "Ze accepts the plain, asdot and asdot+ notations of RFC 5396\nand parses each field's range. A value that parses in none of them fails\nwith invalid ASN."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:dns-a",
+      "short-help": "Resolve DNS A records (IPv4 addresses).",
+      "description": "Ze reads its own DNS cache before it queries a server. An\nanswer with no record is not cached, so a name that starts to exist is seen at\nonce. 'clear dns cache' drops the cached records.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Hostname to resolve",
+          "description": "The DNS name to query for A records. An empty name fails with\na usage message before any query is sent."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:dns-aaaa",
+      "short-help": "Resolve DNS AAAA records (IPv6 addresses).",
+      "description": "The answer carries a records list. A name with no AAAA record\nanswers with an empty list, and the command still succeeds. A caller MUST read\nthe list length rather than the status.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Hostname to resolve",
+          "description": "The DNS name to query for AAAA records. An empty name fails with\na usage message before any query is sent."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:dns-ptr",
+      "short-help": "Reverse DNS lookup (PTR records).",
+      "description": "Give the IP address, not the arpa name. Ze converts the\naddress to in-addr.arpa or ip6.arpa itself. An address it cannot convert fails\nwith 'reverse addr \u003cvalue\u003e'.",
+      "input": [
+        {
+          "name": "address",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "IP address for reverse lookup",
+          "description": "An IPv4 or IPv6 address in its usual text form. Ze builds the\nreverse name from it, so the operator never types the arpa form."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:dns-txt",
+      "short-help": "Resolve DNS TXT records.",
+      "description": "The answer carries one entry per TXT record. Team Cymru\npublishes its ASN data over this record type, and 'resolve cymru asn-name'\nreads it through this same resolver.",
+      "input": [
+        {
+          "name": "name",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "Hostname to resolve",
+          "description": "The DNS name to query for TXT records. An empty name fails with\na usage message before any query is sent."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:irr-expand",
+      "short-help": "Recursively expand AS-SET to member ASNs.",
+      "description": "Ze queries an RPSL whois server, whois.radb.net port 43\nwithout other config. It follows a nested AS-SET, visits each name once so a\ncycle stops, and refuses more than 32 levels. The members list is sorted\nand holds each ASN once.",
+      "input": [
+        {
+          "name": "as-set",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "AS-SET name (e.g. AS-CLOUDFLARE)",
+          "description": "The RPSL set name, given to the whois server as typed. A member\nthat starts with AS- or holds a colon is a nested set and is followed. A set\nalready visited is skipped, and letter case does not make a new one."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:irr-prefix",
+      "short-help": "Look up prefixes for an AS-SET from IRR.",
+      "description": "Ze runs the whois !a4 and !a6 queries and answers with one\nprefixes list, IPv4 first. Ze caches the answer for one hour. 'update firewall\nirr as-set \u003cname\u003e' is the one command that skips that cache and reaches the\nserver.",
+      "input": [
+        {
+          "name": "as-set",
+          "type": "string",
+          "mandatory": true,
+          "short-help": "AS-SET name (e.g. AS-CLOUDFLARE)",
+          "description": "The RPSL set name, given to the whois server as typed. The answer\nis cached under that name, so a repeated lookup within the hour reaches no\nserver."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:peeringdb-as-set",
+      "short-help": "Look up AS-SET names for an ASN from PeeringDB.",
+      "description": "Ze reads the irr_as_set field of the PeeringDB net record.\nThat field can name more than one AS-SET, so Ze splits it on spaces, commas\nand newlines. A network that declares none answers with an empty sets list.",
+      "input": [
+        {
+          "name": "asn",
+          "type": "asn-notated",
+          "mandatory": true,
+          "short-help": "Autonomous System Number",
+          "description": "Ze accepts the plain, asdot and asdot+ notations of RFC 5396\nand parses each field's range. The PeeringDB query uses the plain number."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:peeringdb-max-prefix",
+      "short-help": "Look up maximum prefix counts for an ASN from PeeringDB.",
+      "description": "Ze reads the info_prefixes4 and info_prefixes6 fields of the\nPeeringDB net record. The answer carries asn, ipv4 and ipv6. Ze caches the\ncounts, so a repeated lookup reaches no server.",
+      "input": [
+        {
+          "name": "asn",
+          "type": "asn-notated",
+          "mandatory": true,
+          "short-help": "Autonomous System Number",
+          "description": "Ze accepts the plain, asdot and asdot+ notations of RFC 5396\nand parses each field's range. The PeeringDB query uses the plain number."
+        }
+      ]
+    },
+    {
+      "wire-method": "ze-resolve:show-dns-cache-list"
+    },
+    {
+      "wire-method": "ze-resolve:show-dns-cache-record"
+    },
+    {
+      "wire-method": "ze-resolve:show-dns-cache-stats"
+    },
+    {
+      "wire-method": "ze-resolve:show-dns-lookup"
+    },
+    {
+      "wire-method": "ze-resolve:show-rir"
+    },
+    {
+      "wire-method": "ze-resolve:update-rir"
+    },
+    {
+      "wire-method": "ze-rsvpte:show-rsvp-te-fast-reroute"
+    },
+    {
+      "wire-method": "ze-rsvpte:show-rsvp-te-interface"
+    },
+    {
+      "wire-method": "ze-rsvpte:show-rsvp-te-lsp"
+    },
+    {
+      "wire-method": "ze-rsvpte:show-rsvp-te-tunnel"
+    },
+    {
+      "wire-method": "ze-static:show-static"
+    },
+    {
+      "wire-method": "ze-storage:show-smart"
+    },
+    {
+      "wire-method": "ze-test-fakeas112:emit",
+      "short-help": "Emit the AS112 covering prefixes as one route-change batch per family.",
+      "description": "Args: \u003cadd|del\u003e [asn \u003cN\u003e] [community \u003cc1,c2,...\u003e]."
+    },
+    {
+      "wire-method": "ze-test-fakeas112:help",
+      "short-help": "Print the fakeas112 command surface.",
+      "description": "The answer is one fixed line naming the emit form and its options. It is a\nconstant of the test plugin, so it does not read the command registry."
+    },
+    {
+      "wire-method": "ze-test-fakel2tp:emit",
+      "short-help": "Emit one synthetic L2TP route-change batch.",
+      "description": "Args: \u003cadd|remove\u003e \u003cfamily\u003e \u003cprefix\u003e."
+    },
+    {
+      "wire-method": "ze-test-fakel2tp:help",
+      "short-help": "Print the fakel2tp command surface.",
+      "description": "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove\n\u003cfamily\u003e \u003cprefix\u003e'. The plugin declares no other command."
+    },
+    {
+      "wire-method": "ze-test-fakeredist:consume",
+      "short-help": "Register a synthetic redistribution consumer under a name.",
+      "description": "Args: \u003cdestination-name\u003e. The consumer records every route the\norchestrator dispatches to it, so a .ci scenario can register one AFTER a\nproducer emitted and read back what the replay delivered."
+    },
+    {
+      "wire-method": "ze-test-fakeredist:consumed",
+      "short-help": "List the prefixes a synthetic consumer currently holds.",
+      "description": "Args: \u003cdestination-name\u003e. The answer carries 'prefixes', the sorted\nprefix list, and 'count'."
+    },
+    {
+      "wire-method": "ze-test-fakeredist:emit",
+      "short-help": "Emit one synthetic route-change batch.",
+      "description": "Args: \u003cadd|remove\u003e \u003cfamily\u003e \u003cprefix\u003e [\u003cnexthop\u003e]."
+    },
+    {
+      "wire-method": "ze-test-fakeredist:emit-burst",
+      "short-help": "Emit N synthetic batches with the host portion of the base prefix auto-incremented.",
+      "description": "Args: \u003cN\u003e \u003cadd|remove\u003e \u003cfamily\u003e \u003cbase-prefix\u003e. N is bounded to one million per\ncall."
+    },
+    {
+      "wire-method": "ze-test-fakeredist:help",
+      "short-help": "Print the fakeredist command surface.",
+      "description": "The answer is one JSON object with a single key, help. That key\nholds two usage lines, one for fakeredist emit and one for fakeredist\nemit-burst."
+    },
+    {
+      "wire-method": "ze-traceroute:monitor-traceroute"
+    },
+    {
+      "wire-method": "ze-traceroute:resolve-traceroute"
+    },
+    {
+      "wire-method": "ze-traceroute:show-probe-round"
+    },
+    {
+      "wire-method": "ze-traceroute:show-traceroute"
+    },
+    {
+      "wire-method": "ze-traffic:show-traffic",
+      "short-help": "Show traffic control state per interface.",
+      "description": "Give an interface name to read the qdisc type, the class count and\nthe default class of that one interface. With no name, Ze reads every\ninterface. A platform with no traffic control backend fails with 'traffic\ncontrol not available on this platform'."
+    },
+    {
+      "wire-method": "ze-trafficfeature:show-traffic-feature"
+    },
+    {
+      "wire-method": "ze-trafficstat:monitor-traffic-stat"
+    },
+    {
+      "wire-method": "ze-trafficstat:show-traffic-stat"
+    },
+    {
+      "wire-method": "ze-trafficusage:show-traffic-usage"
+    },
+    {
+      "wire-method": "ze-update:show-system-update",
+      "short-help": "Show firmware update status.",
+      "description": "The answer carries the backend name, the running version and\nan update-available flag. A status word states the position, for example 'up\nto date', 'update available' or 'staged'. The fields staged-version and\ndownload-sha256 appear once a download reaches the disk. Ze reads the stored\nstatus here and contacts no update server."
+    },
+    {
+      "wire-method": "ze-update:show-system-update-history",
+      "short-help": "Show firmware update event history.",
+      "description": "Each row carries the timestamp, the from version, the to\nversion and the result. A result is 'success', 'failed-download',\n'failed-checksum', 'failed-stage' or 'blocked-minimum-version'. Ze keeps the\nlast 20 events. With no update backend configured, the answer is an empty\nhistory and a count of 0."
+    },
+    {
+      "wire-method": "ze-update:system-firmware-apply",
+      "short-help": "Full firmware update cycle: download+verify+stage+restart.",
+      "description": "This runs the whole cycle and skips every schedule. Ze\ndownloads the binary, compares the SHA-256 hash with the manifest, stages the\nbinary over the running path, and then restarts. The old binary is kept beside\nit with a .prev suffix, which is what 'system firmware rollback' restores. A\nfailure at any step writes one history row."
+    },
+    {
+      "wire-method": "ze-update:system-firmware-check",
+      "short-help": "Trigger immediate firmware version check.",
+      "description": "Ze contacts the update server at once and does not wait for\nthe scheduled interval. The answer carries the running version, the remote\nversion and an update-available flag. Nothing is downloaded."
+    },
+    {
+      "wire-method": "ze-update:system-firmware-download",
+      "short-help": "Download firmware update now.",
+      "description": "Ze fetches the new binary at once and skips the spread delay\nand the maintenance window. It refuses the download when no newer version\nexists, and when the manifest names an intermediate minimum version. A\nchecksum mismatch deletes the temporary file. The binary is held, and the\nrunning version does not change."
+    },
+    {
+      "wire-method": "ze-update:system-firmware-restart",
+      "short-help": "Restart into staged firmware version.",
+      "description": "Ze restarts into the binary that an earlier stage put in\nplace. With no staged version, the command fails with 'no staged version' and\nnothing restarts."
+    },
+    {
+      "wire-method": "ze-update:system-firmware-rollback",
+      "short-help": "Restore previous firmware version and restart.",
+      "description": "Ze renames the .prev binary back over the running path and\nrestarts into it. With no .prev file on the disk, the command fails with 'no\nprevious version available'. Only one previous version is kept, so a second\nrollback cannot go back further."
+    },
+    {
+      "wire-method": "ze-vrrp:clear-statistics"
+    },
+    {
+      "wire-method": "ze-vrrp:show-interface"
+    },
+    {
+      "wire-method": "ze-vrrp:show-statistics"
+    },
+    {
+      "wire-method": "ze-vrrp:show-vrrp"
+    }
+  ],
+  "dispatch-keys": {
+    "ze-aaa:show-accounting": "show aaa accounting",
+    "ze-anomaly:show-anomaly": "show anomaly detect",
+    "ze-anomaly:show-observe": "show anomaly observe",
+    "ze-anomaly:show-shape": "show anomaly shape",
+    "ze-as112:health": "request as112 healthcheck",
+    "ze-as112:show-as112": "show as112",
+    "ze-bfd:show-profile": "show bfd profile",
+    "ze-bfd:show-session": "show bfd session address",
+    "ze-bfd:show-sessions": "show bfd sessions",
+    "ze-bgp:announce-blackhole": "send bgp blackhole",
+    "ze-bgp:announce-flowspec": "send bgp flowspec",
+    "ze-bgp:announce-unicast": "send bgp unicast",
+    "ze-bgp:cache-expire": "request cache expire",
+    "ze-bgp:cache-forward": "send bgp cached",
+    "ze-bgp:cache-list": "show cache",
+    "ze-bgp:cache-release": "request cache release",
+    "ze-bgp:cache-retain": "request cache retain",
+    "ze-bgp:commit": "request commit",
+    "ze-bgp:monitor": "monitor bgp",
+    "ze-bgp:overview": "show bgp",
+    "ze-bgp:peer-borr": "request peer borr",
+    "ze-bgp:peer-capabilities": "show bgp peer capabilities",
+    "ze-bgp:peer-clear-soft": "request peer clear soft",
+    "ze-bgp:peer-create": "create bgp peer",
+    "ze-bgp:peer-delete": "delete bgp peer",
+    "ze-bgp:peer-detail": "show bgp peer detail",
+    "ze-bgp:peer-disable": "request peer disable",
+    "ze-bgp:peer-enable": "request peer enable",
+    "ze-bgp:peer-eorr": "request peer eorr",
+    "ze-bgp:peer-flush": "request peer flush",
+    "ze-bgp:peer-history": "show bgp peer history",
+    "ze-bgp:peer-list": "show bgp peer list",
+    "ze-bgp:peer-notify": "request peer notify",
+    "ze-bgp:peer-pause": "request peer pause",
+    "ze-bgp:peer-raw": "send bgp raw",
+    "ze-bgp:peer-refresh": "request peer refresh",
+    "ze-bgp:peer-resume": "request peer resume",
+    "ze-bgp:peer-rib": "show bgp peer rib",
+    "ze-bgp:peer-save": "update bgp config",
+    "ze-bgp:peer-statistics": "show bgp peer statistics",
+    "ze-bgp:peer-teardown": "request peer teardown",
+    "ze-bgp:peer-update": "send bgp update",
+    "ze-bgp:plugin-session-peer-ready": "request peer plugin session ready",
+    "ze-bgp:pool-stats": "show metrics pool",
+    "ze-bgp:rib-best": "show bgp rib best",
+    "ze-bgp:rib-best-status": "show bgp rib best status",
+    "ze-bgp:rib-clear-advertised": "clear bgp rib advertised",
+    "ze-bgp:rib-clear-in": "clear bgp rib in",
+    "ze-bgp:rib-clear-out": "clear bgp rib out",
+    "ze-bgp:rib-fastpath": "request bgp rib fastpath",
+    "ze-bgp:rib-inject": "request bgp rib inject",
+    "ze-bgp:rib-protocol": "show bgp rib protocol",
+    "ze-bgp:rib-routes": "show bgp rib",
+    "ze-bgp:rib-rpf": "show bgp rib rpf",
+    "ze-bgp:rib-status": "show bgp rib status",
+    "ze-bgp:rib-withdraw": "request bgp rib withdraw",
+    "ze-bgp:show-announcements": "show announcements",
+    "ze-bgp:show-bmp-collectors": "show bmp collectors",
+    "ze-bgp:show-bmp-peers": "show bmp peers",
+    "ze-bgp:show-bmp-rib": "show bmp rib",
+    "ze-bgp:show-bmp-sessions": "show bmp sessions",
+    "ze-bgp:show-decode": "show bgp decode",
+    "ze-bgp:show-encode": "show bgp encode",
+    "ze-bgp:show-health": "show bgp health",
+    "ze-bgp:show-irr-check": "show bgp irr check",
+    "ze-bgp:show-irr-prefix": "show bgp irr prefix",
+    "ze-bgp:show-irr-status": "show bgp irr",
+    "ze-bgp:show-policy-chain": "show policy chain peer",
+    "ze-bgp:show-policy-test": "show policy test peer",
+    "ze-bgp:show-reject-asn": "show bgp reject-asn",
+    "ze-bgp:show-reject-asn-known-transit-free": "show bgp reject-asn known transit-free",
+    "ze-bgp:show-reject-asn-name": "show bgp reject-asn name",
+    "ze-bgp:show-rr-peers": "show rr peers",
+    "ze-bgp:show-rr-status": "show rr status",
+    "ze-bgp:update-delay": "show bgp update-delay",
+    "ze-bgp:update-irr-all": "update bgp irr all",
+    "ze-bgp:update-irr-as-set": "update bgp irr as-set",
+    "ze-bgp:update-irr-asn": "update bgp irr asn",
+    "ze-bgp:update-peer-prefix": "update bgp peer prefix",
+    "ze-bgp:watchdog-announce": "request bgp watchdog announce",
+    "ze-bgp:watchdog-forget": "request bgp watchdog forget",
+    "ze-bgp:watchdog-give": "request bgp watchdog give",
+    "ze-bgp:watchdog-withdraw": "request bgp watchdog withdraw",
+    "ze-bgp:withdraw-all": "send bgp withdraw all",
+    "ze-bgp:withdraw-id": "send bgp withdraw id",
+    "ze-bgp:withdraw-tag": "send bgp withdraw tag",
+    "ze-cmd:bgp-metrics-list": "show metrics list",
+    "ze-cmd:bgp-metrics-values": "show metrics values",
+    "ze-cmd:bgp-subscribe": "request subscribe",
+    "ze-cmd:bgp-unsubscribe": "request unsubscribe",
+    "ze-cmd:show-audit": "show audit",
+    "ze-cmd:show-errors": "show errors",
+    "ze-cmd:show-event-delivery": "show event delivery",
+    "ze-cmd:show-event-namespaces": "show event namespaces",
+    "ze-cmd:show-event-recent": "show event recent",
+    "ze-cmd:show-health": "show health",
+    "ze-cmd:show-metrics-query": "show metrics name",
+    "ze-cmd:show-policy-list": "show policy list",
+    "ze-cmd:show-reload-status": "show reload-status",
+    "ze-cmd:show-system-cpu": "show system cpu",
+    "ze-cmd:show-system-date": "show system date",
+    "ze-cmd:show-system-file-descriptors": "show system file-descriptors",
+    "ze-cmd:show-system-goroutines": "show system goroutines",
+    "ze-cmd:show-system-memory": "show runtime memory",
+    "ze-cmd:show-system-memory-map": "show system memory",
+    "ze-cmd:show-system-platform": "show system platform",
+    "ze-cmd:show-system-profile": "show system profile",
+    "ze-cmd:show-system-sockets": "show system sockets",
+    "ze-cmd:show-system-subsystem-list": "show system subsystem list",
+    "ze-cmd:show-uptime": "show uptime",
+    "ze-cmd:show-version": "show version",
+    "ze-cmd:show-warnings": "show warnings",
+    "ze-config-cli:show-config-cat": "show config cat",
+    "ze-config-cli:show-config-diff": "show config diff",
+    "ze-config-cli:show-config-dump": "show config dump",
+    "ze-config-cli:show-config-fmt": "show config fmt",
+    "ze-config-cli:show-config-graph": "show config graph",
+    "ze-config-cli:show-config-history": "show config history",
+    "ze-config-cli:show-config-list": "show config list",
+    "ze-config-cli:show-config-validation": "show config validation",
+    "ze-config-schema:show-schema-events": "show schema events",
+    "ze-config-schema:show-schema-handlers": "show schema handlers",
+    "ze-config-schema:show-schema-list": "show schema list",
+    "ze-config-schema:show-schema-methods": "show schema methods",
+    "ze-config-schema:show-schema-protocol": "show schema protocol",
+    "ze-config-storage:show-data-cat": "show data cat",
+    "ze-config-storage:show-data-list": "show data list",
+    "ze-config-storage:show-data-registered": "show data registered",
+    "ze-config-yang:show-yang-completion": "show yang completion",
+    "ze-config-yang:show-yang-doc": "show yang doc",
+    "ze-config-yang:show-yang-tree": "show yang tree",
+    "ze-config:archive-trigger": "request config archive",
+    "ze-config:data-backup": "request data backup",
+    "ze-config:data-restore": "request data restore",
+    "ze-config:show-config-running": "show config running",
+    "ze-crashes:show-crashes": "show crashes",
+    "ze-ddos:show-flowspec": "show ddos flowspec",
+    "ze-ddos:show-incidents": "show ddos incidents",
+    "ze-ddos:show-local": "show ddos local",
+    "ze-ddos:show-status": "show ddos status",
+    "ze-debug:clear-debug": "clear debug",
+    "ze-debug:debug-state": "show debug",
+    "ze-debug:delete-module": "delete debug module",
+    "ze-debug:delete-profile-name": "delete debug profile name",
+    "ze-debug:set-active-name": "set debug active name",
+    "ze-debug:set-module": "set debug module",
+    "ze-debug:set-profile-name": "set debug profile name",
+    "ze-debug:set-timeout": "set debug timeout",
+    "ze-debug:show-profile": "show debug profile",
+    "ze-diag:request-wireguard-keypair": "request wireguard keypair",
+    "ze-diag:show-capture": "show capture",
+    "ze-diag:show-capture-interface": "show capture interface",
+    "ze-diag:show-capture-raw": "show capture raw",
+    "ze-diag:show-tcp-check": "show tcp-check",
+    "ze-doctor:show-doctor": "show doctor",
+    "ze-env:show-get": "show env get",
+    "ze-env:show-list": "show env list",
+    "ze-env:show-registered": "show env registered",
+    "ze-explain:show-diagnostic": "show diagnostic",
+    "ze-firewall:clear-domain-group": "clear firewall domain-group",
+    "ze-firewall:clear-irr-as-set": "clear firewall irr as-set",
+    "ze-firewall:clear-irr-asn": "clear firewall irr asn",
+    "ze-firewall:show-domain-group-status": "show firewall domain-group",
+    "ze-firewall:show-group": "show firewall group",
+    "ze-firewall:show-irr-prefix": "show firewall irr prefix",
+    "ze-firewall:show-irr-status": "show firewall irr",
+    "ze-firewall:show-ruleset": "show firewall ruleset",
+    "ze-firewall:show-system-conntrack": "show system conntrack",
+    "ze-firewall:update-domain-group": "update firewall domain-group",
+    "ze-firewall:update-irr-all": "update firewall irr all",
+    "ze-firewall:update-irr-as-set": "update firewall irr as-set",
+    "ze-firewall:update-irr-asn": "update firewall irr asn",
+    "ze-flowexport:show-flow-export": "show flow export",
+    "ze-flowexport:show-flow-recent": "show flow recent",
+    "ze-geodns:show-geodns": "show geodns",
+    "ze-gnmi:show-gnmi": "show gnmi",
+    "ze-host:set-system-file-descriptors": "set system file-descriptors",
+    "ze-host:show-all": "show host",
+    "ze-host:show-cpu": "show host cpu",
+    "ze-host:show-dmi": "show host dmi",
+    "ze-host:show-kernel": "show host kernel",
+    "ze-host:show-memory": "show host memory",
+    "ze-host:show-nic": "show host nic",
+    "ze-host:show-platform": "show host platform",
+    "ze-host:show-storage": "show host storage",
+    "ze-host:show-system-kernel-log": "show system kernel-log",
+    "ze-host:show-thermal": "show host thermal",
+    "ze-iface:clear-interface-counters": "clear interface counters all",
+    "ze-iface:interface-addr-add": "create interface address",
+    "ze-iface:interface-addr-del": "delete interface name address",
+    "ze-iface:interface-create-bridge": "create interface bridge name",
+    "ze-iface:interface-create-dummy": "create interface dummy name",
+    "ze-iface:interface-create-veth": "create interface veth name",
+    "ze-iface:interface-delete": "delete interface name",
+    "ze-iface:interface-down": "request interface down",
+    "ze-iface:interface-mac": "request interface mac",
+    "ze-iface:interface-migrate": "request interface migrate",
+    "ze-iface:interface-mtu": "request interface mtu",
+    "ze-iface:interface-unit-add": "create interface bridge name unit",
+    "ze-iface:interface-unit-del": "delete interface name unit",
+    "ze-iface:interface-up": "request interface up",
+    "ze-iface:monitor-interface-rate": "monitor interface rate",
+    "ze-iface:monitor-system-netlink": "monitor system netlink",
+    "ze-iface:show-arp": "show arp",
+    "ze-iface:show-interface": "show interface",
+    "ze-iface:show-interface-brief": "show interface brief",
+    "ze-iface:show-interface-counters": "show interface name counters",
+    "ze-iface:show-interface-detail": "show interface name detail",
+    "ze-iface:show-interface-errors": "show interface errors",
+    "ze-iface:show-interface-rate": "show interface rate",
+    "ze-iface:show-interface-scan": "show interface scan",
+    "ze-iface:show-interface-type": "show interface type",
+    "ze-iface:show-neighbor": "show neighbor",
+    "ze-iface:show-route": "show route",
+    "ze-iface:show-route-lookup": "show route lookup",
+    "ze-iface:show-vpp-runtime": "show vpp runtime",
+    "ze-iface:show-vpp-trace-clear": "show vpp trace clear",
+    "ze-iface:show-vpp-trace-show": "show vpp trace show",
+    "ze-iface:show-vpp-trace-start": "show vpp trace start",
+    "ze-ike:clear-vpn-ipsec-sa": "clear vpn ipsec sa all",
+    "ze-ike:clear-vpn-ipsec-sa-peer": "clear vpn ipsec sa peer",
+    "ze-ike:monitor-vpn-ipsec": "monitor vpn ipsec",
+    "ze-ike:show-vpn-ipsec-dataplane-drift": "show vpn ipsec dataplane drift",
+    "ze-ike:show-vpn-ipsec-dataplane-policy": "show vpn ipsec dataplane policy",
+    "ze-ike:show-vpn-ipsec-dataplane-sa": "show vpn ipsec dataplane sa",
+    "ze-ike:show-vpn-ipsec-peer": "show vpn ipsec peer name",
+    "ze-ike:show-vpn-ipsec-sa": "show vpn ipsec sa",
+    "ze-ike:show-vpn-ipsec-status": "show vpn ipsec status",
+    "ze-isis:clear-adjacency": "clear isis adjacency all",
+    "ze-isis:clear-counters": "clear isis counters",
+    "ze-isis:show-database": "show isis database",
+    "ze-isis:show-database-detail": "show isis database detail",
+    "ze-isis:show-hostname": "show isis hostname",
+    "ze-isis:show-interface": "show isis interface",
+    "ze-isis:show-neighbor": "show isis neighbor",
+    "ze-isis:show-route": "show isis route",
+    "ze-isis:show-route-ipv6": "show isis route ipv6",
+    "ze-isis:show-spf-log": "show isis spf-log",
+    "ze-l2tp:config": "show l2tp config",
+    "ze-l2tp:cqm": "show l2tp cqm",
+    "ze-l2tp:echo": "show l2tp echo",
+    "ze-l2tp:listeners": "show l2tp listeners",
+    "ze-l2tp:observer": "show l2tp observer",
+    "ze-l2tp:outgoing-call": "request l2tp outgoing-call remote called",
+    "ze-l2tp:pppoe-interfaces": "show pppoe interfaces",
+    "ze-l2tp:pppoe-session": "show pppoe session id",
+    "ze-l2tp:pppoe-sessions": "show pppoe sessions",
+    "ze-l2tp:pppoe-statistics": "show pppoe statistics",
+    "ze-l2tp:pppoe-summary": "show pppoe",
+    "ze-l2tp:reliable": "show l2tp reliable",
+    "ze-l2tp:session": "show l2tp session id",
+    "ze-l2tp:session-history": "show l2tp session history",
+    "ze-l2tp:session-teardown": "clear l2tp session id",
+    "ze-l2tp:session-teardown-all": "clear l2tp session all",
+    "ze-l2tp:session-traffic": "show l2tp session traffic",
+    "ze-l2tp:sessions": "show l2tp sessions",
+    "ze-l2tp:show-health": "show l2tp health",
+    "ze-l2tp:statistics": "show l2tp statistics",
+    "ze-l2tp:subscriber-detail": "show subscriber id detail",
+    "ze-l2tp:subscriber-summary": "show subscriber",
+    "ze-l2tp:summary": "show l2tp",
+    "ze-l2tp:tunnel": "show l2tp tunnel id",
+    "ze-l2tp:tunnel-history": "show l2tp tunnel history",
+    "ze-l2tp:tunnel-teardown": "clear l2tp tunnel id",
+    "ze-l2tp:tunnel-teardown-all": "clear l2tp tunnel all",
+    "ze-l2tp:tunnels": "show l2tp tunnels",
+    "ze-ldp:show-binding": "show ldp binding",
+    "ze-ldp:show-neighbor": "show ldp neighbor",
+    "ze-log:bgp-log-levels": "show log levels",
+    "ze-log:bgp-log-recent": "show log recent",
+    "ze-log:bgp-log-set": "request log level",
+    "ze-meta:bgp-command-complete": "show command complete",
+    "ze-meta:bgp-command-help": "show command help",
+    "ze-meta:bgp-command-list": "show command list",
+    "ze-meta:bgp-event-list": "show event list",
+    "ze-meta:bgp-help": "help",
+    "ze-meta:bgp-plugin-ack": "plugin ack",
+    "ze-meta:bgp-plugin-encoding": "plugin encoding",
+    "ze-meta:bgp-plugin-format": "plugin format",
+    "ze-meta:event-monitor": "monitor event",
+    "ze-mpls:show-forwarding": "show mpls forwarding",
+    "ze-mtu:show-mtu": "show mtu",
+    "ze-ntp:show-system-ntp": "show system ntp",
+    "ze-ntp:show-system-ntp-peers": "show system ntp peers",
+    "ze-ospf:clear-counters": "clear ospf counters",
+    "ze-ospf:clear-neighbor": "clear ospf neighbor all",
+    "ze-ospf:clear-process": "clear ospf process all",
+    "ze-ospf:debug-inject": "debug ip ospf inject opaque",
+    "ze-ospf:debug-inject-disable": "debug ospf inject disable",
+    "ze-ospf:debug-inject-enable": "debug ospf inject enable",
+    "ze-ospf:debug-ospfv3-inject": "debug ipv6 ospf inject lsa",
+    "ze-ospf:graceful-restart-prepare": "request ospf graceful-restart",
+    "ze-ospf:show-border-routers": "show ospf border-routers",
+    "ze-ospf:show-database": "show ospf database",
+    "ze-ospf:show-database-asbr-summary": "show ospf database asbr-summary",
+    "ze-ospf:show-database-external": "show ospf database external",
+    "ze-ospf:show-database-network": "show ospf database network",
+    "ze-ospf:show-database-nssa-external": "show ospf database nssa-external",
+    "ze-ospf:show-database-opaque-area": "show ospf database opaque-area",
+    "ze-ospf:show-database-opaque-area-detail": "show ospf database opaque-area detail",
+    "ze-ospf:show-database-opaque-as": "show ospf database opaque-as",
+    "ze-ospf:show-database-opaque-as-detail": "show ospf database opaque-as detail",
+    "ze-ospf:show-database-opaque-link": "show ospf database opaque-link",
+    "ze-ospf:show-database-opaque-link-detail": "show ospf database opaque-link detail",
+    "ze-ospf:show-database-router": "show ospf database router",
+    "ze-ospf:show-database-router-information": "show ospf database router-information",
+    "ze-ospf:show-database-summary": "show ospf database summary",
+    "ze-ospf:show-graceful-restart": "show ospf graceful-restart",
+    "ze-ospf:show-instance": "show ospf instance",
+    "ze-ospf:show-interface": "show ospf interface",
+    "ze-ospf:show-interface-detail": "show ospf interface detail",
+    "ze-ospf:show-ipv6": "show ospf ipv6",
+    "ze-ospf:show-ipv6-graceful-restart": "show ospf ipv6 graceful-restart",
+    "ze-ospf:show-ipv6-interface": "show ospf ipv6 interface",
+    "ze-ospf:show-ipv6-segment-routing": "show ospf ipv6 segment-routing",
+    "ze-ospf:show-ldp-sync": "show ospf ldp-sync",
+    "ze-ospf:show-neighbor": "show ospf neighbor",
+    "ze-ospf:show-neighbor-detail": "show ospf neighbor detail",
+    "ze-ospf:show-ospf": "show ospf",
+    "ze-ospf:show-ospfv3-database": "show ospf ipv6 database",
+    "ze-ospf:show-ospfv3-database-detail": "show ospf ipv6 database detail",
+    "ze-ospf:show-ospfv3-database-extended": "show ospf ipv6 database extended",
+    "ze-ospf:show-ospfv3-database-router-detail": "show ospf ipv6 database router detail",
+    "ze-ospf:show-ospfv3-database-router-information": "show ospf ipv6 database router-information",
+    "ze-ospf:show-ospfv3-database-scope-area": "show ospf ipv6 database scope area",
+    "ze-ospf:show-ospfv3-database-scope-as": "show ospf ipv6 database scope as",
+    "ze-ospf:show-ospfv3-database-scope-link": "show ospf ipv6 database scope link",
+    "ze-ospf:show-ospfv3-database-segment-routing": "show ospf ipv6 database segment-routing",
+    "ze-ospf:show-ospfv3-instance": "show ospf ipv6 instance",
+    "ze-ospf:show-ospfv3-interface-detail": "show ospf ipv6 interface detail",
+    "ze-ospf:show-ospfv3-neighbor": "show ospf ipv6 neighbor",
+    "ze-ospf:show-ospfv3-neighbor-detail": "show ospf ipv6 neighbor detail",
+    "ze-ospf:show-ospfv3-spf": "show ospf ipv6 spf",
+    "ze-ospf:show-ospfv3-spf-detail": "show ospf ipv6 spf detail",
+    "ze-ospf:show-route": "show ospf route",
+    "ze-ospf:show-route-fast-reroute": "show ospf route fast-reroute",
+    "ze-ospf:show-segment-routing": "show ospf segment-routing",
+    "ze-ospf:show-spf": "show ospf spf",
+    "ze-ospf:show-spf-detail": "show ospf spf detail",
+    "ze-ospf:show-te-database": "show ospf te-database",
+    "ze-ospf:show-virtual-links": "show ospf virtual-links",
+    "ze-ping:monitor-ping": "monitor ping",
+    "ze-ping:resolve-ping": "resolve ping",
+    "ze-ping:show-ping": "show ping",
+    "ze-pki:show-certificate": "show pki certificate name",
+    "ze-pki:show-certificate-bundle-pem": "show pki certificate name bundle pem",
+    "ze-pki:show-certificate-fingerprint": "show pki certificate name fingerprint",
+    "ze-pki:show-certificate-pem": "show pki certificate name pem",
+    "ze-pki:show-certificates": "show pki certificates",
+    "ze-pki:show-local-ca-pem": "show pki local-ca pem",
+    "ze-plugin:command-complete": "plugin command complete",
+    "ze-plugin:command-help": "plugin command help",
+    "ze-plugin:command-list": "plugin command list",
+    "ze-plugin:help": "plugin help",
+    "ze-plugin:session-bye": "plugin session bye",
+    "ze-plugin:session-ping": "plugin session ping",
+    "ze-plugin:session-ready": "plugin session ready",
+    "ze-plugin:show-declarations": "show plugin declarations",
+    "ze-plugin:show-declarations-config": "show plugin declarations config",
+    "ze-plugin:show-list": "show plugin list",
+    "ze-plugin:system-command-complete": "system command complete",
+    "ze-plugin:system-command-help": "system command help",
+    "ze-plugin:system-command-list": "system command list",
+    "ze-plugin:system-daemon-quit": "request halt",
+    "ze-plugin:system-daemon-reboot": "request reboot",
+    "ze-plugin:system-daemon-reload": "request reload",
+    "ze-plugin:system-daemon-shutdown": "request shutdown",
+    "ze-plugin:system-daemon-status": "show status",
+    "ze-plugin:system-dispatch": "system dispatch",
+    "ze-plugin:system-help": "system help",
+    "ze-plugin:system-quiesce": "request quiesce",
+    "ze-plugin:system-subsystem-list": "system subsystem list",
+    "ze-plugin:system-version-api": "system version api",
+    "ze-plugin:system-version-software": "system version software",
+    "ze-policyroute:show-policy-routes": "show policy routes",
+    "ze-resolve:clear-cymru-cache-address": "clear cymru cache address",
+    "ze-resolve:clear-cymru-cache-all": "clear cymru cache all",
+    "ze-resolve:clear-dns-cache": "clear dns cache all",
+    "ze-resolve:clear-dns-cache-record": "clear dns cache record",
+    "ze-resolve:clear-dns-cache-stats": "clear dns cache stats",
+    "ze-resolve:clear-irr-cache-all": "clear irr cache all",
+    "ze-resolve:clear-irr-cache-as-set": "clear irr cache as-set",
+    "ze-resolve:clear-peeringdb-cache-all": "clear peeringdb cache all",
+    "ze-resolve:clear-peeringdb-cache-asn": "clear peeringdb cache asn",
+    "ze-resolve:cymru-asn-name": "resolve cymru asn-name",
+    "ze-resolve:dns-a": "resolve dns a",
+    "ze-resolve:dns-aaaa": "resolve dns aaaa",
+    "ze-resolve:dns-ptr": "resolve dns ptr",
+    "ze-resolve:dns-txt": "resolve dns txt",
+    "ze-resolve:irr-expand": "resolve irr expand",
+    "ze-resolve:irr-prefix": "resolve irr prefix",
+    "ze-resolve:peeringdb-as-set": "resolve peeringdb as-set",
+    "ze-resolve:peeringdb-max-prefix": "resolve peeringdb max-prefix",
+    "ze-resolve:show-dns-cache-list": "show dns cache list",
+    "ze-resolve:show-dns-cache-record": "show dns cache record",
+    "ze-resolve:show-dns-cache-stats": "show dns cache stats",
+    "ze-resolve:show-dns-lookup": "show dns lookup",
+    "ze-resolve:show-rir": "show resolve rir",
+    "ze-resolve:update-rir": "update resolve rir",
+    "ze-rsvpte:show-rsvp-te-fast-reroute": "show rsvp-te fast-reroute",
+    "ze-rsvpte:show-rsvp-te-interface": "show rsvp-te interface",
+    "ze-rsvpte:show-rsvp-te-lsp": "show rsvp-te lsp",
+    "ze-rsvpte:show-rsvp-te-tunnel": "show rsvp-te tunnel",
+    "ze-skills:show-skill": "show skill",
+    "ze-skills:show-skills": "show skills",
+    "ze-static:show-static": "show static",
+    "ze-storage:show-smart": "show storage smart",
+    "ze-support:request-support-archive": "request support archive",
+    "ze-test-fakeas112:emit": "fakeas112 emit",
+    "ze-test-fakeas112:help": "fakeas112 help",
+    "ze-test-fakel2tp:emit": "fakel2tp emit",
+    "ze-test-fakel2tp:help": "fakel2tp help",
+    "ze-test-fakeredist:consume": "fakeredist consume",
+    "ze-test-fakeredist:consumed": "fakeredist consumed",
+    "ze-test-fakeredist:emit": "fakeredist emit",
+    "ze-test-fakeredist:emit-burst": "fakeredist emit-burst",
+    "ze-test-fakeredist:help": "fakeredist help",
+    "ze-traceroute:monitor-traceroute": "monitor traceroute",
+    "ze-traceroute:resolve-traceroute": "resolve traceroute",
+    "ze-traceroute:show-probe-round": "show probe-round",
+    "ze-traceroute:show-traceroute": "show traceroute",
+    "ze-traffic:show-traffic": "show traffic control",
+    "ze-trafficfeature:show-traffic-feature": "show traffic feature",
+    "ze-trafficstat:monitor-traffic-stat": "monitor traffic stat",
+    "ze-trafficstat:show-traffic-stat": "show traffic stat",
+    "ze-trafficusage:show-traffic-usage": "show traffic usage",
+    "ze-update:show-system-update": "show system update",
+    "ze-update:show-system-update-history": "show system update history",
+    "ze-update:system-firmware-apply": "update system firmware apply",
+    "ze-update:system-firmware-check": "update system firmware check",
+    "ze-update:system-firmware-download": "update system firmware download",
+    "ze-update:system-firmware-restart": "update system firmware restart",
+    "ze-update:system-firmware-rollback": "update system firmware rollback",
+    "ze-vrrp:clear-statistics": "clear vrrp statistics all",
+    "ze-vrrp:show-interface": "show vrrp interface name",
+    "ze-vrrp:show-statistics": "show vrrp statistics",
+    "ze-vrrp:show-vrrp": "show vrrp"
+  },
+  "plugins": [
+    {
+      "name": "anomaly-detect",
+      "description": "Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature"
+    },
+    {
+      "name": "anomaly-observe",
+      "description": "Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI"
+    },
+    {
+      "name": "anomaly-shape",
+      "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch"
+    },
+    {
+      "name": "as112",
+      "description": "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)"
+    },
+    {
+      "name": "bfd",
+      "description": "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)"
+    },
+    {
+      "name": "bgp",
+      "description": "BGP routing daemon"
+    },
+    {
+      "name": "bgp-adj-rib-in",
+      "description": "Adj-RIB-In storage (raw hex replay)"
+    },
+    {
+      "name": "bgp-aigp",
+      "description": "Accumulated IGP Metric (RFC 7311)"
+    },
+    {
+      "name": "bgp-bmp",
+      "description": "BMP receiver and sender (RFC 7854, 8671)"
+    },
+    {
+      "name": "bgp-capa",
+      "description": "Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message)"
+    },
+    {
+      "name": "bgp-epe",
+      "description": "Native BGP Egress Peer Engineering segments"
+    },
+    {
+      "name": "bgp-filter-aspath",
+      "description": "Named AS-path regex filter (ordered entries, first match wins, accept/reject)"
+    },
+    {
+      "name": "bgp-filter-aspath-length",
+      "description": "Named AS-path length filter (accept/reject based on hop count)"
+    },
+    {
+      "name": "bgp-filter-community",
+      "description": "Community tag/strip filter (standard, large, extended)"
+    },
+    {
+      "name": "bgp-filter-community-match",
+      "description": "Named community match filter (ordered entries, first match wins, accept/reject)"
+    },
+    {
+      "name": "bgp-filter-family",
+      "description": "Named address-family policy filter: remove a family's NLRI or tear down the session"
+    },
+    {
+      "name": "bgp-filter-irr",
+      "description": "IRR-based prefix-list filter for eBGP peers"
+    },
+    {
+      "name": "bgp-filter-modify",
+      "description": "Named route attribute modifier (set local-preference, med, origin, next-hop)"
+    },
+    {
+      "name": "bgp-filter-path-asn",
+      "description": "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position"
+    },
+    {
+      "name": "bgp-filter-prefix",
+      "description": "Named prefix-list filter (CIDR + ge/le + accept/reject)"
+    },
+    {
+      "name": "bgp-filter-remove-private-as",
+      "description": "Named AS-path action filter that removes RFC 6996 Private Use ASNs"
+    },
+    {
+      "name": "bgp-gr",
+      "description": "Graceful Restart capability and mechanism plugin"
+    },
+    {
+      "name": "bgp-healthcheck",
+      "description": "Service healthcheck plugin with watchdog route control"
+    },
+    {
+      "name": "bgp-hostname",
+      "description": "FQDN capability decoding"
+    },
+    {
+      "name": "bgp-llnh",
+      "description": "Link-Local Next-Hop capability plugin"
+    },
+    {
+      "name": "bgp-ls-export",
+      "description": "Export native routing databases through BGP-LS"
+    },
+    {
+      "name": "bgp-nlri-evpn",
+      "description": "EVPN family plugin",
+      "families": [
+        "l2vpn/evpn"
+      ]
+    },
+    {
+      "name": "bgp-nlri-flowspec",
+      "description": "FlowSpec NLRI encoding/decoding",
+      "families": [
+        "ipv4/flow",
+        "ipv6/flow",
+        "ipv4/flow-vpn",
+        "ipv6/flow-vpn"
+      ]
+    },
+    {
+      "name": "bgp-nlri-labeled",
+      "description": "Labeled Unicast family plugin (RFC 8277)",
+      "families": [
+        "ipv4/mpls-label",
+        "ipv6/mpls-label"
+      ]
+    },
+    {
+      "name": "bgp-nlri-ls",
+      "description": "BGP-LS family plugin",
+      "families": [
+        "bgp-ls/bgp-ls",
+        "bgp-ls/bgp-ls-vpn"
+      ]
+    },
+    {
+      "name": "bgp-nlri-mup",
+      "description": "Mobile User Plane family plugin (draft-ietf-bess-mup-safi)",
+      "families": [
+        "ipv4/mup",
+        "ipv6/mup"
+      ]
+    },
+    {
+      "name": "bgp-nlri-mvpn",
+      "description": "Multicast VPN family plugin (RFC 6514)",
+      "families": [
+        "ipv4/mvpn",
+        "ipv6/mvpn"
+      ]
+    },
+    {
+      "name": "bgp-nlri-rtc",
+      "description": "Route Target Constraint family plugin (RFC 4684)",
+      "families": [
+        "ipv4/rtc"
+      ]
+    },
+    {
+      "name": "bgp-nlri-srpolicy",
+      "description": "SR-Policy family plugin (RFC 9830, SAFI 73)",
+      "families": [
+        "ipv4/sr-policy",
+        "ipv6/sr-policy"
+      ]
+    },
+    {
+      "name": "bgp-nlri-vpls",
+      "description": "VPLS family plugin (RFC 4761)",
+      "families": [
+        "l2vpn/vpls"
+      ]
+    },
+    {
+      "name": "bgp-nlri-vpn",
+      "description": "VPN family plugin",
+      "families": [
+        "ipv4/mpls-vpn",
+        "ipv6/mpls-vpn"
+      ]
+    },
+    {
+      "name": "bgp-rib",
+      "description": "Route Information Base storage"
+    },
+    {
+      "name": "bgp-role",
+      "description": "RFC 9234 BGP Role capability"
+    },
+    {
+      "name": "bgp-route-refresh",
+      "description": "Route Refresh capability decoding"
+    },
+    {
+      "name": "bgp-rpki",
+      "description": "RPKI origin validation via RTR protocol"
+    },
+    {
+      "name": "bgp-rpki-decorator",
+      "description": "Correlates UPDATE + RPKI events into merged update-rpki events"
+    },
+    {
+      "name": "bgp-rr",
+      "description": "Route Reflector"
+    },
+    {
+      "name": "bgp-rs",
+      "description": "Route Server"
+    },
+    {
+      "name": "bgp-softver",
+      "description": "Software Version capability (code 75)"
+    },
+    {
+      "name": "bgp-watchdog",
+      "description": "Watchdog route management plugin"
+    },
+    {
+      "name": "connected",
+      "description": "Connected routes: redistribute directly connected interface prefixes"
+    },
+    {
+      "name": "copp",
+      "description": "Control-plane policing: rate-limit new TCP connections to BGP listen port"
+    },
+    {
+      "name": "cos",
+      "description": "802.1p class-of-service profile definitions"
+    },
+    {
+      "name": "crashes",
+      "description": "Crash capture: kernel crash record harvest at daemon start, crash reports"
+    },
+    {
+      "name": "ddos-detect",
+      "description": "Automatic DDoS attack detector with two-stage detection"
+    },
+    {
+      "name": "ddos-fake",
+      "description": "Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)"
+    },
+    {
+      "name": "ddos-flowspec",
+      "description": "DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear"
+    },
+    {
+      "name": "ddos-flowtriq",
+      "description": "DDoS incident reporter for Flowtriq cloud API"
+    },
+    {
+      "name": "ddos-local",
+      "description": "DDoS local responder: on-host nft drop on attack detection"
+    },
+    {
+      "name": "ddos-observe",
+      "description": "DDoS observability: incident store and show ddos status/incidents CLI"
+    },
+    {
+      "name": "dhcpserver",
+      "description": "DHCP server: address assignment for LAN clients (RFC 2131)"
+    },
+    {
+      "name": "exabgp-bridge",
+      "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)"
+    },
+    {
+      "name": "fakeas112",
+      "description": "Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)"
+    },
+    {
+      "name": "fakedrain",
+      "description": "Test-only drain responder for the stop drain functional tests (use ze.fakedrain)"
+    },
+    {
+      "name": "fakeenrich",
+      "description": "Test-only in-process enricher (harmless when not invoked)"
+    },
+    {
+      "name": "fakefib",
+      "description": "Test-only sysrib event emitter for FIB functional tests (use ze.fakefib)"
+    },
+    {
+      "name": "fakel2tp",
+      "description": "Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)"
+    },
+    {
+      "name": "fakeredist",
+      "description": "Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked)"
+    },
+    {
+      "name": "fib-kernel",
+      "description": "FIB kernel: programs OS routes from system RIB via netlink/route socket"
+    },
+    {
+      "name": "fib-p4",
+      "description": "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime"
+    },
+    {
+      "name": "fib-vpp",
+      "description": "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API"
+    },
+    {
+      "name": "firewall",
+      "description": "Packet filter and NAT rules (nftables on Linux)"
+    },
+    {
+      "name": "firewall-domain",
+      "description": "DNS-sourced address groups for firewall rules"
+    },
+    {
+      "name": "firewall-irr",
+      "description": "IRR-based prefix-list filtering for firewall rules"
+    },
+    {
+      "name": "flow-export",
+      "description": "sFlow, NetFlow v9, and IPFIX counter export"
+    },
+    {
+      "name": "flowspec-firewall",
+      "description": "Translates BGP FlowSpec routes into nftables firewall rules"
+    },
+    {
+      "name": "geodns",
+      "description": "GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)"
+    },
+    {
+      "name": "iface-dhcp",
+      "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal"
+    },
+    {
+      "name": "iface-ra",
+      "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)"
+    },
+    {
+      "name": "ike",
+      "description": "IKEv2 engine for native IPsec VPN"
+    },
+    {
+      "name": "imageserver",
+      "description": "Image server: HTTP provisioning for disk images and boot files"
+    },
+    {
+      "name": "interface",
+      "description": "OS network interface monitoring and management"
+    },
+    {
+      "name": "isis",
+      "description": "Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP"
+    },
+    {
+      "name": "kernel",
+      "description": "Kernel routes: redistribute externally-installed kernel routes into BGP"
+    },
+    {
+      "name": "l2tp-auth-local",
+      "description": "Static local user list for L2TP PPP authentication"
+    },
+    {
+      "name": "l2tp-auth-radius",
+      "description": "RADIUS authentication and accounting for L2TP PPP sessions"
+    },
+    {
+      "name": "l2tp-pool",
+      "description": "IPv4 address and IPv6 prefix pool for L2TP PPP sessions"
+    },
+    {
+      "name": "l2tp-shaper",
+      "description": "Traffic shaping for L2TP subscriber sessions"
+    },
+    {
+      "name": "ldp",
+      "description": "Label Distribution Protocol (RFC 5036): MPLS label distribution"
+    },
+    {
+      "name": "loop",
+      "description": "Route loop detection (RFC 4271 S9, RFC 4456 S8)"
+    },
+    {
+      "name": "memlock",
+      "description": "Memory lock: keep the running executable resident under memory pressure"
+    },
+    {
+      "name": "mrt",
+      "description": "MRT routing information export (RFC 6396)"
+    },
+    {
+      "name": "ntp",
+      "description": "NTP client: system clock synchronization"
+    },
+    {
+      "name": "ospf",
+      "description": "Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP"
+    },
+    {
+      "name": "policy-routes",
+      "description": "Policy-based routing: nftables packet marking and ip rule table selection"
+    },
+    {
+      "name": "redistribute-orchestrator",
+      "description": "Redistribute orchestrator: dispatches protocol route events to registered consumers"
+    },
+    {
+      "name": "rib",
+      "description": "System RIB: selects best route across protocols by admin distance"
+    },
+    {
+      "name": "routing-table",
+      "description": "Named routing table registry: maps names to kernel table IDs"
+    },
+    {
+      "name": "rsvp-te",
+      "description": "RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)"
+    },
+    {
+      "name": "static",
+      "description": "Static routes: config-driven kernel/VPP route programming with ECMP"
+    },
+    {
+      "name": "sysctl",
+      "description": "Kernel tunable management: three-layer precedence, restore on stop"
+    },
+    {
+      "name": "tftpserver",
+      "description": "TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)"
+    },
+    {
+      "name": "traffic",
+      "description": "Traffic control (tc) qdisc, class, and filter management"
+    },
+    {
+      "name": "traffic-usage",
+      "description": "eBPF TCX per-port and per-IP byte accounting"
+    },
+    {
+      "name": "vpp",
+      "description": "VPP data plane lifecycle management"
+    },
+    {
+      "name": "vrrp",
+      "description": "Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy"
+    }
+  ],
+  "families": [
+    "bgp-ls/bgp-ls",
+    "bgp-ls/bgp-ls-vpn",
+    "ipv4/flow",
+    "ipv4/flow-vpn",
+    "ipv4/mpls-label",
+    "ipv4/mpls-vpn",
+    "ipv4/mup",
+    "ipv4/mvpn",
+    "ipv4/rtc",
+    "ipv4/sr-policy",
+    "ipv6/flow",
+    "ipv6/flow-vpn",
+    "ipv6/mpls-label",
+    "ipv6/mpls-vpn",
+    "ipv6/mup",
+    "ipv6/mvpn",
+    "ipv6/sr-policy",
+    "l2vpn/evpn",
+    "l2vpn/vpls"
+  ],
+  "services": [
+    {
+      "name": "api-server",
+      "leaves": [
+        "token"
+      ]
+    },
+    {
+      "name": "api-server",
+      "leaves": [
+        "grpc"
+      ]
+    },
+    {
+      "name": "api-server",
+      "leaves": [
+        "rest"
+      ]
+    },
+    {
+      "name": "bgp",
+      "leaves": [
+        "announce-delay",
+        "openwait"
+      ]
+    },
+    {
+      "name": "bmp",
+      "leaves": [
+        "enabled",
+        "max-sessions",
+        "route-action",
+        "server"
+      ]
+    },
+    {
+      "name": "chaos",
+      "leaves": [
+        "rate",
+        "seed"
+      ]
+    },
+    {
+      "name": "cli",
+      "leaves": [
+        "format",
+        "transcript"
+      ]
+    },
+    {
+      "name": "daemon",
+      "leaves": [
+        "pid",
+        "user"
+      ]
+    },
+    {
+      "name": "exabgp",
+      "leaves": [
+        "api"
+      ]
+    },
+    {
+      "name": "gnmi",
+      "leaves": [
+        "enabled",
+        "server",
+        "tls",
+        "token"
+      ]
+    },
+    {
+      "name": "l2tp",
+      "leaves": [
+        "server"
+      ]
+    },
+    {
+      "name": "log",
+      "leaves": [
+        "backend",
+        "color",
+        "destination",
+        "level",
+        "relay"
+      ]
+    },
+    {
+      "name": "looking-glass",
+      "leaves": [
+        "certificate",
+        "enabled",
+        "server",
+        "tls",
+        "token"
+      ]
+    },
+    {
+      "name": "mcp",
+      "leaves": [
+        "auth-mode",
+        "bind-remote",
+        "enabled",
+        "identity",
+        "oauth",
+        "server",
+        "tls",
+        "token"
+      ]
+    },
+    {
+      "name": "mtu",
+      "leaves": [
+        "reference-address"
+      ]
+    },
+    {
+      "name": "ntp",
+      "leaves": [
+        "enabled",
+        "interval",
+        "max-step",
+        "persist-path",
+        "server",
+        "slew-threshold"
+      ]
+    },
+    {
+      "name": "reactor",
+      "leaves": [
+        "cache-max",
+        "cache-ttl",
+        "forward-batch-limit",
+        "forward-pool-headroom",
+        "forward-pool-max-bytes",
+        "forward-queue-size",
+        "forward-teardown-grace",
+        "read-buffer-size",
+        "speed",
+        "update-groups",
+        "write-buffer-size"
+      ]
+    },
+    {
+      "name": "ssh",
+      "leaves": [
+        "enabled",
+        "host-certificate",
+        "host-key",
+        "idle-timeout",
+        "max-sessions",
+        "server"
+      ]
+    },
+    {
+      "name": "web",
+      "leaves": [
+        "certificate",
+        "enabled",
+        "insecure",
+        "server",
+        "ui-mode"
+      ]
+    }
+  ]
+}

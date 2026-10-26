@@ -1,0 +1,22 @@
+# Ze AI Reference
+# Generated from code -- always matches this binary.
+
+## Sections (use 'ze help ai <section>' for details)
+
+  cli       CLI subcommands: ze bgp, ze config, ze show, ze signal, ...
+  api       Daemon API: all RPC commands, update syntax, families, plugins
+  mcp       MCP tools: ze_execute, ze_reference, ze_announce, ze_withdraw
+  dispatch  Dispatch keys for daemon commands
+  all       Everything
+
+  101 plugins, 19 address families
+  153 YANG RPCs, 390 builtin RPCs
+  MCP tools: ze_execute, ze_reference (handcrafted) + per-group tools auto-generated from the YANG command registry
+
+## Quick Start
+
+  Daemon:  ze start --mcp 9718 config.conf
+  Or:      ze --mcp 9718 -
+  CLI:     ze cli
+  Show:    ze show <command>
+  Help:    ze help ai all

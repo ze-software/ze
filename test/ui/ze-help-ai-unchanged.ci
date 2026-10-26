@@ -2,7 +2,14 @@
 # accept-only: the registered native fixture runs the ze binary this run built,
 # under the full feature set, and compares `ze help ai`, `ze help ai all` and
 # `ze help ai --json` with their goldens byte for byte, services' env-var lines
-# included. The goldens are internal/test/fixture/testdata/ze-help-ai-*.golden.
+# included. The goldens are per platform,
+# internal/test/fixture/testdata/ze-help-ai-<form>-<GOOS>.golden, because ze
+# links three linux-only plugins (iface-dhcp, iface-ra, memlock), so Linux
+# lists three plugins darwin does not. A platform with no golden fails and
+# names the file. To capture one, run `ze help ai`, `ze help ai all` and
+# `ze help ai --json` from the ze this run built (runner.TestBuildTags) on that
+# platform into the three files; a new or changed golden is judged by an
+# independent ze-test-judge agent before it is committed.
 #
 # VALIDATES: spec-le-cli-usability AC-41, through the product binary and its
 # real composition root.
