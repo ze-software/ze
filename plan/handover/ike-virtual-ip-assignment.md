@@ -193,3 +193,63 @@ row `{"", "::ffff:10.0.0.0/120"}` in `TestNewPoolRefusesUnrepresentable`.
 After these edits `./le test weakened check` flags no unit in `internal/core/eap`,
 `ike/engine` or `ike/ipsec/{config,types,validate}`; its remaining rows are other
 sessions' files.
+
+## Third agent, 2026-10-26: consumer written, NOT committed (blocked on ts_narrow.go)
+
+Committed: `0c1933069a` (YANG `remote-access`, `pool`, `range`, `range6`, `dns`,
+`virtual-ip-pool` descriptions reworded to what HEAD does: no address assigned). The full
+wording is in the `14d83a90bd` blob of `ze-ipsec-conf.yang` and returns in the commit that
+lands the consumer, by `hunks` (the esp-fixed ESP-group hunks in that file are foreign).
+
+### The one missing edit (blocked)
+
+The supervisor froze `internal/component/ike/engine/ts_narrow.go` while another agent fixes
+an ebae55f243 regression there. Once that lands, insert in `narrowChildSelectors`, right
+after `proposedI, proposedR = substituteResponderSelectors(sa, proposedI, proposedR)`:
+a call `proposedI, err := substituteVirtualIP(sa, proposedI)` returning `err` on failure
+(rename if `err` is declared later in the function), with the comment
+`// RFC 3948 Section 5.1: the lease replaces the peer's proposed inner selector (cp.go).`
+Without it the three selector tests are red, and that red is the recorded discrimination
+evidence (job log `tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch/job-unit-pkg-49f4cd79.log`):
+`TestRemoteSelectorIsLease` "answered TSi [0 0 0 0]-[255 255 255 255], want the lease
+10.10.0.1"; `TestTwoPeersSameRequestedAddressDistinctLeases` "both Child SAs name remote
+inner source 0.0.0.0" (the Section 5.1 hazard itself); `TestCreateChildUsesLease` "second
+Child SA names 10.1.2.3/32, want the lease 10.10.0.1". All other new tests GREEN in that run,
+and `TestRFC7296ResponderAnswersAVersionRequestWithNoCP` and `TestZeDeclinesApplicationVersion`
+stay green (an unbound peer still gets no CP).
+
+Do NOT commit the consumer before this edit: CFG_REPLY would hand out an address while the
+selectors stay wildcard.
+
+### Uncommitted files of this agent
+
+| File | Content |
+|------|---------|
+| `ike/engine/cp.go` (new) | `decideCPRequest` and the `cpHandlers` table, `assignVirtualIP`, `releaseVirtualIP`, `moveVirtualIP`, `substituteVirtualIP`, `buildCFGReply`, `supportedAttributes`, `(*SA).VirtualIPs` |
+| `ike/engine/cp_test.go` (new) | 15 tests: AC-1,2,3,4,5,7,7b,9,10,11,12,13,14,15,16,21,23,24,25,26,29 (IKE_AUTH), 32 (helper); tagged pair `RFC3948-5.1-1` (`TestTwoPeersSameRequestedAddressDistinctLeases` positive, `TestNoChildSAWithoutLeaseOnBoundPeer` negative) |
+| `ike/engine/sa.go` | fields `cpRequest`, `eapTSi`/`eapTSr`, `virtualIP`; `forgetKeys` calls `releaseVirtualIP` |
+| `ike/engine/responder.go` (esp-fixed `lookupESPIntegrity` hunk is foreign: `hunks`) | CP collect case, `decideCPRequest` after `decideResponderTransportMode`, `selectAuthChildSA(sa, vip, ...)` grants before narrowing, EAP re-narrow from stored TS, CFG_REPLY first in the Child half |
+| `ike/engine/responder_eap.go` | bound peer: TS stored, no pre-auth narrowing; the final IKE_AUTH collects CP when the first had none (AC-22) |
+| `ike/engine/established.go` | `moveVirtualIP(oldSA, sa)` before `oldSA.forgetKeys()` at the IKE rekey swap |
+| `ike/engine/notify_error.go` | `errCPRequired` to FAILED_CP_REQUIRED, `errNoAddressAssigned` to INTERNAL_ADDRESS_FAILURE |
+| `ike/engine/transport_mode.go` | a pool-bound peer declines transport mode |
+| `ike/cmd/show_ipsec.go`, `show_ipsec_virtual_ip_test.go` (new) | `virtual-ip` key (list of strings), `virtualIPText` |
+| `docs/guide/ipsec.md` (esp-fixed hunks: build the patch from HEAD plus these two edits only) | feature-table row and the remote-access paragraph rewritten to the new behavior |
+
+### Left, per AC
+
+| AC / item | State |
+|-----------|-------|
+| AC-5, 7, 7b | written, red until the ts_narrow.go insertion |
+| AC-6, 22 (EAP flow) | code written; no `cp_eap_test.go` yet (`TestCFGReplyInEAPFinalResponse`); model it on `TestResponderEAPSessionWired` in `rfc7296_responder_test.go` |
+| AC-26 | unit green; the `finishResponderEstablish` supersede path not driven |
+| AC-32 | only `moveVirtualIP` and the swap site; no test through `established.go` in both directions; the pendingIKESwap promotion path not verified to pass that swap |
+| AC-29 INFORMATIONAL | not done (`handleInformationalOwned`) |
+| AC-28 doctor, metrics gauge | not done; doctor checks read the config tree only, so the 90% check needs engine runtime state (no seam exists yet) |
+| AC-33 | `virtual-ip` key and a unit for the empty case; no test of a leased SA through `saToMap` (unexported field, package cmd) |
+| AC-31 `.ci` | the six `test/parse/ipsec-virtual-ip-pool-*.ci` still unrun |
+| RFC | `rfc/short/rfc3948.md` gap row and the "Support remaining" line still `{gap}`; turn into a plain tagged row once green, then `./le rfc record id RFC3948-5.1-1 polarity ... unit ... route ...` (the verb was renamed from `discriminate-record`); the 7296 rows (2.19 CP-before-SA, multi-AUTH, no reply without request, FAILED_CP_REQUIRED; 3.15.1 netmask, ignore unknown; 3.15.4) are not added; the `RFC7296-2.20-1` positive prose in `rfc7296_cp_test.go` ("Ze constructs no Configuration payload in any message") goes stale and owes a reword plus a record |
+| Interop | `virtual-ip-assignment`, `virtual-ip-uniqueness` not written, A-3 not probed |
+| Docs | `ipsec-14-responder.md`, `rfcgate-1b-rfc7296-pilot.md`, `ipsec-3-data-model.md`, `config-reference.md`, `ipsec-10-cli-diag.md`, `rfc-status.md` not updated |
+| Journal | `unwired-feature.md` 2026-08-16 row: mark fixed when the consumer commits |
+| Lint | scoped lint on `./internal/component/ike/...` not run; the edit hook flagged only the foreign `esp_fixed_test.go` |
