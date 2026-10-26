@@ -23,7 +23,7 @@ customer's recursive query. Today Ze answers DNS only as an authority (the
 `as112` and `geodns` plugins over `internal/core/dnsserver`, which clears RA on
 every reply by design), and resolves names only for itself (the stub in
 `internal/component/resolve/dns`). The owner decision of 2026-10-25 recorded in
-`plan/release/delivery/spec-rfc-priority-tree.md` reports this gap at 0% until
+`plan/learned/036-rfc-priority-tree.md` reports this gap at 0% until
 he decides on it.
 
 Goal: Ze serves customer LANs (subscriber sessions over L2TP and PPPoE, and

@@ -8,7 +8,7 @@
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-10-26 |
 
@@ -520,3 +520,229 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `{updated-by: <ID>; why}` row marker and its gate (`parseUpdatedBy`, `summary.go`; `checkUpdatedBy`, `check_core.go`), `1facce9b44`; the 13 rfc4271 rows RFC 7606 rewrites marked, `fb3027cc78`
+- Phase 1, `63e2527014`: 36 files under `rfc/profiles/` (8 use-case profiles, 28 aggregates; `LoadProfiles`, `parseUseCase`, `parseAggregate`, `profile.go`), the `Support | <aggregate>` migration of 204 summaries (`readSupport`, `checkAggregate`, `meta.go`), `statusSections` and the rank deleted (`placeRows`, `render_ledger.go`), the coverage function (`figuresByStem`, `rowCounts`, `rollupOf`, `absentFigures`, `profilecoverage.go`; `DiscriminationVerdict.Proven`)
+- Phase 2, `b856eab862`: `internal/le/rfc/graph/` (`Parse`, `Build`, Tarjan components and levels, `Load`), `rfc/graph.tsv` written by `IndexUpdate` and registered derived, `checkHeaderLinks` (`check_headerlinks.go`), `checkUpdatedBy` reads the graph, 24 Meta corrections plus two false `Updated by` links
+- Phase 3, `5fa536d6c8`: `./le rfc tree [profile <name>]` and `./le rfc next [profile <name>]` (`priority.go`, `tree.go`, `next.go`, rows in `actions.go`), status page ordered by aggregate, level, RFC number; exports `ProfileClosures`, `RequirementStems`, `LoadRequirementStems`, `ParseProfiles`
+- Phase 4, `e501498e97`: `rfc.PriorityOf` (`priority_export.go`); the ledger JSON gains `graph` and `profiles` (`requirementLedgerFrom`, `site/rfcledger.go`); the `rfc-profiles` producer (`site/rfcprofiles.go`) writes `/quality/rfc-compliance/profiles/`; the compliance index gains "Coverage by profile"
+- Phase 5, `a827743309`, `9cbe58696c`, `533911c336`: `RFC gaps` Meta field (`rfcGaps`, `specstatus.go`), the refusal in the spec validation hook (`validateSpecRFCGaps`, `hookruntime/lifecycle.go`; `specstatus.ResolveRFCGaps`, `UnknownRFCGap`), the roadmap Profiles column read from the revision's own objects (`roadmap/profiles.go`, `rfcBlobs`, `place`) through `readRoadmapCorpus` (`rfc/roadmapcorpus.go`), registered from `internal/le/rfc`'s `init()` since `ade21d03dd`
+- Review fixes `fbacefddd2`, `1291a363fe`, `429a0f43df`; journal `c313c56576`; verification-red fixes `69263c68ac` (goconst, `rfcProfileMandatoryLabel`), `ade21d03dd` (separate `rfccorpus` package folded into `internal/le/rfc`)
+- AC-15's site run was unblocked by `f6485842b7` (owner-requested: a demo with no recording publishes its page with a notice, `(*demoCatalog).expand`, `renderUnrecordedDemoHTML`, `internal/le/site/demo.go`)
+
+### Bugs Found/Fixed
+- An absent stem the closure also reached through its text counted twice (round 1, I1): one state per stem, `rollupOf`, `absentStemSet`; `TestAbsentRFCTheClosureReachesHoldsOneState`
+- An annotated row could be counted proven (round 1, I4): only a verified `{single-polarity}` record proves an annotated row (`rowCounts`); the branch's test came in round 2 (`TestCoverageMandatoryOptional`, RFC1-1-9 and RFC1-1-10, red recorded in `429a0f43df`)
+- `ProvenShareOf` credits a `{single-polarity}` row from its annotation alone: not this spec's producer; journal row 2026-10-26 in `plan/journal/reference-checked-claim-unchecked.md`, owned by `spec-rfc-clause-scoped-proof`
+- A deleted package widens `./le verify changed` to every package: journal row in `plan/journal/gate-fires-outside-its-population.md` (`04dbfa9038`), owned by `spec-gates-share-one-semantic-population`
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md`: "Profiles and aggregates", "Coverage figures", "The dependency graph", "The updated-by marker", "The priority tree", artifacts table (Phases 1-4, round 1)
+- `docs/contributing/gh-pages.md` "Quality pages" (Phase 4), `docs/contributing/spec-workflow.md` metadata row and Profiles column (Phase 5, `ade21d03dd` anchor `internal/le/rfc/roadmapcorpus.go -- readRoadmapCorpus`)
+- `docs/architecture/core-design.md` (six RFC artifacts), `docs/contributing/rfc-implementation-guide.md` (`| Support | <aggregate> |`), `ai/skills/ze-rfc.md` (step 6b, "Choosing which RFC to work on"), `rfc/README.md`, `ai/INDEX.md`, `plan/README.md`, `plan/templates/TEMPLATE.md` (`RFC gaps` row)
+- `./le doc check all` was not rerun at closure: commit A carries only Markdown under `plan/`, and the doc commits each passed their own commit gate
+
+### Deviations from Plan
+- `rfc/graph.tsv` is derived and gitignored, not committed: `8ae7424594` retired the committed ledgers before Phase 2, so the Deliverables row "`./le rfc update` produces no diff" has no committed file to diff; `./le rfc check` parses the texts itself (`graph.Load`), so no gate reads a stale copy
+- `docs/features/rfc-status.md` is derived on demand and never committed (`8ae7424594`)
+- `checkHeaderLinks` judges `Updates` and `Obsoletes` exactly, `Updated by` for false links only, and does not judge `Obsoleted by` (it carries the `{superseded}` successor); Design Insights, Phase 2
+- AC-16's "refused by the spec parser" lands in the spec validation hook, the one place a spec edit is refused; `parseMetadata` warns
+- The roadmap corpus reader lived first in `internal/le/spec/roadmap/rfccorpus`; a package that registers no command breaks `internal/le/group_test.go` and the bootstraps check, so `ade21d03dd` folded it into `internal/le/rfc`
+- `LoadProfileClosures` was exported in Phase 3 and deleted with no caller (`1291a363fe`)
+- AC-15's site build ran from a detached HEAD checkout, because the working tree carries another session's untracked `internal/component/bgp/reactor/delay_open_regression_test.go`, whose test import cycle stops the rfc-compliance producer
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The roadmap reader was a package of its own (`rfccorpus`) to keep `roadmap` free of `internal/le/rfc` | a package under `internal/le` that registers no command breaks `group_test.go` and the bootstraps check | `./le verify changed` at `0a4a411ab3` red | folded into `internal/le/rfc` (`ade21d03dd`) |
+| approach | Deleting that package made the scoped verify select every package | `selector.go` `dirExists` widens on a deleted directory | the next `./le verify changed` | journal row `04dbfa9038`, owned by `spec-gates-share-one-semantic-population` |
+| approach | Phase 4 tests were written after the producer | they had no red phase at write time | phase handover | the round-2 branch test recorded its red (`429a0f43df`); the producer tests stand on review |
+| approach | Phase lint was owed and not run while other sessions edited sources | a goconst finding reached `./le verify changed` | verify at `0a4a411ab3` | fixed in `69263c68ac` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Dependency DAG of the corpus | Done | `internal/le/rfc/graph/graph.go` `Build`, `Load` | edges from texts only |
+| Profiles over the DAG | Done | `internal/le/rfc/profile.go` `LoadProfiles`; `priority_export.go` `ProfileClosures` | 8 use cases, 28 aggregates |
+| Mandatory and optional figure per RFC and profile | Done | `internal/le/rfc/profilecoverage.go` `figuresByStem`, `rollupOf` | `gatedLevels` is mandatory |
+| Command naming the next gap | Done | `internal/le/rfc/next.go` | `./le rfc next` |
+| Website pages per use case and aggregate | Done | `internal/le/site/rfcprofiles.go` | 36 pages plus index in `../gh-pages` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGraphRedirectsObsoleted`, `TestIndexUpdateWritesGraph` | |
+| AC-2 | Done | `TestNormativeReferenceParse`, `TestHeaderLinksParse` | |
+| AC-3 | Done | `TestGraphCycleSharesLevel` | |
+| AC-4 | Done | `TestSupportNamesAggregate` | |
+| AC-5 | Done | `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater` | against the graph's header edges |
+| AC-6 | Done | `TestStatusPageRowSetUnchanged`, `TestStatusPageOrdersByLevel` | |
+| AC-7 | Done | `TestCoverageMandatoryOptional` | |
+| AC-8 | Done | `TestCoverageMandatoryOptional`, `TestRollupNeverCompleteWithAbsentOrUnwalked` | |
+| AC-9 | Done | `TestProfileUnknownRootRefused` | |
+| AC-10 | Done | `TestNextActionNamesLowestUncoveredLevel` | |
+| AC-11 | Done | `TestNextActionNamesLowestUncoveredLevel`; `./le rfc next` over the corpus | |
+| AC-12 | Done | `TestNextActionNamesLowestUncoveredLevel` ("mandatory is complete") | |
+| AC-13 | Done | `TestTreeActionRendersLevelsAndFigures` | JSON rows |
+| AC-14 | Done | `TestCheckRefusesMetaLinkHeaderMismatch`, `TestCorpusMetaLinksMatchHeaders` | |
+| AC-15 | Done | `TestRFCProfilePagesRendered`; `./le site build` and `./le site check` rc=0 | see Pre-Commit Verification |
+| AC-16 | Done | `TestRoadmapProfilesColumnFromRFCGaps`, `TestRoadmapProfilesOverRealCorpus`, `TestValidateSpecRefusesUnknownRFCGap` | |
+| AC-17 | Done | `TestCorpusProfilesParse`; Release cells of the 8 profiles | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNormativeReferenceParse`, `TestHeaderLinksParse` | Done | `internal/le/rfc/graph/parse_test.go` | |
+| `TestEveryCorpusTextYieldsReferences` | Done | `internal/le/rfc/graph/corpus_test.go` | |
+| `TestGraphRedirectsObsoleted`, `TestGraphCycleSharesLevel` | Done | `internal/le/rfc/graph/graph_test.go` | |
+| `TestIndexUpdateWritesGraph` | Done | `internal/le/rfc/write_test.go` | |
+| `TestSupportNamesAggregate` | Done | `internal/le/rfc/meta_test.go` | |
+| `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater` and the four marker tests | Done | `internal/le/rfc/updatedby_test.go` | |
+| `TestCheckRefusesMetaLinkHeaderMismatch` | Changed | `internal/le/rfc/check_headerlinks_test.go` | planned in `check_test.go` |
+| `TestStatusPageRowSetUnchanged` | Done | `internal/le/rfc/render_ledger_test.go` | |
+| `TestCoverageMandatoryOptional` | Done | `internal/le/rfc/profilecoverage_test.go` | |
+| `TestProfileUnknownRootRefused`, `TestCorpusProfilesParse` | Done | `internal/le/rfc/profile_test.go` | |
+| `TestNextActionNamesLowestUncoveredLevel` | Done | `internal/le/rfc/next_test.go` | |
+| `TestTreeActionRendersLevelsAndFigures` | Done | `internal/le/rfc/tree_test.go` | |
+| `TestRFCProfilePagesRendered` | Done | `internal/le/site/rfcprofiles_test.go` | |
+| `TestRoadmapProfilesColumnFromRFCGaps`, `TestRoadmapProfilesUnjudgedCorpus` | Done | `internal/le/rfc/roadmapcorpus_test.go` | |
+| `TestRoadmapProfilesOverRealCorpus` | Done | `internal/le/rfc/roadmapcorpus_real_test.go` | |
+| `TestValidateSpecRefusesUnknownRFCGap` | Done | `internal/le/hookruntime/runtime_test.go` | |
+| `TestRFCTreeOverRealCorpus` | Done | `internal/le/rfc/corpus_test.go` | about 6 minutes under `-race`; not rerun at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/rfc/graph/` | Done | parse.go, graph.go and tests |
+| `internal/le/rfc/profile.go`, `profilecoverage.go`, `tree.go`, `next.go` | Done | |
+| `internal/le/site/rfcprofiles.go` | Done | |
+| `rfc/profiles/<name>.md` | Done | 36 files |
+| `rfc/graph.tsv` | Changed | derived, gitignored (Deviations) |
+| Files to Modify list | Done | each named in What Was Implemented; `internal/le/site/build.go` and `internal/le/site/roadmap.go` needed no edit (the producer registers itself; `roadmap.Markdown` carries the column) |
+
+### Audit Summary
+- **Total items:** 5 requirements, 17 ACs, 20 test rows, 6 file rows
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (test file location, `rfc/graph.tsv` derived, build.go and site/roadmap.go untouched), recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A dependency DAG of the RFC corpus, derived from the texts | functional, real corpus | `TestEveryCorpusTextYieldsReferences` PASS over every text in `rfc/full/` and `rfc/drafts/` (job log `job-close-rfc-graph-e59836ec.log`); `TestCorpusMetaLinksMatchHeaders` holds every summary's Meta links to the headers |
+| Profiles over the DAG | functional, real corpus | `TestCorpusProfilesParse` over the 36 committed files; `./le rfc next` (2026-10-26) answers across the six release profiles: 190 RFCs, 39 not walked, 28 absent at 0% |
+| A mandatory and an optional figure per RFC and per profile | functional, real corpus | `./le rfc next`: mandatory 1399 of 3155 (44.3%), optional 67 of 1134 (5.9%) over the release profiles; `TestCoverageMandatoryOptional` asserts the denominator rule and the single-polarity branch with a recorded red (`429a0f43df`) |
+| A command that names the next gap | functional, user workflow | `./le rfc next` names the L0 citation cycle rfc791/rfc792, rfc791 with no summary and rfc792's five uncovered ids, each with the edge path that brings it in (log `close-rfc-next.log`) |
+| Website pages per use case and per aggregate at their percentages | functional, site pipeline | `./le site build` and `./le site check` rc=0 against `../gh-pages` (logs `site-head-build.log`, `site-head-check.log`: 23 producers, 1051 published = written); `../gh-pages/quality/rfc-compliance/profiles/` holds 36 profile pages, `index.html` and `index.md`; nothing committed or pushed there |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `{updated-by}` markers for every updater pair other than rfc4271/rfc7606 | the mechanism and the first set are this spec's; the other pairs are row-by-row reading of both texts per pair, ordered by what each release profile reaches | `plan/release/delivery/spec-rfc-updated-by-markers.md` |
+
+Not owned by this spec, named so they are not read as dropped: the fttx-edge
+features (NAT, LAN DNS resolver, DHCPv6 server, NTP) have specs
+(`plan/post-release/features/spec-nat44-customer-napt.md`,
+`spec-lan-dns-resolver.md`, `spec-dhcpv6-server.md`, `spec-ntp-server.md`)
+whose run is Thomas's decision; the completion budget test and the foreign
+deletion in `test/interop-ipsec/parity_test.go` (`./le test weakened check`
+names it among 19 findings, none in this spec's files) are other sessions'
+open items. The IKE virtual-IP pool named under R-7 is closed by
+`spec-ike-virtual-ip-assignment` (`0a4a411ab3`).
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-priority-tree-f3ae7c00-09af-4420-914f-39f2f7169980.md` |
+| `./le spec review check` | clean (run at closure, after the record) |
+| Rounds | 4 |
+| Reviewer lenses used | rounds 1-3: independent `ze-review` over the phase commits (logic, wiring, docs, test discrimination); round 4 (closure agent): the post-review commits `69263c68ac`, `ade21d03dd`, `f6485842b7` for import cycles, registration, HTML escaping and stale comments, plus `./le test weakened check base cad42da6e6` |
+
+Round 1: 0 BLOCKER, 7 ISSUE (6 fixed, 1 refuted). Round 2: 0 BLOCKER, 2 ISSUE
+(1 fixed, 1 stale). Round 3: clean. Round 4: clean.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | An absent stem the closure also reaches is counted as absent and as not walked | `profilecoverage.go` `rollupOf`, `tree.go`, `next.go` | `fbacefddd2` |
+| 2 | ISSUE | The `profile` value of `tree` and `next` had no completion | `actions.go` `profileCandidates` | `fbacefddd2` |
+| 3 | ISSUE | A stale verb in a not-walked hint | `next.go` | refuted: the rename was in flight and landed in `da69c61bdb`; `TestNotWalkedGapNamesARegisteredAction` added |
+| 4 | ISSUE | An annotated row could count proven | `profilecoverage.go` `rowCounts` | `fbacefddd2` |
+| 5 | ISSUE | The site cards restated the keyword lists | `rfc.go` `MandatoryKeywords`, `OptionalKeywords`; site `rfcKeywordSeries` | `fbacefddd2` |
+| 6 | ISSUE | Profiles, graph and tree not discoverable from `ai/INDEX.md` and `rfc/README.md` | docs | `fbacefddd2` |
+| 7 | ISSUE | `LoadProfileClosures` exported with no caller | `priority_export.go` | `1291a363fe` |
+| 8 | ISSUE | `rowCounts`' single-polarity branch had no test | `profilecoverage_test.go` | `429a0f43df` |
+| 9 | ISSUE | `1291a363fe` named `./le test weakened check` in the gates page | `rfc-conformance-gates.md` | stale: `156f23abc2` registers that verb |
+
+Round 4 NOTEs: `roadmap/profiles.go` names its registrar by the relative path
+`../../rfc/register.go`; `./le test weakened check base cad42da6e6` reports 19
+weakened findings, all in other sessions' files (IKE, interoplab l2tp, site
+home and terminaldemo, qemu, interop parity tests).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/rfc/graph/` | Yes | `ls`: corpus_test.go graph.go graph_test.go parse.go parse_test.go |
+| `internal/le/rfc/profile.go`, `profilecoverage.go`, `tree.go`, `next.go` | Yes | `ls` 2026-10-26 |
+| `internal/le/site/rfcprofiles.go` | Yes | `ls` 2026-10-26 |
+| `rfc/profiles/*.md` | Yes | `ls rfc/profiles \| wc -l` = 36 |
+| `rfc/graph.tsv` | Yes | `ls` (derived, gitignored) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | graph parse, redirect, cycle level | `go test -v ./internal/le/rfc/graph` under `./le job run`: six PASS (`job-close-rfc-graph-e59836ec.log`) |
+| AC-4..AC-14, AC-16 | rfc package tests named above | `./le job run label close-rfc-tree`: `ok internal/le/rfc 3.495s` (`job-close-rfc-tree-0eb7ec27.log`) |
+| AC-4 | no `<section> <rank>` cell left | `grep -E '^\| Support \| [a-z-]+ [0-9]+ \|' rfc/short/*.md`: 0 files |
+| AC-15, AC-16 | site, hook and spec status tests | `./le job run label close-rfc-site`: `ok internal/le/site`, `ok internal/le/hookruntime`, `ok internal/le/spec/status` (`job-close-rfc-site-c15fa07e.log`) |
+| AC-15 | pages built and checked | `ls ../gh-pages/quality/rfc-compliance/profiles/ \| wc -l` = 38; `site-head-check.log` 1051 published = written, no `error` line |
+| AC-17 | release flags | `grep '^\| Release'`: yes for route-server, route-collector, looking-glass, lns, fttx-edge, vpn-endpoint; no for vpn-concentrator, ddos-flowspec |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc next` | none (Go tests over the real corpus, as planned) | run at closure: names rfc791/rfc792 across the six release profiles |
+| `./le site build` | none | `site-head-build.log`, 23 producers |
+| `./le spec roadmap` | none | `TestRoadmapProfilesOverRealCorpus` in the rfc package run |
+| spec validation hook | none | `TestValidateSpecRefusesUnknownRFCGap` in the hookruntime run |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestEveryCorpusTextYieldsReferences` PASS at closure |
+| A-2 | confirmed | `./le rfc next`: optional 67 of 1134 proven |
+| A-3 | confirmed | `TestCorpusMetaLinksMatchHeaders` in the rfc run |
+| A-4 | confirmed | `./le rfc next` names rfc791 and rfc792 as one gap |
+| A-5 | confirmed | the corpus test covers `rfc/drafts/` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `spec-workflow.md` reader anchor | `internal/le/rfc/roadmapcorpus.go` `readRoadmapCorpus` exists (`ade21d03dd`) | Yes |
+| `gh-pages.md` unrecorded demo paragraph | `internal/le/site/demo.go` `renderUnrecordedDemoHTML`, `warnUnrecorded` | Yes |
+| RFC status (checklist 9) | Support cells migrated; `docs/features/rfc-status.md` derived by `./le rfc update` | Yes |
+
+Not run, with cause: `./le rfc check` stops on the go vet import cycle of
+another session's untracked
+`internal/component/bgp/reactor/delay_open_regression_test.go`.
+`./le verify changed` is owed to Thomas: since `ade21d03dd` deleted a package
+it widens to every package (journal row `04dbfa9038`), which is a full run an
+agent may not start. The earlier `./le verify changed` at `0a4a411ab3` was red;
+this work's share was fixed (`69263c68ac`, `ade21d03dd`, `6abdb4db28`,
+`5c2a3d5ae9`) and the rest classified foreign or environment (index
+`tmp/ze-verify-failures.json`, logs under
+`tmp/verify-worktree-logs/20261026T110951.795722841Z-p2389815-r1-0a4a411ab33a/`).
