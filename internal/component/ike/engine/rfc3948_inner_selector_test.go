@@ -160,10 +160,13 @@ func TestInnerSelectorDisjointLocalSidesNoConflict(t *testing.T) {
 }
 
 // TestRFC3948ConfiguredOverlapNarrowedByPeerRefused: both peers are configured with the
-// remote prefix 10.0.0.0/8, and each narrows to 10.1.2.3/32. The narrowed remote half is
-// the peer's choice, not the operator's, so the second is refused (AC-4).
+// remote prefix 10.0.0.0/8 at the unset default policy-priority, and each narrows to
+// 10.1.2.3/32, so the second is refused (AC-4). Two clauses refuse it here: the narrowed
+// remote half is the peer's choice, not an operator-fixed selector, and two peers at one
+// priority are unordered. TestRFC3948NarrowedByPeerDistinctPriorityRefused runs the same
+// case at distinct priorities, so only the classification refuses it there.
 func TestRFC3948ConfiguredOverlapNarrowedByPeerRefused(t *testing.T) {
-	// RFC requirement: RFC3948-5.1-1 negative -- two tunnel peers each configured with remote prefix 10.0.0.0/8 that both narrow their proposal to 10.1.2.3/32: the second is answered TS_UNACCEPTABLE, because a narrowed remote half is the peer's choice and not an operator-fixed selector.
+	// RFC requirement: RFC3948-5.1-1 negative -- two tunnel peers each configured with remote prefix 10.0.0.0/8 at the unset default policy-priority that both narrow their proposal to 10.1.2.3/32: the second is answered TS_UNACCEPTABLE.
 	reg := newInnerSelectorRegistry()
 	wide := selectorPolicy(t, "10.0.0.0/8", "0.0.0.0/0", 0, 0)
 	mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7", wide), &mockDP{}, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
@@ -476,14 +479,12 @@ func TestInnerSelectorRefusalNamesBothPeersAndFix(t *testing.T) {
 	}
 }
 
-// TestInnerSelectorTransportModeNotRecorded: a transport-mode Child SA IS recorded, so a
-// tunnel another peer negotiates around its address can be refused (RFC 3948 Section
-// 5.1, AC-13), and two transport-mode Child SAs of two peers are not compared by the
-// registry: their overlap is the dataplane's (RFC 3948 Section 5.2, policyOwners.claim),
-// so the mock dataplane, which runs no such check, serves both. The name predates the
-// audit of 7d7658dae0, which found that not recording transport mode was the defect; a
-// rename is a deletion to the weakening gate and waits on a ze-test-judge verdict.
-func TestInnerSelectorTransportModeNotRecorded(t *testing.T) {
+// TestInnerSelectorTransportModeRecordedAndLeftToDataplane: a transport-mode Child SA IS
+// recorded, so a tunnel another peer negotiates around its address can be refused (RFC
+// 3948 Section 5.1, AC-13), and two transport-mode Child SAs of two peers are not
+// compared by the registry: their overlap is the dataplane's (RFC 3948 Section 5.2,
+// policyOwners.claim), so the mock dataplane, which runs no such check, serves both.
+func TestInnerSelectorTransportModeRecordedAndLeftToDataplane(t *testing.T) {
 	reg := newInnerSelectorRegistry()
 	mustInnerChild(t, transportPeerSA(t, reg, "b"), &mockDP{}, transportTSi, transportTSr)
 	if got := reg.holdings(); got != 1 {

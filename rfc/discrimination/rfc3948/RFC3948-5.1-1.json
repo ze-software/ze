@@ -70,11 +70,11 @@
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948ConfiguredOverlapNarrowedByPeerRefused",
     "unit-sha": "e81c598a90828317",
-    "claim-sha": "9852257eb93b89b6",
+    "claim-sha": "e71b4e64cee56a7e",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
-    "producer-sha": "28e15c7002924714",
-    "break": "line 125: \"return a.Net.String() == b.Net.String()\" -\u003e \"return true\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
+    "producer-sha": "8d2e18c5891a8c66",
+    "break": "line 594: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
   },
   {
     "rid": "RFC3948-5.1-1",

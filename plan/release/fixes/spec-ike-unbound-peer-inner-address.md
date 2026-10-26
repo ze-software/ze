@@ -275,7 +275,7 @@ strongSwan upstream master, commit `b8e275ca6230d42fc24edb2d9881e8eb4a1b0c8f`.
 | `TestRFC3948CreateChildSecondPeerSameInnerRefused` | same | AC-1 over CREATE_CHILD_SA (`respondNewChild`), notify TS_UNACCEPTABLE | |
 | `TestInnerSelectorRegistryEmptyAfterTeardown` | same | AC-11 over delete, rekey retire, IKE SA death, failed kernel install | |
 | `TestInnerSelectorRefusalNamesBothPeersAndFix` | same | AC-12 error text | |
-| `TestInnerSelectorTransportModeRecordedAndLeftToDataplane`, `TestRFC3948TunnelAroundTransportPeerRefused`, `TestRFC3948TunnelAroundTransportPeerInstallBackstop` (`rfc3948_inner_selector_transport_test.go`; replace `TestInnerSelectorTransportModeNotRecorded`, whose expectation was the defect) | same | AC-13 | records: `innerSelectorGuard.claim` transport skip restored, `bothTransport` answering true, both red |
+| `TestInnerSelectorTransportModeRecordedAndLeftToDataplane` (`rfc3948_inner_selector_test.go`; `TestInnerSelectorTransportModeNotRecorded` renamed in place, body unchanged, because its old name stated the defect), `TestRFC3948TunnelAroundTransportPeerRefused`, `TestRFC3948TunnelAroundTransportPeerInstallBackstop` (`rfc3948_inner_selector_transport_test.go`) | same | AC-13 | records: `innerSelectorGuard.claim` transport skip restored, `bothTransport` answering true, both red |
 | `TestRFC3948LeaseVersusUnboundPeerFirstComeWins` | same | AC-14 | |
 | `TestInnerSelectorInitiatorInstallRefusedInstallsNothing` | same | R-6 | |
 | `TestInnerSelectorOverlapSymmetric` | same | A-6 | |
