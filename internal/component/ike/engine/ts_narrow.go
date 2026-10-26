@@ -1055,8 +1055,9 @@ func pairSelectors(pairs []tsPair) (iSels, rSels []tsSelector) {
 //
 // RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one of
 // the individual selectors in TSi, and at least one of the individual selectors in TSr."
-// A packet carries one protocol, so a combination whose two protocols are disjoint
-// matches no packet and is left out.
+// A packet carries one protocol and one address family, so a combination whose two
+// protocols are disjoint, or that pairs an IPv4 selector with an IPv6 one, matches no
+// packet and is left out.
 func crossPairs(iSels, rSels []tsSelector) []tsPair {
 	out := make([]tsPair, 0, len(iSels)*len(rSels))
 	for _, i := range iSels {
@@ -1064,10 +1065,28 @@ func crossPairs(iSels, rSels []tsSelector) []tsPair {
 			if _, ok := intersectProto(i.Proto, r.Proto); !ok {
 				continue
 			}
+			if !sameFamily(i.Net, r.Net) {
+				continue
+			}
 			out = append(out, tsPair{I: i, R: r})
 		}
 	}
 	return out
+}
+
+// sameFamily reports whether two selector prefixes name one address family. Every
+// selector prefix is built with a 4-octet mask for IPv4 and a 16-octet mask for IPv6
+// (net.CIDRMask with 32 or 128 bits, net.ParseCIDR). A selector with no prefix is kept
+// beside every other, so programmableSelector refuses it rather than this filter dropping
+// it unseen.
+func sameFamily(a, b *net.IPNet) bool {
+	if a == nil {
+		return true
+	}
+	if b == nil {
+		return true
+	}
+	return len(a.Mask) == len(b.Mask)
 }
 
 // missingCombination returns the first combination of the distinct selectors of pairs

@@ -117,7 +117,11 @@ both, so the policy carries their intersection: TSi "any" with TSr TCP installs 
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
 selectors in TSi, and at least one of the individual selectors in TSr." So an answer
 TSi {A}, TSr {C, D} negotiates A-C and A-D, and Ze installs both (`answerPairs`,
-`crossPairs`); entry i is never paired with entry i alone. A payload pair can therefore
+`crossPairs`); entry i is never paired with entry i alone. A packet carries one protocol
+and one address family, so `crossPairs` leaves out a combination whose protocols are
+disjoint or that pairs an IPv4 selector with an IPv6 one: it matches no packet. A
+dual-stack list of one IPv4 entry and one IPv6 entry already holds every combination of
+its entries (`sameFamily`). A payload pair can therefore
 state only a selector set that is every combination of its own entries, and
 `pairsToWire` refuses any other set rather than offer or answer combinations the set
 does not hold. Three places follow from it. The responder walks every combination of

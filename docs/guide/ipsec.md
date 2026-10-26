@@ -1126,7 +1126,9 @@ A Child SA carries every combination of its local and remote selectors. RFC 7296
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
 selectors in TSi, and at least one of the individual selectors in TSr." So the list must
 name every combination of the local and remote selectors it uses, as the example above
-does with one local and two remote selectors. A list such as local 10.1.0.0/16 with remote
+does with one local and two remote selectors. A packet is either IPv4 or IPv6, so an IPv4
+selector is never combined with an IPv6 one: a dual-stack peer with one IPv4 entry and one
+IPv6 entry already names every combination. A list such as local 10.1.0.0/16 with remote
 10.2.0.0/16, then local 10.3.0.0/16 with remote 10.4.0.0/16, would be offered as
 10.1.0.0/16 with 10.4.0.0/16 as well, so `ze config verify` refuses it and names the
 missing combination. Add the missing entries, or remove the entry that brings in the

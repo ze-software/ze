@@ -213,3 +213,61 @@ func TestSelectorListThatIsNotEveryCombinationIsRefused(t *testing.T) {
 			len(tsi.TrafficSelectors), len(tsr.TrafficSelectors))
 	}
 }
+
+// TestMixedFamilyCombinationsMatchNoPacket checks that the every-combination reading
+// leaves out a pairing of an IPv4 selector with an IPv6 one.
+//
+// VALIDATES: a dual-stack list, one IPv4 entry and one IPv6 entry, is every combination a
+// packet can match: crossPairs yields the two same-family pairs only, verify accepts the
+// list, and an answer of TSi {v4, v6}, TSr {v4, v6} is recorded as the two pairs. A
+// same-family list that misses a combination is still refused.
+// PREVENTS: refusing every dual-stack peer at ze config verify because the IPv4 local
+// prefix and the IPv6 remote prefix were "never together", and refusing a dual-stack
+// answer because a v4-v6 pair has no dataplane form. A packet carries one address family,
+// so under RFC 7296 Section 3.13 such a pair matches nothing and offers no traffic.
+func TestMixedFamilyCombinationsMatchNoPacket(t *testing.T) {
+	const (
+		local4, remote4 = "192.168.0.0/16", "10.0.0.0/8"
+		local6, remote6 = "2001:db8:ffff::/48", "2001:db8::/32"
+	)
+	iSels := []tsSelector{anySel(t, local4), anySel(t, local6)}
+	rSels := []tsSelector{anySel(t, remote4), anySel(t, remote6)}
+
+	cross := crossPairs(iSels, rSels)
+	if len(cross) != 2 {
+		t.Fatalf("crossPairs yielded %d pairs, want the 2 same-family ones", len(cross))
+	}
+	if cross[0].I.Net.String() != local4 || cross[0].R.Net.String() != remote4 {
+		t.Errorf("first pair is %v <-> %v, want %s <-> %s", cross[0].I.Net, cross[0].R.Net, local4, remote4)
+	}
+	if cross[1].I.Net.String() != local6 || cross[1].R.Net.String() != remote6 {
+		t.Errorf("second pair is %v <-> %v, want %s <-> %s", cross[1].I.Net, cross[1].R.Net, local6, remote6)
+	}
+
+	dual := &ipsec.IPsecConfig{Peers: map[string]ipsec.SiteToSitePeer{"p": {Name: "p",
+		TrafficSelectors: []ipsec.TrafficSelectorPolicy{
+			comboPolicy(t, "1", local4, remote4),
+			comboPolicy(t, "2", local6, remote6),
+		}}}}
+	if err := validateSelectorCombinations(dual); err != nil {
+		t.Errorf("a dual-stack list of one IPv4 and one IPv6 entry was refused: %v", err)
+	}
+
+	pairs, err := answerPairs(iSels, rSels)
+	if err != nil {
+		t.Fatalf("a dual-stack answer was refused: %v", err)
+	}
+	if len(pairs) != 2 {
+		t.Errorf("a dual-stack answer recorded %d pairs, want 2", len(pairs))
+	}
+
+	split := &ipsec.IPsecConfig{Peers: map[string]ipsec.SiteToSitePeer{"p": {Name: "p",
+		TrafficSelectors: []ipsec.TrafficSelectorPolicy{
+			comboPolicy(t, "1", comboA, comboC),
+			comboPolicy(t, "2", comboB, comboD),
+			comboPolicy(t, "3", local6, remote6),
+		}}}}
+	if err := validateSelectorCombinations(split); !errors.Is(err, ipsec.ErrTrafficSelectorPolicy) {
+		t.Errorf("a list missing the IPv4 combinations A-D and B-C: got %v, want ErrTrafficSelectorPolicy", err)
+	}
+}
