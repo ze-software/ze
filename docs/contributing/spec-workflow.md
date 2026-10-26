@@ -210,9 +210,20 @@ review independence comes from a fresh reviewer context.
 
 The review gate then requires a CLEAN `./le spec review record` artifact
 that covers every reviewable file in the commit and whose hashes still match, so
-any edit after the review invalidates it. `review-override <reason>` is the only
-way past, and it writes a `Review-owed:` trailer that refuses the push until a
-clean review, a recorded Review Gate or the owner's attestation answers it.
+an edit to a reviewable file after the review invalidates it.
+`review-override <reason>` is the only way past, and it writes a `Review-owed:`
+trailer that refuses the push until a clean review, a recorded Review Gate or
+the owner's attestation answers it.
+
+A reviewable file is a Makefile or a file whose suffix names code, a test, a
+script, a schema or a template. `IsReviewCode` holds that one list, and both the
+recorder's check and the commit gate read it. Markdown is never reviewable, so
+the spec and the rest of `plan/` stay unpinned: fixing a review NOTE, filling the
+closure sections and adding the learned summary after the clean review leave the
+artifact valid, as a NOTE never re-opens a round. A pin a reviewer recorded for a
+Markdown file is read by neither check.
+<!-- source: internal/le/spec/review.go -- IsReviewCode -->
+<!-- source: internal/le/commit/review.go -- judgeReviewCoverage -->
 
 ## Which reference form each link gate reads
 

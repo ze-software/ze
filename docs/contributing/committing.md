@@ -160,7 +160,11 @@ A record replaces the artifact rather than adding to it
 code file the commit carries, not only the paths the refusal named: each hunks
 path with `hunks <path> <patch-file>` and every other one with `file <path>`.
 A path the record leaves out is unreviewed at the next `./le commit create`.
-<!-- source: internal/le/spec/review.go -- recordReview -->
+Which paths count as code is `IsReviewCode`'s answer, the one list both the
+recorder's check and this gate read. Markdown is never pinned, so a spec edited
+under `plan/` after the review neither needs a pin nor makes one stale
+(`docs/contributing/spec-workflow.md`, "What each closure gate reads").
+<!-- source: internal/le/spec/review.go -- recordReview, IsReviewCode -->
 <!-- source: internal/le/commit/review.go -- hunksReviewRefusal -->
 
 The refusal prints no command that pins anything by itself. A printed re-pin

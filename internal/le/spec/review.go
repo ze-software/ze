@@ -31,6 +31,8 @@ var (
 	reviewFilePattern   = regexp.MustCompile(`^\s{2}([0-9a-f]{64}|DELETED)\s+(.+)$`)
 )
 
+// reviewCodeSuffixes is the one list of what a review pins, read only through
+// IsReviewCode.
 var reviewCodeSuffixes = [...]string{".go", ".ci", ".et", ".py", ".sh", ".yang", ".wb", ".mk", ".tmpl", ".html", ".c", ".rs", ".s", ".rego", ".tac"}
 
 // reviewRecord selects the evidence recorded for one independent review.
@@ -200,7 +202,7 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 		hashes[file.Path] = file.Hash
 	}
 	for _, file := range uniqueSorted(files) {
-		if !isReviewCode(file) {
+		if !IsReviewCode(file) {
 			continue
 		}
 		check.CodeFiles++
@@ -378,7 +380,16 @@ func findingsNameReviewedFile(findings string, files []string) bool {
 	return false
 }
 
-func isReviewCode(path string) bool {
+// IsReviewCode answers whether a review pins path: a Makefile, or a file with
+// one of reviewCodeSuffixes. It is the one predicate the recorder's check here
+// and the commit gate (internal/le/commit, CheckReview) both read.
+//
+// Markdown is not reviewable, and that is the exemption a closure needs: a spec
+// and its closure sections under plan/ change after the clean review (a NOTE
+// fixed, the Review Gate and the learned summary filled), and a NOTE never
+// re-opens a round. Pinning them would turn each of those edits into a stale
+// review and a fresh round over unchanged code.
+func IsReviewCode(path string) bool {
 	if filepath.Base(path) == "Makefile" {
 		return true
 	}

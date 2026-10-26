@@ -25,11 +25,6 @@ var (
 	reviewFilePattern   = regexp.MustCompile(`^\s{2}([0-9a-f]{64}|DELETED)\s{2}(.+)$`)
 )
 
-var reviewCodeSuffixes = []string{
-	".go", ".ci", ".et", ".py", ".sh", ".yang", ".wb", ".mk", ".tmpl",
-	".html", ".c", ".rs", ".s", ".rego", ".tac",
-}
-
 // ReviewResult is the hash-pinned verdict for one closure population.
 type ReviewResult struct {
 	Spec       string   `json:"spec"`
@@ -533,7 +528,7 @@ func hunksReviewRefusal(stem string, paths []string, selection hunks.Selection) 
 // answer for a discharge months later.
 func judgeReviewCoverage(result *ReviewResult, artifactText string, paths []string, hashOf func(string) string) {
 	for _, path := range unique(paths) {
-		if isReviewCode(path) {
+		if spec.IsReviewCode(path) {
 			result.CodeFiles = append(result.CodeFiles, path)
 		}
 	}
@@ -606,25 +601,13 @@ func reviewDigest(content []byte, err error) string {
 	return hex.EncodeToString(digest[:])
 }
 
-func isReviewCode(path string) bool {
-	if filepath.Base(path) == "Makefile" {
-		return true
-	}
-	for _, suffix := range reviewCodeSuffixes {
-		if strings.HasSuffix(path, suffix) {
-			return true
-		}
-	}
-	return false
-}
-
 func reviewCheckCommand(stem string, paths []string) string {
 	// `./le`, not `le`. The generated script RUNS this line under `set -e`, and
 	// the launcher is a file at the checkout root rather than a command on PATH,
 	// so a bare name aborts the commit with "le: command not found".
 	words := []string{"./le", area, actionReviewCheck, "spec", stem}
 	for _, path := range paths {
-		if isReviewCode(path) {
+		if spec.IsReviewCode(path) {
 			words = append(words, "file", path)
 		}
 	}
