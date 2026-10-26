@@ -138,6 +138,7 @@ var renames = []Rename{
 	{Retired: "protocol-skeleton", Command: "rfc skeletons"},
 	{Retired: "rfc index-update", Command: "rfc", Action: "update"},
 	{Retired: "rfc discriminate-record", Command: "rfc", Action: "record"},
+	{Retired: "rfc rename", Command: "rfc", Action: "move"},
 	{Retired: "rfc extraction-create", Command: "rfc extraction", Action: "create"},
 	{Retired: "rfc extraction-classify", Command: "rfc extraction", Action: "classify"},
 	{Retired: "rfc extraction-status", Command: "rfc extraction", Action: "report"},

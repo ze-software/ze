@@ -5,7 +5,7 @@
 // names.go holds the one naming rule for a unit test file and its RFC tags. A
 // file named rfcNNNN_<topic>_test.go carries a tag for RFC NNNN or a marker
 // saying why it carries none; a file whose tags cite exactly one stem is named
-// for that stem. `./le rfc check` and `./le rfc rename` both judge through it.
+// for that stem. `./le rfc check` and `./le rfc move` both judge through it.
 package rfc
 
 import (
@@ -122,7 +122,7 @@ type nameVerdict struct {
 	// Offer is the rename part (a) offers an untagged stem-named file, one of
 	// its three repairs, and empty when its topic held nothing to keep. It is
 	// never a Target, because a tag or a marker repairs the file as well, so
-	// `./le rfc rename propose` writes no pair for it.
+	// `./le rfc move propose` writes no pair for it.
 	Offer string
 	// Source is the file judged. pairRefusals judges a rename target with its
 	// tags and the marker it reads from the file, because the rename moves both.
@@ -138,7 +138,7 @@ type nameVerdict struct {
 // carried (topicForStem), so gtsm_rfc5082_linux_test.go becomes
 // rfc5082_gtsm_linux_test.go rather than naming RFC 5082 twice. A topic that
 // held nothing else names the bare rfcN_test.go whether or not that file
-// exists: a taken target is left for `./le rfc rename propose` to report as a
+// exists: a taken target is left for `./le rfc move propose` to report as a
 // collision, so a hand-chosen topic replaces it rather than the doubled stem.
 func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, bool) {
 	dir, base := path.Split(file.Rel)
@@ -167,7 +167,7 @@ func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, 
 		Str("covers, add `").Str(namingMarkerText).Str(" <reason>`, or name it after what ").
 		Str("it covers")
 	if topic == bareTopic {
-		tb.Str(" (./le rfc rename from ").Str(file.Rel).Str(" to ").Str(dir).Str("<topic>_test.go)")
+		tb.Str(" (./le rfc move from ").Str(file.Rel).Str(" to ").Str(dir).Str("<topic>_test.go)")
 		return nameVerdict{Rel: file.Rel, Problem: tb.String()}, true
 	}
 	return nameVerdict{Rel: file.Rel, Problem: tb.String(), Offer: dir + topic}, true
@@ -399,7 +399,7 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 
 // checkTestFileNames answers one finding per unit test file whose name and RFC
 // tags disagree. A finding with a repair, or with the rename part (a) offers,
-// names the exact `./le rfc rename` command that makes it, unless the rename
+// names the exact `./le rfc move` command that makes it, unless the rename
 // would refuse that target, in which case the finding says a topic must be
 // chosen by hand (repairBlocked).
 func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirements []Requirement,
@@ -445,12 +445,12 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 			if verdict.Stem != "" {
 				prefix = stemPrefix(verdict.Stem)
 			}
-			tb.Str(": ").Str(blocked).Str(", so choose its topic by hand: ./le rfc rename from ").
+			tb.Str(": ").Str(blocked).Str(", so choose its topic by hand: ./le rfc move from ").
 				Str(verdict.Rel).Str(" to ").Str(dir).Str(prefix).Str("<topic>_test.go")
 			out = append(out, tb.String())
 			continue
 		}
-		tb.Str(": ./le rfc rename from ").Str(verdict.Rel).Str(" to ").Str(rename)
+		tb.Str(": ./le rfc move from ").Str(verdict.Rel).Str(" to ").Str(rename)
 		out = append(out, tb.String())
 	}
 	return out, nil
@@ -465,7 +465,7 @@ func verdictRename(verdict nameVerdict) string {
 	return verdict.Offer
 }
 
-// repairBlocked answers why `./le rfc rename` would refuse the rename a finding
+// repairBlocked answers why `./le rfc move` would refuse the rename a finding
 // names, and empty when it would take it. The refusals come from pairRefusals,
 // the predicate the rename applies to a pair; a target two files would share is
 // the one refusal a single pair cannot see, so claimants is how many verdicts

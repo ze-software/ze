@@ -143,7 +143,7 @@ var actions = leaction.New(area,
 				Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
-	leaction.Action{Verb: "rename", Summary: "move tagged test files with their evidence", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
+	leaction.Action{Verb: "move", Summary: "move tagged test files with their evidence", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
 		"<new> moves one file, plan <file> moves every `<old> <new>` line of a file, and propose <file> " +
 		"writes such a plan from the test file naming rule (under <dir> narrows it). The move is " +
 		"byte-pure, then every path key in rfc/discrimination/ and rfc/audit/ and every backtick or " +

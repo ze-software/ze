@@ -47,7 +47,7 @@ var skipPrefixes = [...]string{"tmp/", "bin/", "~", "/", "test/tmp/"}
 
 // Paths answers the repository paths one line cites, in backticks or as a
 // markdown link target. It is the one declaration of what a citation is: the
-// link sweep checks exactly what this answers and `./le rfc rename` rewrites
+// link sweep checks exactly what this answers and `./le rfc move` rewrites
 // exactly what this answers, so the two cannot disagree about a citation.
 // Safe for concurrent use.
 func Paths(root, line string) []string {

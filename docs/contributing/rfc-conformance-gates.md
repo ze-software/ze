@@ -1637,7 +1637,7 @@ author runs deliberately.
 
 Every fingerprint in a record and in an audit verdict is independent of the
 file's path, and every KEY names the path. A move therefore breaks nothing but
-the keys, and `./le rfc rename` rewrites the keys rather than re-stamping
+the keys, and `./le rfc move` rewrites the keys rather than re-stamping
 anything.
 
 The rename action removes its sources immediately; it does not prepare a
@@ -1649,9 +1649,9 @@ keep their original paths.
 <!-- source: internal/le/rfc/rename.go -- applyRename -->
 
 ```
-./le rfc rename from <old> to <new>
-./le rfc rename plan <file>
-./le rfc rename propose <file> [under <dir>]
+./le rfc move from <old> to <new>
+./le rfc move plan <file>
+./le rfc move propose <file> [under <dir>]
 ```
 
 `from`/`to` moves one file and `plan` moves every `<old> <new>` line of a file.
@@ -1729,7 +1729,7 @@ exists. A file whose tags cite two or more stems may carry any name that does
 not claim a stem it never tags. Only `_test.go` files the unit carrier holds are
 judged, so interop carriers, `.ci` files, `internal/le/`, `test/draft/`,
 `testdata/` and `vendor/` are not. Each finding names the marker to write, or
-a `./le rfc rename` command: the exact one when the rename would take its
+a `./le rfc move` command: the exact one when the rename would take its
 target, and one whose `<topic>` the reader chooses when it would not.
 
 The repair keeps the old name as its topic, less every spelling of the target
@@ -1756,13 +1756,13 @@ would become `linux_test.go`, which every platform builds), or when the naming
 rule refuses the new name for the file's own tags and marker (an untagged
 `rfc5881_rfc7311_test.go` would become `rfc7311_test.go`, named for an RFC it
 never tags), the finding says so
-and asks for a hand-chosen topic, `./le rfc rename from <file> to
+and asks for a hand-chosen topic, `./le rfc move from <file> to
 <dir>/<prefix><topic>_test.go`, with no prefix for the untagged file, rather
 than a name that carries the stem twice or a command the rename refuses. An
 untagged file named for its stem alone has no topic to keep, so its finding
-names the `<topic>` form directly. `./le rfc rename propose` leaves out of its plan
+names the `<topic>` form directly. `./le rfc move propose` leaves out of its plan
 every pair the rename would refuse, and a shared target, for the same reason.
-The finding, `propose` and `./le rfc rename` judge a pair through one
+The finding, `propose` and `./le rfc move` judge a pair through one
 predicate, `pairRefusals`. It answers a path outside the checkout, a pair that
 leaves its package or names a file that is not a `_test.go` file, a source that
 is untracked or differs from HEAD, and, through `judgeRenameTarget`, a taken

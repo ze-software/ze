@@ -7,7 +7,7 @@ import (
 
 // VALIDATES: a live corpus file under a record tree is still policed, and a
 // record beside it is not, so a citation rewrite skips exactly the records.
-// PREVENTS: `./le rfc rename` rewriting a journal row or a weakened shard, or
+// PREVENTS: `./le rfc move` rewriting a journal row or a weakened shard, or
 // leaving a learned index pointing at the old name.
 func TestPolicedKeepsCorpusFilesUnderRecordTrees(t *testing.T) {
 	cases := []struct {

@@ -593,16 +593,16 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// ai/RFC-REQUIREMENTS.md plus rfc/requirements/, and approve owns the
 	// session's tmp/commit-rfc-approved-<session>.md. quote-backfill owns the
 	// checklist rows of rfc/short/<stem>.md it rewrites, and only under apply.
-	// rename owns the moved test files and the path keys and citations that name
+	// move owns the moved test files and the path keys and citations that name
 	// them, and propose writes only the plan file it is given. evidence-split
 	// owns the per-requirement files it converts a retired per-RFC file into.
 	// Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
 	if len(writes) != 10 || !writes["evidence-split"] || !writes["create"] || !writes["classify"] ||
 		!writes["record"] || !writes["reseal"] || !writes["update"] ||
-		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["rename"] {
+		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["move"] {
 		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp classify create "+
-			"evidence-split quote-backfill record rename reseal update]", sortedKeys(writes))
+			"evidence-split move quote-backfill record reseal update]", sortedKeys(writes))
 	}
 	if Subs() == "" {
 		t.Error("help renders no hint under the command")

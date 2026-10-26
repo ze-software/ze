@@ -40,7 +40,7 @@ type RenameRewrite struct {
 	Keys int    `json:"keys"`
 }
 
-// RenameReport is what `./le rfc rename` answers after it wrote.
+// RenameReport is what `./le rfc move` answers after it wrote.
 //
 // Moves, Evidence and Citations name only what was written. When a write failed
 // part-way, Stopped carries the failure and Linked names each target created
@@ -117,7 +117,7 @@ func renameFiles(tree string, pairs []renamePair) (RenameReport, error) {
 // planRename judges every pair and computes every rewrite, and writes nothing.
 func planRename(tree string, pairs []renamePair) (renamePlan, error) {
 	if len(pairs) == 0 {
-		return renamePlan{}, errors.New("rfc rename: no pair to move")
+		return renamePlan{}, errors.New("rfc move: no pair to move")
 	}
 	var refusals []string
 	refusals = append(refusals, refuseBatchShape(pairs)...)
@@ -184,7 +184,7 @@ type renameJudgement struct {
 	Platforms []goPlatform
 }
 
-// pairRefusal is every reason `./le rfc rename` refuses one pair on its own.
+// pairRefusal is every reason `./le rfc move` refuses one pair on its own.
 // Each is a named outcome, so an accepted pair is one whose every field is
 // empty or false rather than an empty reason. Two pairs sharing a path is the
 // one refusal a single pair cannot see (refuseBatchShape).
@@ -207,7 +207,7 @@ type pairRefusal struct {
 	Target targetRefusal
 }
 
-// pairRefusals is the one predicate for whether `./le rfc rename` takes a pair:
+// pairRefusals is the one predicate for whether `./le rfc move` takes a pair:
 // refusePair applies it to every pair of a batch, proposeRenames to every pair
 // it would write, and repairBlocked to every rename a finding would name. Each
 // caller renders the outcome; none judges a pair another way. tagStems are the
@@ -285,7 +285,7 @@ func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	return out
 }
 
-// targetRefusal is every reason `./le rfc rename` refuses one target that
+// targetRefusal is every reason `./le rfc move` refuses one target that
 // judgeRenameTarget decides. Each is a named outcome, so an accepted target is
 // one with every field false rather than an empty reason.
 type targetRefusal struct {
@@ -740,7 +740,7 @@ func trackedFilesMentioning(tree string, pairs []renamePair) ([]string, error) {
 		if errors.As(err, &exit) && exit.ExitCode() == 1 {
 			return nil, nil
 		}
-		return nil, errors.New("rfc rename: cannot search the tracked files: " + err.Error())
+		return nil, errors.New("rfc move: cannot search the tracked files: " + err.Error())
 	}
 	var files []string
 	for entry := range strings.SplitSeq(string(out), "\x00") {
@@ -820,7 +820,7 @@ func applyRename(tree string, plan renamePlan) (RenameReport, error) {
 func stopRename(report RenameReport, err error) (RenameReport, error) {
 	var tb textbuf.Buffer
 	report.Stopped = tb.Err(err).String()
-	return report, errors.New("rfc rename: stopped part-way: " + report.Stopped)
+	return report, errors.New("rfc move: stopped part-way: " + report.Stopped)
 }
 
 // replaceFileAtomically writes body beside target and renames it over target,
@@ -860,7 +860,7 @@ type goPlatform struct {
 func goPlatforms() ([]goPlatform, error) {
 	out, err := exec.Command("go", "tool", "dist", "list").Output() //nolint:gosec,noctx // fixed argv
 	if err != nil {
-		return nil, errors.New("rfc rename: cannot list the Go platforms: " + err.Error())
+		return nil, errors.New("rfc move: cannot list the Go platforms: " + err.Error())
 	}
 	var platforms []goPlatform
 	for line := range strings.SplitSeq(string(out), "\n") {
@@ -870,7 +870,7 @@ func goPlatforms() ([]goPlatform, error) {
 		}
 	}
 	if len(platforms) == 0 {
-		return nil, errors.New("rfc rename: the Go platform list is empty")
+		return nil, errors.New("rfc move: the Go platform list is empty")
 	}
 	return platforms, nil
 }
@@ -896,7 +896,7 @@ func platformsBuilding(base string, platforms []goPlatform) ([]bool, error) {
 		}
 		match, err := judge.MatchFile(".", base)
 		if err != nil {
-			return nil, errors.New("rfc rename: go/build cannot judge " + base + ": " + err.Error())
+			return nil, errors.New("rfc move: go/build cannot judge " + base + ": " + err.Error())
 		}
 		out[index] = match
 	}
@@ -917,7 +917,7 @@ func buildSuffixMoves(source, target string, platforms []goPlatform) (bool, erro
 	return !slices.Equal(before, after), nil
 }
 
-// ProposeReport is what `./le rfc rename propose` answers.
+// ProposeReport is what `./le rfc move propose` answers.
 type ProposeReport struct {
 	Plan       string   `json:"plan"`
 	Pairs      int      `json:"pairs"`
@@ -935,7 +935,7 @@ func (r ProposeReport) Text() string {
 	for _, line := range r.Mismatches {
 		tb.Str("left out, named for another RFC (read it before renaming): ").Str(line).Byte('\n')
 	}
-	return tb.Str("next: ./le rfc rename plan ").Str(r.Plan).Byte('\n').String()
+	return tb.Str("next: ./le rfc move plan ").Str(r.Plan).Byte('\n').String()
 }
 
 // proposeRenames writes a plan of one pair per part (b) finding of the naming
@@ -952,7 +952,7 @@ func (r ProposeReport) Text() string {
 // batch whole rather than writing it. The output is created, never overwritten.
 func proposeRenames(tree, under, output string) (ProposeReport, error) {
 	if under != "" && !cleanRepoPath(under) {
-		return ProposeReport{}, errors.New("rfc rename propose: under must be a clean directory inside the checkout")
+		return ProposeReport{}, errors.New("rfc move propose: under must be a clean directory inside the checkout")
 	}
 	collected, err := Collect(tree)
 	if err != nil {
@@ -1028,7 +1028,7 @@ func underDirectory(rel, under string) bool {
 func createPlanFile(tree, output, body string) error {
 	file, err := os.OpenFile(resolvePlanPath(tree, output), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return errors.New("rfc rename propose: cannot create the plan file: " + err.Error())
+		return errors.New("rfc move propose: cannot create the plan file: " + err.Error())
 	}
 	if _, err := file.WriteString(body); err != nil {
 		_ = file.Close() //nolint:errcheck // the write error is the one reported
@@ -1051,7 +1051,7 @@ func resolvePlanPath(tree, rel string) string {
 func readRenamePlan(tree, rel string) ([]renamePair, error) {
 	raw, err := os.ReadFile(resolvePlanPath(tree, rel)) // #nosec G304 -- the plan the caller named
 	if err != nil {
-		return nil, errors.New("rfc rename: cannot read the plan file: " + err.Error())
+		return nil, errors.New("rfc move: cannot read the plan file: " + err.Error())
 	}
 	var pairs []renamePair
 	for index, line := range strings.Split(string(raw), "\n") {
@@ -1073,7 +1073,7 @@ func readRenamePlan(tree, rel string) ([]renamePair, error) {
 	return pairs, nil
 }
 
-// The keywords `./le rfc rename` adds to the grammar; from is audit-stamp's.
+// The keywords `./le rfc move` adds to the grammar; from is audit-stamp's.
 const (
 	keyTo      = "to"
 	keyPlan    = "plan"
@@ -1081,7 +1081,7 @@ const (
 	keyUnder   = "under"
 )
 
-// renameAnswer dispatches the three exclusive forms of `./le rfc rename`:
+// renameAnswer dispatches the three exclusive forms of `./le rfc move`:
 // from with to, plan, or propose. Naming two forms, or none, is refused.
 func renameAnswer(args leaction.Arguments) (any, int) {
 	forms := 0
@@ -1091,15 +1091,15 @@ func renameAnswer(args leaction.Arguments) (any, int) {
 		}
 	}
 	if forms != 1 {
-		leaction.ReportError(errors.New("rfc rename takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
+		leaction.ReportError(errors.New("rfc move takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
 		return nil, 2
 	}
 	if args.Has(keyFrom) != args.Has(keyTo) {
-		leaction.ReportError(errors.New("rfc rename takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
+		leaction.ReportError(errors.New("rfc move takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
 		return nil, 2
 	}
 	if args.Has(keyUnder) && !args.Has(keyPropose) {
-		leaction.ReportError(errors.New("rfc rename: under narrows propose only"))
+		leaction.ReportError(errors.New("rfc move: under narrows propose only"))
 		return nil, 2
 	}
 	tree, err := lepath.Root()

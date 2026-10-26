@@ -164,7 +164,7 @@ func TestCheckTestFileNamesRefusesUntaggedStemNamedFile(t *testing.T) {
 		t.Fatalf("want one finding, got %d: %v", len(findings), findings)
 	}
 	for _, want := range []string{rel, "rfc7606", namingMarkerText,
-		"./le rfc rename from " + rel + " to internal/sample/split_test.go"} {
+		"./le rfc move from " + rel + " to internal/sample/split_test.go"} {
 		if !strings.Contains(findings[0], want) {
 			t.Errorf("the finding omits %q: %s", want, findings[0])
 		}
@@ -223,7 +223,7 @@ func TestCheckTestFileNamesRefusesSingleStemFileNamedOtherwise(t *testing.T) {
 		if len(findings) != 1 {
 			t.Fatalf("%s: want one finding, got %d: %v", rel, len(findings), findings)
 		}
-		want := "./le rfc rename from " + rel + " to " + target
+		want := "./le rfc move from " + rel + " to " + target
 		if !strings.Contains(findings[0], want) {
 			t.Errorf("%s: the finding omits %q: %s", rel, want, findings[0])
 		}
@@ -365,7 +365,7 @@ func TestBuildSuffixTokenFollowsGoBuild(t *testing.T) {
 	}
 }
 
-// VALIDATES: F-4 and R-4 -- a finding whose repair `./le rfc rename` would
+// VALIDATES: F-4 and R-4 -- a finding whose repair `./le rfc move` would
 // refuse says a topic must be chosen by hand, and names no command that fails:
 // a target that exists, a target two files' repairs share, and a target whose
 // build-constraint suffix compiles the file on other platforms. Both parts of
@@ -446,7 +446,7 @@ func TestCheckTestFileNamesNeverSuggestsARefusedTarget(t *testing.T) {
 			if !strings.Contains(finding, one.reason) {
 				t.Errorf("the finding does not say %q: %s", one.reason, finding)
 			}
-			hand := "choose its topic by hand: ./le rfc rename from " + one.judged + " to " + one.hand
+			hand := "choose its topic by hand: ./le rfc move from " + one.judged + " to " + one.hand
 			if !strings.Contains(finding, hand) {
 				t.Errorf("the finding does not ask for a hand-chosen topic (%q): %s", hand, finding)
 			}

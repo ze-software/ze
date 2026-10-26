@@ -46,7 +46,7 @@ var CorpusGlobs = [...]string{
 // replaced the file rewrites the record into something that was never true, and
 // leaving it dangling is not a defect to be repaired later: it is the record
 // working. A rename that moves a package therefore owes these trees nothing,
-// and `./le rfc rename` leaves them byte-identical.
+// and `./le rfc move` leaves them byte-identical.
 //
 // The cost of the opposite policy was measured. One package rename left 383
 // dangling references across plan/, and the gate reported them as breakage of

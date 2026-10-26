@@ -386,7 +386,7 @@ func TestRenamePlanRefusesWholeBatchOnOneBadPair(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	setRenameRoot(t, root)
-	if _, code := Answer([]string{"rename", keyPlan, plan}); code != 2 {
+	if _, code := Answer([]string{"move", keyPlan, plan}); code != 2 {
 		t.Errorf("a plan with a refused pair answered %d, want 2", code)
 	}
 	if !existsRel(root, selftestTestPath) || existsRel(root, renameTarget) {
@@ -407,11 +407,11 @@ func TestRenameRefusesPlanWithFromTo(t *testing.T) {
 	root := renameFixture(t)
 	setRenameRoot(t, root)
 	for what, args := range map[string][]string{
-		"plan with from and to": {"rename", keyPlan, "x.txt", keyFrom, selftestTestPath, keyTo, renameTarget},
-		"from without to":       {"rename", keyFrom, selftestTestPath},
-		"no form":               {"rename"},
-		"propose with plan":     {"rename", keyPropose, "out.txt", keyPlan, "x.txt"},
-		"under without propose": {"rename", keyFrom, selftestTestPath, keyTo, renameTarget, keyUnder, "internal"},
+		"plan with from and to": {"move", keyPlan, "x.txt", keyFrom, selftestTestPath, keyTo, renameTarget},
+		"from without to":       {"move", keyFrom, selftestTestPath},
+		"no form":               {"move"},
+		"propose with plan":     {"move", keyPropose, "out.txt", keyPlan, "x.txt"},
+		"under without propose": {"move", keyFrom, selftestTestPath, keyTo, renameTarget, keyUnder, "internal"},
 	} {
 		if _, code := Answer(args); code != 2 {
 			t.Errorf("%s answered %d, want 2", what, code)
@@ -600,7 +600,7 @@ func TestRenameEndToEndCheckFindingsUnchanged(t *testing.T) {
 	before, beforeCode := Check(root, nil)
 
 	setRenameRoot(t, root)
-	if _, code := Answer([]string{"rename", keyFrom, selftestTestPath, keyTo, renameTarget}); code != 0 {
+	if _, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget}); code != 0 {
 		t.Fatalf("the rename answered %d", code)
 	}
 	layFixture(t, root, nil)
@@ -668,7 +668,7 @@ func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(evidence, 0o700) }) //nolint:errcheck // TempDir cleanup needs the bit back
 
 	setRenameRoot(t, root)
-	payload, code := Answer([]string{"rename", keyFrom, selftestTestPath, keyTo, renameTarget})
+	payload, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget})
 	if code != 2 {
 		t.Fatalf("a rename that stopped part-way answered %d, want 2", code)
 	}

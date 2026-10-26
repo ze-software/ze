@@ -10,7 +10,7 @@ import (
 )
 
 // VALIDATES: the link sweep reports, for every line, exactly the paths
-// citation.Paths answers for that line, so `./le rfc rename`, which rewrites
+// citation.Paths answers for that line, so `./le rfc move`, which rewrites
 // what citation.Paths answers, and the sweep agree about every citation.
 // METHOD: one tracked page whose lines hold a backtick path, a backtick path
 // with a symbol suffix, a markdown link, an anchor-only and an external link,

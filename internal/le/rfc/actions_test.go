@@ -197,15 +197,15 @@ func TestRFCActionsAuditStampRejudgeMode(t *testing.T) {
 	}
 }
 
-// VALIDATES: the rename verb is in the table, published as a writer, with the
+// VALIDATES: the move verb is in the table, published as a writer, with the
 // five keywords its three forms use.
 func TestRFCActionsCarryRenameVerb(t *testing.T) {
 	for _, action := range Actions().Actions {
-		if action.Verb != "rename" {
+		if action.Verb != "move" {
 			continue
 		}
 		if !action.Writes {
-			t.Error("rename is not published as a writer")
+			t.Error("move is not published as a writer")
 		}
 		var keywords []string
 		for _, parameter := range action.Parameters {
@@ -213,20 +213,20 @@ func TestRFCActionsCarryRenameVerb(t *testing.T) {
 		}
 		for _, want := range []string{keyFrom, keyTo, keyPlan, keyPropose, keyUnder} {
 			if !slices.Contains(keywords, want) {
-				t.Errorf("rename does not declare the keyword %s: %v", want, keywords)
+				t.Errorf("move does not declare the keyword %s: %v", want, keywords)
 			}
 		}
 		return
 	}
-	t.Fatal("the RFC action catalog does not publish rename")
+	t.Fatal("the RFC action catalog does not publish move")
 }
 
-// VALIDATES: the wiring row -- `./le rfc rename from <old> to <new>` reaches the
+// VALIDATES: the wiring row -- `./le rfc move from <old> to <new>` reaches the
 // rename through Answer and moves the file in the checkout ZE_REPO_ROOT names.
 func TestRFCActionsRenameThroughAnswer(t *testing.T) {
 	root := renameFixture(t)
 	setRenameRoot(t, root)
-	answer, code := Answer([]string{"rename", keyFrom, selftestTestPath, keyTo, renameTarget})
+	answer, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget})
 	if code != 0 {
 		t.Fatalf("the rename answered %d", code)
 	}
