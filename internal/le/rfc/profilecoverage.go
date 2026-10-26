@@ -61,16 +61,13 @@ func (f Figure) String() string {
 
 // StemFigures is one RFC's two figures.
 //
-// Exactly one of three states holds, and the cells say which: Absent (a
-// profile needs the RFC and the corpus holds no summary of it), not Walked (a
+// Exactly one of two states holds, and the cells say which: not Walked (a
 // summary with no valid extraction sign-off, whose requirement list nothing
-// has bounded), or walked with both figures counted.
+// has bounded), or walked with both figures counted. Every RFC a profile
+// lists has a summary (owner: "all RFC should have a valid summary"), so
+// there is no third, summary-less state.
 type StemFigures struct {
 	Stem string
-	// Absent is an RFC a profile lists under Absent. It renders 0% on both
-	// figures, never "not walked" and never blank (owner, 2026-10-25): the
-	// work it stands for is owed, and a blank reads as nothing owed.
-	Absent bool
 	// Walked is whether the summary carries a valid extraction sign-off
 	// (evaluateExtractions). An unwalked summary's list is a claim nobody
 	// bounded, so its counts are kept and never published as a figure.
@@ -82,9 +79,6 @@ type StemFigures struct {
 // notWalked is the cell an unwalked RFC renders in place of a figure.
 const notWalked = "not walked"
 
-// absentCell is the cell an absent RFC renders on both figures.
-const absentCell = "0% (absent from the corpus)"
-
 // mandatoryCell renders the mandatory figure.
 func (s StemFigures) mandatoryCell() string { return s.cell(s.Mandatory) }
 
@@ -93,20 +87,10 @@ func (s StemFigures) optionalCell() string { return s.cell(s.Optional) }
 
 // cell renders one figure in the state the RFC is in.
 func (s StemFigures) cell(figure Figure) string {
-	if s.Absent {
-		return absentCell
-	}
 	if !s.Walked {
 		return notWalked
 	}
 	return figure.String()
-}
-
-// absentFigures answers the figures of an RFC a profile needs and the corpus
-// does not hold.
-func absentFigures(number int) StemFigures {
-	var tb textbuf.Buffer
-	return StemFigures{Stem: tb.Str("rfc").Int(int64(number)).String(), Absent: true}
 }
 
 // figuresByStem answers both figures for every stem.
@@ -175,40 +159,25 @@ func rowCounts(requirement *Requirement, proven map[string]bool) (owed, met bool
 	return true, false
 }
 
-// Rollup is the figures of a set of RFCs: a profile's closure, or an
-// aggregate's members.
+// Rollup is the figures of a set of RFCs: one tier of a use-case profile's
+// declared members, or an aggregate's members.
 type Rollup struct {
-	// RFCs counts every member, absent ones included.
+	// RFCs counts every member.
 	RFCs int `json:"rfcs"`
-	// NotWalked and Absent count the members that contribute no rows. Both
-	// are stated beside the figures, because a set whose figure reads 100%
-	// while members are unwalked or absent is not complete. A member with a
-	// text and no summary (a node `./le rfc tree` reaches through the graph)
-	// has no walked list either, so it counts not walked, unless the profile
-	// lists it under Absent: then it counts absent, and only there.
+	// NotWalked counts the members that contribute no rows. It is stated
+	// beside the figures, because a set whose figure reads 100% while members
+	// are unwalked is not complete.
 	NotWalked int    `json:"not-walked"`
-	Absent    int    `json:"absent"`
 	Mandatory Figure `json:"mandatory"`
 	Optional  Figure `json:"optional"`
 }
 
-// rollupOf sums the figures of members, adding absent RFCs a profile lists.
-// Only walked members contribute rows: an unwalked list is unbounded, so its
-// rows would make the figure a measurement of the list.
-//
-// A stem holds one state, so it is counted once. An absent RFC whose text is
-// in rfc/full/ is also a member when the closure reaches it through the
-// graph; it counts as absent, never also as not walked, and it is one RFC.
-func rollupOf(figures map[string]StemFigures, members []string, absent []int) Rollup {
-	absentStems := make(map[string]bool, len(absent))
-	for _, number := range absent {
-		absentStems[absentFigures(number).Stem] = true
-	}
-	out := Rollup{RFCs: len(absentStems), Absent: len(absentStems)}
+// rollupOf sums the figures of members. Only walked members contribute rows:
+// an unwalked list is unbounded, so its rows would make the figure a
+// measurement of the list.
+func rollupOf(figures map[string]StemFigures, members []string) Rollup {
+	out := Rollup{}
 	for _, stem := range members {
-		if absentStems[stem] {
-			continue
-		}
 		out.RFCs++
 		one := figures[stem]
 		if !one.Walked {
@@ -221,11 +190,11 @@ func rollupOf(figures map[string]StemFigures, members []string, absent []int) Ro
 	return out
 }
 
-// mandatoryComplete answers whether every mandatory row of the set is proven
-// and no member is unwalked or absent. A set with absent RFCs is never
-// complete, whatever its walked members read (owner, 2026-10-25).
+// mandatoryComplete answers whether the set has a member, every mandatory row
+// of it is proven, and no member is unwalked. A set with no member is never
+// complete: 0 of 0 measures nothing (AC-5).
 func (r Rollup) mandatoryComplete() bool {
-	if r.Absent != 0 {
+	if r.RFCs == 0 {
 		return false
 	}
 	if r.NotWalked != 0 {
@@ -234,11 +203,10 @@ func (r Rollup) mandatoryComplete() bool {
 	return r.Mandatory.Proven == r.Mandatory.Total
 }
 
-// String renders the rollup with its two counts of members that add no rows.
+// String renders the rollup with its count of members that add no rows.
 func (r Rollup) String() string {
 	var tb textbuf.Buffer
 	tb.Str("mandatory ").Str(r.Mandatory.String()).Str(", optional ").Str(r.Optional.String())
-	tb.Str("; ").Int(int64(r.RFCs)).Str(" RFCs, ").Int(int64(r.NotWalked)).Str(" not walked, ").
-		Int(int64(r.Absent)).Str(" absent at 0%")
+	tb.Str("; ").Int(int64(r.RFCs)).Str(" RFCs, ").Int(int64(r.NotWalked)).Str(" not walked")
 	return tb.String()
 }

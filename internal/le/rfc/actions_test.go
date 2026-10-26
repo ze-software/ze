@@ -238,3 +238,30 @@ func TestRFCActionsRenameThroughAnswer(t *testing.T) {
 		t.Error("the file did not move")
 	}
 }
+
+// TestHelpDescribesDeclaredMembership: AC-14. The help of `rfc tree` and
+// `rfc next` describes the two declared tiers, says the percentage counts the
+// required tier only, and no longer describes membership as a closure or an
+// absent state. Method: the registered actions' Why text.
+func TestHelpDescribesDeclaredMembership(t *testing.T) {
+	why := map[string]string{}
+	for _, action := range Actions().Actions {
+		why[action.Verb] = action.Why
+	}
+	for _, verb := range []string{"tree", "next"} {
+		text := why[verb]
+		for _, want := range []string{"`Use cases`", "`Optional use cases`", "required tier only"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s help lacks %q: %s", verb, want, text)
+			}
+		}
+		for _, banned := range []string{"closure", "absent"} {
+			if strings.Contains(text, banned) {
+				t.Errorf("%s help still says %q: %s", verb, banned, text)
+			}
+		}
+	}
+	if !strings.Contains(why["tree"], "candidates") {
+		t.Errorf("tree help does not name the candidates list: %s", why["tree"])
+	}
+}

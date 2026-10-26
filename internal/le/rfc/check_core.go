@@ -293,6 +293,57 @@ func checkUpdatedBy(requirements []Requirement, g *graph.Graph, stems map[string
 	return errs
 }
 
+// checkUpdatedByMembership refuses a `{updated-by}` marker on a use-case
+// member whose updater is not listed for that profile in a tier at least as
+// high (AC-6): the marker says the updater rewrites one of the member's
+// requirements, so a profile owing the member owes the updater too. A required
+// member needs the updater required; an optional one needs it in either row.
+// A marker whose updater has no parsed summary is checkUpdatedBy's refusal.
+func checkUpdatedByMembership(requirements []Requirement, metas map[string]Meta) []string {
+	var errs []string
+	for index := range requirements {
+		req := &requirements[index]
+		if req.UpdatedBy == nil {
+			continue
+		}
+		updaterStem, shaped := ridStem(req.UpdatedBy.Target)
+		if !shaped {
+			continue
+		}
+		member, held := metas[req.RFC]
+		if !held {
+			continue
+		}
+		updater, held := metas[updaterStem]
+		if !held {
+			continue
+		}
+		for _, name := range member.UseCases {
+			if !slices.Contains(updater.UseCases, name) {
+				errs = append(errs, updatedByMembershipRefusal(req, updaterStem, name, metaUseCases))
+			}
+		}
+		for _, name := range member.OptionalUseCases {
+			if !slices.Contains(updater.UseCases, name) && !slices.Contains(updater.OptionalUseCases, name) {
+				errs = append(errs, updatedByMembershipRefusal(req, updaterStem, name, metaOptionalUseCases))
+			}
+		}
+	}
+	return errs
+}
+
+// updatedByMembershipRefusal names the member, its marker, the updater, and
+// the row the updater writes to join the member's profile in the member's tier.
+func updatedByMembershipRefusal(req *Requirement, updater, profile, label string) string {
+	var tb textbuf.Buffer
+	return tb.Str(summaryRel).Byte('/').Str(req.RFC).Str(".md: ").Str(req.RID).Str(" carries {").
+		Str(UpdatedByKind).Str(": ").Str(req.UpdatedBy.Target).Str("} and the summary lists ").
+		Str(pyRepr(profile)).Str(" in `").Str(label).Str("`, but ").Str(summaryRel).Byte('/').
+		Str(updater).Str(".md does not list it in that tier or higher. The updater rewrites a ").
+		Str("requirement the profile owes: write `| ").Str(label).Str(" | ").Str(profile).
+		Str(" |` (add the name to the row) in ").Str(summaryRel).Byte('/').Str(updater).Str(".md").String()
+}
+
 // updatedByRefusal answers why one marker's pointer dangles, and "" when it
 // holds.
 func updatedByRefusal(req Requirement, updater string, g *graph.Graph, stems map[string]bool,

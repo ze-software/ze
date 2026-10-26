@@ -128,12 +128,15 @@ this same collector and category declaration without reading the generated index
 
 <!-- source: internal/le/spec/roadmap/profiles.go -- loadRFCCorpus, place, rfcBlobs -->
 <!-- source: internal/le/rfc/roadmapcorpus.go -- readRoadmapCorpus -->
-The Profiles column names, for each spec, every use-case profile whose closure
-holds a document its `RFC gaps` names (`profiles` in the snapshot). The
-closure is the one `./le rfc tree profile <name>` walks, and it is read from
-the same revision as the specs: `rfc/short/`, `rfc/profiles/`, `rfc/full/` and
-`rfc/drafts/` come out of that commit's objects, never the working tree, and
-only when some spec of the revision declares a gap. A gap the revision cannot
+The Profiles column names, for each spec, every use-case profile that requires
+a document its `RFC gaps` names (`profiles` in the snapshot): the profiles that
+document's summary writes in its `Use cases` row. An `Optional use cases`
+listing places nothing, because the column answers which release a spec
+serves. The members are the required tier `./le rfc tree profile <name>`
+prints, and they are read from the same revision as the specs: `rfc/short/`
+and `rfc/profiles/` come out of that commit's objects, never the working tree,
+and only when some spec of the revision declares a gap. No RFC text is read,
+because a citation adds no member. A gap the revision cannot
 place stays visible as a diagnostic: an unknown id or stem, a revision with no
 use-case profile, or a corpus that did not load. The parser's `RFC gaps`
 warnings reach the same Diagnostics column. A spec with no gaps shows `-`. The reader

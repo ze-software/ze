@@ -146,9 +146,10 @@ func rfcProfileLead(report *rfc.TreeReport) string {
 		return report.Heading + ". The RFCs whose summary names the " + report.Profile +
 			" aggregate, with their mandatory and optional coverage."
 	}
-	lead := "The root RFCs of this use case, every RFC they build on, and every RFC that updates one of them."
+	lead := "The RFCs this use case requires, each declared by the Use cases row of its own summary. " +
+		"RFCs it lists as optional follow in their own table and never enter its figures."
 	if report.Release {
-		lead += " Before release, every mandatory requirement of every RFC listed here must be " +
+		lead += " Before release, every mandatory requirement of every required RFC must be " +
 			"proven by a recorded break of its test."
 	}
 	return lead
@@ -200,11 +201,9 @@ func rfcProfileCards(rollup *rfc.ScopeRollup) []rfcProfileCard {
 		{rfcProfileOptionalLabel, rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
 			rfcKeywordSeries(rfc.OptionalKeywords()) + " rows, counted the same way."},
 		{"Not walked", strconv.Itoa(rollup.NotWalked), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
-			"RFCs with no valid extraction sign-off or no summary: their rows count in neither figure."},
-		{"Absent", strconv.Itoa(rollup.Absent), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
-			"RFCs the profile needs that the corpus holds no summary of, each at 0%."},
-		{"Mandatory register", rfcProfileComplete(rollup), "every row proven, none unwalked or absent",
-			"A profile is complete only when nothing it reaches is unwalked or absent."},
+			"RFCs with no valid extraction sign-off: their rows count in neither figure."},
+		{"Mandatory register", rfcProfileComplete(rollup), "every row proven, none unwalked",
+			"A profile is complete only when it requires at least one RFC and none of them is unwalked."},
 	}
 }
 
@@ -266,8 +265,32 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string) string {
 		}
 		body.Str(rfcTableHTML(rfcHeadCells(rfcProfileColumns(report)...), rows.String())).Byte('\n')
 	}
-	body.Str("</section>\n            </section>\n")
+	body.Str("</section>\n")
+	if report.Optional != nil && len(report.Optional.Rows) != 0 {
+		body.Str("<section><h2>").Str(rfcProfileOptionalHeading).Str("</h2>\n<p>").
+			Str(html.EscapeString(rfcProfileOptionalProse(&report.Optional.Rollup))).Str("</p>\n")
+		var rows textbuf.Buffer
+		for _, row := range report.Optional.Rows {
+			mandatory, optional := row.Cells()
+			rows.Str(rfcRowCells(rfcProfileStemHTML(row, display), html.EscapeString(row.Title),
+				rfcProfileBarHTML(row, mandatory, row.MandatoryProven, row.MandatoryTotal),
+				rfcProfileBarHTML(row, optional, row.OptionalProven, row.OptionalTotal),
+				html.EscapeString(row.Path)))
+		}
+		body.Str(rfcTableHTML(rfcHeadCells(rfcProfileColumns(report)...), rows.String())).Str("\n</section>\n")
+	}
+	body.Str("            </section>\n")
 	return body.String()
+}
+
+// rfcProfileOptionalHeading heads a use case's optional tier.
+const rfcProfileOptionalHeading = "Optional (not counted)"
+
+// rfcProfileOptionalProse says what the optional tier is, with its own rollup.
+func rfcProfileOptionalProse(rollup *rfc.ScopeRollup) string {
+	return "RFCs this use case lists as optional, each declared by the Optional use cases row of its " +
+		"own summary. They count in none of the figures above until the owner brings one into scope " +
+		"by moving it to the Use cases row. Their own figures: " + rollup.String() + "."
 }
 
 // rfcProfileMirror states the same page in Markdown, in the page's order.
@@ -292,11 +315,21 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string) string 
 			out.Str(rfcMirrorRow(cells...))
 		}
 	}
+	if report.Optional != nil && len(report.Optional.Rows) != 0 {
+		out.Str("\n## ").Str(rfcProfileOptionalHeading).Str("\n\n").
+			Str(rfcProfileOptionalProse(&report.Optional.Rollup)).Str("\n\n").
+			Str(rfcMirrorHead(rfcProfileColumns(report)...))
+		for _, row := range report.Optional.Rows {
+			mandatory, optional := row.Cells()
+			out.Str(rfcMirrorRow(rfcProfileStemMirror(row, display), rfcMirrorCell(row.Title), mandatory,
+				optional, rfcMirrorCell(row.Path)))
+		}
+	}
 	return out.String()
 }
 
 // rfcProfileColumns answers the tree table's columns. An aggregate has no
-// path column: its members are the RFCs naming it, reached over no edge.
+// path column: its members are the RFCs naming it in their aggregate cell.
 func rfcProfileColumns(report *rfc.TreeReport) []string {
 	columns := []string{"RFC", "Title", rfcProfileMandatoryLabel, rfcProfileOptionalLabel}
 	if !report.IsAggregate() {
@@ -313,7 +346,8 @@ func rfcProfileTreeProse(report *rfc.TreeReport) string {
 	if report.IsAggregate() {
 		return prose
 	}
-	return prose + " The last column is the chain of edges from a root to the RFC."
+	return prose + " The last column names the summary whose Use cases row declares the RFC: a " +
+		"normative citation never adds one."
 }
 
 // rfcProfileLevel is one heading of the tree: the rows sharing a level.
@@ -323,8 +357,7 @@ type rfcProfileLevel struct {
 }
 
 // rfcProfileLevels groups rows, already ordered roots to leaves, by the
-// heading each falls under: its level, no level for a summary with no text,
-// or absent.
+// heading each falls under: its level, or no level for a summary with no text.
 func rfcProfileLevels(rows []*rfc.TreeRow) []rfcProfileLevel {
 	var levels []rfcProfileLevel
 	for _, row := range rows {
@@ -337,26 +370,20 @@ func rfcProfileLevels(rows []*rfc.TreeRow) []rfcProfileLevel {
 	return levels
 }
 
-// rfcProfileLevelLabel names the heading one row falls under. An absent RFC
-// the closure reaches through its text keeps its level, so it sits among its
-// level's rows rather than splitting that level's heading in two.
+// rfcProfileLevelLabel names the heading one row falls under.
 func rfcProfileLevelLabel(row *rfc.TreeRow) string {
 	if row.Level != nil {
 		return "Level " + strconv.Itoa(*row.Level)
 	}
-	if row.Absent {
-		return "Absent from the corpus"
-	}
 	return "No level: the corpus holds no text of the RFC"
 }
 
-// rfcProfileStemHTML names one row's RFC, linked to its ledger page where it
-// has a summary, with its cycle.
+// rfcProfileStemHTML names one row's RFC, linked to its ledger page, with its
+// cycle. Every row of a profile page is a declared member, and every member
+// has a summary, so every row has a page to link.
 func rfcProfileStemHTML(row *rfc.TreeRow, display map[string]string) string {
-	name := html.EscapeString(rfcProfileDisplay(row.Stem, display))
-	if row.Summary {
-		name = `<a href="../../` + html.EscapeString(row.Stem) + `/">` + name + "</a>"
-	}
+	name := `<a href="../../` + html.EscapeString(row.Stem) + `/">` +
+		html.EscapeString(rfcProfileDisplay(row.Stem, display)) + "</a>"
 	if len(row.Component) != 0 {
 		name += " (cycle with " + html.EscapeString(strings.Join(row.Component, ", ")) + ")"
 	}
@@ -365,10 +392,7 @@ func rfcProfileStemHTML(row *rfc.TreeRow, display map[string]string) string {
 
 // rfcProfileStemMirror states the same name in the mirror.
 func rfcProfileStemMirror(row *rfc.TreeRow, display map[string]string) string {
-	name := rfcMirrorCell(rfcProfileDisplay(row.Stem, display))
-	if row.Summary {
-		name = "[" + name + "](../../" + row.Stem + "/)"
-	}
+	name := "[" + rfcMirrorCell(rfcProfileDisplay(row.Stem, display)) + "](../../" + row.Stem + "/)"
 	if len(row.Component) != 0 {
 		name += " (cycle with " + strings.Join(row.Component, ", ") + ")"
 	}
@@ -384,14 +408,14 @@ func rfcProfileDisplay(stem string, display map[string]string) string {
 	return stem
 }
 
-// rfcProfileBarHTML renders one figure as a bar and its cell. An absent RFC
-// fills nothing at 0%; an RFC whose figure is not measured (not walked, no
-// summary, no rows) carries an empty bar marked unmeasured, so every RFC has
-// its bar and none reads as a measurement it is not.
+// rfcProfileBarHTML renders one figure as a bar and its cell. An RFC whose
+// figure is not measured (not walked, no rows) carries an empty
+// bar marked unmeasured, so every RFC has its bar and none reads as a
+// measurement it is not.
 func rfcProfileBarHTML(row *rfc.TreeRow, cell string, proven, total int) string {
-	measured := row.Absent
+	measured := false
 	width := "0"
-	if !row.Absent && row.Summary && row.Walked && total > 0 {
+	if row.Walked && total > 0 {
 		measured = true
 		width = strconv.FormatFloat(rfcPercent(proven, total), 'f', 1, 64)
 	}
@@ -436,7 +460,7 @@ func rfcProfilesIndexBody(profiles []*rfc.TreeReport) string {
 				rfcProfileRollupBarHTML(report.Rollup.Mandatory),
 				rfcProfileRollupBarHTML(report.Rollup.Optional),
 				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
-				strconv.Itoa(report.Rollup.Absent), rfcProfileComplete(report.Rollup)))
+				rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {
 			continue
@@ -461,7 +485,7 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 			rows.Str(rfcMirrorRow("["+rfcMirrorCell(rfcProfileTitle(report))+"]("+report.Profile+"/)",
 				report.Rollup.Mandatory.String(), report.Rollup.Optional.String(),
 				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
-				strconv.Itoa(report.Rollup.Absent), rfcProfileComplete(report.Rollup)))
+				rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {
 			continue
@@ -477,7 +501,7 @@ const rfcProfilesPointerHeading = "Coverage by profile"
 
 // rfcProfilesPointerText is that section's sentence, before its link.
 const rfcProfilesPointerText = "This page covers every RFC. Each use case Ze serves and each technology " +
-	"aggregate has its own page, with its mandatory and optional figures and the RFCs it reaches ordered " +
+	"aggregate has its own page, with its mandatory and optional figures and the RFCs it lists ordered " +
 	"roots to leaves: "
 
 // rfcProfilesPointerHTML renders the section's body on the compliance index.
@@ -493,10 +517,11 @@ func rfcProfilesPointerMirror() string {
 // rfcProfilesLead is the index's lead sentence.
 const rfcProfilesLead = "Each use case Ze serves and each technology it implements, with the share of " +
 	"mandatory and optional RFC requirements a recorded test break proves. Release profiles come first: " +
-	"before release, every mandatory requirement of every RFC they reach must be proven."
+	"before release, every mandatory requirement of every RFC they require must be proven. Optional " +
+	"RFCs a use case lists are not counted."
 
 // rfcProfilesIndexColumns are the index tables' columns.
-var rfcProfilesIndexColumns = []string{"Profile", rfcProfileMandatoryLabel, rfcProfileOptionalLabel, "RFCs", "Not walked", "Absent", "Mandatory register"}
+var rfcProfilesIndexColumns = []string{"Profile", rfcProfileMandatoryLabel, rfcProfileOptionalLabel, "RFCs", "Not walked", "Mandatory register"}
 
 // rfcProfileRollupBarHTML renders a rollup figure as a bar and its cell.
 func rfcProfileRollupBarHTML(figure rfc.Figure) string {

@@ -22,6 +22,8 @@
 | Support status | Experimental |
 | Support coverage | Flow export alongside NetFlow v9 and IPFIX. Unavailable counters carry the maximum-value sentinel. Counter and flow encoders share a datagram sequence; all sources use expanded sample formats with full-width interface indexes. Counter generation changes restart source sample sequences. Ze runs no SNMP agent, so the agent address provides no SNMP connectivity (SFLOW-V5-4.3-1, gap). When the router has more than one routed interface, Ze warns at config apply that an agent address off a loopback or dummy interface is not a loopback address. Other uncovered obligations remain in the checklist. Statistical sampling requirements SFLOW-V5-x-37 through x-41 remain unverified. Linux filter installation/readback tests cover configuration and lifecycle, not RNG range, packet-selection probability, one consideration per packet, independent sampling draws or long-term convergence. Current exporter and privileged kernel scenarios must be run before publishing verified coverage. |
 | Support remaining | - |
+| Use cases | ddos-flowspec |
+| Optional use cases | - |
 
 **Purpose:** sFlow defines a sampling-based mechanism for monitoring traffic
 in switched and routed networks. An sFlow agent embedded in a network

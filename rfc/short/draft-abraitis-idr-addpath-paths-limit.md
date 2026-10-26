@@ -18,6 +18,8 @@
 | Support status | Supported |
 | Support coverage | Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path. The configuration knob states a request to the peer and does not bound what Ze accepts: a peer that ignores it is not policed. |
 | Support remaining | - |
+| Use cases | - |
+| Optional use cases | - |
 
 **Purpose:** Extends ADD-PATH (RFC 7911) by letting a receiver advertise the maximum number of paths it wants to receive per prefix, per address family. Prevents uncontrolled path proliferation in ADD-PATH deployments.
 

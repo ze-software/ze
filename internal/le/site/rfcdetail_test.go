@@ -2827,7 +2827,7 @@ func partialPublicationTree(t *testing.T) (root, summary, marker string) {
 	t.Helper()
 	root = t.TempDir()
 	marker = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at internal/sample/widget.go::SendWidget}`
-	summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
+	summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated source fixture |\n" +
 		"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
 		"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +

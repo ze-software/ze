@@ -440,7 +440,7 @@ func TestStatusPageRowSetUnchanged(t *testing.T) {
 	if got := len(statusPageRowLines(rendered)); got != countRows(metas) {
 		t.Errorf("the rendered page carries %d distinct row(s) and the summaries declare %d", got, countRows(metas))
 	}
-	profiles, problems, err := LoadProfiles(root, nil)
+	profiles, problems, err := LoadProfiles(root)
 	if err != nil {
 		t.Fatalf("load the profiles: %v", err)
 	}
@@ -499,7 +499,7 @@ func summaryMetasAt(t *testing.T, root, revision string) map[string]Meta {
 	out := map[string]Meta{}
 	for _, rel := range paths {
 		stem := strings.TrimSuffix(path.Base(rel), ".md")
-		meta, err := ParseMeta(retiredSectionRank(blobs[rel]), stem, rel)
+		meta, err := ParseMeta(retiredBaselineShapes(blobs[rel]), stem, rel)
 		if err != nil {
 			t.Fatalf("%s at %s does not parse: %v", rel, revision, err)
 		}

@@ -310,17 +310,36 @@ does not parse is reported like a summary that does not parse.
 | Kind | Fields |
 |------|--------|
 | `technology` | `Title`, `Heading` (the status page heading), `Intro` (prose under it, or `-`), `Shape` (`wide` for the six-column table, `brief` for the four-column one), `Release` (`n/a`) |
-| `use-case` | `Title`, `Release` (`yes` marks a release profile), `Roots` (summary stems, each one present in `rfc/short/`), `Absent` (`RFC <number>` items the corpus holds no summary for, or `-`) |
+| `use-case` | `Title`, `Release` (`yes` marks a release profile) |
 
-A root with no summary is refused naming the profile and the stem, so a root
-never drops out of a closure in silence; an `Absent` item whose summary exists
-is refused too. The status page renders one section per aggregate, in name
+A use-case profile lists no member. Each summary declares its own use cases in
+two mandatory Meta rows: `| Use cases | route-server, looking-glass |` names
+the profiles that require it, counted in their figures, and
+`| Optional use cases | lns |` names those that list it as optional, shown
+with its own figures and never counted. Each is `-` when empty. Bringing an
+optional RFC into scope is moving its name from one row to the other. A
+release profile owes exactly the RFCs declared for it: a normative citation is
+never an obligation (`ai/META-DECISIONS.md`, "Goal and scope").
+
+`ParseMeta` refuses a missing row, an empty cell, `-` mixed with names, a token
+that is not one lower-case hyphenated name, a name written twice in one row,
+one name in both rows, and a near-miss label such as `Use-cases` or `Profiles`
+(`readUseCases`). Once the profiles are loaded, a name with no profile file, or
+one that is a technology aggregate, is refused naming the summary and listing
+the use cases (`checkUseCases`). `./le rfc check` also refuses a use-case
+profile no summary requires, an optional-only one included, because its
+figure would read 0 of 0 (`checkUseCaseMembers`), and a profile file still
+carrying the retired `Roots` or `Absent` row, naming the two summary rows that
+replaced it (`parseUseCase`). Each refusal is collected, so one summary midway
+through an edit never stops the check for the others.
+
+The status page renders one section per aggregate, in name
 order, with rows by dependency level (see "The dependency graph"), then RFC
 number with the non-RFC stems after them by name; a summary whose text is not
 in the repository has no level and sorts after the ones that do. No order is
 authored, so no two summaries can claim one place.
 <!-- source: internal/le/rfc/profile.go -- LoadProfiles, parseProfile, parseUseCase, parseAggregate -->
-<!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate -->
+<!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate, readUseCases, checkUseCases, checkUseCaseMembers -->
 <!-- source: internal/le/rfc/render_ledger.go -- renderStatusPage, placeRows, statusRowCompare -->
 
 ### Coverage figures
@@ -342,11 +361,13 @@ itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
 
 An RFC with no valid extraction sign-off renders `not walked` rather than a
-figure; an RFC a use-case profile lists under `Absent` renders 0% on both
-figures, never `not walked` and never blank. A rollup over a profile or an
-aggregate sums its walked members and states how many members are not walked
-and how many are absent at 0%, and it is never complete while either count is
-above zero.
+figure. Every RFC a profile lists has a summary (owner: "all RFC should have a
+valid summary"), so there is no third, summary-less state. A rollup over one
+tier of a use-case profile, or over an aggregate, sums its walked members and
+states how many are not walked. It is never complete while that count is
+above zero, nor while the set has no member: 0 of 0 measures nothing. A
+use-case profile's percentage is the rollup of its required tier alone; its
+optional tier carries a rollup of its own beside it.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete -->
 
 
@@ -1019,7 +1040,7 @@ none is authored:
 
 | Kind | From |
 |------|------|
-| `builds-on` | A citation in the Normative References section, never in a Non-Normative References one (RFC 3526 carries both). A text with no separate one gives its combined References section instead, which over-reaches on purpose: a profile may reach more RFCs than it needs, never fewer |
+| `builds-on` | A citation in the Normative References section, never in a Non-Normative References one (RFC 3526 carries both). A text with no separate one gives its combined References section instead, which over-reaches: the graph orders RFCs and suggests candidates, and no edge makes an RFC a profile member |
 | `updates`, `obsoletes` | The `Updates:` and `Obsoletes:` header lines, continuation lines included, or the front-matter sentence (`This memo obsoletes RFC 1234`) an old RFC states them in |
 
 `Parse` (`graph/parse.go`) reads a heading only at column 0, because the table
@@ -1063,41 +1084,54 @@ it. A summary whose text is not in the repository has no header to compare.
 
 ### The priority tree: `./le rfc tree` and `./le rfc next`
 
-A use-case profile's closure is its roots and every text reachable from them
-over `builds-on` edges and over the `updates` edges pointing at them, so an
-RFC that rewrites a root joins the root's profiles. A technology aggregate's
-members are the summaries naming it, and it follows no edge. The closure
-reaches texts with no summary too: such a node has no requirement list and
-counts as not walked in the rollup, beside the RFCs the profile lists as
-`Absent`. A stem holds one state: an `Absent` RFC whose text is in
-`rfc/full/` is also a node the closure can reach, and it is then one row at
-its own level, with its path, rendered absent at 0%, one gap in `./le rfc
-next`, and one count in the rollup, as absent and never also as not walked.
+A use-case profile's members are the summaries that declare it, in two tiers:
+the required tier from each `Use cases` row and the optional tier from each
+`Optional use cases` row (`useCaseScope`, the one place membership is built).
+No edge adds a member. A technology aggregate's members are the summaries
+naming it. The graph still orders the rows, roots before leaves, and it
+answers the candidates.
 
 `./le rfc tree` prints one row per node, roots to leaves: level, cycle
 members, aggregate, `builds-on` and `updated-by` edges, both figures (or `not
-walked`, `no summary`, or 0% for an absent RFC) and the use-case profiles
-whose closure holds it. Without `profile` it covers every text and summary,
-with the nodes a release profile reaches first. `profile <name>` limits it to
-one closure, adds why each RFC is in it (`route-server: rfc7947 builds-on
-rfc4271`) and the rollup, and lists last the absent RFCs the closure does not
-reach. A level is printed
-`L?` for a summary whose text is not in the repository.
+walked`, or `no summary` for a text no summary covers), the use-case profiles
+requiring it and, under `optional-profiles`, those listing it as optional.
+Without `profile` it covers every text and summary, with the rows a release
+profile requires first. `profile <name>` limits it to that profile's required
+members, each with the declaration that put it there (`route-server: required
+by rfc/short/rfc7947.md`), under the rollup the profile percentage is. Then
+comes the optional tier, `optional members, not counted`, with its own rollup
+and rows (`route-server: optional in rfc/short/rfc2918.md`). Last come the
+candidates: each `builds-on` target or updater of a member, in either tier,
+that neither tier lists, once, with the member and edge that name it
+(`rfc7454 builds-on rfc5082`), by level and then number. A candidate is
+advisory: it is never owed and never counted, and listing one is a summary
+edit an author decides. A level is printed `L?` for a summary whose text is
+not in the repository.
 
 `./le rfc next` names the next gap the owner rule orders, across every release
-profile or inside `profile <name>`. Until the closure's mandatory figure is
-complete it judges the mandatory register: an RFC owes there when a mandatory
-row is owed and not proven, when it has no summary, or when it is not walked.
-The answer is the lowest level holding such an RFC, the lowest RFC number at
-that level, and every member of its citation cycle owing at the same level.
-A row marked `{updated-by}` is owed at the updater's level, counted in its own
-RFC's figure. With nothing left at any level and absent RFCs listed, it names
-those, because they keep the figure incomplete. Once the mandatory figure is
-complete it judges the optional register the same way, and says so.
+profile or inside `profile <name>`, from the required members alone. Until
+their mandatory figure is complete it judges the mandatory register: an RFC
+owes there when a mandatory row is owed and not proven, or when it is not
+walked. The answer is the lowest level holding such an RFC, the lowest RFC
+number at that level, and every member of its citation cycle owing at the
+same level. A row marked `{updated-by}` is owed at the updater's level,
+counted in its own RFC's figure. Once the mandatory figure is complete it
+judges the optional register the same way, and says so. The optional tier
+follows under `optional, not counted` with its own rollup: each optional
+member that is not walked or holds an uncovered row of either register, and
+never the answered gap. Across several profiles, a stem one of them requires
+is counted there and not listed as optional.
 
-Both answer through `| json`. Another le package reads the same closure
-through `ProfileClosures`, over parsed inputs only: `ParseProfiles` over the
-profile files and `graph.Build` over `graph.Parse` of each text. It maps
+A `{updated-by}` marker on a member requires its updater listed for the same
+profile in a tier at least as high: required when the member is required,
+either row when it is optional. `./le rfc check` refuses the marker otherwise,
+naming the member, the marker, the updater and the row to write
+(`checkUpdatedByMembership`). An updater that changes a member's text but
+carries no marker is a candidate, not a member.
+
+Both answer through `| json`. Another le package reads the same members
+through `ProfileMembers`, over parsed inputs only: `ParseProfiles` over the
+profile files and `ParseMeta` over the summaries, and no RFC text. It maps
 requirement ids to stems through `RequirementStems` (parsed summaries) or
 `LoadRequirementStems` (a checkout), which read only the summaries.
 
@@ -1109,11 +1143,12 @@ node with its level, cycle and figures and every edge with its kind, and its
 per profile from them (`docs/contributing/gh-pages.md`, "Quality pages"). A row
 read back from that JSON renders its cells through `TreeRow.Cells`, the cells
 `./le rfc tree` prints.
-<!-- source: internal/le/rfc/priority.go -- closure, scope, loadPriorityCorpus, priorityCorpusOf -->
-<!-- source: internal/le/rfc/tree.go -- tree, treeRow, Cells -->
+<!-- source: internal/le/rfc/priority.go -- useCaseScope, scope, path, loadPriorityCorpus, priorityCorpusOf -->
+<!-- source: internal/le/rfc/tree.go -- tree, treeRow, candidates, Cells -->
 <!-- source: internal/le/rfc/priority_export.go -- PriorityOf -->
-<!-- source: internal/le/rfc/next.go -- next, gapCandidates -->
-<!-- source: internal/le/rfc/priority_export.go -- ProfileClosures, RequirementStems -->
+<!-- source: internal/le/rfc/next.go -- next, gapCandidates, optionalGaps -->
+<!-- source: internal/le/rfc/check_core.go -- checkUpdatedByMembership -->
+<!-- source: internal/le/rfc/priority_export.go -- ProfileMembers, RequirementStems -->
 <!-- source: internal/le/rfc/profile.go -- ParseProfiles -->
 
 ## The extraction sign-off
@@ -1242,7 +1277,7 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `unit` | the tagged unit key, `<path>::<FuncName>` for a Go function and a bare `<path>` when the whole file is the unit, which is the scope `UnitAt` (`internal/le/rfc/goscope.go`) answers for a `.ci`. `fingerprintKey` parses it, so the retired `<path>:<line>` form is refused |
 | `unit-sha` | that unit's behavior hash when the red was observed |
 | `claim-sha` | the hash of what the TAG claims, which is a separate field because `behaviorBytes` strips comments and a claim IS a comment. Without it a sealed proof survives a reworded claim, and a widened sentence would be published as proven with no code edit at all |
-| `route` | `mutant` for a generated break, `revert` for a producer disabled by hand, `no-break` for the escape |
+| `route` | `mutant` for a one-line substitution from a gomu-format report entry, `revert` for a producer function replaced by a halt, `no-break` for the escape |
 | `producer` | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
 | `producer-sha` | that function's behavior hash when the break was applied |
 | `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
@@ -1400,9 +1435,50 @@ use the mutant route inside the value that the initializer returns
 
 | Route | The break | The runner |
 |---|---|---|
-| `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
+| `mutant` | one report entry's `original` text replaced by its `mutated` text on its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
 | `revert` on a `.ci` | the producing function's body replaced by a halt | ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay: `le test <suite> <name>` for ordinary suites, `le test exabgp <suite> <absolute-ci-path>` for `test/exabgp-compat/` |
 | `revert` on an interop checker | the same | the `Action` of the suite whose catalog `Package` holds the checker (`./le test integration interop-ipsec` for `internal/le/interoplab/ipsec/`), with that catalog's `SelectorVariable` (`IPSEC_INTEROP_SCENARIO`) set to the scenario the checker's own `const name` declares, confirmed under the catalog's `ScenarioRoot` |
+
+The `mutant` route reads the report and does not check how it was made.
+`loadGomuReport` decodes the `mutant` object of each `results[]` entry:
+`filePath`, `line`, `column`, `original` and `mutated`. It reads `status` only
+to mark a KILLED entry, and only the proposer below uses that mark.
+`selectMutant` picks the one entry whose `<file>:<line>:<column>#<n>` selector
+matches, whatever its status. `replaceOnLine` then requires the line to exist and
+to carry `original` exactly once, and replaces that one occurrence. It
+then requires the red to name the unit, as it does for every route. So the
+evidence is the red the recorder observed, never the tool that wrote the entry.
+
+A hand-written entry is how one statement is broken when a function holds more
+than one check. `revert` replaces the whole function, so it proves that the unit
+depends on the function. It does not prove that the unit's assertion catches the
+one violation the claim names. Write the report in gomu's JSON shape, with one
+`results[]` entry. Its `original` is a span that the line carries exactly once.
+Its `mutated` text must still compile. A build failure is a red that does not
+name the unit, so the recorder refuses it. Label the entry as hand-written in
+three places, because the record stores only `route: mutant` and the derived
+`break` text. Set `status` to `HAND_WRITTEN`, never `KILLED`, so that the
+proposer never offers it. Write an `id` and a top-level `note` that say what the
+break removes and why (the decoder ignores both). In the commit body, state that
+the break was written by hand. The selector is `<filePath>:<line>:<column>#1` for
+a single entry at its position. An independent judge reads the `break` text and
+decides whether it is the violation the claim names (`ze-test-judge`).
+<!-- source: internal/le/rfc/discriminate_propose.go -- loadGomuReport, reportMutant.selector, reportMutant.text -->
+<!-- source: internal/le/rfc/discriminate_action.go -- mutantBreak, selectMutant, replaceOnLine -->
+
+    {
+      "note": "Hand-written single break: removes only the all-routers JoinGroup call in openRASocket.",
+      "results": [{
+        "mutant": {
+          "id": "hand-written:sender_linux.go:joingroup-removed",
+          "filePath": "internal/plugins/iface/ra/sender_linux.go",
+          "line": 128, "column": 2,
+          "original": "pc.JoinGroup(dev, &net.IPAddr{IP: net.ParseIP(allRoutersGroup)})",
+          "mutated": "func() error { _ = dev; return nil }()"
+        },
+        "status": "HAND_WRITTEN"
+      }]
+    }
 
 One record may rest on a SET of breaks applied together. Some properties are
 guarded twice on the same path, by design ("Pair the check",

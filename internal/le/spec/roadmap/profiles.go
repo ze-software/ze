@@ -21,9 +21,10 @@ import (
 const objectBlob = "blob"
 
 // rfcDirs are the corpus directories the Profiles column reads, each listed
-// one level deep, as rfc.LoadRequirementStems, rfc.LoadProfiles and
-// graph.Load read them from a checkout.
-var rfcDirs = []string{"rfc/short", "rfc/profiles", "rfc/full", "rfc/drafts"}
+// one level deep, as rfc.LoadRequirementStems and rfc.LoadProfiles read them
+// from a checkout. No RFC text is read: membership is declared by each
+// summary's `Use cases` row, never reached over a citation.
+var rfcDirs = []string{"rfc/short", "rfc/profiles"}
 
 // Corpus is what one revision's rfc/ tree says about `RFC gaps` items.
 type Corpus struct {
@@ -31,16 +32,16 @@ type Corpus struct {
 	RequirementStems map[string]string
 	// SummaryStems holds the stem of every rfc/short/ summary.
 	SummaryStems map[string]bool
-	// ProfilesOf names, for each stem, every use-case profile whose closure
-	// holds it.
+	// ProfilesOf names, for each stem, every use-case profile its summary's
+	// `Use cases` row requires it for. An optional listing places nothing.
 	ProfilesOf map[string][]string
 	// ProfileCount is the number of use-case profiles the revision declares.
 	ProfileCount int
 }
 
 // CorpusReader builds the Corpus from one revision's corpus files, keyed by
-// path (rfc/short/<stem>.md, rfc/profiles/<name>.md, rfc/full/<stem>.txt,
-// rfc/drafts/<stem>.txt). It refuses a corpus it cannot fully read.
+// path (rfc/short/<stem>.md, rfc/profiles/<name>.md). It refuses a corpus it
+// cannot fully read.
 type CorpusReader func(files map[string]string) (Corpus, error)
 
 // corpusReader is the registered reader. The RFC corpus parser lives in
@@ -186,14 +187,12 @@ func rfcBlobs(ctx context.Context, root, revision string) (map[string]string, er
 }
 
 // corpusFile is whether rel is a file the checkout readers would read: a
-// `.md` summary or profile, or a `.txt` RFC or draft text.
+// `.md` summary or profile.
 func corpusFile(rel string) bool {
 	dir, name := path.Split(rel)
 	switch dir {
 	case "rfc/short/", "rfc/profiles/":
 		return strings.HasSuffix(name, ".md")
-	case "rfc/full/", "rfc/drafts/":
-		return strings.HasSuffix(name, ".txt")
 	}
 	return false
 }

@@ -119,6 +119,11 @@ const (
 	// metaAggregate names the aggregate of a summary whose `Support` is `-`:
 	// it renders no row and still joins its aggregate's rollup.
 	metaAggregate = "Aggregate"
+	// metaUseCases names the use-case profiles that require this RFC: it is
+	// counted in each one's figures. metaOptionalUseCases names those that
+	// list it as optional: shown with its own figures, never counted.
+	metaUseCases         = "Use cases"
+	metaOptionalUseCases = "Optional use cases"
 )
 
 // supportNone is the `Support` value of a summary that makes no public claim.
@@ -293,6 +298,13 @@ type Meta struct {
 	// its `Aggregate` cell. The public row renders under the aggregate's
 	// heading, in the aggregate's table shape.
 	Aggregate string
+	// UseCases is the use-case profiles that require this RFC, counted in
+	// each one's figures, and OptionalUseCases those that list it as
+	// optional, never counted. Both sorted, both empty for `-`, and no name
+	// is in both. These two rows are the only declaration of use-case
+	// membership: no profile file lists a member, and no citation adds one.
+	UseCases         []string
+	OptionalUseCases []string
 	// Row is whether this summary renders a row on the public page, which is
 	// exactly a `Support` cell naming an aggregate rather than `-`.
 	Row bool
@@ -360,8 +372,9 @@ func (m Meta) Disposition() Disposition {
 }
 
 // nearMissRE is the label a reader must not silently skip: anything naming
-// enrolment, support or obsolescence that is not one of the exact labels above.
-var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet|aggregat`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
+// enrolment, support, obsolescence, an aggregate, a use case or a profile that
+// is not one of the exact labels above.
+var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet|aggregat|use.?case|profile`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
 
 // knownMetaLabels are every label nearMissRE is allowed to match.
 var knownMetaLabels = map[string]bool{
@@ -369,6 +382,7 @@ var knownMetaLabels = map[string]bool{
 	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
 	metaSupportCoverage: true, metaSupportRemain: true,
 	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
+	metaUseCases: true, metaOptionalUseCases: true,
 }
 
 // knownObsolescenceLabel is the pair of lineage labels that carry a qualifier,
@@ -414,6 +428,9 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	if err := readSupport(values, &out, where); err != nil {
 		return Meta{}, err
 	}
+	if err := readUseCases(values, &out, where); err != nil {
+		return Meta{}, err
+	}
 	return out, nil
 }
 
@@ -433,7 +450,7 @@ func refuseNearMiss(label, where string) error {
 	known := sortedSet(knownMetaLabels)
 	var tb textbuf.Buffer
 	return parseErr(tb.Str(where).Str(": Meta field `").Str(label).
-		Str("` names enrolment, support or obsolescence in a spelling nothing reads, ").
+		Str("` names enrolment, support, obsolescence, an aggregate or a use case in a spelling nothing reads, ").
 		Str("so the row would be skipped in silence. The labels this reader knows are ").
 		Str(pyRepr(known)).Str(", plus `Obsoletes` and `Obsoleted by` with an optional qualifier"))
 }
@@ -624,6 +641,131 @@ func refuseOrphanCells(values map[string]string, out *Meta, where string) error 
 	}
 	out.Name = ""
 	return nil
+}
+
+// readUseCases fills the two use-case lists, refusing a missing row, an empty
+// cell, `-` mixed with names, a token that is not one profile name, a name
+// written twice in a row, and a name in both rows.
+//
+// Whether each name is a use-case profile is not decided here: the profiles
+// are files beside the summaries. checkUseCases decides it once they are
+// loaded (summaryMetas), as checkAggregate does for the aggregate.
+func readUseCases(values map[string]string, out *Meta, where string) error {
+	var err error
+	if out.UseCases, err = useCaseNames(values, metaUseCases, where); err != nil {
+		return err
+	}
+	if out.OptionalUseCases, err = useCaseNames(values, metaOptionalUseCases, where); err != nil {
+		return err
+	}
+	for _, name := range out.UseCases {
+		if !slices.Contains(out.OptionalUseCases, name) {
+			continue
+		}
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": the Meta table names ").Str(pyRepr(name)).Str(" in both `").
+			Str(metaUseCases).Str("` and `").Str(metaOptionalUseCases).
+			Str("`, two declarations of one fact. Keep it in one row: `").Str(metaUseCases).
+			Str("` counts the RFC in the profile's figures, `").Str(metaOptionalUseCases).Str("` does not"))
+	}
+	return nil
+}
+
+// useCaseNames reads one use-case row into sorted names, nil for `-`.
+func useCaseNames(values map[string]string, label, where string) ([]string, error) {
+	value, held := values[label]
+	if !held {
+		var tb textbuf.Buffer
+		return nil, parseErr(tb.Str(where).Str(": the Meta table has no `").Str(label).
+			Str("` row. Every summary declares the use-case profiles that require it (`").
+			Str(metaUseCases).Str("`, counted) and those that list it as optional (`").
+			Str(metaOptionalUseCases).Str("`, not counted): write names of files under ").
+			Str(profileRel).Str(", comma separated, or `").Str(supportNone).
+			Str("` for none. There is no default -- a forgotten row must not read as \"not owed\""))
+	}
+	if value == "" {
+		var tb textbuf.Buffer
+		return nil, parseErr(tb.Str(where).Str(": `").Str(label).Str("` is empty. Write use-case ").
+			Str("profile names, comma separated, or `").Str(supportNone).Str("` for none"))
+	}
+	if value == supportNone {
+		return nil, nil
+	}
+	var names []string
+	for item := range strings.SplitSeq(value, ",") {
+		name := strings.TrimSpace(item)
+		if name == supportNone {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": `").Str(label).Str("` is ").Str(pyRepr(value)).
+				Str(", which mixes `").Str(supportNone).Str("` with profile names. Write either `").
+				Str(supportNone).Str("` alone or the names alone"))
+		}
+		if !profileNameRE.MatchString(name) {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": `").Str(label).Str("` item ").Str(pyRepr(name)).
+				Str(" is not one lower-case hyphenated profile name. Write the name of a use-case file under ").
+				Str(profileRel).Str(" (`route-server` for rfc/profiles/route-server.md), comma separated"))
+		}
+		if slices.Contains(names, name) {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": `").Str(label).Str("` names ").Str(pyRepr(name)).
+				Str(" twice. Delete one"))
+		}
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names, nil
+}
+
+// checkUseCases refuses a summary naming, in either use-case row, a name that
+// is no use-case profile: a technology aggregate, or a name with no profile
+// file at all (AC-3).
+func checkUseCases(meta *Meta, profiles Profiles, where string) error {
+	for _, row := range []struct {
+		label string
+		names []string
+	}{{metaUseCases, meta.UseCases}, {metaOptionalUseCases, meta.OptionalUseCases}} {
+		for _, name := range row.names {
+			if _, held := profiles.UseCases[name]; held {
+				continue
+			}
+			var tb textbuf.Buffer
+			tb.Str(where).Str(": `").Str(row.label).Str("` names ").Str(pyRepr(name))
+			if _, aggregate := profiles.Aggregates[name]; aggregate {
+				tb.Str(", which is a technology aggregate, not a use-case profile: an aggregate is named in ").
+					Str("`").Str(metaSupport).Str("` or `").Str(metaAggregate).Str("`")
+			} else {
+				tb.Str(", but there is no ").Str(profileRel).Byte('/').Str(name).Str(".md")
+			}
+			return parseErr(tb.Str(". The use cases are ").Str(pyRepr(sortedKeysOf(profiles.UseCases))))
+		}
+	}
+	return nil
+}
+
+// checkUseCaseMembers refuses every use-case profile no summary requires
+// (AC-5), an optional-only one included: its figure would be 0 of 0, which
+// reads complete and measures nothing. Sorted by profile name.
+func checkUseCaseMembers(profiles Profiles, metas map[string]Meta) []string {
+	required := map[string]bool{}
+	for stem := range metas {
+		for _, name := range metas[stem].UseCases {
+			required[name] = true
+		}
+	}
+	var out []string
+	for _, name := range sortedKeysOf(profiles.UseCases) {
+		if required[name] {
+			continue
+		}
+		var tb textbuf.Buffer
+		out = append(out, tb.Str(profileRel).Byte('/').Str(name).Str(".md: no summary lists ").
+			Str(pyRepr(name)).Str(" in its `").Str(metaUseCases).Str("` row, so the profile owes ").
+			Str("nothing and its figure would read 0 of 0. A summary joins it by writing `| ").
+			Str(metaUseCases).Str(" | ").Str(name).Str(" |` in its Meta table; a profile no role ").
+			Str("needs is deleted").String())
+	}
+	return out
 }
 
 // checkAggregate refuses a summary naming an aggregate no profile declares,
@@ -857,6 +999,10 @@ func summaryMetas(tree string, stems map[string]bool, profiles Profiles) (map[st
 			continue
 		}
 		if err := checkAggregate(&meta, profiles.Aggregates, stem, rel); err != nil {
+			problems[stem] = err.Error()
+			continue
+		}
+		if err := checkUseCases(&meta, profiles, rel); err != nil {
 			problems[stem] = err.Error()
 			continue
 		}

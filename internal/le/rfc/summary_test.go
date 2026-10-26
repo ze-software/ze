@@ -204,7 +204,7 @@ func TestADuplicateIdIsRefused(t *testing.T) {
 // no author intending it and no gate saying so
 // (plan/journal/gate-excludes-part-of-its-population.md).
 func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
-	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Title | Widgets |\n"
+	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n| Title | Widgets |\n"
 	const where = "rfc/short/rfc9999.md"
 
 	meta, err := ParseMeta(head+
@@ -248,7 +248,7 @@ func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
 // first column repeats `1`, and a scan bounded by the next `##` heading read
 // those as Meta field names.
 func TestTheMetaScanStopsAtItsOwnTable(t *testing.T) {
-	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
 		"| Support | - |\n| Aggregate | bgp-core |\n\n**Scope:**\n| AFI | SAFI | Description |\n|---|---|---|\n" +
@@ -286,7 +286,7 @@ func TestGatedCountsCountOnlyMustLevelRows(t *testing.T) {
 // document does not state.
 func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 	const summary = "# RFC 9999 -- Widgets, or so it says\n\n## Meta\n\n" +
-		"| Field | Value |\n|-------|-------|\n| RFC | 9999 |\n" +
+		"| Field | Value |\n|-------|-------|\n| RFC | 9999 |\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | The Widget Protocol |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
@@ -298,7 +298,7 @@ func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 	if meta.Title != "The Widget Protocol" {
 		t.Errorf("the title is %q, want the Meta row's own value", meta.Title)
 	}
-	bare, err := ParseMeta("# RFC 9999 -- Widgets\n\n## Meta\n\n| Field | Value |\n|--|--|\n"+
+	bare, err := ParseMeta("# RFC 9999 -- Widgets\n\n## Meta\n\n| Field | Value |\n|--|--|\n| Use cases | - |\n| Optional use cases | - |\n"+
 		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n"+
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n"+
 		"| Support | - |\n| Aggregate | bgp-core |\n",
@@ -325,7 +325,7 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 	if len(stems) == 0 {
 		t.Fatal("this checkout carries no summary, so this proves nothing")
 	}
-	profiles, profileProblems, err := LoadProfiles(root, stems)
+	profiles, profileProblems, err := LoadProfiles(root)
 	if err != nil || len(profileProblems) != 0 {
 		t.Fatal(err, profileProblems)
 	}
@@ -358,7 +358,7 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 // the loss on the surface that now feeds the page, and the freshness check
 // would call the result fresh, because it compares generation with generation.
 func TestAnUnescapedPipeInAMetaValueIsRefused(t *testing.T) {
-	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
 		"| Support | - |\n| Aggregate | bgp-core |\n"

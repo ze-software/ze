@@ -15,7 +15,7 @@ import (
 )
 
 // metaHead is the part of a Meta table every case below shares.
-const metaHead = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Title | Widgets |\n"
+const metaHead = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n| Title | Widgets |\n"
 
 // metaWhere is the path a refusal names.
 const metaWhere = "rfc/short/rfc9999.md"

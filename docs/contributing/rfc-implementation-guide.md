@@ -661,6 +661,13 @@ never sums the two, because a nightly tier is not merge-gate proof.
   A name with no file under `rfc/profiles/` does not parse. The format of those
   files is in `rfc-conformance-gates.md`, "Profiles and aggregates".
 
+  Every summary also declares its use cases in two mandatory rows, each `-` when
+  empty: `| Use cases | route-server, looking-glass |` names the use-case
+  profiles that require the RFC, counted in their figures, and
+  `| Optional use cases | lns |` those that list it as optional, never counted.
+  No profile file lists a member and no citation adds one, so a forgotten row
+  is a parse error rather than an RFC quietly not owed.
+
   Three related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
   real: a `non-normative` disposition, or a `manual-walk`

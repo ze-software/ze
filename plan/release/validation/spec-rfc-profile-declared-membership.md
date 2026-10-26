@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | The release profiles' coverage figures are what the first release is judged against. `./le rfc tree profile route-server` reports mandatory 909 of 2246 (40.5%) over 133 RFCs because membership follows normative citations into PPP, CHAP, DHCP, TFTP, IS-IS, DNSSEC, GRE, IKEv2, ESP, AH, MPLS, LDP and OSPF. The published figure is false, and the release gate it feeds is unreachable for a reason that is not a Ze defect |

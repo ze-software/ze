@@ -1,11 +1,13 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- the priority tree, `./le rfc next`
-// Related: priority.go -- the corpus, the closure and the order this reads
+// Related: priority.go -- the corpus, the declared tiers and the order this reads
 // Related: tree.go -- the whole tree the next gap is the first gap of
 //
 // next.go answers the next gap the owner rule of 2026-10-25 orders: the
-// lowest level of the closure holding an uncovered row, mandatory rows until
-// the closure's mandatory figure is complete, optional rows after. A row an
-// updating RFC rewrites (`{updated-by}`) is ordered at the updater's level.
+// lowest level of the required members holding an uncovered row, mandatory
+// rows until their mandatory figure is complete, optional-register rows
+// after. A row an updating RFC rewrites (`{updated-by}`) is ordered at the
+// updater's level. Members of the optional tier never answer the gap: they
+// are listed in their own section, not counted.
 package rfc
 
 import (
@@ -40,11 +42,11 @@ type NextGap struct {
 	Title   string `json:"title"`
 	Summary bool   `json:"summary"`
 	Walked  bool   `json:"walked"`
-	Absent  bool   `json:"absent"`
-	// Uncovered is the rows of the register owed and not proven.
+	// Uncovered is the rows of the register owed and not proven; for an
+	// optional-tier member, the rows of both registers.
 	Uncovered []NextRow `json:"uncovered"`
-	// Profiles is the judged profiles whose closure holds the RFC, and Path
-	// why the first of them does.
+	// Profiles is the judged profiles listing the RFC in the gap's tier, and
+	// Path the declaration that puts it in the first of them.
 	Profiles []string `json:"profiles"`
 	Path     string   `json:"path"`
 }
@@ -53,16 +55,24 @@ type NextGap struct {
 type NextReport struct {
 	// Profiles is the profiles judged: the named one, or every release one.
 	Profiles []string `json:"profiles"`
-	// Register is `mandatory` until the closure's mandatory figure is
-	// complete, `optional` after.
+	// Register is `mandatory` until the required members' mandatory figure
+	// is complete, `optional` after.
 	Register          string      `json:"register"`
 	MandatoryComplete bool        `json:"mandatory-complete"`
 	Complete          bool        `json:"complete"`
 	Level             *int        `json:"level"`
 	Component         []string    `json:"component"`
 	Gaps              []NextGap   `json:"gaps"`
-	Absent            []string    `json:"absent"`
 	Rollup            ScopeRollup `json:"rollup"`
+	// Optional is the optional tier: its own rollup, and each member owing a
+	// row, roots to leaves. It never answers the gap and never enters Rollup.
+	Optional NextOptional `json:"optional"`
+}
+
+// NextOptional is the optional tier of the judged profiles, not counted.
+type NextOptional struct {
+	Rollup ScopeRollup `json:"rollup"`
+	Gaps   []NextGap   `json:"gaps"`
 }
 
 // nextReport answers the next gap of one checkout, inside profile when it is
@@ -110,7 +120,8 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 		scopes = []profileScope{scope}
 	}
 	report := &NextReport{Profiles: []string{}, Component: []string{}, Gaps: []NextGap{},
-		Absent: absentStems(scopes), Rollup: c.rollupOfScopes(scopes)}
+		Rollup:   c.rollupOfScopes(scopes),
+		Optional: NextOptional{Rollup: c.optionalRollupOfScopes(scopes), Gaps: c.optionalGaps(scopes)}}
 	for index := range scopes {
 		report.Profiles = append(report.Profiles, scopes[index].name)
 	}
@@ -121,13 +132,6 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 	}
 	candidates := c.gapCandidates(scopes, report.Register == registerMandatory)
 	if len(candidates) == 0 {
-		if report.Register == registerMandatory && len(report.Absent) != 0 {
-			for _, stem := range report.Absent {
-				report.Gaps = append(report.Gaps, NextGap{Stem: stem, Absent: true,
-					Uncovered: []NextRow{}, Profiles: scopesHolding(scopes, stem), Path: absentPath})
-			}
-			return report, nil
-		}
 		report.Complete = true
 		return report, nil
 	}
@@ -165,36 +169,27 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 	return report, nil
 }
 
-// gapCandidates answers every RFC of the scopes that owes something in the
-// register, keyed by the level it is owed at. In the mandatory register a
-// node with no summary and a summary with no extraction sign-off owe their
-// walk at their own level, whatever their rows say: the rollup is incomplete
-// while either exists. A row is owed at its own RFC's level, or at its
-// updater's when it carries `{updated-by}`.
+// gapCandidates answers every required member of the scopes that owes
+// something in the register, keyed by the level it is owed at. In the
+// mandatory register a summary with no extraction sign-off owes its walk at
+// its own level, whatever its rows say: the rollup is incomplete while one
+// exists. A row is owed at its own RFC's level, or at its updater's when it
+// carries `{updated-by}`.
 func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) map[gapKey]*NextGap {
-	union := map[string]bool{}
-	for index := range scopes {
-		for stem := range scopes[index].reached {
-			union[stem] = true
-		}
-	}
-	absent := absentStemSet(scopes)
+	union := requiredUnion(scopes)
 	out := map[gapKey]*NextGap{}
 	at := func(level *int, stem string) *NextGap {
 		key := keyOf(level, stem)
 		if gap, held := out[key]; held {
 			return gap
 		}
-		figures, summarized := c.figures[stem]
-		gap := &NextGap{Stem: stem, Title: c.metas[stem].Title, Absent: absent[stem], Summary: summarized, Walked: figures.Walked,
-			Uncovered: []NextRow{}, Profiles: scopesHolding(scopes, stem), Path: firstPath(scopes, stem)}
+		gap := c.nextGap(stem, scopes, requiredTier)
 		out[key] = gap
 		return gap
 	}
 	if mandatory {
 		for _, stem := range sortedSet(union) {
-			figures, summarized := c.figures[stem]
-			if !summarized || !figures.Walked {
+			if !c.figures[stem].Walked {
 				at(c.level(stem), stem)
 			}
 		}
@@ -207,20 +202,12 @@ func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) ma
 		if requirement.Gated() != mandatory {
 			continue
 		}
-		owed, met := rowCounts(requirement, c.proven)
+		row, owed := c.uncoveredRow(requirement)
 		if !owed {
 			continue
 		}
-		if met {
-			continue
-		}
-		row := NextRow{ID: requirement.RID, Level: requirement.Level}
-		if requirement.Annotation != nil {
-			row.Annotation = requirement.Annotation.Kind
-		}
 		level := c.level(requirement.RFC)
 		if requirement.UpdatedBy != nil {
-			row.UpdatedBy = requirement.UpdatedBy.Target
 			if updater, shaped := ridStem(requirement.UpdatedBy.Target); shaped {
 				level = c.level(updater)
 			}
@@ -231,49 +218,115 @@ func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) ma
 	return out
 }
 
-// scopesHolding answers the names of the scopes whose closure holds stem or
-// lists it absent.
-func scopesHolding(scopes []profileScope, stem string) []string {
-	out := []string{}
-	for index := range scopes {
-		if _, held := scopes[index].reached[stem]; held {
-			out = append(out, scopes[index].name)
+// optionalGaps answers every optional-tier member that owes something, in
+// either register: unwalked, or holding an uncovered row. Roots to leaves,
+// then RFC number.
+func (c *priorityCorpus) optionalGaps(scopes []profileScope) []NextGap {
+	union := optionalUnion(scopes)
+	byStem := map[string]*NextGap{}
+	for _, stem := range sortedSet(union) {
+		if !c.figures[stem].Walked {
+			byStem[stem] = c.nextGap(stem, scopes, optionalTier)
+		}
+	}
+	for index := range c.requirements {
+		requirement := &c.requirements[index]
+		if !union[requirement.RFC] {
 			continue
 		}
-		if slices.Contains(absentStems(scopes[index:index+1]), stem) {
-			out = append(out, scopes[index].name)
+		row, owed := c.uncoveredRow(requirement)
+		if !owed {
+			continue
 		}
+		gap, held := byStem[requirement.RFC]
+		if !held {
+			gap = c.nextGap(requirement.RFC, scopes, optionalTier)
+			byStem[requirement.RFC] = gap
+		}
+		gap.Uncovered = append(gap.Uncovered, row)
+	}
+	stems := sortedKeysOf(byStem)
+	slices.SortFunc(stems, func(left, right string) int {
+		if order := compareLevels(c.level(left), c.level(right)); order != 0 {
+			return order
+		}
+		return statusRowCompare(left, right)
+	})
+	out := make([]NextGap, 0, len(stems))
+	for _, stem := range stems {
+		out = append(out, *byStem[stem])
 	}
 	return out
 }
 
-// firstPath answers why the first scope holding stem holds it.
-func firstPath(scopes []profileScope, stem string) string {
+// memberTier names which of a scope's two tiers a gap is read from.
+type memberTier uint8
+
+const (
+	// tierUnspecified is the zero value, which no gap is built with.
+	tierUnspecified memberTier = iota
+	requiredTier
+	optionalTier
+)
+
+// nextGap answers stem's gap with no row yet, naming the scopes that list it
+// in tier and the declaration of the first of them.
+func (c *priorityCorpus) nextGap(stem string, scopes []profileScope, tier memberTier) *NextGap {
+	figures, summarized := c.figures[stem]
+	gap := &NextGap{Stem: stem, Title: c.metas[stem].Title, Summary: summarized, Walked: figures.Walked,
+		Uncovered: []NextRow{}, Profiles: []string{}}
 	for index := range scopes {
-		if _, held := scopes[index].reached[stem]; held {
-			return scopes[index].path(stem)
+		var listed bool
+		switch tier {
+		case requiredTier:
+			listed = scopes[index].members[stem]
+		case optionalTier:
+			listed = scopes[index].optional[stem]
+		case tierUnspecified:
+			panic("BUG: nextGap asked for " + stem + " with no tier")
 		}
+		if !listed {
+			continue
+		}
+		if gap.Path == "" {
+			gap.Path = scopes[index].path(stem)
+		}
+		gap.Profiles = append(gap.Profiles, scopes[index].name)
 	}
-	return ""
+	return gap
 }
 
-// Text renders the next gap for a reader at a terminal.
+// uncoveredRow answers requirement's row when it is owed and not proven.
+func (c *priorityCorpus) uncoveredRow(requirement *Requirement) (NextRow, bool) {
+	owed, met := rowCounts(requirement, c.proven)
+	if !owed {
+		return NextRow{}, false
+	}
+	if met {
+		return NextRow{}, false
+	}
+	row := NextRow{ID: requirement.RID, Level: requirement.Level}
+	if requirement.Annotation != nil {
+		row.Annotation = requirement.Annotation.Kind
+	}
+	if requirement.UpdatedBy != nil {
+		row.UpdatedBy = requirement.UpdatedBy.Target
+	}
+	return row, true
+}
+
+// Text renders the next gap for a reader at a terminal, then the optional
+// tier under its own rollup.
 func (r *NextReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("next RFC gap for ").Str(strings.Join(r.Profiles, ", ")).Str(": ").Str(r.Rollup.String()).Byte('\n')
-	if r.Complete {
-		tb.Str("every mandatory and optional row the closure reaches is proven: nothing is owed\n")
-		return tb.String()
-	}
-	if r.MandatoryComplete {
+	switch {
+	case r.Complete:
+		tb.Str("every mandatory and optional row of the required members is proven: nothing is owed\n")
+	case r.MandatoryComplete:
 		tb.Str("mandatory is complete: every mandatory row is proven, so the next gap is optional\n")
 	}
-	// The fallback lists only absent RFCs and sets no level; an absent RFC a
-	// closure reaches is a gap at its own level, among the others.
-	if len(r.Gaps) != 0 && r.Gaps[0].Absent && r.Level == nil {
-		tb.Str("every RFC in the corpus is covered; these RFCs are absent from it at 0%: ").
-			Str("fetch each text into rfc/full/ and summarize it (ai/skills/ze-rfc.md)\n")
-	} else {
+	if !r.Complete {
 		tb.Str(r.Register).Str(" gap at ").Str(levelCell(r.Level))
 		if len(r.Component) != 0 {
 			tb.Str(", citation cycle ").Str(strings.Join(r.Component, ", "))
@@ -283,15 +336,15 @@ func (r *NextReport) Text() string {
 	for index := range r.Gaps {
 		writeNextGap(&tb, &r.Gaps[index])
 	}
-	if len(r.Absent) != 0 {
-		tb.Str("absent at 0%: ").Str(strings.Join(r.Absent, ", ")).Byte('\n')
+	if r.Optional.Rollup.RFCs == 0 {
+		return tb.String()
+	}
+	tb.Str("optional, not counted: ").Str(r.Optional.Rollup.String()).Byte('\n')
+	for index := range r.Optional.Gaps {
+		writeNextGap(&tb, &r.Optional.Gaps[index])
 	}
 	return tb.String()
 }
-
-// absentPath is the path of an absent RFC no closure reaches: the profile
-// lists it, and no edge leads to it.
-const absentPath = "listed under Absent"
 
 // writeNextGap renders one RFC of the gap and what it owes.
 func writeNextGap(tb *textbuf.Buffer, gap *NextGap) {
@@ -300,16 +353,7 @@ func writeNextGap(tb *textbuf.Buffer, gap *NextGap) {
 		tb.Str("  ").Str(gap.Title)
 	}
 	tb.Byte('\n')
-	if gap.Absent && gap.Path == absentPath {
-		tb.Str("      serves ").Str(strings.Join(gap.Profiles, ", ")).Byte('\n')
-		return
-	}
-	switch {
-	case gap.Absent:
-		tb.Str("      absent from the corpus at 0%: write rfc/short/").Str(gap.Stem).Str(".md (ai/skills/ze-rfc.md)\n")
-	case !gap.Summary:
-		tb.Str("      no summary: write rfc/short/").Str(gap.Stem).Str(".md (ai/skills/ze-rfc.md)\n")
-	case !gap.Walked:
+	if !gap.Walked {
 		tb.Str("      not walked: no valid extraction sign-off, run ./le rfc extraction create stem ").
 			Str(gap.Stem).Byte('\n')
 	}

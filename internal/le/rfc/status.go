@@ -158,7 +158,7 @@ func Collect(tree string) (Collected, error) {
 	if err != nil {
 		return Collected{}, err
 	}
-	profiles, profileProblems, err := LoadProfiles(tree, stems)
+	profiles, profileProblems, err := LoadProfiles(tree)
 	if err != nil {
 		return Collected{}, err
 	}

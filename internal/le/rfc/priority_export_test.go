@@ -1,8 +1,8 @@
 package rfc
 
-// VALIDATES: the exported closure and requirement index another le package
-// reads (ProfileClosures, RequirementStems).
-// PREVENTS: a roadmap closure that disagrees with `./le rfc tree`, and an id
+// VALIDATES: the exported members and requirement index another le package
+// reads (ProfileMembers, RequirementStems).
+// PREVENTS: roadmap members that disagree with `./le rfc tree`, and an id
 // index that silently drops a summary that did not parse.
 
 import (
@@ -10,20 +10,30 @@ import (
 	"testing"
 )
 
-// TestProfileClosuresAndRequirementStems: the closures equal the tree's
-// members over the priority fixture, and the index maps ids to stems and
-// refuses a duplicate id.
-func TestProfileClosuresAndRequirementStems(t *testing.T) {
+// TestProfileMembersAndRequirementStems: the members of each tier equal the
+// rows `tree profile` answers in that tier over the priority fixture, an
+// aggregate has none, and the index maps ids to stems and refuses a duplicate
+// id.
+func TestProfileMembersAndRequirementStems(t *testing.T) {
 	corpus := priorityFixture(t, map[string]bool{})
-	closures := ProfileClosures(corpus.graph, corpus.profiles)
-	if want := []string{"rfc1", "rfc2", "rfc3", "rfc4", "rfc5", "rfc6"}; !slices.Equal(closures["edge"], want) {
-		t.Errorf("edge closure %v, want %v", closures["edge"], want)
+	members := ProfileMembers(corpus.profiles, corpus.metas)
+	for _, name := range []string{"core", "edge", "lab"} {
+		report, err := corpus.tree(name)
+		if err != nil {
+			t.Fatalf("tree %s: %v", name, err)
+		}
+		required, optional := rowStems(report.Rows), rowStems(report.Optional.Rows)
+		slices.Sort(required)
+		slices.Sort(optional)
+		if !slices.Equal(members[name].Required, required) || !slices.Equal(members[name].Optional, optional) {
+			t.Errorf("%s members %+v, tree rows %v optional %v", name, members[name], required, optional)
+		}
 	}
-	if want := []string{"rfc1", "rfc2", "rfc4"}; !slices.Equal(closures["core"], want) {
-		t.Errorf("core closure %v, want %v (rfc4 updates rfc1)", closures["core"], want)
+	if want := []string{"rfc1", "rfc2", "rfc3", "rfc4", "rfc5"}; !slices.Equal(members["edge"].Required, want) {
+		t.Errorf("edge required %v, want %v", members["edge"].Required, want)
 	}
-	if _, held := closures["base"]; held {
-		t.Error("an aggregate has a closure: only use-case profiles do")
+	if _, held := members["base"]; held {
+		t.Error("an aggregate has use-case members: only use-case profiles do")
 	}
 
 	line := "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"

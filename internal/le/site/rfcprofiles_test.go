@@ -12,29 +12,28 @@ import (
 )
 
 // rfcProfilesFixtureLedger states a ledger with three profiles, one of each
-// group, whose rows cover every state a node can be in: walked and measured,
-// not walked, no summary, no level, and absent.
+// group, whose rows cover every state a member can be in: walked and
+// measured, not walked, and no level; the release profile also lists one
+// optional RFC in its own tier.
 func rfcProfilesFixtureLedger() rfcLedger {
 	zero, one := 0, 1
 	walked := &rfc.TreeRow{Stem: "rfc4271", Title: "A Border Gateway Protocol 4 (BGP-4)", Level: &zero,
 		Aggregate: "bgp-core", Summary: true, Walked: true, MandatoryProven: 3, MandatoryTotal: 4,
-		OptionalProven: 1, OptionalTotal: 2, Component: []string{}, Path: "route-server: rfc4271 (root)"}
+		OptionalProven: 1, OptionalTotal: 2, Component: []string{}, Path: "route-server: required by rfc/short/rfc4271.md"}
 	unwalked := &rfc.TreeRow{Stem: "rfc7947", Title: "Internet Exchange BGP Route Server", Level: &one,
 		Aggregate: "bgp-core", Summary: true, MandatoryTotal: 9, Component: []string{"rfc7948"},
-		Path: "route-server: rfc7947 (root)"}
-	textOnly := &rfc.TreeRow{Stem: "rfc1997", Level: &one, Component: []string{},
-		Path: "route-server: rfc7947 builds-on rfc1997"}
-	// An absent RFC the closure reaches through its text keeps its level.
-	reachedAbsent := &rfc.TreeRow{Stem: "rfc8326", Absent: true, Level: &one, Component: []string{},
-		Path: "route-server: rfc7947 builds-on rfc8326"}
+		Path: "route-server: required by rfc/short/rfc7947.md"}
 	noLevel := &rfc.TreeRow{Stem: "rfc4762", Title: "VPLS", Summary: true, Walked: true,
-		MandatoryProven: 0, MandatoryTotal: 0, Component: []string{}, Path: "route-server: rfc4762 (root)"}
-	absent := &rfc.TreeRow{Stem: "rfc8212", Absent: true, Component: []string{},
-		Path: "route-server: listed under Absent"}
+		MandatoryProven: 0, MandatoryTotal: 0, Component: []string{}, Path: "route-server: required by rfc/short/rfc4762.md"}
+	listed := &rfc.TreeRow{Stem: "rfc2918", Title: "Route Refresh Capability for BGP-4", Level: &zero,
+		Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 2, Component: []string{},
+		Path: "route-server: optional in rfc/short/rfc2918.md"}
 	release := &rfc.TreeReport{Profile: "route-server", Title: "Route server", Kind: "use-case", Release: true,
-		Rollup: &rfc.ScopeRollup{RFCs: 5, NotWalked: 2, Absent: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}},
-		Rows: []*rfc.TreeRow{walked, unwalked, textOnly, reachedAbsent, noLevel, absent}}
+		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 3, NotWalked: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}}},
+		Rows: []*rfc.TreeRow{walked, unwalked, noLevel},
+		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1,
+			Mandatory: rfc.Figure{Proven: 1, Total: 2}}}, Rows: []*rfc.TreeRow{listed}}}
 	other := &rfc.TreeReport{Profile: "vpn-concentrator", Title: "VPN concentrator", Kind: "use-case",
 		Rollup: &rfc.ScopeRollup{RFCs: 1, NotWalked: 1},
 		Rows:   []*rfc.TreeRow{unwalked}}
@@ -97,13 +96,16 @@ func readRFCProfilePage(t *testing.T, output, profile, file string) string {
 
 // VALIDATES: AC-15 at the producer.
 // PREVENTS: a profile with no page, an index that buries the release
-// profiles, and an unwalked or absent RFC read as a measurement.
+// profiles, an unwalked RFC read as a measurement, and an optional RFC
+// counted in the profile's figures.
 //
 // TestRFCProfilePagesRendered proves AC-15 at the producer: the index and one
 // page per profile are written and answered, release profiles lead the index,
-// each page carries both figures, the not-walked and absent counts and a bar
-// per RFC, an absent RFC renders at 0%, an unwalked one as "not walked", and
-// a retired page of this family is removed while a foreign directory stays.
+// each page carries both figures, the not-walked count and a bar per RFC, an
+// unwalked RFC renders as "not walked", the optional tier sits in its own
+// "Optional (not counted)" table with its own rollup (AC-10), no page or
+// index carries an absent count, and a retired page of this family is
+// removed while a foreign directory stays.
 func TestRFCProfilePagesRendered(t *testing.T) {
 	ledger := rfcProfilesFixtureLedger()
 	output, routes := renderRFCProfilesFixture(t, ledger)
@@ -129,7 +131,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	if mirror := readRFCProfilePage(t, output, "", "index.md"); !strings.Contains(mirror, "[Route server](route-server/)") {
 		t.Errorf("index mirror does not link the release profile:\n%s", mirror)
 	}
-	// A 100% mandatory bar beside Absent > 0 must not read complete.
+	// A profile with an unwalked member must not read complete.
 	if !strings.Contains(index, "Mandatory register") || !strings.Contains(index, "not complete") {
 		t.Errorf("index carries no mandatory register column")
 	}
@@ -142,35 +144,37 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 		rfcProfileMarker, "Release profile",
 		"<strong>75.0%</strong><b>3 of 4 (75.0%)</b>", // mandatory figure
 		"<strong>50.0%</strong><b>1 of 2 (50.0%)</b>", // optional figure
-		"<span>Not walked</span><strong>2</strong>",
-		"<span>Absent</span><strong>1</strong>",
-		"<h3>Level 0</h3>", "<h3>Level 1</h3>", "<h3>Absent from the corpus</h3>",
+		"<span>Not walked</span><strong>1</strong>",
+		"<h3>Level 0</h3>", "<h3>Level 1</h3>",
 		"<h3>No level: the corpus holds no text of the RFC</h3>",
 		`<a href="../../rfc4271/">RFC 4271</a>`, "(cycle with rfc7948)",
-		`<span style="width:75.0%">`, "0% (absent from the corpus)", "not walked", "no summary",
-		"route-server: rfc7947 builds-on rfc1997",
+		`<span style="width:75.0%">`, "not walked", "route-server: required by rfc/short/rfc7947.md",
+		"<h2>Optional (not counted)</h2>", "Their own figures: mandatory 1 of 2 (50.0%)",
+		"route-server: optional in rfc/short/rfc2918.md", `<span style="width:50.0%">`,
 	} {
 		if !strings.Contains(page, fact) {
 			t.Errorf("route-server page lacks %q", fact)
 		}
 	}
 	if headings := strings.Count(page, "<h3>Level 1</h3>"); headings != 1 {
-		t.Errorf("route-server page carries %d Level 1 headings, want 1: a reached absent RFC stays in its level", headings)
+		t.Errorf("route-server page carries %d Level 1 headings, want 1", headings)
+	}
+	if strings.Contains(page, "Absent") || strings.Contains(index, "Absent") {
+		t.Error("a profile page or the index still carries an absent count: every listed RFC has a summary")
 	}
 	for _, keyword := range append(rfc.MandatoryKeywords(), rfc.OptionalKeywords()...) {
 		if !strings.Contains(page, keyword+",") && !strings.Contains(page, keyword+" and") && !strings.Contains(page, keyword+" rows") {
 			t.Errorf("route-server page cards do not name keyword %q", keyword)
 		}
 	}
-	if bars := strings.Count(page, `<div class="rfc-bar`); bars != 2*len(ledger.Profiles[0].Rows) {
-		t.Errorf("route-server page carries %d bars, want two per RFC (%d)", bars, 2*len(ledger.Profiles[0].Rows))
-	}
-	if strings.Contains(page, `<a href="../../rfc1997/">`) {
-		t.Error("a node with no summary links a ledger page that does not exist")
+	members := len(ledger.Profiles[0].Rows) + len(ledger.Profiles[0].Optional.Rows)
+	if bars := strings.Count(page, `<div class="rfc-bar`); bars != 2*members {
+		t.Errorf("route-server page carries %d bars, want two per RFC of either tier (%d)", bars, 2*members)
 	}
 	mirror := readRFCProfilePage(t, output, "route-server", "index.md")
 	for _, fact := range []string{"# Route server", "**Mandatory**: 75.0% (3 of 4 (75.0%))", "### Level 0",
-		"| [RFC 4271](../../rfc4271/) |", "| 0% (absent from the corpus) |", "| not walked |"} {
+		"| [RFC 4271](../../rfc4271/) |", "| not walked |", "## Optional (not counted)",
+		"| route-server: optional in rfc/short/rfc2918.md |"} {
 		if !strings.Contains(mirror, fact) {
 			t.Errorf("route-server mirror lacks %q", fact)
 		}

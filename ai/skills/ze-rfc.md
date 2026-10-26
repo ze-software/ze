@@ -10,12 +10,16 @@ Generate a structured implementation summary from an RFC text file.
 ## Choosing which RFC to work on
 
 Run `./le rfc next` before picking an RFC yourself. It names the next gap the
-owner rule orders across every release profile: the lowest-level RFC of a
-release profile's closure that owes a mandatory row, with its uncovered ids,
-the profiles it serves and why it is in the closure. `./le rfc next profile
-<name>` judges one profile, and `./le rfc tree profile <name>` shows the whole
-closure with both coverage figures per RFC. An RFC it names as `no summary`
-is this skill's work; one named `not walked` owes its extraction sign-off.
+owner rule orders across every release profile: the lowest-level RFC that a
+release profile requires and that owes a mandatory row, with its uncovered ids,
+the profiles it serves and the summary that declares it. A profile's members
+are declared, never inferred: each summary's `Use cases` row names the profiles
+that require it, and its `Optional use cases` row those that list it without
+counting it. `./le rfc next profile <name>` judges one profile, and
+`./le rfc tree profile <name>` shows its required members with both coverage
+figures per RFC, then the optional members under their own rollup, then the
+candidates (RFCs one citation edge away that no tier lists, never owed). An RFC
+named `not walked` owes its extraction sign-off.
 
 ## Instructions
 1. Use ULTRATHINK for deep analysis
@@ -58,6 +62,12 @@ is this skill's work; one named `not walked` owes its extraction sign-off.
    | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
    | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names an aggregate |
    | `Support remaining` | what is not complete, or `-`. An aggregate whose profile says `| Shape | brief |` (`drafts`) has no such column, so a row there writes `-` |
+   | `Use cases` | the use-case profiles (files under `rfc/profiles/` whose `Kind` is `use-case`) that REQUIRE this RFC, comma separated, or `-`. Counted in each profile's figures. Never infer it from citations: a builds-on or updated-by edge makes an RFC a candidate, not a member. An aggregate name is refused |
+   | `Optional use cases` | the use-case profiles that list this RFC without counting it, or `-`. A name in both rows is refused. The owner moves an RFC into scope by moving its name to `Use cases` |
+
+   A summary that lists a profile and carries an `{updated-by: X-...}` marker obliges X to list
+   that profile in a tier at least as high (`Use cases` when the summary's is `Use cases`), or
+   `./le rfc check` refuses it: an update to a required RFC is required too.
 
    Enrolling is ONE edit to ONE file: write `| Enrolment | enrolled |` with its reason,
    then run `./le rfc update`. Two states are unrepresentable now rather than

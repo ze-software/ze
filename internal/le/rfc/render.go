@@ -109,7 +109,7 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	metas, problems, profiles := collected.Metas, collected.MetaProblems, collected.Profiles
 	if metas == nil {
 		var profileProblems []string
-		if profiles, profileProblems, err = LoadProfiles(tree, in.Stems); err != nil {
+		if profiles, profileProblems, err = LoadProfiles(tree); err != nil {
 			return RenderInput{}, err
 		}
 		if len(profileProblems) != 0 {

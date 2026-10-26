@@ -116,8 +116,8 @@ committed `HEAD`. That snapshot supplies the page, its Markdown mirror, and
 `data/release-roadmap.json`. The JSON carries its own input digest and full
 revision, because the site's website-only source digest does not cover `plan/`.
 When a spec declares `RFC gaps`, the same snapshot's Profiles column reads
-`rfc/short/`, `rfc/profiles/`, `rfc/full/` and `rfc/drafts/` from that commit
-too, and those files join the input digest
+`rfc/short/` and `rfc/profiles/` from that commit too, and those files join
+the input digest
 (`docs/contributing/spec-workflow.md`, "Committed release roadmap").
 <!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->

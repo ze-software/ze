@@ -97,3 +97,130 @@ func TestBaselineReadsTheRetiredSectionRank(t *testing.T) {
 		t.Error("the baseline rewrite changed a summary already in the current shape")
 	}
 }
+
+// useCaseMeta is the selftest Meta table with its two use-case rows replaced
+// by rows, which may be empty to drop both.
+func useCaseMeta(rows string) string {
+	return "# RFC 9999\n\n" + strings.Replace(selftestMeta, selftestUseCaseRows, rows, 1)
+}
+
+// TestParseMetaUseCases: AC-1. The two rows read into two sorted name lists,
+// and `-` reads as an empty list. Method: one table with names out of order in
+// each row, and the selftest table with `-` in both.
+func TestParseMetaUseCases(t *testing.T) {
+	meta, err := ParseMeta(useCaseMeta("| Use cases | route-server, looking-glass |\n"+
+		"| Optional use cases | lns |\n"), "rfc9999", metaWhere)
+	if err != nil {
+		t.Fatalf("ParseMeta: %v", err)
+	}
+	if got := strings.Join(meta.UseCases, ","); got != "looking-glass,route-server" {
+		t.Errorf("Use cases read %q, want looking-glass,route-server", got)
+	}
+	if got := strings.Join(meta.OptionalUseCases, ","); got != "lns" {
+		t.Errorf("Optional use cases read %q, want lns", got)
+	}
+	none, err := ParseMeta("# RFC 9999\n\n"+selftestMeta, "rfc9999", metaWhere)
+	if err != nil {
+		t.Fatalf("ParseMeta of `-` rows: %v", err)
+	}
+	if len(none.UseCases) != 0 || len(none.OptionalUseCases) != 0 {
+		t.Errorf("`-` read as %v and %v, want two empty lists", none.UseCases, none.OptionalUseCases)
+	}
+}
+
+// TestParseMetaUseCasesRefusals: AC-2. Every malformed shape of the two rows is
+// a parse error naming the summary and the cell, none of them defaulted.
+// Method: one table per shape, each checked for the file and a phrase of its fix.
+func TestParseMetaUseCasesRefusals(t *testing.T) {
+	both := func(required, optional string) string {
+		return "| Use cases | " + required + " |\n| Optional use cases | " + optional + " |\n"
+	}
+	cases := map[string]struct{ rows, want string }{
+		"missing required":   {"| Optional use cases | - |\n", "has no `Use cases` row"},
+		"missing optional":   {"| Use cases | - |\n", "has no `Optional use cases` row"},
+		"empty cell":         {both("", "-"), "`Use cases` is empty"},
+		"dash mixed":         {both("-, route-server", "-"), "mixes `-` with profile names"},
+		"duplicate":          {both("lns, lns", "-"), "names 'lns' twice"},
+		"name in both rows":  {both("lns", "lns"), "names 'lns' in both"},
+		"bad token":          {both("Route Server", "-"), "is not one lower-case hyphenated profile name"},
+		"near miss hyphen":   {both("-", "-") + "| Use-cases | lns |\n", "Meta field `Use-cases`"},
+		"near miss optional": {both("-", "-") + "| Optional usecases | lns |\n", "Meta field `Optional usecases`"},
+		"near miss profiles": {both("-", "-") + "| Profiles | lns |\n", "Meta field `Profiles`"},
+	}
+	for label, one := range cases {
+		t.Run(label, func(t *testing.T) {
+			_, err := ParseMeta(useCaseMeta(one.rows), "rfc9999", metaWhere)
+			if err == nil {
+				t.Fatalf("rows %q parsed", one.rows)
+			}
+			for _, want := range []string{metaWhere, one.want} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+// TestUseCasesNamingUnknownProfileRefused: AC-3. A name in either row that is
+// no use-case profile, or that is a technology aggregate, is refused naming
+// the summary and listing the use cases. Method: checkUseCases over a profile
+// set holding one use case and one aggregate.
+func TestUseCasesNamingUnknownProfileRefused(t *testing.T) {
+	profiles := Profiles{UseCases: map[string]UseCase{"lns": {Name: "lns"}, "route-server": {Name: "route-server"}},
+		Aggregates: map[string]Aggregate{"bgp-core": {Name: "bgp-core"}}}
+	cases := map[string]struct {
+		meta Meta
+		want string
+	}{
+		"unknown required":   {Meta{UseCases: []string{"nowhere"}}, "no rfc/profiles/nowhere.md"},
+		"unknown optional":   {Meta{OptionalUseCases: []string{"nowhere"}}, "no rfc/profiles/nowhere.md"},
+		"aggregate required": {Meta{UseCases: []string{"bgp-core"}}, "is a technology aggregate"},
+		"aggregate optional": {Meta{OptionalUseCases: []string{"bgp-core"}}, "is a technology aggregate"},
+	}
+	for label, one := range cases {
+		t.Run(label, func(t *testing.T) {
+			err := checkUseCases(&one.meta, profiles, metaWhere)
+			if err == nil {
+				t.Fatal("refused nothing")
+			}
+			for _, want := range []string{metaWhere, one.want, "'lns', 'route-server'"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
+			}
+		})
+	}
+	known := Meta{UseCases: []string{"lns"}, OptionalUseCases: []string{"route-server"}}
+	if err := checkUseCases(&known, profiles, metaWhere); err != nil {
+		t.Errorf("two known use cases refused: %v", err)
+	}
+}
+
+// TestBaselineReadsSummariesWithoutUseCaseRows: a HEAD^ summary written before
+// the use-case rows existed is read by the baseline as declaring `-` in both,
+// in both retired Support shapes, and a summary already carrying the rows is
+// left as it is. Method: the selftest table with its rows removed, then the
+// retired `<section> <rank>` cell on top.
+func TestBaselineReadsSummariesWithoutUseCaseRows(t *testing.T) {
+	bare := useCaseMeta("")
+	if _, err := ParseMeta(bare, "rfc9999", metaWhere); err == nil {
+		t.Fatal("the live reader accepts a summary with no use-case rows")
+	}
+	for label, text := range map[string]string{
+		"current Support": bare,
+		"retired rank":    strings.Replace(bare, "| Support | "+FixtureAggregate+" |", "| Support | bgp 3 |", 1),
+	} {
+		meta, err := ParseMeta(retiredBaselineShapes(text), "rfc9999", metaWhere)
+		if err != nil {
+			t.Fatalf("%s: the baseline could not read it: %v", label, err)
+		}
+		if len(meta.UseCases) != 0 || len(meta.OptionalUseCases) != 0 {
+			t.Errorf("%s: the baseline read use cases %v and %v, want none", label, meta.UseCases, meta.OptionalUseCases)
+		}
+	}
+	declared := useCaseMeta("| Use cases | lns |\n| Optional use cases | - |\n")
+	if retiredBaselineShapes(declared) != declared {
+		t.Error("the baseline rewrite changed a summary already carrying its use-case rows")
+	}
+}

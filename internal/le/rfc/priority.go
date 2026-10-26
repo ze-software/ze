@@ -1,14 +1,16 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- the priority tree, `./le rfc tree` and `./le rfc next`
 // Related: profilecoverage.go -- the two figures every node carries
-// Related: profile.go -- the use-case profiles whose closures these walk
+// Related: profile.go -- the use-case profiles; meta.go -- the two use-case rows that declare their members
 // Related: graph/graph.go -- the edges and levels the order reads
 // Related: tree.go -- the tree answer
 // Related: next.go -- the next-gap answer
 //
 // priority.go holds what `./le rfc tree` and `./le rfc next` share: the corpus
-// they read, assembled once, the closure of a profile over the dependency
-// graph, and the order the owner rule of 2026-10-25 sets: roots before leaves
-// (graph level), release profiles before the rest, then RFC number.
+// they read, assembled once, the members of a profile in its two declared
+// tiers, and the order the owner rule of 2026-10-25 sets: roots before leaves
+// (graph level), release profiles before the rest, then RFC number. The graph
+// orders and suggests candidates; it never decides membership (owner: "A
+// normative citation is never an obligation").
 package rfc
 
 import (
@@ -32,19 +34,19 @@ type priorityCorpus struct {
 	figures      map[string]StemFigures
 	proven       map[string]bool
 	// buildsOn is each node's builds-on targets, and updaters each node's
-	// corpus updaters: the two edge kinds a closure follows.
+	// corpus updaters: the two edge kinds a row shows and a candidate is
+	// named by. Neither adds a member.
 	buildsOn map[string][]string
 	updaters map[string][]string
 }
 
-// newPriorityCorpus indexes the graph's edges by the node a closure leaves
-// from. Every edge list stays sorted, because Edges answers them sorted.
+// newPriorityCorpus indexes the graph's edges by the member they leave from. Every edge list stays sorted, because Edges answers them sorted.
 func newPriorityCorpus(g *graph.Graph, profiles Profiles, metas map[string]Meta,
 	requirements []Requirement, figures map[string]StemFigures, proven map[string]bool) *priorityCorpus {
 	c := &priorityCorpus{graph: g, profiles: profiles, metas: metas, requirements: requirements,
 		figures: figures, proven: proven, buildsOn: map[string][]string{}, updaters: map[string][]string{}}
 	for _, edge := range g.Edges() {
-		//exhaustive:ignore // A closure follows builds-on and updates only; an obsoletes edge names a text the builds-on redirect already replaced.
+		//exhaustive:ignore // Rows and candidates read builds-on and updates only; an obsoletes edge names a text the builds-on redirect already replaced.
 		switch edge.Kind {
 		case graph.KindBuildsOn:
 			c.buildsOn[edge.From] = append(c.buildsOn[edge.From], edge.To)
@@ -88,72 +90,35 @@ func priorityCorpusOf(in *RenderInput) (*priorityCorpus, error) {
 	return newPriorityCorpus(in.Graph, in.Profiles, in.Metas, in.Requirements, figures, proven), nil
 }
 
-// closureStep is how a node first entered a closure: a root, or reached from
-// the node before it over one edge kind.
-type closureStep struct {
-	root bool
-	from string
-	kind graph.Kind
-}
-
-// profileScope is one profile's members and how each was reached.
+// profileScope is one profile's members. For a use-case profile, members is
+// the required tier, declared by each summary's `Use cases` row, and optional
+// the optional tier, declared by `Optional use cases`; the two are disjoint
+// because ParseMeta refuses a name in both rows. For an aggregate, members is
+// the summaries naming it and optional is empty.
 type profileScope struct {
-	name    string
-	kind    string
-	release bool
-	reached map[string]closureStep
-	absent  []int
+	name     string
+	kind     string
+	release  bool
+	members  map[string]bool
+	optional map[string]bool
 }
 
-// closure answers roots and every node reachable from them by builds-on
-// edges and by the updates edges pointing at them, each with how it was first
-// reached. Breadth first from the roots in their declared order, so every
-// path is a shortest one. Bounded by the corpus: a node enters once.
-func (c *priorityCorpus) closure(roots []string) map[string]closureStep {
-	reached := make(map[string]closureStep, len(roots))
-	queue := make([]string, 0, len(roots))
-	for _, root := range roots {
-		if _, held := reached[root]; held {
-			continue
-		}
-		reached[root] = closureStep{root: true}
-		queue = append(queue, root)
-	}
-	for len(queue) > 0 {
-		node := queue[0]
-		queue = queue[1:]
-		for _, target := range c.buildsOn[node] {
-			if _, held := reached[target]; !held {
-				reached[target] = closureStep{from: node, kind: graph.KindBuildsOn}
-				queue = append(queue, target)
-			}
-		}
-		for _, updater := range c.updaters[node] {
-			if _, held := reached[updater]; !held {
-				reached[updater] = closureStep{from: node, kind: graph.KindUpdates}
-				queue = append(queue, updater)
-			}
-		}
-	}
-	return reached
-}
-
-// scope answers one named profile: a use-case profile's closure over the
-// graph, or a technology aggregate's members, each a root of its own. A name
-// with no rfc/profiles/ file is refused naming every valid one, and its
-// example names verb, the action the user ran (`tree` or `next`).
+// scope answers one named profile: a use-case profile's two declared tiers,
+// or a technology aggregate's members. A name with no rfc/profiles/ file is
+// refused naming every valid one, and its example names verb, the action the
+// user ran (`tree` or `next`).
 func (c *priorityCorpus) scope(name, verb string) (profileScope, error) {
 	if useCase, held := c.profiles.UseCases[name]; held {
 		return c.useCaseScope(&useCase), nil
 	}
 	if _, held := c.profiles.Aggregates[name]; held {
-		var members []string
-		for _, stem := range sortedKeysOf(c.metas) {
+		members := map[string]bool{}
+		for stem := range c.metas {
 			if c.metas[stem].Aggregate == name {
-				members = append(members, stem)
+				members[stem] = true
 			}
 		}
-		return profileScope{name: name, kind: profileKindTechnology, reached: c.closureOfMembers(members)}, nil
+		return profileScope{name: name, kind: profileKindTechnology, members: members, optional: map[string]bool{}}, nil
 	}
 	var tb textbuf.Buffer
 	tb.Str("no profile ").Str(pyRepr(name)).Str(" under ").Str(profileRel).
@@ -164,20 +129,21 @@ func (c *priorityCorpus) scope(name, verb string) (profileScope, error) {
 	return profileScope{}, parseErr(&tb)
 }
 
-// closureOfMembers makes every member a root, following no edge: an
-// aggregate is the RFCs that name it, not what they build on.
-func (*priorityCorpus) closureOfMembers(members []string) map[string]closureStep {
-	out := make(map[string]closureStep, len(members))
-	for _, stem := range members {
-		out[stem] = closureStep{root: true}
+// useCaseScope answers one use-case profile's two tiers, read from the
+// summaries' declarations alone: the one place use-case membership is built.
+func (c *priorityCorpus) useCaseScope(useCase *UseCase) profileScope {
+	out := profileScope{name: useCase.Name, kind: profileKindUseCase, release: useCase.Release,
+		members: map[string]bool{}, optional: map[string]bool{}}
+	for stem := range c.metas {
+		meta := c.metas[stem]
+		if slices.Contains(meta.UseCases, useCase.Name) {
+			out.members[stem] = true
+		}
+		if slices.Contains(meta.OptionalUseCases, useCase.Name) {
+			out.optional[stem] = true
+		}
 	}
 	return out
-}
-
-// useCaseScope answers one use-case profile's closure.
-func (c *priorityCorpus) useCaseScope(useCase *UseCase) profileScope {
-	return profileScope{name: useCase.Name, kind: profileKindUseCase, release: useCase.Release,
-		reached: c.closure(useCase.Roots), absent: slices.Clone(useCase.Absent)}
 }
 
 // useCaseScopes answers every use-case profile, release ones only when
@@ -194,93 +160,75 @@ func (c *priorityCorpus) useCaseScopes(releaseOnly bool) []profileScope {
 	return out
 }
 
-// path renders why stem is in scope, and MUST be called only for a member: the edges from a root to it, such as
-// `rfc7947 builds-on rfc4271 updated-by rfc7606`. Bounded by the closure:
-// every step leads to a node reached earlier, and a root ends it.
+// path renders the declaration that puts stem in the scope, such as
+// `route-server: required by rfc/short/rfc4271.md`, and MUST be called only
+// for a member of either tier.
 func (s *profileScope) path(stem string) string {
-	var hops []string
-	node := stem
-	for {
-		step, held := s.reached[node]
-		if !held {
-			panic("BUG: profileScope.path asked for " + node + ", which the closure of " + s.name + " does not hold")
-		}
-		if step.root {
-			break
-		}
-		label := "builds-on"
-		if step.kind == graph.KindUpdates {
-			label = "updated-by"
-		}
-		hops = append(hops, node, label)
-		node = step.from
-	}
 	var tb textbuf.Buffer
-	tb.Str(s.name).Str(": ").Str(node)
-	for index := len(hops) - 1; index > 0; index -= 2 {
-		tb.Byte(' ').Str(hops[index]).Byte(' ').Str(hops[index-1])
+	tb.Str(s.name).Str(": ")
+	switch {
+	case s.members[stem] && s.kind == profileKindTechnology:
+		tb.Str("aggregate named by ")
+	case s.members[stem]:
+		tb.Str("required by ")
+	case s.optional[stem]:
+		tb.Str("optional in ")
+	default:
+		panic("BUG: profileScope.path asked for " + stem + ", which " + s.name + " does not list")
 	}
-	if node == stem {
-		tb.Str(" (root)")
-	}
-	return tb.String()
+	return tb.Str(summaryRel).Byte('/').Str(stem).Str(".md").String()
 }
 
-// absentStems answers the stems of the absent RFCs of every scope,
-// deduplicated and in RFC number order.
-func absentStems(scopes []profileScope) []string {
-	numbers := absentNumbers(scopes)
-	out := make([]string, 0, len(numbers))
-	for _, number := range numbers {
-		out = append(out, absentFigures(number).Stem)
-	}
-	return out
-}
-
-// absentStemSet answers the stems of the absent RFCs of every scope, as a
-// set: a closure can reach an absent RFC whose text is in rfc/full/, and the
-// row, the gap and the rollup then read its one state, absent.
-func absentStemSet(scopes []profileScope) map[string]bool {
+// requiredUnion answers the members of the scopes' required tiers.
+func requiredUnion(scopes []profileScope) map[string]bool {
 	out := map[string]bool{}
-	for _, stem := range absentStems(scopes) {
-		out[stem] = true
+	for index := range scopes {
+		for stem := range scopes[index].members {
+			out[stem] = true
+		}
 	}
 	return out
 }
 
-// absentNumbers answers the deduplicated absent RFC numbers of every scope.
-func absentNumbers(scopes []profileScope) []int {
-	seen := map[int]bool{}
-	var out []int
+// optionalUnion answers the members of the scopes' optional tiers that no
+// scope requires: across several profiles, a stem one of them requires is
+// counted there and is not also listed as optional.
+func optionalUnion(scopes []profileScope) map[string]bool {
+	required := requiredUnion(scopes)
+	out := map[string]bool{}
 	for index := range scopes {
-		for _, number := range scopes[index].absent {
-			if !seen[number] {
-				seen[number] = true
-				out = append(out, number)
+		for stem := range scopes[index].optional {
+			if !required[stem] {
+				out[stem] = true
 			}
 		}
 	}
-	slices.Sort(out)
 	return out
 }
 
 // ScopeRollup is a rollup with its completeness stated, so a reader of the
-// JSON never recomputes the rule that absent and unwalked members keep a set
-// incomplete.
+// JSON never recomputes the rule that an unwalked member, or no member at
+// all, keeps a set incomplete.
 type ScopeRollup struct {
 	Rollup
 	MandatoryComplete bool `json:"mandatory-complete"`
 }
 
-// rollupOfScopes sums the union of the scopes' members and absent RFCs.
+// rollupOfScopes sums the union of the scopes' required members: the profile
+// figure, which the optional tier never enters.
 func (c *priorityCorpus) rollupOfScopes(scopes []profileScope) ScopeRollup {
-	union := map[string]bool{}
-	for index := range scopes {
-		for stem := range scopes[index].reached {
-			union[stem] = true
-		}
-	}
-	rollup := rollupOf(c.figures, sortedSet(union), absentNumbers(scopes))
+	return c.rollupOfSet(requiredUnion(scopes))
+}
+
+// optionalRollupOfScopes sums the optional tier optionalUnion answers, as its
+// own figure beside the profile's.
+func (c *priorityCorpus) optionalRollupOfScopes(scopes []profileScope) ScopeRollup {
+	return c.rollupOfSet(optionalUnion(scopes))
+}
+
+// rollupOfSet sums one set of members with its completeness stated.
+func (c *priorityCorpus) rollupOfSet(members map[string]bool) ScopeRollup {
+	rollup := rollupOf(c.figures, sortedSet(members))
 	return ScopeRollup{Rollup: rollup, MandatoryComplete: rollup.mandatoryComplete()}
 }
 

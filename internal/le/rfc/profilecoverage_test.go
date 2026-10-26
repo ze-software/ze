@@ -1,18 +1,19 @@
-// VALIDATES: AC-7, AC-8 and the owner ruling of 2026-10-25 on absent RFCs. The
+// VALIDATES: AC-7, AC-8 and AC-5's never-complete empty set. The
 // mandatory figure is proven rows over gated rows minus {rollup}; a
 // not-applicable row stays in the denominator; a tagged row without a verified
 // proof, a stale proof, an escape and a {gap} row are all unproven; a
 // {single-polarity} row is proven by its verified record and by nothing else; the
 // optional figure counts the same way over the other levels. An unwalked RFC
-// renders "not walked", an absent one renders 0%, and a rollup holding either
-// is never complete.
+// renders "not walked", and a rollup holding one, or holding no RFC, is never
+// complete. No absent state exists.
 // PREVENTS: a figure that counts tags rather than recorded breaks, an
-// annotation that raises a figure, and a profile that reads complete while an
-// RFC it needs is absent.
+// annotation that raises a figure, and a profile that reads complete while a
+// member is unwalked or while it has no member.
 
 package rfc
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -102,42 +103,54 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 		t.Errorf("empty walked cell = %q, want no rows", got)
 	}
 
-	// Owner ruling 2026-10-25: an absent RFC renders 0% on both figures.
-	absent := absentFigures(7948)
-	if absent.Stem != "rfc7948" || absent.mandatoryCell() != absentCell || absent.optionalCell() != absentCell {
-		t.Errorf("absent figures = %+v %q %q", absent, absent.mandatoryCell(), absent.optionalCell())
-	}
-	if !strings.HasPrefix(absent.mandatoryCell(), "0%") {
-		t.Errorf("absent cell %q does not read 0%%", absent.mandatoryCell())
-	}
-
-	rollup := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3"}, []int{7948, 8212})
-	want := Rollup{RFCs: 5, NotWalked: 1, Absent: 2,
+	rollup := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3"})
+	want := Rollup{RFCs: 3, NotWalked: 1,
 		Mandatory: Figure{Proven: 2, Total: 9}, Optional: Figure{Proven: 1, Total: 2}}
 	if rollup != want {
 		t.Errorf("rollup = %+v, want %+v", rollup, want)
 	}
-	for _, phrase := range []string{"1 not walked", "2 absent at 0%"} {
+	for _, phrase := range []string{"3 RFCs", "1 not walked"} {
 		if !strings.Contains(rollup.String(), phrase) {
 			t.Errorf("rollup %q does not state %q", rollup.String(), phrase)
 		}
 	}
 }
 
-// TestRollupNeverCompleteWithAbsentOrUnwalked: a set whose walked rows are all
-// proven is complete only when no member is absent and none is unwalked.
-func TestRollupNeverCompleteWithAbsentOrUnwalked(t *testing.T) {
+// TestRollupNeverCompleteWithUnwalkedOrEmpty: a set whose walked rows are all
+// proven is complete only when no member is unwalked and the set has a member:
+// 0 of 0 over no RFC is not a measurement.
+func TestRollupNeverCompleteWithUnwalkedOrEmpty(t *testing.T) {
 	figures := map[string]StemFigures{
 		"rfc1": {Stem: "rfc1", Walked: true, Mandatory: Figure{Proven: 3, Total: 3}},
 		"rfc2": {Stem: "rfc2"},
 	}
-	if !rollupOf(figures, []string{"rfc1"}, nil).mandatoryComplete() {
+	if !rollupOf(figures, []string{"rfc1"}).mandatoryComplete() {
 		t.Error("a fully proven walked set is not complete")
 	}
-	if rollupOf(figures, []string{"rfc1"}, []int{7948}).mandatoryComplete() {
-		t.Error("a set with an absent RFC reads complete")
-	}
-	if rollupOf(figures, []string{"rfc1", "rfc2"}, nil).mandatoryComplete() {
+	if rollupOf(figures, []string{"rfc1", "rfc2"}).mandatoryComplete() {
 		t.Error("a set with an unwalked RFC reads complete")
+	}
+	if rollupOf(figures, nil).mandatoryComplete() {
+		t.Error("a set with no member reads complete")
+	}
+}
+
+// TestRollupHasNoAbsentState: the absent state is deleted (owner, "all RFC
+// should have a valid summary"). Method: a rollup and a tree row, encoded and
+// rendered, carry no `absent` key and no "absent at 0%" text.
+func TestRollupHasNoAbsentState(t *testing.T) {
+	rollup := ScopeRollup{Rollup: Rollup{RFCs: 1, NotWalked: 1}}
+	row := &TreeRow{Stem: "rfc1", Summary: true}
+	for label, value := range map[string]any{"rollup": rollup, "row": row} {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(encoded), `"absent"`) {
+			t.Errorf("%s JSON carries an absent key: %s", label, encoded)
+		}
+	}
+	if text := rollup.String(); strings.Contains(text, "absent") {
+		t.Errorf("rollup text %q still speaks of absent RFCs", text)
 	}
 }

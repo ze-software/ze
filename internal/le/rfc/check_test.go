@@ -967,7 +967,7 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	profiles, profileProblems, err := LoadProfiles(root, nil)
+	profiles, profileProblems, err := LoadProfiles(root)
 	if err != nil {
 		t.Fatalf("read the profiles: %v", err)
 	}
@@ -1145,7 +1145,7 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	profiles, profileProblems, err := LoadProfiles(root, nil)
+	profiles, profileProblems, err := LoadProfiles(root)
 	if err != nil {
 		t.Fatalf("read the profiles: %v", err)
 	}
@@ -2463,7 +2463,7 @@ func TestOutOfScopeMustCarryItsExtractionAndItsDate(t *testing.T) {
 // got wrong, and rfc/short/rfc9384.md is the live instance of it.
 func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 	const stem = "rfc9999"
-	declared := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+	declared := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Widgets |\n| Enrolment | non-normative |\n" +
 		"| Enrolment reason | Informational, and it invokes no RFC 2119 key-words machinery |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +

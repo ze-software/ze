@@ -1,12 +1,13 @@
-// Design: docs/contributing/rfc-conformance-gates.md -- the priority tree, the exported closure and requirement index
-// Related: priority.go -- the closure these answer from
+// Design: docs/contributing/rfc-conformance-gates.md -- the priority tree, the exported members and requirement index
+// Related: priority.go -- the scope these answer from
 // Related: profile.go -- ParseProfiles, the bytes-level profile parser
 //
 // priority_export.go is the surface another le package reads the priority
-// tree through: the use-case profile closures, the requirement-id-to-stem
-// index and the rendered priority trees. The closures are answered over parsed
-// inputs only, for a caller holding a committed revision's blobs. The index
-// comes in two forms, one over parsed summaries, one over a checkout directory.
+// tree through: the use-case profiles' declared members, the
+// requirement-id-to-stem index and the rendered priority trees. The members
+// are answered over parsed inputs only, for a caller holding a committed
+// revision's blobs. The index comes in two forms, one over parsed summaries,
+// one over a checkout directory.
 package rfc
 
 import (
@@ -15,19 +16,28 @@ import (
 	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
-// ProfileClosures answers each use-case profile's closure, keyed by profile
-// name: its roots and every document reachable from them over builds-on
-// edges and over the updates edges pointing at them, sorted. Absent RFCs
-// are not members: they are UseCase.Absent. The answer is the closure
-// `./le rfc tree profile <name>` walks, so the two cannot disagree.
+// ProfileTiers is one use-case profile's declared members, each sorted.
+type ProfileTiers struct {
+	// Required is the summaries whose `Use cases` row names the profile:
+	// counted in its figures.
+	Required []string
+	// Optional is the summaries whose `Optional use cases` row names it:
+	// listed, never counted.
+	Optional []string
+}
+
+// ProfileMembers answers each use-case profile's two tiers, keyed by profile
+// name. The answer is the scope `./le rfc tree profile <name>` renders, so the
+// two cannot disagree.
 //
-// g is graph.Build over the texts (graph.Parse per text), profiles is
-// ParseProfiles over the profile files.
-func ProfileClosures(g *graph.Graph, profiles Profiles) map[string][]string {
-	corpus := newPriorityCorpus(g, profiles, nil, nil, nil, nil)
-	out := map[string][]string{}
+// profiles is ParseProfiles over the profile files, metas ParseMeta over the
+// summaries. No edge of the dependency graph is read: a citation adds no
+// member.
+func ProfileMembers(profiles Profiles, metas map[string]Meta) map[string]ProfileTiers {
+	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
+	out := map[string]ProfileTiers{}
 	for _, scope := range corpus.useCaseScopes(false) {
-		out[scope.name] = sortedKeysOf(scope.reached)
+		out[scope.name] = ProfileTiers{Required: sortedSet(scope.members), Optional: sortedSet(scope.optional)}
 	}
 	return out
 }

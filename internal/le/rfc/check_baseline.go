@@ -175,7 +175,7 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
 		meta, err := ParseMeta(text, stem, rel)
 		if err != nil {
-			meta, err = ParseMeta(retiredSectionRank(text), stem, rel)
+			meta, err = ParseMeta(retiredBaselineShapes(text), stem, rel)
 		}
 		if err != nil {
 			continue
@@ -187,6 +187,37 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 	}
 	return baselineMetasBeforeMigration(tree)
 }
+
+// retiredBaselineShapes rewrites a HEAD^ summary written before either Meta
+// migration into the shape ParseMeta reads: the aggregate migration of
+// 2026-10-25 (retiredSectionRank), then the declared use-case rows of
+// 2026-10-26 (retiredUseCaseRows). It reads GIT HISTORY only, for the reason
+// retiredSectionRank gives.
+func retiredBaselineShapes(text string) string {
+	return retiredUseCaseRows(retiredSectionRank(text))
+}
+
+// retiredUseCaseRows adds `-` use-case rows to a HEAD^ summary written before
+// every summary declared them, below its `Support` row. The ratchets this
+// baseline feeds read enrolment and the public row, never use-case
+// membership, so `-` changes no baseline fact; without it the commit that
+// added the rows is the one commit whose baseline is unreadable. A summary in
+// the tree with no such rows is refused by ParseMeta.
+func retiredUseCaseRows(text string) string {
+	if strings.Contains(text, "\n| "+metaUseCases+" |") {
+		return text
+	}
+	location := retiredSupportRowRE.FindStringIndex(text)
+	if location == nil {
+		return text
+	}
+	return text[:location[1]] + "\n| " + metaUseCases + " | - |\n| " + metaOptionalUseCases + " | - |" +
+		text[location[1]:]
+}
+
+// retiredSupportRowRE matches the first `Support` row, which every summary
+// carried in both retired shapes.
+var retiredSupportRowRE = regexp.MustCompile(`(?m)^\| Support \| [^\n]* \|$`)
 
 // retiredSupportRE matches the `| Support | <section> <rank> |` cell every
 // summary carried until the aggregate migration of 2026-10-25, and

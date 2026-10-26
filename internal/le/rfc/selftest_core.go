@@ -59,7 +59,12 @@ const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 	"| Implementation reason | the fixture's own Go answers it |\n" +
 	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
 	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-	"| Support remaining | Zero MUST gaps. |\n"
+	"| Support remaining | Zero MUST gaps. |\n" + selftestUseCaseRows
+
+// selftestUseCaseRows are the fixture summary's two use-case rows: no use-case
+// profile requires it or lists it, which is the declaration most summaries
+// carry, and a test varying the rows replaces exactly this text.
+const selftestUseCaseRows = "| Use cases | - |\n| Optional use cases | - |\n"
 
 const selftestWorkflow = `on:
   schedule:

@@ -462,6 +462,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 		return CheckReport{}, err
 	}
 	findings = append(findings, notes(checkUpdatedBy(collected.Requirements, corpus, stems))...)
+	findings = append(findings, notes(checkUpdatedByMembership(collected.Requirements, collected.Metas))...)
+	findings = append(findings, notes(checkUseCaseMembers(collected.Profiles, collected.Metas))...)
 	findings = append(findings, notes(checkHeaderLinks(collected.Metas, corpus))...)
 	carriers, err := carriers(tree)
 	if err != nil {

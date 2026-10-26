@@ -980,7 +980,7 @@ const (
 	leRFCPartialTested   = "ignored on receipt."
 	leRFCPartialSentence = "A widget MUST be zero when sent and ignored on receipt."
 	leRFCPartialMarker   = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at ` + leRFCPartialProducer + `}`
-	leRFCPartialMeta     = "# RFC 99999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
+	leRFCPartialMeta     = "# RFC 99999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Scoped Widget Fixture |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | isolated tooling fixture |\n| Implementation | ze |\n" +
 		"| Implementation reason | the fixture's own Go boundary |\n| Support | bgp-core |\n" +

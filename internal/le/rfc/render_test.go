@@ -34,7 +34,7 @@ import (
 // -- a forward lineage row, for instance -- appends it to what this answers.
 func fixtureMeta(enrolment, reason, support string) string {
 	var tb textbuf.Buffer
-	tb.Str("## Meta\n\n| Field | Value |\n|-------|-------|\n").
+	tb.Str("## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n").
 		Str("| Title | Widgets |\n").
 		Str("| Enrolment | ").Str(enrolment).Str(" |\n").
 		Str("| Enrolment reason | ").Str(reason).Str(" |\n").

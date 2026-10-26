@@ -4,14 +4,16 @@
 //
 // profile.go reads rfc/profiles/<name>.md. A profile is one of two kinds:
 //
-//   - a use-case profile names the root RFCs a deployment needs, and the RFCs
-//     it needs that the corpus does not hold yet;
+//   - a use-case profile is a deployment role: its title and whether it is a
+//     release profile. Its members are the summaries whose `Use cases` or
+//     `Optional use cases` row names it, never a list in this file;
 //   - a technology aggregate is the group a summary names in its own Meta
 //     table, and it carries the heading, intro and table shape the public
 //     status page renders that group under.
 //
-// Membership is declared by the RFC, never by the aggregate: a new summary
-// registers itself by naming its aggregate, and no file here lists it.
+// Membership is declared by the RFC, never by the profile: a new summary
+// registers itself by naming its aggregate and its use cases, and no file
+// here lists it.
 package rfc
 
 import (
@@ -19,7 +21,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -33,8 +34,6 @@ const (
 	profileKind    = "Kind"
 	profileTitle   = "Title"
 	profileRelease = "Release"
-	profileRoots   = "Roots"
-	profileAbsent  = "Absent"
 	profileHeading = "Heading"
 	profileIntro   = "Intro"
 	profileShape   = "Shape"
@@ -71,16 +70,18 @@ type Aggregate struct {
 	Shape Shape
 }
 
-// UseCase is one use-case profile.
+// retiredUseCaseFields are the use-case fields membership used to be declared
+// in. Each is refused by name, so a stale profile file says what replaced it
+// rather than reading as an unknown field.
+var retiredUseCaseFields = []string{"Roots", "Absent"}
+
+// UseCase is one use-case profile. Its members are not here: each summary
+// declares the use cases that require it and those that list it as optional
+// (Meta.UseCases, Meta.OptionalUseCases).
 type UseCase struct {
 	Name    string
 	Title   string
 	Release bool
-	// Roots are summary stems, each one present in rfc/short.
-	Roots []string
-	// Absent are RFC numbers the use case needs and the corpus does not hold.
-	// Each renders at 0%, never as "not walked" (owner, 2026-10-25).
-	Absent []int
 }
 
 // Profiles is every parsed profile file, by name.
@@ -92,11 +93,7 @@ type Profiles struct {
 // profileNameRE is the file name shape, which is also the name a summary writes.
 var profileNameRE = regexp.MustCompile(`\A[a-z0-9]+(-[a-z0-9]+)*\z`)
 
-// absentRE is one Absent item: `RFC <number>`, at most five digits.
-var absentRE = regexp.MustCompile(`\ARFC ([1-9]\d{0,4})\z`)
-
-// LoadProfiles reads every rfc/profiles/*.md against the summary stems, which
-// it reads from the tree when stems is nil.
+// LoadProfiles reads every rfc/profiles/*.md.
 //
 // A profile that does not parse is COLLECTED as a problem rather than
 // returned, the same way a summary is: one file midway through an edit must
@@ -104,14 +101,8 @@ var absentRE = regexp.MustCompile(`\ARFC ([1-9]\d{0,4})\z`)
 // the answer, so every summary naming it is refused as naming an unknown
 // aggregate, which is loud. The error return is for a directory that cannot
 // be read at all.
-func LoadProfiles(tree string, stems map[string]bool) (Profiles, []string, error) {
+func LoadProfiles(tree string) (Profiles, []string, error) {
 	out := Profiles{UseCases: map[string]UseCase{}, Aggregates: map[string]Aggregate{}}
-	if stems == nil {
-		var err error
-		if stems, err = summaryStems(tree); err != nil {
-			return Profiles{}, nil, err
-		}
-	}
 	entries, err := os.ReadDir(treePath(tree, profileRel))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -134,20 +125,19 @@ func LoadProfiles(tree string, stems map[string]bool) (Profiles, []string, error
 		}
 		files[name] = text
 	}
-	profiles, problems := ParseProfiles(files, stems)
+	profiles, problems := ParseProfiles(files)
 	return profiles, problems, nil
 }
 
 // ParseProfiles parses profile files already read, keyed by file name
-// without `.md` (the profile's name), against the summary stems: the parser
-// for a caller that reads one committed revision's blobs rather than a
+// without `.md` (the profile's name): the parser for a caller that reads one committed revision's blobs rather than a
 // directory. Each file that does not parse is a problem in the second answer
 // and absent from the first, as LoadProfiles reports it.
-func ParseProfiles(files map[string]string, stems map[string]bool) (Profiles, []string) {
+func ParseProfiles(files map[string]string) (Profiles, []string) {
 	out := Profiles{UseCases: map[string]UseCase{}, Aggregates: map[string]Aggregate{}}
 	var problems []string
 	for _, name := range sortedKeysOf(files) {
-		if err := parseProfile(&out, files[name], name, profileRel+"/"+name+".md", stems); err != nil {
+		if err := parseProfile(&out, files[name], name, profileRel+"/"+name+".md"); err != nil {
 			problems = append(problems, err.Error())
 		}
 	}
@@ -155,9 +145,8 @@ func ParseProfiles(files map[string]string, stems map[string]bool) (Profiles, []
 }
 
 // parseProfile reads one profile into out, refusing an unknown or missing
-// field, an unknown kind, a root that is not a summary, and an absent RFC the
-// corpus already holds.
-func parseProfile(out *Profiles, text, name, rel string, stems map[string]bool) error {
+// field, an unknown kind, and a retired use-case field.
+func parseProfile(out *Profiles, text, name, rel string) error {
 	if !profileNameRE.MatchString(name) {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(rel).Str(": the file name is not a lower-case hyphenated name, ").
@@ -176,7 +165,7 @@ func parseProfile(out *Profiles, text, name, rel string, stems map[string]bool) 
 	}
 	switch values[profileKind] {
 	case profileKindUseCase:
-		useCase, err := parseUseCase(values, name, rel, stems)
+		useCase, err := parseUseCase(values, name, rel)
 		if err != nil {
 			return err
 		}
@@ -246,9 +235,21 @@ func requireFields(values map[string]string, want []string, rel string) error {
 	return nil
 }
 
-// parseUseCase reads a use-case profile.
-func parseUseCase(values map[string]string, name, rel string, stems map[string]bool) (UseCase, error) {
-	want := []string{profileKind, profileTitle, profileRelease, profileRoots, profileAbsent}
+// parseUseCase reads a use-case profile, refusing a retired membership field
+// by name before the generic unknown-field refusal can call it a typo.
+func parseUseCase(values map[string]string, name, rel string) (UseCase, error) {
+	for _, field := range retiredUseCaseFields {
+		if _, held := values[field]; !held {
+			continue
+		}
+		var tb textbuf.Buffer
+		return UseCase{}, parseErr(tb.Str(rel).Str(": `").Str(field).Str("` is retired. A use-case ").
+			Str("profile declares only ").Str(pyRepr([]string{profileKind, profileTitle, profileRelease})).
+			Str(": membership is each summary's `").Str(metaUseCases).Str("` row (required, counted) and `").
+			Str(metaOptionalUseCases).Str("` row (listed, not counted). Delete the `").Str(field).
+			Str("` row and write ").Str(pyRepr(name)).Str(" into the rows of the summaries it lists"))
+	}
+	want := []string{profileKind, profileTitle, profileRelease}
 	if err := requireFields(values, want, rel); err != nil {
 		return UseCase{}, err
 	}
@@ -256,60 +257,14 @@ func parseUseCase(values map[string]string, name, rel string, stems map[string]b
 	switch values[profileRelease] {
 	case "yes":
 		out.Release = true
+		return out, nil
 	case "no":
 		out.Release = false
-	default:
-		var tb textbuf.Buffer
-		return UseCase{}, parseErr(tb.Str(rel).Str(": `").Str(profileRelease).Str("` is ").
-			Str(pyRepr(values[profileRelease])).Str(", which is neither `yes` nor `no`"))
-	}
-	for root := range strings.SplitSeq(values[profileRoots], ",") {
-		root = strings.TrimSpace(root)
-		if !stems[root] {
-			// AC-9: a root that is not a summary would drop out of the
-			// closure in silence. It is either summarized or listed Absent.
-			var tb textbuf.Buffer
-			return UseCase{}, parseErr(tb.Str(rel).Str(": profile ").Str(pyRepr(name)).
-				Str(" names root ").Str(pyRepr(root)).Str(", which has no ").Str(summaryRel).
-				Byte('/').Str(root).Str(".md. Correct the stem, or move it to `").
-				Str(profileAbsent).Str("` as `RFC <number>`"))
-		}
-		out.Roots = append(out.Roots, root)
-	}
-	if values[profileAbsent] == supportNone {
 		return out, nil
 	}
-	for item := range strings.SplitSeq(values[profileAbsent], ",") {
-		number, err := absentNumber(strings.TrimSpace(item), name, rel, stems)
-		if err != nil {
-			return UseCase{}, err
-		}
-		out.Absent = append(out.Absent, number)
-	}
-	return out, nil
-}
-
-// absentNumber reads one Absent item and refuses one the corpus holds: an RFC
-// with a summary is a root or reached, and listing it absent would show it at
-// 0% beside its own figure.
-func absentNumber(item, name, rel string, stems map[string]bool) (int, error) {
-	match := absentRE.FindStringSubmatch(item)
-	if match == nil {
-		var tb textbuf.Buffer
-		return 0, parseErr(tb.Str(rel).Str(": `").Str(profileAbsent).Str("` item ").Str(pyRepr(item)).
-			Str(" is not `RFC <number>`"))
-	}
-	number, err := strconv.Atoi(match[1])
-	if err != nil {
-		return 0, err
-	}
-	if stems["rfc"+match[1]] {
-		var tb textbuf.Buffer
-		return 0, parseErr(tb.Str(rel).Str(": profile ").Str(pyRepr(name)).Str(" lists ").
-			Str(item).Str(" as absent, but ").Str(summaryRel).Str("/rfc").Str(match[1]).
-			Str(".md exists. Move it to `").Str(profileRoots).Str("` or delete the item"))
-	}
-	return number, nil
+	var tb textbuf.Buffer
+	return UseCase{}, parseErr(tb.Str(rel).Str(": `").Str(profileRelease).Str("` is ").
+		Str(pyRepr(values[profileRelease])).Str(", which is neither `yes` nor `no`"))
 }
 
 // parseAggregate reads a technology aggregate.

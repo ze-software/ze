@@ -171,20 +171,25 @@ var actions = leaction.New(area,
 		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
 			"level, aggregate, builds-on and updated-by edges, and its mandatory and optional coverage " +
 			"figures (rows proven by a recorded break over rows owed, `not walked` without a valid extraction " +
-			"sign-off). Without profile the nodes a release profile reaches come first. profile <name> limits " +
-			"it to one use-case profile's closure, saying why each RFC is in it, or to one aggregate's members, " +
-			"and adds the profile's rollup with its not-walked and absent counts",
+			"sign-off). Membership is declared by each summary in two tiers: its `Use cases` row names the " +
+			"profiles that require it, its `Optional use cases` row those that list it without counting it. " +
+			"Without profile the rows a release profile requires come first, each naming both tiers. " +
+			"profile <name> limits it to one use-case profile's required members, with a rollup whose " +
+			"percentage counts the required tier only, then the optional members under their own rollup, " +
+			"then the candidates: RFCs one builds-on or updates edge from a member that no tier lists, which " +
+			"are never owed or counted. For an aggregate it lists the members naming it",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to limit the tree to", Value: "name", Requirement: leaction.Optional, Source: profileCandidates},
 		},
 		AnswerArgs: treeAnswer},
 	leaction.Action{Verb: "next", Does: doesReport, Summary: "name the next RFC gap to close",
-		Why: "name the next RFC gap the owner rule orders: the lowest-level RFC of the closure that owes a " +
-			"mandatory row (uncovered, not walked, or with no summary), its uncovered requirement ids, the " +
-			"profiles it serves and the edge path that puts it in the closure. A row marked {updated-by} is " +
-			"owed at the updater's level, and a citation cycle is named whole. Once the mandatory figure is " +
-			"complete it names the next optional gap instead, and an absent RFC keeps the mandatory figure " +
-			"incomplete. Without profile it judges every release profile at once",
+		Why: "name the next RFC gap the owner rule orders: the lowest-level RFC that a profile requires " +
+			"(its summary's `Use cases` row) and that owes a mandatory row (uncovered or not walked), its " +
+			"uncovered requirement ids, the profiles it serves and the summary that declares it. A row marked " +
+			"{updated-by} is owed at the updater's level, and a citation cycle is named whole. The figure " +
+			"counts the required tier only: members of `Optional use cases` that owe rows follow in their own " +
+			"section with their own rollup, never as the answered gap. Once the mandatory figure is complete " +
+			"it names the next optional-register gap instead. Without profile it judges every release profile at once",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to judge alone", Value: "name", Requirement: leaction.Optional, Source: profileCandidates},
 		},
@@ -522,8 +527,7 @@ func nextAnswer(args leaction.Arguments) (any, int) {
 // profileCandidates answers the names rfc/profiles/ holds, use cases and
 // aggregates, for the `profile` value of `./le rfc tree` and `./le rfc next`.
 // It reads the profiles the action itself reads, so completion offers
-// exactly the names scope accepts: a nil stems set makes LoadProfiles read
-// summaryStems over the tree, the same set Collect passes. A keystroke calls
+// exactly the names scope accepts. A keystroke calls
 // it, so it reports no error: a profile file that does not parse is left out,
 // as scope refuses it, and a checkout that cannot be read offers nothing.
 func profileCandidates() []leaction.Candidate {
@@ -532,7 +536,7 @@ func profileCandidates() []leaction.Candidate {
 		// refuse-by-default: guards leaction.ValueSource -- a completion has no error channel, and no candidate is its refusal
 		return nil
 	}
-	profiles, _, err := LoadProfiles(tree, nil)
+	profiles, _, err := LoadProfiles(tree)
 	if err != nil {
 		// refuse-by-default: guards leaction.ValueSource -- a completion has no error channel, and no candidate is its refusal
 		return nil
