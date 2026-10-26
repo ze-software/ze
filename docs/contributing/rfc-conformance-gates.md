@@ -1095,10 +1095,10 @@ those, because they keep the figure incomplete. Once the mandatory figure is
 complete it judges the optional register the same way, and says so.
 
 Both answer through `| json`. Another le package reads the same closure
-through `ProfileClosures` (parsed inputs: `ParseProfiles` over the profile
-files and `graph.Build` over `graph.Parse` of each text) or
-`LoadProfileClosures` (a checkout), and maps requirement ids to stems through
-`RequirementStems` or `LoadRequirementStems`, which read only the summaries.
+through `ProfileClosures`, over parsed inputs only: `ParseProfiles` over the
+profile files and `graph.Build` over `graph.Parse` of each text. It maps
+requirement ids to stems through `RequirementStems` (parsed summaries) or
+`LoadRequirementStems` (a checkout), which read only the summaries.
 
 The website publishes the same trees. `PriorityOf` answers the whole-corpus
 tree and one tree per profile file over a `RenderInput` the caller already
@@ -1805,7 +1805,7 @@ mechanisms carry the standing corpus:
   behavior comparison would wave its deletion through. Scope is the enclosing
   test function: a tag sits on the doc comment, so a hunk-scoped guard would
   miss exactly the edit it exists to stop.
-- `./le commit audit` checks the same at commit time.
+- `./le test weakened check` checks the same at commit time.
 - `checkAuditFreshness` (`internal/le/rfc/check_audit.go`) is the SHA ratchet,
   armed only for an RFC that has a verdict under `rfc/audit/<stem>/`.
 

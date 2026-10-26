@@ -3,16 +3,15 @@
 // Related: profile.go -- ParseProfiles, the bytes-level profile parser
 //
 // priority_export.go is the surface another le package reads the priority
-// tree through: the use-case profile closures and the requirement-id-to-stem
-// index. Each comes in two forms, one over parsed inputs for a caller holding
-// a committed revision's blobs, one over a checkout directory.
+// tree through: the use-case profile closures, the requirement-id-to-stem
+// index and the rendered priority trees. The closures are answered over parsed
+// inputs only, for a caller holding a committed revision's blobs. The index
+// comes in two forms, one over parsed summaries, one over a checkout directory.
 package rfc
 
 import (
 	"path/filepath"
-	"strings"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
@@ -66,26 +65,6 @@ func PriorityOf(in *RenderInput) (PriorityAnswer, error) {
 		answer.Profiles = append(answer.Profiles, report)
 	}
 	return answer, nil
-}
-
-// LoadProfileClosures answers ProfileClosures over a checkout. A profile that
-// does not parse is refused rather than dropped: a profile missing from the
-// answer would read as one whose closure holds nothing.
-func LoadProfileClosures(tree string) (map[string][]string, error) {
-	profiles, problems, err := LoadProfiles(tree, nil)
-	if err != nil {
-		return nil, err
-	}
-	if len(problems) != 0 {
-		var tb textbuf.Buffer
-		return nil, parseErr(tb.Str("a profile under ").Str(profileRel).Str("/ did not parse, so its closure is unknown: ").
-			Str(strings.Join(problems, "; ")).Str(". Fix the file, then run ./le rfc check"))
-	}
-	g, err := graph.Load(tree)
-	if err != nil {
-		return nil, err
-	}
-	return ProfileClosures(g, profiles), nil
 }
 
 // RequirementStems answers the summary stem of every requirement id the
