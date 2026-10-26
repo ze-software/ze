@@ -27,6 +27,7 @@ var actions = leaction.New(area,
 		// it exists so a reader can see WHICH packages the gate judges without
 		// reading the generator.
 		Verb:    "roots",
+		Does:    "list",
 		Summary: "list the plugin roots the boundary gate scans",
 		Why:     "the plugin search roots this gate scans, derived from the composition-root generator rather than declared a second time",
 		Answer:  runRoots,

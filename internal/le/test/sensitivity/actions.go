@@ -40,6 +40,7 @@ var actions = leaction.New(area,
 		// No Make target names this one either: it is the script's
 		// --tracked-only, and the generated test-health page reads it.
 		Verb:    "tracked",
+		Does:    "report",
 		Summary: "list inert tests over what git holds",
 		Why:     "the same lists over the files GIT holds, so a generated page is reproducible from a clean checkout whatever is uncommitted",
 		Answer:  runTracked,

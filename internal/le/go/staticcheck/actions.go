@@ -39,6 +39,7 @@ var actions = leaction.New(area,
 		// it exists so a reader can see WHICH combinations a run judges without
 		// waiting for Staticcheck.
 		Verb:    "rows",
+		Does:    "list",
 		Summary: "list the tag combinations this run judges",
 		Why:     "the feature-tag combinations this run judges, derived from the feature manifest and narrowed to what the change set can move",
 		Answer:  runRows,

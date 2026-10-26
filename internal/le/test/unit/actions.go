@@ -52,6 +52,7 @@ func actionsFor(tc gotoolchain.Toolchain, rows []Group, run actionRunner) []leac
 	for _, group := range rows {
 		actions = append(actions, leaction.Action{
 			Verb:    group.Verb,
+			Does:    "run",
 			Summary: group.Summary,
 			Why:     group.Why,
 			Answer:  runner(tc, group, run),

@@ -46,6 +46,7 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb:    verbClosure,
+			Does:    "check",
 			Summary: "report which specs owe closure",
 			Why:     "the closure detector: every spec whose closure is owed, or whether one spec may close",
 			Parameters: []leaction.Parameter{

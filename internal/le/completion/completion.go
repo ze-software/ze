@@ -34,6 +34,7 @@ func table() leaction.Area {
 	for _, shell := range script.Shells() {
 		actions = append(actions, leaction.Action{
 			Verb:    shell,
+			Does:    "show",
 			Summary: textbuf.New().Str("print the ").Str(shell).Str(" completion script for le").String(),
 			Why:     textbuf.New().Str("print the ").Str(shell).Str(" script that completes le and ./le; its first lines say how to install it").String(),
 			Answer:  func() (any, int) { return scriptOf(shell) },
@@ -41,6 +42,7 @@ func table() leaction.Area {
 	}
 	actions = append(actions, leaction.Action{
 		Verb:    verbWords,
+		Does:    "list",
 		Summary: "print completion candidates for an le command line",
 		Why: "print the candidates for the last word of an le command line, one `candidate<TAB>summary` record per line. " +
 			"The scripts call it; every word after the verb is the line as typed, the last one the word being completed",

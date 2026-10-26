@@ -147,6 +147,7 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	for _, action := range declared {
 		actions = append(actions, leaction.Action{
 			Verb:    action.Verb,
+			Does:    "check",
 			Summary: action.Summary,
 			Why:     action.Why,
 			Writes:  action.Writes,

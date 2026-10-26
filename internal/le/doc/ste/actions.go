@@ -37,9 +37,9 @@ var actions = leaction.New(area,
 			Requirement: leaction.Optional, Repeat: true,
 		}},
 		AnswerArgs: checkNamed},
-	leaction.Action{Verb: "review", Summary: "list every plain-English finding in the tree", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
+	leaction.Action{Verb: "review", Does: "report", Summary: "list every plain-English finding in the tree", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
 		Answer: reviewAnswer},
-	leaction.Action{Verb: "review-changed", Summary: "list plain-English findings in changed files", Why: "the same findings, over the files this working tree changed",
+	leaction.Action{Verb: "review-changed", Does: "report", Summary: "list plain-English findings in changed files", Why: "the same findings, over the files this working tree changed",
 		Answer: changedAnswer},
 )
 

@@ -38,6 +38,7 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb:    verbAnchors,
+			Does:    "list",
 			Summary: "list design docs anchored to the spec's files",
 			Why:     "the design documents whose source anchors name a file the spec changes",
 			Parameters: []leaction.Parameter{{

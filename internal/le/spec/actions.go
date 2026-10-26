@@ -91,12 +91,14 @@ func StateArea() leaction.Area {
 	return leaction.New("spec state",
 		leaction.Action{
 			Verb:    verbCurrent,
+			Does:    "show",
 			Summary: "print this session's per-spec state file path",
 			Why:     "the path of this session's per-spec state file",
 			Answer:  answerStateCurrent,
 		},
 		leaction.Action{
 			Verb:    verbLatest,
+			Does:    "show",
 			Summary: "print the newest state file for one spec",
 			Why:     "the path of the newest state file any session wrote for one spec",
 			Parameters: []leaction.Parameter{{
@@ -116,6 +118,7 @@ func StateArea() leaction.Area {
 func ModelArea() leaction.Area {
 	return leaction.New("spec model", leaction.Action{
 		Verb:    verbCurrent,
+		Does:    "show",
 		Summary: "print the model a session transcript records",
 		Why:     "the model a session transcript records",
 		Parameters: []leaction.Parameter{{
@@ -135,6 +138,7 @@ func ReviewArea() leaction.Area {
 	return leaction.New("spec review",
 		leaction.Action{
 			Verb:    verbHash,
+			Does:    "report",
 			Summary: "print the review hash of each named file",
 			Why:     "the review hash of each named file",
 			Parameters: []leaction.Parameter{{

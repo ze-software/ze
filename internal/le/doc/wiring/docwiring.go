@@ -55,6 +55,7 @@ var actions = leaction.New(name,
 	},
 	leaction.Action{
 		Verb:    templOrphanVerb,
+		Does:    "check",
 		Summary: "report orphaned templ sources and generated files",
 		Why:     "report a .templ source outside internal/ or a generated templ Go file whose source is absent",
 		Answer:  answerTemplOrphansHere,

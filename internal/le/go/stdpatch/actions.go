@@ -19,7 +19,7 @@ const area = "go stdpatch"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "goroot", Summary: "print the patched GOROOT, building it on first use", Why: "print the patched GOROOT for this checkout's pinned toolchain, building it on first use, for plain go commands, editors and the routes that run before le exists",
+	leaction.Action{Verb: "goroot", Does: "ensure", Summary: "print the patched GOROOT, building it on first use", Why: "print the patched GOROOT for this checkout's pinned toolchain, building it on first use, for plain go commands, editors and the routes that run before le exists",
 		Answer: runGoroot},
 )
 
