@@ -29,6 +29,11 @@ const (
 	rfcProfileMarker = ` id="rfc-profile-title"`
 	// rfcProfilesMarker is the index's own heading id.
 	rfcProfilesMarker = ` id="rfc-profiles-title"`
+	// rfcProfileMandatoryLabel and rfcProfileOptionalLabel name the two
+	// coverage figures, on the cards and in every table column that carries
+	// one, so a card and its column cannot be named apart.
+	rfcProfileMandatoryLabel = "Mandatory"
+	rfcProfileOptionalLabel  = "Optional"
 )
 
 func init() {
@@ -190,9 +195,9 @@ type rfcProfileCard struct {
 // card cannot name a keyword the figure does not count.
 func rfcProfileCards(rollup *rfc.ScopeRollup) []rfcProfileCard {
 	return []rfcProfileCard{
-		{"Mandatory", rfcProfilePercent(rollup.Mandatory), rollup.Mandatory.String(),
+		{rfcProfileMandatoryLabel, rfcProfilePercent(rollup.Mandatory), rollup.Mandatory.String(),
 			rfcKeywordSeries(rfc.MandatoryKeywords()) + " rows of the walked RFCs that a recorded test break proves."},
-		{"Optional", rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
+		{rfcProfileOptionalLabel, rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
 			rfcKeywordSeries(rfc.OptionalKeywords()) + " rows, counted the same way."},
 		{"Not walked", strconv.Itoa(rollup.NotWalked), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
 			"RFCs with no valid extraction sign-off or no summary: their rows count in neither figure."},
@@ -293,7 +298,7 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string) string 
 // rfcProfileColumns answers the tree table's columns. An aggregate has no
 // path column: its members are the RFCs naming it, reached over no edge.
 func rfcProfileColumns(report *rfc.TreeReport) []string {
-	columns := []string{"RFC", "Title", "Mandatory", "Optional"}
+	columns := []string{"RFC", "Title", rfcProfileMandatoryLabel, rfcProfileOptionalLabel}
 	if !report.IsAggregate() {
 		columns = append(columns, "Why it is here")
 	}
@@ -491,7 +496,7 @@ const rfcProfilesLead = "Each use case Ze serves and each technology it implemen
 	"before release, every mandatory requirement of every RFC they reach must be proven."
 
 // rfcProfilesIndexColumns are the index tables' columns.
-var rfcProfilesIndexColumns = []string{"Profile", "Mandatory", "Optional", "RFCs", "Not walked", "Absent", "Mandatory register"}
+var rfcProfilesIndexColumns = []string{"Profile", rfcProfileMandatoryLabel, rfcProfileOptionalLabel, "RFCs", "Not walked", "Absent", "Mandatory register"}
 
 // rfcProfileRollupBarHTML renders a rollup figure as a bar and its cell.
 func rfcProfileRollupBarHTML(figure rfc.Figure) string {
