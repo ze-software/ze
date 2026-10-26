@@ -298,3 +298,26 @@ Left:
 | Re-record every discrimination record the CP work staled (`RFC7296-2.20-1`, `RFC4301-4.4.2-2`, `RFC7296-2.9-1`, `RFC4303-2.1-1`, `RFC3948-2.1-1`) | sixth agent |
 | Audit rejudges for `RFC4301-4.4.2-2`, `RFC7296-2.9-1`, `RFC7296-2.9-2` (independent judge) | supervisor |
 | Interop scenarios `virtual-ip-assignment` and `virtual-ip-uniqueness`, with their discrimination walks | separate agent |
+
+## Sixth agent, 2026-10-26: RFC3948-5.1-1 met, stale proofs re-taken
+
+| Commit | What landed |
+|--------|-------------|
+| `1136d49377` | the fifth agent's section above |
+| `bb8d0d896c` | `RFC3948-5.1-1` leaves `{gap}`, `Support remaining` rewritten; its two `cp_test.go` tags recorded (mutants in `substituteVirtualIP` and `assignVirtualIP`); eleven stale records re-taken (`RFC4301-4.4.2-2` x2, `RFC7296-2.9-1` x2, `RFC7296-2.20-1` x3, `RFC4303-2.1-1` x2, `RFC3948-2.1-1` x2) |
+| this section's commit | the `RFC7296-2.19-1` positive claim in `rfc7296_cp_test.go` no longer says ze builds no CP payload, with its new record (revert of `decideCPRequest`) |
+
+The mutant catalogs are one-entry gomu-format files under
+`tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch/disc6/m*.json`, naming
+each break by hand: a gomu run over `ts_narrow.go` runs the whole engine package per mutant
+and was not affordable. The recorder observed every red itself.
+
+Left:
+
+| Item | Note |
+|------|------|
+| `./le rfc check` | blocked: `go vet` fails on an import cycle from another session's untracked `internal/component/bgp/reactor/delay_open_regression_test.go`. Rerun once that lands or moves |
+| New RFC 7296 rows the spec names (2.19 CP before SA, CP in the SA-bearing message, no CFG_REPLY without request, FAILED_CP_REQUIRED; 3.15.1 netmask, ignore unknown, SUPPORTED_ATTRIBUTES; 1.7; 4; 3.15.4) | not added: they need verbatim rows above each section's high-water mark, tagged pairs, records and an extraction re-walk of `rfc/extraction/rfc7296.json`; the existing rows `2.19-1`, `2.19-4`, `2.20-1`, `3.15.1-2/5/6/7` stay true |
+| `TestZeSendsNoConfigurationRequest` error text "constructs no CP payload" | a string in an RFC-tagged unit; changing it needs a `ze-test-judge` approval |
+| Audit rejudges `RFC4301-4.4.2-2` (in the working tree, uncommitted), `RFC7296-2.9-1`, `RFC7296-2.9-2` | supervisor |
+| Interop scenarios | `5fcf169117` landed them; their discrimination walks belong to that agent |

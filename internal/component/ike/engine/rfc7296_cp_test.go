@@ -1,6 +1,8 @@
 // VALIDATES: the RFC 7296 Configuration payload obligations that ze discharges by a choice
-// rather than by a guard. Ze builds no CP payload at all today. The sender obligations of
-// Section 2.19 and Section 3.15.1 therefore fall on a role ze does not take. The CFG_SET
+// rather than by a guard. Ze never sends CP(CFG_REQUEST): it takes no IRAC role, so the
+// requester obligations of Section 2.19 and Section 3.15.1 fall on a role ze does not take.
+// The one CP payload ze builds is the CFG_REPLY a pool-bound peer's CFG_REQUEST draws
+// (buildCFGReply in cp.go, proven in cp_test.go), never in a message this sweep builds. The CFG_SET
 // obligations are discharged by the MAY in Section 3.15.1, which permits an implementation
 // to ignore CFG_SET.
 //
@@ -30,7 +32,8 @@ func cpPayloadsIn(entries []wire.PayloadEntry) []*wire.PayloadCP {
 	return out
 }
 
-// builtCPSweep walks every message the engine emits, at both nesting levels. It returns the
+// builtCPSweep walks one message of each kind engineBuiltChains builds, none of them an
+// answer to a CFG_REQUEST, at both nesting levels. It returns the
 // Configuration payloads it found, and the counts that prove the walk was not vacuous.
 //
 // The counters witness the walk itself, not the chains that exist. Counting inner
@@ -64,13 +67,15 @@ func builtCPSweep(t *testing.T) (found []*wire.PayloadCP, outerPayloads, innerPa
 // RFC requirement: RFC7296-2.19-1 positive -- the obligation binds the IRAC, the client that
 // wants an address. Ze is not one. RFC 7296 Section 4 makes the role optional:
 // "Implementations are not required to support requesting temporary IP addresses or
-// responding to such requests." Ze builds no Configuration payload in any message.
-// buildAuthRequest (auth.go) assembles IDi, the optional CERTREQ or CERT with AUTH, the
-// INITIAL_CONTACT notify, then SAi2, TSi and TSr. No builder anywhere constructs a
-// wire.PayloadCP.
+// responding to such requests." Ze requests no address: no message of the sweep carries a
+// Configuration payload, the initiator's IKE_AUTH request included. buildAuthRequest
+// (auth.go) assembles IDi, the optional CERTREQ or CERT with AUTH, the INITIAL_CONTACT
+// notify, then SAi2, TSi and TSr.
 //
-// The sweep below covers every message kind the engine emits, at both
+// The sweep below covers one message of each kind engineBuiltChains builds, at both
 // nesting levels. The claim is therefore proven over messages, not asserted over source.
+// Ze's one CP producer, the IRAS CFG_REPLY, answers only a received CFG_REQUEST, which no
+// message of the sweep carries.
 //
 // RFC requirement: RFC7296-2.19-1 negative -- the absence is a decision. It is not an encoder
 // that cannot express a CP payload. buildEncryptedMessageEx carries a Configuration payload
@@ -83,8 +88,8 @@ func builtCPSweep(t *testing.T) (found []*wire.PayloadCP, outerPayloads, innerPa
 //
 // Do not read this row as the
 // receive-side duty to recognize the attribute. That is a separate Section 4 obligation on
-// the responder. Ze does not owe that one today either, because it does not support
-// responding to such requests.
+// the responder, which ze discharges for a pool-bound peer (decideCPRequest in cp.go, proven
+// in cp_test.go).
 //
 // RFC requirement: RFC7296-2.19-4 negative -- the same encoder proof. A CFG_REQUEST is
 // expressible. The row is therefore discharged by ze declining the requester role, and not

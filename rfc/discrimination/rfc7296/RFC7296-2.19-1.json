@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-2.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigurationRequest",
+    "unit-sha": "0dacbd548e834df0",
+    "claim-sha": "f18eab9c9aeec8cc",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cp.go::decideCPRequest",
+    "producer-sha": "ba58ef39c05e57a4",
+    "break": "body of decideCPRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
