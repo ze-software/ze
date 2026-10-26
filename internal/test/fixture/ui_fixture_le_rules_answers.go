@@ -315,7 +315,6 @@ func leRulesAnswers(ctx context.Context) error {
 		markers []string
 		absent  []string
 	}{
-		{"rules check index", rulesCheckIndex, []string{"rules, ai/rules/INDEX.md up to date"}, nil},
 		{"rules check condensed", rulesCheckCondensed, []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
 		{"rules report payload", actionPayloadReport, nil, []string{"ai/rules/CORE.md: 0 chars"}},
 		{"rules report router", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
@@ -356,32 +355,12 @@ func leRulesAnswers(ctx context.Context) error {
 		}
 	}
 	golden := make(map[string][]byte)
-	for _, name := range []string{"INDEX.md", fileTriggersMD, fileCoreMD} {
+	for _, name := range []string{fileTriggersMD, fileCoreMD} {
 		body, err := os.ReadFile(filepath.Join(corpusTree, "ai", "rules", name)) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return fmt.Errorf("FAIL: read checked-in %s: %w", name, err)
 		}
 		golden[name] = body
-	}
-
-	if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), []byte("stale index\n"), 0o600); err != nil {
-		return fmt.Errorf("FAIL: make INDEX.md stale: %w", err)
-	}
-	indexUpdate, err := le(corpusTree, areaAIRules, actionUpdate, "index")
-	if err != nil {
-		return err
-	}
-	if indexUpdate.code != 0 || indexUpdate.stderr != "" {
-		return uiLeRulesAnswersFailf("index-update exited %d: %s%s", indexUpdate.code, indexUpdate.stdout, indexUpdate.stderr)
-	}
-	if indexUpdate.stdout == "" || !strings.Contains(indexUpdate.stdout, "INDEX.md") {
-		return uiLeRulesAnswersFailf("index-update did not report its artifact: %s", indexUpdate.stdout)
-	}
-	if strings.Contains(indexUpdate.stdout, corpusTree+string(os.PathSeparator)) {
-		return uiLeRulesAnswersFailf("index-update exposed an absolute fixture path: %s", indexUpdate.stdout)
-	}
-	if err := requireBytes(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), golden["INDEX.md"], "index-update wrote different INDEX.md bytes"); err != nil {
-		return err
 	}
 
 	for _, name := range []string{fileTriggersMD, fileCoreMD} {
@@ -407,8 +386,8 @@ func leRulesAnswers(ctx context.Context) error {
 			return err
 		}
 	}
-	if bytes.Count(golden["INDEX.md"], []byte("\n| ")) <= 20 {
-		return uiLeRulesAnswersFailf("the index was written with no rows in it")
+	if bytes.Count(golden[fileTriggersMD], []byte("\n| ")) <= 20 {
+		return uiLeRulesAnswersFailf("the trigger index was written with no rows in it")
 	}
 	if !bytes.Contains(golden["CORE.md"], []byte("<!-- always-on: precedence rung 1/2 -->")) {
 		return uiLeRulesAnswersFailf("the core names no ladder member, so the derivation read nothing")
@@ -418,7 +397,6 @@ func leRulesAnswers(ctx context.Context) error {
 		verb string
 		keys []string
 	}{
-		{rulesCheckIndex, []string{fieldFile, areaRules, fieldWritten, statusStale, "missing", fieldRows}},
 		{rulesCheckCondensed, []string{fieldWritten, "empty-corpus", "artifacts"}},
 		{actionPayloadReport, []string{"parts", "chars", "tokens", "budget", "met", "headroom-percent", "missing"}},
 		{actionRouterReport, []string{"tasks", "corpus-size", "rules-total", "core", "routed", "blocking-routed", "surfaced-any", "missed-blocking", "unroutable-terms"}},
@@ -692,7 +670,6 @@ const (
 	rulesTargetMetadata = "metadata"
 	rulesTargetRender   = "render"
 	rulesCheckCondensed = "check condensed"
-	rulesCheckIndex     = "check index"
 	rulesReportGateMap  = "report gate-map"
 	rulesCheckMetadata  = "check metadata"
 )

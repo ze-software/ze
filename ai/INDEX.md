@@ -26,7 +26,7 @@ Ask the question from Bash instead
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
 | Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, their open rows and capture; a class is due when its rows counted since its capture reach the threshold the report prints, and due classes come first) |
-| Which rule covers a topic? | `ai/rules/INDEX.md` |
+| Which rule covers a topic? | `ai/rules/TRIGGERS.md` |
 | Which `./le` command, action and typed parameter does a task need? | Run `./le help ai commands \| json` (every section: `./le help ai all \| yaml`); Tab completion for a shell is `./le completion bash\|zsh\|fish`. Both read the action tables (`docs/contributing/running-commands.md`, "The whole surface for an agent: `le help ai`") |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |
@@ -63,7 +63,7 @@ Ask the question from Bash instead
 | Reorganize YANG tree | `./le yang migration path-refactor operation <remove|rename|move> ...` | Add `apply` only after reviewing the preview |
 | Move a package between tiers | `./le go module move source <path> destination <tier-or-path>` | Add `apply` only after reviewing the preview |
 | Rename the module path (host or owner change) | `./le go module rename to <module> [from <module>]` | Add `apply` after the preview, then follow the native command's reported regeneration list |
-| See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |
+| See which rule covers a topic | `ai/rules/TRIGGERS.md` | Every rule with the situation that makes it apply; read the listed file before acting |
 | Understand Ze vs standard Go | `ai/rules/architecture.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/repo-maintenance.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `website/AI.md` | Source layout, generation target, adding a talk |

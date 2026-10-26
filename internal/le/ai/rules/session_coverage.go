@@ -235,7 +235,7 @@ func directRulePath(path string) bool {
 		return false
 	}
 	name := strings.TrimPrefix(path, rulesRel+"/")
-	if strings.Contains(name, "/") || name == "TRIGGERS.md" || name == "CORE.md" || name == "INDEX.md" {
+	if strings.Contains(name, "/") || name == "TRIGGERS.md" || name == "CORE.md" {
 		return false
 	}
 	return true

@@ -1,6 +1,5 @@
 // VALIDATES: spec-le-is-a-ze-binary AC-1, AC-5, AC-7, and AC-8. Function calls
-// invoke the six gates ported from rules_index.py, rules_condensed.py, and
-// rules_router.py.
+// invoke the gates ported from rules_condensed.py and rules_router.py.
 // PREVENTS: success over an unread corpus or a routing index without its source
 // ladder. Every session loads both artifacts. An empty artifact is not a smaller
 // instruction set. It is an absent instruction set with a false pass.
@@ -598,136 +597,6 @@ func TestFirstSentenceCutsAtRunesAndAtAWordBoundary(t *testing.T) {
 	}
 }
 
-func TestTheIndexSummaryPrefersTheTriggerThenBlockingThenProse(t *testing.T) {
-	cases := []struct {
-		name string
-		rule string
-		want string
-	}{
-		{
-			name: "an explicit trigger wins",
-			rule: "# R\n\n**When:** when the qdisc encoder changes\n**Severity:** blocking\n\n" +
-				"**BLOCKING:** do not read this one.\n",
-			want: "when the qdisc encoder changes",
-		},
-		{
-			name: "a BLOCKING directive beats prose",
-			rule: "# R\n\nThis prose comes first in the file.\n\n**BLOCKING:** run the gate first.\n",
-			want: "run the gate first.",
-		},
-		{
-			name: "prose is the last resort",
-			rule: "# R\n\n| a | b |\n\nThis prose is the rule statement.\n",
-			want: "This prose is the rule statement.",
-		},
-		{
-			name: "a rule with nothing derivable answers nothing",
-			rule: "# R\n\n- a bullet\n\n| a | b |\n",
-			want: "",
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := indexSummary(splitLines(tc.rule)); got != tc.want {
-				t.Errorf("indexSummary = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestTheIndexSummaryProtectsCodeSpansAndEscapesPipes(t *testing.T) {
-	// A blanket bold strip corrupts globs: the trigger of testing.md carries
-	// `test/**/*.ci`, which rendered as `test//*.ci` until code spans were
-	// protected.
-	got := cleanSummary("**BLOCKING:** every `test/**/*.ci` and **every** row | cell")
-	if !strings.Contains(got, "`test/**/*.ci`") {
-		t.Errorf("the glob inside a code span was corrupted: %q", got)
-	}
-	if strings.Contains(got, "**every**") {
-		t.Errorf("a bold marker outside a code span survived: %q", got)
-	}
-	if strings.Contains(got, "row | cell") {
-		t.Errorf("an unescaped pipe would break the table row: %q", got)
-	}
-	if !strings.Contains(got, `row \| cell`) {
-		t.Errorf("the pipe was not escaped: %q", got)
-	}
-	if strings.HasPrefix(got, "**BLOCKING") {
-		t.Errorf("the marker prefix survived: %q", got)
-	}
-}
-
-func TestTheIndexSummaryIsCutAtRunesNotBytes(t *testing.T) {
-	long := "when " + strings.Repeat("an em dash — ", 40)
-	got := cleanSummary(long)
-	if runeLen(got) > maxSummary {
-		t.Errorf("the summary kept %d characters, over the %d bound", runeLen(got), maxSummary)
-	}
-	if strings.ContainsRune(got, '�') {
-		t.Errorf("the cut split a rune: %q", got)
-	}
-	if !strings.HasSuffix(got, "...") {
-		t.Errorf("a cut summary does not say it was cut: %q", got)
-	}
-
-	// This pair distinguishes the implementations. The summary is UNDER the
-	// character bound and OVER the byte bound. A byte bound wrongly removes its
-	// final clause. A summary over both bounds proves nothing because both forms
-	// remove it.
-	dashes := strings.Repeat("— ", maxSummary/2)
-	if runeLen(dashes) > maxSummary {
-		t.Fatalf("the fixture is %d characters, not under the bound", runeLen(dashes))
-	}
-	if len(dashes) <= maxSummary {
-		t.Fatalf("the fixture is %d bytes, so a byte bound would not cut it", len(dashes))
-	}
-	if kept := cleanSummary(dashes); strings.HasSuffix(kept, "...") {
-		t.Errorf("a summary under the character bound was cut: %d characters, %d bytes",
-			runeLen(dashes), len(dashes))
-	}
-}
-
-func TestTheIndexNamesEveryRuleWithNoDerivableSummary(t *testing.T) {
-	files := digestCorpus()
-	files["ai/rules/quiet.md"] = "# Quiet\n\n- only a bullet\n"
-	root := digestTree(t, files)
-
-	report, err := Index(root, true)
-	if err != nil {
-		t.Fatalf("Index: %v", err)
-	}
-	if len(report.Missing) != 1 || report.Missing[0] != "quiet.md" {
-		t.Fatalf("missing = %v, want [quiet.md]", report.Missing)
-	}
-	if !report.Failed() {
-		t.Errorf("a rule with no trigger did not fail the check")
-	}
-	if !strings.Contains(report.Text(), "missing a derivable summary") {
-		t.Errorf("the page does not name the problem: %q", report.Text())
-	}
-	// The row still exists. Dropping it would hide exactly the rules that are
-	// hardest to route.
-	found := false
-	for _, row := range report.Rows {
-		if row.Rule != "Quiet" {
-			continue
-		}
-		found = true
-		if row.Summary != noSummary {
-			t.Errorf("the row's summary = %q, want the placeholder", row.Summary)
-		}
-		// A rule without a metadata block still gets a severity CELL. An empty
-		// cell makes the table harder to scan. This rule especially needs a row
-		// because it has no routing text.
-		if row.Severity != "-" {
-			t.Errorf("the row's severity = %q, want the placeholder", row.Severity)
-		}
-	}
-	if !found {
-		t.Errorf("the unroutable rule has no row: %v", report.Rows)
-	}
-}
-
 func TestARungIsAnASCIINumberAndNothingElse(t *testing.T) {
 	// Python's str.isdigit() and int() accept fullwidth and Arabic-Indic digits.
 	// Thus, the script treats them as rungs. This implementation fails CLOSED.
@@ -751,25 +620,6 @@ func TestARungIsAnASCIINumberAndNothingElse(t *testing.T) {
 		if ok != tc.ok || value != tc.value {
 			t.Errorf("asciiDigits(%q) = %d, %v; want %d, %v", tc.cell, value, ok, tc.value, tc.ok)
 		}
-	}
-}
-
-func TestTheIndexRefusesARulesDirectoryItReadNothingFrom(t *testing.T) {
-	// The script writes a header with no rows over the real index and exits 0,
-	// so an empty read is what success looks like. Here it is an error, and the
-	// file on disk is untouched.
-	root := digestTree(t, map[string]string{
-		"ai/rules/INDEX.md": "# Ze Rules Index\n\ncontent that must survive\n",
-	})
-	if _, err := Index(root, false); err == nil {
-		t.Fatalf("the update reported success over a corpus it read nothing from")
-	}
-	body, err := os.ReadFile(filepath.Join(root, "ai", "rules", "INDEX.md"))
-	if err != nil {
-		t.Fatalf("reading the index back: %v", err)
-	}
-	if !strings.Contains(string(body), "content that must survive") {
-		t.Errorf("the refused update overwrote the index anyway: %q", body)
 	}
 }
 
@@ -1037,10 +887,6 @@ func TestTheNewReportsAreStructuredDataWithKebabCaseKeys(t *testing.T) {
 	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"
 	root := digestTree(t, files)
 
-	index, err := Index(root, true)
-	if err != nil {
-		t.Fatalf("Index: %v", err)
-	}
 	digest, err := Digest(root, true)
 	if err != nil {
 		t.Fatalf("Digest: %v", err)
@@ -1059,7 +905,6 @@ func TestTheNewReportsAreStructuredDataWithKebabCaseKeys(t *testing.T) {
 		payload any
 		keys    []string
 	}{
-		{"index", index, []string{"file", "rules", "written", "stale", "missing", "rows"}},
 		{"digest", digest, []string{"written", "empty-corpus", "artifacts"}},
 		{"payload", payload, []string{"parts", "chars", "tokens", "budget", "met", "headroom-percent", "missing"}},
 		{"router", router, []string{"tasks", "corpus-size", "rules-total", "core", "routed",

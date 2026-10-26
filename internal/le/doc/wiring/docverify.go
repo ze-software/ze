@@ -76,7 +76,6 @@ var docVerifyStages = [...]docVerifyStage{
 	{"Rules render (ai/rules/<rule>.md matches ai/rules/points/)...", rulesRenderStage},
 	{"Rules round trip (split every rendered rule, render it back, compare bytes)...", rulesRoundTripStage},
 	{"Rules gate map (no hook check names a point that does not exist)...", rulesCoverageStage},
-	{"Rules index (ai/rules/INDEX.md fresh, every rule has a summary)...", rulesIndexStage},
 	{"Rule format (every ai/rules/*.md has the When/Severity block)...", rulesLintStage},
 	{"Rules digest (ai/rules/TRIGGERS.md + CORE.md fresh)...", rulesDigestStage},
 	{"Discovery index (ai/DOCS-TO-CODE.md fresh)...", discoveryIndexesStage},
@@ -211,17 +210,6 @@ func rulesCoverageStage(root string) (any, int) {
 		return docVerifyPage{text: page}, 1
 	}
 	return docVerifyPage{text: page}, 0
-}
-
-func rulesIndexStage(root string) (any, int) {
-	report, err := airules.Index(root, true)
-	if err != nil {
-		return errorPage(err), 1
-	}
-	if report.Failed() {
-		return report, 1
-	}
-	return report, 0
 }
 
 func rulesLintStage(root string) (any, int) {

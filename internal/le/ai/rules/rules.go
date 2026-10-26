@@ -46,7 +46,7 @@ const (
 // skip names the generated aggregates that sit beside the rules and are not
 // rules. It is rules_lint.SKIP, and the all-caps-stem test below covers
 // TRIGGERS.md and CORE.md, which are recognized by shape.
-var skip = map[string]bool{"INDEX.md": true, "CONDENSED.md": true}
+var skip = map[string]bool{"CONDENSED.md": true}
 
 // IsArtifact reports whether a file beside the rules is a generated aggregate
 // rather than a rule. The Python tools rules_lint, rules_points, and

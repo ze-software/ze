@@ -160,15 +160,6 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			},
 			dropped: "- MUST finish it.",
 		},
-		{
-			name: "index rows", update: "update index", check: "check index", artifact: "INDEX.md",
-			kept: []string{
-				"| Completion | before claiming any gokrazy qdisc work done | blocking | `ai/rules/completion.md` |",
-				"| Never Destroy Work | before deleting a file holding uncommitted work | blocking | `ai/rules/never-destroy-work.md` |",
-				"| RFC Compliance | writing protocol code for any RFC ze implements | blocking | `ai/rules/rfc-compliance.md` |",
-				"| Rule Precedence | when two rules disagree | blocking | `ai/rules/rule-precedence.md` |",
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			files := digestCorpus()

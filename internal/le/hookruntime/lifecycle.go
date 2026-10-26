@@ -141,8 +141,8 @@ type sessionStartReport struct {
 // on stderr with the ones after it, instead of the harness dropping the whole
 // message at its timeout.
 func hookSessionStart(ctx context, out, errOut io.Writer) {
-	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                           //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers") //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                            //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Rules: ai/rules/TRIGGERS.md names every rule with the situation it covers -- when one matches, read that rule's file in full before acting") //nolint:errcheck // hook protocol
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
 		_ = os.Setenv("CLAUDE_CODE_SESSION_ID", id)
 		if environmentFile := os.Getenv("CLAUDE_ENV_FILE"); environmentFile != "" {

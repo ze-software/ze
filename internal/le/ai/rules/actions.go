@@ -37,7 +37,6 @@ import (
 // its action, so one verb carries every artifact the area judges or writes.
 const (
 	targetCondensed       = "condensed"
-	targetIndex           = "index"
 	targetMetadata        = "metadata"
 	targetPointsRoundtrip = "points-roundtrip"
 	targetRender          = "render"
@@ -47,7 +46,6 @@ const (
 // checkTargets answers each check target's gate. None of them writes.
 var checkTargets = map[string]func() (any, int){
 	targetCondensed:       func() (any, int) { return condensedAnswer(true) },
-	targetIndex:           func() (any, int) { return indexAnswer(true) },
 	targetMetadata:        lintAnswer,
 	targetPointsRoundtrip: roundTripAnswer,
 	targetRender:          func() (any, int) { return renderAnswer(true) },
@@ -56,7 +54,6 @@ var checkTargets = map[string]func() (any, int){
 // updateTargets answers each update target's generator.
 var updateTargets = map[string]func() (any, int){
 	targetCondensed: func() (any, int) { return condensedAnswer(false) },
-	targetIndex:     func() (any, int) { return indexAnswer(false) },
 	targetRender:    func() (any, int) { return renderAnswer(false) },
 }
 
@@ -64,10 +61,9 @@ var updateTargets = map[string]func() (any, int){
 var checkParameters = []leaction.Parameter{{
 	Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
 	Help:   "the rule artifact to check",
-	Values: []string{targetCondensed, targetIndex, targetMetadata, targetPointsRoundtrip, targetRender},
+	Values: []string{targetCondensed, targetMetadata, targetPointsRoundtrip, targetRender},
 	ValueHelp: map[string]string{
 		targetCondensed:       "TRIGGERS.md and CORE.md match the rules they derive from",
-		targetIndex:           "INDEX.md names every rule and its trigger",
 		targetMetadata:        "every rule carries its When and Severity block",
 		targetPointsRoundtrip: "every rule splits back into its points byte for byte",
 		targetRender:          "the rendered rules agree with their points",
@@ -78,10 +74,9 @@ var checkParameters = []leaction.Parameter{{
 var updateParameters = []leaction.Parameter{{
 	Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
 	Help:   "the rule artifact to regenerate",
-	Values: []string{targetCondensed, targetIndex, targetRender},
+	Values: []string{targetCondensed, targetRender},
 	ValueHelp: map[string]string{
 		targetCondensed: "regenerate the trigger index and the always-on core",
-		targetIndex:     "regenerate ai/rules/INDEX.md from each rule's heading",
 		targetRender:    "render the rule points into ai/rules/*.md",
 	},
 }}
@@ -90,15 +85,14 @@ var updateParameters = []leaction.Parameter{{
 var actions = leaction.New(area,
 	leaction.Action{Verb: "check", Summary: "check one rule artifact against its source", Why: "the named rule artifact agrees with the source it derives from: " +
 		"the trigger index and core (condensed; a stale trigger index routes a session to a rule that moved), " +
-		"the rule index (index), the **When:** / **Severity:** block every rule carries (metadata, " +
+		"the **When:** / **Severity:** block every rule carries (metadata, " +
 		"ai/rules/rule-format.md, so tooling parses triggers rather than guessing them), the byte-identical " +
 		"split back into points (points-roundtrip; a lossy split is silent instruction loss), or the rendered " +
 		"ai/rules/*.md against ai/rules/points/ (render)",
 		Parameters: checkParameters,
 		AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(checkTargets, args) }},
 	leaction.Action{Verb: "update", Summary: "regenerate one rule artifact from its source", Why: "regenerate the named rule artifact: the trigger index and the " +
-		"always-on core from one parse of ai/rules/ (condensed), ai/rules/INDEX.md from each rule's own heading " +
-		"and trigger (index), or ai/rules/*.md from ai/rules/points/ (render)",
+		"always-on core from one parse of ai/rules/ (condensed), or ai/rules/*.md from ai/rules/points/ (render)",
 		Writes: true, Parameters: updateParameters,
 		AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(updateTargets, args) }},
 )
@@ -270,28 +264,6 @@ func rulesDir(tree string) string {
 
 func pointsDir(tree string) string {
 	return filepath.Join(tree, filepath.FromSlash(pointsRel))
-}
-
-// indexAnswer regenerates ai/rules/INDEX.md, or compares it and writes nothing.
-//
-// It answers 1 for a stale index or a rule with no derivable summary. The script
-// uses these two codes. It also answers 1 when the rules directory contains no
-// rules. The script instead writes an empty header and reports success.
-func indexAnswer(check bool) (any, int) {
-	tree, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 2
-	}
-	report, err := Index(tree, check)
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	if report.Failed() {
-		return report, 1
-	}
-	return report, 0
 }
 
 // condensedAnswer regenerates the trigger index and the always-on core, or

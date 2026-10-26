@@ -14,8 +14,7 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 | `ai/rules/points/<rule>/manifest.md` | The title, the metadata block, the sections and the reading order | You |
 | `ai/rules/points/<rule>/<section>/<slug>.md` | One point: a frontmatter header, then the body verbatim | You |
 | `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le ai rules update render` |
-| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le ai rules update condensed` |
-| `ai/rules/INDEX.md` | The dispatch index | `./le ai rules update index` |
+| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload; `TRIGGERS.md` is also the dispatch index | `./le ai rules update condensed` |
 
 An Edit to any generated file is refused by `writeRenderedRule` in
 `internal/le/hookruntime/writeedit.go`. The refusal names the point directory.
@@ -256,7 +255,7 @@ rule above. A long single line is correct here. Do not wrap it for looks.
 | A slug carrying a path separator, a leading dot, or a parent reference | A manifest MUST NOT read outside its own rule directory |
 | A `*.md` below its section directory, or a directory inside one | The tree is at a fixed depth of two and nothing reads deeper, so the instruction renders into nothing while every gate exits 0 |
 | A `##` heading inside a point BODY | A `##` opens a section, and a section is a directory. The rendered bytes are identical either way, so this is the one loss no other gate can see: every point after that heading carries an id naming a section no reader ever sees |
-| A point directory named for a generated artifact, such as `CORE`, `TRIGGERS` or `INDEX` | The point renderer must not overwrite a file owned by the digest or index generator |
+| A point directory named for a generated artifact, such as `CORE` or `TRIGGERS` | The point renderer must not overwrite a file owned by the digest generator |
 
 A `##` heading with no blank line above it is still a section. The manifest
 records the missing blank line with a leading `^` on the section line, so the
@@ -337,19 +336,18 @@ table.
 
 ## The order the generators run in
 
-`./le ai rules update condensed` and `./le ai rules update index` parse the RENDERED rules, so
-a render that has not run yet feeds them the previous text.
+`./le ai rules update condensed` parses the RENDERED rules, so a render that
+has not run yet feeds it the previous text.
 
     ./le ai rules update render
     ./le ai rules update condensed
-    ./le ai rules update index
     ./le ai rules check metadata
 
 `./le doc check all` runs all of them, plus `./le ai rules check render`,
 `./le ai rules check points-roundtrip` and `./le ai rules report gate-map`. Run it before you commit.
 
-The three freshness commands (`render-check`, `condensed-check` and
-`index-check`) compare content, not file size. They exit nonzero for drift and
+The two freshness commands (`./le ai rules check render` and
+`./le ai rules check condensed`) compare content, not file size. They exit nonzero for drift and
 leave the rejected files untouched; only the corresponding update commands
 write them. Native command fixtures in `internal/le/ai/rules/rules_test.go`
 exercise those decisions through `Answer`, including the emitted routing rows,
@@ -362,8 +360,8 @@ routes the situations you meant is visible only in the row.
 
 ## Committing
 
-Commit the points and all four generated artifacts together: the rendered rule,
-`TRIGGERS.md`, `CORE.md` and `ai/rules/INDEX.md`. The freshness gates regenerate
+Commit the points and all three generated artifacts together: the rendered
+rule, `TRIGGERS.md` and `CORE.md`. The freshness gates regenerate
 from the WORKING TREE and compare against it. A commit that carries the point
 and not the artifact is therefore green on your machine. CI regenerates from
 HEAD, and it fails.
@@ -392,7 +390,7 @@ inclusion. Every rule keeps a line in `TRIGGERS.md`. A rule whose body is not
 loaded is therefore still named in every session, one Read away.
 
 That is what makes the `**When:**` trigger load-bearing. It is also why
-`ai/rules/INDEX.md` can be derived instead of hand-written.
+`TRIGGERS.md` can serve as the dispatch index, derived instead of hand-written.
 
 ## Why one instruction is one file
 
