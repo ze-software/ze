@@ -1,0 +1,15 @@
+# Test: every retired le spelling is refused naming its successor, and every
+# successor is a page le answers.
+# accept-only: the registered native fixture builds the le personality and,
+# for every row of the rename map (leretired.Renames, read from the table and
+# never listed here), runs the old spelling and reads exit 2 and a stderr that
+# names the successor line; it then asks the successor's page, which must
+# answer 0 and list the successor's action, and runs one successor (`le job`).
+#
+# VALIDATES: spec-le-cli-usability AC-20, AC-21, AC-22 and D-P4-machinery
+# through the product binary and its real composition root.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-retired-spellings
+expect=exit:code=0
+expect=stdout:contains=OK
