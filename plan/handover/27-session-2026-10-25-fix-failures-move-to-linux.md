@@ -5,6 +5,38 @@ The session fixed the failures from the last full verify (24 October, commit
 worked towards a green CI run. Its own work is all committed. Nothing is
 pushed.
 
+## STATE 2026-10-26, the Linux session that took this handover
+
+The Mac commits were already on `origin/main` (89b9c2eedb). CI run
+40238058974 at that commit failed five of six shards. Fixed here, committed
+locally, not pushed:
+
+| Red | Cause | Commit |
+|-----|-------|--------|
+| `config claims`, `TestConfigSchemaRootsClaimed`, `TestAuditReadsTheLiveRegistry`, gated table stale | The claim gate counted owned roots only; `pki` became a read root of ike (b71b99a761), which commit and reload still deliver | 3e17f1a6a1 |
+| `site facts check` | Published counts drifted | 05eeb3cce8 |
+| `update-text-sr-policy-addpath` | A withdrawal queued during initial sync went out as a bare MP_UNREACH_NLRI, the direct one with attributes: one command, two wire shapes by timing | a306bd35f2 |
+| `error-panel-toggle.wb` | The runner clicked a sliding element; a field saved twice (blur, Enter and debounce) | d674241c52 |
+| misspell in gnmi | UK spelling; the gNMI spec quote is kept and exempted | 832334aa95 |
+| Six weakening-ledger tests | No git identity on the CI runner | eccfe5bcea |
+
+Still red in that run and owned elsewhere: `le-checks-answers`,
+`le-completion-shells`, `ze-help-ai-unchanged` and `TestTheCheckoutsOwnHeadIsClean`
+(better-cli, `setup docker` rename in flight); `TestPolicyFinalReloadRetainedRoutes`
+(RS fast path send permission, journal row 3d3c017f80); `modify-oversize-suppress`
+(the known plugin-suite population flake, `suppression-decision-not-deterministic.md`).
+
+Still owed:
+- `./le test integration gtsm` under sudo needs the host to itself; it never was
+  (load 25 to 126 all session).
+- Interop for the queued-withdrawal change (wire-visible): `./le test integration interop`.
+- A CI run after the next push confirms all of the above, and the web
+  line-65 race, which shows only on a fast host.
+- The RFC7947-x-5 gomu run is being run by the route-server session (started
+  2026-10-25 22:58); this session's duplicate was stopped.
+- `buildWithdrawNLRI` has no production caller left. Deleting it deletes its
+  bounds test, which needs Thomas's approval.
+
 ## Read first on the Linux host
 
 - `main` on the Mac is 68 commits ahead of `origin/main`, today's work and other
