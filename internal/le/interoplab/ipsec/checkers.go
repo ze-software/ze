@@ -89,6 +89,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// read decides it.
 	"initiator-answer-one-local-two-remote": {run: checkResponderTwoSubnets},
 	"responder-raises-child-rekey":          {run: checkResponderRaisesChildRekey},
+	"unbound-inner-address-uniqueness":      {run: checkUnboundInnerAddressUniqueness},
 	"virtual-ip-assignment":                 {run: checkVirtualIPAssignment},
 	"virtual-ip-uniqueness":                 {run: checkVirtualIPUniqueness},
 }

@@ -1759,6 +1759,29 @@ Child SA, because Ze could not install a second policy for 10.1.2.0/24 while
 <!-- source: internal/le/interoplab/ipsec/virtualip.go -- checkVirtualIPAssignment, checkVirtualIPUniqueness, requireZeLease, requireLeasePolicies, requireReturnTraffic -->
 <!-- source: internal/le/interoplab/ipsec/nat.go -- natTranslationsMax -->
 
+### IPsec inner-address uniqueness without a pool
+
+`unbound-inner-address-uniqueness` is the same two-laptop figure of RFC 3948
+Section 5.1 with no pool to make the addresses unique. Ze's two respond peers bind
+no `virtual-ip-pool` and carry no `traffic-selector`, so each client chooses its
+own inner selector, and both strongSwan connections propose `local_ts =
+10.1.2.3/32`, `remote_ts = 10.20.0.1/32` with no `vips`. The NAT box and the second
+client address are those of `virtual-ip-uniqueness`. The checker puts 10.1.2.3 on
+strongSwan's loopback and 10.20.0.1 on Ze's, each with a route to the other.
+
+| Step | Proves |
+|------|--------|
+| `ze-a` initiates | strongSwan's Child SA is INSTALLED, and Ze's kernel holds exactly one outbound ESP policy to 10.1.2.3/32, tunneled to 172.28.0.7 |
+| `ze-b` initiates | strongSwan logs TS_UNACCEPTABLE and keeps IKE SA `ze-b` ESTABLISHED with no Child SA (RFC 7296 Sections 2.9 and 2.21.2) |
+| Ze's view | `show vpn ipsec sa` reports `swan-a`'s Child SA with `ts-remote` 10.1.2.3/32 and `swan-b` established with no `child-sa` |
+| Ze's kernel, again | still exactly the one outbound policy to 10.1.2.3/32, the first client's |
+| Traffic | a ping from 10.1.2.3 to 10.20.0.1 moves ESP on all four simplex SAs of the first client |
+
+The policy count reads `ip xfrm policy` one outbound policy at a time
+(`innerOutPolicyTunnels`), because the selector-pair set the other checkers use
+collapses two policies to one inner address into one entry.
+<!-- source: internal/le/interoplab/ipsec/unbound_inner.go -- checkUnboundInnerAddressUniqueness, innerOutPolicyTunnels, requireOneInnerTunnel, requireZeRefusedSecond -->
+
 ### The strongSwan lab drop-in
 
 Every scenario that starts a strongSwan peer mounts

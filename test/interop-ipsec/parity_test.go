@@ -62,6 +62,7 @@ var ipsecScenarios = []string{
 	"responder-psk",
 	"responder-raises-child-rekey",
 	"responder-two-subnets",
+	"unbound-inner-address-uniqueness",
 	"virtual-ip-assignment",
 	"virtual-ip-uniqueness",
 }
@@ -94,20 +95,21 @@ func TestNativeScenarioRegistryIsExact(t *testing.T) {
 // PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
 func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
-		"eap-tls":                         {"ze-env"},
-		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"eap-nak-method-negotiation":      {"strongswan.conf"},
-		"initiator-rekey-answer-narrows":  {"ze-env"},
-		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
-		"mobike-initiator":                {"strongswan.conf"},
-		"mobike-responder":                {"strongswan.conf"},
-		"peer-reload-narrowing":           {"ze-narrowed.conf"},
-		"real-nat-transport-ze-initiator": {"nat.conf"},
-		"real-nat-transport-ze-responder": {"nat.conf"},
-		"real-nat-tunnel-control":         {"nat.conf"},
-		"responder-eap-mschapv2":          {"strongswan.conf"},
-		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"virtual-ip-uniqueness":           {"nat.conf"},
+		"eap-tls":                          {"ze-env"},
+		"eap-tls13":                        {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-nak-method-negotiation":       {"strongswan.conf"},
+		"initiator-rekey-answer-narrows":   {"ze-env"},
+		"ipsec-bgp-redistribute-frr":       {"frr.conf"},
+		"mobike-initiator":                 {"strongswan.conf"},
+		"mobike-responder":                 {"strongswan.conf"},
+		"peer-reload-narrowing":            {"ze-narrowed.conf"},
+		"real-nat-transport-ze-initiator":  {"nat.conf"},
+		"real-nat-transport-ze-responder":  {"nat.conf"},
+		"real-nat-tunnel-control":          {"nat.conf"},
+		"responder-eap-mschapv2":           {"strongswan.conf"},
+		"responder-eap-tls13":              {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"unbound-inner-address-uniqueness": {"nat.conf"},
+		"virtual-ip-uniqueness":            {"nat.conf"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)
