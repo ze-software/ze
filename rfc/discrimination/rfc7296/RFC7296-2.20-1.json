@@ -46,6 +46,28 @@
   {
     "rid": "RFC7296-2.20-1",
     "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_version_reply_test.go::TestRFC7296GrantedVersionRequestIsAnsweredEmpty",
+    "unit-sha": "4e923e52eaa1da94",
+    "claim-sha": "f471b25bcba515ae",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 476: \"grant.req.appVersion\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cp_version_reply_test.go::TestRFC7296GrantedVersionRequestReflectsNoVersionString",
+    "unit-sha": "765c494be684a902",
+    "claim-sha": "14b50406a039717f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 477: \"{Type: wire.CPAttrApplicationVersion}\" -\u003e \"{Type: wire.CPAttrApplicationVersion, Value: []byte(\\\"ze\\\")}\""
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP",
     "unit-sha": "567e4e97281bd767",
     "claim-sha": "b6f2d9cf285823c9",
