@@ -198,6 +198,48 @@ func TestRetiredCommandSweepSkipsOwnedJournalRows(t *testing.T) {
 	}
 }
 
+func TestRetiredCommandSweepSkipsResealNotes(t *testing.T) {
+	// VALIDATES: in a Go file, a reseal note is skipped from its
+	// "// Re-sealed " line through the comment lines after it, because it
+	// records the spelling the source carried at a past re-seal. A live
+	// spelling in the same file is still found: a catalog row string, a
+	// comment above the note, a comment after the bare "//" that ends it,
+	// and the code line after it. A non-Go file carrying the same text is
+	// swept whole.
+	// PREVENTS: an exemption of the whole sealed file, which would hide its
+	// live catalog rows, and a note that swallows the comment after it.
+	const sealed = "internal/le/ai/hooks/fixtures.go"
+	const other = "docs/sample.md"
+	text := strings.Join([]string{
+		"var (",
+		"	// Run ./le test-unit all to refresh the catalog.",
+		"	// Re-sealed 2026-10-26 for the rename of `le test-unit` to",
+		"	// `le test unit`: ./le test-unit all is gone. Text only.",
+		"	//",
+		"	// Live: ./le test-unit all still names the old spelling.",
+		"	row = \"./le test-unit all\"",
+		"	// Re-sealed 2026-10-27: one note, ./le test-unit all.",
+		"	digest = \"./le test-unit all\"",
+		")",
+		"",
+	}, "\n")
+	root := fixtureRepository(t, map[string]string{sealed: text, other: text})
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"le test-unit@2", "le test-unit@6", "le test-unit@7", "le test-unit@9"}
+	if got := retiredLinesOf(report, sealed); !slices.Equal(got, want) {
+		t.Errorf("%s matched %v, want %v", sealed, got, want)
+	}
+	wantOther := []string{"le test-unit@2", "le test-unit@3", "le test-unit@4", "le test-unit@6", "le test-unit@7", "le test-unit@8", "le test-unit@9"}
+	if got := retiredLinesOf(report, other); !slices.Equal(got, wantOther) {
+		t.Errorf("%s matched %v, want %v", other, got, wantOther)
+	}
+}
+
 func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 	// VALIDATES: a declared word that contains a retired name (the skill,
 	// the EAP identity, the two old make targets, the chaos MCP server name, the

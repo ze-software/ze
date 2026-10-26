@@ -207,7 +207,10 @@ words are still a live command or action, so the refusal can never shadow one.
 map and names the file and line of every tracked line that still names an old
 form, outside the declared historical records and exceptions. The owned
 journal rows section of a `spec-*.md` under `plan/` is skipped too, from its
-heading to the next one, because its rows copy journal text verbatim. A command is
+heading to the next one, because its rows copy journal text verbatim. So is a
+reseal note in a Go file, from its `// Re-sealed ` line to a bare `//` or the
+end of the comment, because it records the spelling a sealed source carried
+at a past re-seal; the rest of that file is swept. A command is
 found as `le <old>` after any path prefix, and as a Go argv of literals whose
 program is the literal `"le"`, a variable named `le`, or a helper named for le
 (`runLE(nil, "<old>")`). It exits 1 on any such line and runs as a stage of

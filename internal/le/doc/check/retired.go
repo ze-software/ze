@@ -437,6 +437,31 @@ func retiredOwnedRowsAfter(inside bool, line string) bool {
 	return inside
 }
 
+// retiredResealNotePrefix opens a reseal note: the comment that records why a
+// sealed digest (internal/le/ai/hooks/fixtures.go, parity.go) was re-sealed.
+const retiredResealNotePrefix = "// Re-sealed "
+
+// retiredResealNoteAfter answers whether line sits inside a reseal note in a Go
+// file, given whether the line before it did. A note opens at a comment line
+// that starts with retiredResealNotePrefix and runs through the comment lines
+// after it, to a bare `//` line or the first line that is not a comment. A
+// note records a past re-seal, so it names the spelling the source carried
+// then: a historical record, like the journal. The digest values, the catalog
+// rows and every other comment in the same file are still swept.
+func retiredResealNoteAfter(inside bool, line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, retiredResealNotePrefix) {
+		return true
+	}
+	if trimmed == "//" {
+		return false
+	}
+	if strings.HasPrefix(trimmed, "//") {
+		return inside
+	}
+	return false
+}
+
 // retiredExempt reports whether one old spelling is declared legitimate in one
 // file.
 func retiredExempt(rel, old string) bool {
@@ -710,6 +735,8 @@ func sweepRetired(root string) (retiredReport, error) {
 		// lines of a file that names an old form somewhere name none.
 		ownsRows := retiredOwnsRows(rel)
 		inOwnedRows := false
+		goSource := strings.HasSuffix(rel, ".go")
+		inResealNote := false
 		lineNo := 0
 		for start := 0; start <= len(text); {
 			end := strings.IndexByte(text[start:], '\n')
@@ -724,6 +751,12 @@ func sweepRetired(root string) (retiredReport, error) {
 			if ownsRows {
 				inOwnedRows = retiredOwnedRowsAfter(inOwnedRows, line)
 				if inOwnedRows {
+					continue
+				}
+			}
+			if goSource {
+				inResealNote = retiredResealNoteAfter(inResealNote, line)
+				if inResealNote {
 					continue
 				}
 			}
