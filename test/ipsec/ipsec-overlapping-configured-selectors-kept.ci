@@ -1,0 +1,239 @@
+# Functional test: two peers whose tunnels overlap BY CONFIGURATION both keep them.
+# Spec: plan/release/fixes/spec-ike-unbound-peer-inner-address.md (AC-4, user story 2).
+# Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
+#
+# VALIDATES: the operator-fixed exemption of the RFC 3948 Section 5.1 guard. RFC 4301
+# Section 4.4.1 lets an administrator order overlapping SPD entries "to express a desired
+# access control policy", so a hub whose operator configured spoke-a remote 10.1.0.0/16
+# (policy-priority 2000) and spoke-b remote 10.1.2.0/24 (policy-priority 1500) meant both
+# tunnels. Each spoke proposes exactly its configured prefix, the hub negotiates each pair
+# whole, and both Child SAs are installed although 10.1.2.0/24 sits inside 10.1.0.0/16.
+#
+# PREVENTS: the guard refusing a deliberate, priority-ordered design. Without the
+# exemption spoke-b's IKE_AUTH Child SA is refused with TS_UNACCEPTABLE and the hub's
+# peers list carries no child-sa for spoke-b, so its last step never holds.
+#
+# ORDER. As in ipsec-unbound-inner-address-unique.ci: spoke-b starts only once spoke-a
+# logged its installed Child SA, so the overlap exists when spoke-b's request arrives.
+#
+# Every daemon uses the noop dataplane: the guard is in the engine, above the dataplane.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze.log.ike:value=info
+option=timeout:value=60s
+
+# ── Hub (background): two unbound respond peers and the engine-steps executor ──
+stdin=hub:terminator=EOF_HUB
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+# A bgp block routes the config through the main loader; without it a minimal
+# environment-only parser owns plugin{} blocks
+# (internal/component/hub/config.go parsePluginBlock).
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			# Configured overlap: 10.1.2.0/24 sits inside 10.1.0.0/16, and the
+			# priorities order the two policies (RFC 4301 Section 4.4.1).
+			peer spoke-a {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				policy-priority 2000
+				traffic-selector 1 {
+					local {
+						prefix 0.0.0.0/0
+					}
+					remote {
+						prefix 10.1.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-a
+				}
+			}
+			peer spoke-b {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.3
+				policy-priority 1500
+				traffic-selector 1 {
+					local {
+						prefix 0.0.0.0/0
+					}
+					remote {
+						prefix 10.1.2.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-b
+				}
+			}
+		}
+	}
+}
+EOF_HUB
+
+# ── spoke-a (background): proposes its configured 10.1.0.0/16 first ──
+stdin=spoke-a:terminator=EOF_SPOKE_A
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer hub {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 0.0.0.0/0
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-a
+				}
+			}
+		}
+	}
+}
+EOF_SPOKE_A
+
+# ── spoke-b (foreground): proposes its configured 10.1.2.0/24 second ──
+stdin=spoke-b:terminator=EOF_SPOKE_B
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer hub {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.3
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.1.2.0/24
+					}
+					remote {
+						prefix 0.0.0.0/0
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-b
+				}
+			}
+		}
+	}
+}
+EOF_SPOKE_B
+
+cmd=background:seq=1:exec=ze -:stdin=hub:name=hub
+expect=stderr:contains=engine-steps: all steps passed
+# Neither IKE_AUTH Child SA is refused, on any daemon.
+reject=stderr:pattern=overlaps the tunnel
+reject=stderr:pattern=refused the IKE_AUTH Child SA
+reject=stderr:pattern=TS_UNACCEPTABLE
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+cmd=background:seq=2:exec=env ze_config_dir=spoke-a-store ze -:stdin=spoke-a:name=spoke-a:ready=child-sa: installed
+cmd=foreground:seq=3:exec=ze -:stdin=spoke-b:timeout=55s
+await=stderr:contains=engine-steps: all steps passed:timeout=50s:then=stop
+expect=stderr:contains=child-sa: installed
+
+# The hub's steps (the hub is the only daemon that loads the executor). The peers
+# list is sorted by peer name.
+command=show vpn ipsec sa | json
+expect=output:json=peers.0.peer-name=spoke-a:timeout=40
+expect=output:json=peers.0.child-sa.ts-remote=10.1.0.0/16:timeout=20
+expect=output:json=peers.1.peer-name=spoke-b:timeout=20
+expect=output:json=peers.1.child-sa.ts-remote=10.1.2.0/24:timeout=20
