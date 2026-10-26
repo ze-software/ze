@@ -46,8 +46,11 @@ func closeCause(session *Session) error {
 
 // sessionCloseFor derives the close of a session that left Established on
 // event. notified is true when a NOTIFICATION crossed the wire on this session,
-// in either direction (Peer.notificationExchanged). cause is the session's
-// recorded close reason (closeCause), nil when none was recorded.
+// in either direction (Peer.notificationExchanged). publicationFailed is true
+// when the session's received UPDATEs could not all be published to the
+// plugins (receivePublication.failed), read once the delivery worker exited.
+// cause is the session's recorded close reason (closeCause), nil when none
+// was recorded.
 //
 // The NOTIFICATION decides first, because two RFCs make it the deciding fact.
 // RFC 4724 Section 4: "the normal BGP procedures MUST be followed when the
@@ -56,7 +59,16 @@ func closeCause(session *Session) error {
 // and ze never advertises it (peer_gr_flags.go sets the R and F bits alone),
 // so every NOTIFICATION here takes the normal procedures.
 //
-// Without a NOTIFICATION, the transport failing is its own cause. RFC 7854
+// Without a NOTIFICATION, a failed publication decides next. The delivery
+// worker tears the session down with a Cease when it cannot publish, and
+// when that Cease is delivered the NOTIFICATION already decided. When it was
+// not written, or the session had ended before the failure, nothing on the
+// wire says the session's Adj-RIB-In is invalid, yet it is: the plugins never
+// saw some of its UPDATEs. The reason says so, rpc.ReasonAdjRIBInInvalid,
+// rather than claiming a NOTIFICATION, and Graceful Restart retains nothing
+// for it (rpc.ReasonForbidsRetention).
+//
+// Without either, the transport failing is its own cause. RFC 7854
 // Section 4.9: "Reason 4: The remote system closed the session without a
 // notification message.  This includes any unexpected termination of the
 // transport session, so in some cases both the local and remote systems might
@@ -73,7 +85,7 @@ func closeCause(session *Session) error {
 //
 // Any other event is ze closing the session with no NOTIFICATION reaching the
 // peer, typically a Cease that could not be written.
-func sessionCloseFor(notified bool, event fsm.Event, cause error) sessionClose {
+func sessionCloseFor(notified, publicationFailed bool, event fsm.Event, cause error) sessionClose {
 	// RFC 7854 Section 4.9: "Two bytes both set to 0 are used to indicate
 	// that no relevant Event code is defined." An event with no registered
 	// number gets that answer rather than ze's internal ordinal.
@@ -82,8 +94,14 @@ func sessionCloseFor(notified bool, event fsm.Event, cause error) sessionClose {
 		number = 0
 	}
 
+	// RFC 4724 Section 4: "It is noted that the normal BGP procedures MUST be
+	// followed when the TCP session terminates due to the sending or
+	// receiving of a BGP NOTIFICATION message."
 	if notified {
 		return sessionClose{reason: rpc.ReasonNotification, fsmEvent: number}
+	}
+	if publicationFailed {
+		return sessionClose{reason: rpc.ReasonAdjRIBInInvalid, fsmEvent: number}
 	}
 	if event != fsm.EventTCPConnectionFails {
 		return sessionClose{reason: rpc.ReasonLocalClose, fsmEvent: number}

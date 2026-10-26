@@ -7,21 +7,40 @@ package reactor
 import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // sessionLeave is what the FSM leave-Established arm hands Peer.runOnce's
-// down: the close it derived, whether a NOTIFICATION was exchanged, the
-// history row it owes, and the BFD release whose wait it cannot run. The arm
-// writes the fields and then closes signal; the down reads them only after
-// <-signal, so the close is the happens-before edge and no lock is needed.
-// One record per runOnce: a session's FSM leaves Established at most once.
+// down: what the close is derived from (the event, whether a NOTIFICATION was
+// exchanged, the recorded close reason, the forward generation), the history
+// row it owes, and the BFD release whose wait it cannot run. The arm writes
+// the fields and then closes signal; the down reads them only after <-signal,
+// so the close is the happens-before edge and no lock is needed. The down
+// derives the close itself (sessionLeave.close), because one of its inputs,
+// the failed receive publication, is final only once the delivery worker
+// exited. One record per runOnce: a session's FSM leaves Established at most
+// once.
 type sessionLeave struct {
-	signal     chan struct{}
-	closed     sessionClose
-	notified   bool
-	transition FSMTransition
-	bfd        bfdRelease
+	signal       chan struct{}
+	event        fsm.Event
+	notified     bool
+	notification plugin.CloseNotification
+	cause        error
+	generation   uint64
+	transition   FSMTransition
+	bfd          bfdRelease
+}
+
+// close derives the session's close from what the leave arm recorded and from
+// whether the session's receive publication failed. The caller MUST read
+// publicationFailed after the delivery worker exited, so a failure the worker
+// meets after the leave arm ran still names the close.
+func (leave *sessionLeave) close(publicationFailed bool) sessionClose {
+	closed := sessionCloseFor(leave.notified, publicationFailed, leave.event, leave.cause)
+	closed.generation = leave.generation
+	closed.notification = leave.notification
+	return closed
 }
 
 // sessionEndHooks are test seams on the session end. Each nil hook is skipped.
@@ -113,16 +132,18 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 	// toward convergence while its wire is gone (update_delay.go).
 	p.updateDelayPeerDown()
 
-	// The close is derived once, from the event that made this
-	// transition, from whether a NOTIFICATION crossed the wire, and
-	// from the close reason the session recorded, and every consumer
-	// reads it: Graceful Restart and BMP both decide on it
-	// (peer_close.go).
+	// The close is derived once, in the down, from the event that made
+	// this transition, from whether a NOTIFICATION crossed the wire, from
+	// the close reason the session recorded, and from whether its receive
+	// publication failed, and every consumer reads it: Graceful Restart
+	// and BMP both decide on it (peer_close.go). The arm records the
+	// inputs it owns at the transition.
+	leave.event = event
 	leave.notified = p.notificationExchanged.Load()
-	leave.closed = sessionCloseFor(leave.notified, event, closeCause(session))
-	leave.closed.generation = p.forwardGeneration.Load()
+	leave.cause = closeCause(session)
+	leave.generation = p.forwardGeneration.Load()
 	if leave.notified {
-		leave.closed.notification = p.closingNotification()
+		leave.notification = p.closingNotification()
 	}
 
 	p.mu.RLock()
@@ -145,7 +166,6 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 		Timestamp: p.clock.Now(),
 		From:      from.String(),
 		To:        to.String(),
-		Reason:    leave.closed.reason,
 	}
 	close(leave.signal)
 }
@@ -162,12 +182,14 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 //  3. When the FSM ever entered Established, it waits on the leave signal:
 //     the leave arm may still be running on another goroutine. Then it waits
 //     for the BFD subscriber the arm released, which is never this goroutine.
-//  4. It raises session-dropped when no NOTIFICATION was exchanged, tells the
-//     plugins down, logs "session closed" and appends the history row.
+//  4. It derives the close, now that every failure of the session's receive
+//     publication has happened (sessionLeave.close), raises session-dropped
+//     when no NOTIFICATION was exchanged, tells the plugins down, logs
+//     "session closed" and appends the history row.
 //
 // So a plugin hears every UPDATE of a session before its down, and the down
 // follows PeerStateConnecting.
-func (p *Peer) sessionDown(session *Session, deliverChan chan deliveryItem, deliveryDone <-chan struct{}, leave *sessionLeave) {
+func (p *Peer) sessionDown(session *Session, publication *receivePublication, deliverChan chan deliveryItem, deliveryDone <-chan struct{}, leave *sessionLeave) {
 	if session.fsm.State() == fsm.StateEstablished {
 		p.sessionEndHooks.Load().runBeforeLeaveFire()
 		// Without this event the leave arm, and so the down, would never
@@ -188,7 +210,13 @@ func (p *Peer) sessionDown(session *Session, deliverChan chan deliveryItem, deli
 	<-leave.signal
 	p.awaitBFDRelease(leave.bfd)
 
-	reason := leave.closed.reason
+	// The delivery worker has exited and Session.Run has returned, so no
+	// fail() of this publication is still to come: a failure the worker met
+	// after the leave arm ran, or after the session ended for another
+	// reason, names this close too.
+	closed := leave.close(publication.failed.Load())
+	reason := closed.reason
+	leave.transition.Reason = reason
 	// Raise session-dropped on the report bus only when no NOTIFICATION
 	// was exchanged during this session. If one was sent or received,
 	// the operator already sees that event in `ze show errors` and a
@@ -201,7 +229,7 @@ func (p *Peer) sessionDown(session *Session, deliverChan chan deliveryItem, deli
 	reactor := p.reactor
 	p.mu.RUnlock()
 	if reactor != nil {
-		p.announceDown(reactor, leave.closed)
+		p.announceDown(reactor, closed)
 	}
 	peerLogger().Info("session closed", "peer", p.settings.Address.String(), "reason", reason)
 	p.history.append(leave.transition)

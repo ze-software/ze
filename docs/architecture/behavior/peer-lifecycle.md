@@ -320,20 +320,11 @@ leave arm (`leaveSession`, `peer_session_end.go`) on whichever goroutine drains
 the FSM, and `runOnce`'s down (`sessionDown`) announces the down later, on the
 `runOnce` goroutine. The leave arm:
 
-1. Derive the close once with `sessionCloseFor` (`peer_close.go`), from the
-   FSM event that made the transition, from `notificationExchanged`, and from
-   the close reason the session recorded (`closeCause`). The reason is
-   `rpc.ReasonNotification` when a NOTIFICATION was sent or received,
-   `rpc.ReasonTCPFailure` for Event 18 without one, and `rpc.ReasonLocalClose`
-   for any other event without one. The GR-aware congestion teardown
-   (`forward_pool_congestion.go`) fires Event 18 after recording
-   `ErrCongestionTeardown`: ze closed that transport itself, so its close is
-   `rpc.ReasonLocalClose` carrying Event 18. The RFC 4271 Section 8.1 number of the
-   event travels beside it, to the plugins, as `StructuredEvent.FSMEvent`.
-   Graceful Restart retains routes for every reason but
-   `rpc.ReasonNotification` (RFC 4724 Section 4), and BMP writes Peer Down
-   reason 4 for `rpc.ReasonTCPFailure` and reason 2 with the event code for
-   `rpc.ReasonLocalClose` (RFC 7854 Section 4.9).
+1. Record what the close is derived from, in the leave record: the FSM event
+   that made the transition, `notificationExchanged` (and the closing
+   NOTIFICATION when it is set), the close reason the session recorded
+   (`closeCause`) and the forward generation. The down derives the close
+   from them (step 4 of the down).
 2. Release a non-strict peer's BFD session without waiting for its
    subscriber goroutine, which may be the goroutine running the arm.
 3. `p.announceClosed(reactor, session)`: mark the session closing
@@ -342,7 +333,7 @@ the FSM, and `runOnce`'s down (`sessionDown`) announces the down later, on the
    18a), and forget the peer in the reactor (`forgetClosedPeer`: AIGP, update
    groups).
 4. Clear negotiated capabilities and encoding contexts.
-5. `setState(PeerStateConnecting)`, record the history row, and close the
+5. `setState(PeerStateConnecting)`, build the history row (the down sets its reason), and close the
    leave signal.
 
 The down, on every exit from `runOnce`:
@@ -352,20 +343,42 @@ The down, on every exit from `runOnce`:
    UPDATE the session buffered is published before the down.
 3. When the FSM ever entered Established, wait on the leave signal, then on
    the BFD subscriber goroutine.
-4. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
+4. Derive the close once with `sessionCloseFor` (`peer_close.go`), from the
+   leave record and from whether the session's receive publication failed
+   (`receivePublication.failed`), which is final only now that the delivery
+   worker exited. The reason is `rpc.ReasonNotification` when a NOTIFICATION
+   was sent or received, `rpc.ReasonAdjRIBInInvalid` when none was but some
+   received UPDATE could not be published (the Cease the delivery worker's
+   teardown built was not written, or the session had already ended),
+   `rpc.ReasonTCPFailure` for Event 18 without either, and
+   `rpc.ReasonLocalClose` for any other event without either. The GR-aware
+   congestion teardown (`forward_pool_congestion.go`) fires Event 18 after
+   recording `ErrCongestionTeardown`: ze closed that transport itself, so its
+   close is `rpc.ReasonLocalClose` carrying Event 18. The RFC 4271 Section 8.1
+   number of the event travels beside it, to the plugins, as
+   `StructuredEvent.FSMEvent`. Graceful Restart retains routes for every
+   reason `rpc.ReasonForbidsRetention` allows, so neither after
+   `rpc.ReasonNotification` (RFC 4724 Section 4) nor after
+   `rpc.ReasonAdjRIBInInvalid`, and BMP writes Peer Down reason 4 for
+   `rpc.ReasonTCPFailure` and reason 2 with the event code for
+   `rpc.ReasonLocalClose` and `rpc.ReasonAdjRIBInInvalid` (RFC 7854 Section
+   4.9).
+5. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
    raise `session-dropped` on the report bus via
    `raiseSessionDropped`. The check avoids duplicating an event the
    operator already sees elsewhere when NOTIFICATION fired.
-5. Notify the reactor via `reactor.notifyPeerClosed(p, closed)`, which tells
+6. Notify the reactor via `reactor.notifyPeerClosed(p, closed)`, which tells
    the observers and then schedules a dynamic peer's cleanup.
-6. Log `session closed` with the reason and append the history row.
+7. Log `session closed` with the reason and append the history row, which
+   carries the same reason.
 
 A delivery worker that cannot publish a batch (a recovered receiver panic, or
 no receiver) tears its session down with Cease / Out of Resources
 (`failReceivePublication`), so the session does not stay Established while its
 UPDATEs never reach the plugins.
 
-<!-- source: internal/component/bgp/reactor/peer_session_end.go — leaveSession, sessionDown, failReceivePublication -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go — leaveSession, sessionDown, sessionLeave.close, failReceivePublication -->
+<!-- source: internal/component/bgp/reactor/peer_close.go — sessionCloseFor -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback Established and leave-Established branches -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — sendInitialRoutes spawn -->
 

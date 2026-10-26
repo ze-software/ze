@@ -1605,23 +1605,29 @@ peer 192.0.2.1 remote as 65001 state down
 
 ### Close Reasons
 
-The reactor derives the reason once, when the session leaves Established, from
-whether a NOTIFICATION crossed the wire and from the FSM event of the closing
-transition. A NOTIFICATION decides first.
+The reactor derives the reason once per session, in the down, after every
+UPDATE the session buffered was published or failed: from whether a
+NOTIFICATION crossed the wire, from whether the session's received UPDATEs
+could all be published, and from the FSM event of the transition that left
+Established. A NOTIFICATION decides first, a failed publication second.
 
 | Reason | Trigger |
 |--------|---------|
 | `notification` | A NOTIFICATION was sent to, or received from, the peer on this session |
+| `adj-rib-in-invalid` | No NOTIFICATION, and ze could not publish some UPDATE the peer sent on this session: the Cease ze sends for it was not written, or the session had already ended |
 | `tcp-failure` | No NOTIFICATION, and the transport ended (RFC 4271 Section 8.1 Event 18) |
 | `local-close` | No NOTIFICATION reached the peer, and ze closed the session on any other event |
 | `removed` | The peer was removed from the configuration (no FSM event) |
 
 Graceful Restart retains a GR-capable peer's routes on every close except
-`notification` and `removed` (RFC 4724 Section 4), and BMP maps the reason to
-its Peer Down reason code (RFC 7854 Section 4.9).
+`notification`, `adj-rib-in-invalid` and `removed` (RFC 4724 Section 4). A
+plugin asks `rpc.ReasonForbidsRetention` rather than comparing reasons. BMP
+maps the reason to its Peer Down reason code (RFC 7854 Section 4.9);
+`adj-rib-in-invalid` is a local close with no NOTIFICATION, reason 2.
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent -->
 <!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
-<!-- source: pkg/plugin/rpc/enums.go -- ReasonNotification, ReasonTCPFailure, ReasonLocalClose, ReasonPeerRemoved -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- sessionDown, sessionLeave.close -->
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonNotification, ReasonAdjRIBInInvalid, ReasonTCPFailure, ReasonLocalClose, ReasonPeerRemoved, ReasonForbidsRetention -->
 
 ### Flow
 

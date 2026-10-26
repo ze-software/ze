@@ -7,8 +7,8 @@
     "claim-sha": "a1e534ed89d0149c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-    "producer-sha": "6f89f01fd929d3fe",
-    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9f59cfa17cb2b694",
+    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4.2-4",
@@ -18,7 +18,7 @@
     "claim-sha": "c9f832ee1e2df9e3",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-    "producer-sha": "6f89f01fd929d3fe",
-    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9f59cfa17cb2b694",
+    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

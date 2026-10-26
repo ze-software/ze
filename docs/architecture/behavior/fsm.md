@@ -508,14 +508,15 @@ session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
         }
         p.startInitialRoutes()
     } else if from == fsm.StateEstablished {
-        // leaveSession: release BFD without waiting, derive the close once
-        // (peer_close.go), mark the session closing and forget it in the
-        // reactor (announceClosed), clear capabilities, setState(Connecting),
-        // record the history row, then close the leave signal.
+        // leaveSession: release BFD without waiting, record what the close
+        // is derived from (event, NOTIFICATION, close cause), mark the
+        // session closing and forget it in the reactor (announceClosed),
+        // clear capabilities, setState(Connecting), build the history row,
+        // then close the leave signal.
         p.leaveSession(session, leave, from, to, event)
     }
 })
-defer p.sessionDown(session, deliverChan, deliveryDone, leave)
+defer p.sessionDown(session, publication, deliverChan, deliveryDone, leave)
 return session.Run(p.ctx)
 ```
 
@@ -527,7 +528,7 @@ included:
 | 1 | When the FSM still reads Established (nothing else ended the session), fire `EventTCPConnectionFails`, so the leave arm runs |
 | 2 | Close the delivery channel and wait for the delivery worker, which publishes every buffered UPDATE first |
 | 3 | When the FSM's sticky entered-Established bit is set, wait on the leave signal, then on the BFD subscriber the arm released |
-| 4 | Raise session-dropped when no NOTIFICATION was exchanged, announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row |
+| 4 | Derive the close once (`sessionCloseFor`, `peer_close.go`) from the leave record and from whether the receive publication failed, which is final only now; raise session-dropped when no NOTIFICATION was exchanged, announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row with the same reason |
 
 So a plugin hears every UPDATE of a session before its down, and the down
 follows `PeerStateConnecting`. A delivery worker that cannot publish a batch

@@ -27,6 +27,9 @@ import (
 //   - A session ze closed itself with no NOTIFICATION reaching the peer is the
 //     same transport close to the helper: ExaBGP reports a connection it drops
 //     without a NOTIFICATION through the NetworkError branch too.
+//   - A session whose received UPDATEs ze could not publish, when its Cease
+//     never reached the peer, is that same close: no NOTIFICATION crossed the
+//     wire, so the helper reads `closing connection`.
 //   - A NOTIFICATION is `notification sent (code,subcode)` or `notification
 //     received (code,subcode)` in ExaBGP (`self._reset(f'notification sent
 //     ({notify.code},{notify.subcode})', notify)` in Peer._run). Ze's down
@@ -37,11 +40,17 @@ import (
 //
 // It was absent until 2026-10-22: the bridge wrote ze's own word
 // (`tcp-failure`) on the text line, and no reason at all on the JSON line.
+//
+// exabgpTransportClose is ExaBGP's word for a session that ended with no
+// NOTIFICATION on the wire, whichever side dropped the transport.
+const exabgpTransportClose = "closing connection"
+
 var exabgpDownReasons = map[string]string{
-	rpc.ReasonTCPFailure:   "closing connection",
-	rpc.ReasonLocalClose:   "closing connection",
-	rpc.ReasonPeerRemoved:  "stop, message [removed]",
-	rpc.ReasonNotification: "notification",
+	rpc.ReasonTCPFailure:      exabgpTransportClose,
+	rpc.ReasonLocalClose:      exabgpTransportClose,
+	rpc.ReasonAdjRIBInInvalid: exabgpTransportClose,
+	rpc.ReasonPeerRemoved:     "stop, message [removed]",
+	rpc.ReasonNotification:    "notification",
 }
 
 // exabgpDownReason answers ExaBGP's words for the reason ze closed a session.

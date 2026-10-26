@@ -5,8 +5,8 @@
     "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "14af77651b208b50",
     "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4": "9670cb870441e913",
     "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e",
-    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "cf6e617fcfa3155a",
-    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "cf6e617fcfa3155a"
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "3ed1b320856853b8",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "3ed1b320856853b8"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "02571e07c6758b58",

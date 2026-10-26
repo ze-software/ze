@@ -23,6 +23,7 @@ func TestDownReasonExabgpWords(t *testing.T) {
 	}{
 		{rpc.ReasonTCPFailure, "closing connection"},
 		{rpc.ReasonLocalClose, "closing connection"},
+		{rpc.ReasonAdjRIBInInvalid, "closing connection"},
 		{rpc.ReasonPeerRemoved, "stop, message [removed]"},
 		{rpc.ReasonNotification, "notification"},
 		{"a-reason-ze-adds-later", "a-reason-ze-adds-later"},

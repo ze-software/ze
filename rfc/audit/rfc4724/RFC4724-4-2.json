@@ -6,8 +6,8 @@
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "7ff5f8c62f5f9ada",
     "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing": "51e4cdbd76bc873f",
     "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains": "51e4cdbd76bc873f",
-    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "cf6e617fcfa3155a",
-    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "cf6e617fcfa3155a"
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent": "3ed1b320856853b8",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "3ed1b320856853b8"
   },
   "units": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "16cfa56e18a119dc",

@@ -18,8 +18,8 @@
     "claim-sha": "8bdd721f6776d47c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
-    "producer-sha": "6954f89b6f4bc8ec",
-    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3547a03382fd5c36",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7854-x-10",
@@ -29,7 +29,7 @@
     "claim-sha": "6dfe6284a4d1f9b4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
-    "producer-sha": "6954f89b6f4bc8ec",
-    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3547a03382fd5c36",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

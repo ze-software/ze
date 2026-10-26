@@ -708,7 +708,7 @@ func (p *Peer) runOnce() error {
 	// every exit from here drains and announces it, a panic on the read
 	// goroutine included. It runs before the earlier defer that clears
 	// p.session.
-	defer p.sessionDown(session, deliverChan, deliveryDone, leave)
+	defer p.sessionDown(session, publication, deliverChan, deliveryDone, leave)
 
 	// Run session loop
 	return session.Run(p.ctx)

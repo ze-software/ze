@@ -464,7 +464,7 @@ const ReasonPeerRemoved = "removed"
 // through the plugin server's targeted up, to the attached processes alone.
 const ReasonAttached = "attached"
 
-// The three SessionStateDown reasons below say why an Established session
+// The four SessionStateDown reasons below say why an Established session
 // closed. The reactor derives one from what the session observed
 // (internal/component/bgp/reactor/peer_close.go, sessionCloseFor), and every
 // plugin that has to act on the cause reads it here rather than guessing from
@@ -486,6 +486,31 @@ const ReasonTCPFailure = "tcp-failure"
 // written. The FSM event that closed it travels beside it (StructuredEvent
 // FSMEvent).
 const ReasonLocalClose = "local-close"
+
+// ReasonAdjRIBInInvalid is the down reason for a session ze ended because it
+// could not publish the UPDATEs it received from the peer, when no
+// NOTIFICATION crossed the wire: the Cease ze sent was not written, or the
+// session had already ended when the publication failed. The routes the
+// session's Adj-RIB-In holds are known to be invalid, so no plugin may keep
+// them. When the Cease was delivered the reason is ReasonNotification.
+const ReasonAdjRIBInInvalid = "adj-rib-in-invalid"
+
+// ReasonForbidsRetention reports whether a SessionStateDown reason forbids
+// keeping the peer's routes past the down, which Graceful Restart otherwise
+// does. A plugin that retains routes asks this rather than comparing reasons,
+// so a reason added later is decided here once.
+//
+// RFC 4724 Section 4: "It is noted that the normal BGP procedures MUST be
+// followed when the TCP session terminates due to the sending or receiving of
+// a BGP NOTIFICATION message." A session whose received routes ze could not
+// publish takes the same procedures: a route kept from it would be one no
+// plugin ever saw, or one the peer had already withdrawn.
+func ReasonForbidsRetention(reason string) bool {
+	if reason == ReasonNotification {
+		return true
+	}
+	return reason == ReasonAdjRIBInInvalid
+}
 
 func (s SessionState) String() string {
 	switch s {
