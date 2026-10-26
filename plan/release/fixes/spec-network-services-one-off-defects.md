@@ -190,6 +190,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `test-against-broken-path` | 2026-08-12 | dnsserver `TestDoHIgnoresEDNSUDPSize` |
 | `claim-outlives-the-evidence-it-cites` | 2026-10-19 | `TestDHCPv6PDLengthRequestsDelegatedPrefix` starts at `dHCPConfig`, not config |
 | `declared-format-contradicts-payload` | 2026-08-19 | flowspec-firewall `handleEvent` reads a flat envelope the daemon never emits |
+| `library-default-left-in-place` | 2026-10-26 | dnsserver UDP listener keeps the 512-octet `UDPSize` default, no EDNS0 (RFC4035-3-1, RFC4035-3-2) |
 
 ## Rows found already fixed
 
