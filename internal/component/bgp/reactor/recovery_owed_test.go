@@ -223,7 +223,7 @@ func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
 			attachRecoveryOwner(t, rail.r, rail.source, other)
 			address := rail.source.Settings().Address
 			adjOutTestForward(t, rail.destination, rail.source, p, 11)
-			rail.source.forwardGeneration.Add(1) // A's first session ended; A is up again.
+			rail.source.advanceForwardGeneration() // A's first session ended; A is up again.
 			var departures []chan error
 			if departureFirst {
 				departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
@@ -248,7 +248,7 @@ func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
 			require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), written,
 				"an admission for a stale epoch writes nothing")
 
-			rail.source.forwardGeneration.Add(1) // The announcing session departs.
+			rail.source.advanceForwardGeneration() // The announcing session departs.
 			departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
 			epoch := owedRailEpoch(t, rail)
 			lowEventually(t, func() bool { return owedRailEpoch(t, rail) != epoch }, "the second departure merges")
@@ -384,7 +384,7 @@ func TestOwnerWithdrawalOwedWhileCandidateInFlight(t *testing.T) {
 				attachRecoveryOwner(t, rail.r, rail.source, other)
 				adjOutTestForward(t, rail.destination, rail.source, p, 11)
 				if !inFlight {
-					other.forwardGeneration.Add(1) // X restarted: its queued forward was dropped.
+					other.advanceForwardGeneration() // X restarted: its queued forward was dropped.
 				}
 				if lifecycle {
 					owedRailExpected(t, rail.destination, ownershipRailBody(family.IPv4Unicast, true, p, 0), rail.revision(t))

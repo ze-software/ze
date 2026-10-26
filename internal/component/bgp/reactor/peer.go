@@ -150,14 +150,14 @@ const (
 // Enhanced Route Refresh marker).
 type peerOp struct {
 	Type        PeerOpType
-	Route       *rib.Route     // For PeerOpAnnounce
-	NextHopSelf bool           // Resolve against the session that drains this announcement.
-	Replay      bool           // Preserve the sent entry's origin when a refresh is queued.
-	NLRI        nlri.NLRI      // For PeerOpWithdraw
+	Route       *rib.Route // For PeerOpAnnounce
+	NextHopSelf bool       // Resolve against the session that drains this announcement.
+	Replay      bool       // Preserve the sent entry's origin when a refresh is queued.
+	NLRI        nlri.NLRI  // For PeerOpWithdraw
 	// Withdrawal is the command a PeerOpWithdraw came from, so the drain frames
 	// the same UPDATE the direct write would have (queuedWithdrawal).
 	Withdrawal *queuedWithdrawal // For PeerOpWithdraw
-	Notice      teardownNotice // For PeerOpTeardown: the NOTIFICATION it sends
+	Notice     teardownNotice    // For PeerOpTeardown: the NOTIFICATION it sends
 
 	// Automatic is set when the LOCAL SYSTEM chose this teardown rather than
 	// the operator, so draining it raises RFC 4271 Event 8 (AutomaticStop)
@@ -290,6 +290,11 @@ type Peer struct {
 
 	// forwardGeneration fences delayed live forwards across sessions. Publishing
 	// Established MUST advance it; receive snapshots MUST retain its value.
+	// Only advanceForwardGeneration writes it, from forwardGenerationClock, so
+	// a generation is ordered against every other Peer's too: departures and
+	// exclusions compare generations by source address, and a Peer rebuilt
+	// for an address (config remove and re-add, a dynamic peer re-created)
+	// MUST start above every generation its predecessor stamped.
 	forwardGeneration atomic.Uint64
 
 	// forwardRevocation fences this source's Adj-RIB-Out ownership across a
@@ -1755,6 +1760,33 @@ func (p *Peer) State() PeerState {
 	return PeerState(p.state.Load())
 }
 
+// forwardGenerationClock issues every forward generation in the process.
+// Departures and Adj-RIB-Out exclusions name a source by address and compare
+// generations across Peer objects, so one Peer's count would restart low on a
+// Peer rebuilt for the same address, and a departure queued by the old Peer
+// would owe, or keep excluded, routes the new one wrote. One clock orders them
+// all. Safe for concurrent use.
+var forwardGenerationClock atomic.Uint64
+
+// advanceForwardGeneration moves the peer to a generation newer than every
+// generation issued so far, to any Peer. It never moves the peer backward: of
+// two concurrent advances, the later issue stands, and a store that lost the
+// race finds the peer already past it. The loop is bounded, because each
+// failed swap means another advance stored a larger value. Safe for
+// concurrent use.
+func (p *Peer) advanceForwardGeneration() {
+	next := forwardGenerationClock.Add(1)
+	for {
+		current := p.forwardGeneration.Load()
+		if current >= next {
+			return
+		}
+		if p.forwardGeneration.CompareAndSwap(current, next) {
+			return
+		}
+	}
+}
+
 // setState updates state and calls callback.
 //
 // Publishing PeerStateEstablished CLOSES the initial-sync gate first and marks
@@ -1782,7 +1814,7 @@ func (p *Peer) State() PeerState {
 // pre-existing contract of the store this replaces.
 func (p *Peer) setState(s PeerState) {
 	if s == PeerStateEstablished {
-		p.forwardGeneration.Add(1)
+		p.advanceForwardGeneration()
 		p.sendingInitialRoutes.Store(1)
 		p.initialSyncEOROwed.Store(true)
 	}
@@ -1926,7 +1958,7 @@ func (p *Peer) sealSession() {
 func (p *Peer) Stop() {
 	// Stop may precede asynchronous session teardown during configuration removal.
 	// Fence already queued live UPDATEs before another peer can reuse the address.
-	p.forwardGeneration.Add(1)
+	p.advanceForwardGeneration()
 	p.mu.Lock()
 	cancel := p.cancel
 	p.mu.Unlock()

@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"bytes"
-	"math"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -116,11 +115,6 @@ type adjOutExclusion struct {
 	generation uint64
 	departed   uint64
 }
-
-// adjOutEverySession bounds an exclusion that covers every session of its
-// source known so far: a survivor whose source has no Established session to
-// relay from. Only a current announcer lifts it.
-const adjOutEverySession = math.MaxUint64
 
 // adjOutOwed is one key whose decision belongs to the destination's recovery
 // worker. It names the destination session it was owed to, and carries a copy
@@ -269,7 +263,9 @@ func (o *adjOutOwed) electableExcluded() []netip.Addr {
 }
 
 // announcerLifts reports whether an announcer of the exclusion's source lifts
-// it: its session is current, or newer than the exclusion's bound.
+// it: its session is current, or newer than the exclusion's bound. Every
+// announcer of the address is asked, because a Peer rebuilt for the address
+// is a second announcer beside the old one.
 func (o *adjOutOwed) announcerLifts(exclusion adjOutExclusion) bool {
 	for i := range o.announcers {
 		announcer := &o.announcers[i]
@@ -281,7 +277,9 @@ func (o *adjOutOwed) announcerLifts(exclusion adjOutExclusion) bool {
 		}
 		// RFC 4724 Section 4.2: "The router MUST NOT differentiate between
 		// stale and other routing information during forwarding."
-		return announcer.generation > exclusion.generation
+		if announcer.generation > exclusion.generation {
+			return true
+		}
 	}
 	return false
 }

@@ -158,7 +158,7 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 			baseline := len(f.conn.written())
 
 			// A retained source reconnects without replacing its Peer incarnation.
-			f.source.forwardGeneration.Add(1)
+			f.source.advanceForwardGeneration()
 			fresh := receive(f.source, freshRaw, 3)
 			var pending []bgptypes.RawMessage
 			var freshSent bgptypes.RawMessage

@@ -415,7 +415,7 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 	f.source.recvCtxID = f.ctxID
 	f.send(t, "cached", f.other, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 72))
 	f.await(t, 72, syncOrderPrefixWire)
-	f.other.forwardGeneration.Add(1) // A's session is no longer current.
+	f.other.advanceForwardGeneration() // A's session is no longer current.
 	recoveryOwnerStart(t, f.r, f.destination)
 	candidate, err := message.UnpackUpdate(ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 73))
 	if err != nil {

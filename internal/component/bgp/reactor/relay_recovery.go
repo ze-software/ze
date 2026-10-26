@@ -714,7 +714,11 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 // keeping the source's path is what retention asks, while the source's own
 // departure or the RIB's stale purge withdraws it if the source does not
 // return. Otherwise the key is re-owed with the source excluded over every
-// session known so far, so the next round elects without it.
+// session known so far, so the next round elects without it. The bound is the
+// newest generation issued now (forwardGenerationClock), never "every
+// session": a session the source starts later is newer, so its announcement
+// lifts the exclusion (adjOutOwed.announcerLifts) even after that session
+// ends under graceful restart before the next round.
 // RFC 4724 Section 4.2: "The router MUST NOT differentiate between stale and
 // other routing information during forwarding."
 func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, survivor *ribevents.RecoveryRoute) {
@@ -723,7 +727,7 @@ func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, su
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = adjOutExclusion{source: survivor.Source, generation: adjOutEverySession}
+	key.gone = adjOutExclusion{source: survivor.Source, generation: forwardGenerationClock.Load()}
 }
 
 // heldSurvivor returns the destination's path for key when it is survivor's

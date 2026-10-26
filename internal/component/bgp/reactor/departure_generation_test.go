@@ -7,6 +7,7 @@ package reactor
 
 import (
 	"context"
+	"math"
 	"net/netip"
 	"testing"
 	"time"
@@ -19,6 +20,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
+
+// adjOutEverySession is a departure bound above every generation a test
+// makes: a departure that answers whichever session of its source wrote a key.
+// The engine never issues it; a plugin's departure names one ended session.
+const adjOutEverySession = math.MaxUint64
 
 // departureGenerationBatch is a departure of source over 192.0.2.0/24 that
 // answers the end of the session at generation.
@@ -52,12 +58,12 @@ func TestStaleDepartureSparesNewerSessionRoute(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	rail.source.forwardGeneration.Add(1) // Session 1 reaches Established.
+	rail.source.advanceForwardGeneration() // Session 1 reaches Established.
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 1)
 	sessionOne := rail.source.forwardGeneration.Load()
-	rail.source.forwardGeneration.Add(1) // Session 2 reaches Established.
+	rail.source.advanceForwardGeneration() // Session 2 reaches Established.
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 2)
-	rail.source.forwardGeneration.Add(1) // Session 2 ends; GR retains its routes.
+	rail.source.advanceForwardGeneration() // Session 2 ends; GR retains its routes.
 
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
@@ -96,9 +102,9 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	rail := newOwedRail(t)
 	source := rail.source.Settings().Address
 	prefix := []byte{24, 192, 0, 2}
-	rail.source.forwardGeneration.Add(1) // Session 1 reaches Established.
+	rail.source.advanceForwardGeneration() // Session 1 reaches Established.
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 1)
-	rail.source.forwardGeneration.Add(1) // Session 1 ends.
+	rail.source.advanceForwardGeneration() // Session 1 ends.
 	sessionOne := rail.source.forwardGeneration.Load()
 	session := rail.destination.currentSession()
 
@@ -108,9 +114,9 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	require.Len(t, owed, 1, "session 1's departure owes its route")
 	record := owed[0]
 
-	rail.source.forwardGeneration.Add(1) // Session 2 reaches Established.
+	rail.source.advanceForwardGeneration() // Session 2 reaches Established.
 	adjOutTestForward(t, rail.destination, rail.source, prefix, 2)
-	rail.source.forwardGeneration.Add(1) // Session 2 ends; GR retains its routes.
+	rail.source.advanceForwardGeneration() // Session 2 ends; GR retains its routes.
 
 	table := &rail.destination.adjOut
 	table.mu.Lock()
@@ -136,10 +142,20 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	other := retained
 	other.PathID = entry.owner.received + 1
 	elsewhere := recoveryAdmitKey{key: key, record: record}
+	issuedBefore := forwardGenerationClock.Load()
 	admission.unsendableSurvivor(&elsewhere, &other)
+	issuedAfter := forwardGenerationClock.Load()
 	require.Equal(t, recoveryKeyReowed, elsewhere.outcome,
 		"a path the destination does not hold cannot be sent from a sessionless source")
-	require.Equal(t, adjOutExclusion{source: source, generation: adjOutEverySession}, elsewhere.gone)
+	// The bound is the newest generation issued at the decision. Another
+	// test's peer may advance the clock meanwhile, so the decision lies
+	// between the two reads; with no advance between them it is exact.
+	require.Equal(t, source, elsewhere.gone.source)
+	require.Zero(t, elsewhere.gone.departed, "an unsendable survivor is no departure")
+	require.GreaterOrEqual(t, elsewhere.gone.generation, issuedBefore,
+		"the exclusion covers every session issued before the decision")
+	require.LessOrEqual(t, elsewhere.gone.generation, issuedAfter,
+		"the exclusion covers no session issued after the decision")
 }
 
 // PREVENTS: the ADD-PATH writer withdrawing an identifier a newer session of
@@ -158,7 +174,7 @@ func TestStaleAddPathDepartureSparesNewerSessionIdentifier(t *testing.T) {
 	failed, _ := newAnnouncePeer(t, "192.0.2.10")
 	failed.recvCtxID = destination.sendContextID()
 	r.peers[failed.Settings().PeerKey()] = failed
-	failed.forwardGeneration.Add(1) // Session 1 reaches Established.
+	failed.advanceForwardGeneration() // Session 1 reaches Established.
 	sessionOne := failed.forwardGeneration.Load()
 	for _, raw := range ended {
 		// RFC 4271 Section 4.3 and RFC 7911 Section 3.

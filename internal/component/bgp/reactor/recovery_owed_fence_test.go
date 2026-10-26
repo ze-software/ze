@@ -135,7 +135,7 @@ func TestOwedKeyMergesDepartureAndWithdrawal(t *testing.T) {
 	require.Same(t, first.record, merged.record, "a lifecycle removal merges into the record")
 	require.Equal(t, first.epoch, merged.epoch, "a lifecycle removal moves no epoch")
 
-	rail.source.forwardGeneration.Add(1) // The owner's session is no longer current.
+	rail.source.advanceForwardGeneration() // The owner's session is no longer current.
 	done := rail.departure(t, sourceAddr, "192.0.2.0/24")
 	lowEventually(t, func() bool { return len(rail.record(t).excluded) == 1 }, "the departure merges")
 	departed := rail.record(t)
@@ -185,7 +185,7 @@ func TestAdjOutDepartureOwesOnlyDepartedSession(t *testing.T) {
 			p := []byte{24, 192, 0, 2}
 			rail.forward(t, false, p)
 			if tc.ended {
-				rail.source.forwardGeneration.Add(1)
+				rail.source.advanceForwardGeneration()
 			}
 			if tc.revoked {
 				// A reload rebinds the route server on the kept session: the
@@ -300,7 +300,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
 			receivedPeer: source, receivedGeneration: generation}}
 		admission.mark(0)
-		source.forwardGeneration.Add(1) // The source's session is replaced.
+		source.advanceForwardGeneration() // The source's session is replaced.
 		r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()},
 			[]fwdItem{{peer: destination, recovery: admission}})
 		<-admission.done

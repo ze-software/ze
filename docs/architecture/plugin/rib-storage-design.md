@@ -217,7 +217,13 @@ where the departed source owns it through a session that is no longer current
 and that is the named session or an older one (the departure bound), so
 neither a reconnected session's newer route nor one a newer session wrote and
 then lost under graceful restart is taken for the old one: RFC 4724 Section 4.2
-says the speaker MUST retain the routes of a peer that restarts. The
+says the speaker MUST retain the routes of a peer that restarts. The bounds
+compare generations by source address, across `Peer` objects, so every
+generation comes from one process-wide clock (`forwardGenerationClock`,
+`Peer.advanceForwardGeneration`): a `Peer` rebuilt for the same address, after
+a config remove and re-add or when a dynamic peer is created again, starts
+above every session its predecessor ended, and a departure the old `Peer`
+queued neither owes nor keeps excluded a route the new one wrote. The
 reactor asks the RIB about one destination at a time, and each requested key
 carries its own excluded-source set: a departure puts the departed source in
 it, and an empty set excludes nobody, so the withdrawing source's other
@@ -272,6 +278,7 @@ keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow, recoverySpares -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutExclusion, electableExcluded, announcerLifts, spares -->
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardGenerationClock, advanceForwardGeneration -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
@@ -378,7 +385,10 @@ revision, the key is held and nothing is written: the newer revision waits for
 the source's next session to announce it, and the source's own departure or
 the RIB's stale purge withdraws the path if the source does not return. An
 ADD-PATH key, owed per prefix, never holds this way. Otherwise the key is
-owed again with the source excluded over every session known so far
+owed again with the source excluded over every session known so far: the
+exclusion's bound is the newest generation issued when the round decided, so a
+session the source starts later, even one that announces the key and then ends
+under graceful restart before the next round, lifts it
 (`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release
 answers one completion after releasing all child resources, including
