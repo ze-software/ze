@@ -25,8 +25,8 @@
     "rid": "RFC3948-5.1-1",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go::TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease",
-    "unit-sha": "e2c7362069bf1e17",
-    "claim-sha": "634cb2898b263d20",
+    "unit-sha": "b5192edaf972e5ca",
+    "claim-sha": "44c72fb75cab5f14",
     "route": "mutant",
     "producer": "internal/component/ike/engine/rekey.go::proposeChildTSPayloads",
     "producer-sha": "55cc1583cca1a611",
@@ -36,11 +36,11 @@
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go::TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease",
-    "unit-sha": "e2c7362069bf1e17",
-    "claim-sha": "c0154c38208ca884",
+    "unit-sha": "b5192edaf972e5ca",
+    "claim-sha": "0b66b78aa8f63d37",
     "route": "mutant",
     "producer": "internal/component/ike/engine/cp.go::answerNamesOnlyLeases",
     "producer-sha": "4e47e851c63679bd",
-    "break": "line 417: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
+    "break": "line 421: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
   }
 ]
