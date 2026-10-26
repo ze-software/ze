@@ -334,10 +334,11 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 	// VALIDATES: every row of retiredExceptions, the per-file ones for the
 	// Discord channel among them, hides its spelling on its declared lines in
 	// its own file and nowhere else. The method writes the declared lines into
-	// the declared file and a sample line of the spelling into a file no
-	// exception names.
-	// PREVENTS: an exception that hides nothing (a dead row) or that hides the
-	// spelling in every file. A new exception with no sample line fails here.
+	// the declared file, and a sample line of the spelling followed by the same
+	// declared lines into a file no exception names: every line there is found.
+	// PREVENTS: an exception that hides nothing (a dead row, or a declared line
+	// that does not carry its spelling) or that hides the spelling in every
+	// file. A new exception with no sample line fails here.
 	samples := map[string]string{
 		"ze-test":                     "exec=ze-test bgp plugin",
 		"ze_test":                     "//go:build ze_test",
@@ -376,7 +377,7 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		}
 		root := fixtureRepository(t, map[string]string{
 			exception.file:       strings.Join(exception.lines, "\n") + "\n",
-			"docs/unexcepted.md": sample + "\n",
+			"docs/unexcepted.md": sample + "\n" + strings.Join(exception.lines, "\n") + "\n",
 		})
 		report, err := sweepRetired(root)
 		if err != nil {
@@ -389,6 +390,12 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 			t.Errorf("the %q exception of %s hid the line in docs/unexcepted.md, or the sample does not match",
 				exception.old, exception.file)
 		}
+		for i, line := range exception.lines {
+			if !retiredFound(report, exception.old, "docs/unexcepted.md", i+2) {
+				t.Errorf("%s declares %q on %q, a line the sweep does not match, so the row hides nothing",
+					exception.file, exception.old, line)
+			}
+		}
 	}
 }
 
@@ -396,7 +403,9 @@ func TestRetiredExceptionCoversOnlyItsLines(t *testing.T) {
 	// VALIDATES: an exception is line-scoped. Each row's declared file gets its
 	// first declared line, then a sample line of the same spelling that is
 	// none of the declared lines, as a live instruction would be: the first is
-	// hidden and the second is reported.
+	// hidden and the second is reported. The first declared line, written into
+	// a file no exception names, is reported there, so the hidden line is a
+	// real match.
 	// PREVENTS: an exception that hides its spelling on every line of its file,
 	// so a live `./le verify lock` added anywhere in running-commands.md, the
 	// page that quotes the refusal, would pass the gate.
@@ -434,7 +443,8 @@ func TestRetiredExceptionCoversOnlyItsLines(t *testing.T) {
 			continue
 		}
 		root := fixtureRepository(t, map[string]string{
-			exception.file: exception.lines[0] + "\n" + sample + "\n",
+			exception.file:       exception.lines[0] + "\n" + sample + "\n",
+			"docs/unexcepted.md": exception.lines[0] + "\n",
 		})
 		report, err := sweepRetired(root)
 		if err != nil {
@@ -442,6 +452,10 @@ func TestRetiredExceptionCoversOnlyItsLines(t *testing.T) {
 		}
 		if retiredFound(report, exception.old, exception.file, 1) {
 			t.Errorf("%s declares %q on %q, and the sweep listed that line", exception.file, exception.old, exception.lines[0])
+		}
+		if !retiredFound(report, exception.old, "docs/unexcepted.md", 1) {
+			t.Errorf("%s declares %q on %q, a line the sweep does not match, so hiding it proves nothing",
+				exception.file, exception.old, exception.lines[0])
 		}
 		if !retiredFound(report, exception.old, exception.file, 2) {
 			t.Errorf("the %q exception of %s hid %q, a line it does not declare", exception.old, exception.file, sample)
