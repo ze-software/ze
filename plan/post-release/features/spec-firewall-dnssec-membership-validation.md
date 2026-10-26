@@ -23,6 +23,8 @@ This ownership split preserves the original obligations and evidence. Migration 
 |---|---|---|
 | AC-27 | Controlled DNSSEC answers consumed by a firewall DNS source: a valid signed answer and an otherwise equivalent answer with an invalid signature, both returned upstream as NOERROR | Ze validates the signature locally using the designed trust-anchor policy. Only the valid answer may replace accepted membership; a bogus answer follows the source-failure path and cannot install its addresses. The proof must distinguish local validation from reliance on upstream SERVFAIL. This criterion stays paused pending the owner reopening DNS work |
 
+-> Decision (owner, 2026-10-26): unsigned DNS answers MUST stay accepted for firewall membership. A closed deployment whose resolver sits on a trusted management VLAN relies on DNS without DNSSEC, and the operator accepts that risk. Local validation, when it lands, applies only when the operator selects it through `system dns dnssec-validation`; `off` stays the default, and no mode may refuse an unsigned answer from a zone that is not signed. The unsigned-answer half of the paused design is therefore settled; trust-anchor policy is not.
+
 ## Required Reading
 
 - [ ] `plan/proposals/spec-fixit-dns-rfc1035-conformance.md` - the parent record and its Historical planning record
