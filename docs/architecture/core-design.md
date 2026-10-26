@@ -428,7 +428,7 @@ its rename.
 
 **A gate reads recorded evidence. A separate verb produces it.** `./le rfc
 check` re-reads a stored proof and compares its fingerprints against the tree;
-`./le rfc discriminate-record` is the verb that applies a break, runs the tagged
+`./le rfc record` is the verb that applies a break, runs the tagged
 test, and records the red it observed. The split bounds what a verification
 stage costs. `rfc check` is the third stage of `./le verify current`,
 so a ratchet that started a mutation run or an interop scenario would put that

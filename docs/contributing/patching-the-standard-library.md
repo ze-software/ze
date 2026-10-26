@@ -258,7 +258,7 @@ Outside le, each route runs the same generator itself:
 <!-- source: le -- build_le -->
 <!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv -->
 
-`./le rfc discriminate-record` still compiles a deliberately broken copy of a
+`./le rfc record` still compiles a deliberately broken copy of a
 repository file through `-overlay`. That overlay names only the repository file,
 and the standard library comes from `GOROOT`, so the two never meet.
 <!-- source: internal/le/rfc/discriminate_observe.go -- writeOverlay -->

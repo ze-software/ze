@@ -45,7 +45,7 @@ func Enter(t *testing.T) bool {
 	args := []string{"-test.run", "^" + regexp.QuoteMeta(t.Name()) + "$", "-test.v", "-test.count=1"}
 	// A coverage run hands the binary a counter directory, and the parent's profile
 	// is built from every counter file in it. Passing it on lets the code the child
-	// runs appear in that profile, which is what `./le rfc discriminate-record`
+	// runs appear in that profile, which is what `./le rfc record`
 	// reads.
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "-test.gocoverdir=") {

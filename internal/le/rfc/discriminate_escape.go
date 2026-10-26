@@ -59,7 +59,7 @@ type escapeCheck struct {
 // (AC-7). It is checked HERE, on the gate's own path, rather than only where a
 // record is written: a record authored by hand, or one whose producer became
 // mutatable after it was sealed, reaches `./le rfc check` and never reaches
-// `./le rfc discriminate-record`.
+// `./le rfc record`.
 func (e *escapeCheck) verdict() DiscriminationVerdict {
 	if detail, refused := e.gomuCanBreak(); refused {
 		return e.unfounded(detail)

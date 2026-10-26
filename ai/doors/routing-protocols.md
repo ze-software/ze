@@ -66,7 +66,7 @@ work, not the tests in this repository alone.
 - **Quote the RFC above the code that implements it**, with number and
   section, and name the section at each caller (`ai/rules/rfc-compliance.md`).
 - **A tag you add or change carries a discrimination record** written by
-  `./le rfc discriminate-record` (`docs/contributing/rfc-conformance-gates.md`).
+  `./le rfc record` (`docs/contributing/rfc-conformance-gates.md`).
 - **Every RFC Ze implements gets full coverage** (`ai/META-DECISIONS.md`):
   a document Ze implements is
   enrolled, and its absent requirements get rows and code, without asking.

@@ -56,6 +56,7 @@ var retiredRecords = [...]retiredRecord{
 	{path: "website/talks/", why: "published talks record the commands of their day"},
 	{path: "plan/known-failures/", why: "known-failure shards record the command that failed on the day it failed"},
 	{path: "rfc/audit/", why: "RFC audit verdicts record the carrier commands they judged, and the renames those carriers went through"},
+	{path: "rfc/discrimination/", why: "discrimination records carry the break the recorder applied on the day it ran, the halt text naming the command of that day included"},
 	{path: "plan/records/", why: "historical records retain the commands and paths of their day"},
 	{
 		path: "internal/le/doc/check/testdata/doc_citation_baseline.txt",

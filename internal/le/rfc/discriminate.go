@@ -521,7 +521,7 @@ func validateSoloRuns(record DiscriminationRecord, where string) error {
 			Str(" breaks and carries ").Int(int64(len(record.Solo))).
 			Str(" solo runs. Each break of a pair is applied ALONE and must leave the unit ").
 			Str("green, or the pair is not shown to need it. Re-take the record with ").
-			Str("`./le rfc discriminate-record`, which runs them"))
+			Str("`./le rfc record`, which runs them"))
 	}
 	for position, solo := range record.Solo {
 		want := breaks[position]
@@ -627,7 +627,7 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 	if len(record.Paired) > 0 && len(record.Solo) == 0 {
 		return DiscriminationVerdict{Record: record, State: ProofSoloOwed,
 			Detail: "the record pairs breaks and carries no solo runs, so no break is shown to " +
-				"be needed for the red. Re-take it with `./le rfc discriminate-record`, which " +
+				"be needed for the red. Re-take it with `./le rfc record`, which " +
 				"runs each break alone"}, nil
 	}
 	if state, detail := citationState(carrier, carried, record, unit); state != ProofVerified {
@@ -851,7 +851,7 @@ type discriminationStatus struct {
 	Unproven []Tag                  `json:"unproven"`
 	// Candidates are the breaks that could prove the unproven unit tags, filled
 	// only when a gomu report was named. Proposing is reading: this answer
-	// writes nothing, and `./le rfc discriminate-record` is what records one.
+	// writes nothing, and `./le rfc record` is what records one.
 	Candidates []DiscriminationCandidate `json:"candidates"`
 }
 

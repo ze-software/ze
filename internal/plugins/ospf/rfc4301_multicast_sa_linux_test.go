@@ -48,7 +48,7 @@ func mcastSAOwnNamespace(t *testing.T) bool {
 	}
 	args := []string{"-test.run", "^" + t.Name() + "$", "-test.v", "-test.count=1"}
 	// A coverage run hands the binary a counter directory; passing it on lets the code the
-	// child runs reach the profile `./le rfc discriminate-record` reads.
+	// child runs reach the profile `./le rfc record` reads.
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "-test.gocoverdir=") {
 			args = append(args, arg)

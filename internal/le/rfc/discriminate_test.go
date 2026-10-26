@@ -427,7 +427,7 @@ func TestDiscriminateRedMustComeFromTheUnit(t *testing.T) {
 	revert.record.Route = RouteRevert
 	halt := "panic: " + revertMarker + "\n\ngoroutine 7 [running]:\n"
 
-	initPanic := "panic: BUG: ./le rfc discriminate-record " + revertMarker + "\n\n" +
+	initPanic := "panic: BUG: ./le rfc record " + revertMarker + "\n\n" +
 		"goroutine 1 [running]:\nexample.test/sample.decodeWidget(...)\n" +
 		"\t/tree/sample/widget.go:12\nexample.test/sample.init.0()\n" +
 		"\t/tree/sample/register.go:5 +0x1d\nruntime.doInit1(...)\n" +

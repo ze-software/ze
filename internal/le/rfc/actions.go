@@ -64,7 +64,7 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
-		Verb:    "discriminate-record",
+		Verb:    "record",
 		Summary: "record one observed red of a tagged unit",
 		Why: "record ONE proof that a tagged unit was OBSERVED to fail under a named break of " +
 			"the code its claim rests on, or one escape saying no break exists. It applies the " +

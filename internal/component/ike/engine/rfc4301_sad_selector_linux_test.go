@@ -12,7 +12,7 @@
 // The probe needs no privilege. It re-executes itself in a new user and network namespace,
 // where it is root over a namespace of its own, and it skips only when the kernel refuses
 // that namespace. The build tag is bare linux, not integration, because the units carry an
-// RFC requirement tag and `./le rfc discriminate-record` runs them with no build tag
+// RFC requirement tag and `./le rfc record` runs them with no build tag
 // (docs/architecture/testing/qemu-integration.md, "Build Tags").
 //
 // The instrument is the pair of a UDP listener and /proc/net/xfrm_stat. The ESP datagrams
@@ -74,7 +74,7 @@ func sadSelOwnNamespace(t *testing.T) bool {
 	args := []string{"-test.run", "^" + t.Name() + "$", "-test.v", "-test.count=1"}
 	// A coverage run hands the binary a counter directory, and the parent's profile is
 	// built from every counter file in it. Passing it on lets the code the child runs
-	// appear in that profile, which is what `./le rfc discriminate-record` reads.
+	// appear in that profile, which is what `./le rfc record` reads.
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "-test.gocoverdir=") {
 			args = append(args, arg)

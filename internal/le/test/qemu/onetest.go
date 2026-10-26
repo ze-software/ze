@@ -4,7 +4,7 @@
 // onetest.go answers how a host process runs ONE .ci inside the guest: the
 // packages it installs and the command the guest executes. Every caller that
 // runs a .ci the host skips (`le feature record-run`, `le rfc
-// discriminate-record`) reads both from here, so the guest route has one
+// record`) reads both from here, so the guest route has one
 // declaration.
 package testqemu
 

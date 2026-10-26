@@ -229,7 +229,7 @@ Thomas's to start").
    - **Write the RFC proof records this phase owes, IN this phase (BLOCKING,
      `ai/rules/planning.md`, "Work Phases and the Review Loop").** For every
      `RFC requirement:` tagged unit the phase added, or whose behavior or claim it
-     changed, run `./le rfc discriminate-record` until it records the red
+     changed, run `./le rfc record` until it records the red
      (`docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two
      proof routes"). Then run `./le rfc check` and re-judge every audit verdict it
      reports stale for this change: `./le rfc reseal` when the unit only shifted,

@@ -137,6 +137,7 @@ var renames = []Rename{
 	{Retired: "token-economy", Command: "ai tokens"},
 	{Retired: "protocol-skeleton", Command: "rfc skeletons"},
 	{Retired: "rfc index-update", Command: "rfc", Action: "update"},
+	{Retired: "rfc discriminate-record", Command: "rfc", Action: "record"},
 	{Retired: "test-unit", Command: "test unit"},
 	{Retired: "functional", Command: "test functional"},
 	{Retired: "integration", Command: "test integration"},

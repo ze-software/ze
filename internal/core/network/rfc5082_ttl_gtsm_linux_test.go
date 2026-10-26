@@ -9,7 +9,7 @@
 // or the TTL ze put on the wire, at the boundary ze owns.
 //
 // These live outside ttl_integration_linux_test.go on purpose. That file is
-// guarded `//go:build integration && linux`, and `./le rfc discriminate-record`
+// guarded `//go:build integration && linux`, and `./le rfc record`
 // runs a tagged unit with `gotoolchain.TestOptions{}`, whose empty Tags field
 // leaves `integration` off. The unit then matches nothing, `go test` exits 0,
 // and no break can ever be observed to redden it

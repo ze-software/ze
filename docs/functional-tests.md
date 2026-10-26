@@ -1536,7 +1536,7 @@ summaries, the tags and the audits, and reads no generated page.
 
 The five derived outputs are a separate question, and they need one step.
 `rfc/audit/` and `rfc/discrimination/` are inputs to them, but `reseal`,
-`audit-stamp`, `discriminate-record` and `rename` write those directories from Go. The invalidation hook
+`audit-stamp`, `record` and `rename` write those directories from Go. The invalidation hook
 runs for an agent's `Write` or `Edit` alone (`postInvalidateDerived`,
 `internal/le/hookruntime/postwrite.go`), so it never sees a write a native
 action made. An output the tree happens to hold is therefore left present and
@@ -1591,7 +1591,7 @@ went RED under that break and green again after it. `./le rfc check` replays the
 fingerprints on every run, so a rewritten unit, a reworded claim or a moved producer
 voids the record instead of outliving it.
 
-`./le rfc discriminate-record` is the only writer, and it writes only a red it observed
+`./le rfc record` is the only writer, and it writes only a red it observed
 itself. For a `.ci` tag it disables the producing function, runs ONE test of ONE suite,
 requires a failure that NAMES that test, and puts the producer back byte for byte. That
 is the walk `docs/contributing/testing.md` prescribes under "A test that exists is not a

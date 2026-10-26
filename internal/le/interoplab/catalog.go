@@ -11,7 +11,7 @@
 // without a second resolver. Last, it declares where the suite lives and how
 // the repository runs it: `./le rfc` maps an `RFC requirement:` tag on a
 // checker to its suite through Package and Action, and `./le rfc
-// discriminate-record` drives one scenario through ScenarioRoot,
+// record` drives one scenario through ScenarioRoot,
 // SelectorVariable and Action, so neither keeps a table of suites of its own.
 
 package interoplab

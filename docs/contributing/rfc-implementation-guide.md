@@ -564,7 +564,7 @@ inside a `terminator=` block):
   recorded break under which that unit itself goes red. Both sides are
   committed, so the violation reaches you at your own commit rather than every
   other session at theirs. Record one with
-  `./le rfc discriminate-record`; `./le rfc discriminate stem <stem>` proposes
+  `./le rfc record`; `./le rfc discriminate stem <stem>` proposes
   the candidates. The full contract is `rfc/discrimination/README.md`.
 - **The prose after the polarity is the CLAIM, and it is fingerprinted.** It is
   what the proof is a proof OF, so rewording it stales the record and owes a

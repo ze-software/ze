@@ -586,7 +586,7 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// Exactly ten actions change the tree, and each one owns its output:
 	// extraction-create and extraction-classify own one rfc/extraction
 	// artifact between them, the first deriving it and the second applying an
-	// authored walk to it; discriminate-record owns one rfc/discrimination
+	// authored walk to it; record owns one rfc/discrimination
 	// artifact, re-seal owns the re-stamp of a verdict already in rfc/audit/,
 	// audit-stamp owns the first fingerprints of a verdict an author just
 	// wrote there, the generator owns
@@ -599,9 +599,9 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
 	if len(writes) != 10 || !writes["evidence-split"] || !writes["extraction-create"] || !writes["extraction-classify"] ||
-		!writes["discriminate-record"] || !writes["reseal"] || !writes["update"] ||
+		!writes["record"] || !writes["reseal"] || !writes["update"] ||
 		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["rename"] {
-		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp discriminate-record "+
+		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp record "+
 			"evidence-split extraction-classify extraction-create index-update quote-backfill rename reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {

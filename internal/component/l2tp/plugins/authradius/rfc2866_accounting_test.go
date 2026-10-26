@@ -247,7 +247,7 @@ func capturedAccountant(t *testing.T) (*radiusAcct, *acctCapture) {
 	acct := newRADIUSAcct()
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 	// A test that panics with acct.mu held (a broken producer under
-	// ./le rfc discriminate-record) would deadlock in Stop, which takes the
+	// ./le rfc record) would deadlock in Stop, which takes the
 	// lock, and hang rather than fail; the panic already ends the binary.
 	t.Cleanup(func() {
 		if !acct.mu.TryLock() {

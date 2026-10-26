@@ -3,7 +3,7 @@
 One file per requirement, `rfc/discrimination/<stem>/<requirement-id>.json`: a
 JSON array of that requirement's records. The path names the RFC and the
 requirement, so two sessions proving different requirements never edit the same
-file. Written by `./le rfc discriminate-record`, re-verified by `./le rfc check`
+file. Written by `./le rfc record`, re-verified by `./le rfc check`
 on every run. A per-RFC file of the retired layout is refused by every loader;
 `./le rfc evidence-split` converts it.
 
@@ -71,7 +71,7 @@ away.
 | `producer-sha` | derived | that function's behavior hash when the break was applied |
 | `break` | derived | what was done to the producer: the mutant's substitution, or the disabled body. No gate parses it; a reviewer reads it |
 | `paired` | derived | the further breaks applied in the SAME broken run, each with its own `producer`, `producer-sha` and `break`, for a property two checks guard on one path so that neither break alone reddens the unit. Absent on a single-break record. Each paired producer is resolved, fingerprinted and judged for drift exactly as `producer` is |
-| `solo` | derived | present exactly when `paired` is: each break of the set applied ALONE, one entry per break, `producer` first, with `producer`, `break`, `seconds` and `green` (the line that showed the unit passing). The recorder writes the pair only when every solo run stayed green, so each break is shown to be needed. One exception to "present exactly when": a paired record written before solo runs existed carries no `solo` list; it still loads, so the derived files stay readable, but it verifies as `solo-owed` and `./le rfc check` reports it as a violation until `./le rfc discriminate-record` re-takes it. A `solo` list that is short, out of order or misattributed is refused outright |
+| `solo` | derived | present exactly when `paired` is: each break of the set applied ALONE, one entry per break, `producer` first, with `producer`, `break`, `seconds` and `green` (the line that showed the unit passing). The recorder writes the pair only when every solo run stayed green, so each break is shown to be needed. One exception to "present exactly when": a paired record written before solo runs existed carries no `solo` list; it still loads, so the derived files stay readable, but it verifies as `solo-owed` and `./le rfc check` reports it as a violation until `./le rfc record` re-takes it. A `solo` list that is short, out of order or misattributed is refused outright |
 | `citation` | authored | the assertion a proof, or a `foreign-producer` escape, rests on: a `fail(N, ...)` number an interop checker writes out, a directive line for a `.ci`. Required for a functional or interop proof and for `foreign-producer`, refused for a unit record and for the two escapes that name a producer. An assertion numbered by expression cannot be cited |
 | `reason` | authored | why no break exists, for the escape only. One of the closed vocabulary below |
 
@@ -144,7 +144,7 @@ touches.
 
 A `revert` record disables one producing FUNCTION, which is the method
 `docs/contributing/testing.md` prescribes. The body is replaced by a halt, and
-`break` records that. `./le rfc discriminate-record` applies it, runs the tagged
+`break` records that. `./le rfc record` applies it, runs the tagged
 unit, and requires a failure that NAMES that unit.
 
 ## The escape's reasons (closed set, each precondition checked)

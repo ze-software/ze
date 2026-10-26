@@ -35,7 +35,7 @@ import (
 	"github.com/ze-software/ze/internal/le/setup"
 )
 
-// The keywords `discriminate` and `discriminate-record` take their values
+// The keywords `discriminate` and `record` take their values
 // under. Keyword before value, and every value is compared against something
 // the tree declares before it reaches an argv (ai/rules/cli.md).
 const (
@@ -72,7 +72,7 @@ const (
 // every producer. And a zero return is the silently-wrong value
 // ai/rules/principles.md forbids: a test that passed because the producer
 // answered zero would record a red for a reason nobody stated.
-const revertBody = `panic("BUG: ./le rfc discriminate-record disabled this producer to observe the red")`
+const revertBody = `panic("BUG: ./le rfc record disabled this producer to observe the red")`
 
 // revertMarker is the fragment of that halt which identifies it in a RUN'S
 // OUTPUT. A producer reached only from a goroutine the test does not own kills
@@ -90,7 +90,7 @@ const revertMarker = "disabled this producer to observe the red"
 // environment comes from the tree rather than from a record's free text.
 var interopScenarioRE = regexp.MustCompile(`(?m)^\s*(?:const\s+)?name\s*=\s*"([a-z0-9][a-z0-9-]*)"`)
 
-// discriminationRecordReport is what `./le rfc discriminate-record` answers.
+// discriminationRecordReport is what `./le rfc record` answers.
 //
 // The observed run is part of the answer rather than a log line, because the
 // red is the whole product: a reader who cannot see it has to take the record
@@ -250,7 +250,7 @@ func sealAndStore(tree, stem string, reader *sourceReader, index *scopeIndex, ta
 // has no file to be written into.
 func stemOfRID(requirements []Requirement, rid string) (string, error) {
 	if rid == "" {
-		return "", errors.New("rfc discriminate-record requires id <ID>")
+		return "", errors.New("rfc record requires id <ID>")
 	}
 	for _, req := range requirements {
 		if req.RID == rid {
@@ -273,7 +273,7 @@ func taggedUnitOf(reader *sourceReader, index *scopeIndex, tags []Tag,
 	request recordRequest) (Tag, string, error) {
 	if !polarities[request.polarity] {
 		var tb textbuf.Buffer
-		return Tag{}, "", parseErr(tb.Str("rfc discriminate-record has polarity ").
+		return Tag{}, "", parseErr(tb.Str("rfc record has polarity ").
 			Quoted(request.polarity).Str(", want one of: ").Join(Polarities(), ", "))
 	}
 	var keys []string

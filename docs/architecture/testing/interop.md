@@ -53,7 +53,7 @@ runs it: `Package` (the checker directory), `ScenarioRoot`, `SelectorVariable`
 and `Action` (`<command> <area>/<verb>`). The lab's own runner reads the same
 `scenarioDirectory` and `selectorVariable` constants, so the declaration and
 the run cannot disagree. `./le rfc` derives its interop carriers from these
-fields, one per registered suite, and `./le rfc discriminate-record` runs one
+fields, one per registered suite, and `./le rfc record` runs one
 scenario through the declared action and selector.
 <!-- source: internal/le/interoplab/catalog.go -- Catalog -->
 <!-- source: internal/le/rfc/carriers.go -- interopTrees -->

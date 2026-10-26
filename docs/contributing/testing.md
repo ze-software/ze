@@ -223,7 +223,7 @@ is a signal that a test could be stronger, not a blocking failure.
 One consumer reads a gomu report for a narrower question. `./le rfc discriminate
 <selector> report <path>` scopes the report to ONE RFC-tagged test: it keeps the
 KILLED mutants that lie in code that test's own coverage profile executes, and
-offers them as candidate breaks. `./le rfc discriminate-record` then applies one,
+offers them as candidate breaks. `./le rfc record` then applies one,
 runs that test alone, and records the red it observed. gomu's status stays
 unchanged, because nothing in `./le rfc check` starts a mutation run: the gate
 reads a stored record. See `docs/contributing/rfc-conformance-gates.md`, "The
@@ -633,7 +633,7 @@ discipline this page has always prescribed: disable the producing function,
 confirm the test flips to red, and revert.
 
 For an RFC-tagged carrier that walk now has a runner and a record.
-`./le rfc discriminate-record ... route revert producer <path>::<Func>` disables
+`./le rfc record ... route revert producer <path>::<Func>` disables
 the named function, runs ONE `.ci` or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
 `rfc/discrimination/<stem>/<requirement-id>.json` record that `./le rfc check` re-verifies on every

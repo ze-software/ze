@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/wire/l2tp.md -- RFC 2661 lower-layer conformance coverage
 //
-// RFC-tagged units retain bare linux so rfc discriminate-record can select
+// RFC-tagged units retain bare linux so rfc record can select
 // them. They also run through the registered l2tp QEMU integration package.
 //
 // Proves the boundary Ze owns for the RFC 2661 obligations the Linux l2tp_ppp

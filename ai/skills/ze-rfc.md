@@ -554,7 +554,7 @@ RED. `./le rfc check` refuses a tagged unit that is new against git HEAD and car
 |------|---------|--------------|
 | 1 | `./le rfc discriminate stem <stem>` | says which of that RFC's tags carry a record, which records no longer verify, and which tags carry none |
 | 2 | `./le rfc discriminate stem <stem> report <path>` | reads a gomu JSON report and proposes candidate breaks for the unit tags, best first |
-| 3 | `./le rfc discriminate-record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>/<requirement-id>.json` |
+| 3 | `./le rfc record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>/<requirement-id>.json` |
 
 The green comes BEFORE the break: a unit already failing proves nothing about a
 break. Every carrier applies its break through a private Go overlay, including
@@ -562,7 +562,7 @@ interop, so shared source is never modified and no restoration run is needed.
 The runner and evidence contract live in
 `docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two proof routes".
 
-`discriminate-record` refuses to write a red it did not observe, and refuses a red that
+`record` refuses to write a red it did not observe, and refuses a red that
 does not NAME the tagged unit: a build error and a failing sibling test each turn a run
 red and neither proves the claim. A `.ci` or an interop tag takes the `revert` route and
 cites the assertion it rests on, because no generated mutant reaches either carrier.

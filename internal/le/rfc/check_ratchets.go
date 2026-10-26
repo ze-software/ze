@@ -712,7 +712,7 @@ func discriminationOwedErrors(in discriminationInput) []string {
 			Str(" was added by the commit under test and carries no discrimination proof. ").
 			Str("A tag states what its test demonstrates and nothing reads that sentence, so ").
 			Str("the proof is a recorded break ").
-			Str("under which this tagged unit itself goes red. Record one with `./le rfc discriminate-record` ").
+			Str("under which this tagged unit itself goes red. Record one with `./le rfc record` ").
 			Str("by the ").Str(proofRouteFor(carrier, carried)).String())
 	}
 	return errs

@@ -281,7 +281,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"extraction-status":   fieldChecks,
 		"tagged-scope":        fieldChecks,
 		"discriminate":        fieldChecks,
-		"discriminate-record": wordWrites,
+		"record":              wordWrites,
 		actionCheck:           fieldChecks,
 		actionSelftest:        fieldChecks,
 		"approve":             wordWrites,

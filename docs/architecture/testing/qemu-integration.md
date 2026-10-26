@@ -70,7 +70,7 @@ Both entry points run one VM for the whole population, never one VM per test.
 | `./le test qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases and the RFC 2545 next-hop replay case |
 | `./le test qemu run ... command "./le test qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le test qemu run ... command "./le test qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `./le test qemu run ... command "./le test qemu all-tests test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature record-run` and `./le rfc discriminate-record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
+| `./le test qemu run ... command "./le test qemu all-tests test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature record-run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` and `testqemu.OneCIPackages` |
 
 `all-tests` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns-test` uses the explicit
@@ -779,7 +779,7 @@ namespace, where the test is root over a namespace of its own, and skips only
 when the kernel refuses one. A well-known port bound there never collides with
 a ze running on the host or with a parallel run of the same package, and a
 coverage run passes its counter directory to the child, so `./le rfc
-discriminate-record` sees the code the child ran. The BFD wire tests
+record` sees the code the child ran. The BFD wire tests
 (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
 `internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
 `Enter` brings up the literal kernel-created `lo` inside that new namespace.

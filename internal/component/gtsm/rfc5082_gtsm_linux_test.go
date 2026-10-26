@@ -14,7 +14,7 @@
 // one of them is answered by the kernel, on state ze installs, so each proof
 // here reads what ze installed and then what the kernel did with it.
 //
-// These tests are NOT tagged `integration`. `./le rfc discriminate-record`
+// These tests are NOT tagged `integration`. `./le rfc record`
 // runs a tagged unit with an empty build-tag set, so a unit behind that tag
 // matches nothing, `go test` exits 0, and no break can ever be observed to
 // redden it (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-01).

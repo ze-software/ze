@@ -469,7 +469,7 @@ func pairedSoloChild(t *testing.T, mode, scenario string) {
 // VALIDATES: a re-take replaces a record the gate refuses. A paired record
 // written before the solo runs existed verifies as ProofSoloOwed, and the
 // recorder's merge drops it before it judges the file, so the refusal's own
-// repair (`./le rfc discriminate-record`) lands.
+// repair (`./le rfc record`) lands.
 // PREVENTS: the RFC4271-5.1.2-3 negative being unrepairable once its record
 // lacked the solo runs.
 func TestRetakeReplacesARecordTheGateRefuses(t *testing.T) {
@@ -539,7 +539,7 @@ func TestCheckRefusesAPairWithoutSoloRuns(t *testing.T) {
 			code, len(report.Violations), report.Text())
 	}
 	violation := report.Violations[0]
-	for _, want := range []string{ProofSoloOwed, "solo", "`./le rfc discriminate-record`",
+	for _, want := range []string{ProofSoloOwed, "solo", "`./le rfc record`",
 		selftestRIDSend} {
 		if !strings.Contains(violation, want) {
 			t.Errorf("the violation omits %q: %s", want, violation)

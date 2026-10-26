@@ -32,7 +32,7 @@ import (
 
 // DiscriminationCandidate is one break that could be recorded for one tag.
 //
-// Mutant is the selector `./le rfc discriminate-record` takes: the mutant's
+// Mutant is the selector `./le rfc record` takes: the mutant's
 // position in the producer, which is stable under a report regenerated over the
 // same tree and unique unless two operators apply at one column.
 type DiscriminationCandidate struct {
@@ -77,7 +77,7 @@ func (m reportMutant) at() string {
 	return tb.Str(m.FilePath).Byte(':').Int(int64(m.Line)).Byte(':').Int(int64(m.Column)).String()
 }
 
-// selector answers the value `./le rfc discriminate-record` takes under
+// selector answers the value `./le rfc record` takes under
 // `mutant`, which names exactly one operator.
 func (m reportMutant) selector() string {
 	var tb textbuf.Buffer

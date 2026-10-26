@@ -49,7 +49,7 @@ cache and process limit. The child-process regression in
 `internal/le/rfc/native_fixture_test.go` checks the cache directory's identity,
 including when the checkout reaches it through a symlink. Neither these
 engine fixtures nor a green `rfc check` mean a protocol proof was executed:
-the gate reads stored evidence, while `rfc discriminate-record` runs the
+the gate reads stored evidence, while `rfc record` runs the
 claimed test with and without its break.
 
 ## The artifacts
@@ -1370,7 +1370,7 @@ changes the tagged unit, and they land in the same commit as that code
 that changed the unit. The rule is in `ai/rules/planning.md`, "Work Phases and
 the Review Loop".
 
-`./le rfc discriminate-record` is the only writer of a record, and it writes one
+`./le rfc record` is the only writer of a record, and it writes one
 only after it has SEEN the red. It applies the break, runs the tagged unit,
 requires a failure that NAMES that unit, and refuses everything else. A run that
 stayed green records nothing, and a run that went red without naming the unit
@@ -1427,7 +1427,7 @@ recorder ran solo runs, still loads, so the derived files every hook builds stay
 readable, and its verdict is `solo-owed`. That verdict is a violation wherever
 the record stands, committed or not, because no working-tree edit can explain a
 proof that was never taken, and the violation names the repair: re-take the
-record with `./le rfc discriminate-record`, which runs each break alone. It
+record with `./le rfc record`, which runs each break alone. It
 re-checks each paired producer's fingerprint against HEAD as it does
 `producer`'s. It cannot re-run the solo runs: the record keeps what the recorder
 observed, as it does for the red.
@@ -1437,7 +1437,7 @@ observed, as it does for the red.
 <!-- source: internal/le/rfc/discriminate_validate.go -- validatePairedBreak -->
 <!-- source: internal/le/rfc/check_ratchets.go -- checkDiscriminationRatchet, discriminationSoloOwedError -->
 
-    ./le rfc discriminate-record id <ID> polarity negative unit <file>::<Func> \
+    ./le rfc record id <ID> polarity negative unit <file>::<Func> \
       route mutant report <report.json> mutant <file:line:column#n> \
       mutant <file:line:column#n> citation <N>
 
@@ -1500,7 +1500,7 @@ name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
 takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it, and
 refuses the keyword for a unit that runs on the host (`requireGuestKernel`):
 
-    ./le rfc discriminate-record id <ID> polarity <p> unit <file>::<Func> \
+    ./le rfc record id <ID> polarity <p> unit <file>::<Func> \
       route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
 
 A `.ci` the host's runner skips takes the same guest. The functional runner
@@ -1515,7 +1515,7 @@ already drives (`testqemu.OneCICommand`). The guest le that `le test qemu run`
 rebuilds into the shared `tmp/qemu/` path is built after `GOFLAGS` is restored,
 so it never carries the break. The same `kernel <vmlinuz>` rule applies:
 
-    ./le rfc discriminate-record id <ID> polarity <p> unit test/<dir>/<name>.ci \
+    ./le rfc record id <ID> polarity <p> unit test/<dir>/<name>.ci \
       route revert producer <file>::<Func> citation '<directive>' \
       kernel tmp/kernel/build/vmlinuz
 
