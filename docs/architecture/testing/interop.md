@@ -1764,17 +1764,20 @@ Child SA, because Ze could not install a second policy for 10.1.2.0/24 while
 `unbound-inner-address-uniqueness` is the same two-laptop figure of RFC 3948
 Section 5.1 with no pool to make the addresses unique. Ze's two respond peers bind
 no `virtual-ip-pool` and carry no `traffic-selector`, so each client chooses its
-own inner selector, and both strongSwan connections propose `local_ts =
-10.1.2.3/32`, `remote_ts = 10.20.0.1/32` with no `vips`. The NAT box and the second
+own inner selector. Both strongSwan connections propose `local_ts = 10.1.2.3/32`
+with no `vips`; `ze-a` asks for `remote_ts = 10.20.0.1/32` and `ze-b` for
+`remote_ts = 10.20.0.0/24`. The two pairs overlap without being equal, so the
+dataplane's per-selector owner check, which keys on the exact selector, cannot
+refuse the second, and only the cross-peer guard can. The NAT box and the second
 client address are those of `virtual-ip-uniqueness`. The checker puts 10.1.2.3 on
 strongSwan's loopback and 10.20.0.1 on Ze's, each with a route to the other.
 
 | Step | Proves |
 |------|--------|
 | `ze-a` initiates | strongSwan's Child SA is INSTALLED, and Ze's kernel holds exactly one outbound ESP policy to 10.1.2.3/32, tunneled to 172.28.0.7 |
-| `ze-b` initiates | strongSwan logs TS_UNACCEPTABLE and keeps IKE SA `ze-b` ESTABLISHED with no Child SA (RFC 7296 Sections 2.9 and 2.21.2) |
+| `ze-b` initiates | Ze's kernel still holds exactly the one outbound policy to 10.1.2.3/32, the first client's |
+| strongSwan's answer | strongSwan logs TS_UNACCEPTABLE and keeps IKE SA `ze-b` ESTABLISHED with no Child SA (RFC 7296 Sections 2.9 and 2.21.2) |
 | Ze's view | `show vpn ipsec sa` reports `swan-a`'s Child SA with `ts-remote` 10.1.2.3/32 and `swan-b` established with no `child-sa` |
-| Ze's kernel, again | still exactly the one outbound policy to 10.1.2.3/32, the first client's |
 | Traffic | a ping from 10.1.2.3 to 10.20.0.1 moves ESP on all four simplex SAs of the first client |
 
 The policy count reads `ip xfrm policy` one outbound policy at a time
@@ -1782,14 +1785,12 @@ The policy count reads `ip xfrm policy` one outbound policy at a time
 collapses two policies to one inner address into one entry.
 
 The red run, on 2026-10-26: with the cross-peer guard reverted through a Go
-overlay and the Ze image rebuilt, the scenario FAILS at the `ze-b` step. Ze's
-narrowing filter no longer refuses the second client, so Ze tries to install its
-Child SA, and the dataplane's policy-owner check refuses the inbound policy
-10.1.2.3/32 -> 10.20.0.1/32 that `swan-a` already holds. strongSwan then logs
-NO_PROPOSAL_CHOSEN, not TS_UNACCEPTABLE, and keeps IKE SA `ze-b` ESTABLISHED. The
-kernel never holds two policies for 10.1.2.3 either way, so the policy count
-alone does not discriminate the guard; the checker's TS_UNACCEPTABLE assertion
-does, because only the guard answers the refusal with that notify.
+overlay and the Ze image rebuilt, the scenario FAILS at the `ze-b` step with
+"ze's kernel holds 2 outbound ESP policies to 10.1.2.3/32 (tunnels [172.28.0.9
+172.28.0.7]), want exactly one". Ze accepts the second client's overlapping pair
+and installs it beside the first, so a packet to 10.1.2.3 could leave through
+either tunnel: the RFC 3948 Section 5.1 confusion itself. The kernel is judged
+before the notify, so that is the failure the run reports.
 <!-- source: internal/le/interoplab/ipsec/unbound_inner.go -- checkUnboundInnerAddressUniqueness, innerOutPolicyTunnels, requireOneInnerTunnel, requireZeRefusedSecond -->
 
 ### The strongSwan lab drop-in
