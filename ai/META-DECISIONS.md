@@ -26,8 +26,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A release profile owes exactly the RFCs declared for it, the ones its role
   implements, the way an established implementation of that role (BIRD for a
   route server) does. A normative citation is never an obligation: the RFC
-  dependency graph only suggests candidates, and an optional transport or
-  feature is owed only when Ze ships it. A release profile needs every
+  dependency graph only suggests candidates. An RFC for an optional
+  transport or feature is listed for the profile as optional, and it counts
+  toward the profile's percentage only once Thomas brings it into scope.
+  Every RFC a profile lists, required or optional, has a valid summary. A
+  release profile needs every
   mandatory requirement (MUST, MUST NOT, SHALL, SHALL NOT, REQUIRED) of every
   declared RFC covered before release, and work moves from root RFCs to
   leaves, except where a leaf updates a root's requirements. A requirement
