@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | The fttx-edge release profile reaches RFC 4638. Ze's access concentrator echoes PPP-Max-Payload, which the RFC reserves for a server that supports an MRU above 1492, then holds every session at 1492: a shipped false capability claim, plus the BRAS MUSTs of the RFC Ze implements |
-| RFC gaps | RFC4638-3-1, RFC4638-4-2, RFC4638-5.1-2, RFC4638-5.1-3, RFC4638-5.2-2 |
+| RFC gaps | RFC4638-3-1, RFC4638-4-1, RFC4638-4-2, RFC4638-5.1-2, RFC4638-5.1-3, RFC4638-5.2-2 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -16,7 +16,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Make the PPPoE access concentrator's MRU behaviour match RFC 4638.
+Make the PPPoE access concentrator's and the PPPoE client's MRU behaviour
+match RFC 4638. No owner ruling names an MTU above 1492 unwanted on either
+side, so the client row is owed work too (`ai/META-DECISIONS.md`, Goal and
+scope).
 
 | Row | Producer | What is missing |
 |-----|----------|-----------------|
@@ -24,10 +27,12 @@ Make the PPPoE access concentrator's MRU behaviour match RFC 4638.
 | RFC4638-3-1 | `internal/component/l2tp/pppoe/server.go` session start | `MaxMRU: PPPoEMaxMTU` (1492) for every session |
 | RFC4638-5.1-2, RFC4638-5.1-3 | same | The tag and the access interface MTU never enter the LCP MRU bound |
 | RFC4638-5.2-2 | none | No MRU-sized Echo-Request test exists, so the 1492 fallback it governs does not exist |
+| RFC4638-4-1 | `internal/component/l2tp/pppoeclient/dialer.go::pppoeSessionMTU`, the client's PADI and PADR | The client refuses a configured session MTU above 1492 and puts no PPP-Max-Payload tag in PADI or PADR, so it cannot use a larger MRU |
 
 RFC 4638 text, `rfc/full/rfc4638.txt`:
 
 - Section 3: "a BRAS acting as a PPPoE server MUST support PPPoE MRU negotiations larger than 1492 octets in order to limit the amount of fragmented packets in networks similar to those described in Section 1."
+- Section 4: "If a PPPoE client wants to use an MTU/MRU higher than 1492 octets, then it MUST include an optional PPP-Max-Payload Tag in the PADI and PADR packets."
 - Section 4: "If the PPPoE server can support an MTU/MRU higher than 1492 octets, it MUST respond with an echo of the clients tag in the PADO and PADS packets when the PPP-Max-Payload tag is received from the client."
 - Section 5.1: "If the PPP-Max-Payload tag is present and greater than 1492, it MUST be considered along with the server's interface MTU settings when the maximum value is selected for the normal RFC 1661 [2] MRU negotiation which decides the actual MRU to use."
 - Section 5.2: "If these packets receive replies, the sending side MUST not send packets bigger than 1492 octets for this session."
@@ -116,6 +121,7 @@ Each tagged unit carries a discrimination record. Scoped evidence:
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `published-value-drifts-from-the-behavior-it-describes.md` | 2026-10-26 | PADO echoes PPP-Max-Payload while LCP caps the MRU at 1492 |
+| `rfc-extension-not-implemented.md` | 2026-10-26 | PPPoE client bounded at 1492, sends no PPP-Max-Payload tag |
 
 ## Acceptance Criteria
 
@@ -125,3 +131,4 @@ Each tagged unit carries a discrimination record. Scoped evidence:
 | AC-2 | A client that sent PPP-Max-Payload N above 1492 negotiates an MRU of min(N, interface MTU minus 8) through LCP |
 | AC-3 | A client that sent no tag negotiates at most 1492, as today |
 | AC-4 | Each row is implemented or excluded with evidence, its `{gap}` removed, with tagged tests and discrimination records |
+| AC-5 | The PPPoE client accepts a configured session MTU above 1492 and then carries a PPP-Max-Payload tag in its PADI and PADR; with a session MTU of 1492 or below it sends none |

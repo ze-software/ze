@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Ze ships Router Advertisement origination, Router Solicitation answering and VRRP unsolicited Neighbor Advertisements, so shipped code must meet the RFC 4861 MUSTs of those capabilities. The rows below are `{gap}` in `rfc/short/rfc4861.md` |
-| RFC gaps | RFC4861-6.1.1-2, RFC4861-4.6-1, RFC4861-4.4-3, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-2, RFC4861-7.2.6-1, RFC4861-9-7 |
+| RFC gaps | RFC4861-6.1.1-2, RFC4861-4.6-1, RFC4861-4.4-3, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-2, RFC4861-7.2.6-1, RFC4861-9-7, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-11.2-1, RFC4861-11.2-2 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -17,7 +17,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Close the Ze-owned RFC 4861 MUST gaps that the summary walk of 2026-10-26
-recorded. Each is a defect in a capability Ze implements, so each is owed work.
+recorded. Each is owed work: the first seven rows are defects in a capability
+Ze implements, and the last two are absent features (below the table).
 
 | Row | Producer | What is missing |
 |-----|----------|-----------------|
@@ -28,6 +29,13 @@ recorded. Each is a defect in a capability Ze implements, so each is owed work.
 | RFC4861-6.2.1-8 | RA sender configuration | The advertised reachable-time, retransmit-timer and hop-limit are not applied to the router's own interface |
 | RFC4861-6.2.4-1, RFC4861-6.2.5-2 | `reconcileRA`, `Sender.run` | Advertising does not follow the interface forwarding state: a host still advertises, and a router that stops forwarding keeps a non-zero Router Lifetime. Reconcile with design decision D-6 of the RA spec, which made forwarding a doctor warning |
 | RFC4861-9-7 | prefix list YANG, `Sender.run` | No bound keeps one advertisement inside the link MTU, and Ze never splits one |
+| RFC4861-7.2.8-1, RFC4861-7.2.8-2 | none | No Neighbor Discovery proxy: nothing answers a Neighbor Solicitation or joins a solicited-node group on another node's behalf, and nothing sets `proxy_ndp` or adds a proxy neighbour entry |
+| RFC4861-11.2-1, RFC4861-11.2-2 | none | No configuration secures Neighbor Discovery with AH or ESP, so nothing verifies ND packets for authentication or discards those that fail it |
+
+The last two rows were marked not-applicable by the summary walk. No owner
+ruling names either feature unwanted (`ai/META-DECISIONS.md`, Goal and scope),
+so they are absent features of an RFC Ze implements and owed work, not defects
+in a shipped capability.
 
 Read FRR (`zebra/rtadv.c`) and BIRD (`proto/radv/`) for each before design,
 and quote the deciding function.
@@ -116,6 +124,7 @@ recorded discrimination. The names below are planned, not yet written.
 | `counter-counts-the-wrong-packets.md` | 2026-10-26 | RS readers count every ICMPv6 type 133 packet as a valid solicitation |
 | `unwired-feature.md` | 2026-10-26 | RA sender: AdvLinkMTU, own ND variables, forwarding state, link MTU bound |
 | `unwired-feature.md` | 2026-10-26 | VRRP unsolicited NA spacing and multicast target |
+| `rfc-extension-not-implemented.md` | 2026-10-26 | No ND proxy, no AH or ESP secured Neighbor Discovery |
 
 ## Acceptance Criteria
 

@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | RFC 5905 is optional in the fttx-edge profile, so its Kiss-o'-Death handling is post-release work; the NTP client still ships and still owes it |
-| RFC gaps | RFC5905-7.4-1, RFC5905-7.4-2, RFC5905-7.4-3, RFC5905-7.4-4, RFC5905-7.4-5 |
+| RFC gaps | RFC5905-2-1, RFC5905-2-2, RFC5905-7.4-1, RFC5905-7.4-2, RFC5905-7.4-3, RFC5905-7.4-4, RFC5905-7.4-5, RFC5905-11.2.3-1 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -35,6 +35,27 @@ chrony (`ntp_core.c`, the KoD RATE handling) and ntpd before choosing what Ze
 does, and quotes the deciding function. The 2026-10-19 row in
 `error-answered-with-another-errors-code.md` (unsynchronised chrony, no kiss
 code) is a separate occurrence on the same function.
+
+### The full NTPv4 client
+
+The summary walk of 2026-10-26 had marked three more rows declined under the
+Section 14 SNTP subset. No owner ruling names the full NTPv4 suite unwanted
+(`ai/META-DECISIONS.md`, Goal and scope), so they are gaps this spec owns too.
+
+| Row | Producer | What is missing |
+|-----|----------|-----------------|
+| RFC5905-2-1 | `internal/plugins/ntp/ntp.go::doSync` | One query per server per round and its latest sample only: no clock filter, selection, cluster, combine or clock discipline algorithm |
+| RFC5905-2-2 | `doSync`, `internal/plugins/ntp/state.go::selectBestServer` | The one-sample choice is an alternative algorithm whose output is not identical to Sections 10 and 11 |
+| RFC5905-11.2.3-1 | `doSync` | After a step every server's state in `w.peers` (reach register, offset, delay, stratum) is kept; the associations are not reset |
+
+RFC 5905 text, `rfc/full/rfc5905.txt`:
+
+- Section 2: "All servers and clients who are fully NTPv4-compliant MUST implement the entire suite of algorithms described in this document."
+- Section 2: "Alternative algorithms MAY be used, but their output MUST be identical to the algorithms described in this specification."
+- Section 11.2.3: "In this case, the clock is stepped to the correct offset, but since this means all peer data have been invalidated, all associations MUST be reset and the client begins as at initial start."
+
+Design reads chrony and ntpd for the client algorithms and the reset on step,
+and quotes the deciding functions.
 
 ## Required Reading
 
@@ -106,6 +127,7 @@ Scoped evidence: `./le test unit` over `internal/plugins/ntp/`.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `error-answered-with-another-errors-code.md` | 2026-10-26 | `doSync` never reads a kiss code |
+| `rfc-extension-not-implemented.md` | 2026-10-26 | NTP client is the SNTP subset: no Section 9+ algorithms, no reset on step |
 
 ## Acceptance Criteria
 
@@ -115,3 +137,5 @@ Scoped evidence: `./le test unit` over `internal/plugins/ntp/`.
 | AC-2 | DENY or RSTR stops all queries to that server, and status says why |
 | AC-3 | RATE lengthens the poll interval to that server on each receipt |
 | AC-4 | An unrecognised kiss code starting with X is ignored |
+| AC-5 | The client runs the Section 10 and 11 clock filter, selection, cluster and combine algorithms and the Section 11.3 clock discipline, or algorithms shown output-identical to them, over every configured and DHCP-learned server (RFC5905-2-1, RFC5905-2-2) |
+| AC-6 | A clock step resets every association to its initial state (RFC5905-11.2.3-1) |
