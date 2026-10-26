@@ -1,6 +1,6 @@
 # User-Facing Errors
 
-**When:** adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report, an `./le` diagnostic, or an API or gNMI error answer
+**When:** adding or changing a message anyone sees: error, refusal, warning, log line, web UI notice, `ze doctor` report, `./le` diagnostic, API or gNMI error
 **Severity:** blocking
 **Related:** cli, writing, repo-maintenance
 

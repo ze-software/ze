@@ -1,6 +1,6 @@
 ---
 title: Go Standards
-when: writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim
+when: writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed vs string, external commands, or a compatibility shim
 severity: blocking
 related: config, cli, performance, repo-maintenance, architecture
 ---

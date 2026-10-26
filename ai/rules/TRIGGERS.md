@@ -19,7 +19,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/documentation.md` | blocking, always-on | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes |
 | `ai/rules/evidence.md` | blocking | stating what code does or a measured number means, acting on recorded claims, writing or reviewing a guard, or writing a string listing data a registry holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
-| `ai/rules/go-standards.md` | blocking | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a... |
+| `ai/rules/go-standards.md` | blocking | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed vs string, external commands, or a compatibility shim |
 | `ai/rules/goroutine-lifecycle.md` | blocking | before writing `go func()` anywhere |
 | `ai/rules/interop-and-goal-validation.md` | blocking, always-on | implementing or changing protocol behavior, and when validating that a spec's stated goals are met |
 | `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work |
@@ -27,7 +27,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/performance.md` | blocking | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path |
 | `ai/rules/planning.md` | blocking | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes |
 | `ai/rules/platform-linux.md` | blocking | writing Linux-only code, finding Linux or a library cannot do what a feature needs, bumping the kernel or an appliance dependency, or changing the initrd |
-| `ai/rules/plugins.md` | blocking | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" |
+| `ai/rules/plugins.md` | blocking | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate |
 | `ai/rules/pre-release.md` | blocking | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes |
 | `ai/rules/precommit-verify.md` | blocking | before running the verification gate, or after running a commit script that carried Go |
 | `ai/rules/principles.md` | blocking, always-on | before any decision about how to build, test, verify, or report work in this repository |
@@ -42,5 +42,5 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |
 | `ai/rules/terminal-demos.md` | blocking | writing, changing, or recording a terminal demo or video |
 | `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, and before writing implementation code for new behavior |
-| `ai/rules/user-facing-errors.md` | blocking | adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report... |
-| `ai/rules/writing.md` | blocking | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product... |
+| `ai/rules/user-facing-errors.md` | blocking | adding or changing a message anyone sees: error, refusal, warning, log line, web UI notice, `ze doctor` report, `./le` diagnostic, API or gNMI error |
+| `ai/rules/writing.md` | blocking | writing or reviewing any prose in Ze: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison |

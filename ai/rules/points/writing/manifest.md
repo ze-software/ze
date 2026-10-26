@@ -1,6 +1,6 @@
 ---
 title: Writing
-when: writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
+when: writing or reviewing any prose in Ze: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
 severity: blocking
 related: cli, evidence, rule-format, repo-maintenance, completion
 ---

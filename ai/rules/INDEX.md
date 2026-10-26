@@ -17,7 +17,7 @@ full before acting on a topic it covers.
 | Documentation First | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes | blocking | `ai/rules/documentation.md` |
 | Evidence and Guards | stating what code does or a measured number means, acting on recorded claims, writing or reviewing a guard, or writing a string listing data a registry holds | blocking | `ai/rules/evidence.md` |
 | Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
-| Go Standards | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
+| Go Standards | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed vs string, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
 | Goroutine Lifecycle | before writing `go func()` anywhere | blocking | `ai/rules/goroutine-lifecycle.md` |
 | Interop Testing and Goal Validation | implementing or changing protocol behavior, and when validating that a spec's stated goals are met | blocking | `ai/rules/interop-and-goal-validation.md` |
 | Never Destroy Uncommitted Work | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work | blocking | `ai/rules/never-destroy-work.md` |
@@ -25,7 +25,7 @@ full before acting on a topic it covers.
 | Memory and Encoding | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path | blocking | `ai/rules/performance.md` |
 | Specs and Phases | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes | blocking | `ai/rules/planning.md` |
 | Linux, QEMU and the Appliance | writing Linux-only code, finding Linux or a library cannot do what a feature needs, bumping the kernel or an appliance dependency, or changing the initrd | blocking | `ai/rules/platform-linux.md` |
-| Plugins | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" | blocking | `ai/rules/plugins.md` |
+| Plugins | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate | blocking | `ai/rules/plugins.md` |
 | Pre-Release, and the Product Is the Deliverable | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes | blocking | `ai/rules/pre-release.md` |
 | Pre-Commit Verification | before running the verification gate, or after running a commit script that carried Go | blocking | `ai/rules/precommit-verify.md` |
 | Principles | before any decision about how to build, test, verify, or report work in this repository | blocking | `ai/rules/principles.md` |
@@ -40,5 +40,5 @@ full before acting on a topic it covers.
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
 | Terminal Demos | writing, changing, or recording a terminal demo or video | blocking | `ai/rules/terminal-demos.md` |
 | Testing | writing, changing, or deleting any test, and before writing implementation code for new behavior | blocking | `ai/rules/testing.md` |
-| User-Facing Errors | adding or changing any message a user or an operator can see: an error, a refusal, a warning, a log line, a web UI notice, a `ze doctor` report, an `./le` diagnostic, or an API or gNMI error answer | blocking | `ai/rules/user-facing-errors.md` |
-| Writing | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison | blocking | `ai/rules/writing.md` |
+| User-Facing Errors | adding or changing a message anyone sees: error, refusal, warning, log line, web UI notice, `ze doctor` report, `./le` diagnostic, API or gNMI error | blocking | `ai/rules/user-facing-errors.md` |
+| Writing | writing or reviewing any prose in Ze: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison | blocking | `ai/rules/writing.md` |

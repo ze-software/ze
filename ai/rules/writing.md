@@ -1,6 +1,6 @@
 # Writing
 
-**When:** writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
+**When:** writing or reviewing any prose in Ze: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
 **Severity:** blocking
 **Related:** cli, evidence, rule-format, repo-maintenance, completion
 

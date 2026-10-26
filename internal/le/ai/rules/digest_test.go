@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -332,7 +333,11 @@ func TestAMissingTriggerAndAnUnknownSeverityBothLandInTheCore(t *testing.T) {
 	// An unclassified severity is still NAMED in the trigger index, because the
 	// one thing it promises is that no rule goes unlisted.
 	line := ""
-	for _, row := range triggerLines(rules, coreNames(core)) {
+	rows, err := triggerLines(rules, coreNames(core))
+	if err != nil {
+		t.Fatalf("triggerLines: %v", err)
+	}
+	for _, row := range rows {
 		if strings.Contains(row, "odd-severity.md") {
 			line = row
 		}
@@ -342,13 +347,12 @@ func TestAMissingTriggerAndAnUnknownSeverityBothLandInTheCore(t *testing.T) {
 	}
 }
 
-func TestATriggerRowIsCutAtAWordBoundaryAndCountsRunes(t *testing.T) {
-	// The trigger is padded past the row bound with em dashes, which cost three
-	// bytes and one character each. A byte bound would cut one in half and
-	// answer invalid UTF-8.
-	long := "when the encoder meets " + strings.Repeat("an em dash — ", 30)
+// completionTrigger loads the digest corpus with completion's trigger replaced,
+// and answers what triggerLines makes of it.
+func completionTrigger(t *testing.T, trigger string) ([]string, error) {
+	t.Helper()
 	files := digestCorpus()
-	files["ai/rules/completion.md"] = "# Completion\n\n**When:** " + long +
+	files["ai/rules/completion.md"] = "# Completion\n\n**When:** " + trigger +
 		"\n**Severity:** blocking\n\n## D\n\n- MUST.\n"
 	root := digestTree(t, files)
 
@@ -356,24 +360,95 @@ func TestATriggerRowIsCutAtAWordBoundaryAndCountsRunes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
+	return triggerLines(rules, nil)
+}
+
+func TestAnOverLongTriggerIsRefusedAndNeverCut(t *testing.T) {
+	// Goal: a trigger longer than its row has room for is refused, naming the
+	// rule, its length, the room and the fix, and no row is answered at all.
+	// A cut row would route by a narrower trigger than the rule declares.
+	// Method: pad completion's trigger past the row bound.
+	long := "when the encoder meets " + strings.Repeat("an em dash — ", 30)
+	rows, err := completionTrigger(t, long)
+	if err == nil {
+		t.Fatalf("an over-long trigger was accepted: %q", rows)
+	}
+	if rows != nil {
+		t.Errorf("a refused index still answered rows: %q", rows)
+	}
+	prefix := "| `ai/rules/completion.md` | blocking | "
+	room := maxTriggerLine - runeLen(prefix) - runeLen(" |")
+	for _, want := range []string{
+		"rule completion ",
+		"is " + strconv.Itoa(runeLen(strings.TrimSpace(long))) + " characters",
+		"room for " + strconv.Itoa(room),
+		"ai/rules/points/completion/manifest.md",
+		"./le ai rules update condensed",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q: %v", want, err)
+		}
+	}
+}
+
+func TestATriggerThatFitsIsKeptWholeAndCountsRunes(t *testing.T) {
+	// Goal: the bound counts characters, not bytes, and a trigger that fills
+	// its room exactly is kept whole. Method: fill the room with em dashes,
+	// which cost three bytes and one character each, so a byte bound would
+	// refuse it; then add one character and expect the refusal.
+	prefix := "| `ai/rules/completion.md` | blocking | "
+	room := maxTriggerLine - runeLen(prefix) - runeLen(" |")
+	head := "when the encoder meets "
+	fits := head + strings.Repeat("—", room-runeLen(head))
+
+	rows, err := completionTrigger(t, fits)
+	if err != nil {
+		t.Fatalf("a trigger that fits was refused: %v", err)
+	}
 	row := ""
-	for _, line := range triggerLines(rules, nil) {
+	for _, line := range rows {
 		if strings.Contains(line, "completion.md") {
 			row = line
 		}
 	}
-	if runeLen(row) > maxTriggerLine {
-		t.Errorf("the row is %d characters, over the %d bound: %q", runeLen(row), maxTriggerLine, row)
+	if row != prefix+fits+" |" {
+		t.Errorf("the row is not the whole trigger: %q", row)
 	}
-	if !strings.HasSuffix(row, "... |") {
-		t.Errorf("a cut row does not say it was cut: %q", row)
+	if runeLen(row) != maxTriggerLine {
+		t.Errorf("the row is %d characters, want exactly %d", runeLen(row), maxTriggerLine)
 	}
-	if strings.ContainsRune(row, '�') {
-		t.Errorf("the cut split a rune: %q", row)
+
+	if _, err := completionTrigger(t, fits+"—"); err == nil {
+		t.Errorf("a trigger one character over its room was accepted")
 	}
-	// The cut lands on a word boundary, so no half word survives it.
-	if strings.Contains(row, "da... |") || strings.Contains(row, "em... |") {
-		t.Errorf("the cut split a word: %q", row)
+}
+
+func TestARuleWithNoTriggerKeepsItsRowAndSaysAlwaysReadIt(t *testing.T) {
+	// Goal: a rule that declares no trigger is still named in the index, with
+	// a row telling the reader to always read it, so the hardest rules to route
+	// are never dropped. Method: give completion no `When:` line and expect
+	// exactly one row for it, carrying the always-read marker.
+	files := digestCorpus()
+	files["ai/rules/completion.md"] = "# Completion\n\n**Severity:** blocking\n\n## D\n\n- MUST.\n"
+	root := digestTree(t, files)
+
+	rules, err := loadRules(rulesDir(root))
+	if err != nil {
+		t.Fatalf("LoadRules: %v", err)
+	}
+	rows, err := triggerLines(rules, nil)
+	if err != nil {
+		t.Fatalf("triggerLines refused a rule with no trigger: %v", err)
+	}
+	var found []string
+	for _, line := range rows {
+		if strings.Contains(line, "completion.md") {
+			found = append(found, line)
+		}
+	}
+	want := "| `ai/rules/completion.md` | blocking | (no trigger: always read it) |"
+	if len(found) != 1 || found[0] != want {
+		t.Errorf("the rule with no trigger answered rows %q, want exactly %q", found, want)
 	}
 }
 

@@ -222,8 +222,11 @@ func ruleBlock(rule *Rule) string {
 	return strings.TrimRight(strings.Join(block, "\n"), asciiSpace)
 }
 
-// triggerLines answers one routing row per rule: path, severity, trigger. Never
-// longer than maxTriggerLine.
+// triggerLines answers one routing row per rule: path, severity, trigger. A row
+// never exceeds maxTriggerLine, and a trigger that does not fit is refused, never
+// cut: a cut trigger drops the situations past the cut, so the index agents
+// route by would answer a narrower trigger than the rule declares, with nothing
+// to say so. The author shortens the trigger at its source instead.
 //
 // A core rule is marked `always-on`, because the index's own header promises
 // the reader can tell which bodies are already loaded. Without the marker that
@@ -232,7 +235,7 @@ func ruleBlock(rule *Rule) string {
 // A rule with no trigger still gets a line. Dropping it would make the one
 // thing this index promises -- that every rule stays named -- untrue for
 // exactly the rules that are hardest to route.
-func triggerLines(rules []Rule, core map[string]bool) []string {
+func triggerLines(rules []Rule, core map[string]bool) ([]string, error) {
 	lines := make([]string, 0, len(rules))
 	for i := range rules {
 		rule := &rules[i]
@@ -254,17 +257,22 @@ func triggerLines(rules []Rule, core map[string]bool) []string {
 
 		room := maxTriggerLine - runeLen(prefix) - runeLen(" |")
 		if runeLen(trigger) > room {
-			runes := []rune(trigger)
-			cut := lastSpaceBefore(runes, room-3)
-			if cut <= 0 {
-				cut = room - 3
-			}
-			trigger = tb.Str(strings.TrimRight(string(runes[:cut]), " ,;:-")).Str("...").String()
-			tb.Reset()
+			return nil, triggerTooLong(rule.Stem, runeLen(trigger), room)
 		}
 		lines = append(lines, tb.Str(prefix).Str(trigger).Str(" |").String())
 	}
-	return lines
+	return lines, nil
+}
+
+// triggerTooLong names the rule whose trigger does not fit its routing row, by
+// how much, and where to shorten it.
+func triggerTooLong(stem string, length, room int) error {
+	var tb textbuf.Buffer
+	return errors.New(tb.Str("the trigger of rule ").Str(stem).Str(" is ").Int(int64(length)).
+		Str(" characters, and its TRIGGERS.md row has room for ").Int(int64(room)).
+		Str(": the index refuses to cut it, because a cut trigger drops the situations past the cut.").
+		Str(" Fix: shorten the `when:` line in ").Str(rulesRel).Str("/points/").Str(stem).
+		Str("/manifest.md, keeping every situation it names, then run ./le ai rules update condensed").String())
 }
 
 // triggersHeader is TRIGGERS.md above its first row.
@@ -304,10 +312,14 @@ var coreHeader = []string{
 }
 
 // buildTriggers answers TRIGGERS.md: every rule named, in one line each.
-func buildTriggers(rules []Rule, core map[string]bool) string {
-	lines := append(append([]string{}, triggersHeader...), triggerLines(rules, core)...)
+func buildTriggers(rules []Rule, core map[string]bool) (string, error) {
+	rows, err := triggerLines(rules, core)
+	if err != nil {
+		return "", err
+	}
+	lines := append(append([]string{}, triggersHeader...), rows...)
 	var tb textbuf.Buffer
-	return tb.Str(strings.Join(lines, "\n")).Byte('\n').String()
+	return tb.Str(strings.Join(lines, "\n")).Byte('\n').String(), nil
 }
 
 // buildCore answers CORE.md: the directives that must reach every session
@@ -418,6 +430,11 @@ func Digest(tree string, check bool) (DigestReport, error) {
 		return report, err
 	}
 
+	triggers, err := buildTriggers(rules, coreNames(core))
+	if err != nil {
+		return report, err
+	}
+
 	// One parse, two artifacts. The pair is a table so a third one is a row
 	// here and nothing else, which is what ARTIFACTS is in the script.
 	built := []struct {
@@ -425,7 +442,7 @@ func Digest(tree string, check bool) (DigestReport, error) {
 		rules   int
 		content string
 	}{
-		{triggersFile, len(rules), buildTriggers(rules, coreNames(core))},
+		{triggersFile, len(rules), triggers},
 		{coreFile, len(core), buildCore(core)},
 	}
 

@@ -178,6 +178,9 @@ task in hand before it decides whether to open the file.
 | Start with a temporal opener (`when`, `whenever`, `before`, `after`, `while`, `during`, `if`, `once`, `unless`, `upon`, `on`, `at`, `any/every/each time`, `prior to`, `as soon as`) or a gerund (`writing`, `adding`, `reviewing`, `naming`, `closing`) | A uniform opening makes the column scannable, and both forms force a situation rather than an assertion |
 | Name what the author is DOING, or what has HAPPENED, never what they are obliged to do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
 | One complete clause, one line | A trigger that ends on a comma, a dangling `by`, `with` or `the`, or an unbalanced `**` was copied out of a wrapped bold body line |
+| Fits its `TRIGGERS.md` row whole: the row, path and severity included, is at most 200 characters | `./le ai rules update condensed` refuses a longer trigger, naming the rule, its length and the room, and never cuts it: a cut trigger drops the situations past the cut. Shorten the manifest's `when:` line by merging or generalising its wording, never by dropping a situation |
+| No quotes around the `when:` value | The manifest frontmatter is read verbatim, so quotes reach the rendered rule and the index as text |
+<!-- source: internal/le/ai/rules/artifacts.go -- triggerLines, triggerTooLong -->
 | Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. A copy in the trigger costs tokens in every session and routes nothing |
 
 A reference rule (a lookup table, a glossary, an architecture summary) carries a
@@ -353,8 +356,9 @@ exercise those decisions through `Answer`, including the emitted routing rows,
 core directives and artifact ownership refusals. They assert consumer-visible
 behavior rather than a hash of the implementation's source bytes.
 
-After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A
-trigger that lost half its clause is not visible from the point file alone.
+After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. The
+generator refuses a trigger too long for its row, but whether the row still
+routes the situations you meant is visible only in the row.
 
 ## Committing
 

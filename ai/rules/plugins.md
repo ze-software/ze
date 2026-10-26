@@ -1,6 +1,6 @@
 # Plugins
 
-**When:** "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate"
+**When:** creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate
 **Severity:** blocking
 **Related:** repo-maintenance, cli, evidence
 
