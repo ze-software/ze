@@ -98,9 +98,11 @@ var profileNameRE = regexp.MustCompile(`\A[a-z0-9]+(-[a-z0-9]+)*\z`)
 // A profile that does not parse is COLLECTED as a problem rather than
 // returned, the same way a summary is: one file midway through an edit must
 // not stop `./le rfc check` for every session. The bad profile is absent from
-// the answer, so every summary naming it is refused as naming an unknown
-// aggregate, which is loud. The error return is for a directory that cannot
-// be read at all.
+// the answer, so every summary naming it is refused, which is loud: a
+// `Support` or `Aggregate` row as naming an unknown aggregate, a `Use cases`
+// or `Optional use cases` row as naming a use case with no profile
+// (checkUseCases). The error return is for a directory that cannot be read at
+// all.
 func LoadProfiles(tree string) (Profiles, []string, error) {
 	out := Profiles{UseCases: map[string]UseCase{}, Aggregates: map[string]Aggregate{}}
 	entries, err := os.ReadDir(treePath(tree, profileRel))

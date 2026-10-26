@@ -129,7 +129,7 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 				inRelease[stem] = true
 			}
 		}
-		report.Rows = c.treeRows(sortedSet(union), useCases, nil, inRelease)
+		report.Rows = c.allRows(sortedSet(union), useCases, inRelease)
 		return report, nil
 	}
 	scope, err := c.scope(profile, "tree")
@@ -140,28 +140,45 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 	report.Title, report.Heading = c.profileTitles(profile)
 	rollup := c.rollupOfScopes([]profileScope{scope})
 	report.Rollup = &rollup
-	report.Rows = c.treeRows(sortedSet(scope.members), useCases, &scope, nil)
+	report.Rows = c.treeRows(useCases, &scope, false)
 	if scope.kind == profileKindTechnology {
 		return report, nil
 	}
 	report.Optional = &TreeTier{Rollup: c.optionalRollupOfScopes([]profileScope{scope}),
-		Rows: c.treeRows(sortedSet(scope.optional), useCases, &scope, nil)}
+		Rows: c.treeRows(useCases, &scope, true)}
 	report.Candidates = c.candidates(&scope)
 	return report, nil
 }
 
-// treeRows answers the rows of stems, each with its path when named holds a
-// scope, ordered rows inRelease holds first, then by level, then by number.
-func (c *priorityCorpus) treeRows(stems []string, useCases []profileScope, named *profileScope,
-	inRelease map[string]bool) []*TreeRow {
+// treeRows answers the rows of the tier of named that optional selects, each
+// with the declaration that puts it there, ordered by level, then by number.
+// The stems are read out of the tier, so every path names a real listing.
+func (c *priorityCorpus) treeRows(useCases []profileScope, named *profileScope, optional bool) []*TreeRow {
+	stems := sortedSet(named.tier(optional))
 	rows := make([]*TreeRow, 0, len(stems))
 	for _, stem := range stems {
 		row := c.treeRow(stem, useCases)
-		if named != nil {
-			row.Path = named.path(stem)
-		}
+		row.Path = named.path(stem, optional)
 		rows = append(rows, row)
 	}
+	sortTreeRows(rows, nil)
+	return rows
+}
+
+// allRows answers the rows of stems with no profile named, so with no path,
+// ordered rows inRelease holds first, then by level, then by number.
+func (c *priorityCorpus) allRows(stems []string, useCases []profileScope, inRelease map[string]bool) []*TreeRow {
+	rows := make([]*TreeRow, 0, len(stems))
+	for _, stem := range stems {
+		rows = append(rows, c.treeRow(stem, useCases))
+	}
+	sortTreeRows(rows, inRelease)
+	return rows
+}
+
+// sortTreeRows orders rows inRelease holds first, then by level, then by
+// number. A nil inRelease holds nothing.
+func sortTreeRows(rows []*TreeRow, inRelease map[string]bool) {
 	slices.SortFunc(rows, func(left, right *TreeRow) int {
 		if inRelease[left.Stem] != inRelease[right.Stem] {
 			if inRelease[left.Stem] {
@@ -174,7 +191,6 @@ func (c *priorityCorpus) treeRows(stems []string, useCases []profileScope, named
 		}
 		return statusRowCompare(left.Stem, right.Stem)
 	})
-	return rows
 }
 
 // candidates answers the builds-on targets and updaters of every member of

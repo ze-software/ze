@@ -200,9 +200,10 @@ func TestTreeProfileMembersAreDeclared(t *testing.T) {
 	if report.Rollup.RFCs != 1 || len(report.Optional.Rows) != 0 || report.Optional.Rollup.RFCs != 0 {
 		t.Errorf("core rollup %+v optional %+v, want 1 RFC and no optional member", report.Rollup, report.Optional)
 	}
-	members := ProfileMembers(corpus.profiles, corpus.metas)
-	if got := members["core"]; !slices.Equal(got.Required, []string{"rfc2"}) || len(got.Optional) != 0 {
-		t.Errorf("ProfileMembers core = %+v, want required [rfc2]", got)
+	members := requiredMembers(corpus.profiles, corpus.metas)
+	optional := useCaseTiers(corpus.profiles, corpus.metas)["core"].optional
+	if got := members["core"]; !slices.Equal(got, []string{"rfc2"}) || len(optional) != 0 {
+		t.Errorf("core required %v optional %v, want required [rfc2] and no optional member", got, sortedSet(optional))
 	}
 
 	edge, err := corpus.tree("edge")

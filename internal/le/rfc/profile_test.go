@@ -9,10 +9,12 @@ package rfc
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // writeProfileTree writes one profile file into a fresh tree and answers it.
@@ -191,20 +193,20 @@ func TestEmptyUseCaseProfileRefused(t *testing.T) {
 // TestEveryProfileMemberHasASummary: AC-11 over the real checkout. Every name
 // either use-case row of every summary writes is a declared use case, and
 // every member of every use case, in either tier, is a summary that parsed.
-// Method: the members ProfileMembers answers, against the parsed summaries.
+// Method: both tiers of each use case's scope, against the parsed summaries.
 func TestEveryProfileMemberHasASummary(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatal(err)
 	}
 	profiles, metas := realProfilesAndMetas(t, root)
-	members := ProfileMembers(profiles, metas)
+	members := useCaseTiers(profiles, metas)
 	for _, name := range sortedKeysOf(profiles.UseCases) {
 		tiers := members[name]
-		if len(tiers.Required) == 0 {
+		if len(tiers.members) == 0 {
 			t.Errorf("use case %s has no required member", name)
 		}
-		for _, stem := range append(append([]string{}, tiers.Required...), tiers.Optional...) {
+		for _, stem := range append(sortedSet(tiers.members), sortedSet(tiers.optional)...) {
 			if _, held := metas[stem]; !held {
 				t.Errorf("use case %s lists %s, which has no summary that parsed", name, stem)
 			}
@@ -213,29 +215,54 @@ func TestEveryProfileMemberHasASummary(t *testing.T) {
 }
 
 // TestRouteServerProfileExcludesCitationClosure: AC-11 over the real
-// checkout. No member of any release profile, in either tier, belongs to an
-// aggregate the route-server citation closure used to drag in, unless the
-// profile's own role is that technology. Method: route-server, route-collector
-// and looking-glass members, against the aggregates of PPP, DHCP, IS-IS, DNS,
-// tunnels, IPsec, MPLS and OSPF.
+// checkout. route-server's two tiers are exactly the spec's Population lists,
+// so any member a citation, an edit or a stray row adds fails, as does any
+// member dropped. No member of any BGP release profile, in either tier,
+// belongs to an aggregate the route-server citation closure used to drag in.
+// Method: route-server's tiers against the Population lists; route-server,
+// route-collector and looking-glass members against the aggregates of PPP,
+// DHCP, IS-IS, DNS, tunnels, IPsec, MPLS and OSPF.
 func TestRouteServerProfileExcludesCitationClosure(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatal(err)
 	}
 	profiles, metas := realProfilesAndMetas(t, root)
-	members := ProfileMembers(profiles, metas)
+	members := useCaseTiers(profiles, metas)
+	required := []string{"rfc1997", "rfc2545", "rfc4271", "rfc4760", "rfc5492", "rfc6286", "rfc6608",
+		"rfc6793", "rfc6811", "rfc7454", "rfc7606", "rfc7607", "rfc7911", "rfc7947", "rfc7948", "rfc7999",
+		"rfc8092", "rfc8210", "rfc8212", "rfc8893", "rfc9234", "rfc9582", "rfc9687", "rfc9774"}
+	optional := []string{"rfc2385", "rfc2918", "rfc4360", "rfc4486", "rfc4724", "rfc5082", "rfc7313",
+		"rfc8203", "rfc8654", "rfc8950", "rfc9003", "rfc9072"}
+	routeServer := members["route-server"]
+	if got := sortedSet(routeServer.members); !slices.Equal(got, required) {
+		t.Errorf("route-server required %v, want the Population list %v", got, required)
+	}
+	if got := sortedSet(routeServer.optional); !slices.Equal(got, optional) {
+		t.Errorf("route-server optional %v, want the Population list %v", got, optional)
+	}
 	foreign := map[string]bool{"ppp-access": true, "dhcp-provisioning": true, "isis": true, "dns": true,
 		"tunnels": true, "ikev2-ipsec": true, "mpls": true, "ospf": true}
 	for _, name := range []string{"route-server", "route-collector", "looking-glass"} {
 		tiers := members[name]
-		for _, stem := range append(append([]string{}, tiers.Required...), tiers.Optional...) {
+		for _, stem := range append(sortedSet(tiers.members), sortedSet(tiers.optional)...) {
 			if foreign[metas[stem].Aggregate] {
 				t.Errorf("%s lists %s, of aggregate %s, which a BGP role does not implement",
 					name, stem, metas[stem].Aggregate)
 			}
 		}
 	}
+}
+
+// useCaseTiers answers each use-case profile's scope, keyed by name: the two
+// declared tiers `./le rfc tree profile <name>` renders.
+func useCaseTiers(profiles Profiles, metas map[string]Meta) map[string]profileScope {
+	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
+	out := map[string]profileScope{}
+	for _, scope := range corpus.useCaseScopes(false) {
+		out[scope.name] = scope
+	}
+	return out
 }
 
 // realProfilesAndMetas answers the checkout's parsed profiles and summaries,

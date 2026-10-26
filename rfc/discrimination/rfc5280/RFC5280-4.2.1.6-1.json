@@ -3,11 +3,11 @@
     "rid": "RFC5280-4.2.1.6-1",
     "polarity": "positive",
     "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestRFC5280LeafIdentitiesSitInTheSubjectAltName",
-    "unit-sha": "75281f311f132fc1",
+    "unit-sha": "c903a3737a725f92",
     "claim-sha": "323cc8f8fa512ae5",
     "route": "revert",
     "producer": "internal/component/pki/ca.go::IssueLeafFor",
-    "producer-sha": "6a6ab2f3eb12f031",
+    "producer-sha": "0189e17e0dcbcee4",
     "break": "body of IssueLeafFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

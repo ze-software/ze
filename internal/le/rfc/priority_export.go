@@ -1,46 +1,16 @@
-// Design: docs/contributing/rfc-conformance-gates.md -- the priority tree, the exported members and requirement index
+// Design: docs/contributing/rfc-conformance-gates.md -- the priority tree and the exported requirement index
 // Related: priority.go -- the scope these answer from
 // Related: profile.go -- ParseProfiles, the bytes-level profile parser
 //
 // priority_export.go is the surface another le package reads the priority
-// tree through: the use-case profiles' declared members, the
-// requirement-id-to-stem index and the rendered priority trees. The members
-// are answered over parsed inputs only, for a caller holding a committed
-// revision's blobs. The index comes in two forms, one over parsed summaries,
-// one over a checkout directory.
+// tree through: the requirement-id-to-stem index and the rendered priority
+// trees. The index comes in two forms, one over parsed summaries, for a caller
+// holding a committed revision's blobs, and one over a checkout directory.
 package rfc
 
 import (
 	"path/filepath"
-
-	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
-
-// ProfileTiers is one use-case profile's declared members, each sorted.
-type ProfileTiers struct {
-	// Required is the summaries whose `Use cases` row names the profile:
-	// counted in its figures.
-	Required []string
-	// Optional is the summaries whose `Optional use cases` row names it:
-	// listed, never counted.
-	Optional []string
-}
-
-// ProfileMembers answers each use-case profile's two tiers, keyed by profile
-// name. The answer is the scope `./le rfc tree profile <name>` renders, so the
-// two cannot disagree.
-//
-// profiles is ParseProfiles over the profile files, metas ParseMeta over the
-// summaries. No edge of the dependency graph is read: a citation adds no
-// member.
-func ProfileMembers(profiles Profiles, metas map[string]Meta) map[string]ProfileTiers {
-	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
-	out := map[string]ProfileTiers{}
-	for _, scope := range corpus.useCaseScopes(false) {
-		out[scope.name] = ProfileTiers{Required: sortedSet(scope.members), Optional: sortedSet(scope.optional)}
-	}
-	return out
-}
 
 // PriorityAnswer is the priority tree of one rendered input: the whole
 // corpus, and every profile limited to its own members.

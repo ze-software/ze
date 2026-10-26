@@ -18,7 +18,7 @@
     "claim-sha": "eacb6d2e2df61364",
     "route": "revert",
     "producer": "internal/component/pki/ca.go::IssueLeafFor",
-    "producer-sha": "6a6ab2f3eb12f031",
+    "producer-sha": "0189e17e0dcbcee4",
     "break": "body of IssueLeafFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

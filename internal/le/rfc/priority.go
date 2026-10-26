@@ -40,7 +40,10 @@ type priorityCorpus struct {
 	updaters map[string][]string
 }
 
-// newPriorityCorpus indexes the graph's edges by the member they leave from. Every edge list stays sorted, because Edges answers them sorted.
+// newPriorityCorpus indexes every edge of the graph by the node it reads from:
+// a builds-on edge under the node it leaves, an updates edge under the node it
+// updates. Every node is indexed, member of a profile or not. Every edge list
+// stays sorted, because Edges answers them sorted.
 func newPriorityCorpus(g *graph.Graph, profiles Profiles, metas map[string]Meta,
 	requirements []Requirement, figures map[string]StemFigures, proven map[string]bool) *priorityCorpus {
 	c := &priorityCorpus{graph: g, profiles: profiles, metas: metas, requirements: requirements,
@@ -160,21 +163,28 @@ func (c *priorityCorpus) useCaseScopes(releaseOnly bool) []profileScope {
 	return out
 }
 
-// path renders the declaration that puts stem in the scope, such as
-// `route-server: required by rfc/short/rfc4271.md`, and MUST be called only
-// for a member of either tier.
-func (s *profileScope) path(stem string) string {
+// tier answers one of s's two tiers: the optional one when optional, else the
+// required one (an aggregate's members).
+func (s *profileScope) tier(optional bool) map[string]bool {
+	if optional {
+		return s.optional
+	}
+	return s.members
+}
+
+// path renders the declaration that puts stem in the tier optional selects,
+// such as `route-server: required by rfc/short/rfc4271.md`. Membership is the
+// caller's to establish, and both callers read stem out of that tier: nextGap
+// tests it, and treeRows ranges over it.
+func (s *profileScope) path(stem string, optional bool) string {
 	var tb textbuf.Buffer
 	tb.Str(s.name).Str(": ")
-	switch {
-	case s.members[stem] && s.kind == profileKindTechnology:
-		tb.Str("aggregate named by ")
-	case s.members[stem]:
-		tb.Str("required by ")
-	case s.optional[stem]:
+	if optional {
 		tb.Str("optional in ")
-	default:
-		panic("BUG: profileScope.path asked for " + stem + ", which " + s.name + " does not list")
+	} else if s.kind == profileKindTechnology {
+		tb.Str("aggregate named by ")
+	} else {
+		tb.Str("required by ")
 	}
 	return tb.Str(summaryRel).Byte('/').Str(stem).Str(".md").String()
 }

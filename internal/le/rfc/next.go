@@ -183,7 +183,7 @@ func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) ma
 		if gap, held := out[key]; held {
 			return gap
 		}
-		gap := c.nextGap(stem, scopes, requiredTier)
+		gap := c.nextGap(stem, scopes, false)
 		out[key] = gap
 		return gap
 	}
@@ -226,7 +226,7 @@ func (c *priorityCorpus) optionalGaps(scopes []profileScope) []NextGap {
 	byStem := map[string]*NextGap{}
 	for _, stem := range sortedSet(union) {
 		if !c.figures[stem].Walked {
-			byStem[stem] = c.nextGap(stem, scopes, optionalTier)
+			byStem[stem] = c.nextGap(stem, scopes, true)
 		}
 	}
 	for index := range c.requirements {
@@ -240,7 +240,7 @@ func (c *priorityCorpus) optionalGaps(scopes []profileScope) []NextGap {
 		}
 		gap, held := byStem[requirement.RFC]
 		if !held {
-			gap = c.nextGap(requirement.RFC, scopes, optionalTier)
+			gap = c.nextGap(requirement.RFC, scopes, true)
 			byStem[requirement.RFC] = gap
 		}
 		gap.Uncovered = append(gap.Uncovered, row)
@@ -259,37 +259,20 @@ func (c *priorityCorpus) optionalGaps(scopes []profileScope) []NextGap {
 	return out
 }
 
-// memberTier names which of a scope's two tiers a gap is read from.
-type memberTier uint8
-
-const (
-	// tierUnspecified is the zero value, which no gap is built with.
-	tierUnspecified memberTier = iota
-	requiredTier
-	optionalTier
-)
-
 // nextGap answers stem's gap with no row yet, naming the scopes that list it
-// in tier and the declaration of the first of them.
-func (c *priorityCorpus) nextGap(stem string, scopes []profileScope, tier memberTier) *NextGap {
+// in their optional tier when optional, else in their required tier, and the
+// declaration of the first of them. A scope has exactly two tiers, so a bool
+// selects one with no third, unspecified, value to guard.
+func (c *priorityCorpus) nextGap(stem string, scopes []profileScope, optional bool) *NextGap {
 	figures, summarized := c.figures[stem]
 	gap := &NextGap{Stem: stem, Title: c.metas[stem].Title, Summary: summarized, Walked: figures.Walked,
 		Uncovered: []NextRow{}, Profiles: []string{}}
 	for index := range scopes {
-		var listed bool
-		switch tier {
-		case requiredTier:
-			listed = scopes[index].members[stem]
-		case optionalTier:
-			listed = scopes[index].optional[stem]
-		case tierUnspecified:
-			panic("BUG: nextGap asked for " + stem + " with no tier")
-		}
-		if !listed {
+		if !scopes[index].tier(optional)[stem] {
 			continue
 		}
 		if gap.Path == "" {
-			gap.Path = scopes[index].path(stem)
+			gap.Path = scopes[index].path(stem, optional)
 		}
 		gap.Profiles = append(gap.Profiles, scopes[index].name)
 	}

@@ -140,8 +140,8 @@ func (loaded *rfcCorpus) place(item *Item) {
 	slices.Sort(item.Profiles)
 }
 
-// rfcBlobs answers every summary, profile and RFC text of revision, keyed by
-// its path. A directory the revision does not hold contributes nothing, as an
+// rfcBlobs answers every summary and profile of revision (the rfcDirs), keyed
+// by its path. A directory the revision does not hold contributes nothing, as an
 // absent directory does for the checkout readers.
 func rfcBlobs(ctx context.Context, root, revision string) (map[string]string, error) {
 	args := make([]string, 0, 5+len(rfcDirs))

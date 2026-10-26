@@ -323,8 +323,8 @@ never an obligation (`ai/META-DECISIONS.md`, "Goal and scope").
 
 `ParseMeta` refuses a missing row, an empty cell, `-` mixed with names, a token
 that is not one lower-case hyphenated name, a name written twice in one row,
-one name in both rows, and a near-miss label such as `Use-cases` or `Profiles`
-(`readUseCases`). Once the profiles are loaded, a name with no profile file, or
+and one name in both rows (`readUseCases`), and a near-miss label such as
+`Use-cases` or `Profiles` (`refuseNearMiss`). Once the profiles are loaded, a name with no profile file, or
 one that is a technology aggregate, is refused naming the summary and listing
 the use cases (`checkUseCases`). `./le rfc check` also refuses a use-case
 profile no summary requires, an optional-only one included, because its
@@ -339,7 +339,7 @@ number with the non-RFC stems after them by name; a summary whose text is not
 in the repository has no level and sorts after the ones that do. No order is
 authored, so no two summaries can claim one place.
 <!-- source: internal/le/rfc/profile.go -- LoadProfiles, parseProfile, parseUseCase, parseAggregate -->
-<!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate, readUseCases, checkUseCases, checkUseCaseMembers -->
+<!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate, readUseCases, refuseNearMiss, checkUseCases, checkUseCaseMembers -->
 <!-- source: internal/le/rfc/render_ledger.go -- renderStatusPage, placeRows, statusRowCompare -->
 
 ### Coverage figures
@@ -1129,11 +1129,14 @@ naming the member, the marker, the updater and the row to write
 (`checkUpdatedByMembership`). An updater that changes a member's text but
 carries no marker is a candidate, not a member.
 
-Both answer through `| json`. Another le package reads the same members
-through `ProfileMembers`, over parsed inputs only: `ParseProfiles` over the
-profile files and `ParseMeta` over the summaries, and no RFC text. It maps
-requirement ids to stems through `RequirementStems` (parsed summaries) or
-`LoadRequirementStems` (a checkout), which read only the summaries.
+Both answer through `| json`. The roadmap's Profiles column reads the same
+required members through `requiredMembers`, called by `readRoadmapCorpus`,
+which the rfc package registers with the roadmap. It reads one committed
+revision's parsed inputs only: `ParseProfiles` over the profile files and
+`ParseMeta` over the summaries, and no RFC text. The optional tier places
+nothing in that column, so it is not read there. Requirement ids map to stems
+through `RequirementStems` (parsed summaries) or `LoadRequirementStems` (a
+checkout), which read only the summaries.
 
 The website publishes the same trees. `PriorityOf` answers the whole-corpus
 tree and one tree per profile file over a `RenderInput` the caller already
@@ -1148,7 +1151,8 @@ read back from that JSON renders its cells through `TreeRow.Cells`, the cells
 <!-- source: internal/le/rfc/priority_export.go -- PriorityOf -->
 <!-- source: internal/le/rfc/next.go -- next, gapCandidates, optionalGaps -->
 <!-- source: internal/le/rfc/check_core.go -- checkUpdatedByMembership -->
-<!-- source: internal/le/rfc/priority_export.go -- ProfileMembers, RequirementStems -->
+<!-- source: internal/le/rfc/roadmapcorpus.go -- readRoadmapCorpus, requiredMembers -->
+<!-- source: internal/le/rfc/priority_export.go -- RequirementStems -->
 <!-- source: internal/le/rfc/profile.go -- ParseProfiles -->
 
 ## The extraction sign-off

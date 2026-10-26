@@ -2,7 +2,8 @@
 // Related: register.go -- registers readRoadmapCorpus with the roadmap.
 // Related: profile.go -- ParseProfiles, the profile parser it reads through.
 // Related: meta.go -- ParseMeta, whose two use-case rows declare membership.
-// Related: priority_export.go -- RequirementStems and ProfileMembers.
+// Related: priority_export.go -- RequirementStems.
+// Related: priority.go -- useCaseScopes, the declared tiers requiredMembers reads.
 
 package rfc
 
@@ -11,13 +12,14 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 	"github.com/ze-software/ze/internal/le/spec/roadmap"
 )
 
 // readRoadmapCorpus builds the roadmap's Corpus from one revision's corpus
 // files, keyed by path, with the same parsers the checkout readers use:
 // RequirementStems and ParseMeta over the summaries, ParseProfiles over the
-// profiles, and ProfileMembers over both. No RFC text is read: membership is
+// profiles, and requiredMembers over both. No RFC text is read: membership is
 // what each summary declares, never what a citation reaches. A summary or a
 // profile that does not parse, and a use-case row naming no use case, is an
 // error naming it, because a missing declaration silently shrinks a profile.
@@ -59,14 +61,28 @@ func readRoadmapCorpus(files map[string]string) (roadmap.Corpus, error) {
 		}
 		metas[stem] = meta
 	}
-	members := ProfileMembers(profiles, metas)
+	members := requiredMembers(profiles, metas)
 	corpus.ProfileCount = len(members)
-	// The column answers which release work a spec serves, and an optional
-	// listing places nothing in a profile: required members only.
-	for profile, tiers := range members {
-		for _, stem := range tiers.Required {
+	for profile, stems := range members {
+		for _, stem := range stems {
 			corpus.ProfilesOf[stem] = append(corpus.ProfilesOf[stem], profile)
 		}
 	}
 	return corpus, nil
+}
+
+// requiredMembers answers each use-case profile's required members, sorted,
+// keyed by profile name: the summaries whose `Use cases` row names it. The
+// roadmap column answers which release work a spec serves, and an optional
+// listing places nothing in a profile, so the optional tier is not answered.
+// The members are the scope `./le rfc tree profile <name>` renders, so the two
+// cannot disagree. No edge of the dependency graph is read: a citation adds no
+// member.
+func requiredMembers(profiles Profiles, metas map[string]Meta) map[string][]string {
+	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
+	out := map[string][]string{}
+	for _, scope := range corpus.useCaseScopes(false) {
+		out[scope.name] = sortedSet(scope.members)
+	}
+	return out
 }

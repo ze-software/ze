@@ -1,7 +1,7 @@
 package rfc
 
-// VALIDATES: the exported members and requirement index another le package
-// reads (ProfileMembers, RequirementStems).
+// VALIDATES: the roadmap's required members and the requirement index
+// another le package reads (requiredMembers, RequirementStems).
 // PREVENTS: roadmap members that disagree with `./le rfc tree`, and an id
 // index that silently drops a summary that did not parse.
 
@@ -10,13 +10,14 @@ import (
 	"testing"
 )
 
-// TestProfileMembersAndRequirementStems: the members of each tier equal the
-// rows `tree profile` answers in that tier over the priority fixture, an
-// aggregate has none, and the index maps ids to stems and refuses a duplicate
-// id.
+// TestProfileMembersAndRequirementStems: the required members the roadmap
+// reads, and the optional tier of each use case, equal the rows `tree profile`
+// answers in that tier over the priority fixture, an aggregate has none, and
+// the index maps ids to stems and refuses a duplicate id.
 func TestProfileMembersAndRequirementStems(t *testing.T) {
 	corpus := priorityFixture(t, map[string]bool{})
-	members := ProfileMembers(corpus.profiles, corpus.metas)
+	members := requiredMembers(corpus.profiles, corpus.metas)
+	tiers := useCaseTiers(corpus.profiles, corpus.metas)
 	for _, name := range []string{"core", "edge", "lab"} {
 		report, err := corpus.tree(name)
 		if err != nil {
@@ -25,12 +26,13 @@ func TestProfileMembersAndRequirementStems(t *testing.T) {
 		required, optional := rowStems(report.Rows), rowStems(report.Optional.Rows)
 		slices.Sort(required)
 		slices.Sort(optional)
-		if !slices.Equal(members[name].Required, required) || !slices.Equal(members[name].Optional, optional) {
-			t.Errorf("%s members %+v, tree rows %v optional %v", name, members[name], required, optional)
+		if !slices.Equal(members[name], required) || !slices.Equal(sortedSet(tiers[name].optional), optional) {
+			t.Errorf("%s required %v optional %v, tree rows %v optional %v", name, members[name],
+				sortedSet(tiers[name].optional), required, optional)
 		}
 	}
-	if want := []string{"rfc1", "rfc2", "rfc3", "rfc4", "rfc5"}; !slices.Equal(members["edge"].Required, want) {
-		t.Errorf("edge required %v, want %v", members["edge"].Required, want)
+	if want := []string{"rfc1", "rfc2", "rfc3", "rfc4", "rfc5"}; !slices.Equal(members["edge"], want) {
+		t.Errorf("edge required %v, want %v", members["edge"], want)
 	}
 	if _, held := members["base"]; held {
 		t.Error("an aggregate has use-case members: only use-case profiles do")
