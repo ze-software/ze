@@ -62,6 +62,7 @@ func addOtherInterface(t *testing.T, lab vrrpLab) (parent, peer, macvlan string)
 		t.Fatalf("LinkByName(%s): %v", macvlan, err)
 	}
 	mustUp(t, mvLink)
+	prepareIPv4MacvlanReceiver(t, macvlan)
 	return parent, peer, macvlan
 }
 

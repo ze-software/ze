@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4861-4.6.2-6",
+    "polarity": "positive",
+    "unit": "internal/core/ndp/rfc4861_router_advertisement_test.go::TestRFC4861RouterAdvertisementReservedFieldsAreZero",
+    "unit-sha": "a0a968412f06605d",
+    "claim-sha": "3461094c391c236e",
+    "route": "revert",
+    "producer": "internal/core/ndp/ra.go::writePrefixOptions",
+    "producer-sha": "943ec463caced59a",
+    "break": "body of writePrefixOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4861-4.6.2-6",
+    "polarity": "negative",
+    "unit": "internal/core/ndp/rfc4861_router_advertisement_test.go::TestRFC4861RouterAdvertisementReservedFieldsAreZero",
+    "unit-sha": "a0a968412f06605d",
+    "claim-sha": "ef8ec1fa2458f404",
+    "route": "revert",
+    "producer": "internal/core/ndp/ra.go::writePrefixOptions",
+    "producer-sha": "943ec463caced59a",
+    "break": "body of writePrefixOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

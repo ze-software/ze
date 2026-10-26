@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4861-6.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861OnlyAnAdvertisingInterfaceSends",
+    "unit-sha": "fd1fc5f19eab95f4",
+    "claim-sha": "aae280aa956b4839",
+    "route": "revert",
+    "producer": "internal/component/iface/reconcile_ra.go::reconcileRA",
+    "producer-sha": "925c7794f5c59f39",
+    "break": "body of reconcileRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4861-6.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861OnlyAnAdvertisingInterfaceSends",
+    "unit-sha": "fd1fc5f19eab95f4",
+    "claim-sha": "8a95a3bd8a113c4b",
+    "route": "revert",
+    "producer": "internal/component/iface/reconcile_ra.go::reconcileRA",
+    "producer-sha": "925c7794f5c59f39",
+    "break": "body of reconcileRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

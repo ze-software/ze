@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861OnlyAnAdvertisingInterfaceSends",
+    "unit-sha": "fd1fc5f19eab95f4",
+    "claim-sha": "1b59f6404a4a2f65",
+    "route": "revert",
+    "producer": "internal/component/iface/reconcile_ra.go::reconcileRA",
+    "producer-sha": "925c7794f5c59f39",
+    "break": "body of reconcileRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

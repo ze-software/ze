@@ -77,7 +77,7 @@ const (
 	AttrNASIPv6Address       = 95  // RFC 3162 Section 2.1
 	AttrFramedInterfaceID    = 96  // RFC 3162 Section 2.2
 	AttrFramedIPv6Prefix     = 97  // RFC 3162 Section 2.3
-	AttrFramedIPv6Route      = 99  // RFC 6911 Section 3.2
+	AttrFramedIPv6Route      = 99  // RFC 3162 Section 2.5
 	AttrErrorCause           = 101 // RFC 5176 Section 3.5 defines it; 3.6 only tables it
 	AttrVendorSpecific       = 26
 )

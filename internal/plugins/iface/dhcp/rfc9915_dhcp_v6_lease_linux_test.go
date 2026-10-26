@@ -617,6 +617,8 @@ func TestDHCPv6ConfiguredDUIDReachesEveryMessage(t *testing.T) {
 // VALIDATES: AC-20 -- the default DUID-LL is the same in every message of
 // every run.
 func TestDHCPv6DefaultDUIDStable(t *testing.T) {
+	// RFC requirement: RFC7084-4.2-6 positive -- with no duid configured, every message of two worker runs carries the same Client ID, the DUID-LL built from the device MAC.
+	// RFC requirement: RFC7084-4.2-7 negative -- the Client ID of the second worker run, a restart, is not a different DUID from the first run's.
 	var first dhcpv6.DUID
 	for run := range 2 {
 		r := newV6Rig(t, dHCPConfig{})

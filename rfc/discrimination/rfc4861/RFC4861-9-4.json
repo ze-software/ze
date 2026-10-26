@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4861-9-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc4861_solicitation_reader_linux_test.go::TestRFC4861SubscriberSolicitationReaderIgnoresReservedAndOptions",
+    "unit-sha": "2d8611888bccedb6",
+    "claim-sha": "6b1568465d4fd2fd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ra_linux.go::rsReaderLoop",
+    "producer-sha": "4e8c790cede9713f",
+    "break": "body of rsReaderLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4861-9-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/ra/rfc4861_solicitation_reader_linux_test.go::TestRFC4861SolicitationReaderIgnoresReservedAndOptions",
+    "unit-sha": "6539893558de5d4a",
+    "claim-sha": "6b1568465d4fd2fd",
+    "route": "revert",
+    "producer": "internal/plugins/iface/ra/sender_linux.go::readSolicitations",
+    "producer-sha": "d5e2fe46f7e8d409",
+    "break": "body of readSolicitations replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

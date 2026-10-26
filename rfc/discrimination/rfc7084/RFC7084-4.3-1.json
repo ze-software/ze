@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc7084_ce_router_test.go::TestRFC7084ULAPrefixComesFromTheConfigAlone",
+    "unit-sha": "1e596eb0058f790d",
+    "claim-sha": "d81a8a149421d7a1",
+    "route": "revert",
+    "producer": "internal/component/iface/config_ra.go::raParsePrefixes",
+    "producer-sha": "9457b222add5a8b9",
+    "break": "body of raParsePrefixes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

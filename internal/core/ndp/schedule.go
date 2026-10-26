@@ -2,7 +2,7 @@
 // Detail: ra.go -- the wire encoding these timers decide when to transmit.
 // Overview: every Router Advertisement sender in Ze shares this arithmetic, so
 // one reading of the RFC governs the LAN sender and the PPP subscriber sender.
-// RFC 4861 has no rfc/short/ summary and is not enrolled.
+// RFC: rfc/short/rfc4861.md -- Sections 6.2.4, 6.2.6 and 10.
 
 package ndp
 

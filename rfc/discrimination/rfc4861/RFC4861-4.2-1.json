@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4861-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/ra/rfc4861_ra_integration_linux_test.go::TestRASenderWireFormat",
+    "unit-sha": "c6eb741ab757745f",
+    "claim-sha": "c867c923d5d11d68",
+    "route": "revert",
+    "producer": "internal/plugins/iface/ra/sender_linux.go::openRASocket",
+    "producer-sha": "5c0cfbf262928bdc",
+    "break": "body of openRASocket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

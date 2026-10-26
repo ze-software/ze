@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-17",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go::TestRFC7084SolMaxRTRequestedAndHonoured",
+    "unit-sha": "d5ac5be54ebd72c5",
+    "claim-sha": "24cfb9890ad3572d",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions",
+    "producer-sha": "d7b0ca726f3b49e3",
+    "break": "body of requestOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

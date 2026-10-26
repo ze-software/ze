@@ -151,6 +151,9 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 		t.Fatalf("LinkByName(%s): %v", macvlan, err)
 	}
 	mustUp(t, mvLink)
+	if family == packet.V4 {
+		prepareIPv4MacvlanReceiver(t, macvlan)
+	}
 
 	captureFD := openCapture(t, peerLink.Attrs().Index)
 	return vrrpLab{
@@ -160,6 +163,20 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 		peerIf:    peerLink.Attrs().Index,
 		vmac:      vmac,
 		captureFD: captureFD,
+	}
+}
+
+// prepareIPv4MacvlanReceiver mirrors the production dataplane prerequisites.
+// Linux rejects multicast on an addressless macvlan with any nonzero rp_filter,
+// even loose mode, when the source's reverse route uses its parent. The caller
+// MUST already be in setupLab's owned namespace; parent/default settings stay intact.
+func prepareIPv4MacvlanReceiver(t *testing.T, device string) {
+	t.Helper()
+	for _, name := range []string{"all", device} {
+		path := "/proc/sys/net/ipv4/conf/" + name + "/rp_filter"
+		if err := os.WriteFile(path, []byte("0"), 0o644); err != nil {
+			t.Fatalf("prepare IPv4 macvlan receiver %s: %v", path, err)
+		}
 	}
 }
 

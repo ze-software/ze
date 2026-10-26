@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc7084_ce_router_test.go::TestRFC7084WANUnitTurnsOnSLAAC",
+    "unit-sha": "670b52261f65fef4",
+    "claim-sha": "b6dfb7bb4ef62018",
+    "route": "revert",
+    "producer": "internal/component/iface/config_sysctl.go::applySysctl",
+    "producer-sha": "ab728f950cea65e0",
+    "break": "body of applySysctl replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

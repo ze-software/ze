@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC3162-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go::TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS",
+    "unit-sha": "3904ca9cae82fdb3",
+    "claim-sha": "21cd6628a8efcc7a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+    "producer-sha": "77d7d14f888ed5aa",
+    "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

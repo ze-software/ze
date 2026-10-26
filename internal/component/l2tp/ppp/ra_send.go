@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- Router Advertisement transmission for PPP IPv6.
-// RFC: rfc/full/rfc4861.txt -- Sections 6.2.4, 6.2.5, 6.2.6. RFC 4861 has no rfc/short/ summary and is not enrolled.
+// RFC: rfc/short/rfc4861.md -- Sections 6.2.4, 6.2.5, 6.2.6.
 // Related: ra.go -- RA message building.
 // Related: ra_schedule.go -- when each advertisement is due.
 // Related: ra_linux.go -- opens the ICMPv6 socket and starts these loops.

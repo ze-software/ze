@@ -103,7 +103,7 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 	}
 
 	// RFC 2865 Section 5.22: Framed-Route (multi-valued, text).
-	// RFC 6911 Section 3.2: Framed-IPv6-Route (multi-valued, text).
+	// RFC 3162 Section 2.5: Framed-IPv6-Route (multi-valued, text).
 	routes := extractFramedRoutes(resp)
 	if len(routes) > 0 {
 		meta.FramedRoutes = routes
@@ -119,7 +119,8 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 // extractFramedRoutes parses all Framed-Route (attr 22) and
 // Framed-IPv6-Route (attr 99) attributes from a RADIUS response.
 // RFC 2865 Section 5.22: format is "destination[/mask] gateway [metric]".
-// RFC 6911 Section 3.2: format is "prefix/len gateway [metric]".
+// RFC 3162 Section 2.5: format is "prefix[/len] gateway metric...", and a
+// gateway of :: means the subscriber itself.
 // Malformed entries are silently skipped.
 func extractFramedRoutes(resp *radius.Packet) []l2tp.FramedRoute {
 	var routes []l2tp.FramedRoute

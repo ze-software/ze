@@ -12,7 +12,7 @@ import (
 // FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
 // or Framed-IPv6-Route (attr 99). The prefix is the destination network
 // and metric is the route priority.
-// RFC 2865 Section 5.22, RFC 6911 Section 3.2.
+// RFC 2865 Section 5.22, RFC 3162 Section 2.5.
 type FramedRoute struct {
 	Prefix netip.Prefix
 	Metric uint32
@@ -43,7 +43,7 @@ type AuthMetadata struct {
 	FilterID            string
 	CoSProfile          string        // "cos:<name>" extracted from Filter-Id; empty if none
 	AcctInterimInterval uint32        // seconds, 0 = not set
-	FramedRoutes        []FramedRoute // RFC 2865 attr 22 + RFC 6911 attr 99
+	FramedRoutes        []FramedRoute // RFC 2865 attr 22 + RFC 3162 attr 99
 }
 
 type metadataKey struct {

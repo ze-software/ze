@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4861-6.2.6-2",
+    "polarity": "positive",
+    "unit": "internal/core/ndp/rfc4861_router_advertisement_test.go::TestRFC4861SolicitedAnswerDelayIsRandomUpToMaxRADelayTime",
+    "unit-sha": "e7daf27ac059b895",
+    "claim-sha": "5849781b12c221f3",
+    "route": "revert",
+    "producer": "internal/core/ndp/schedule.go::SolicitedDelay",
+    "producer-sha": "54be463dab0cd45e",
+    "break": "body of SolicitedDelay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

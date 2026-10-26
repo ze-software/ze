@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4861-6.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861MinRtrAdvIntervalBounds",
+    "unit-sha": "2e4406e8fbfc5e1e",
+    "claim-sha": "9054125f2ea0007e",
+    "route": "revert",
+    "producer": "internal/component/iface/config_ra.go::raValidate",
+    "producer-sha": "4101eaee1e6c87e3",
+    "break": "body of raValidate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4861-6.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861MinRtrAdvIntervalBounds",
+    "unit-sha": "2e4406e8fbfc5e1e",
+    "claim-sha": "a15b08e706081b40",
+    "route": "revert",
+    "producer": "internal/component/iface/config_ra.go::raValidate",
+    "producer-sha": "4101eaee1e6c87e3",
+    "break": "body of raValidate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

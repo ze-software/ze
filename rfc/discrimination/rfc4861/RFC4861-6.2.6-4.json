@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4861-6.2.6-4",
+    "polarity": "negative",
+    "unit": "internal/core/ndp/rfc4861_router_advertisement_test.go::TestRFC4861UnsolicitedIntervalIsNeverBelowMinRtrAdvInterval",
+    "unit-sha": "52a71c30ee107036",
+    "claim-sha": "80583a158c4fa643",
+    "route": "revert",
+    "producer": "internal/core/ndp/schedule.go::UnsolicitedInterval",
+    "producer-sha": "b701cde0f2bcdfae",
+    "break": "body of UnsolicitedInterval replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

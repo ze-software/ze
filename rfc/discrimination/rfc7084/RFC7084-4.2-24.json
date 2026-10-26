@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-24",
+    "polarity": "negative",
+    "unit": "internal/component/plugin/server/rfc7084_wan_routing_test.go::TestRFC7084InterfaceOnlyConfigStartsNoRoutingProtocol",
+    "unit-sha": "5908292fe447722c",
+    "claim-sha": "c2507f4ec68f6251",
+    "route": "revert",
+    "producer": "internal/component/plugin/server/startup_autoload.go::getConfigPathPlugins",
+    "producer-sha": "234825f909cb3f6e",
+    "break": "body of getConfigPathPlugins replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4861-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/transport/rfc4861_unsolicited_na_test.go::TestRFC4861UnsolicitedNAClearsTheSolicitedFlag",
+    "unit-sha": "c0323c5dabfea614",
+    "claim-sha": "1e46058356742075",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/na.go::BuildNA",
+    "producer-sha": "56148ef852cbf5a7",
+    "break": "body of BuildNA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

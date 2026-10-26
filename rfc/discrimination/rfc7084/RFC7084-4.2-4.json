@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc7084_ce_router_test.go::TestRFC7084DiscoveredRouterBecomesTheDefaultRoute",
+    "unit-sha": "96c4dc76613a6041",
+    "claim-sha": "baaabacfe54afd84",
+    "route": "revert",
+    "producer": "internal/component/iface/register.go::handleRouterDiscovered",
+    "producer-sha": "51eafa5b0194d4e7",
+    "break": "body of handleRouterDiscovered replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

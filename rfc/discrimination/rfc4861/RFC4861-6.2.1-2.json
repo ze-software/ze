@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4861-6.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861AdvSendAdvertisementsIsFalseByDefault",
+    "unit-sha": "e40a31f1e1c89958",
+    "claim-sha": "ea11e5311bceb340",
+    "route": "revert",
+    "producer": "internal/component/iface/config_ra.go::parseRAConfig",
+    "producer-sha": "6db1cce63f1104b0",
+    "break": "body of parseRAConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

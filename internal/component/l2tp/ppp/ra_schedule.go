@@ -3,7 +3,7 @@
 //
 // The arithmetic this file schedules with lives in internal/core/ndp, shared
 // with the LAN Router Advertisement sender, so one reading of the RFC governs
-// both. RFC 4861 has no rfc/short/ summary and is not enrolled.
+// both. Summary: rfc/short/rfc4861.md.
 
 package ppp
 

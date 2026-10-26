@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-21",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go::TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses",
+    "unit-sha": "1e4f417a951926dd",
+    "claim-sha": "0a798975e8146aa1",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::takeLease",
+    "producer-sha": "780a91ef0a9ac2be",
+    "break": "body of takeLease replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

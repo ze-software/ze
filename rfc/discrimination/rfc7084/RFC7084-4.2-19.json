@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.2-19",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go::TestRFC7084RequestingRouterSolicitsIAPD",
+    "unit-sha": "7a79bfa050e47771",
+    "claim-sha": "c6e226f76a745c2d",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::emptyIAPD",
+    "producer-sha": "9724649806689b09",
+    "break": "body of emptyIAPD replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
