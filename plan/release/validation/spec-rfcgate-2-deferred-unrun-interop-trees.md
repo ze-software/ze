@@ -37,8 +37,8 @@ of a job or a derived tier is not a successful scenario run.
 | Native carrier | Runner | Scheduled caller |
 |---|---|---|
 | `internal/le/interoplab/ipsec/` | `./le test integration interop-ipsec` | `ipsec-interop` |
-| `internal/le/interoplab/l2tp/` | `./le test deployment docker-l2tp-ppp-test` | `l2tp-interop` |
-| `internal/le/interoplab/pppoe/` | `./le test deployment docker-pppoe-accel-test` | `pppoe-interop` |
+| `internal/le/interoplab/l2tp/` | `./le test deployment docker-l2tp-ppp` | `l2tp-interop` |
+| `internal/le/interoplab/pppoe/` | `./le test deployment docker-pppoe-accel` | `pppoe-interop` |
 
 All callers are in `.github/workflows/evidence-nightly.yml`.
 `scheduledActionsFrom` and `interopCarriers` in `internal/le/rfc/carriers.go`

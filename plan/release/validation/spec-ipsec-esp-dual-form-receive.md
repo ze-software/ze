@@ -527,7 +527,7 @@ choice. Phase 2 is the wiring phase the template asks for.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Every assumption answered | Read the Assumptions table. No row is `unvalidated` |
-| The dual-form QEMU test exists and passes | `./le test qemu run command "./le test qemu all-tests"`, output pasted |
+| The dual-form QEMU test exists and passes | `./le test qemu run command "./le test qemu all"`, output pasted |
 | The route decision is recorded | Key Design Decisions names the chosen route and each rejected route |
 | The `.ci` tests exist | `ls test/ipsec/ipsec-esp-form-change.ci` |
 | The disclosure is updated | `grep -n "form change" docs/features/rfc-status.md` |
@@ -602,7 +602,7 @@ The QEMU package supports exactly ONE namespace probe per test BINARY. Run alone
 three probes pass. Run together, the first passes and every later one reports that no
 counter moved. It is not caused by the new probes: the PRE-EXISTING
 `TestEncapKernelBindsOneESPFormPerState` under `-count=2` passes its first iteration and
-fails its second, with no new code involved. `./le test qemu run command "./le test qemu all-tests"` runs the whole
+fails its second, with no new code involved. `./le test qemu run command "./le test qemu all"` runs the whole
 package, so this must be fixed or the target reads red for a product reason that does not
 exist.
 
@@ -767,7 +767,7 @@ reaches it. That is why the interop scenario is a deliverable and not a nicety.
 
 ### One flaky QEMU reading, tried and not reproduced
 
-the retired `ze-qemu-integration-test` (current: `./le test qemu run command "./le test qemu all-tests"`) over this package failed ONCE on
+the retired `ze-qemu-integration-test` (current: `./le test qemu run command "./le test qemu all"`) over this package failed ONCE on
 `TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated` with "expected exactly one
 counter to move, got []", meaning the injected datagram reached no counter at all. It
 is recorded rather than fixed because the mechanism was tried and did not reproduce,
@@ -947,7 +947,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 | `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
 | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | The original refusal-only test proposal is superseded. AC-5 remains unresolved and requires the real-VPP dual-form decryption measurement under the 2026-09-05 ruling; neither refusal nor the withdrawn source reading discharges it |
 | `internal/le/qemu/alltests.go` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
-| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `./le rfc index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
+| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `./le rfc update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
 | Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
 
 ## Known Limitations
@@ -957,7 +957,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
   the interface a VPP SPD binds to.
 - The interop scenarios cannot carry an RFC tag, because `test/interop-ipsec/` is
   `TIER_UNRUN`. Compliance evidence stays at unit tier or functional tier.
-- `./le test qemu run command "./le test qemu all-tests"` is not automated anywhere. Every QEMU result in this spec
+- `./le test qemu run command "./le test qemu all"` is not automated anywhere. Every QEMU result in this spec
   is produced by hand and pasted.
 
 ## RFC Documentation (Scope: protocol)
@@ -983,7 +983,7 @@ on its header rules.
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
-- [ ] `./le test qemu run command "./le test qemu all-tests"` RUN by hand, output pasted
+- [ ] `./le test qemu run command "./le test qemu all"` RUN by hand, output pasted
 - [ ] The owner authorized every edit to a tagged RFC test, in writing
 
 ### TDD

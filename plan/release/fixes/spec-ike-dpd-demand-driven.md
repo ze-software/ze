@@ -294,7 +294,7 @@ Path B, the Child SA liveness signal that does not exist:
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The Linux kernel updates `Statistics.UseTime` and `Statistics.Packets` on the **inbound** SAD state when an ESP packet is received, not only on output | Inferred from `saInfoFromState` reading both from the dump, and from `show vpn ipsec sa` advertising `packets-in` as a real number. **Not verified against kernel behavior** | The whole Child SA half of S-4 loses its signal, and only Option A remains reachable | A `_linux_test.go` integration test under `./le test qemu run command "./le test qemu all-tests"`: install a Child SA, send traffic through it, dump the SAD, assert the inbound SPI's `PacketsCurrent` rose and `UsedAt` moved | unvalidated |
+| A-1 | The Linux kernel updates `Statistics.UseTime` and `Statistics.Packets` on the **inbound** SAD state when an ESP packet is received, not only on output | Inferred from `saInfoFromState` reading both from the dump, and from `show vpn ipsec sa` advertising `packets-in` as a real number. **Not verified against kernel behavior** | The whole Child SA half of S-4 loses its signal, and only Option A remains reachable | A `_linux_test.go` integration test under `./le test qemu run command "./le test qemu all"`: install a Child SA, send traffic through it, dump the SAD, assert the inbound SPI's `PacketsCurrent` rose and `UsedAt` moved | unvalidated |
 | A-2 | `UsedAt` has one-second resolution and `PacketsCurrent` is monotonic within an SA's life | `unixOrZero` (`xfrm_linux.go`) converts epoch SECONDS and maps 0 to the zero time | A sub-second DPD interval cannot be driven off `UsedAt`. A delta of `PacketsCurrent` becomes the only usable signal | Same integration test as A-1 | unvalidated |
 | A-3 | A full SAD dump per peer per second is too expensive to ship, so any polling design shares one dump | `ListSAs` (`xfrm_linux.go`) dumps `FAMILY_ALL` and filters in userspace; `maintainSA`'s ticker is 1 second per peer session (`established.go` line 158) | The design can be simpler than assumed and no sharing is needed | A benchmark, or a measured QEMU run with N peers | unvalidated |
 | A-4 | `out.peerAlive` is set only for messages that satisfy S-4's "fresh, i.e., not retransmitted" | `handleOwnedInbound` (`inbound.go`): the out-of-window arm returns an empty outcome at line 146 and the cached-retransmit arm at line 102 | Crediting liveness on a replay would let an attacker mask a dead peer, which is the failure the existing comments say they prevent | Read the three return sites; the existing `rfc7296_retransmit_test.go` and `rfc7296_invalidmsgid_test.go` already assert `!out.peerAlive` on those paths | unvalidated |
@@ -394,7 +394,7 @@ with no proof of life". That is a change in a documented config leaf's meaning
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | (fill during design, after Q-1 is answered) | (fill during design) |
-| AC-2 | RFC7296-2.4-2, `weak` in `rfc/audit/rfc7296.json` with an empty `tests` map (its note names `newDPDState`); moved here by P-3 and AC-10 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` | a tagged test proves the whole quoted sentence in both polarities, carries a discrimination record from `./le rfc discriminate-record`, and an agent that did not write the test re-judges the verdict `enforced` through `./le rfc audit-stamp ... mode rejudge` |
+| AC-2 | RFC7296-2.4-2, `weak` in `rfc/audit/rfc7296.json` with an empty `tests` map (its note names `newDPDState`); moved here by P-3 and AC-10 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` | a tagged test proves the whole quoted sentence in both polarities, carries a discrimination record from `./le rfc record`, and an agent that did not write the test re-judges the verdict `enforced` through `./le rfc audit-stamp ... mode rejudge` |
 
 ## End-to-End User Stories
 
@@ -429,8 +429,8 @@ a strict improvement to coverage and needs no permission.
 **Known constraint.** `test/ipsec/` holds no `needs-linux` `.ci` today, so the
 existing suite runs without a real XFRM dataplane. A functional test of the
 Child SA observation path therefore needs either a `needs-linux` `.ci` run under
-`./le test qemu run command "./le test qemu all-tests"`, or a `_linux_test.go` integration test under
-`./le test qemu run command "./le test qemu all-tests"` alongside the existing
+`./le test qemu run command "./le test qemu all"`, or a `_linux_test.go` integration test under
+`./le test qemu run command "./le test qemu all"` alongside the existing
 `child_policy_delete_integration_linux_test.go` and
 `xfrm_readback_integration_linux_test.go`.
 

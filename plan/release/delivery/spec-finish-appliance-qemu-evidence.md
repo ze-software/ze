@@ -24,7 +24,7 @@ rows were left pointing at the deleted spec file, so `commit_helper.py` refuses 
 "live deferrals without a destination spec". This spec is that destination.
 
 Its closure record stated the residue plainly: the full L2TP evidence test
-(`./le test deployment gokrazy-l2tp-ppp-test`) needs root, and "AC-3's end-to-end qemu run remains
+(`./le test deployment gokrazy-l2tp-ppp`) needs root, and "AC-3's end-to-end qemu run remains
 to be executed on a root host".
 
 ### Work items (re-homed 2026-07-16 from `plan/deferrals.md`)
@@ -32,7 +32,7 @@ to be executed on a root host".
 - **Full QEMU gokrazy L2TP appliance proof (from spec-gokrazy-init-bump AC-6, 2026-07-10)** -
   **DISCHARGED 2026-08-05.** It ran at the source spec's closure on the dev host, which by
   then carried `qemu-system-x86_64`, `xl2tpd`, `pppd`, `/dev/ppp`, `l2tp_ppp` and kvm-group
-  access: `./le test qemu vpp-hugepages-test` -> `VPP-HUGEPAGES-QEMU: PASS cmdline has
+  access: `./le test qemu vpp-hugepages` -> `VPP-HUGEPAGES-QEMU: PASS cmdline has
   hugepages=64, hugepages-total=64`, and `internal/le/deployment/gokrazyimage.go`
   -> exit 0, `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC
   ppp0, dataplane ping, route inject, and clean teardown`. The row in
@@ -45,7 +45,7 @@ to be executed on a root host".
   Under `sudo` it probes ROOT's cache, so pass `XDG_CACHE_HOME` at the cache holding the
   kernel.
   -> Constraint (added 2026-08-03 at the source spec's closure): the boot proof is
-  `./le test qemu vpp-hugepages-test` plus `./le test deployment gokrazy-l2tp-ppp-test`.
+  `./le test qemu vpp-hugepages` plus `./le test deployment gokrazy-l2tp-ppp`.
   It is NOT `test/appliance/serial-login.ci`, which boots nothing and which the
   source spec wrongly named (`ai/rules/platform-linux.md` strikes it out of the
   proof table).
@@ -84,7 +84,7 @@ code and forbids skipping for "needs hardware". Read it before proposing any nar
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (fill during research -- these are the entry points, not yet read)
-- [ ] `internal/le/integration/gates.go` - defines the `./le test deployment gokrazy-l2tp-ppp-test` target this spec must execute
+- [ ] `internal/le/integration/gates.go` - defines the `./le test deployment gokrazy-l2tp-ppp` target this spec must execute
 - [ ] `internal/plugins/init/main.go` - holds the `daemonRunning` guard that `spec-fixit-appliance-evidence-config` fixed (bug 1: false positive against host sshd:22)
 
 **Behavior to preserve:** the two fixes from `spec-fixit-appliance-evidence-config` (bootstrap-from-template, daemonRunning guard).
@@ -121,7 +121,7 @@ run reveals a defect, that defect gets its own spec.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The two bugs that blocked this run are fixed, so the only remaining barrier is the host environment (root + `/dev/ppp` + PPPoL2TP) | The closed spec's record documents both fixes and says only the run "remains to be executed on a root host" | If a third blocker exists, this is an implementation spec, not an evidence run, and needs a real design pass | Execute the run on a qualifying host and read the first failure | unvalidated |
-| A-2 | Both deferral rows (gokrazy-init-bump AC-6, iface-absent-link-graceful AC-3) are satisfied by ONE run | Both name the same `./le test deployment gokrazy-l2tp-ppp-test` L2TP-session proof | If they need different assertions, this spec covers one and the other stays homeless | Read both source specs' AC text before running | unvalidated |
+| A-2 | Both deferral rows (gokrazy-init-bump AC-6, iface-absent-link-graceful AC-3) are satisfied by ONE run | Both name the same `./le test deployment gokrazy-l2tp-ppp` L2TP-session proof | If they need different assertions, this spec covers one and the other stays homeless | Read both source specs' AC text before running | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -153,7 +153,7 @@ run reveals a defect, that defect gets its own spec.
      evidence RUN, not a new .ci; the existing target is named below. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le test deployment gokrazy-l2tp-ppp-test` | `test/deployment/` (`.ci` path to confirm during research) | An operator boots the gokrazy appliance image and an xl2tpd/pppd client establishes an L2TP session against it. | planned |
+| `./le test deployment gokrazy-l2tp-ppp` | `test/deployment/` (`.ci` path to confirm during research) | An operator boots the gokrazy appliance image and an xl2tpd/pppd client establishes an L2TP session against it. | planned |
 
 ## Files to Modify
 - (fill during design) - expected: none, or evidence capture only
@@ -186,7 +186,7 @@ run reveals a defect, that defect gets its own spec.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| One spec for both rows | One spec each | Both name the same `./le test deployment gokrazy-l2tp-ppp-test` run blocked on the same environment. Two specs would duplicate the same evidence. |
+| One spec for both rows | One spec each | Both name the same `./le test deployment gokrazy-l2tp-ppp` run blocked on the same environment. Two specs would duplicate the same evidence. |
 | Re-home into `spec-finish-*` rather than recreate the retired filename | Recreate `spec-fixit-appliance-evidence-config.md` | Its bugs ARE fixed; recreating it would misrepresent finished work as open and break `git log --follow`. `spec-finish-<subsystem>` is the documented convention for residual bits (`plan/deferrals.md` header). |
 
 ## Known Limitations

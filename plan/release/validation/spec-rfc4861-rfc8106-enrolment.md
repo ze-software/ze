@@ -51,9 +51,9 @@ Nothing about them is visible to the program that spec runs.
 - Extract every requirement, and enrol both stems in `rfc/enrolled.txt`.
 - Tag the tests that already prove requirements, and write the tests that are
   missing, in both polarities where the requirement admits one.
-- Record the discrimination for each tag with `./le rfc discriminate-record`.
+- Record the discrimination for each tag with `./le rfc record`.
 - The two `docs/features/rfc-status.md` rows follow from the `## Meta` table of
-  each summary and `./le rfc index-update`. They are never hand-edited.
+  each summary and `./le rfc update`. They are never hand-edited.
 
 ## The size, measured 2026-09-05
 
@@ -149,8 +149,8 @@ a requirement it finds unmet is a defect fixed at its producer.
 1. `/ze-rfc` writes each summary, requirement by requirement.
 2. Extraction turns each summary into requirement ids `./le rfc check` reads.
 3. Each id is bound to a tagged test, or to a reasoned annotation Thomas ruled on.
-4. `./le rfc discriminate-record` observes the red for each tag and stores it.
-5. `./le rfc index-update` regenerates `docs/features/rfc-status.md` from the
+4. `./le rfc record` observes the red for each tag and stores it.
+5. `./le rfc update` regenerates `docs/features/rfc-status.md` from the
    `## Meta` table of each summary.
 
 ### Boundaries Crossed
@@ -159,7 +159,7 @@ a requirement it finds unmet is a defect fixed at its producer.
 | RFC text ↔ summary | `/ze-rfc` extraction, signed off | [ ] |
 | summary ↔ gate | `rfc/enrolled.txt` plus `./le rfc check` | [ ] |
 | requirement ↔ test | `RFC requirement:` tag on a test that fails without the producer | [ ] |
-| summary ↔ public ledger | `./le rfc index-update` | [ ] |
+| summary ↔ public ledger | `./le rfc update` | [ ] |
 
 ### Integration Points
 `rfc/short/`, `rfc/full/`, `rfc/enrolled.txt`, `rfc/discrimination/`,
@@ -212,7 +212,7 @@ a requirement it finds unmet is a defect fixed at its producer.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 9 | RFC behavior implemented, changed, or newly proven? | yes | `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md`, then `./le rfc index-update` |
+| 9 | RFC behavior implemented, changed, or newly proven? | yes | `rfc/short/rfc4861.md`, `rfc/short/rfc8106.md`, then `./le rfc update` |
 | 11 | Affects daemon comparison? | check | `docs/comparison.md` if a support level moves |
 
 ## Checklist

@@ -374,7 +374,7 @@ a tag.
 - `internal/le/integration/gates.go` - the QEMU target
 - `rfc/short/rfc7296.md` - the four checklist rows and the Section Index entry
 - `docs/features/rfc-status.md` - RFC 7296 row
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc index-update`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc update`
 
 ## Files to Create
 - `internal/component/ike/engine/rfc7296_ipcomp_test.go` - the tagged compliance tests
@@ -489,7 +489,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
    - Verify: `ze doctor --json` reports the check, the QEMU target passes, and both strongSwan
      scenarios pass
 8. **Phase: Compliance rows and documentation**
-   - Tests: `./le rfc check`, `./le doc check verify`
+   - Tests: `./le rfc check`, `./le doc check all`
    - Files: `rfc/short/rfc7296.md`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`,
      the documentation checklist rows
    - Verify: the four rows land in one commit at `-1` through `-4`, and the regenerated ledger
@@ -523,7 +523,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 |-------------|---------------------|
 | The four rows exist in the summary | `grep -c 'RFC7296-2\.22-' rfc/short/rfc7296.md` returns 4 |
 | The four rows are proven | `./le rfc check` passes and `ai/RFC-REQUIREMENTS.md` shows four bound rows |
-| The ledger is fresh | `./le rfc index-update` produces no diff |
+| The ledger is fresh | `./le rfc update` produces no diff |
 | Compression is off by default | `test/ipsec/ipsec-ipcomp-disabled.ci` passes |
 | Both backends are covered | `TestXFRMInstallsCompressionState` and `TestVPPBackendRefusesCompression` pass |
 | The kernel path is proven | The QEMU target passes |

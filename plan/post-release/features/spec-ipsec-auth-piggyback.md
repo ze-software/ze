@@ -504,7 +504,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
      reads the state. R-1 is closed here
 7. **Phase: Interoperability and documentation**
    - Tests: scenarios `auth-piggyback` and `auth-piggyback-attach`,
-     `./le doc check verify`, `./le rfc check`
+     `./le doc check all`, `./le rfc check`
    - Files: the two scenario directories, the documentation checklist rows
    - Verify: both strongSwan scenarios pass, and no RFC row lost a polarity
 
@@ -539,7 +539,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 | The bound is enforced | `test/ipsec/ipsec-auth-piggyback-expiry.ci` passes |
 | The initiator invents no SPI | `TestInitiatorInstallsNoChildSAWhenNoneAccepted` passes |
 | `RFC7296-2.21.2-2` keeps both polarities | `./le rfc check` passes, and `ai/RFC-REQUIREMENTS.md` still shows both columns filled |
-| The ledger is fresh | `./le rfc index-update` produces no diff |
+| The ledger is fresh | `./le rfc update` produces no diff |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/interop-ipsec/` returns nothing |
 | Interoperability is proven | Scenarios `auth-piggyback` and `auth-piggyback-attach` pass |
 | The operator can read the state | `test/ipsec/ipsec-show-sa-no-child.ci` passes |

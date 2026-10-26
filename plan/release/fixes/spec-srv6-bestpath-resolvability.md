@@ -103,7 +103,7 @@ MUST NOT edit those tests.
 - [ ] `rfc/full/rfc9252.txt` Sections 5, 6 and 7 - the authoritative sentences
   → Constraint: the same MUST appears in Section 5 (L3) and Section 6 (EVPN), so the check binds every family carrying a Service SID
 - [ ] `docs/contributing/rfc-conformance-gates.md` - what a new tag owes
-  → Constraint: a tag ADDED in this change owes a discrimination record in the SAME change, observed by `./le rfc discriminate-record`, or `./le rfc check` refuses it
+  → Constraint: a tag ADDED in this change owes a discrimination record in the SAME change, observed by `./le rfc record`, or `./le rfc check` refuses it
 
 **Key insights:**
 - The oracle already exists and is a pure function of shared state: `nhResolver.Resolve` (`internal/component/sysrib/nhresolver.go`) reads only `locrib.RIB.LPM`, walks at most `maxRecursionDepth` hops, and stops on a self-referencing route. Nothing else in sysrib feeds it.
@@ -294,7 +294,7 @@ MUST NOT edit those tests.
 - `internal/component/sysrib/reachable_seam_test.go` - the producer-side tests
 - `test/plugin/srv6-bestpath-unresolvable.ci`, `test/plugin/srv6-bestpath-resolvable.ci`, `test/plugin/srv6-bestpath-static-wins.ci` - the functional tests
 - `test/interop/scenarios/bgp-srv6-resolvability-frr/` - the interop scenario, with `ze.conf` and `frr.conf`
-- `rfc/discrimination/rfc9252.json` - written by `./le rfc discriminate-record`, not by hand
+- `rfc/discrimination/rfc9252.json` - written by `./le rfc record`, not by hand
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -323,7 +323,7 @@ MUST NOT edit those tests.
 | 6 | Has a user guide page? | Yes | `docs/features/srv6.md`. It carries an OVER-CLAIM this spec's work is what makes true: line 195 publishes `\| SID resolvability check \| 5 \| Implemented (Loc-RIB LPM) \|`, and the check runs at FIB install rather than before best-path, which is what Section 5 requires. Measured 2026-09-08. `ai/rules/rfc-compliance.md` allows one repair and it is this spec: PROVE the claim. Lowering the row instead is banned, because it would leave Ze exactly as non-conformant and only the ledger would change. The row is corrected to describe the real placement when this spec closes, never before |
 | 7 | Wire format changed? | No | No encoding changes; only which path is selected |
 | 8 | Plugin SDK/protocol changed? | No | The seam is internal, not part of `pkg/plugin` |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9252.md` (`RFC9252-5-2` and the `## Meta` rows); `rfc/requirements/rfc9252.md` and `docs/features/rfc-status.md` regenerate through `./le rfc index-update` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9252.md` (`RFC9252-5-2` and the `## Meta` rows); `rfc/requirements/rfc9252.md` and `docs/features/rfc-status.md` regenerate through `./le rfc update` |
 | 10 | Test infrastructure changed? | No | Existing `.ci` and interop harnesses, new cases only |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` -- SRv6 resolvability is a behavior other daemons implement |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (the seam) and `docs/architecture/plugin/rib-storage-design.md` (the filter and the worker) |
@@ -358,7 +358,7 @@ MUST NOT edit those tests.
 6. **Phase: The ledger and the pages**
    - Tests: `./le rfc check`
    - Files: `rfc/short/rfc9252.md`, `docs/features/srv6.md`, `docs/features.md`, `docs/comparison.md`, `docs/architecture/core-design.md`, `docs/architecture/plugin/rib-storage-design.md`
-   - Verify: `./le rfc discriminate stem rfc9252 report <path>` proposes the breaks, `./le rfc discriminate-record` observes one and writes `rfc/discrimination/rfc9252.json`, and `./le rfc index-update` regenerates `rfc/requirements/rfc9252.md`
+   - Verify: `./le rfc discriminate stem rfc9252 report <path>` proposes the breaks, `./le rfc record` observes one and writes `rfc/discrimination/rfc9252.json`, and `./le rfc update` regenerates `rfc/requirements/rfc9252.md`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -456,7 +456,7 @@ that Section 6 repeats it for EVPN. The two tagged tests are:
 | Positive | `RFC requirement: RFC9252-5-2 positive -- a path whose SRv6 Service SID resolves in the Loc-RIB is admitted to best-path candidate selection` | `internal/component/bgp/plugins/rib/srv6_resolvability_test.go` |
 
 The claim states what the test body checks and no more. Both tags are NEW, so
-the change owes a discrimination record from `./le rfc discriminate-record`.
+the change owes a discrimination record from `./le rfc record`.
 
 ## Checklist
 
@@ -494,7 +494,7 @@ the change owes a discrimination record from `./le rfc discriminate-record`.
 - [ ] Functional `.ci` tests for end-to-end behavior
 - [ ] Interop tests for protocol features (or N-A with a reason)
 - [ ] The revert-rebuild-RED walk recorded for each functional and interop test
-- [ ] `./le rfc discriminate-record` has written `rfc/discrimination/rfc9252.json`
+- [ ] `./le rfc record` has written `rfc/discrimination/rfc9252.json`
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

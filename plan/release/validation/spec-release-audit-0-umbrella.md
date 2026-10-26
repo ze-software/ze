@@ -161,7 +161,7 @@ belong in separate future fix work approved after the audit finding is filed.
 - `plan/release/validation/spec-release-evidence-gate.md` supplies the heavyweight evidence target once implemented.
 - `plan/spec-rbac-audit.md` owns known RBAC/audit hardening work.
 - `./le verify current mode full` remains the default proof for ordinary code changes.
-- `./le test integration interop`, `./le test functional exabgp-test`, `./le test qemu run command "./le test qemu all-tests"`, `./le chaos selftest unit`, `./le test fuzz run`, and deployment/perf targets supply release evidence by risk area.
+- `./le test integration interop`, `./le test functional exabgp`, `./le test qemu run command "./le test qemu all"`, `./le chaos selftest unit`, `./le test fuzz run`, and deployment/perf targets supply release evidence by risk area.
 
 ### Architectural Verification
 
