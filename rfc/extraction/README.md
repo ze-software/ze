@@ -1,8 +1,8 @@
 # Extraction sign-offs
 
 One file per RFC, `rfc/extraction/<stem>.json`. Derived as a skeleton by
-`./le rfc extraction-create stem <stem>`, classified by hand, applied by
-`./le rfc extraction-classify decisions <path>`, and re-checked by `./le rfc check` on
+`./le rfc extraction create stem <stem>`, classified by hand, applied by
+`./le rfc extraction classify decisions <path>`, and re-checked by `./le rfc check` on
 every run.
 
 **The skeleton is written to this session's scratch, not here.** It reaches
@@ -90,7 +90,7 @@ is what the command can produce, the second is what a person can copy.
 
 ## Applying a walk
 
-`./le rfc extraction-classify decisions <path>` writes the decisions of one walk into the
+`./le rfc extraction classify decisions <path>` writes the decisions of one walk into the
 skeleton. It transcribes, and it authors nothing: it writes no disposition the decisions
 file does not name, holds no default, matches no locator pattern, and refuses a decision
 for a site the source does not derive. Where a site is left out it stays `null`, and the
@@ -229,11 +229,11 @@ which sites are left.
 | Kind | Means | Extra obligation |
 |---|---|---|
 | `not-a-requirement` | the keyword is in non-normative use: a quotation, a description of another system, boilerplate the extractor did not strip | the reason names which |
-| `binds-another-role` | the obligation binds a role Ze does not implement (a CA, a registry, an IANA action, the peer) | the reason names the role, and `extraction-classify` costs it a `producer` the reason carries |
+| `binds-another-role` | the obligation binds a role Ze does not implement (a CA, a registry, an IANA action, the peer) | the reason names the role, and `extraction classify` costs it a `producer` the reason carries |
 | `duplicate-of` | restates an obligation already captured | `mapped-to` must name an id that some OTHER site maps |
 | `cross-document` | the obligation belongs to another RFC the sentence cites | -- |
 | `advisory-in-context` | the capitalised keyword sits inside a SHOULD/MAY construction the splitter mis-cut | the reason quotes the enclosing construction |
-| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, and `extraction-classify` checks that quote against the source text; it also names the producer showing ze does not offer it, and says the absent feature is disclosed on `docs/features/rfc-status.md`, through the summary's own `Support` rows |
+| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, and `extraction classify` checks that quote against the source text; it also names the producer showing ze does not offer it, and says the absent feature is disclosed on `docs/features/rfc-status.md`, through the summary's own `Support` rows |
 | `relocated-to-spec` | the obligation IS owed, by a named spec, and it left this summary by an owner ruling | `relocated-to` names the spec, `reserved-id` names the id reserved for it there |
 
 ### `feature-out-of-scope`: a DECISION, not a gap
@@ -304,7 +304,7 @@ show a reviewer. `_git_baseline_extractions` counts `disposition == "excluded"` 
 blob and never reads the kind, so one definition on both sides also keeps the comparison
 from splitting across two parsers. The relocated SUBSET is then published on its own, in
 `ai/RFC-REQUIREMENTS.md` below the table and as `relocated` in
-`./le rfc extraction-status`, because a homed obligation and a dismissed sentence are
+`./le rfc extraction report`, because a homed obligation and a dismissed sentence are
 not the same fact. That line is derived, so it appears exactly when a relocation exists.
 
 ### Section skip kinds (closed set)

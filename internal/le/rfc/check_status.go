@@ -366,7 +366,7 @@ func checkSupportedSignoff(rows map[string]LedgerRow, signed map[string]Extracti
 		errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").
 			Str(status).Str("', but rfc/extraction/").Str(stem).
 			Str(".json is not a valid extraction sign-off, so nothing bounds what rfc/short/").
-			Str(stem).Str(".md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem ").
+			Str(stem).Str(".md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction create stem ").
 			Str(stem).Str(". A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check").String())
 	}
 	return errs

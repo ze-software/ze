@@ -633,7 +633,7 @@ func TestRFCCheckReportsTheDrainFloorViolation(t *testing.T) {
 		"capped at the 1 enrolled RFC(s)",
 		"and there are 0 (rfc2119 0, prose 0, manual-walk 0",
 		"leaving 1 unsigned",
-		"./le rfc extraction-create stem <stem>",
+		"./le rfc extraction create stem <stem>",
 	} {
 		if !strings.Contains(violation, want) {
 			t.Errorf("the drain violation does not name %q:\n%s", want, violation)
@@ -744,7 +744,7 @@ func supportClaimSplit(statuses []string) (exact, qualified, yes int) {
 // The map comes from the producer rather than being typed here, because the property
 // under test is that checkSupportedSignoff and the sign-off evaluator agree on what
 // "signed" means. When skeleton is true every site carries a null disposition, which is
-// the state `./le rfc extraction-create` writes and the state R-1 predicts a session will
+// the state `./le rfc extraction create` writes and the state R-1 predicts a session will
 // generate in bulk. The evaluator refuses it, so the stem is absent from the map.
 func signedExtractionFixture(t *testing.T, skeleton bool) map[string]Extraction {
 	t.Helper()
@@ -816,7 +816,7 @@ func TestCheckSupportedSignoffRefusesUnsignedSupportedRow(t *testing.T) {
 		t.Fatalf("an unsigned Supported row answered %d violation(s): %v", len(errs), errs)
 	}
 	for _, want := range []string{selftestStem, "'Supported'", "rfc/extraction/rfc9999.json",
-		"./le rfc extraction-create stem rfc9999"} {
+		"./le rfc extraction create stem rfc9999"} {
 		if !strings.Contains(errs[0], want) {
 			t.Errorf("the violation does not name %q:\n%s", want, errs[0])
 		}
@@ -932,7 +932,7 @@ func TestCheckSupportedSignoffCreditsTheEvaluatorsOwnSignoff(t *testing.T) {
 	}
 }
 
-// VALIDATES: the skeleton shape `./le rfc extraction-create` writes, every site disposition
+// VALIDATES: the skeleton shape `./le rfc extraction create` writes, every site disposition
 // null, earns no credit when it is produced by the real artifact writer rather than typed
 // as JSON.
 // PREVENTS: risk R-1 reached by its second route. The sibling test above plants the null

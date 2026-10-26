@@ -2,7 +2,7 @@
 // Overview: extraction_create.go -- the skeleton whose dispositions this applies
 // Related: artifact.go -- the closed vocabularies every decision is held to
 //
-// extraction_classify.go is `le rfc extraction-classify`. A walk over a long
+// extraction_classify.go is `le rfc extraction classify`. A walk over a long
 // RFC decides hundreds of sites, and applying those decisions by hand was the
 // one step le did not provide, so two throwaway scripts did it. This is that
 // step, with the refusals the scripts had and three the rule requires.
@@ -26,7 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// keyDecisions is the keyword `extraction-classify` takes its one value under:
+// keyDecisions is the keyword `extraction classify` takes its one value under:
 // the path of the file that carries the walk's decisions. Keyword before value
 // (ai/rules/cli.md), and the file names the stem it decides, so no second
 // keyword can disagree with it about which RFC is being classified.

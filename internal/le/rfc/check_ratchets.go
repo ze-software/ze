@@ -148,7 +148,7 @@ func checkEnrolment(tree string, current, baseline, summaries, signed map[string
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(rfc).Str(" is enrolled with no valid extraction sign-off at rfc/extraction/").Str(rfc).
-			Str(".json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem ").Str(rfc).
+			Str(".json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction create stem ").Str(rfc).
 			Str(", then classify every site and section").String())
 	}
 	return errs

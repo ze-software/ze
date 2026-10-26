@@ -154,8 +154,8 @@ var portedProducers = []portedProducer{
 	{Target: "ze-rfc-check", Area: "rfc", Verb: "check"},
 	{Target: "ze-rfc-index-update", Area: "rfc", Verb: "update"},
 	{Target: "ze-rfc-reseal", Area: "rfc", Verb: "reseal"},
-	{Target: "ze-rfc-extraction-create", Area: "rfc", Verb: "extraction-create"},
-	{Target: "ze-rfc-extraction-status", Area: "rfc", Verb: "extraction-status"},
+	{Target: "ze-rfc-extraction-create", Area: "rfc extraction", Verb: "create"},
+	{Target: "ze-rfc-extraction-status", Area: "rfc extraction", Verb: "report"},
 
 	// Verification, linting and the dependency stages.
 	{Target: "ze-precommit-verify", Area: "verify", Verb: "current", Note: "bare or full: the full population in a fresh worktree at HEAD"},

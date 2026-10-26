@@ -615,11 +615,11 @@ never sums the two, because a nightly tier is not merge-gate proof.
   - `./le rfc check` gates coverage and validates the audit records.
   - `./le rfc update` renders one ledger per RFC and
     `ai/RFC-REQUIREMENTS.md`.
-  - `./le rfc extraction-create stem <stem>` writes an extraction skeleton. It
+  - `./le rfc extraction create stem <stem>` writes an extraction skeleton. It
     reaches `rfc/extraction/` only when every site and section already carries a
     disposition; otherwise it lands in this session's scratch and the command
     prints the `mv` that ends the walk.
-  - `./le rfc extraction-status` prints the sign-off counts.
+  - `./le rfc extraction report` prints the sign-off counts.
   - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
   - `./le rfc audit-stamp stem <stem> from <path>` adds new audit verdicts from a
     pending file, computing their fingerprints. With `mode rejudge` it replaces
@@ -809,7 +809,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
-[ ] Extraction sign-off recorded: ./le rfc extraction-create stem rfcNNNN, then classify
+[ ] Extraction sign-off recorded: ./le rfc extraction create stem rfcNNNN, then classify
     every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 ```
 
@@ -827,10 +827,10 @@ in it bounds what the summary MISSED, and a green `./le rfc check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-./le rfc extraction-create stem rfcNNNN   # derive the inventory and preserve matching decisions
+./le rfc extraction create stem rfcNNNN   # derive the inventory and preserve matching decisions
                                           # an unclassified skeleton stays in session scratch;
                                           # a fully classified refresh may replace the artifact
-./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
+./le rfc extraction classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 ```
 
@@ -855,7 +855,7 @@ unless that spec exists and still names that id.
 <!-- source: internal/le/rfc/actions.go -- Answer -->
 
 Read the signed, enrolled, relocated, and unsigned counts with
-`./le rfc extraction-status`. The action emits structured output directly.
+`./le rfc extraction report`. The action emits structured output directly.
 
 <!-- source: internal/le/rfc/actions.go -- Actions -->
 

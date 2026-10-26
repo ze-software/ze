@@ -549,7 +549,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `le test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. Each test execs `le chaos run`; the run compiles the le personality (`ze_le` and every gate `feature-gates.txt` declares) into its temp directory. The daemon `le chaos run` forks is the runner's own `ze`, found as `ze` on the child PATH. |
 | Chaos web | `le test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. Each test execs `le chaos run --in-process --web`, against the same le build as the chaos suite. |
 | ExaBGP compatibility | `le test exabgp` | `test/exabgp-compat/{encoding,api,old-4.2,old-5.0}/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, derived verification debt (`commit-push-refused-by-derived-debt` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-changed-record-clears-derived-debt` shows a green full verification leaves the push debt owed and the scoped record a green `./le verify changed` writes clears it, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, a commit never refused for a red (`commit-not-refused-for-a-red`), derived verification debt (`commit-push-refused-by-derived-debt` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-changed-record-clears-derived-debt` shows a green full verification leaves the push debt owed and the scoped record a green `./le verify changed` writes clears it, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -1481,10 +1481,10 @@ re-derives the site inventory from the source and re-checks the arithmetic on
 every run.
 
 ```
-./le rfc extraction-create stem rfcNNNN    # skeleton to session scratch; classify, then move it in
-./le rfc extraction-classify decisions <path>  # apply a whole walk's decisions from one file
+./le rfc extraction create stem rfcNNNN    # skeleton to session scratch; classify, then move it in
+./le rfc extraction classify decisions <path>  # apply a whole walk's decisions from one file
 ./le rfc check                    # re-derives and judges
-./le rfc extraction-status        # JSON counts, per register, plus the backlog
+./le rfc extraction report        # JSON counts, per register, plus the backlog
 ```
 
 Only dispositions are authored: sites, sections, quotes and the register are

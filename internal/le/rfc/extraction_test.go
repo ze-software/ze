@@ -548,13 +548,13 @@ func TestEachFailureAnswersItsOwnExitCode(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if _, code := Answer([]string{"extraction-status"}); code != 3 {
+	if _, code := ExtractionAnswer([]string{"report"}); code != 3 {
 		t.Errorf("a tree with no workflows answered %d, want 3", code)
 	}
 	if _, code := Answer([]string{"no-such-action"}); code != 2 {
 		t.Errorf("an action this area does not hold answered %d, want 2", code)
 	}
-	if _, code := Answer([]string{"extraction-status", "rfc7606"}); code != 2 {
+	if _, code := ExtractionAnswer([]string{"report", "rfc7606"}); code != 2 {
 		t.Errorf("a value after an action that takes none answered %d, want 2", code)
 	}
 	listing, code := Answer(nil)
@@ -575,7 +575,7 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 		t.Fatal("the area holds no action")
 	}
 	writes := map[string]bool{}
-	for _, row := range list.Actions {
+	for _, row := range append(list.Actions, ExtractionActions().Actions...) {
 		if row.Why == "" {
 			t.Errorf("action %q carries no reason: %+v", row.Verb, row)
 		}
@@ -584,7 +584,7 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 		}
 	}
 	// Exactly ten actions change the tree, and each one owns its output:
-	// extraction-create and extraction-classify own one rfc/extraction
+	// extraction create and extraction classify own one rfc/extraction
 	// artifact between them, the first deriving it and the second applying an
 	// authored walk to it; record owns one rfc/discrimination
 	// artifact, re-seal owns the re-stamp of a verdict already in rfc/audit/,
@@ -598,11 +598,11 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// owns the per-requirement files it converts a retired per-RFC file into.
 	// Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
-	if len(writes) != 10 || !writes["evidence-split"] || !writes["extraction-create"] || !writes["extraction-classify"] ||
+	if len(writes) != 10 || !writes["evidence-split"] || !writes["create"] || !writes["classify"] ||
 		!writes["record"] || !writes["reseal"] || !writes["update"] ||
 		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["rename"] {
-		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp record "+
-			"evidence-split extraction-classify extraction-create index-update quote-backfill rename reseal]", sortedKeys(writes))
+		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp classify create "+
+			"evidence-split quote-backfill record rename reseal update]", sortedKeys(writes))
 	}
 	if Subs() == "" {
 		t.Error("help renders no hint under the command")

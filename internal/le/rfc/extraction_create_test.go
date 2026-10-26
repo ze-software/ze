@@ -385,18 +385,18 @@ func TestExtractionCreateSweepsOnlyAbandonedStagingDirectories(t *testing.T) {
 
 func TestExtractionCreateActionIsArgumentAwareAndClaimedByTheCensus(t *testing.T) {
 	var found bool
-	for _, action := range Actions().Actions {
-		if action.Verb == "extraction-create" {
+	for _, action := range ExtractionActions().Actions {
+		if action.Verb == "create" {
 			found = action.Writes
 		}
 	}
 	if !found {
-		t.Fatal("the RFC action catalog does not publish extraction-create as a writer")
+		t.Fatal("the RFC action catalog does not publish extraction create as a writer")
 	}
-	if answer, code := Answer([]string{"extraction-create"}); code != 2 || answer != nil {
+	if answer, code := ExtractionAnswer([]string{"create"}); code != 2 || answer != nil {
 		t.Errorf("a missing stem answered (%v, %d), want (nil, 2)", answer, code)
 	}
-	if _, code := Answer([]string{"extraction-create", "rfc9999"}); code != 2 {
+	if _, code := ExtractionAnswer([]string{"create", "rfc9999"}); code != 2 {
 		t.Errorf("a value before its keyword answered %d, want grammar refusal 2", code)
 	}
 
@@ -404,7 +404,7 @@ func TestExtractionCreateActionIsArgumentAwareAndClaimedByTheCensus(t *testing.T
 	t.Setenv("ZE_REPO_ROOT", tree)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
-	answer, code := Answer([]string{"extraction-create", "stem", "rfc9999"})
+	answer, code := ExtractionAnswer([]string{"create", "stem", "rfc9999"})
 	if code != 0 {
 		t.Fatalf("the native action answered %d, want 0", code)
 	}
@@ -563,7 +563,7 @@ func TestTheCheckLeadsWithAnActionableUnclassifiedCensus(t *testing.T) {
 		"rfc/extraction/rfc9999.json",
 		"2 of 2 site(s) and 4 of 4 section(s) are UNCLASSIFIED",
 		"Classify every one by hand",
-		"./le rfc extraction-create stem rfc9999",
+		"./le rfc extraction create stem rfc9999",
 	} {
 		if !strings.Contains(census, want) {
 			t.Errorf("the leading violation does not say %q:\n%s", want, census)

@@ -12,31 +12,9 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// actions is the whole command surface.
+// actions is the `rfc` command surface; the extraction walk is its sub-area,
+// extractionActions below.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "extraction-create", Summary: "derive one RFC's extraction skeleton", Why: "derive one RFC or draft's extraction skeleton, preserving authored classifications only " +
-		"where the same locator still carries the same sentence. It reaches rfc/extraction/ only when every " +
-		"site and section already carries a disposition; an unclassified skeleton goes to this session's " +
-		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
-		Writes: true,
-		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem, such as rfc4271", Value: keyStem, Requirement: leaction.Required},
-		},
-		AnswerArgs: extractionCreateAnswer},
-	leaction.Action{Verb: "extraction-classify", Summary: "apply authored decisions to an extraction skeleton", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
-		"file naming the stem it walks. It writes no disposition the file does not name and " +
-		"matches no locator pattern, so it transcribes a walk rather than performing one; a site " +
-		"the file leaves out stays unclassified and is named in the report. binds-another-role " +
-		"must cite a producer the reason carries, and feature-out-of-scope must quote the " +
-		"sentence that makes the feature optional, checked against the RFC's own text",
-		Writes: true,
-		Parameters: []leaction.Parameter{
-			{Keyword: keyDecisions, Kind: leaction.KindPath, Help: "the decisions file to apply", Value: keyPath, Requirement: leaction.Required},
-		},
-		AnswerArgs: extractionClassifyAnswer},
-	leaction.Action{Verb: "extraction-status", Summary: "print the extraction counts the drain quota reads", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
-		"signed and enrolled counts, the per-register split, and the unsigned backlog",
-		Answer: extractionStatusAnswer},
 	leaction.Action{
 		Verb:    "tagged-scope",
 		Summary: "judge a proposed file against its RFC-tagged tests",
@@ -222,6 +200,48 @@ var actions = leaction.New(area,
 		AnswerArgs: quoteBackfillAnswer},
 )
 
+// extractionArea is the sub-area holding the three actions of an extraction
+// walk (D-P4-positional, D-P4-depth3). Package rfcextraction registers it at
+// the path its name predicts; the table and the answers stay here, beside the
+// corpus they read.
+const extractionArea = area + " extraction"
+
+// extractionActions is the `rfc extraction` command surface.
+var extractionActions = leaction.New(extractionArea,
+	leaction.Action{Verb: "create", Summary: "derive one RFC's extraction skeleton", Why: "derive one RFC or draft's extraction skeleton, preserving authored classifications only " +
+		"where the same locator still carries the same sentence. It reaches rfc/extraction/ only when every " +
+		"site and section already carries a disposition; an unclassified skeleton goes to this session's " +
+		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem, such as rfc4271", Value: keyStem, Requirement: leaction.Required},
+		},
+		AnswerArgs: extractionCreateAnswer},
+	leaction.Action{Verb: "classify", Does: "record", Summary: "apply authored decisions to an extraction skeleton", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
+		"file naming the stem it walks. It writes no disposition the file does not name and " +
+		"matches no locator pattern, so it transcribes a walk rather than performing one; a site " +
+		"the file leaves out stays unclassified and is named in the report. binds-another-role " +
+		"must cite a producer the reason carries, and feature-out-of-scope must quote the " +
+		"sentence that makes the feature optional, checked against the RFC's own text",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyDecisions, Kind: leaction.KindPath, Help: "the decisions file to apply", Value: keyPath, Requirement: leaction.Required},
+		},
+		AnswerArgs: extractionClassifyAnswer},
+	leaction.Action{Verb: "report", Summary: "print the extraction counts the drain quota reads", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
+		"signed and enrolled counts, the per-register split, and the unsigned backlog",
+		Answer: extractionStatusAnswer},
+)
+
+// ExtractionActions answers the `rfc extraction` command surface as data.
+func ExtractionActions() leaction.List { return extractionActions.Actions() }
+
+// ExtractionSubs is the one-line hint help renders under `rfc extraction`.
+func ExtractionSubs() string { return extractionActions.Subs() }
+
+// ExtractionAnswer is the `le rfc extraction` command.
+func ExtractionAnswer(args []string) (any, int) { return extractionActions.Answer(args) }
+
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
 func Actions() leaction.List { return actions.Actions() }
@@ -235,7 +255,7 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 // extractionCreateAnswer writes one unsigned skeleton in this checkout.
 func extractionCreateAnswer(args leaction.Arguments) (any, int) {
 	if !args.Has(keyStem) {
-		leaction.ReportError(errors.New("rfc extraction-create requires stem <stem>"))
+		leaction.ReportError(errors.New("rfc extraction create requires stem <stem>"))
 		return nil, 2
 	}
 	stem := args.One(keyStem)
@@ -255,7 +275,7 @@ func extractionCreateAnswer(args leaction.Arguments) (any, int) {
 // extractionClassifyAnswer applies one decisions file in this checkout.
 func extractionClassifyAnswer(args leaction.Arguments) (any, int) {
 	if !args.Has(keyDecisions) {
-		leaction.ReportError(errors.New("rfc extraction-classify requires decisions <path>"))
+		leaction.ReportError(errors.New("rfc extraction classify requires decisions <path>"))
 		return nil, 2
 	}
 	path := args.One(keyDecisions)

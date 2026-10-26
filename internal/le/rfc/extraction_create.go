@@ -2,7 +2,7 @@
 // Overview: inventory.go -- the source walk this writer records
 // Related: artifact.go -- the validating reader every staged document must pass
 //
-// extraction_create.go is ze-rfc-extraction-create. It derives an unsigned
+// extraction_create.go is `le rfc extraction create`. It derives an unsigned
 // skeleton, preserves authored decisions that still govern the same sentence,
 // validates the staged bytes with the production parser, and writes the
 // artifact only after that validation succeeds.

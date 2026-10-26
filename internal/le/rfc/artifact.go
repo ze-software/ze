@@ -529,7 +529,7 @@ func relocationFields(entry map[string]any, where, stem string) (string, string,
 
 // validateRelocation holds the two relocation fields to their shapes, wherever
 // they were authored: in a landed artifact, or in the decisions file
-// `extraction-classify` applies. One declaration, so the writer cannot accept a
+// `extraction classify` applies. One declaration, so the writer cannot accept a
 // relocation the reader refuses.
 func validateRelocation(relocatedTo, reservedID, where, stem string) (string, string, error) {
 	var tb textbuf.Buffer

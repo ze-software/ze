@@ -109,10 +109,10 @@ nothing re-checked. Record the walk instead, in an artifact a machine re-checks 
 `./le rfc check`:
 
 ```
-./le rfc extraction-create stem $ARGUMENTS   # skeleton to session scratch, never to rfc/extraction/
+./le rfc extraction create stem $ARGUMENTS   # skeleton to session scratch, never to rfc/extraction/
                                              # then classify every site and section by hand,
                                              # then move the file in as the command says
-./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
+./le rfc extraction classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                               # re-derives the inventory and judges it
 ```
 
@@ -134,7 +134,7 @@ section's `unsourced-ids`) catches one you invented. Contract:
 
 For a stem enrolled since HEAD the sign-off is a PRECONDITION of enrolment
 (`check_enrolment`). RFCs enrolled before the gate existed are grandfathered and published
-as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `./le rfc extraction-status` emits the
+as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `./le rfc extraction report` emits the
 same counts as JSON.
 
 This replaces a check that had caught real failures and would have caught more: `rfc5303`,

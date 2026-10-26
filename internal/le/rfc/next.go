@@ -124,7 +124,7 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 		if report.Register == registerMandatory && len(report.Absent) != 0 {
 			for _, stem := range report.Absent {
 				report.Gaps = append(report.Gaps, NextGap{Stem: stem, Absent: true,
-					Uncovered: []NextRow{}, Profiles: scopesHolding(scopes, stem), Path: "listed under Absent"})
+					Uncovered: []NextRow{}, Profiles: scopesHolding(scopes, stem), Path: absentPath})
 			}
 			return report, nil
 		}
@@ -178,6 +178,7 @@ func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) ma
 			union[stem] = true
 		}
 	}
+	absent := absentStemSet(scopes)
 	out := map[gapKey]*NextGap{}
 	at := func(level *int, stem string) *NextGap {
 		key := keyOf(level, stem)
@@ -185,7 +186,7 @@ func (c *priorityCorpus) gapCandidates(scopes []profileScope, mandatory bool) ma
 			return gap
 		}
 		figures, summarized := c.figures[stem]
-		gap := &NextGap{Stem: stem, Title: c.metas[stem].Title, Summary: summarized, Walked: figures.Walked,
+		gap := &NextGap{Stem: stem, Title: c.metas[stem].Title, Absent: absent[stem], Summary: summarized, Walked: figures.Walked,
 			Uncovered: []NextRow{}, Profiles: scopesHolding(scopes, stem), Path: firstPath(scopes, stem)}
 		out[key] = gap
 		return gap
@@ -267,7 +268,9 @@ func (r *NextReport) Text() string {
 	if r.MandatoryComplete {
 		tb.Str("mandatory is complete: every mandatory row is proven, so the next gap is optional\n")
 	}
-	if len(r.Gaps) != 0 && r.Gaps[0].Absent {
+	// The fallback lists only absent RFCs and sets no level; an absent RFC a
+	// closure reaches is a gap at its own level, among the others.
+	if len(r.Gaps) != 0 && r.Gaps[0].Absent && r.Level == nil {
 		tb.Str("every RFC in the corpus is covered; these RFCs are absent from it at 0%: ").
 			Str("fetch each text into rfc/full/ and summarize it (ai/skills/ze-rfc.md)\n")
 	} else {
@@ -286,6 +289,10 @@ func (r *NextReport) Text() string {
 	return tb.String()
 }
 
+// absentPath is the path of an absent RFC no closure reaches: the profile
+// lists it, and no edge leads to it.
+const absentPath = "listed under Absent"
+
 // writeNextGap renders one RFC of the gap and what it owes.
 func writeNextGap(tb *textbuf.Buffer, gap *NextGap) {
 	tb.Str("  ").Str(gap.Stem)
@@ -293,14 +300,17 @@ func writeNextGap(tb *textbuf.Buffer, gap *NextGap) {
 		tb.Str("  ").Str(gap.Title)
 	}
 	tb.Byte('\n')
-	if gap.Absent {
+	if gap.Absent && gap.Path == absentPath {
 		tb.Str("      serves ").Str(strings.Join(gap.Profiles, ", ")).Byte('\n')
 		return
 	}
-	if !gap.Summary {
+	switch {
+	case gap.Absent:
+		tb.Str("      absent from the corpus at 0%: write rfc/short/").Str(gap.Stem).Str(".md (ai/skills/ze-rfc.md)\n")
+	case !gap.Summary:
 		tb.Str("      no summary: write rfc/short/").Str(gap.Stem).Str(".md (ai/skills/ze-rfc.md)\n")
-	} else if !gap.Walked {
-		tb.Str("      not walked: no valid extraction sign-off, run ./le rfc extraction-create stem ").
+	case !gap.Walked:
+		tb.Str("      not walked: no valid extraction sign-off, run ./le rfc extraction create stem ").
 			Str(gap.Stem).Byte('\n')
 	}
 	if len(gap.Uncovered) != 0 {

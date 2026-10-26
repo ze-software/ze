@@ -240,7 +240,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 			Str(" section(s) are UNCLASSIFIED. A generated skeleton is not a sign-off, ").
 			Str("and one unclassified artifact reds this gate for the whole corpus. ").
 			Str("Classify every one by hand, or move the file back into this session's ").
-			Str("scratch until the walk is done: ./le rfc extraction-create stem ").
+			Str("scratch until the walk is done: ./le rfc extraction create stem ").
 			Str(art.Stem).Str(" writes an unclassified skeleton to the scratch rather ").
 			Str("than to rfc/extraction/, for exactly this reason").String())
 	}
@@ -273,7 +273,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 		return append(errs, tb.Str(where).Str(": source-sha no longer matches ").
 			Str(inv.SourcePath).Str(". The source text changed under this sign-off, so ").
 			Str("the walk no longer bounds what the summary missed. Re-run: ./le rfc ").
-			Str("extraction-create stem ").Str(art.Stem).
+			Str("extraction create stem ").Str(art.Stem).
 			Str(", re-classify any site that moved, and bump signed-off").String())
 	}
 	if art.SourcePath != inv.SourcePath {
@@ -310,7 +310,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(where).Str(": derived site ").Str(id).
 			Str(" is absent from the sign-off (").Str(pyRepr(firstRunes(derivedSites[id].Quote, 80))).
-			Str("). Re-run ./le rfc extraction-create stem ").Str(art.Stem).
+			Str("). Re-run ./le rfc extraction create stem ").Str(art.Stem).
 			Str(" and classify it").String())
 	}
 	for _, id := range sortedMissing(artSites, derivedSites) {

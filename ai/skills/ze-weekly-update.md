@@ -114,7 +114,7 @@ Read the counts live. Never copy them from a commit message or a previous post.
 |------|--------|
 | Total requirements, MUST-level, how many are checked | the header of `ai/RFC-REQUIREMENTS.md` |
 | MUSTs still owing a test | the "Coverage by RFC" line in the same file |
-| Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction-status` |
+| Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction report` |
 
 Do not close the section with a stock caveat about what a green run does or
 does not prove (owner instruction, 2026-10-12): it read the same every week.

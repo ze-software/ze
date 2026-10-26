@@ -66,18 +66,18 @@ func leRFCAnswers(ctx context.Context) (err error) {
 
 	// The extraction envelope is a read-only JSON document derived from the
 	// owned tree, and all three registers are published even when one is empty.
-	extraction := runLE(root, "rfc", "extraction-status")
+	extraction := runLE(root, "rfc", "extraction", "report")
 	leRFCAnswersRequire(extraction.code == 0,
-		"rfc extraction-status exited %d\nstdout:\n%s\nstderr:\n%s",
+		"rfc extraction report exited %d\nstdout:\n%s\nstderr:\n%s",
 		extraction.code, extraction.stdout, extraction.stderr)
 	leRFCAnswersRequire(extraction.stderr == "",
-		"rfc extraction-status wrote to stderr: %q", extraction.stderr)
-	envelope := leRFCAnswersJSONObject(extraction.stdout, "rfc extraction-status")
-	enrolled := leRFCAnswersJSONInt(envelope["enrolled"], "extraction-status.enrolled")
-	signed := leRFCAnswersJSONInt(envelope["signed"], "extraction-status.signed")
-	backlog := leRFCAnswersJSONInt(envelope["backlog"], "extraction-status.backlog")
+		"rfc extraction report wrote to stderr: %q", extraction.stderr)
+	envelope := leRFCAnswersJSONObject(extraction.stdout, "rfc extraction report")
+	enrolled := leRFCAnswersJSONInt(envelope["enrolled"], "extraction report.enrolled")
+	signed := leRFCAnswersJSONInt(envelope["signed"], "extraction report.signed")
+	backlog := leRFCAnswersJSONInt(envelope["backlog"], "extraction report.backlog")
 	leRFCAnswersRequire(enrolled == 1,
-		"rfc extraction-status read %d enrolled RFC(s), want the one authored summary", enrolled)
+		"rfc extraction report read %d enrolled RFC(s), want the one authored summary", enrolled)
 	leRFCAnswersRequire(signed+backlog == enrolled,
 		"signed (%d) and backlog (%d) do not cover enrolled (%d): %s",
 		signed, backlog, enrolled, extraction.stdout)
@@ -85,36 +85,36 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"the unsigned owned summary answered signed=%d backlog=%d, want 0 and 1", signed, backlog)
 	registers, ok := envelope["signed-by-register"].(map[string]any)
 	leRFCAnswersRequire(ok,
-		"extraction-status.signed-by-register is not an object: %s", extraction.stdout)
+		"extraction report.signed-by-register is not an object: %s", extraction.stdout)
 	registerNames := leRFCAnswersMapKeys(registers)
 	leRFCAnswersRequire(reflect.DeepEqual(registerNames, []string{"manual-walk", "prose", "rfc2119"}),
-		"extraction-status published registers %v, want all three registers", registerNames)
+		"extraction report published registers %v, want all three registers", registerNames)
 	registerTotal := int64(0)
 	for name, value := range registers {
-		registerTotal += leRFCAnswersJSONInt(value, "extraction-status.signed-by-register."+name)
+		registerTotal += leRFCAnswersJSONInt(value, "extraction report.signed-by-register."+name)
 	}
 	leRFCAnswersRequire(registerTotal == signed,
 		"register total %d does not equal signed total %d: %s",
 		registerTotal, signed, extraction.stdout)
 
 	for _, operator := range []string{renderJSON, renderYAML} {
-		rendered := runLE(root, "rfc", "extraction-status", "|", operator)
+		rendered := runLE(root, "rfc", "extraction", "report", "|", operator)
 		leRFCAnswersRequire(rendered.code == 0,
-			"rfc extraction-status | %s exited %d\nstdout:\n%s\nstderr:\n%s",
+			"rfc extraction report | %s exited %d\nstdout:\n%s\nstderr:\n%s",
 			operator, rendered.code, rendered.stdout, rendered.stderr)
 		leRFCAnswersRequire(rendered.stderr == "",
-			"rfc extraction-status | %s wrote to stderr: %q", operator, rendered.stderr)
+			"rfc extraction report | %s wrote to stderr: %q", operator, rendered.stderr)
 		leRFCAnswersRequire(strings.Contains(rendered.stdout, "enrolled"),
-			"rfc extraction-status | %s rendered no envelope: %.200s", operator, rendered.stdout)
+			"rfc extraction report | %s rendered no envelope: %.200s", operator, rendered.stdout)
 	}
-	extractionJSON := runLE(root, "rfc", "extraction-status", "|", "json")
+	extractionJSON := runLE(root, "rfc", "extraction", "report", "|", "json")
 	leRFCAnswersRequire(extractionJSON.code == 0,
-		"second JSON rendering of extraction-status exited %d: %s",
+		"second JSON rendering of extraction report exited %d: %s",
 		extractionJSON.code, extractionJSON.stderr)
-	asJSON := leRFCAnswersJSONObject(extractionJSON.stdout, "rfc extraction-status | json")
+	asJSON := leRFCAnswersJSONObject(extractionJSON.stdout, "rfc extraction report | json")
 	leRFCAnswersRequire(
-		leRFCAnswersJSONInt(asJSON["enrolled"], "rendered extraction-status.enrolled") == enrolled,
-		"rfc extraction-status | json answered a different enrolled count: %s", extractionJSON.stdout,
+		leRFCAnswersJSONInt(asJSON["enrolled"], "rendered extraction report.enrolled") == enrolled,
+		"rfc extraction report | json answered a different enrolled count: %s", extractionJSON.stdout,
 	)
 
 	// The check compares page and JSON over a fixed baseline, then a copy with
@@ -243,42 +243,52 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	// Required public actions retain their effect markers as the registry grows.
 	// New actions must have a description and a valid marker, not force this
 	// consumer test to copy another registry or pin its population.
-	listing := runLE(root, "rfc")
-	leRFCAnswersRequire(listing.code == 0,
-		"rfc listing exited %d\nstdout:\n%s\nstderr:\n%s",
-		listing.code, listing.stdout, listing.stderr)
-	leRFCAnswersRequire(listing.stderr == "", "rfc listing wrote to stderr: %q", listing.stderr)
+	// The extraction walk is the sub-area `rfc extraction`, so its actions are
+	// read from that area's page and keyed by their whole words.
 	listed := map[string]string{}
-	// The area page opens with the area's name, then a Usage block, then an
-	// Actions block. An action row is indented two spaces and carries its
-	// name, its bracketed effect and a description; a wrapped description
-	// continues on lines indented further, which belong to the row above.
-	lines := strings.Split(listing.stdout, "\n")
-	leRFCAnswersRequire(strings.TrimSpace(lines[0]) == "le rfc",
-		"rfc listing has no area heading:\n%s", listing.stdout)
-	actionsAt := slices.Index(lines, "Actions:")
-	leRFCAnswersRequire(actionsAt > 0, "rfc listing has no Actions block:\n%s", listing.stdout)
-	for _, line := range lines[actionsAt+1:] {
-		if strings.TrimSpace(line) == "" {
-			break
+	listings := ""
+	for _, page := range []string{"rfc", "rfc extraction"} {
+		listing := runLE(root, strings.Fields(page)...)
+		listings += listing.stdout
+		prefix := strings.TrimPrefix(strings.TrimPrefix(page, "rfc"), " ")
+		if prefix != "" {
+			prefix += " "
 		}
-		if strings.HasPrefix(line, "   ") {
-			continue
+		leRFCAnswersRequire(listing.code == 0,
+			"rfc listing exited %d\nstdout:\n%s\nstderr:\n%s",
+			listing.code, listing.stdout, listing.stderr)
+		leRFCAnswersRequire(listing.stderr == "", "rfc listing wrote to stderr: %q", listing.stderr)
+		// The area page opens with the area's name, then a Usage block, then an
+		// Actions block. An action row is indented two spaces and carries its
+		// name, its bracketed effect and a description; a wrapped description
+		// continues on lines indented further, which belong to the row above.
+		lines := strings.Split(listing.stdout, "\n")
+		leRFCAnswersRequire(strings.TrimSpace(lines[0]) == "le "+page,
+			"rfc listing has no area heading:\n%s", listing.stdout)
+		actionsAt := slices.Index(lines, "Actions:")
+		leRFCAnswersRequire(actionsAt > 0, "rfc listing has no Actions block:\n%s", listing.stdout)
+		for _, line := range lines[actionsAt+1:] {
+			if strings.TrimSpace(line) == "" {
+				break
+			}
+			if strings.HasPrefix(line, "   ") {
+				continue
+			}
+			fields := strings.Fields(line)
+			leRFCAnswersRequire(len(fields) >= 3,
+				"rfc listing has an action without an effect or description: %q", line)
+			_, duplicate := listed[prefix+fields[0]]
+			leRFCAnswersRequire(!duplicate, "rfc listing repeats action %q", fields[0])
+			effect := strings.TrimSuffix(strings.TrimPrefix(fields[1], "["), "]")
+			leRFCAnswersRequire(fields[1] == "["+effect+"]" && (effect == fieldChecks || effect == wordWrites),
+				"rfc listing action %q has invalid effect %q", fields[0], fields[1])
+			listed[prefix+fields[0]] = effect
 		}
-		fields := strings.Fields(line)
-		leRFCAnswersRequire(len(fields) >= 3,
-			"rfc listing has an action without an effect or description: %q", line)
-		_, duplicate := listed[fields[0]]
-		leRFCAnswersRequire(!duplicate, "rfc listing repeats action %q", fields[0])
-		effect := strings.TrimSuffix(strings.TrimPrefix(fields[1], "["), "]")
-		leRFCAnswersRequire(fields[1] == "["+effect+"]" && (effect == fieldChecks || effect == wordWrites),
-			"rfc listing action %q has invalid effect %q", fields[0], fields[1])
-		listed[fields[0]] = effect
 	}
 	wantListed := map[string]string{
-		"extraction-create":   wordWrites,
-		"extraction-classify": wordWrites,
-		"extraction-status":   fieldChecks,
+		"extraction create":   wordWrites,
+		"extraction classify": wordWrites,
+		"extraction report":   fieldChecks,
 		"tagged-scope":        fieldChecks,
 		"discriminate":        fieldChecks,
 		"record":              wordWrites,
@@ -293,18 +303,18 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	for action, effect := range wantListed {
 		leRFCAnswersRequire(listed[action] == effect,
 			"rfc listing action %q has effect %q, want %q:\n%s",
-			action, listed[action], effect, listing.stdout)
+			action, listed[action], effect, listings)
 	}
-	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionUpdate} {
-		refused := runLE(root, "rfc", action, "rfc7606")
+	for _, action := range []string{"extraction report", actionCheck, actionSelftest, "reseal", actionUpdate} {
+		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted a stem argument or exited %d\nstdout:\n%s\nstderr:\n%s",
 			action, refused.code, refused.stdout, refused.stderr)
 		leRFCAnswersRequire(strings.Contains(refused.stderr, "takes no arguments"),
 			"rfc %s refusal omitted 'takes no arguments': %q", action, refused.stderr)
 	}
-	for _, action := range []string{"extraction-create", "extraction-classify", "tagged-scope"} {
-		refused := runLE(root, "rfc", action, "rfc7606")
+	for _, action := range []string{"extraction create", "extraction classify", "tagged-scope"} {
+		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted an unkeyed value or exited %d\nstdout:\n%s\nstderr:\n%s",
 			action, refused.code, refused.stdout, refused.stderr)

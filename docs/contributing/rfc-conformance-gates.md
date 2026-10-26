@@ -1117,13 +1117,13 @@ that fixes that bound, and it is a precondition of a new enrolment
 
 | Step | Command or file |
 |------|-----------------|
-| Write the skeleton | `./le rfc extraction-create stem <stem>` |
+| Write the skeleton | `./le rfc extraction create stem <stem>` |
 | Classify every derived site and section by hand | the file the command names, under this session's scratch |
-| Apply a whole walk's decisions at once | `./le rfc extraction-classify decisions <path>` |
+| Apply a whole walk's decisions at once | `./le rfc extraction classify decisions <path>` |
 | Move a hand-classified walk into the corpus | `mv <scratch>/rfc-extraction/<stem>.json rfc/extraction/<stem>.json` |
 | Re-check the arithmetic | `./le rfc check` |
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
-| Read the counts machine-readably | `./le rfc extraction-status` |
+| Read the counts machine-readably | `./le rfc extraction report` |
 
 Before you set the summary's `Enrolment` row to `enrolled`, walk the RFC's own
 text section by section. Confirm that every MUST, MUST NOT, SHALL, SHALL NOT and
@@ -1140,7 +1140,7 @@ a generator that wrote one in place made its own output a gate failure, and a
 batch of them a corpus-wide one. A refresh whose every decision carries forward
 IS a sign-off, so that one is written in place as before.
 
-**`extraction-classify` applies a walk; it does not perform one.** A long RFC
+**`extraction classify` applies a walk; it does not perform one.** A long RFC
 derives hundreds of sites, so the decisions live in one file the reviewer
 authors and the command transcribes: no default, no locator pattern, no
 disposition the file does not name, and a refusal for a decision naming a site

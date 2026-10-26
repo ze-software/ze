@@ -109,6 +109,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/repo/rewrite"
 	_ "github.com/ze-software/ze/internal/le/repo/workingtree"
 	_ "github.com/ze-software/ze/internal/le/rfc"
+	_ "github.com/ze-software/ze/internal/le/rfc/extraction"
 	_ "github.com/ze-software/ze/internal/le/rfc/skeletons"
 	_ "github.com/ze-software/ze/internal/le/rollback"
 	"github.com/ze-software/ze/internal/le/scratch"

@@ -8,7 +8,7 @@
 # it names an RFC it has become the hand-kept registry the 2026-07-29 resolution rejected,
 # and a reviewer should treat such a row as a defect rather than an extension. Who has
 # been signed off is DERIVED from rfc/extraction/*.json and published by
-# `./le rfc extraction-status`; it is never written down twice.
+# `./le rfc extraction report`; it is never written down twice.
 #
 #   start  YYYY-MM-DD the drain clock begins counting from.
 #   rate   Entries per calendar month. The required floor is
