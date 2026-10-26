@@ -225,7 +225,7 @@ func (b *vppBackend) RemovePolicy(_, _ *net.IPNet, _ SADir) error {
 }
 
 // RemovePolicyParams removes a policy by its full selector, sending back the entry
-// InstallPolicy sent.
+// InstallPolicy sent and recorded (recordedEntry).
 func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 	if _, err := vppPolicyInterface(p); err != nil {
 		return err
@@ -242,17 +242,105 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 			"%w: vpp: this backend has created no SPD, so it installed no policy to remove",
 			ErrNotSupported)
 	}
-	entry, err := b.spdEntry(p)
+	// The entry is the one this backend recorded, never one rebuilt from p: a removal
+	// that failed is retried after the Child SA's SA is removed (removeChildSAOutgoing,
+	// ike/engine/child.go), and rebuilding then has no SAD id to name, so the retry
+	// answered "installed no such SA" and the engine read the policy as gone while VPP
+	// still held it.
+	entry, err := b.recordedEntry(p)
 	if err != nil {
 		return err
 	}
-	entry.SpdID = b.spdID
 
 	if err := b.sendSPDEntry(false, entry); err != nil {
 		return err
 	}
 	b.forgetSPDEntry(entry)
 	return nil
+}
+
+// recordedEntry returns the SPD entry this backend recorded (spdEntries) for p, the
+// entry VPP matches a delete on. b.mu is held.
+//
+// A PROTECT entry carries its SA's SAD id, which p does not: p carries the SPI. While
+// this backend still holds p's SA, the entry is the one naming that SA's id, so two
+// Child SAs that share a selector during a make-before-break rekey are told apart. Once
+// the SA is removed (RemoveSA forgets its id), the entry is the one whose SA this
+// backend holds no longer. allocSadID never reuses an id, so such an entry belongs to
+// no live SA, and an entry naming a live SA is another Child SA's policy, never this
+// one. VPP keeps the removed SA while the entry references it, and frees it once the
+// entry goes (spdEntries, vpp.go).
+//
+// None recorded means this backend holds no such policy: it never installed it, or a
+// removal already took it out. That is answered with ErrNotSupported, as a removal from
+// no SPD is. Two or more candidates would make the delete a guess, so they are refused.
+func (b *vppBackend) recordedEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
+	probe, err := vppSPDSelector(p)
+	if err != nil {
+		return probe, err
+	}
+	probe.SpdID = b.spdID
+	liveID, live, err := b.liveSADID(&p, probe.Policy)
+	if err != nil {
+		return probe, err
+	}
+	var found []ipsec_types.IpsecSpdEntryV2
+	for _, held := range b.spdEntries {
+		match := held
+		match.SaID = 0
+		if match != probe {
+			continue
+		}
+		if !b.entryOfSA(&held, liveID, live) {
+			continue
+		}
+		found = append(found, held)
+	}
+	if len(found) == 0 {
+		return probe, fmt.Errorf(
+			"%w: vpp: this backend holds no SPD entry for this policy in SPD %d, so it never installed it or has removed it; list the SPD with 'vppctl show ipsec spd %d'",
+			ErrNotSupported, b.spdID, b.spdID)
+	}
+	if len(found) > 1 {
+		return probe, fmt.Errorf(
+			"vpp: %d SPD entries in SPD %d carry this selector under SAs this backend has removed, and VPP deletes one by its whole entry; find the one to remove with 'vppctl show ipsec spd %d'",
+			len(found), b.spdID, b.spdID)
+	}
+	return found[0], nil
+}
+
+// liveSADID returns the SAD id of the SA a PROTECT policy p names, and whether this
+// backend still holds that SA. An action other than PROTECT names no SA, so it answers
+// not held, and entryOfSA does not read the id then. b.mu is held.
+func (b *vppBackend) liveSADID(p *SPParams, action ipsec_types.IpsecSpdAction) (uint32, bool, error) {
+	// refuse-by-default: guards entryOfSA -- a bypass or discard entry carries no SA, so no SAD id is asked for
+	if action != ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+		return 0, false, nil
+	}
+	identity, err := saIdentityOf(p.SAID, p.TunnelDst, p.Proto)
+	if err != nil {
+		return 0, false, err
+	}
+	id, ok := b.sadIDs[identity]
+	return id, ok, nil
+}
+
+// entryOfSA reports whether a recorded entry with p's selector is p's own: any bypass
+// or discard entry, a PROTECT entry naming p's live SA, or, once p's SA is removed, a
+// PROTECT entry naming an SA this backend no longer holds. b.mu is held.
+func (b *vppBackend) entryOfSA(held *ipsec_types.IpsecSpdEntryV2, liveID uint32, live bool) bool {
+	if held.Policy != ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+		return true
+	}
+	if live {
+		return held.SaID == liveID
+	}
+	for _, id := range b.sadIDs {
+		if id == held.SaID {
+			return false
+		}
+	}
+	return true
 }
 
 // PolicyDeleteCommand implements PolicyDeleteCommander with the VPP CLI command that
@@ -264,36 +352,18 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 // port-range fields the add carried. The command is therefore written from the entry
 // this backend recorded (spdEntries), never rebuilt from p: when a removal failure is
 // reported the Child SA's states are already removed and their SAD ids forgotten
-// (RemoveSA), so only the record still names the SA id. More than one recorded entry
-// with p's selector means two SAs share it, and the command would be a guess, so it is
-// refused.
+// (RemoveSA), so only the record still names the SA id. The entry is the one
+// RemovePolicyParams would delete (recordedEntry), so the command and Ze's own retry
+// name the same entry, and a selector no entry or several entries answer is refused.
 func (b *vppBackend) PolicyDeleteCommand(p SPParams) (string, error) {
-	probe, err := vppSPDSelector(p)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	entry, err := b.recordedEntry(p)
 	if err != nil {
 		return "", err
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	probe.SpdID = b.spdID
-	var found []ipsec_types.IpsecSpdEntryV2
-	for _, held := range b.spdEntries {
-		match := held
-		match.SaID = 0
-		if match == probe {
-			found = append(found, held)
-		}
-	}
-	if len(found) == 0 {
-		return "", fmt.Errorf(
-			"vpp: this backend recorded no SPD entry with this selector in SPD %d; find it with 'vppctl show ipsec spd %d'",
-			b.spdID, b.spdID)
-	}
-	if len(found) > 1 {
-		return "", fmt.Errorf(
-			"vpp: %d SPD entries in SPD %d carry this selector under different SAs; find the one to remove with 'vppctl show ipsec spd %d'",
-			len(found), b.spdID, b.spdID)
-	}
-	return vppPolicyDelCommand(&found[0]), nil
+	return vppPolicyDelCommand(&entry), nil
 }
 
 // vppPolicyDelCommand writes the `vppctl ipsec policy del` command for entry, every
@@ -476,10 +546,11 @@ func (b *vppBackend) freeSPDID() (uint32, error) {
 	return 0, fmt.Errorf("vpp: the SPD id space is exhausted")
 }
 
-// spdEntry builds the SPD entry both InstallPolicy and RemovePolicyParams send, less
-// its SpdID: the caller sets that, so the entry can be validated before an SPD is
-// created for it. One builder keeps the delete byte-identical to the add, which is
-// what VPP needs to match it. b.mu is held.
+// spdEntry builds the SPD entry InstallPolicy sends, less its SpdID: the caller sets
+// that, so the entry can be validated before an SPD is created for it. A delete does
+// not rebuild it: RemovePolicyParams sends back the entry InstallPolicy recorded
+// (recordedEntry), byte-identical to the add, which is what VPP needs to match it.
+// b.mu is held.
 func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 	entry, err := vppSPDSelector(p)
 	if err != nil {
@@ -521,8 +592,8 @@ func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 }
 
 // vppSPDSelector builds every field of the SPD entry for p except its SpdID and its SA
-// id (spdEntry), which are this backend's state. It is also what PolicyDeleteCommand
-// matches a recorded entry on, once the SA whose id the entry carries is gone.
+// id (spdEntry), which are this backend's state. It is also what recordedEntry
+// matches a recorded entry on, the SA id compared apart.
 func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 	var entry ipsec_types.IpsecSpdEntryV2
 	// DIRECTION FIRST, and refused explicitly, as vppUnsupportedSA refuses it for an

@@ -35,6 +35,12 @@ type lifecycleDP struct {
 	onRemove  func()
 }
 
+// PolicyDeleteCommand names a removal in the kernel's `ip xfrm` form, the database
+// lifecycleDP stands in for, as the XFRM backend does.
+func (d *lifecycleDP) PolicyDeleteCommand(p dataplane.SPParams) (string, error) {
+	return dataplane.XFRMPolicyDeleteCommand(&p), nil
+}
+
 func (d *lifecycleDP) CatchAllSupported() error { return nil }
 
 func (d *lifecycleDP) InstallPolicy(p dataplane.SPParams) error {

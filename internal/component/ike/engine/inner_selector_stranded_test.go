@@ -61,7 +61,7 @@ func clearLedgerAfter(t *testing.T, child *ChildSA) {
 
 // ledgerNames reports whether the SPD ledger still names any policy of child.
 func ledgerNames(child *ChildSA) bool {
-	left := spdLeft.describe()
+	left := spdLeft.describe(&xfrmCommandDP{})
 	for _, p := range append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...) {
 		if slices.Contains(left, dataplane.XFRMPolicyDeleteCommand(&p)) {
 			return true

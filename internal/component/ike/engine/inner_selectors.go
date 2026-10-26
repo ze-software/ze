@@ -83,7 +83,7 @@ type strandedPolicies struct {
 }
 
 // strandedPolicy is one policy a removal left, with the command that removes it by
-// hand, named when the policy was stranded (strandedCommand). The command is carried
+// hand, named when the policy was stranded (policyDeleteCommand). The command is carried
 // rather than asked for when a refusal is written, because the refusal is written
 // under the registry's lock, which never calls the dataplane.
 type strandedPolicy struct {
@@ -92,35 +92,36 @@ type strandedPolicy struct {
 }
 
 // newStrandedPolicies names, for each policy in left, the command that removes it on
-// dp (strandedCommand), and carries both for retryStranded.
+// dp (policyDeleteCommand), and carries both for retryStranded.
 func newStrandedPolicies(dp dataplane.Dataplane, left []dataplane.SPParams, log *slog.Logger) *strandedPolicies {
 	out := make([]strandedPolicy, 0, len(left))
 	for i := range left {
-		out = append(out, strandedPolicy{params: left[i], command: strandedCommand(dp, &left[i])})
+		out = append(out, strandedPolicy{params: left[i], command: policyDeleteCommand(dp, &left[i])})
 	}
 	return &strandedPolicies{dp: dp, left: out, log: log}
 }
 
-// strandedCommand is the command an operator runs to remove p from dp by hand, as the
-// backend names it (dataplane.PolicyDeleteCommander): `ip xfrm policy delete` for XFRM,
-// `vppctl ipsec policy del` for VPP. A backend that names none, or cannot name this
-// policy, is said to, with the policy's selector, so the operator is never handed
-// another backend's command for it.
-func strandedCommand(dp dataplane.Dataplane, p *dataplane.SPParams) string {
+// policyDeleteCommand is the command an operator runs to remove p from dp by hand, as
+// the backend names it (dataplane.PolicyDeleteCommander): `ip xfrm policy delete` for
+// XFRM, `vppctl ipsec policy del` for VPP. A backend that names none, or cannot name
+// this policy, is said to, with the policy's selector, so the operator is never handed
+// another backend's command for it. It names both a stranded record's policies and the
+// SPD ledger's leftovers (spdLeftover.describe).
+func policyDeleteCommand(dp dataplane.Dataplane, p *dataplane.SPParams) string {
 	commander, ok := dp.(dataplane.PolicyDeleteCommander)
 	if !ok {
-		return "(the dataplane names no command that removes the policy " + strandedSelectorText(p) + ")"
+		return "(the dataplane names no command that removes the policy " + policySelectorText(p) + ")"
 	}
 	command, err := commander.PolicyDeleteCommand(*p)
 	if err != nil {
-		return "(the dataplane names no command that removes the policy " + strandedSelectorText(p) +
+		return "(the dataplane names no command that removes the policy " + policySelectorText(p) +
 			": " + err.Error() + ")"
 	}
 	return command
 }
 
-// strandedSelectorText names p's selector in no backend's syntax, for strandedCommand.
-func strandedSelectorText(p *dataplane.SPParams) string {
+// policySelectorText names p's selector in no backend's syntax, for policyDeleteCommand.
+func policySelectorText(p *dataplane.SPParams) string {
 	var text textbuf.Buffer
 	text.Str(dirLabel(p.Dir)).Str(" src ").Str(ipNetText(p.Src)).Str(" dst ").Str(ipNetText(p.Dst))
 	if p.UpperProto != 0 {

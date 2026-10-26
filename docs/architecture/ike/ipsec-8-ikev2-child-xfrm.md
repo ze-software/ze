@@ -389,8 +389,10 @@ as the IKE bypass on VPP) leaves its entry in the SPD ledger (`removeZePolicy`,
 `spd_left.go`), which every Child SA policy, Child SA install rollback, bypass and
 operator removal reports to; `releaseSPD` then keeps
 the catch-all beneath the entries left and logs them at Warn, each written as
-the exact `ip xfrm policy delete` command, every selector field included, that
-removes it (`warnSPDLeft`, `deleteCommand`). The whole shutdown runs in `runEngine`'s
+the command the engine's backend names for removing it (`warnSPDLeft`,
+`spdLeftover.describe`, `policyDeleteCommand`): on XFRM the exact
+`ip xfrm policy delete` command, every selector field included, and on VPP the
+`vppctl ipsec policy del` line for the SPD entry the backend recorded. The whole shutdown runs in `runEngine`'s
 deferred cleanup for a clean and an error return alike: `reEstablishFn` is
 cleared and the IKE sockets closed after the peers stop and before the release,
 so no session can install a policy behind it. This lifetime is the IKE engine's
@@ -463,10 +465,20 @@ overlapping peer is then refused with `errInnerSelectorStranded`, whose text
 names, for each policy, the removal command of the dataplane that holds it and
 no configuration of the holder, which may have been removed. The command is the
 backend's own (`dataplane.PolicyDeleteCommander`), named once when the record is
-stranded (`strandedCommand`): `ip xfrm policy delete` with every selector field
+stranded (`policyDeleteCommand`): `ip xfrm policy delete` with every selector field
 for XFRM, and `vppctl ipsec policy del` for VPP, written from the SPD entry the
 VPP backend recorded, because VPP matches a delete on the whole entry, SA id
-included, and the SA is already removed by then. A backend that names no command
+included, and the SA is already removed by then. The VPP backend's own retry
+deletes that same recorded entry (`vppBackend.recordedEntry`): while the policy's
+SA is held, the entry naming its SAD id; once the SA is removed, the entry with
+the selector whose SA the backend no longer holds, since SAD ids are never
+reused. A rebuilt entry would name no SA, and the removal used to answer
+`ErrNotSupported`, which `policyGone` reads as gone, so the record was released
+with the entry still in VPP's SPD. The engine keeps removing the SA after a
+failed policy removal: on XFRM the stranded policy's template then resolves no
+state and its traffic is not tunnelled, and on VPP the entry holds its own
+reference on the SA, which VPP frees once the retried delete lands (`spdEntries`,
+`vpp.go`). A backend that names no command
 (the noop one, whose removal never fails) is said to name none, with the
 selector, rather than handed another backend's command. `retryStranded` removes
 them again before each narrowing, before each claim and on each
@@ -488,9 +500,9 @@ retries could both remove one policy, the second taking the policy another peer
 had just installed on the freed selector. What the lock spans is bounded: one
 netlink or VPP API request per stranded policy.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
-<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, strandedCommand, adoptStrandedLocked, innerSelectorStrandedConflict -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, policyDeleteCommand, adoptStrandedLocked, innerSelectorStrandedConflict -->
 <!-- source: internal/component/ike/dataplane/policy_command.go -- PolicyDeleteCommander, XFRMPolicyDeleteCommand -->
-<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppBackend.PolicyDeleteCommand, vppPolicyDelCommand -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppBackend.PolicyDeleteCommand, vppBackend.RemovePolicyParams, vppBackend.recordedEntry, vppPolicyDelCommand -->
 <!-- source: internal/component/ike/engine/child.go -- removeChildSAExcept, releaseInnerRecord, policyGone, removeStrandedPolicies -->
 
 **A guard keyed on inequality is inert when both sides are empty.** The claim

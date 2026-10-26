@@ -57,14 +57,15 @@ func TestChildInstallRollbackFailureIsRecordedInTheSPDLedger(t *testing.T) {
 	if len(dp.installed) == 0 {
 		t.Fatal("no inbound policy was installed, so the rollback had nothing to remove; the test proves nothing")
 	}
-	left := spdLeft.describe()
+	// The ledger is named in the XFRM form, whose commands the assertion spells out.
+	left := spdLeft.describe(&xfrmCommandDP{})
 	for _, p := range dp.installed {
 		want := "ip xfrm policy delete " + dirLabel(p.Dir) + " src " + p.Src.String() + " dst " + p.Dst.String()
 		if !slices.ContainsFunc(left, func(entry string) bool { return strings.HasPrefix(entry, want) }) {
 			t.Errorf("the inbound policy the rollback failed to remove (%s) is not in the SPD ledger: %v", want, left)
 		}
 	}
-	if !warnSPDLeft(log) {
+	if !warnSPDLeft(&xfrmCommandDP{}, log) {
 		t.Error("warnSPDLeft reports nothing left, so releaseSPD would remove the catch-all beneath the stuck entry")
 	}
 	if !strings.Contains(logged.String(), "could not roll back a policy") {
@@ -130,7 +131,7 @@ func TestVPPExitLeavesNoFalseSPDLeftovers(t *testing.T) {
 
 	state.shutdown(state.log)
 
-	if left := spdLeft.describe(); len(left) != 0 {
+	if left := spdLeft.describe(dp); len(left) != 0 {
 		t.Errorf("the SPD ledger holds entries the backend never installed: %v", left)
 	}
 	if strings.Contains(logged.String(), "catch-all stays installed") {
@@ -175,18 +176,50 @@ func TestSPDLeftoverNamesTheExactRemovalCommand(t *testing.T) {
 		"ip xfrm policy delete dir in src 192.0.2.1/32 dst 192.0.2.2/32 proto 17 sport 500 dport 500",
 		"ip xfrm policy delete dir out src ::/0 dst 2001:db8::/64 if_id 7",
 	}
-	left := spdLeft.describe()
+	dp := &xfrmCommandDP{}
+	left := spdLeft.describe(dp)
 	if !slices.Equal(left, want) {
 		t.Fatalf("describe named the leftover entries as\n%q\nwant\n%q", left, want)
 	}
 
 	var logged bytes.Buffer
-	if !warnSPDLeft(slog.New(slog.NewTextHandler(&logged, nil))) {
+	if !warnSPDLeft(dp, slog.New(slog.NewTextHandler(&logged, nil))) {
 		t.Fatal("warnSPDLeft reports nothing left with three entries in the ledger")
 	}
 	for _, command := range want {
 		if !strings.Contains(logged.String(), command) {
 			t.Errorf("the warning does not carry the command %q:\n%s", command, logged.String())
 		}
+	}
+}
+
+// VALIDATES: the exit warning names each leftover entry in the removal command of the
+// backend that holds it: the VPP backend's vppctl line on VPP, and, on a backend that
+// names no command, a statement that it names none, with the selector.
+// METHOD: record one failed removal, then read describe and warnSPDLeft through a
+// dataplane naming VPP commands and through one naming none.
+// PREVENTS: describe printing `ip xfrm policy delete` whatever the backend, a command
+// that removes nothing from VPP's SPD.
+func TestSPDLeftoverNamesTheBackendCommand(t *testing.T) {
+	resetSPDLeft(t)
+	_, dst, _ := net.ParseCIDR("10.1.2.3/32")
+	p := dataplane.SPParams{Dst: dst, Dir: dataplane.SADirOut, Priority: dataplane.PriorityChildSA}
+	spdLeft.record(&p, errors.New("vpp: ipsec spd entry del: retval -1"))
+
+	vpp := &vppCommandDP{}
+	if left := spdLeft.describe(vpp); !slices.Equal(left, []string{vppCommandFixture}) {
+		t.Fatalf("describe on VPP named %q, want the VPP backend's command %q", left, vppCommandFixture)
+	}
+	var logged bytes.Buffer
+	if !warnSPDLeft(vpp, slog.New(slog.NewTextHandler(&logged, nil))) {
+		t.Fatal("warnSPDLeft reports nothing left with one entry in the ledger")
+	}
+	if strings.Contains(logged.String(), "ip xfrm") {
+		t.Fatalf("the warning on VPP names an ip xfrm command:\n%s", logged.String())
+	}
+
+	left := spdLeft.describe(&failingRemoveDP{})
+	if len(left) != 1 || !strings.HasPrefix(left[0], "(the dataplane names no command that removes the policy dir out") {
+		t.Fatalf("describe on a backend naming no command named %q", left)
 	}
 }

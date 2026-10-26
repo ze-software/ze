@@ -956,7 +956,7 @@ func releaseInnerRecord(child *ChildSA, dp dataplane.Dataplane, left []dataplane
 		child.innerGuard.release(child)
 		return
 	}
-	// The commands are the dataplane's own (strandedCommand): ip xfrm for the kernel,
+	// The commands are the dataplane's own (policyDeleteCommand): ip xfrm for the kernel,
 	// vppctl for VPP.
 	stranded := newStrandedPolicies(dp, left, log)
 	child.innerGuard.strand(child, stranded)

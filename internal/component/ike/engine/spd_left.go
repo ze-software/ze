@@ -98,22 +98,31 @@ func (l *spdLeftover) record(p *dataplane.SPParams, err error) {
 	l.entries[sel] = *p
 }
 
-// describe names every entry still in the ledger as the exact `ip xfrm policy delete`
-// command that removes it, one string each and sorted, for the warning releaseSPD
-// logs. It is empty when every removal succeeded.
+// describe names every entry still in the ledger as the command dp names for removing
+// it (policyDeleteCommand): `ip xfrm policy delete` on XFRM, `vppctl ipsec policy del`
+// on VPP. One string each, sorted, for the warning releaseSPD logs; it is empty when
+// every removal succeeded. dp is the backend that installed the entries, the engine's
+// one backend for its life (dataplane.Load in runEngine), and only it can name a VPP
+// entry, from the entry it recorded.
 //
-// The command carries every field of spdSelector, because two entries that share
+// The XFRM command carries every field of spdSelector, because two entries that share
 // direction and prefixes still differ by protocol, port or if_id: the IKE bypass on
 // port 500 and the one on port 4500 are two entries, and a line naming neither port
 // left the operator unable to tell which command removes which
 // (dataplane.XFRMPolicyDeleteCommand).
-func (l *spdLeftover) describe() []string {
+func (l *spdLeftover) describe(dp dataplane.Dataplane) []string {
+	// The entries are copied out and named after l.mu is released: naming asks the
+	// backend, which takes its own lock.
 	l.mu.Lock()
-	defer l.mu.Unlock()
-	names := make([]string, 0, len(l.entries))
+	left := make([]dataplane.SPParams, 0, len(l.entries))
 	for sel := range l.entries {
-		p := l.entries[sel]
-		names = append(names, dataplane.XFRMPolicyDeleteCommand(&p))
+		left = append(left, l.entries[sel])
+	}
+	l.mu.Unlock()
+
+	names := make([]string, 0, len(left))
+	for i := range left {
+		names = append(names, policyDeleteCommand(dp, &left[i]))
 	}
 	slices.Sort(names)
 	return names
@@ -127,9 +136,10 @@ func dirLabel(dir dataplane.SADir) string {
 }
 
 // warnSPDLeft logs the entries the ledger holds and reports whether there were any.
-// The catch-all stays installed when it returns true.
-func warnSPDLeft(log *slog.Logger) bool {
-	left := spdLeft.describe()
+// The catch-all stays installed when it returns true. dp names each entry's removal
+// command (describe).
+func warnSPDLeft(dp dataplane.Dataplane, log *slog.Logger) bool {
+	left := spdLeft.describe(dp)
 	if len(left) == 0 {
 		return false
 	}

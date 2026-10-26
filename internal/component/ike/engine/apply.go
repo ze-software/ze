@@ -467,7 +467,7 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	}
 	removeIKEBypass(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
-	if warnSPDLeft(log) {
+	if warnSPDLeft(dp, log) {
 		return
 	}
 	removeUnmatched(dp, log)
