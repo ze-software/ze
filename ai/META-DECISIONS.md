@@ -98,6 +98,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - No release, version, tag or user consumes `main`. A red test does not hold a
   commit: commit the work and name the red test and its cause in the body.
   Full rule: `ai/rules/pre-release.md`.
+- A red prevents a release, never a commit. No gate refuses a commit for a red,
+  whether a test, lint, a structural check or a generated-file check, and
+  whether or not the commit caused it. The commit names the reds it knows of in
+  its body. Reds are owed at release, where Thomas's release check must be
+  green.
 - Day-to-day work is judged only by the tests of the components it changed
   (BGP, OSPF, IS-IS, a plugin, the tooling), found from the change itself: the
   packages it reaches, the feature tags those packages build under, and the
