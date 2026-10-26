@@ -1,5 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- R-12, a recovery write whose survivor was purged.
-// Related: rs_withdrawal_replacement_test.go -- the route-server replacement probes this extends.
+// Related: rfc7947_rs_withdrawal_replacement_test.go -- the route-server replacement probes this extends.
 // Related: rs_withdrawal_ownership_test.go -- the recipient TCP projection these tests read.
 // RFC 4271 Section 9.2 -- see rfc/short/rfc4271.md.
 package reactor

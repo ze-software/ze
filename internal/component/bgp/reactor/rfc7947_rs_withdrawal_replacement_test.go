@@ -496,6 +496,20 @@ func TestRSOwnerWithdrawalPolicyDeniedReplacement(t *testing.T) {
 //
 // VALIDATES: AC-5, the egress check steps through the election order.
 // PREVENTS: a client withdrawn while a permitted survivor exists.
+//
+// RFC requirement: RFC7947-x-5 positive -- when the source of the route a route-server client holds withdraws it and that client's export policy denies the next survivor in election order, the client's wire receives the following permitted survivor's received attributes with no withdrawal and never the denied route; with every survivor denied, it receives the withdrawal exactly once.
+//
+// RFC 7947 Section 2.1: "The route server SHOULD perform one or more BGP
+// Decision Processes to select routes for subsequent advertisement to its
+// clients, taking into account possible configuration to provide multiple
+// Network Layer Reachability Information (NLRI) paths to a particular client
+// as described in Section 2.3.2.2 or multiple Loc-RIBs as described in
+// Section 2.3.2.1."
+//
+// MUTATION: make recoveryStagedAnnouncement (relay_recovery.go) answer true
+// for a candidate staged only as its synthesized withdrawal: queueRecoveryOutcome
+// takes the denied B as C's replacement, and C is withdrawn instead of
+// receiving E's route.
 func TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor(t *testing.T) {
 	t.Run("next-permitted", func(t *testing.T) { policyDeniedSurvivors(t, true, false) })
 	t.Run("all-denied", func(t *testing.T) { policyDeniedSurvivors(t, true, true) })

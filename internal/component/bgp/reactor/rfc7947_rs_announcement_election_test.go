@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- announcement election at the final writer
 // Related: session_ownership.go -- adjOutWrite.oweAnnouncement
-// Related: rs_withdrawal_replacement_test.go -- the live route-server fixtures
+// Related: rfc7947_rs_withdrawal_replacement_test.go -- the live route-server fixtures
 package reactor
 
 import (
@@ -623,6 +623,22 @@ func addPathClientPaths(t *testing.T, client *lowLivePeer, prefix netip.Prefix) 
 // VALIDATES: oweAnnouncement leaves an ADD-PATH destination to forwarding
 // (RFC 7947 Section 2.3.2.2).
 // PREVENTS: an ADD-PATH client given only the elected path.
+//
+// RFC requirement: RFC7947-x-5 positive -- when two sources announce one prefix, in either order and one route worse than the other, a route-server client that negotiated ADD-PATH send for the family receives both paths on its wire, each under its own Path Identifier, in arrival order, and owes no election for the prefix.
+//
+// RFC 7947 Section 2.1: "The route server SHOULD perform one or more BGP
+// Decision Processes to select routes for subsequent advertisement to its
+// clients, taking into account possible configuration to provide multiple
+// Network Layer Reachability Information (NLRI) paths to a particular client
+// as described in Section 2.3.2.2 or multiple Loc-RIBs as described in
+// Section 2.3.2.1."
+//
+// MUTATION: run the election for an ADD-PATH destination over one slot per
+// prefix. Three breaks together: fwdPathIDTable.generate answers every
+// unframed source one identifier, bindSourcePath reserves no fresh identifier
+// when a path meets another owner's slot, and oweAnnouncement owes the key at
+// an ADD-PATH destination. C then receives only one path. Each break alone
+// leaves the test green.
 func TestRSAnnouncementAddPathClientGetsEveryPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.9.0.0/24")
 	attrsA := firstASAttrs(4, 65002)

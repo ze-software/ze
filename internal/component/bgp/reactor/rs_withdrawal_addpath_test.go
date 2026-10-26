@@ -1,5 +1,5 @@
 // Design: docs/guide/route-reflection.md -- route-server replacement on an owner withdrawal.
-// Related: rs_withdrawal_replacement_test.go -- the non-ADD-PATH replacement probes.
+// Related: rfc7947_rs_withdrawal_replacement_test.go -- the non-ADD-PATH replacement probes.
 // Related: rs_withdrawal_ownership_test.go -- the recipient TCP projection these tests read.
 // Related: rfc7705_live_behavior_test.go -- lowLiveRouter, which this file's router follows.
 // RFC 7911 Section 3 -- see rfc/short/rfc7911.md.

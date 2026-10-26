@@ -20,5 +20,59 @@
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
     "producer-sha": "13cf02a605ddca00",
     "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC7947-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath",
+    "unit-sha": "67049f6b95abccb6",
+    "claim-sha": "ded354c19c56d1be",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
+    "producer-sha": "13cf02a605ddca00",
+    "break": "line 455: \"key.addPath\" -\u003e \"false\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
+        "producer-sha": "53faf4865730dc76",
+        "break": "line 139: \"ok\" -\u003e \"true\""
+      },
+      {
+        "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
+        "producer-sha": "0640775328f1e98b",
+        "break": "line 357: \"||\" -\u003e \"\u0026\u0026\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
+        "break": "line 455: \"key.addPath\" -\u003e \"false\"",
+        "seconds": 31,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.577s"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/forward_path_id.go::generate",
+        "break": "line 139: \"ok\" -\u003e \"true\"",
+        "seconds": 42,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.654s"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
+        "break": "line 357: \"||\" -\u003e \"\u0026\u0026\"",
+        "seconds": 29,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.664s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC7947-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go::TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor",
+    "unit-sha": "a77b1c31590f1e86",
+    "claim-sha": "fab5d050c52ed0b7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/relay_recovery.go::recoveryStagedAnnouncement",
+    "producer-sha": "2d52cffaf253c8e0",
+    "break": "line 699: \"!items[i].provenance.synthesizedWithdrawal\" -\u003e \"true\""
   }
 ]

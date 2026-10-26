@@ -1,5 +1,5 @@
 // Design: docs/guide/route-reflection.md -- what a client is sent when a reflected source withdraws or departs.
-// Related: rs_withdrawal_replacement_test.go -- the bgp-rs scenarios these mirror.
+// Related: rfc7947_rs_withdrawal_replacement_test.go -- the bgp-rs scenarios these mirror.
 // Related: rs_withdrawal_ownership_test.go -- the recipient TCP projection these tests read.
 // Related: recovery_departure_labels_test.go -- the multi-label withdrawal framing.
 // RFC 4456 Section 8 -- see rfc/short/rfc4456.md.
