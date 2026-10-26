@@ -132,6 +132,7 @@ The verification-debt shards, the session directory, the hook registry.
 | AC-25 | missing RFC summaries x8 | Each named document gets a summary and the retired rows return to it, or `rfc/corrections/` states why not |
 | AC-26 | standing reds x6 (site goconst, cli-grammar unblocked, post-OSPF lint, repo check/audit/doc verify, le fixtures, `pluginOwnershipGate`) | Each gate is green at HEAD or runs in a blocking set with a baseline, and the le fixtures pass |
 | AC-27 | executable bytes disagree with their Go content identity | Trace the corruption to its writer or storage boundary and demonstrate the repair; a successful rebuild alone does not close the incident |
+| AC-28 | generated bulk UPDATE session attributes | Ordinary generated bulk announcements include LOCAL_PREF on iBGP and omit it on eBGP, proven through the real peer handshake for IPv4 and IPv6; intentional raw-hex injection remains unchanged |
 
 ## 🧪 TDD Test Plan
 
@@ -223,6 +224,7 @@ before execution. The responsible component remains unestablished.
 | `gate-owed-a-clearance-no-command-writes` | 2026-09-08 | `debt-discharge` |
 | `gate-owed-a-clearance-no-command-writes` | 2026-09-07 | `./le commit debt-clear` |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-10 | `(*Bench).Run` |
+| `guard-added-to-one-half-of-a-pair` | 2026-10-26 | `runMessageLoop` generated bulk UPDATE attributes |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-07 | `runGating` |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-05 | `le verify` cancellation |
 | `invariant-enforced-by-an-absent-call-site` | 2026-08-18 | spec WIP cap |
