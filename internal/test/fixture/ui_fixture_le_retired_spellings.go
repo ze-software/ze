@@ -65,8 +65,11 @@ func leRetiredSpellings(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if job.exitCode != 0 || !strings.Contains(job.stdout, "run") {
-		return fmt.Errorf("le job answered %d:\n%s%s", job.exitCode, job.stdout, job.stderr)
+	if job.exitCode != 0 {
+		return fmt.Errorf("le job answered %d, want 0:\n%s%s", job.exitCode, job.stdout, job.stderr)
+	}
+	if !strings.Contains(job.stdout, "run") {
+		return fmt.Errorf("le job answered %d without listing run:\n%s%s", job.exitCode, job.stdout, job.stderr)
 	}
 	var tb textbuf.Buffer
 	tb.Str("refused ").Int(int64(len(rows))).Str(" retired spellings, each naming its successor; every successor page answers\n").
@@ -111,8 +114,11 @@ func leRetiredSpellingsRow(ctx context.Context, root, lePath string, row leretir
 		return err
 	}
 	want := "le " + old + " was renamed: run le " + strings.Join(row.New(), " ")
-	if refused.exitCode != 2 || !strings.Contains(refused.stderr, want) {
-		return fmt.Errorf("le %s answered %d, want 2 and %q; stderr %q", old, refused.exitCode, want, refused.stderr)
+	if refused.exitCode != 2 {
+		return fmt.Errorf("le %s answered %d, want 2; stdout %q; stderr %q", old, refused.exitCode, refused.stdout, refused.stderr)
+	}
+	if !strings.Contains(refused.stderr, want) {
+		return fmt.Errorf("le %s answered %d without %q; stdout %q; stderr %q", old, refused.exitCode, want, refused.stdout, refused.stderr)
 	}
 	command := strings.Fields(row.Command)
 	args := append([]string{leHelpPagesHelpWord}, command...)
@@ -136,8 +142,8 @@ func leRetiredSpellingsRow(ctx context.Context, root, lePath string, row leretir
 		return nil
 	}
 	for line := range strings.SplitSeq(page.stdout, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == action[0] || strings.HasPrefix(trimmed, action[0]+" ") {
+		first, _, _ := strings.Cut(strings.TrimSpace(line), " ")
+		if first == action[0] {
 			return nil
 		}
 	}

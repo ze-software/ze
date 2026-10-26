@@ -306,6 +306,7 @@ func retiredLine(program string, args []string) *RetiredError {
 // documentation sweep also reads.
 func retiredSpelling(program, lead string, own []string) *RetiredError {
 	row, ok := leretired.Match(own)
+	// refuse-by-default: guards retiredLine -- a line no row names is not retired; Match scans an in-memory table and has no failure that could hide a row
 	if !ok {
 		return nil
 	}
