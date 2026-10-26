@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestAGoTagIsReadAnywhereInTheFile(t *testing.T) {
@@ -302,19 +304,36 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 			"run: ./le test qemu run command \"le test integration interop\"\n",
 			[]string{"test qemu/run"},
 		},
+		{
+			"a three-word command is the longest registered prefix",
+			"run: ./le setup docker kernel check ze tmp\n",
+			[]string{"setup docker kernel/check"},
+		},
+		{
+			"a line that opens with no verb runs the default action",
+			"run: ./le repo bootstraps\n",
+			[]string{"repo bootstraps/check"},
+		},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
 			registered := func(name string) bool {
-				return name == "doc check" || name == "test integration" || name == "arch tier" || name == "test qemu"
+				return name == "doc check" || name == "test integration" || name == "arch tier" || name == "test qemu" ||
+					name == "setup" || name == "setup docker kernel" || name == "repo bootstraps"
 			}
-			nested := func(command, verb string) (string, bool) {
-				if command == "test qemu" && verb == "docker-lab" {
-					return "lab", true
+			actions := func(command string) (leaction.List, bool) {
+				if command == "test qemu" {
+					return leaction.List{Actions: []leaction.Row{
+						{Verb: "docker-lab", Parameters: []leaction.Parameter{{Keyword: "lab", Kind: leaction.KindWords}}},
+						{Verb: "run"},
+					}}, true
 				}
-				return "", false
+				if command == "repo bootstraps" {
+					return leaction.List{Actions: []leaction.Row{{Verb: "check", Default: true}}}, true
+				}
+				return leaction.List{}, false
 			}
-			got := nativeActionsIn(one.src, registered, nested)
+			got := nativeActionsIn(one.src, registered, actions)
 			if !slices.Equal(got, one.want) {
 				t.Fatalf("NativeActionsIn(%q) = %v, want %v", one.src, got, one.want)
 			}

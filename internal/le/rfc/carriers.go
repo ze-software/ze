@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
@@ -640,18 +641,6 @@ func stripYAMLComments(src string) string {
 // invocation parse as its one-word fallback.
 func registeredCommand(name string) bool { return leroot.LookupCommand(name) != nil }
 
-// workflowNestedLe answers the keyword of a registered action whose value is
-// another le command line (leaction.KindWords), so `./le test qemu docker-lab
-// lab "test integration interop"` credits the lab it runs as well as itself.
-// The registry answers it, so a new wrapper is read without an edit here.
-func workflowNestedLe(command, verb string) (string, bool) {
-	list, declared := leroot.ActionsOf(command)
-	if !declared {
-		return "", false
-	}
-	return list.NestedLeKeyword(verb)
-}
-
 // workflowCommand reports whether a whole name is a command a scheduled
 // workflow can credit: a registered le command, or the command of a declared
 // interop tree.
@@ -689,9 +678,12 @@ func interopTreeCommand(tree interopTree) string {
 //
 // It models command lines, not a shell. Chains are split, but substitutions,
 // backticks, and subshells are not parsed. An action whose keyword carries
-// another le command line (nested answers which) runs that command too, so it
-// is credited beside the wrapper.
-func nativeActionsIn(src string, registered func(string) bool, nested func(command, verb string) (string, bool)) []string {
+// another le command line (leaction.KindWords) runs that command too, so it is
+// credited beside the wrapper: `./le test qemu docker-lab lab "test integration
+// interop"` credits the lab it runs as well as itself. actions answers a
+// command's action table, which says both where its verb is and which keyword
+// nests, so a new wrapper is read without an edit here.
+func nativeActionsIn(src string, registered func(string) bool, actions func(string) (leaction.List, bool)) []string {
 	var out []string
 	for line := range strings.SplitSeq(src, "\n") {
 		cmd := strings.TrimSpace(line)
@@ -702,7 +694,7 @@ func nativeActionsIn(src string, registered func(string) bool, nested func(comma
 			cmd = strings.ReplaceAll(cmd, sep, "\x00")
 		}
 		for frag := range strings.SplitSeq(cmd, "\x00") {
-			out = append(out, actionsInCommand(strings.Fields(frag), registered, nested)...)
+			out = append(out, actionsInCommand(strings.Fields(frag), registered, actions)...)
 		}
 	}
 	return out
@@ -711,7 +703,20 @@ func nativeActionsIn(src string, registered func(string) bool, nested func(comma
 // actionsInCommand answers the action one command line invokes, then the action
 // of any le command line it carries. The recursion is bounded by the line: each
 // level reads a strict suffix of the words the level above it held.
-func actionsInCommand(fields []string, registered func(string) bool, nested func(command, verb string) (string, bool)) []string {
+//
+// It reads the line the way dispatch does. Which words are the command is a
+// question only the registry answers: the command is the longest registered
+// prefix of at most leroot.CommandWordsMax words, so `./le setup docker kernel
+// check` is the check verb of `setup docker kernel`, `./le doc check links` the
+// links verb of `doc check`, and `./le verify current fast` the current verb of
+// `verify` with `fast` its argument. Counting words would read the first as the
+// `docker` verb of `setup`. Where no prefix is registered, the first word is
+// the command. The verb is then read from the command's action table
+// (leaction.List.AtVerb): a default action (leaction.Action.Default) supplies
+// the verb a line does not open with, a verbless area's action is the empty
+// verb, and a command with no table, or a bare command with no default, is
+// read as typed, so a bare listing credits no action.
+func actionsInCommand(fields []string, registered func(string) bool, actions func(string) (leaction.List, bool)) []string {
 	if len(fields) > 0 && fields[0] == "-" {
 		fields = fields[1:]
 	}
@@ -723,34 +728,37 @@ func actionsInCommand(fields []string, registered func(string) bool, nested func
 		strings.HasPrefix(fields[0], "-") || strings.Contains(fields[0], "=")) {
 		fields = fields[1:]
 	}
-	if len(fields) < 3 || (fields[0] != "./le" && fields[0] != "le") {
+	if len(fields) < 2 || (fields[0] != "./le" && fields[0] != "le") {
 		return nil
 	}
-	// Which words are the command is a question only the registry answers. A
-	// namespaced command takes two of them, so `./le doc check links` is the
-	// links verb of `doc check`, while `./le verify current` is the
-	// current verb of `verify` and `mode` is its argument. Counting words would
-	// read the first as the `check` verb of a `doc` command that does not
-	// exist, and the second correctly, which is the worst kind of wrong.
 	var tb textbuf.Buffer
-	command, verbAt := fields[1], 2
-	twoWord := tb.Str(fields[1]).Byte(' ').Str(fields[2]).String()
-	if len(fields) > 3 && registered(twoWord) {
-		command, verbAt = twoWord, 3
+	command, rest := fields[1], fields[2:]
+	for span := min(len(fields)-1, leroot.CommandWordsMax); span > 1; span-- {
+		tb.Reset()
+		name := tb.Join(fields[1:1+span], " ").String()
+		if registered(name) {
+			command, rest = name, fields[1+span:]
+			break
+		}
+	}
+	list, _ := actions(command)
+	line := list.AtVerb(rest)
+	if len(line) == 0 {
+		return nil
 	}
 	tb.Reset()
-	action := tb.Str(command).Byte('/').Str(fields[verbAt]).String()
+	action := tb.Str(command).Byte('/').Str(line[0]).String()
 
-	keyword, nests := nested(command, fields[verbAt])
+	keyword, nests := list.NestedLeKeyword(line[0])
 	if !nests {
 		return []string{action}
 	}
-	words := nestedLeWords(fields[verbAt+1:], keyword)
+	words := nestedLeWords(line[1:], keyword)
 	if len(words) == 0 {
 		return []string{action}
 	}
 	inner := append([]string{"./le"}, words...)
-	return append([]string{action}, actionsInCommand(inner, registered, nested)...)
+	return append([]string{action}, actionsInCommand(inner, registered, actions)...)
 }
 
 // nestedLeWords answers the words of the value keyword introduces among an
@@ -846,7 +854,7 @@ func scheduledActionsFrom(sources map[string]string) map[string]string {
 		if !isScheduled(src) {
 			continue
 		}
-		for _, action := range nativeActionsIn(src, workflowCommand, workflowNestedLe) {
+		for _, action := range nativeActionsIn(src, workflowCommand, leroot.ActionsOf) {
 			if _, seen := out[action]; !seen {
 				out[action] = name
 			}
