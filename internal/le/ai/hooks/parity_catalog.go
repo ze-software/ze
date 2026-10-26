@@ -25,7 +25,7 @@ var parityCatalog = [...]parityTable{
 			{name: "git log --oneline | tail -3", expectedCode: 0},
 			{name: "go test ./... | head -50", expectedCode: 2},
 			{name: "go test ./... 2>&1 | tee tmp/t.log", expectedCode: 2},
-			{name: "git status | grep foo; ./le ai rules index-update", expectedCode: 0},
+			{name: "git status | grep foo; ./le ai rules update index", expectedCode: 0},
 			{name: "ls | head; go test ./... | grep FAIL", expectedCode: 2},
 			{name: "go test ./... 2>&1 |\n  grep -c FAIL", expectedCode: 2},
 			{name: "./le verify current \\\n  | tail -40", expectedCode: 2},

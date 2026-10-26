@@ -22,7 +22,7 @@ const (
 )
 
 // Re-sealed 2026-09-25 for spec-le-subject-first-command-tree, Phase 2:
-// the bash fixtures name the subject-first commands (`ai rules index-update`,
+// the bash fixtures name the subject-first commands (`ai rules update index`,
 // `ai hooks unit`, `spec wip`, `test unit`, `repo changed`, `test qemu`). Same
 // rows, same expected codes.
 // Re-sealed 2026-09-25 for the same spec, Phase 3: the seven bash fixtures that
@@ -30,11 +30,14 @@ const (
 // rawZeTest guard and the harness alternative of expensivePipe. 82 rows are 75.
 // 2026-10-18: the verify-gate rows type `./le verify current`, because the
 // `mode full` spelling was removed; the rows and their verdicts are unchanged.
+// Re-sealed 2026-10-26 for spec-le-cli-usability D-P4-reseal (owner approved):
+// one bash row types `./le ai rules update index`, the Phase 4 spelling of
+// `ai rules index-update`. Same rows, same expected codes.
 var parityCatalogDigest = [sha256.Size]byte{
-	0x27, 0xb5, 0xc2, 0x43, 0xfb, 0x18, 0x02, 0x31,
-	0x7f, 0xe2, 0x0f, 0x41, 0xeb, 0x04, 0x76, 0x74,
-	0x91, 0x59, 0x4b, 0xb6, 0x0e, 0x0f, 0xa6, 0x55,
-	0x6f, 0x38, 0xb4, 0xe0, 0x24, 0xfa, 0x9a, 0x51,
+	0xee, 0xef, 0x07, 0xfb, 0xd8, 0xf4, 0xc5, 0x74,
+	0x2b, 0x62, 0xc4, 0x50, 0x8b, 0xfe, 0x1a, 0xc7,
+	0x42, 0xce, 0xe8, 0x77, 0x63, 0xc1, 0xc2, 0x29,
+	0x90, 0x3b, 0x32, 0x87, 0x3c, 0xb5, 0x34, 0x83,
 }
 
 var (
