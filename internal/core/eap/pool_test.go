@@ -94,7 +94,7 @@ func TestVirtualIPPoolRelease(t *testing.T) {
 }
 
 // VALIDATES: an exhausted pool refuses rather than wrapping around and handing an address
-// out twice, and Available reports zero.
+// out twice, and HeldIn reports every address held.
 func TestVirtualIPPoolExhausted(t *testing.T) {
 	p, err := NewPool("p", "10.10.0.0/30", "", nil)
 	if err != nil {
@@ -110,8 +110,12 @@ func TestVirtualIPPoolExhausted(t *testing.T) {
 	if _, err := r.Acquire(p, "x", FamilyIPv4, netip.Addr{}); !errors.Is(err, ErrPoolExhausted) {
 		t.Fatalf("expected ErrPoolExhausted, got %v", err)
 	}
-	if got := r.Available(p); got != 0 {
-		t.Fatalf("available: got %d, want 0", got)
+	held, capacity, ok := r.HeldIn(p, FamilyIPv4)
+	if !ok {
+		t.Fatal("HeldIn answered that the IPv4 pool serves no IPv4")
+	}
+	if held != capacity {
+		t.Fatalf("available: got %d, want 0", capacity-held)
 	}
 }
 
@@ -138,8 +142,46 @@ func TestVirtualIPPoolDualStack(t *testing.T) {
 	if !v6.Addr().Is6() {
 		t.Fatalf("IPv6 lease is %s", v6.Addr())
 	}
-	if got := r.Available(p); got != p.Capacity()-2 {
-		t.Fatalf("available: got %d, want %d", got, p.Capacity()-2)
+	for _, family := range []Family{FamilyIPv4, FamilyIPv6} {
+		held, _, ok := r.HeldIn(p, family)
+		if !ok {
+			t.Fatalf("HeldIn answered that the dual-stack pool does not serve family %d", family)
+		}
+		if held != 1 {
+			t.Fatalf("family %d holds %d leases, want 1", family, held)
+		}
+	}
+}
+
+// VALIDATES: an owner whose live lease a pool edit moved outside the range is leased an
+// address inside the edited range on its next Acquire, while the old holder keeps the old
+// lease until it releases it, and that release does not disturb the new lease.
+// PREVENTS: a re-initiating peer handed back a lease the pool no longer serves.
+func TestAcquireLeasesInsideTheEditedRange(t *testing.T) {
+	before := mustPool(t, "10.10.0.0/24", "")
+	r := NewRegistry()
+	old := mustAcquire(t, r, before, "a", FamilyIPv4, netip.MustParseAddr("10.10.0.200"))
+	if old.Addr() != netip.MustParseAddr("10.10.0.200") {
+		t.Fatalf("setup: leased %s, want the requested 10.10.0.200", old.Addr())
+	}
+	after := mustPool(t, "10.10.0.0/25", "")
+	if after.Contains(old.Addr()) {
+		t.Fatal("setup: the edited range still contains the old lease")
+	}
+
+	fresh := mustAcquire(t, r, after, "a", FamilyIPv4, netip.Addr{})
+	if !after.Contains(fresh.Addr()) {
+		t.Fatalf("re-initiation got %s, outside the edited range %s", fresh.Addr(), after.Prefix4())
+	}
+	if !r.IsHeldForTest(old.Addr()) {
+		t.Fatal("the old holder lost its lease when the owner was leased afresh")
+	}
+	if err := r.Release(old); err != nil {
+		t.Fatalf("release the out-of-range lease: %v", err)
+	}
+	again := mustAcquire(t, r, after, "a", FamilyIPv4, netip.Addr{})
+	if again != fresh {
+		t.Fatalf("after the old lease was released the owner got %s, want its live lease %s", again.Addr(), fresh.Addr())
 	}
 }
 

@@ -7,7 +7,7 @@
     "claim-sha": "f6a0c7bda69cbde3",
     "route": "revert",
     "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
-    "producer-sha": "9bad47de42e548c1",
+    "producer-sha": "d0d5b415d2ea4cc3",
     "break": "body of assignVirtualIP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -7,7 +7,7 @@
     "claim-sha": "fbd6469c4d825ee4",
     "route": "mutant",
     "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
-    "producer-sha": "7adce11d4f7d01d6",
+    "producer-sha": "35400d06c73524fa",
     "break": "line 1097: \"inner = append(inner, wire.PayloadEntry{Payload: saPayload})\" -\u003e \"inner = append([]wire.PayloadEntry{{Payload: saPayload}}, inner...)\""
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "4b016481efab4f3b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
-    "producer-sha": "7adce11d4f7d01d6",
+    "producer-sha": "35400d06c73524fa",
     "break": "line 1097: \"inner = append(inner, wire.PayloadEntry{Payload: saPayload})\" -\u003e \"inner = append([]wire.PayloadEntry{{Payload: saPayload}}, inner...)\""
   }
 ]

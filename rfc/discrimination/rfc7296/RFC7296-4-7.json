@@ -18,7 +18,7 @@
     "claim-sha": "15ea6ba00b4c2b4c",
     "route": "mutant",
     "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
-    "producer-sha": "9bad47de42e548c1",
-    "break": "line 191: \"eap.FamilyIPv6, sa.cpRequest.want6, sa.cpRequest.req6\" -\u003e \"eap.FamilyIPv4, sa.cpRequest.want6, netip.Addr{}\""
+    "producer-sha": "d0d5b415d2ea4cc3",
+    "break": "line 192: \"eap.FamilyIPv6, sa.cpRequest.want6, sa.cpRequest.req6\" -\u003e \"eap.FamilyIPv4, sa.cpRequest.want6, netip.Addr{}\""
   }
 ]

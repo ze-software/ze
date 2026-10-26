@@ -813,6 +813,13 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 	if err != nil {
 		return err
 	}
+	// RFC 3948 Section 5.1: a pool-bound peer's side of every Child SA is its lease
+	// (answerNamesOnlyLeases, cp.go). It runs before the ceiling below, because the
+	// ceiling falls back to the configured policy when nothing was recorded, and that
+	// policy covers the whole pool.
+	if err := answerNamesOnlyLeases(sa, pairs); err != nil {
+		return err
+	}
 	ceiling, what := sa.ProposedChildPairs, "the proposal ze sent"
 	if len(ceiling) == 0 {
 		ceiling, what = policyPairs(sa.PeerCfg, true), "the configured policy"

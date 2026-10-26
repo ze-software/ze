@@ -7,8 +7,8 @@
     "claim-sha": "2022bcc50b086eb0",
     "route": "mutant",
     "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
-    "producer-sha": "9bad47de42e548c1",
-    "break": "line 203: \"len(grant.held) == 0\" -\u003e \"lastErr != nil\""
+    "producer-sha": "d0d5b415d2ea4cc3",
+    "break": "line 204: \"len(grant.held) == 0\" -\u003e \"lastErr != nil\""
   },
   {
     "rid": "RFC7296-3.15.4-1",

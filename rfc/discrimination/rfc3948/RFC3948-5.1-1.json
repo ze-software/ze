@@ -7,8 +7,8 @@
     "claim-sha": "526a12acc7578070",
     "route": "mutant",
     "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
-    "producer-sha": "9bad47de42e548c1",
-    "break": "line 166: \"name == \\\"\\\"\" -\u003e \"true\""
+    "producer-sha": "d0d5b415d2ea4cc3",
+    "break": "line 167: \"name == \\\"\\\"\" -\u003e \"true\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -18,7 +18,29 @@
     "claim-sha": "2abd99db1f99bcc2",
     "route": "mutant",
     "producer": "internal/component/ike/engine/cp.go::substituteVirtualIP",
-    "producer-sha": "998f97196f786a61",
-    "break": "line 255: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
+    "producer-sha": "1bf92676e0c06a2c",
+    "break": "line 287: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go::TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease",
+    "unit-sha": "e2c7362069bf1e17",
+    "claim-sha": "634cb2898b263d20",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::proposeChildTSPayloads",
+    "producer-sha": "55cc1583cca1a611",
+    "break": "line 267: \"sa.PeerCfg.VirtualIPPoolName() != \\\"\\\"\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go::TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease",
+    "unit-sha": "e2c7362069bf1e17",
+    "claim-sha": "c0154c38208ca884",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::answerNamesOnlyLeases",
+    "producer-sha": "4e47e851c63679bd",
+    "break": "line 417: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
   }
 ]

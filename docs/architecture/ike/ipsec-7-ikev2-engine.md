@@ -274,7 +274,10 @@ are sent to a client too; an unedited pool keeps its descriptor and cursor.
 that peer sessions load. The lease registry beside it is created once with the
 engine's `SATable` and never replaced, so an edit cannot forget a live lease or
 hand its address out again. A peer reaches its pool through its
-`virtual-ip-pool` leaf (`PeerSession.boundVirtualIPPool`).
+`virtual-ip-pool` leaf: `assignVirtualIP` resolves the name with
+`virtualIPState.pool` when IKE_AUTH arrives, and a name the generation does not
+hold refuses the Child SA with INTERNAL_ADDRESS_FAILURE rather than installing
+the peer's self-chosen inner address.
 
 **A reload reaches the engine through `OnConfigApply`, and an apply with nothing
 staged is refused.** The plugin protocol splits a reload into a verify phase and
@@ -296,7 +299,8 @@ config-apply answers an error, and `OnConfigApply(nil)` panics.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
 <!-- source: internal/component/ike/engine/apply.go -- ikeEngineState, applyConfig, rebindListeners, stopAllPeers -->
-<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState, reload, boundVirtualIPPool -->
+<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState, reload, pool -->
+<!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP -->
 <!-- source: internal/component/ike/engine/register.go -- applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, DeclareAppliesNothing, configVerifyCallback, refuseConfigApply -->
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->

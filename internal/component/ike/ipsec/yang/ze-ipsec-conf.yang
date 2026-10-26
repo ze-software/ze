@@ -819,10 +819,12 @@ module ze-ipsec-conf {
                     leaf virtual-ip-pool {
                         type string;
                         description "Names a pool declared under vpn ipsec remote-access pool, and commit refuses
-                            a name no pool carries. The peer MUST then use connection-type respond and MUST
-                            send a CFG_REQUEST in IKE_AUTH: Ze leases it an inner address no other peer
-                            holds, answers with a CFG_REPLY, and narrows the peer's inner traffic selector
-                            to that address (RFC 7296 Section 2.19, RFC 3948 Section 5.1). A request Ze
+                            an empty name and a name no pool carries. The peer MUST then use
+                            connection-type respond and MUST send a CFG_REQUEST in IKE_AUTH: Ze leases it an
+                            inner address no other peer holds, answers with a CFG_REPLY, narrows the peer's
+                            inner traffic selector of every Child SA the peer asks for to that address, and
+                            proposes only that address for the peer's side of every Child SA Ze asks for,
+                            refusing a wider answer (RFC 7296 Section 2.19, RFC 3948 Section 5.1). A request Ze
                             cannot serve refuses the Child SA with FAILED_CP_REQUIRED or
                             INTERNAL_ADDRESS_FAILURE and keeps the IKE SA. When the peer has traffic
                             selectors, a remote prefix must cover the pool's ranges. A bound peer declines

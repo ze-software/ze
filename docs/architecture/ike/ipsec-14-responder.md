@@ -258,6 +258,21 @@ servers of each leased family, and an empty APPLICATION_VERSION when asked. It
 goes before SAr2 (Section 2.19), in the final IKE_AUTH of an EAP exchange and in
 the childless response too.
 
+A Child SA request Ze itself sends on that IKE SA, a rekey or a new Child SA,
+proposes the peer's side as its lease host inside each configured remote prefix
+that contains it, or against Ze's wildcard when no selector is configured
+(`proposeLeasedChildTSPayloads`, called from `proposeChildTSPayloads`), and
+records that as the ceiling. `recordInitiatorSelectors` then calls
+`answerNamesOnlyLeases`, which refuses an answer whose peer side is the pool
+prefix, the wildcard or anything else but a lease host, before the ceiling
+check, so the configured-policy fallback ceiling cannot admit it either. A
+pool-bound peer that asks for transport mode is declined
+(`decideResponderTransportMode`) and answered in tunnel mode, because
+`transportSelectorsInPlay` treats its request as not in play.
+
+<!-- source: internal/component/ike/engine/cp.go -- proposeLeasedChildTSPayloads, answerNamesOnlyLeases -->
+<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- transportSelectorsInPlay -->
+
 `substituteVirtualIP` narrows the peer's proposed inner selector to the lease
 in `narrowChildSelectors`, before the policy match, so the SPD lookup judges the
 leased address and two peers proposing the same address get two distinct

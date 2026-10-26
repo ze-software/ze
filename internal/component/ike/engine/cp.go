@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -166,7 +167,7 @@ func assignVirtualIP(sa *SA, vip *virtualIPState) error {
 	if name == "" {
 		return nil
 	}
-	if sa.virtualIP != nil {
+	if sa.leaseGrant() != nil {
 		return nil
 	}
 	if sa.cpRequest == nil {
@@ -203,20 +204,51 @@ func assignVirtualIP(sa *SA, vip *virtualIPState) error {
 	if len(grant.held) == 0 {
 		return fmt.Errorf("%w: pool %q: %w", errNoAddressAssigned, name, lastErr)
 	}
-	sa.virtualIP = grant
+	sa.setLeaseGrant(grant)
 	return nil
+}
+
+// virtualIPMu guards (*SA).virtualIP of every SA. The owner goroutine writes it
+// (assignVirtualIP, releaseVirtualIP, moveVirtualIP) while `show vpn ipsec sa` reads it
+// ((*SA).VirtualIPs), and a field mutex would make the SA uncopyable (sa.go). One package
+// lock is enough: the field changes once per IKE SA lifetime, never per packet.
+var virtualIPMu sync.Mutex
+
+// leaseGrant returns the lease set this IKE SA holds, nil when it holds none. Safe for
+// concurrent use.
+func (sa *SA) leaseGrant() *virtualIPGrant {
+	virtualIPMu.Lock()
+	defer virtualIPMu.Unlock()
+	return sa.virtualIP
+}
+
+// setLeaseGrant publishes grant as the lease set this IKE SA holds. Safe for concurrent
+// use.
+func (sa *SA) setLeaseGrant(grant *virtualIPGrant) {
+	virtualIPMu.Lock()
+	defer virtualIPMu.Unlock()
+	sa.virtualIP = grant
+}
+
+// takeLeaseGrant empties the SA's lease slot and returns what it held, nil when it held
+// nothing, so a grant leaves the slot exactly once. Safe for concurrent use.
+func (sa *SA) takeLeaseGrant() *virtualIPGrant {
+	virtualIPMu.Lock()
+	defer virtualIPMu.Unlock()
+	grant := sa.virtualIP
+	sa.virtualIP = nil
+	return grant
 }
 
 // releaseVirtualIP hands the IKE SA's leases back to the registry, once. Called from
 // (*SA).forgetKeys, the single close point of an SA.
 func (sa *SA) releaseVirtualIP() {
-	grant := sa.virtualIP
+	grant := sa.takeLeaseGrant()
 	if grant == nil {
 		return
 	}
-	sa.virtualIP = nil
 	for _, l := range grant.held {
-		//nolint:errcheck // a lease this SA holds is released exactly once; ErrNotAllocated would be a double release, which the nil-ing above prevents
+		//nolint:errcheck // a lease this SA holds is released exactly once; ErrNotAllocated would be a double release, which takeLeaseGrant prevents
 		grant.leases.Release(l)
 	}
 }
@@ -226,11 +258,11 @@ func (sa *SA) releaseVirtualIP() {
 // long as this IKE SA (or its rekeyed successors) requesting the address is valid." The
 // holder count is unchanged.
 func moveVirtualIP(retired, successor *SA) {
-	if retired.virtualIP == nil {
+	grant := retired.takeLeaseGrant()
+	if grant == nil {
 		return
 	}
-	successor.virtualIP = retired.virtualIP
-	retired.virtualIP = nil
+	successor.setLeaseGrant(grant)
 }
 
 // substituteVirtualIP narrows the peer's proposed inner selectors to its leased host
@@ -255,12 +287,13 @@ func substituteVirtualIP(sa *SA, proposed []tsSelector) ([]tsSelector, error) {
 	if sa.PeerCfg.VirtualIPPoolName() == "" {
 		return proposed, nil
 	}
-	if sa.virtualIP == nil {
+	grant := sa.leaseGrant()
+	if grant == nil {
 		return nil, fmt.Errorf("%w: the peer holds no virtual IP", errTSUnacceptable)
 	}
 	out := make([]tsSelector, 0, len(proposed))
 	for _, s := range proposed {
-		host, ok := leaseHostIn(sa.virtualIP, s.Net)
+		host, ok := leaseHostIn(grant, s.Net)
 		if !ok {
 			continue
 		}
@@ -297,6 +330,110 @@ func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) 
 		return nil, false
 	}
 	return host, true
+}
+
+// proposeLeasedChildTSPayloads builds the TSi/TSr of a Child SA request this node sends on
+// a pool-bound peer's IKE SA, a rekey or a new Child SA, and records the proposal as the
+// ceiling recordInitiatorSelectors judges the answer against. This node sends Ni, so its
+// own side is TSi and the peer's side, the lease, is TSr.
+//
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from occurring."
+// The configured remote prefix covers the whole pool, and the wildcard covers every
+// address, so proposing either lets the peer answer an inner address another peer holds,
+// which is the duplicate the lease registry exists to prevent. The peer's side is
+// therefore proposed as its lease host, inside each configured remote prefix that
+// contains it (leasedProposalPairs).
+//
+// When no pair survives, the IKE SA holds no lease or no configured remote prefix contains
+// it (commit refuses the second, ValidateVirtualIPPoolBindings), so no lease can be
+// proposed. The wildcard is sent with no recorded ceiling, and answerNamesOnlyLeases then
+// refuses every answer, because none can name a lease this SA holds.
+func proposeLeasedChildTSPayloads(sa *SA, pairs []tsPair) (*wire.PayloadTS, *wire.PayloadTS) {
+	leased := leasedProposalPairs(sa.leaseGrant(), pairs)
+	tsi, tsr := pairsToWire(leased)
+	if tsi == nil || tsr == nil {
+		sa.ProposedChildPairs = nil
+		return anyChildTSPayloads(sa)
+	}
+	sa.ProposedChildPairs = leased
+	return tsi, tsr
+}
+
+// leasedProposalPairs narrows the peer's side (R) of each proposed pair to the lease host
+// that side contains, keeping its protocol and ports, and drops a pair whose peer side
+// contains no lease. A peer with no configured selector proposes the wildcard, so each
+// held lease is paired with this node's wildcard of the same family. It answers nil for a
+// grant that holds nothing.
+//
+// RFC 7296 Section 2.9: "When the responder chooses a subset of the traffic proposed by
+// the initiator, it narrows the Traffic Selectors to some subset of the initiator's
+// proposal (provided the set does not become the null set)." The lease host is proposed
+// only where the configured policy contains it, so the request never asks for traffic the
+// policy does not allow.
+func leasedProposalPairs(grant *virtualIPGrant, pairs []tsPair) []tsPair {
+	if grant == nil {
+		return nil
+	}
+	if len(pairs) == 0 {
+		pairs = wildcardLeasePairs(grant)
+	}
+	out := make([]tsPair, 0, len(pairs))
+	for _, p := range pairs {
+		host, ok := leaseHostIn(grant, p.R.Net)
+		if !ok {
+			continue
+		}
+		out = append(out, tsPair{I: p.I, R: tsSelector{Net: host, Port: p.R.Port, Proto: p.R.Proto}})
+	}
+	return out
+}
+
+// wildcardLeasePairs returns one wildcard pair per family the grant holds a lease of, the
+// pair a peer with no configured selector proposes before leasedProposalPairs narrows its
+// peer side to the lease.
+func wildcardLeasePairs(grant *virtualIPGrant) []tsPair {
+	out := make([]tsPair, 0, len(grant.held))
+	for _, l := range grant.held {
+		bits := 8 * net.IPv4len
+		if l.Family() == eap.FamilyIPv6 {
+			bits = 8 * net.IPv6len
+		}
+		anyNet := tsSelector{Net: &net.IPNet{IP: make(net.IP, bits/8), Mask: net.CIDRMask(0, bits)}, Port: ipsec.AnyPort()}
+		out = append(out, tsPair{I: anyNet, R: anyNet})
+	}
+	return out
+}
+
+// answerNamesOnlyLeases refuses an answer to a Child SA request this node sent on a
+// pool-bound peer's IKE SA unless the peer's side (R) of every answered pair is exactly
+// one of the peer's lease hosts. It runs whatever the recorded ceiling is, so an empty
+// sa.ProposedChildPairs, which falls back to the configured policy, cannot admit the pool
+// prefix or the wildcard.
+//
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from occurring."
+// A Child SA whose peer side is wider than the lease would route to this peer the inner
+// addresses the registry leased to others.
+func answerNamesOnlyLeases(sa *SA, pairs []tsPair) error {
+	if sa.PeerCfg.VirtualIPPoolName() == "" {
+		return nil
+	}
+	grant := sa.leaseGrant()
+	if grant == nil {
+		return fmt.Errorf("%w: the peer is bound to virtual-ip-pool %q and its IKE SA holds no lease, "+
+			"so no answered selector can be its inner address", errTSUnusable, sa.PeerCfg.VirtualIPPoolName())
+	}
+	for _, p := range pairs {
+		if _, ok := leaseHostIn(grant, p.R.Net); !ok {
+			return fmt.Errorf("%w: the peer answered its side as %v, which holds none of its virtual IPs %v",
+				errTSWidened, p.R.Net, sa.VirtualIPs())
+		}
+		if ones, bits := p.R.Net.Mask.Size(); ones != bits {
+			return fmt.Errorf("%w: the peer answered its side as %v, wider than its virtual IPs %v, "+
+				"so the Child SA would carry inner addresses leased to other peers (RFC 3948 Section 5.1)",
+				errTSWidened, p.R.Net, sa.VirtualIPs())
+		}
+	}
+	return nil
 }
 
 // buildCFGReply builds the CFG_REPLY of a granted request.
@@ -351,13 +488,15 @@ func supportedAttributes() []byte {
 }
 
 // VirtualIPs returns the inner addresses this IKE SA leased to its peer, for
-// `show vpn ipsec sa` (virtual-ip). Nil when it holds none.
+// `show vpn ipsec sa` (virtual-ip). Nil when it holds none. Safe for concurrent use with
+// the owner goroutine's release and move: it reads the grant once (leaseGrant).
 func (sa *SA) VirtualIPs() []netip.Addr {
-	if sa.virtualIP == nil {
+	grant := sa.leaseGrant()
+	if grant == nil {
 		return nil
 	}
-	out := make([]netip.Addr, 0, len(sa.virtualIP.held))
-	for _, l := range sa.virtualIP.held {
+	out := make([]netip.Addr, 0, len(grant.held))
+	for _, l := range grant.held {
 		out = append(out, l.Addr())
 	}
 	return out

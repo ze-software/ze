@@ -259,6 +259,15 @@ func anyChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 	pairs := policyPairs(sa.PeerCfg, true)
 
+	// RFC 3948 Section 5.1: a pool-bound peer's side of every Child SA is its lease, so a
+	// request this node sends proposes the lease and nothing wider (leasedProposalPairs,
+	// cp.go). It is placed BEFORE the transport and wildcard branches below, because both
+	// would put the configured remote prefix or the wildcard on the wire, and the
+	// recorded proposal is the ceiling the answer is judged against.
+	if sa.PeerCfg.VirtualIPPoolName() != "" {
+		return proposeLeasedChildTSPayloads(sa, pairs)
+	}
+
 	// RFC 7296 Section 2.23.1 constrains a transport-mode proposal to the IKE SA's own
 	// address pair, so the rewrite happens BEFORE the wildcard fallback below. A
 	// transport-mode peer never falls back to the wildcard: the wildcard carries a range,

@@ -140,10 +140,15 @@ substitution and before the policy match.** For a responder SA that holds a
 lease from a remote-access pool, `substituteVirtualIP` narrows each proposed
 initiator selector that contains a leased host address to that host, inside
 `narrowChildSelectors`, so every caller of that entry point gets it: the direct
-and EAP IKE_AUTH, the childless path, CREATE_CHILD_SA and a Child SA rekey. The
-SPD match then judges the lease, and the narrowed TSi names it. Two peers that
-request the same address therefore get two distinct remote selectors, which is
-the duplicate inner address RFC 3948 Section 5.1 warns of. A proposed selector
+and EAP IKE_AUTH, the childless path, and a CREATE_CHILD_SA or Child SA rekey the
+peer starts. The SPD match then judges the lease, and the narrowed TSi names it.
+Two peers that request the same address therefore get two distinct remote
+selectors, which prevents the duplicate inner address RFC 3948 Section 5.1 warns
+of. A Child SA request Ze starts on that IKE SA, a new one or a rekey, proposes
+the lease host as the peer's side (`proposeLeasedChildTSPayloads`), and
+`answerNamesOnlyLeases`, called from `recordInitiatorSelectors`, refuses an
+answer whose peer side is anything but a lease host, whatever ceiling was
+recorded. A proposed selector
 that does not contain the lease of its family (read from the mask length, so an
 IPv4-mapped IPv6 range is IPv6) is dropped, because RFC 7296 Section 2.9 lets
 the answer be only "some subset of the initiator's proposal". A pool-bound SA

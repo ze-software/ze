@@ -41,8 +41,9 @@ type PeerSession struct {
 
 	// virtualIP is the engine's lease registry and pool generation, shared by every
 	// session (SATable.virtualIP). A peer bound to a pool leases its inner address
-	// through it; nil only in a test that built the session by hand, and a bound peer
-	// then has no pool and is refused its Child SA (boundVirtualIPPool).
+	// through it (assignVirtualIP, cp.go); nil only in a test that built the session by
+	// hand, and a bound peer then has no pool and is refused its Child SA with
+	// INTERNAL_ADDRESS_FAILURE.
 	virtualIP *virtualIPState
 
 	// responderBusy gates a `respond` peer to ONE in-flight half-open handshake --

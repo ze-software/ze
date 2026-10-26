@@ -157,9 +157,6 @@ func NewPool(name, ipv4CIDR, ipv6CIDR string, dns []string) (*Pool, error) {
 	return p, nil
 }
 
-// Name returns the configured pool name.
-func (p *Pool) Name() string { return p.name }
-
 // Prefix4 returns the IPv4 range, invalid when the pool serves no IPv4.
 func (p *Pool) Prefix4() netip.Prefix { return p.prefix4 }
 
@@ -186,18 +183,6 @@ func (p *Pool) Serves(family Family) bool {
 		return p.prefix6.IsValid()
 	}
 	return false
-}
-
-// Capacity returns how many addresses the pool can lease across both families.
-func (p *Pool) Capacity() uint64 {
-	var n uint64
-	if p.prefix4.IsValid() {
-		n += p.hosts4
-	}
-	if p.prefix6.IsValid() {
-		n += p.hosts6
-	}
-	return n
 }
 
 // Contains reports whether addr is an address this pool may lease: inside a range, and
@@ -256,9 +241,6 @@ func (l *Lease) Addr() netip.Addr { return l.addr }
 // Family returns the family of the leased address.
 func (l *Lease) Family() Family { return l.family }
 
-// Pool returns the name of the pool the lease was drawn from.
-func (l *Lease) Pool() string { return l.pool }
-
 // ownerSlot names the one lease an owner may hold in one pool for one family.
 type ownerSlot struct {
 	owner  string
@@ -292,7 +274,9 @@ func NewRegistry() *Registry {
 
 // Acquire leases one address of family from pool for owner. requested is the address the
 // peer asked for, or the zero Addr; an unspecified address (0.0.0.0, ::) asks for none.
-// The order is: the owner's live lease in this slot; the requested address when it is
+// The order is: the owner's live lease in this slot, when a pool edit has not moved the
+// range off it (an out-of-range one stays with its holders and the slot leases afresh);
+// the requested address when it is
 // leasable and free; the owner's last released address when still free; the next free
 // address from the pool's rotating cursor. It returns ErrFamilyNotServed when the pool has
 // no range of family and ErrPoolExhausted when no address is free.
@@ -308,8 +292,14 @@ func (r *Registry) Acquire(pool *Pool, owner string, family Family, requested ne
 
 	slot := ownerSlot{owner: owner, pool: pool.name, family: family}
 	if held, ok := r.byOwner[slot]; ok {
-		held.holders++
-		return held, nil
+		if pool.Contains(held.addr) {
+			held.holders++
+			return held, nil
+		}
+		// An edit moved the range off the owner's live lease. Its holders keep it until
+		// they release it, but it is no longer the slot's lease: a new holder is leased
+		// inside the range the pool now serves.
+		delete(r.byOwner, slot)
 	}
 
 	if addr, ok := r.requestedLocked(pool, family, requested); ok {
@@ -419,7 +409,11 @@ func (r *Registry) Release(lease *Lease) error {
 	}
 	slot := ownerSlot{owner: lease.owner, pool: lease.pool, family: lease.family}
 	delete(r.byAddr, lease.addr)
-	delete(r.byOwner, slot)
+	// A lease an edit moved out of the range left the slot to its in-range successor
+	// (Acquire), so only the slot's own lease clears it.
+	if r.byOwner[slot] == lease {
+		delete(r.byOwner, slot)
+	}
 	if len(r.last) < registryLastMax {
 		r.last[slot] = lease.addr
 		r.lastBy[lease.addr] = slot
@@ -439,22 +433,6 @@ func (r *Registry) Held(pool string) int {
 		}
 	}
 	return n
-}
-
-// Available returns how many addresses of pool no live lease holds, across both families.
-// A lease held inside the range counts against it whichever pool it was drawn from, so an
-// edited pool reports the addresses it can really hand out.
-func (r *Registry) Available(pool *Pool) uint64 {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var held uint64
-	for addr := range r.byAddr {
-		if pool.Contains(addr) {
-			held++
-		}
-	}
-	return pool.Capacity() - held
 }
 
 // HeldIn returns how many live leases lie inside pool's range of family and how many

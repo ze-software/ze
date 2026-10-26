@@ -385,7 +385,12 @@ type SA struct {
 	cpRequest      *cpRequest
 	eapTSi, eapTSr *wire.PayloadTS
 	// virtualIP is the lease set this IKE SA holds (assignVirtualIP), nil when it holds
-	// none. Released once by forgetKeys, moved to a rekeyed successor by moveVirtualIP.
+	// none. Released once by forgetKeys, moved to a rekeyed successor by moveVirtualIP,
+	// both on the owner goroutine, while `show vpn ipsec sa` ((*SA).VirtualIPs) reads it
+	// from another goroutine. It is guarded by virtualIPMu (cp.go) and read only through
+	// leaseGrant. The guard is a package mutex rather than a field, for the reason
+	// hardExpiry above gives: a sync.Mutex or an atomic.Pointer carries noCopy, and the
+	// twin-SA tests copy this struct. A grant is immutable once stored.
 	virtualIP     *virtualIPGrant
 	NegotiatedTSi *net.IPNet // narrowed initiator TS from AUTH response
 	NegotiatedTSr *net.IPNet // narrowed responder TS from AUTH response

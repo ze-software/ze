@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC7296-2.19-8",
-    "polarity": "positive",
-    "unit": "internal/component/ike/engine/cp_eap_test.go::TestCFGReplyInEAPFinalResponse",
-    "unit-sha": "4286ef0494951778",
-    "claim-sha": "5ef94e1ea26e8693",
-    "route": "mutant",
-    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
-    "producer-sha": "7adce11d4f7d01d6",
-    "break": "line 1094: \"sa.virtualIP != nil\" -\u003e \"false\""
-  },
-  {
-    "rid": "RFC7296-2.19-8",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/cp_eap_test.go::TestCFGReplyInEAPFinalResponse",
     "unit-sha": "4286ef0494951778",
@@ -20,5 +9,16 @@
     "producer": "internal/component/ike/engine/responder_eap.go::sendResponderEAP",
     "producer-sha": "9cb74f86232c61e2",
     "break": "line 417: \"{{Payload: eapToWire(pkt)}}\" -\u003e \"{{Payload: eapToWire(pkt)}, {Payload: \u0026wire.PayloadCP{CFGType: wire.CFGTypeReply}}}\""
+  },
+  {
+    "rid": "RFC7296-2.19-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_eap_test.go::TestCFGReplyInEAPFinalResponse",
+    "unit-sha": "4286ef0494951778",
+    "claim-sha": "5ef94e1ea26e8693",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
+    "producer-sha": "35400d06c73524fa",
+    "break": "line 1094: \"grant != nil\" -\u003e \"false\""
   }
 ]

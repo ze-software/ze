@@ -1091,8 +1091,8 @@ func selectAuthChildSA(sa *SA, vip *virtualIPState, remoteSAi2 *wire.PayloadSA, 
 	// the CFG_REPLY opens it. Only a granted request reaches here with a lease, and RFC
 	// 7296 Section 2.19: "The responder MUST NOT send a CFG_REPLY without having first
 	// received a CP(CFG_REQUEST) from the initiator".
-	if sa.virtualIP != nil {
-		inner = append(inner, wire.PayloadEntry{Payload: buildCFGReply(sa.virtualIP)})
+	if grant := sa.leaseGrant(); grant != nil {
+		inner = append(inner, wire.PayloadEntry{Payload: buildCFGReply(grant)})
 	}
 	inner = append(inner, wire.PayloadEntry{Payload: saPayload})
 	// RFC 7296 Section 1.3.1 MUST: "If the request is accepted, the response MUST also
@@ -1129,8 +1129,8 @@ func buildChildlessAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEn
 	// uses it, so the peer is told its address here too, as strongSwan's ike_config
 	// build_r answers independently of the Child SA outcome. No lease, no CFG_REPLY.
 	var reply []wire.PayloadEntry
-	if sa.virtualIP != nil {
-		reply = []wire.PayloadEntry{{Payload: buildCFGReply(sa.virtualIP)}}
+	if grant := sa.leaseGrant(); grant != nil {
+		reply = []wire.PayloadEntry{{Payload: buildCFGReply(grant)}}
 	}
 	inner := slices.Concat(authInner, reply, []wire.PayloadEntry{refusal}, mobikeAuthOffer(sa))
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)

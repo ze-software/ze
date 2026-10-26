@@ -91,19 +91,3 @@ func (v *virtualIPState) reload(ra *ipsec.RemoteAccessConfig, log *slog.Logger) 
 	}
 	v.pools.Store(next)
 }
-
-// boundVirtualIPPool returns the pool this peer is bound to. bound is false for a peer with
-// no virtual-ip-pool leaf. For a bound peer, ok is false when the pool cannot be resolved,
-// which is a state only a defect or a bypassed commit check reaches; the caller MUST then
-// refuse the Child SA rather than install the peer's self-chosen inner address.
-func (ps *PeerSession) boundVirtualIPPool() (pool *eap.Pool, bound, ok bool) {
-	name := ps.peerCfg.VirtualIPPoolName()
-	if name == "" {
-		return nil, false, false
-	}
-	if ps.virtualIP == nil {
-		return nil, true, false
-	}
-	pool, ok = ps.virtualIP.pool(name)
-	return pool, true, ok
-}

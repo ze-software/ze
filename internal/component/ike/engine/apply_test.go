@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/eap"
 )
 
@@ -350,8 +351,12 @@ func TestPoolEditKeepsLiveLease(t *testing.T) {
 	}
 }
 
-// VALIDATES: the operator's virtual-ip-pool leaf selects the pool the peer session draws
-// from, among several configured pools, and an unbound peer reports no binding.
+// VALIDATES: the operator's virtual-ip-pool leaf selects the pool a peer leases from,
+// among several configured pools, through the real IKE_AUTH (handleAuthRequest) over the
+// pool generation applyConfig published. A binding naming no built pool is refused with
+// INTERNAL_ADDRESS_FAILURE and no lease, and an unbound peer gets no CFG_REPLY.
+// PREVENTS: a peer drawing from the wrong pool, or from any pool when the binding cannot
+// be resolved.
 func TestPeerBindingSelectsNamedPool(t *testing.T) {
 	state := applyTestState(t)
 	cfg := testIPsecConfig()
@@ -362,23 +367,51 @@ func TestPeerBindingSelectsNamedPool(t *testing.T) {
 	if err := state.applyConfig(cfg, applyReload); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	peer := ipsec.SiteToSitePeer{Name: "rw", VirtualIP: &ipsec.VirtualIPBinding{Pool: "b"}, ConnectionType: ipsec.ConnectionRespond}
-	ps := &PeerSession{peerCfg: peer, virtualIP: state.table.virtualIP}
-	pool, bound, ok := ps.boundVirtualIPPool()
-	if !bound || !ok {
-		t.Fatalf("bound=%v ok=%v, want a resolved binding", bound, ok)
-	}
-	if pool.Name() != "b" || pool.Prefix4() != netip.MustParsePrefix("10.41.0.0/24") {
-		t.Fatalf("the binding resolved pool %q %s, want b 10.41.0.0/24", pool.Name(), pool.Prefix4())
+	vip := state.table.virtualIP
+
+	for _, tc := range []struct {
+		pool string
+		want netip.Prefix // invalid when the binding must be refused
+	}{
+		{"b", netip.MustParsePrefix("10.41.0.0/24")},
+		{"a", netip.MustParsePrefix("10.40.0.0/24")},
+		{"gone", netip.Prefix{}},
+	} {
+		t.Run(tc.pool, func(t *testing.T) {
+			ini, resp, ps := cpResponder(t, vip, "peer-"+tc.pool, true)
+			// cpResponder binds to "rw"; the binding pointer is shared by the SA and the
+			// session, so this rebinds both to the pool under test.
+			*ps.peerCfg.VirtualIP = ipsec.VirtualIPBinding{Pool: tc.pool}
+			answer := cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{})))
+			got := resp.VirtualIPs()
+			if !tc.want.IsValid() {
+				if len(got) != 0 {
+					t.Fatalf("a binding to the unbuilt pool %q leased %v", tc.pool, got)
+				}
+				if !notifyIn(answer, wire.NotifyInternalAddressFailure) {
+					t.Fatal("a binding to an unbuilt pool was not answered INTERNAL_ADDRESS_FAILURE")
+				}
+				return
+			}
+			if len(got) != 1 {
+				t.Fatalf("the peer bound to pool %q holds %v, want one lease", tc.pool, got)
+			}
+			if !tc.want.Contains(got[0]) {
+				t.Fatalf("the peer bound to pool %q leased %v, outside %s", tc.pool, got[0], tc.want)
+			}
+			if n := vip.leases.Held(tc.pool); n != 1 {
+				t.Fatalf("pool %q holds %d leases, want 1", tc.pool, n)
+			}
+		})
 	}
 
-	ps.peerCfg.VirtualIP = &ipsec.VirtualIPBinding{Pool: "gone"}
-	if _, bound, ok := ps.boundVirtualIPPool(); !bound || ok {
-		t.Fatalf("an unresolvable binding answered bound=%v ok=%v, want bound and unresolved", bound, ok)
+	ini, resp, ps := cpResponder(t, vip, "unbound", false)
+	answer := cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{})))
+	if cp, _, _ := replyOf(answer); cp != nil {
+		t.Fatalf("an unbound peer was answered %+v, want no CFG_REPLY", cp)
 	}
-	ps.peerCfg.VirtualIP = nil
-	if _, bound, _ := ps.boundVirtualIPPool(); bound {
-		t.Fatal("an unbound peer reported a binding")
+	if got := resp.VirtualIPs(); got != nil {
+		t.Fatalf("an unbound peer holds %v", got)
 	}
 }
 
