@@ -7,8 +7,8 @@
     "claim-sha": "7c98a7a4f61028f8",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
-    "producer-sha": "89258c09df6131f9",
-    "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "505e7d653500c0bc",
+    "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5216-2.4-4",
@@ -18,8 +18,8 @@
     "claim-sha": "9fa3d54796d3c39e",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
-    "producer-sha": "89258c09df6131f9",
-    "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "505e7d653500c0bc",
+    "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5216-2.4-4",

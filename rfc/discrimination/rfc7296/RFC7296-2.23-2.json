@@ -18,7 +18,7 @@
     "claim-sha": "3842765a1a80a87b",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "0f1715d4357f885b",
+    "producer-sha": "fd3503e2bc6eaf36",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
