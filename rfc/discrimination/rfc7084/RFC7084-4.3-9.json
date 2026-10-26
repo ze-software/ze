@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7084-4.3-9",
+    "polarity": "positive",
+    "unit": "internal/component/iface/config_ra_test.go::TestRAConfigParse",
+    "unit-sha": "c928869f646557e7",
+    "claim-sha": "00c71ab8b8a3f00c",
+    "route": "revert",
+    "producer": "internal/component/iface/config_ra.go::raParsePrefixEntry",
+    "producer-sha": "06a65c53a43eb454",
+    "break": "body of raParsePrefixEntry replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

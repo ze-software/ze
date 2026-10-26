@@ -101,6 +101,7 @@ func TestRAConfigParse(t *testing.T) {
 	})
 
 	t.Run("prefix list with defaults", func(t *testing.T) {
+		// RFC requirement: RFC7084-4.3-9 positive -- a prefix written with no on-link or autonomous leaf parses with both the L and the A flag set.
 		ra := mustParseRA(t, `{
 			"enabled": "true",
 			"prefix": {"2001:db8:1::/64": {}}
