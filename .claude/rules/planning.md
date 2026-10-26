@@ -19,10 +19,13 @@ the per-session state file name and post-compaction recovery.
 
 ## Plan File Location
 
-Write plan files to project `.claude/plan/ze-plan-<name>`, not `~/.claude/plan`.
-The `claude-plans` check in the native `pretool-writeedit` action
+Write plan files to `plan/drafts/ze-plan-<name>` in the checkout, never under
+`.claude/plan/`, `.claude/plans/` or `~/.claude/`: plans live only in
+subfolders under `plan/` (`ai/META-DECISIONS.md`). The `writeFilePatterns`
+check in the native `pretool-writeedit` action
 (`./le ai hooks pretool-writeedit`, `internal/le/hookruntime/writeedit.go`)
-enforces this.
+refuses a plan Write under `.claude/` and a file under `plan/drafts/` not named
+`ze-plan-<name>`.
 
 ## /ze-review Gate (Completion Checklist)
 

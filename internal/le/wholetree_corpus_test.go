@@ -57,7 +57,7 @@ import (
 // gitignored derived page such as ai/RFC-REQUIREMENTS.md, and the Go source
 // that writes it (internal/le/rfc/carriers.go), so a mention added there is
 // outside this guard.
-var agentCorpus = []string{"ai", "AGENTS.md", ".claude", "plan/templates", "docs/contributing", "docs/functional-tests.md"}
+var agentCorpus = []string{"ai", "AGENTS.md", ".claude", "plan/templates", "plan/drafts", "docs/contributing", "docs/functional-tests.md"}
 
 // mentionLedger is the reviewed list of every whole-tree mention the corpus
 // holds, one `<path> :: <normalized text>` entry per line, relative to this
@@ -329,7 +329,7 @@ func wholeTreePattern(verbs []string) *regexp.Regexp {
 }
 
 // corpusText answers whether the file is prose an agent reads: markdown, or a
-// file with no extension (the .claude/plan files).
+// file with no extension (the plan/drafts files).
 func corpusText(path string) bool {
 	extension := filepath.Ext(path)
 	if path == "" {

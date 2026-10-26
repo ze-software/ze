@@ -28,6 +28,12 @@ var (
 	lowerModal   = regexp.MustCompile(`(^|[^A-Za-z0-9_-])(must|shall|should|may)([^A-Za-z0-9_-]|$)`)
 )
 
+// claudePlanDir is where a Claude Code plan file lives, relative to the
+// checkout root. Plans live only in subfolders under plan/, never under
+// .claude/ (ai/META-DECISIONS.md), and plan/drafts/ holds no specs, so the spec
+// inventory never reads a ze-plan-<name> file as a work item.
+const claudePlanDir = "plan/drafts/"
+
 type editPattern struct {
 	pattern *regexp.Regexp
 	code    int
@@ -218,7 +224,7 @@ func writePointLanguage(ctx context) *verdict {
 // writeDesignEvidence refuses a spec or design written before its source was read.
 func writeDesignEvidence(ctx context) *verdict {
 	relative := relativePath(ctx)
-	designDocument := specpath.IsSpec(relative) || strings.HasPrefix(relative, ".claude/plan/")
+	designDocument := specpath.IsSpec(relative) || strings.HasPrefix(relative, claudePlanDir)
 	if !designDocument {
 		return nil
 	}
@@ -434,11 +440,11 @@ func writeFilePatterns(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	base := filepath.Base(path)
 	if ctx.tool == toolWrite {
-		if strings.Contains(path, ".claude/plans/") {
-			return &verdict{2, "❌ BLOCKED: Do not use .claude/plans/\n  Write plans to .claude/plan/ze-plan-<name> instead."}
+		if strings.Contains(path, ".claude/plans/") || strings.Contains(path, ".claude/plan/") {
+			return &verdict{2, "❌ BLOCKED: Do not write plans under .claude/\n  Plans live only in subfolders under plan/ (ai/META-DECISIONS.md).\n  Write this plan to " + claudePlanDir + "ze-plan-<name> instead."}
 		}
-		if strings.Contains(path, ".claude/plan/") && !strings.HasPrefix(base, "ze-plan-") {
-			return &verdict{2, "❌ BLOCKED: Plan file must be named 'ze-plan-<name>'\n  Got: " + base}
+		if strings.HasPrefix(relativePath(ctx), claudePlanDir) && !strings.HasPrefix(base, "ze-plan-") {
+			return &verdict{2, "❌ BLOCKED: Plan file must be named 'ze-plan-<name>'\n  Got: " + base + "\n  Write it to " + claudePlanDir + "ze-plan-" + base + " instead."}
 		}
 		if strings.HasSuffix(path, ".go") && (strings.Contains(path, "/utils/") || strings.Contains(path, "/helpers/") || strings.Contains(path, "/common/") || strings.Contains(path, "/misc/") || regexp.MustCompile(`(?m)^package[ \t]+(utils|helpers|common|misc)[ \t]*$`).MatchString(ctx.content)) {
 			return &verdict{2, red + bold + "❌ BLOCKED: Forbidden package pattern" + reset}

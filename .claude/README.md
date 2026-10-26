@@ -48,7 +48,7 @@ Architecture documentation is in `docs/architecture/`:
 ### Planning
 1. Write spec to `plan/spec-<task>.md`
 2. Follow template in `.claude/rules/planning.md`
-3. Hook blocks writes to `.claude/plans/` (wrong location) <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
+3. Hook blocks plan writes under `.claude/plan/` and `.claude/plans/` (wrong location); Claude Code plan files go to `plan/drafts/ze-plan-<name>` <!-- doc-links: ignore (banned locations, deliberately nonexistent) -->
 
 ### Post-Compaction
 1. Hook detects compaction, reminds to re-read spec

@@ -95,6 +95,7 @@ release. Optional specs can remain open when the release ships.
 | `doc-reviewed/` | One shard per commit session: docs claims a reader reviewed after a change that preserves behavior (`docs/contributing/documentation-testing.md`) |
 | `handover/`, `audits/`, `design/`, `comparison/` | Existing named supporting records; these are not extra work-item buckets |
 | `verification-debt/` | Outstanding verification obligations, not optional feature work |
+| `drafts/` | Claude Code plan files, one `ze-plan-<name>` per plan. They are working notes, not work items: the spec inventory never reads them (`.claude/rules/planning.md`, "Plan File Location") |
 
 ## Lifecycle
 

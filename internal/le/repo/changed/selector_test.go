@@ -660,7 +660,7 @@ func TestSelectorScopesARealisticDirtyTree(t *testing.T) {
 		"test/runner/bgp-open.ci",
 		".github/workflows/verify.yml",
 		"internal/le/commit/actions.go",
-		".claude/plan/ze-plan-config-completion",
+		"plan/drafts/ze-plan-config-completion",
 		"test/health/latest.json",
 		"demos/terminal/zefs-config/demo.tape",
 		"ze.audit.jsonl",

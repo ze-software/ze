@@ -230,7 +230,7 @@ func postFileSize(ctx context) *verdict {
 // postDeferral reports deferral language in a document that is not a deferral.
 func postDeferral(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
-	if !strings.HasSuffix(path, ".md") || strings.Contains(path, ".claude/memory/") || strings.Contains(path, ".claude/plan/") || strings.Contains(path, "tmp/session/") || strings.Contains(path, "plan/learned/") {
+	if !strings.HasSuffix(path, ".md") || strings.Contains(path, ".claude/memory/") || strings.Contains(path, claudePlanDir) || strings.Contains(path, "tmp/session/") || strings.Contains(path, "plan/learned/") {
 		return nil
 	}
 	content := stringInput(ctx.input, "new_string")
