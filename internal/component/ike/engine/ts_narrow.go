@@ -656,6 +656,18 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 		narrowed = oneTransportPair(narrowed)
 	}
 
+	// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+	// occurring." A tunnel pair another peer already holds, overlapping, is dropped
+	// here, before closedSubset cuts the answer, so the closed subset is cut from pairs
+	// this node can grant. Transport mode is refused by the dataplane instead (RFC 3948
+	// Section 5.2, policyOwners.claim).
+	if !transportSelectorsInPlay(sa) {
+		narrowed, err = dropForeignInnerOverlaps(sa, narrowed)
+		if err != nil {
+			return err
+		}
+	}
+
 	// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one
 	// of the individual selectors in TSi, and at least one of the individual selectors in
 	// TSr." The initiator installs every combination of the answered payloads, so the

@@ -438,10 +438,19 @@ differ only in protocol and ports (RFC 3948 Section 5.2). When a different owner
 holds a transport-mode selector that overlaps the claimed one, `claim` refuses
 with `TransportSelectorConflictError`, which disallows the conflicting
 connection. Without this, the kernel's ordered search would send the overlap to
-whichever client's SA ranks first. Tunnel-mode selectors are compared for
+whichever client's SA ranks first. Here, tunnel-mode selectors are compared for
 identity only, because an overlap between operator prefixes that priority orders
 is a deliberate configuration.
-<!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, TransportSelectorConflictError -->
+
+A tunnel-mode overlap a PEER chose is refused earlier, by the IKE engine and for
+every backend: the engine's cross-peer inner-selector registry
+(`innerSelectorRegistry`, RFC 3948 Section 5.1) drops such a pair at narrowing
+and refuses it at `installChildSA` before any dataplane call. It judges overlap
+with `dataplane.PolicySelectorsOverlap`, the same predicate over `policyKey`
+that `claim` uses for transport mode, so the two cannot disagree. The VPP and
+noop backends run no `policyOwners`, which is why that guard does not live here.
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry -->
 
 **A guard keyed on inequality is inert when both sides are empty.** The claim
 refuses on `held != p.Owner`. Delete the owner at either producer and every

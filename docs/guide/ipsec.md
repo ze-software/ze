@@ -237,15 +237,34 @@ free. `show vpn ipsec sa` lists it under `virtual-ip`. Admission of clients from
 unconfigured sources and the `eap-user` list are not served yet, so an `eap-user`
 authenticates nobody; `plan/release/fixes/spec-ipsec-remote-access.md` owns that.
 
-Only a pool-bound peer is protected this way. A tunnel-mode peer bound to no pool
-keeps the inner source it proposes when its configuration names no remote traffic
-selector, and Ze does not refuse a tunnel selector that overlaps another peer's,
-so two such peers that both claim 10.1.2.3 each get a Child SA for it. Name each
-peer's remote prefixes in its configuration and keep them disjoint until
-`plan/release/fixes/spec-ike-unbound-peer-inner-address.md` closes this.
+A peer bound to no pool keeps the inner source it proposes when its
+configuration names no remote traffic selector. Ze still never gives two peers
+tunnels that one packet could be sent into (RFC 3948 Section 5.1). When a peer
+proposes inner selectors that overlap a live tunnel of another peer, those
+selectors are left out of the answer, and when nothing is left the peer gets
+TS_UNACCEPTABLE: its IKE SA stays up with no Child SA, and Ze logs a warning that
+names both peers, both selector pairs and the fix. The first peer to hold the
+address keeps it until its tunnel goes away. The fix is to configure disjoint
+remote prefixes (`set vpn ipsec site-to-site peer <name> traffic-selector <n>
+remote prefix <prefix>`) or to bind the peer to a pool (`set vpn ipsec
+site-to-site peer <name> virtual-ip-pool <pool>`). A leased address counts like
+any other, so keep pool ranges disjoint from other peers' remote prefixes.
+
+Remote prefixes that you configure on two peers, and that each peer negotiates
+exactly as written, may overlap: you ordered them, and `policy-priority`
+decides which tunnel a packet takes (RFC 4301 Section 4.4.1). An overlap a peer
+chose by narrowing inside a configured prefix is refused like an unconfigured
+one. Route-based peers on distinct XFRM interfaces never conflict.
+
+strongSwan protects the same case differently: its default `remote_ts` is
+`dynamic`, the peer's observed address, so a client behind a NAT that proposes
+its private address gets no tunnel at all without a pool. Ze serves every
+client whose inner address is free, and refuses only the one that would share
+an address with another peer.
 
 <!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP, buildCFGReply, substituteVirtualIP -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- dropForeignInnerOverlaps, innerSelectorConflict -->
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- claim -->
 <!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState.reload builds every pool -->
 

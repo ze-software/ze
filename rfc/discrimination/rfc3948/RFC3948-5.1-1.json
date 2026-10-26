@@ -23,6 +23,39 @@
   },
   {
     "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948ConfiguredOverlapNarrowedByPeerRefused",
+    "unit-sha": "e81c598a90828317",
+    "claim-sha": "9852257eb93b89b6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
+    "producer-sha": "28e15c7002924714",
+    "break": "line 125: \"return a.Net.String() == b.Net.String()\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed",
+    "unit-sha": "866f89fe06992ce3",
+    "claim-sha": "b77925e99a563216",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
+    "producer-sha": "093c985361169d92",
+    "break": "line 272: \"if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused",
+    "unit-sha": "a24b1f875c1d3d81",
+    "claim-sha": "6cc84e29d111791b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
+    "producer-sha": "093c985361169d92",
+    "break": "line 275: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go::TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease",
     "unit-sha": "b5192edaf972e5ca",

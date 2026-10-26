@@ -918,6 +918,9 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// refused by the dataplane as a foreign peer taking the selector over
 		// (dataplane.SPParams.Owner), and the rekey would fail at its policy install.
 		Owner: old.Owner,
+		// The replacement is the same peer's, under the same configuration, so it is
+		// recorded in the same cross-peer registry (RFC 3948 Section 5.1).
+		innerGuard: old.innerGuard,
 		// UDPEncap decides whether installChildSA gives the XFRM state an ESP-in-UDP
 		// template (child.go). createFirstChildSA is its only other writer, so a rekeyed
 		// child that does not inherit it installs a state with no template. The kernel
@@ -1196,18 +1199,19 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		// We sent the CREATE_CHILD_SA request that rekeyed the IKE SA, so we are the
 		// new SA's initiator regardless of our role on the old SA: we sent Ni, so the
 		// new SK_ei is our send key. RFC 7296 Section 2.18.
-		IsInitiator:   true,
-		State:         StateEstablished,
-		LocalNonce:    pending.localNonce,
-		RemoteNonce:   nr,
-		Proposal:      chosen,
-		SKKeys:        skKeys,
-		NextMsgID:     0,
-		ExpectedMsgID: 0,
-		Resumption:    oldSA.Resumption,
-		certRecheck:   oldSA.certRecheck,
-		CreatedAt:     time.Now(),
-		EstablishedAt: time.Now(),
+		IsInitiator:    true,
+		State:          StateEstablished,
+		LocalNonce:     pending.localNonce,
+		RemoteNonce:    nr,
+		Proposal:       chosen,
+		SKKeys:         skKeys,
+		NextMsgID:      0,
+		ExpectedMsgID:  0,
+		Resumption:     oldSA.Resumption,
+		innerSelectors: oldSA.innerSelectors,
+		certRecheck:    oldSA.certRecheck,
+		CreatedAt:      time.Now(),
+		EstablishedAt:  time.Now(),
 	}
 	// RFC 7296 Section 2.18: the replacement SA carries the same peer over the same
 	// path. It therefore inherits the float, the sockets, and the endpoint the old SA
@@ -1339,24 +1343,25 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 
 	now := oldSA.EstablishedAt
 	newSA := &SA{
-		PeerName:      oldSA.PeerName,
-		PeerCfg:       oldSA.PeerCfg,
-		IKEGroup:      oldSA.IKEGroup,
-		ESPGroup:      oldSA.ESPGroup,
-		InitiatorSPI:  peerNewSPI,
-		ResponderSPI:  ourNewSPI,
-		IsInitiator:   false, // peer initiated this rekey; we send with SK_er
-		State:         StateEstablished,
-		LocalNonce:    nr,
-		RemoteNonce:   ni,
-		Proposal:      chosen,
-		SKKeys:        newKeys,
-		NextMsgID:     0,
-		ExpectedMsgID: 0,
-		Resumption:    oldSA.Resumption,
-		certRecheck:   oldSA.certRecheck,
-		CreatedAt:     now,
-		EstablishedAt: now,
+		PeerName:       oldSA.PeerName,
+		PeerCfg:        oldSA.PeerCfg,
+		IKEGroup:       oldSA.IKEGroup,
+		ESPGroup:       oldSA.ESPGroup,
+		InitiatorSPI:   peerNewSPI,
+		ResponderSPI:   ourNewSPI,
+		IsInitiator:    false, // peer initiated this rekey; we send with SK_er
+		State:          StateEstablished,
+		LocalNonce:     nr,
+		RemoteNonce:    ni,
+		Proposal:       chosen,
+		SKKeys:         newKeys,
+		NextMsgID:      0,
+		ExpectedMsgID:  0,
+		Resumption:     oldSA.Resumption,
+		innerSelectors: oldSA.innerSelectors,
+		certRecheck:    oldSA.certRecheck,
+		CreatedAt:      now,
+		EstablishedAt:  now,
 	}
 	// RFC 7296 Section 2.18, as on the initiator path above.
 	newSA.inheritSendPath(oldSA)

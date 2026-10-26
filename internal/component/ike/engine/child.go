@@ -93,6 +93,12 @@ type ChildSA struct {
 	// retired pair's policies instead of being refused.
 	Owner string
 
+	// innerGuard is the cross-peer inner-selector registry this Child SA is recorded in
+	// while the dataplane holds it, with the remote selectors its peer's operator
+	// configured (RFC 3948 Section 5.1, inner_selectors.go). installChildSA claims it
+	// and removeChildSAExcept releases it. A rekey inherits it.
+	innerGuard innerSelectorGuard
+
 	// Selectors is the negotiated selector set in TSi/TSr orientation, carrying the
 	// port and protocol of each entry as well as its prefix.
 	//
@@ -376,7 +382,30 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 		"in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID, "error", err)
 }
 
+// installChildSA installs a Child SA into the dataplane, after recording its tunnel
+// selectors in the cross-peer registry.
+//
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." The narrowing filter (dropForeignInnerOverlaps) already dropped every pair
+// another peer held, but two peer sessions run concurrently, so both can pass it before
+// either installs. The record is therefore taken here, atomically with its check and
+// before any dataplane call, and a Child SA that lost the race is refused with an error
+// wrapping errTSUnacceptable. Every responder installs before it answers, so that error
+// still reaches the peer as TS_UNACCEPTABLE. A failed install releases the record, so
+// a Child SA the dataplane never held never locks another peer out.
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	if err := child.innerGuard.claim(child); err != nil {
+		return err
+	}
+	if err := installChildDataplane(child, prop, dp, log); err != nil {
+		child.innerGuard.release(child)
+		return err
+	}
+	return nil
+}
+
+// installChildDataplane writes the Child SA's states and policies into the dataplane.
+func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
@@ -649,36 +678,48 @@ func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
 	}
 	out := make([]dataplane.SPParams, 0, len(child.Selectors))
 	for _, pair := range child.Selectors {
-		// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half
-		// is ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half
-		// keys this pair -- and it flips at a rekey the peer starts while the selectors
-		// stay put.
-		local, remote := pair.R, pair.I
-		if child.SelectorsLocalIsTSi {
-			local, remote = pair.I, pair.R
-		}
-		// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be
-		// initially populated with the value or values negotiated at the time the SA
-		// was created." A pair's two halves each carry a protocol, and a packet matches
-		// the pair only when it matches both (RFC 7296 Section 3.13), so the protocol the
-		// pair negotiated is their intersection: TSi "any" with TSr TCP is TCP. Reading
-		// one half alone installs "any" for that pair, wider than the negotiation.
-		//
-		// A pair whose protocols are disjoint matches no packet, so it protects nothing
-		// and installs no policy. crossPairs and acceptablePairs never produce one.
-		proto, ok := intersectProto(pair.I.Proto, pair.R.Proto)
+		pp, _, ok := childPolicyPair(child, pair)
 		if !ok {
 			continue
 		}
-		out = append(out, childPairPolicy(child, dir, policyPair{
-			local:      local.Net,
-			remote:     remote.Net,
-			upperProto: proto,
-			localPort:  selectorPort(local),
-			remotePort: selectorPort(remote),
-		}))
+		out = append(out, childPairPolicy(child, dir, pp))
 	}
 	return out
+}
+
+// childPolicyPair converts one negotiated pair of child to this node's orientation, and
+// returns its remote half as negotiated. ok is false for a pair that installs no policy.
+// childPolicies and the cross-peer registry (innerSelectorPairOf) both build from it, so
+// what the registry compares is what the dataplane installs.
+func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, tsSelector, bool) {
+	// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half
+	// is ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half
+	// keys this pair -- and it flips at a rekey the peer starts while the selectors
+	// stay put.
+	local, remote := pair.R, pair.I
+	if child.SelectorsLocalIsTSi {
+		local, remote = pair.I, pair.R
+	}
+	// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be
+	// initially populated with the value or values negotiated at the time the SA
+	// was created." A pair's two halves each carry a protocol, and a packet matches
+	// the pair only when it matches both (RFC 7296 Section 3.13), so the protocol the
+	// pair negotiated is their intersection: TSi "any" with TSr TCP is TCP. Reading
+	// one half alone installs "any" for that pair, wider than the negotiation.
+	//
+	// A pair whose protocols are disjoint matches no packet, so it protects nothing
+	// and installs no policy. crossPairs and acceptablePairs never produce one.
+	proto, ok := intersectProto(pair.I.Proto, pair.R.Proto)
+	if !ok {
+		return policyPair{}, tsSelector{}, false
+	}
+	return policyPair{
+		local:      local.Net,
+		remote:     remote.Net,
+		upperProto: proto,
+		localPort:  selectorPort(local),
+		remotePort: selectorPort(remote),
+	}, remote, true
 }
 
 // policyPair is one negotiated selector pair in this node's orientation, in the form a
@@ -860,7 +901,13 @@ func removeChildSAExcept(child, keep *ChildSA, dp dataplane.Dataplane, log *slog
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
-	if dp == nil || child == nil {
+	if child == nil {
+		return
+	}
+	// RFC 3948 Section 5.1: the record is released before the nil-dataplane return
+	// below, so no removal path leaves another peer locked out of these selectors.
+	child.innerGuard.release(child)
+	if dp == nil {
 		return
 	}
 	dropPolicy := !samePolicySelector(child, keep)

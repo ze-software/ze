@@ -154,9 +154,17 @@ IPv4-mapped IPv6 range is IPv6) is dropped, because RFC 7296 Section 2.9 lets
 the answer be only "some subset of the initiator's proposal". A pool-bound SA
 that holds no lease, or whose proposal contains none of its leases, is refused
 with TS_UNACCEPTABLE rather than answered outside the proposal. The
-selectors of a peer bound to no pool pass through unchanged.
+selectors of a peer bound to no pool are not substituted. They, and a
+pool-bound peer's lease, then pass the cross-peer inner-selector guard
+(`dropForeignInnerOverlaps`, RFC 3948 Section 5.1): a tunnel-mode pair one
+packet could match together with a live pair of another peer is dropped, the
+remaining pairs keep their order, so the initiator's first choice still leads
+when it is free, and an answer with no pair left is TS_UNACCEPTABLE. An overlap
+between two remote selectors the operator configured, each negotiated whole,
+is kept.
 
 <!-- source: internal/component/ike/engine/cp.go -- substituteVirtualIP -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- dropForeignInnerOverlaps -->
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors -->
 
 ## Traps this code exists to avoid

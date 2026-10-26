@@ -829,6 +829,8 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		// The peering's EAP-TLS resumption state, so the ticket keys this
 		// authenticator issues under outlive the SA (eapTLSServerConfig).
 		sa.Resumption = ps.resumption
+		// RFC 3948 Section 5.1: the SA's Child SAs are compared with every other peer's.
+		sa.innerSelectors = ps.innerSelectors
 		// Both sockets, before the IKE_SA_INIT is processed. detectResponderNAT runs
 		// inside that processing and can float the SA at once (RFC 7296 Section 2.23).
 		sa.bindSockets(ps.ike, ps.natt)

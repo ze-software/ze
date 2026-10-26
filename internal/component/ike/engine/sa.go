@@ -323,6 +323,13 @@ type SA struct {
 	// so does one an IKE-SA rekey created before the config named a store.
 	Resumption *eap.Resumption
 
+	// innerSelectors is the engine's cross-peer inner-selector registry
+	// (SATable.innerSelectors, inner_selectors.go). The narrowing filter reads it and
+	// every Child SA this SA builds carries it. The peer session sets it on every SA it
+	// creates and an IKE-SA rekey copies it; only an SA a test built by hand holds nil,
+	// and its Child SAs are then not compared with any other peer's.
+	innerSelectors *innerSelectorRegistry
+
 	// certRecheck is the post-authentication revocation check of the EAP-TLS
 	// authentication this SA rests on (RFC 9190 Section 5.4,
 	// postauth_revocation.go). runEstablished starts it once the Child SA is

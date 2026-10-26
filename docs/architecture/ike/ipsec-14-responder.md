@@ -286,6 +286,22 @@ CREATE_CHILD_SA or a rekey of the same IKE SA narrows the same way, so the rekey
 floor check judges a proposal that covers the floor. A bound peer declines
 transport mode.
 
+After the policy match and the transport single-address filter, and before
+`closedSubset` cuts the answer, a tunnel-mode exchange passes the cross-peer
+inner-selector guard (`dropForeignInnerOverlaps`, RFC 3948 Section 5.1). Each
+narrowed pair is built as the outbound policy it would install and compared
+with every live Child SA pair of another peer; a pair one packet could match
+together with one of them is dropped, unless the operator configured the remote
+half of both. The remaining pairs keep their order, so the initiator's first
+choice leads when it is free (RFC 7296 Section 2.9), and an answer with nothing
+left is TS_UNACCEPTABLE, whose error names both peers, both pairs and the fix.
+Because two sessions can both pass this read-only filter, `installChildSA`
+repeats the check and records atomically before any dataplane call; every
+responder installs before it answers, so a lost race still reaches the peer as
+TS_UNACCEPTABLE, and the IKE SA is kept. A pool-bound peer's lease is recorded
+like any other pair, so a lease and an unbound peer's live address cannot
+coexist, whichever came second is refused.
+
 The lease lives as long as the IKE SA or its rekeyed successors (Section
 3.15.1). `forgetKeys` releases it, and `adoptRekeyedIKESA`, the one swap site
 of both rekey directions, moves it to the successor before the retired SA

@@ -87,6 +87,12 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		TSLocal:     tsLocal,
 		TSRemote:    tsRemote,
 		Owner:       sa.PeerName,
+		// RFC 3948 Section 5.1: installChildSA records this Child SA's tunnel selectors
+		// against every other peer's.
+		innerGuard: innerSelectorGuard{
+			registry:         sa.innerSelectors,
+			configuredRemote: configuredRemoteSelectors(sa.PeerCfg),
+		},
 		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
 		// of them.
 		PolicyPriority:      sa.PeerCfg.PolicyPriority,
@@ -595,6 +601,10 @@ const (
 // (proposals, traffic selectors, KE) falls to childRefusedFixResponder.
 func childRefusedResponderFix(err error) string {
 	switch {
+	// First: an install-time conflict also wraps errChildInstall, whose fix blames the
+	// kernel (inner_selectors.go).
+	case errors.Is(err, errInnerSelectorConflict):
+		return childRefusedFixResponderInnerSelector
 	case errors.Is(err, errChildEncapPort):
 		return childRefusedFixResponderEncapPort
 	case errors.Is(err, errChildBinding):

@@ -7,13 +7,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Shipped IKEv2 tunnel-mode responder violates an RFC 3948 Section 5.1 MUST for every peer bound to no virtual-IP pool: two peers can hold Child SAs and kernel policies for one inner address |
 | RFC gaps | RFC3948-5.1-1 |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-10-26 |
 

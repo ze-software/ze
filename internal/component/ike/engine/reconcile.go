@@ -46,6 +46,12 @@ type PeerSession struct {
 	// INTERNAL_ADDRESS_FAILURE.
 	virtualIP *virtualIPState
 
+	// innerSelectors is the engine's cross-peer inner-selector registry, shared by every
+	// session (SATable.innerSelectors). Every SA this session creates carries it, so no
+	// two peers hold tunnels one packet could be sent into (RFC 3948 Section 5.1,
+	// inner_selectors.go). nil only in a test that built the session by hand.
+	innerSelectors *innerSelectorRegistry
+
 	// responderBusy gates a `respond` peer to ONE in-flight half-open handshake --
 	// its documented meaning. The shared dispatchInbound goroutine CAS-sets it true
 	// when it creates a responder SA on an unsolicited IKE_SA_INIT; it is cleared
@@ -760,12 +766,14 @@ func startPeerSession(
 		// the tickets its predecessor issued (resumptionFor, resumption.go).
 		resumption: resumptionFor(name, peer.Auth),
 		virtualIP:  table.virtualIP,
-		ike:        tr,
-		natt:       natt,
-		inbound:    make(chan transport.Packet, inboundQueueDepth),
-		stopCh:     make(chan struct{}),
-		done:       make(chan struct{}),
-		supersede:  make(chan struct{}, 1),
+		// RFC 3948 Section 5.1
+		innerSelectors: table.innerSelectors,
+		ike:            tr,
+		natt:           natt,
+		inbound:        make(chan transport.Packet, inboundQueueDepth),
+		stopCh:         make(chan struct{}),
+		done:           make(chan struct{}),
+		supersede:      make(chan struct{}, 1),
 		// Unbuffered on purpose: see the field.
 		probeRequests: make(chan probeRequest),
 		espReloads:    make(chan espReload),

@@ -279,6 +279,24 @@ hand its address out again. A peer reaches its pool through its
 hold refuses the Child SA with INTERNAL_ADDRESS_FAILURE rather than installing
 the peer's self-chosen inner address.
 
+**The inner-selector registry rides on the `SATable` beside the lease
+registry.** `innerSelectorRegistry` records the outbound selector pairs of every
+tunnel-mode Child SA the dataplane holds, keyed by the Child SA and tagged with
+its peer, so no two peers hold tunnels one packet could be sent into (RFC 3948
+Section 5.1). `newPeerSession` hands it to the session, the session sets it on
+every SA it creates (`runInitiator`, the responder's `newResponderSA` site), an
+IKE-SA rekey copies it, and every Child SA built on the SA carries it with its
+peer's configured remote selectors (`innerSelectorGuard`), which a rekeyed
+Child SA inherits. `narrowChildSelectors` reads it to drop conflicting pairs,
+`installChildSA` checks and records under one mutex before any dataplane call
+and releases on a failed install, and `removeChildSAExcept`, the funnel every
+removal path reaches, releases before its nil-dataplane return. Same-peer pairs
+never conflict, and two pairs whose remote halves the operator configured are
+kept. Transport mode is not recorded: `policyOwners.claim` refuses its overlap
+(RFC 3948 Section 5.2).
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, innerSelectorGuard, dropForeignInnerOverlaps -->
+<!-- source: internal/component/ike/engine/child.go -- installChildSA, removeChildSAExcept -->
+
 **A reload reaches the engine through `OnConfigApply`, and an apply with nothing
 staged is refused.** The plugin protocol splits a reload into a verify phase and
 an apply phase, and the apply request carries diff sections rather than the

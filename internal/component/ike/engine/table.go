@@ -13,11 +13,20 @@ type SATable struct {
 	// on the table because the table is the one runtime object the engine creates once
 	// and hands to every peer session; it is never replaced (virtual_ip.go).
 	virtualIP *virtualIPState
+
+	// innerSelectors is the engine's cross-peer registry of live tunnel Child SA
+	// selectors (RFC 3948 Section 5.1, inner_selectors.go). It rides on the table for
+	// the reason virtualIP does, and is never replaced.
+	innerSelectors *innerSelectorRegistry
 }
 
 // NewSATable creates an empty SA table.
 func NewSATable() *SATable {
-	return &SATable{bySPI: make(map[string]*SA), virtualIP: newVirtualIPState()}
+	return &SATable{
+		bySPI:          make(map[string]*SA),
+		virtualIP:      newVirtualIPState(),
+		innerSelectors: newInnerSelectorRegistry(),
+	}
 }
 
 // Insert adds an SA to the table. Returns false if the SPI pair already exists.

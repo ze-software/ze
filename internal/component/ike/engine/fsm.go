@@ -138,6 +138,8 @@ func (ps *PeerSession) runInitiator(
 	// authentication with this peer stored is offered on this one
 	// (buildPeerTLSConfig).
 	sa.Resumption = ps.resumption
+	// RFC 3948 Section 5.1: the SA's Child SAs are compared with every other peer's.
+	sa.innerSelectors = ps.innerSelectors
 	// Give the SA both sockets before anything sends. RFC 7296 Section 2.23 MUST: an
 	// endpoint that discovers a NAT "MUST send all subsequent traffic from port 4500",
 	// and sa.sendPath needs that socket in hand at the moment the verdict lands.

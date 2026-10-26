@@ -125,9 +125,12 @@ func (o *policyOwners) claim(p SPParams) (created bool, err error) {
 		// Ze disallows the connection. Two clients behind one NAT reach this node from
 		// one address, so their transport selectors differ only in the protocol and
 		// ports, and an overlap would leave the kernel's ordered search to hand one
-		// client's traffic to the other client's SA. Tunnel mode is not compared: its
-		// inner selectors are the operator's prefixes, where an overlap ordered by
-		// priority is a deliberate configuration.
+		// client's traffic to the other client's SA. Tunnel mode is not compared here:
+		// an overlap between operator-configured prefixes ordered by priority is a
+		// deliberate configuration, and the overlap a PEER chose is refused by the IKE
+		// engine before any backend is called (RFC 3948 Section 5.1,
+		// ike/engine/inner_selectors.go), which reaches every backend rather than this
+		// one.
 		for other, holder := range o.owners {
 			if !holder.transport {
 				continue
@@ -176,6 +179,16 @@ func selectorsOverlap(a, b policySelectorKey) bool {
 		return false
 	}
 	return prefixesOverlap(a.dst, b.dst)
+}
+
+// PolicySelectorsOverlap reports whether one packet can match the selectors of both
+// policies, judged on what the kernel identifies a policy by (policyKey) and with the
+// predicate the transport-mode refusal uses (selectorsOverlap). Endpoints, owner and
+// priority do not take part. It is the IKE engine's cross-peer tunnel check
+// (RFC 3948 Section 5.1), exported so the engine and this backend cannot disagree on
+// what an overlap is. Pure, and safe for concurrent use.
+func PolicySelectorsOverlap(a, b SPParams) bool {
+	return selectorsOverlap(policyKey(a), policyKey(b))
 }
 
 // portsOverlap reports whether some port satisfies both masked matches. The kernel
