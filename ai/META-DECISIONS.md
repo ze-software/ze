@@ -191,10 +191,6 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
   A private preview is an intermediate review artifact. Local regeneration
   does not authorize a push or deployment.
-- A broken or unrecorded terminal demo is acceptable. It never blocks
-  `./le site build`, `./le site check` or the closure of a spec: the page that
-  embeds it is built without the recording, and the build says which demo is
-  missing.
 
 ## How agents work
 
