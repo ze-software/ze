@@ -24,6 +24,17 @@
   {
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_rekey_test.go::TestRFC3948RekeyedChildKeepsInnerAddress",
+    "unit-sha": "c24458bc0a81f8ec",
+    "claim-sha": "579e87f78ce306a6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::newRekeyedChild",
+    "producer-sha": "fa61d49c4a24bf3d",
+    "break": "line 927: \"innerGuard: old.innerGuard,\" -\u003e \"innerGuard: innerSelectorGuard{},\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestInnerSelectorInitiatorInstallRefusedInstallsNothing",
     "unit-sha": "be3cfd139cf3d9be",
     "claim-sha": "1ced3937028e3841",
@@ -97,6 +108,61 @@
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
     "producer-sha": "148482028f2f4db9",
     "break": "line 432: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948InitiatorSessionRefusesHeldInnerAddress",
+    "unit-sha": "3eec2e725c0e1ea6",
+    "claim-sha": "23bd7cbdba4ca44f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/fsm.go::runInitiator",
+    "producer-sha": "26ce48b955b883e2",
+    "break": "line 142: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"sa.innerSelectors = nil\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948PeerIKERekeyKeepsInnerRegistry",
+    "unit-sha": "8cd3df9960de7597",
+    "claim-sha": "957a2b3f289da715",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
+    "producer-sha": "83938513561c78aa",
+    "break": "line 1365: \"innerSelectors: oldSA.innerSelectors,\" -\u003e \"innerSelectors: nil,\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948ResponderSAInitRefusesHeldInnerAddress",
+    "unit-sha": "6ea61e90c3baafca",
+    "claim-sha": "6df203fb4403edca",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "af5622fcb30478c7",
+    "break": "line 833: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"sa.innerSelectors = nil\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948ResponderSessionsShareInnerRegistry",
+    "unit-sha": "2ef02b968e6efca4",
+    "claim-sha": "d239ca36520bb614",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/reconcile.go::startPeerSession",
+    "producer-sha": "2792b509d740c166",
+    "break": "line 774: \"innerSelectors: table.innerSelectors,\" -\u003e \"innerSelectors: nil,\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948ZeIKERekeyKeepsInnerRegistry",
+    "unit-sha": "a0aa7c0380024a3e",
+    "claim-sha": "980dee9817452d3f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::applyIKERekeyResponse",
+    "producer-sha": "1777cd66a119b13d",
+    "break": "line 1215: \"innerSelectors: oldSA.innerSelectors,\" -\u003e \"innerSelectors: nil,\""
   },
   {
     "rid": "RFC3948-5.1-1",
