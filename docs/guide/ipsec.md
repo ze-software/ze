@@ -291,8 +291,16 @@ while a transport-mode peer runs from 198.18.0.9, is refused, and so is a
 transport-mode connection inside a tunnel another peer already holds, whichever
 of the two comes first. The warning names both peers, and the fix is on the
 tunnel peer: remote prefixes that leave out the transport-mode peer's address,
-or a pool. Two transport-mode peers that overlap, two clients behind one NAT for
-example, are refused by the dataplane instead (RFC 3948 Section 5.2).
+or a pool. Where the overlap is on purpose, different `policy-priority` values
+order the two, exactly as for two tunnels, when the tunnel's remote half is
+exactly a traffic selector you configured on the tunnel peer and the
+transport-mode connection's remote half is exactly that peer's `remote-address`.
+A host-to-host transport-mode peer at 198.18.0.9 beside a full-tunnel peer
+configured with `0.0.0.0/0` on both sides is therefore served at two different
+priorities, and refused at one. A transport-mode peer whose `remote-address` is a
+DNS hostname is ordered only by a traffic selector you configured on it. Two
+transport-mode peers that overlap, two clients behind one NAT for example, are
+refused by the dataplane instead (RFC 3948 Section 5.2).
 
 strongSwan protects the same case differently: its default `remote_ts` is
 `dynamic`, the peer's observed address, so a client behind a NAT that proposes

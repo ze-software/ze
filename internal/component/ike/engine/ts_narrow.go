@@ -597,7 +597,29 @@ func netRange(n *net.IPNet) (start, end []byte) {
 // that to the TS_UNACCEPTABLE notify RFC 7296 Section 2.9 asks for. A result that does
 // not cover the floor is one of those cases, so the answer this function records is
 // always a set the caller can install unchanged.
+//
+// The answer is judged for a Child SA in the mode this node decided for the IKE SA
+// (decidedChildMode). A Child SA rekey installs the retired Child SA's mode instead, so
+// respondChildRekey calls narrowChildSelectorsIn with that mode.
 func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
+	return narrowChildSelectorsIn(sa, tsi, tsr, floor, decidedChildMode(sa))
+}
+
+// decidedChildMode is the mode a Child SA this node creates for sa installs.
+// RFC 7296 Section 1.3.1: "Except when using this option to negotiate transport mode,
+// all Child SAs will use tunnel mode." The mode is transport only when USE_TRANSPORT_MODE
+// was both requested and echoed (sa.UseTransportMode), which is what createFirstChildSA
+// installs.
+func decidedChildMode(sa *SA) uint8 {
+	if sa.UseTransportMode {
+		return modeTransport
+	}
+	return modeTunnel
+}
+
+// narrowChildSelectorsIn is narrowChildSelectors for a Child SA that installs mode, the
+// mode the cross-peer filter judges the answer in (dropForeignInnerOverlaps).
+func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mode uint8) error {
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
 
@@ -664,12 +686,14 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// peer's tunnel. Two transport-mode pairs are left to the dataplane (RFC 3948
 	// Section 5.2, policyOwners.claim).
 	//
-	// The mode judged is the one this node DECIDED (decideResponderTransportMode), never
+	// The mode judged is mode, the one the Child SA this answer creates installs, never
 	// the peer's request: a transport request this node declines still installs a tunnel
-	// (RFC 7296 Section 1.3.1), so it is judged as one (dropForeignInnerOverlaps). A
-	// Child SA rekey inherits the retired Child SA's mode, and its claim
-	// (installChildSA) stays the backstop whatever this filter answers.
-	narrowed, err = dropForeignInnerOverlaps(sa, narrowed)
+	// (RFC 7296 Section 1.3.1), so it is judged as one. A Child SA rekey installs the
+	// retired Child SA's mode, which an IKE SA rekey leaves out of sa.UseTransportMode,
+	// so respondChildRekey passes that mode. The claim at install (installChildSA)
+	// refuses again whatever this filter passed, because another peer can install in
+	// between (dropForeignInnerOverlaps).
+	narrowed, err = dropForeignInnerOverlaps(sa, narrowed, mode)
 	if err != nil {
 		return err
 	}

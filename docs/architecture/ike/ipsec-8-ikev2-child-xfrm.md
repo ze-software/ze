@@ -458,13 +458,30 @@ proposing TSi 198.18.0.9/32 and TSr 0.0.0.0/0 while the transport-mode peer at
 198.18.0.9 holds 198.18.0.9/32 to 192.0.2.1/32) matches the same outbound packet
 at one priority, which is the Section 5.1 confusion, so it is refused, and so is
 a transport-mode connection inside another peer's tunnel, in either arrival
-order, at narrowing (judged in the mode this node decided, `sa.UseTransportMode`)
-and at install. The refusal names both peers and the selector or pool fix on the
-tunnel peer. Only the overlap of two transport-mode pairs is left to `claim`
-above (`conflictLocked`, `bothTransport`), so it is refused once, with
-`TransportSelectorConflictError`. The operator-ordered exemption applies to a
-tunnel against a transport-mode pair as to two tunnels: both remote halves
-exactly as configured, at different `policy-priority` values.
+order, at narrowing and at install. Narrowing judges the answer in the mode the
+Child SA it creates installs: the mode this node decided for the IKE SA
+(`decidedChildMode`, `sa.UseTransportMode`) for a new Child SA, and the retired
+Child SA's mode for a Child SA rekey (`respondChildRekey` calls
+`narrowChildSelectorsIn` with `old.Mode`), because an IKE SA rekey leaves
+`UseTransportMode` unset on the replacement SA. The refusal names both peers and
+the selector or pool fix on the tunnel peer. Only the overlap of two
+transport-mode pairs is left to `claim` above (`conflictLocked`,
+`bothTransport`), so it is refused once, with `TransportSelectorConflictError`.
+
+The operator-ordered exemption applies to a tunnel against a transport-mode pair
+as to two tunnels: both pairs operator-fixed, at different `policy-priority`
+values (`operatorOrdered`). The tunnel's remote half is operator-fixed when it is
+exactly a traffic selector its operator configured. A transport-mode pair's
+remote half is operator-fixed when it is exactly such a selector, or when it is
+exactly the peer's configured remote address as a host prefix, /32 or /128
+(`classifyInnerPair`, `configuredRemoteHost`), because a transport-mode
+connection's selectors are its endpoint addresses and an ordinary host-to-host
+peer configures no traffic selector. So a transport-mode peer at 198.18.0.9 beside
+a full-tunnel peer configured with 0.0.0.0/0 on both sides is served when the two
+priorities differ, and the second to establish is refused when they are equal. A
+peer whose `remote-address` is a DNS hostname rather than an address literal has
+no configured host, so its transport-mode pair is ordered only when it is exactly
+one of its configured traffic selectors.
 
 With no dataplane (`Get()` nil) nothing is installed, and the record is still
 taken, so the control plane never holds two peers' Child SAs for one inner

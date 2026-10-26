@@ -766,7 +766,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	if old.SelectorsLocalIsTSi {
 		floor = swapPairs(floor)
 	}
-	if err := narrowChildSelectors(sa, reqTSi, reqTSr, floor); err != nil {
+	// RFC 3948 Section 5.1: the replacement installs old.Mode, so the cross-peer filter
+	// judges the answer in it; after an IKE SA rekey sa.UseTransportMode no longer says
+	// a transport-mode child was negotiated.
+	if err := narrowChildSelectorsIn(sa, reqTSi, reqTSr, floor, old.Mode); err != nil {
 		return nil, nil, err
 	}
 

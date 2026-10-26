@@ -92,6 +92,7 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		innerGuard: innerSelectorGuard{
 			registry:         sa.innerSelectors,
 			configuredRemote: configuredRemoteSelectors(sa.PeerCfg),
+			configuredHost:   configuredRemoteHost(sa.PeerCfg),
 		},
 		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
 		// of them.
