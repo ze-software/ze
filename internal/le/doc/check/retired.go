@@ -23,10 +23,12 @@ import (
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
 // their tests. They name every old form by necessity, so they are not callers.
-// The two leroot tests name old forms to prove each one is refused naming its
-// successor.
+// The map's own test drives real rows of the map, `le test harness` among them,
+// so its messages spell old forms. The two leroot tests name old forms to prove
+// each one is refused naming its successor.
 var retiredDeclarations = [...]string{
 	"internal/le/le/retired/retired.go",
+	"internal/le/le/retired/retired_test.go",
 	"internal/le/doc/check/retired.go",
 	"internal/le/doc/check/retired_test.go",
 	"internal/le/le/root/retired_test.go",

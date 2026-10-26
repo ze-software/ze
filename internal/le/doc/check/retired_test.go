@@ -685,3 +685,36 @@ func TestRetiredCommandSweepFindsArgvWithAVariableProgram(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: B-4 -- the rename map package's own test is a declaration, so the
+// sweep skips the `le test harness` its messages spell on purpose, while the
+// same line in a sibling file of that package, and in a live page, is still
+// reported.
+// PREVENTS: `le doc check retired-commands` reporting the map's own test as a
+// caller, and an exemption that excuses the whole package directory.
+// Method: a fixture repository holds the line in the map's test, in a sibling
+// test file beside it and in a guide page; the sweep must list only the last two.
+func TestRetiredCommandSweepSkipsTheRenameMapsOwnTest(t *testing.T) {
+	const line = "./le test harness\n"
+	const mapTest = "internal/le/le/retired/retired_test.go"
+	live := []string{"internal/le/le/retired/other_test.go", "docs/guide/live.md"}
+	files := map[string]string{mapTest: line}
+	for _, path := range live {
+		files[path] = line
+	}
+	root := fixtureRepository(t, files)
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if lines := retiredLinesOf(report, mapTest); len(lines) != 0 {
+		t.Errorf("%s declares the rename map's rows, and the report lists it at %v", mapTest, lines)
+	}
+	for _, path := range live {
+		if !retiredFound(report, "le test harness", path, 1) {
+			t.Errorf("%s:1 is a live caller and is not listed; the file matched %v", path, retiredLinesOf(report, path))
+		}
+	}
+}
