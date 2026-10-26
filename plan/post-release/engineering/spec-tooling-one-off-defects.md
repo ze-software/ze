@@ -131,6 +131,7 @@ The verification-debt shards, the session directory, the hook registry.
 | AC-24 | spec speaker population | The spec template asks for every reader and writer of a wire found by search, not the files opened first |
 | AC-25 | missing RFC summaries x8 | Each named document gets a summary and the retired rows return to it, or `rfc/corrections/` states why not |
 | AC-26 | standing reds x6 (site goconst, cli-grammar unblocked, post-OSPF lint, repo check/audit/doc verify, le fixtures, `pluginOwnershipGate`) | Each gate is green at HEAD or runs in a blocking set with a baseline, and the le fixtures pass |
+| AC-27 | executable bytes disagree with their Go content identity | Trace the corruption to its writer or storage boundary and demonstrate the repair; a successful rebuild alone does not close the incident |
 
 ## 🧪 TDD Test Plan
 
@@ -161,10 +162,44 @@ The verification-debt shards, the session directory, the hook registry.
 2. AC-1 first (release-validation blocker), then the rest.
 3. Red test, fix, green, page edit, journal cell closed with the commit.
 
+## Executable integrity incident
+
+Two terminal-demo builds on 2026-10-26 exited successfully but produced damaged
+executables. The first failed in `runtime.moduledataverify1` before initialization;
+the second reported an unexpected EOF loading the embedded `ze-extensions.yang`.
+The source module was nonempty.
+
+| Executable | Zero-filled file interval | Stored Go content ID | Recomputed content ID |
+|------------|---------------------------|----------------------|-----------------------|
+| Startup failure | `0x2000000..0x2800000` | `YNJkZwklx-RBZlSDsYpq` | `WAQqHyi1zYO9fa0P_0X-` |
+| Embedded-schema failure | `0x2400000..0x2540000` | `wk2MOJhdeFtdMaMaUTeB` | `KCklwPUbGXChvI1v3Iij` |
+
+The read-only recomputation follows Go's `buildid.FindAndHash` and `HashToString`:
+exclude the GNU note's descriptor, zero Go build-ID occurrences and encode the
+first 120 SHA-256 bits. It agrees with the intact control. The mismatches place
+the damage after Go computed the content hash, not necessarily after its later
+build-ID rewrite. They do not distinguish source-inode damage, installation
+copying or subsequent destination mutation.
+
+A diagnostic retained the linker output and traced cross-filesystem installation:
+rename and `copy_file_range` returned `EXDEV`, followed by buffered writes.
+Its source and destination matched. A subsequent native build retaining its
+work directory also matched source and staged SHA-256
+`4ad69e96ff72cbcd205e4e86dd5f69d768b02a5004db01daf1eac4a61d338c24`;
+the staged Ze, recorder and runtime helper passed their content-ID comparisons.
+Neither successful run establishes a repair.
+
+Session `644a4e78-0122-4eeb-8642-eb50638a1641` retains the damaged executables as
+`scratch/ze-zeroed-segment.tar.gz` and `scratch/ze-zeroed-schema.tar.gz`, plus
+diagnostic traces. Preserve those archives until the incident is diagnosed.
+On recurrence, retain the actual native build's source and compare both files
+before execution. The responsible component remains unestablished.
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `artifact-bytes-disagree-with-identity` | 2026-10-26 | native executable corruption after content hashing |
 | `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
 | `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` |
 | `blanket-mechanism-hid-missing-cases` | 2026-08-10 | Stop hook classifier |
