@@ -358,13 +358,14 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	// EBGP destination: different AS.
 	dstSettings := &PeerSettings{
-		Connection:    ConnectionBoth,
-		Address:       netip.MustParseAddr("10.0.0.2"),
-		LocalAS:       65000,
-		GlobalLocalAS: 65000,
-		PeerAS:        65002,
-		RouterID:      0x01020302,
-		RSFastPath:    true,
+		Connection:      ConnectionBoth,
+		Address:         netip.MustParseAddr("10.0.0.2"),
+		LocalAS:         65000,
+		GlobalLocalAS:   65000,
+		PeerAS:          65002,
+		RouterID:        0x01020302,
+		RSFastPath:      true,
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	}
 	dst := NewPeer(dstSettings)
 	dst.state.Store(int32(PeerStateEstablished))

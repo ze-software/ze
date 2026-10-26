@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7947-x-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend",
+    "unit-sha": "3267d457fd751786",
+    "claim-sha": "ea166aed1ccb77c4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
+    "producer-sha": "c3ccf1094011218e",
+    "break": "line 613: \"!facts.rsClient\" -\u003e \"false\""
+  }
+]
