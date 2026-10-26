@@ -1,0 +1,402 @@
+# Spec: bgp-rfc8212-ebgp-default-reject
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Scope | protocol |
+| Priority | P1 |
+| Release reason | The route-server release profile requires RFC 8212. Today an EBGP session with no import or export policy accepts every route into the Decision Process and advertises every route, which is the route-leak default RFC 8212 exists to remove |
+| RFC gaps | RFC8212-3-1, RFC8212-3-2 |
+| Depends | - |
+| Phase | - |
+| Handoff | - |
+| Updated | 2026-10-26 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+RFC 8212 Section 3 adds two paragraphs to RFC 4271 (`rfc/full/rfc8212.txt`):
+
+- To Section 9.1: "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied." (RFC8212-3-1)
+- To Section 9.1.3: "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied." (RFC8212-3-2)
+- And: "A BGP speaker MAY provide a configuration option to deviate from the following updated behaviors." (RFC8212-3-3)
+
+Ze already makes every CONFIGURED import or export policy state `final accept`
+or `final reject` (`ze-bgp-conf.yang` grouping `filter-policy`, `final`
+mandatory). It does not apply the RFC's default when no policy is configured:
+`filterapi.Policy.AcceptsAtEnd` returns true for the zero Policy, and every
+ingress and egress consumer reads it with no session type, so an EBGP peer
+with no policy at any of the bgp, group or peer layers behaves as `final
+accept` in both directions.
+
+Goal: an EBGP session with no explicit import policy contributes no route to
+the Decision Process, and one with no explicit export policy is sent no route,
+from every egress path (forwarded, reflected, route-server, config `update`
+blocks, API and ExaBGP-bridge injections), while IBGP is unchanged and
+ExaBGP-migrated configurations keep their ExaBGP behaviour by stating it.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - "BGP policy final disposition", the `// Design:` target of `filterapi/policy.go`
+  → Decision: the zero Policy denotes an ABSENT operator policy, never a configured one; internal filters do not imply presence (`InternalPolicy`)
+  → Constraint: the final applies only at exhaustion; a filter reject stops the chain whatever the final
+- [ ] `docs/architecture/config/syntax.md` - filter chain inheritance section
+  → Decision: the most specific PRESENT layer supplies the final; an absent child inherits it (`concatPolicies`); "An absent policy retains prior behavior." is the sentence this spec rewrites
+- [ ] `docs/guide/bgp-policy.md` - "Verify policy": `show policy chain` and peer detail omit an absent policy
+  → Constraint: the operator must see why an EBGP peer's routes are refused; omission is no longer truthful once absence rejects
+- [ ] `docs/guide/redistribution.md` - "An absent direction inherits its parent's policy without creating a new policy."
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc8212.md` - rows RFC8212-3-1, RFC8212-3-2 (`{gap}`), RFC8212-3-3 (MAY)
+  → Constraint: both rows are SHALL NOT on EBGP only; IBGP is outside the requirement
+- [ ] `rfc/short/rfc4271.md` - Sections 9.1 and 9.1.3, where RFC 8212 inserts its paragraphs
+
+**Key insights:**
+- Both FRR and BIRD apply the default; they differ in WHEN (runtime discard vs config refusal), and both exempt confederation-member sessions (see Key Design Decisions)
+- Ze has no BGP confederation support, so session type is `PeerSettings.IsEBGP`, the negation of `isIBGPWith` (local AS or migration AS)
+
+## Interop evidence: FRR and BIRD (read 2026-10-26)
+
+FRR (`bgpd/bgp_route.c`, master, fetched 2026-10-26). The deciding functions:
+
+| Function | Deciding text |
+|----------|---------------|
+| `bgp_inbound_policy_exists` | returns true when `peer->sort == BGP_PEER_CONFED \|\| peer->sort == BGP_PEER_IBGP \|\| peer->sub_sort == BGP_PEER_EBGP_OAD`; for `BGP_PEER_EBGP` returns true only when `ROUTE_MAP_IN_NAME(filter) \|\| PREFIX_LIST_IN_NAME(filter) \|\| FILTER_LIST_IN_NAME(filter) \|\| DISTRIBUTE_IN_NAME(filter)`; otherwise false |
+| `bgp_outbound_policy_exists` | the same shape over the OUT names plus `UNSUPPRESS_MAP_NAME(filter)` |
+| `bgp_update` | `if (CHECK_FLAG(bgp->flags, BGP_FLAG_EBGP_REQUIRES_POLICY)) if (!bgp_inbound_policy_exists(peer, &peer->filter[afi][orig_safi])) { reason = "inbound policy missing"; ... goto filtered; }`, with a `zlog_warn` "EBGP inbound policy not properly setup, please configure in order for your peering to work correctly" at most every 15 minutes |
+| `subgroup_announce_check` | `if (CHECK_FLAG(bgp->flags, BGP_FLAG_EBGP_REQUIRES_POLICY)) if (!bgp_outbound_policy_exists(peer, filter)) { ... zlog_warn(... "EBGP outbound policy not properly setup ..."); return false; }`. This check runs for every path, locally originated `network` routes included |
+| `bgp_vty.c` `FRR_CFG_DEFAULT_BOOL(BGP_EBGP_REQUIRES_POLICY, ...)` | default true, false for the `datacenter` profile and for configs older than 7.4; `bgp ebgp-requires-policy` / `no bgp ebgp-requires-policy` is the RFC8212-3-3 switch, per BGP instance |
+| `bgp_vty.c` neighbor JSON | `inboundEbgpRequiresPolicy` "Inbound updates discarded due to missing policy" and the outbound twin are reported per neighbor |
+
+BIRD (`proto/bgp/bgp.c`, v3.2.1, local checkout `~/Code/gitlab.nic.cz/labs/bird`).
+The deciding function is `bgp_postconfig`:
+
+| Function | Deciding text |
+|----------|---------------|
+| `bgp_postconfig` | `int interior = internal \|\| cf->confederation_member;` then per channel: `if (cc->c.in_filter == FILTER_UNDEF) if (interior) cc->c.in_filter = FILTER_ACCEPT; else cf_error("EBGP requires explicit import policy");` and `if (cc->c.out_filter == FILTER_UNDEF) if (interior) cc->c.out_filter = FILTER_REJECT; else cf_error("EBGP requires explicit export policy");` |
+| `proto/bgp/config.Y` channel creation | `BGP_CC->c.in_filter = FILTER_UNDEF; BGP_CC->c.out_filter = FILTER_UNDEF;` so only an explicit `import`/`export` clause defines one; BIRD has no deviation switch |
+
+Both refuse the routes; neither sends or accepts without explicit policy on
+EBGP. A Ze peer that applies the default interoperates with both, because the
+behaviour is local: nothing on the wire changes except which routes are sent.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/bgp/filterapi/policy.go` - `Policy{filters, final}`; zero `final` is absent; `Configured()` is `final != 0`; `AcceptsAtEnd()` is `final != FinalReject`, so absent accepts
+- [ ] `internal/component/bgp/reactor/filter_ordered.go` - `runIngressPolicyChain`: no active filter and `AcceptsAtEnd` gives accept, else `ingressPolicyWithdrawals(payload)`; `runEgressPolicyChain` and `runEgressPolicyChainASN4`: no active filter returns `accept: exportPolicy.AcceptsAtEnd()`; `destInternal` is already a parameter
+- [ ] `internal/component/bgp/reactor/egress_inject_filter.go` - `exportFilterForBody`: originated, injected and bgp-rs `update text` routes; `facts == nil` (no forwarding snapshot) returns accept ("retain the existing admission"); `facts.isEBGP` exists
+- [ ] `internal/component/bgp/reactor/peer_run.go` - `session.egressFinalAccepts` closure reads `exportPolicy.AcceptsAtEnd()`
+- [ ] `internal/component/bgp/reactor/policy_reload.go` - export final reject on reload triggers the withdrawal barrier
+- [ ] `internal/component/bgp/reactor/peer_settings_apply.go` - `restoreFinal` and `finalChanged` compare `AcceptsAtEnd` before and after a reload
+- [ ] `internal/component/bgp/reactor/filter_chain.go` - `PolicyFilterChain` applies `AcceptsAtEnd` at exhaustion
+- [ ] `internal/component/bgp/reactor/policy_dryrun.go` - `tracePolicyFilterChain` mirrors the live final
+- [ ] `internal/component/bgp/reactor/reactor_api.go` - `policyInfo` returns nil for an absent policy with no filters
+- [ ] `internal/component/bgp/config/peers.go` - bgp, group, peer and dynamic-group layers combined by `concatPolicies`
+- [ ] `internal/component/bgp/config/redistribution.go` - `extractFilterPolicy`, `concatPolicies` (most specific configured final wins)
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `IsEBGP` is `!IsIBGP`; `session_as_migration.go::isIBGPWith` compares local AS and migration AS
+- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - `filter-policy` grouping, presence containers `filter import` and `filter export` at bgp, group and peer
+- [ ] `internal/exabgp/migration/migrate.go` - `migrateNeighbors` builds each peer tree; no `filter` container is written
+
+**Behavior to preserve:**
+- IBGP sessions: absent policy accepts in both directions, as today
+- Any configured policy, at any layer, keeps its stated final; filter semantics, ordering and the reload withdrawal machinery are unchanged
+- `final reject` on export still withdraws previously advertised routes on reload; withdrawals still pass a rejecting export final
+- `show policy chain` and peer detail output for a configured policy
+
+**Behavior to change:**
+- EBGP session, import direction, no configured policy at any layer: every received route is treated as policy-rejected (the existing `ingressPolicyWithdrawals` path), so none reaches the Decision Process
+- EBGP session, export direction, no configured policy at any layer: no route is added to its Adj-RIB-Out from any egress path, including before the forwarding snapshot exists
+- The absent EBGP verdict is visible: peer detail, `show policy chain` and policy dry-run report it, and one warning per direction per session says why and how to fix it
+- `ze exabgp migrate` writes an explicit `filter import { final accept; }` and `filter export { final accept; }` on every migrated peer
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Ingress: UPDATE wire bytes from an established EBGP session, reaching `runIngressPolicyChain`
+- Egress: a route selected for an EBGP destination, from the forward pool (`runEgressPolicyChain`), or from originated, injected, API, ExaBGP-bridge and bgp-rs paths (`exportFilterForBody`, `egressFinalAccepts`)
+- Config: `bgp filter`, `bgp group <g> filter`, `bgp peer <p> filter` presence containers
+
+### Transformation Path
+1. Config parse: `extractFilterPolicy` per layer, `concatPolicies` into `PeerSettings.ImportPolicy` / `ExportPolicy` (absent stays the zero final)
+2. Session type: `PeerSettings.IsEBGP` at the decision, read through the guarded `Peer.IsEBGP` or the forwarding snapshot's `isEBGP`
+3. Exhaustion verdict: one function of (policy, session external) replaces `AcceptsAtEnd()`; absent and external yields reject
+4. Ingress reject becomes withdrawals (`ingressPolicyWithdrawals`); egress reject suppresses the announcement and keeps withdrawals
+5. Status: `policyInfo`, `show policy chain`, dry-run read the same verdict
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Config to reactor | `PeerSettings.ImportPolicy` / `ExportPolicy` (zero final = absent) | No |
+| Reactor to plugins (rib, adj-rib-in, rs) | ingress reject arrives as withdrawals before dispatch; plugins see no rejected route | No |
+| Plugins to reactor (bgp-rs, API, ExaBGP bridge) | announcements reach `exportFilterForBody` per destination | No |
+| Reactor to CLI/JSON | `plugin.PolicyInfo` in peer detail and `show policy chain` | No |
+
+### Integration Points
+- `filterapi.Policy` - the verdict function lives here, beside the type that encodes absence
+- `forwardFacts` snapshot - already carries `isEBGP` and `exportPolicy` together
+- `ingressPolicyWithdrawals` / `policyWithdrawals` - reused, no new reject path
+- `internal/exabgp/migration` - emits explicit policies on migrated peers
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | Yes | The verdict stays inside the existing chain functions; no new egress or ingress path |
+| No unintended coupling (components stay isolated) | Yes | filterapi gains a session-type argument, not a reactor import |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses the final-reject withdrawal machinery |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | The absent path does no serialization, as the current no-active-filter path |
+| Registration over hardcoding, outbound | N-A | No command, family or handler is added |
+| Registration over hardcoding, inbound | Yes | No list learns a name; the rule is a property of the session type and policy presence |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | Every exhaustion verdict goes through `AcceptsAtEnd`, so changing its signature makes the compiler find every consumer | `grep AcceptsAtEnd` lists filter_ordered, filter_chain, egress_inject_filter, peer_run, policy_reload, peer_settings_apply, reactor_api, policy_dryrun | A path keeps the absent-accepts verdict | Signature change compiles only once every caller passes the session type; reviewer greps for `Configured()` readers too | unvalidated |
+| A-2 | The ingress reject happens before rib, adj-rib-in and bgp-rs see the route | `runIngressPolicyChain` returns withdrawals in the ordered ingress pipeline | A plugin stores or forwards a route RFC 8212 makes ineligible | Functional test asserts the RIB and bgp-rs export are empty | unvalidated |
+| A-3 | `IsEBGP` is known at every decision: ingress and egress only run on an established session, whose peer AS is fixed | `Peer.IsEBGP`, `forwardFacts.isEBGP` | An undecided session type would need a third answer | Read the dynamic-peer accept path (`reactor_dynamic.go`) for the moment PeerAS is set | unvalidated |
+| A-4 | An explicit `filter import { final accept; }` at the bgp level is the operator's explicit Import Policy for every peer, so no separate RFC8212-3-3 switch is needed | RFC 8212 Section 1: "routes are neither imported nor exported unless specifically enabled by configuration" | An operator could ask for a knob FRR-style | Owner reads Key Design Decisions | unvalidated |
+| A-5 | ExaBGP's own behaviour is accept-all in both directions with no policy | ExaBGP has no import or export policy construct | Migrated configs would over-permit | Read `~/Code/github.com/exa-networks/exabgp` neighbor handling before emitting | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | Hundreds of functional tests configure EBGP peers with no policy and go red (1365 `.ci` files configure peers, 120 state a final) | `./le test` runs of the reached suites go red with routes missing | Phase 4 adds an explicit policy to each affected fixture's config, changing no assertion; RFC-tagged and golden fixtures go through `ze-test-judge` |
+| R-2 | `exportFilterForBody` accepts when no forwarding snapshot exists (`facts == nil`), a fail-open before the snapshot | An originated route reaches an EBGP peer with no export policy in the window | Fall back to `peer.ExportPolicy()` and `peer.IsEBGP()` under the lock, as `egressFinalAccepts` already does |
+| R-3 | A reload that adds or removes the only policy layer changes the verdict without restarting the session | Routes neither withdrawn nor re-sent after the reload | `restoreFinal` / `finalChanged` compare the effective verdict (policy and session type), not the raw final |
+| R-4 | Looking-glass and route-collector deployments silently receive nothing after upgrade | Empty RIB with established sessions | Warning at session up naming the fix; profile docs and examples state the explicit import accept / export reject a collector needs |
+| R-5 | A hand-written ze config used with the ExaBGP bridge (not produced by `ze exabgp migrate`) stops sending API routes | Bridge announcements not on the wire | Warning names the fix; the ExaBGP difference is documented, per the owner rule that the RFC outranks ExaBGP behaviour |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Routes silently not exchanged with EBGP peers (too strict), or the route leak stays (too lax) |
+| How is it reverted? | Single commit revert of the verdict function; configs that added explicit policies keep working either way |
+| Who else touches this path? | bgp-rs, rib, adj-rib-in plugins; the ExaBGP bridge and migration; policy reload; every BGP functional suite |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| EBGP peer, no import policy, peer sends UPDATE | → | `runIngressPolicyChain` absent-EBGP reject | `test/plugin/rfc8212-ebgp-no-import-policy.ci` |
+| EBGP peer, no export policy, config `update` block and a forwarded route | → | `exportFilterForBody`, `runEgressPolicyChain` absent-EBGP reject | `test/plugin/rfc8212-ebgp-no-export-policy.ci` |
+| IBGP peer, no policy | → | absent-IBGP accept | `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci` |
+| Reload adds `filter import { final accept; }` | → | reload re-evaluation | `test/reload/rfc8212-explicit-policy-reload.ci` |
+| `ze exabgp migrate` of an EBGP neighbor | → | `migrateNeighbors` emits explicit policies | `TestMigrateWritesExplicitRFC8212Policies` and the existing `test/exabgp-compat` suite run unchanged |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | EBGP session, no import policy at bgp, group or peer layer, peer announces prefixes | No prefix enters the RIB or is offered to bgp-rs; `show` of the RIB is empty for that peer |
+| AC-2 | EBGP session, no export policy at any layer; routes exist from config `update`, another peer, the API and the ExaBGP bridge | The peer receives no announcement from any of the four sources, including during session start before the forwarding snapshot |
+| AC-3 | Same as AC-1 and AC-2 with `final accept` configured at the bgp level only | Routes flow in both directions, as today |
+| AC-4 | IBGP session, no policy | Routes flow in both directions, as today |
+| AC-5 | EBGP session with only automatic (internal) filters, no operator policy | Treated as absent: AC-1 and AC-2 apply |
+| AC-6 | Established EBGP session, reload adds an import or export policy with `final accept` | Received routes become eligible and are installed (route refresh or stored replay); exportable routes are announced, without a session reset |
+| AC-7 | Established EBGP session, reload removes the only export policy | Previously advertised routes are withdrawn |
+| AC-8 | Peer detail, `show policy chain` and policy dry-run for an EBGP peer with an absent direction | Each reports the direction's effective final as reject and marks it as the RFC 8212 default, distinct from a configured final; an IBGP absent direction stays omitted |
+| AC-9 | EBGP session reaches Established with an absent direction | One warning per direction per session names the peer, the direction, RFC 8212, and the exact config command that adds the explicit policy |
+| AC-10 | `ze exabgp migrate` of any ExaBGP neighbor | The produced peer carries `filter import { final accept; }` and `filter export { final accept; }`, and the migration output says why |
+| AC-11 | RFC8212-3-1 and RFC8212-3-2 | Each carries a positive and a negative tagged test with a discrimination record; the `{gap}` annotations are removed from `rfc/short/rfc8212.md` |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Configures an EBGP peer and forgets policy | config, session up, UPDATE, ingress reject, warning | `test/plugin/rfc8212-ebgp-no-import-policy.ci` |
+| 2 | Runs an IXP route server with group policies | dynamic group policy, bgp-rs, egress | `test/plugin/rfc8212-ebgp-no-export-policy.ci` plus an existing route-server suite with explicit policies |
+| 3 | Migrates an ExaBGP config and runs its API scripts | migrate, bridge, `exportFilterForBody` | `TestMigrateWritesExplicitRFC8212Policies` and `test/exabgp-compat` |
+| 4 | Peers with FRR | interop | `bgp-rfc8212-default-reject-frr` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestRFC8212Section3AbsentImportRejectsOnEBGP` | `internal/component/bgp/reactor/rfc8212_default_reject_test.go` | AC-1, AC-5 | |
+| `TestRFC8212Section3AbsentExportRejectsOnEBGP` | `internal/component/bgp/reactor/rfc8212_default_reject_test.go` | AC-2, R-2 | |
+| `TestRFC8212AbsentPolicyAcceptsOnIBGP` | `internal/component/bgp/reactor/rfc8212_default_reject_test.go` | AC-4 | |
+| `TestPolicyVerdictAtExhaustion` | `internal/component/bgp/filterapi/policy_test.go` | absent x external, accept, reject truth table | |
+| `TestRFC8212ReloadReevaluatesVerdict` | `internal/component/bgp/reactor/` | AC-6, AC-7, R-3 | |
+| `TestRFC8212PolicyInfoReportsDefault` | `internal/component/bgp/reactor/` | AC-8 | |
+| `TestMigrateWritesExplicitRFC8212Policies` | `internal/exabgp/migration/` | AC-10 | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| N-A | The feature takes no numeric input | - | - | - |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `rfc8212-ebgp-no-import-policy` | `test/plugin/` | EBGP peer without import policy contributes no route; warning logged | |
+| `rfc8212-ebgp-no-export-policy` | `test/plugin/` | EBGP peer without export policy receives nothing from config, forward or API | |
+| `rfc8212-ibgp-no-policy-unchanged` | `test/plugin/` | IBGP unaffected | |
+| `rfc8212-explicit-policy-reload` | `test/reload/` | adding policy by reload starts the exchange without reset | |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `bgp-rfc8212-default-reject-frr` | `test/interop/` | FRR (`bgp ebgp-requires-policy` on, explicit route-maps) | Ze with no policy installs none of FRR's routes and FRR receives none of Ze's; after a reload adding explicit accept, both RIBs carry the routes. Forced red: revert the verdict, rebuild, FRR's routes appear in Ze's RIB | |
+
+Scoped evidence: `./le test unit` over `internal/component/bgp/filterapi`,
+`internal/component/bgp/reactor`, `internal/exabgp/migration`; the named
+`.ci` tests; `./le test interop` for the scenario; then `./le verify changed`
+over the closing commits.
+
+## Files to Modify
+- `internal/component/bgp/filterapi/policy.go` - replace `AcceptsAtEnd()` with a verdict that takes the session type; the zero Policy no longer answers alone
+- `internal/component/bgp/reactor/filter_ordered.go` - pass session type on ingress and egress
+- `internal/component/bgp/reactor/filter_chain.go` - same at exhaustion
+- `internal/component/bgp/reactor/egress_inject_filter.go` - session type, and close the `facts == nil` window (R-2)
+- `internal/component/bgp/reactor/peer_run.go` - `egressFinalAccepts`
+- `internal/component/bgp/reactor/policy_reload.go`, `peer_settings_apply.go` - compare effective verdicts (R-3)
+- `internal/component/bgp/reactor/policy_dryrun.go` - same verdict as live
+- `internal/component/bgp/reactor/reactor_api.go` - `policyInfo` reports the RFC 8212 default
+- `internal/component/plugin/types_bgp.go` - `PolicyInfo` gains the marker for a default final
+- session-up warning in the reactor's Established handling
+- `internal/exabgp/migration/migrate.go` - explicit policies per migrated peer
+- `rfc/short/rfc8212.md` - remove `{gap}`, add tags
+- functional test fixtures that configure EBGP peers with no policy (Phase 4)
+
+## Files to Create
+- `internal/component/bgp/reactor/rfc8212_default_reject_test.go`
+- `test/plugin/rfc8212-ebgp-no-import-policy.ci`, `test/plugin/rfc8212-ebgp-no-export-policy.ci`, `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci`
+- `test/reload/rfc8212-explicit-policy-reload.ci`
+- `test/interop/bgp-rfc8212-default-reject-frr/`
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | The explicit policy containers already exist; no switch is added (A-4) |
+| YANG validation constraints | No | Unchanged |
+| YANG custom validators | No | Unchanged |
+| CLI commands/flags | No | No new command; existing peer detail and `show policy chain` change output |
+| CLI grammar (keyword before value) | N-A | No command added |
+| Editor autocomplete | N-A | No new leaf |
+| Functional test for new RPC/API | Yes | `show policy chain` output for an absent EBGP direction, in `rfc8212-ebgp-no-import-policy.ci` |
+| Pipe completeness | N-A | Existing commands |
+| Env var registration | No | None added |
+| Doctor check for runtime dependencies | No | No runtime dependency added |
+| Prometheus counters/metrics | No | The existing policy-reject accounting applies; design confirms whether a per-reason label exists |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Family independent |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the BGP policy feature file under `features/` (find with `./le feature report`) |
+| 2 | Config syntax changed? | Yes (semantics) | `docs/architecture/config/syntax.md` ("An absent policy retains prior behavior."), `docs/guide/configuration.md` examples with EBGP peers |
+| 3 | CLI command added/changed? | Yes (output) | `docs/guide/bgp-policy.md` "Verify policy" |
+| 4 | API/RPC added/changed? | Yes (output) | `docs/architecture/api/commands.md` `ze-bgp:show-policy-chain` |
+| 5 | Plugin added/changed? | No | - |
+| 6 | Has a user guide page? | Yes | `docs/guide/bgp-policy.md`, `docs/guide/bgp-peering.md`, `docs/guide/redistribution.md` |
+| 7 | Wire format changed? | No | - |
+| 8 | Plugin SDK/protocol changed? | Yes | `PolicyInfo` JSON in `docs/architecture/api/process-protocol.md` if it documents peer policy |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc8212.md`, `docs/features/rfc-status.md` row |
+| 10 | Test infrastructure changed? | No | - |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` policy final disposition; `docs/architecture/api/architecture.md` (declared by a changed file's `// Design:` header) where it describes peer policy reporting |
+| 13 | Route metadata keys added/changed? | No | - |
+| 14 | Prometheus counters added/changed? | No | - |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Every guide example of an EBGP peer gains its explicit policy; ExaBGP migration guide states the emitted policies |
+
+## Implementation Steps
+
+1. **Phase: Wiring** -- write the four `.ci` tests and the unit truth table; they fail against HEAD
+2. **Phase: Verdict** -- the session-typed exhaustion verdict in `filterapi`, every consumer passes the session type; R-2 window closed
+3. **Phase: Reload and status** -- effective-verdict comparison on reload; `policyInfo`, `show policy chain`, dry-run and the session-up warning
+4. **Phase: Fixtures** -- add an explicit policy to every functional and interop config whose EBGP peers rely on the absent default; no assertion changes; `ze-test-judge` for RFC-tagged and golden fixtures
+5. **Phase: ExaBGP migration** -- explicit policies per migrated peer and the migration note; `test/exabgp-compat` green unchanged
+6. **Phase: Interop and RFC records** -- `bgp-rfc8212-default-reject-frr` with forced red; `./le rfc record` for both rows; docs
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Correctness | No consumer of the exhaustion verdict reads it without the session type; `grep AcceptsAtEnd` is empty or every hit passes it |
+| Correctness | An absent IBGP direction is byte-identical to today |
+| Data flow | bgp-rs, API and ExaBGP-bridge announcements to an EBGP peer pass the same verdict as forwarded routes |
+| Rule: principles (silent zero) | The zero Policy is never read as an answer by itself |
+| Rule: user-facing-errors | The warning names the peer, direction, RFC and the exact fix command |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Session-typed verdict | `grep -rn AcceptsAtEnd internal/` shows no session-less call |
+| Gap rows closed | `grep gap rfc/short/rfc8212.md` empty for 3-1 and 3-2 |
+| Interop | scenario log with green and forced-red runs |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Fail-open | Every egress path, including the pre-snapshot window, rejects on absent EBGP export |
+| Authorization that could fail open | A filter execution failure still rejects, as today |
+
+### Failure Routing
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `zero-value-as-valid-answer.md` | 2026-10-26 | `Policy.AcceptsAtEnd` accepts an absent policy on EBGP |
+
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Apply the default at the decision, per session, FRR-style (`bgp_update`, `subgroup_announce_check`) | Refuse the config at commit, BIRD-style (`bgp_postconfig` `cf_error`) | The session type is only certain once the session runs (dynamic groups, migration AS); a refusal would also reject a valid running config on upgrade with no peer to blame. The runtime verdict plus a warning and a status marker gives the operator the same information FRR gives in `inboundEbgpRequiresPolicy` |
+| No new RFC8212-3-3 switch; an explicit `final accept` at the bgp level is the deviation | An FRR-like `no bgp ebgp-requires-policy` leaf | The MAY is already met by explicit configuration that states its intent; a second knob would be a second declaration of the same choice, and BIRD offers none |
+| Automatic (internal) filters do not count as an explicit policy | Treat any filter as presence | `InternalPolicy` already encodes "Internal filters do not imply presence"; RFC 8212 asks for operator intent |
+| Absent import reuses the policy-reject withdrawal path | Drop silently before the chain | One reject path; withdrawals keep any prior state consistent |
+| Absent export applies to every egress source, config `update` blocks and API injections included | Exempt locally originated routes | RFC8212-3-2 names the Adj-RIB-Out, not the route's origin, and FRR's `subgroup_announce_check` applies to every path |
+| `ze exabgp migrate` writes explicit accept on every migrated peer, not a global policy | A global `bgp filter` accept | ExaBGP has no policy, so explicit accept preserves its behaviour; per peer, a peer the operator adds later still gets the RFC 8212 default. The RFC outranks ExaBGP behaviour (owner rule), so the bridge itself enforces the default and the difference is documented |
+| Confederation: no exemption code | Copy FRR's and BIRD's confed-member exemption | Ze has no confederation support; both FRR (`BGP_PEER_CONFED`) and BIRD (`confederation_member` is `interior`) exempt confed-member sessions, which a future confederation spec must decide |
+
+## Known Limitations
+- BGP confederations are not supported, so the confederation-member exemption both FRR and BIRD apply has no Ze counterpart yet; the spec that adds confederations owns that decision
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC 8212 Section 3: "<quoted requirement>"` above the verdict and at
+each call site's section reference, per `ai/rules/rfc-compliance.md`.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] FRR and BIRD deciding functions quoted
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-11 all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] Targeted tests pass: scoped `./le test unit`, the named `.ci` tests, the interop scenario, `./le verify changed` over the closing commits
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Interop tests for protocol features
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean
+- [ ] **Commit A:** code + tests + docs + edited spec
+- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md`
