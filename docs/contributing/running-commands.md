@@ -305,7 +305,9 @@ naming the commit and the log, and that commit is not built again. A build
 that does not start (not executable, the wrong platform, or failing the smoke
 test a hand-placed build gets before its first run) is moved aside to
 `bin/builds/.failed-<name>` and the call runs the next newest, saying so in one
-line. `./le rollback` moves the newest build aside the same way on demand, and
+line. `./le rollback` moves the newest build aside the same way on demand (it
+takes no other word: `./le rollback newest` is refused with exit 2, naming
+`./le rollback`, and moves nothing), and
 the inputs of a build moved aside are not rebuilt, except when it was the only
 build: the next call then finds no build and builds HEAD in the foreground,
 because some le must run. Nothing in this path

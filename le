@@ -728,8 +728,15 @@ fi
 
 # `./le rollback` moves the newest build aside, as an automatic rollback does,
 # and the next call runs the one before it. The inputs of the build moved aside
-# count as rejected, so HEAD is not simply built again.
+# count as rejected, so HEAD is not simply built again. It takes no other
+# word: a word after it would be accepted and ignored, which no help page can
+# show, so it is refused before any build is touched.
 if [ "${1:-}" = rollback ]; then
+	if [ $# -gt 1 ]; then
+		shift
+		echo "le: ./le rollback takes no other word, and was given: $*. It always sets the newest build aside, so there is nothing to choose. Run: ./le rollback" >&2
+		exit 2
+	fi
 	choose_build
 	if [ -z "$build_dir" ]; then
 		echo "le: there is no build of le for this machine in $builds to roll back" >&2

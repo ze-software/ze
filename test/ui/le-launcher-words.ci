@@ -1,0 +1,16 @@
+# Test: the ./le launcher refuses a word after rollback, and le's root page
+# names every word the launcher reads before le starts.
+# accept-only: the registered native fixture copies the repository's own le
+# script beside a placed build, runs `le rollback newest` and
+# `le rollback newest now` through it, and reads the exit code, stderr and the
+# build store a shell would see: exit 2, a refusal naming ./le rollback, and the
+# store unchanged. It then builds the le personality and reads `le help`, which
+# must name --name, its value session, and rollback.
+#
+# VALIDATES: spec-le-cli-usability AC-51 and D-P4-launcher through the real
+# launcher script and the product binary's composition root.
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-launcher-words
+expect=exit:code=0
+expect=stdout:contains=OK
