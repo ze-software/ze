@@ -47,7 +47,11 @@ type Item struct {
 	Updated       string   `json:"updated"`
 	SourceURL     string   `json:"source-url"`
 	RFCGaps       []string `json:"rfc-gaps"` // the `RFC gaps` Meta cell, as specstatus parses it
-	Diagnostics   []string `json:"diagnostics"`
+	// Profiles names every use-case profile whose closure, read from the same
+	// revision's rfc/ tree, holds a stem RFCGaps names. Empty when the spec
+	// declares no gaps; a gap the revision cannot place is a diagnostic.
+	Profiles    []string `json:"profiles"`
+	Diagnostics []string `json:"diagnostics"`
 }
 
 // Counts count files, including every malformed and parked item.
@@ -108,8 +112,12 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 	}
 	identities := make(map[string]string, len(entries))
 	digest := sha256.New()
+	var corpus *rfcCorpus
 	for index, entry := range entries {
-		parsed, err := specstatus.ParseHistorical(blobs[index], entry.path, nil)
+		// A malformed cell the parser left out still reaches the reader: its
+		// warning becomes this item's diagnostic.
+		warnings := make([]string, 0)
+		parsed, err := specstatus.ParseHistorical(blobs[index], entry.path, func(message string) { warnings = append(warnings, message) })
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("%w: %s: %w", ErrRead, entry.path, err)
 		}
@@ -126,9 +134,18 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 			Priority: parsed.Priority, ReleaseReason: parsed.ReleaseReason,
 			Set: parsed.Set, Updated: parsed.Updated, SourceURL: sourceURL(resolved, entry.path),
 			RFCGaps:     parsed.RFCGaps,
-			Diagnostics: make([]string, 0),
+			Profiles:    make([]string, 0),
+			Diagnostics: warnings,
 		}
 		itemDiagnostics(&item)
+		if len(item.RFCGaps) != 0 {
+			// The corpus is read once, and only for a revision whose specs
+			// declare a gap: a historical tree with none never pays for it.
+			if corpus == nil {
+				corpus = loadRFCCorpus(ctx, root, resolved)
+			}
+			corpus.place(&item)
+		}
 		snapshot.Items = append(snapshot.Items, item)
 		snapshot.Counts.Total++
 		snapshot.Counts.Buckets[item.Bucket]++
@@ -138,6 +155,11 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		} else {
 			snapshot.Counts.NiceToHave++
 		}
+	}
+	// The rfc/ corpus the Profiles column read is an input too, so a change
+	// to it changes the digest even when no spec changed.
+	if corpus != nil {
+		corpus.digest(digest)
 	}
 	snapshot.InputDigest = hex.EncodeToString(digest.Sum(nil))
 	slices.SortFunc(snapshot.Items, func(left, right Item) int {
@@ -270,7 +292,7 @@ func tree(ctx context.Context, root, revision string) ([]treeEntry, error) {
 		if bucket == "to-review" {
 			continue
 		}
-		if fields[1] != "blob" {
+		if fields[1] != objectBlob {
 			return nil, fmt.Errorf("%w: %s is not a regular spec blob", ErrRead, rel)
 		}
 		if fields[0] != "100644" {
@@ -300,7 +322,7 @@ func readBlobs(ctx context.Context, root string, entries []treeEntry) ([][]byte,
 	}
 	output, err := git(ctx, root, strings.NewReader(request.String()), "cat-file", "--batch")
 	if err != nil {
-		return nil, fmt.Errorf("%w: spec blobs: %w", ErrRead, err)
+		return nil, fmt.Errorf("%w: blobs: %w", ErrRead, err)
 	}
 	for _, entry := range entries {
 		header, rest, found := bytes.Cut(output, []byte{'\n'})
@@ -314,7 +336,7 @@ func readBlobs(ctx context.Context, root string, entries []treeEntry) ([][]byte,
 		if fields[0] != entry.object {
 			return nil, fmt.Errorf("%w: wrong blob for %s", ErrRead, entry.path)
 		}
-		if fields[1] != "blob" {
+		if fields[1] != objectBlob {
 			return nil, fmt.Errorf("%w: wrong object type for %s", ErrRead, entry.path)
 		}
 		size, err := strconv.Atoi(fields[2])

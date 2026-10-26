@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/gitenv"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/spec"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
@@ -813,7 +814,42 @@ func validateSpecText(root, text string) ([]string, []string) {
 	if !strings.Contains(text, "## Risks & Assumptions") {
 		warnings = append(warnings, "Missing '## Risks & Assumptions' section")
 	}
-	_ = root
+	gapErrors, gapWarnings := validateSpecRFCGaps(root, text)
+	errors = append(errors, gapErrors...)
+	warnings = append(warnings, gapWarnings...)
+	return errors, warnings
+}
+
+// validateSpecRFCGaps refuses an `RFC gaps` item that names no requirement id
+// and no summary stem of the working tree's rfc/short/ (AC-16 of
+// spec-rfc-priority-tree): the roadmap places a spec in a release profile
+// through that item, so an unknown one would silently place it in none. A
+// spec that declares no gaps reads no summary. An index that cannot be read
+// is an error too: an unjudged cell is not a valid one.
+func validateSpecRFCGaps(root, text string) ([]string, []string) {
+	warnings := make([]string, 0)
+	gaps := specstatus.RFCGaps([]byte(text), "this spec", func(message string) { warnings = append(warnings, message) })
+	if len(gaps) == 0 {
+		return nil, warnings
+	}
+	requirementStems, err := rfc.LoadRequirementStems(root)
+	if err != nil {
+		return []string{"RFC gaps could not be judged, because the rfc/short/ index did not load: " + err.Error() +
+			". Fix that summary (./le rfc check names it), then save the spec again"}, warnings
+	}
+	paths, err := filepath.Glob(filepath.Join(root, "rfc", "short", "*.md"))
+	if err != nil {
+		return []string{"RFC gaps could not be judged: " + err.Error()}, warnings
+	}
+	summaryStems := make(map[string]bool, len(paths))
+	for _, summary := range paths {
+		summaryStems[strings.TrimSuffix(filepath.Base(summary), ".md")] = true
+	}
+	_, unknown := specstatus.ResolveRFCGaps(gaps, requirementStems, summaryStems)
+	errors := make([]string, 0, len(unknown))
+	for _, item := range unknown {
+		errors = append(errors, specstatus.UnknownRFCGap("this spec", item))
+	}
 	return errors, warnings
 }
 

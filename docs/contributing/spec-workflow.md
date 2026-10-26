@@ -45,6 +45,16 @@ corpus, so it does not judge whether an item names a requirement or a stem
 that `rfc/short/` holds. `./le spec status` and the roadmap snapshot carry the
 list as `rfc-gaps`.
 
+<!-- source: internal/le/spec/status/specstatus.go -- ResolveRFCGaps, UnknownRFCGap -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- validateSpecRFCGaps -->
+That judgement is made where a spec edit is refused. The spec validation hook
+reads the working tree's `rfc/short/` index (`rfc.LoadRequirementStems`) and
+refuses an item that is neither a requirement id a summary lists nor a summary
+stem, naming the item and the command that finds the right one. The id's shape
+never decides the stem: `SFLOW-V5-x-1` belongs to `sflow-v5`. A spec with no
+gaps reads no summary. An index that does not load is refused too, because an
+unjudged cell is not a valid one. The empty and repeated items stay warnings.
+
 | Event | Status change | Phase | Updated |
 |-------|--------------|-------|---------|
 | Start research | `skeleton` to `design` | - | Yes |
@@ -115,6 +125,22 @@ with diagnostics; duplicate stems and unreadable trees fail. Counts measure
 spec work items and do not establish release readiness. The website consumes
 this same collector and category declaration without reading the generated index.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect, Snapshot -->
+
+<!-- source: internal/le/spec/roadmap/profiles.go -- loadRFCCorpus, place, rfcBlobs -->
+<!-- source: internal/le/spec/roadmap/rfccorpus/rfccorpus.go -- Read -->
+The Profiles column names, for each spec, every use-case profile whose closure
+holds a document its `RFC gaps` names (`profiles` in the snapshot). The
+closure is the one `./le rfc tree profile <name>` walks, and it is read from
+the same revision as the specs: `rfc/short/`, `rfc/profiles/`, `rfc/full/` and
+`rfc/drafts/` come out of that commit's objects, never the working tree, and
+only when some spec of the revision declares a gap. A gap the revision cannot
+place stays visible as a diagnostic: an unknown id or stem, a revision with no
+use-case profile, or a corpus that did not load. The parser's `RFC gaps`
+warnings reach the same Diagnostics column. A spec with no gaps shows `-`. The reader
+registers from `internal/le/spec/roadmap/rfccorpus`, so the roadmap package
+itself does not link the RFC parsers; a binary without it reports every gap
+unjudged rather than unplaced. `TestRoadmapProfilesOverRealCorpus` logs what
+the whole collection of HEAD costs with the corpus read.
 
 Old committed revisions retain their actual `after`, `immediate` and
 `pre-release` classifications and source paths. Old root work is never guessed

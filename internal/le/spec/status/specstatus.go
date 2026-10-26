@@ -338,10 +338,14 @@ func parseMetadata(data []byte, rel, bucket string, warn func(string)) Spec {
 // written twice, is an authoring error: it is reported through warn and left
 // out, so the list never carries a blank or a repeat. Whether each item names
 // a requirement or a stem the corpus holds is not judged here, because this
-// parser reads one spec and never the RFC corpus.
+// parser reads one spec and never the RFC corpus: ResolveRFCGaps judges it
+// over the index a caller read from the corpus.
 func rfcGaps(cell, rel string, warn func(string)) []string {
 	items := make([]string, 0)
-	if cell == "" || cell == "-" {
+	if cell == "" {
+		return items
+	}
+	if cell == "-" {
 		return items
 	}
 	for item := range strings.SplitSeq(cell, ",") {
@@ -357,6 +361,52 @@ func rfcGaps(cell, rel string, warn func(string)) []string {
 		items = append(items, item)
 	}
 	return items
+}
+
+// RFCGaps reads only the `RFC gaps` cell of a spec's metadata table, with the
+// same split and the same warnings as Parse. The spec validation hook reads a
+// spec through it before the file is placed in any category.
+func RFCGaps(data []byte, rel string, warn func(string)) []string {
+	rows, _ := metaRows(string(data))
+	return rfcGaps(metaField(rows, "RFC gaps"), rel, warn)
+}
+
+// ResolveRFCGaps answers the summary stem each `RFC gaps` item names, and the
+// items that name nothing in the corpus. An item is a stem when summaryStems
+// holds it, else a requirement id when requirementStems maps it to its
+// summary. The id's shape never answers: `SFLOW-V5-x-1` belongs to
+// `sflow-v5`, so the lookup is the corpus's own index (rfc.RequirementStems).
+// stems is sorted and holds each stem once; unknown keeps the cell's order.
+func ResolveRFCGaps(gaps []string, requirementStems map[string]string, summaryStems map[string]bool) (stems, unknown []string) {
+	stems = make([]string, 0, len(gaps))
+	for _, item := range gaps {
+		stem := item
+		if !summaryStems[item] {
+			owner, listed := requirementStems[item]
+			if !listed {
+				unknown = append(unknown, item)
+				continue
+			}
+			stem = owner
+		}
+		if !slices.Contains(stems, stem) {
+			stems = append(stems, stem)
+		}
+	}
+	slices.Sort(stems)
+	return stems, unknown
+}
+
+// UnknownRFCGap is the message for an `RFC gaps` item the corpus does not
+// hold: the hook refuses the spec with it and the roadmap shows it as a
+// diagnostic, so both surfaces say the same thing.
+func UnknownRFCGap(rel, item string) string {
+	var tb textbuf.Buffer
+	return tb.Str(rel).Str(": the RFC gaps cell names ").Str(item).
+		Str(", which is neither a requirement id listed in an rfc/short/ summary nor a summary stem, ").
+		Str("so no release profile can be found for it. Write the id exactly as the summary's checklist ").
+		Str("does (`grep -rn '\\[").Str(item).Str("\\]' rfc/short/` finds a listed one), or the stem ").
+		Str("(`ls rfc/short/` lists them), or remove it from the | RFC gaps | row").String()
 }
 
 // rfcGapsWarn reports one `RFC gaps` authoring error, naming the spec, the

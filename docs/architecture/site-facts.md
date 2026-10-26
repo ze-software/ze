@@ -115,8 +115,13 @@ or partial site build, `renderRoadmap` calls the shared spec collector once at
 committed `HEAD`. That snapshot supplies the page, its Markdown mirror, and
 `data/release-roadmap.json`. The JSON carries its own input digest and full
 revision, because the site's website-only source digest does not cover `plan/`.
+When a spec declares `RFC gaps`, the same snapshot's Profiles column reads
+`rfc/short/`, `rfc/profiles/`, `rfc/full/` and `rfc/drafts/` from that commit
+too, and those files join the input digest
+(`docs/contributing/spec-workflow.md`, "Committed release roadmap").
 <!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
+<!-- source: internal/le/spec/roadmap/profiles.go -- loadRFCCorpus -->
 
 Uncommitted edits and untracked specs cannot enter that inventory. Missing
 history or an unreadable plan tree stops the build. The output remains an

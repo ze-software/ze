@@ -510,3 +510,45 @@ func TestStopHookJudgesStateNotWording(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateSpecRefusesUnknownRFCGap holds the refusal of AC-16 at the
+// place a spec edit is refused: an `RFC gaps` item that is neither a
+// requirement id an rfc/short/ summary lists nor a summary stem is an error
+// naming it, while listed ids and stems pass. Method: validateSpecText over a
+// tree holding one summary, with the gap cell varied.
+func TestValidateSpecRefusesUnknownRFCGap(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "rfc", "short"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	summary := "- [ ] [SFLOW-V5-3-1] [MUST] An agent MUST send the sample (§3)\n"
+	if err := os.WriteFile(filepath.Join(root, "rfc", "short", "sflow-v5.md"), []byte(summary), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gapErrors := func(cell string) []string {
+		body := "# Spec: fixture\n\n| Field | Value |\n|-------|-------|\n| Status | design |\n| Updated | 2026-10-26 |\n| RFC gaps | " + cell + " |\n"
+		errors, _ := validateSpecText(root, body)
+		var out []string
+		for _, problem := range errors {
+			if strings.Contains(problem, "RFC gaps") {
+				out = append(out, problem)
+			}
+		}
+		return out
+	}
+	if got := gapErrors("SFLOW-V5-3-1, sflow-v5"); len(got) != 0 {
+		t.Errorf("a listed id and a summary stem were refused: %v", got)
+	}
+	if got := gapErrors("-"); len(got) != 0 {
+		t.Errorf("a spec declaring no gap was refused: %v", got)
+	}
+	got := gapErrors("SFLOW-V5-3-1, RFC2661-5.4-1, rfc7947")
+	if len(got) != 2 {
+		t.Fatalf("want one refusal per unknown item, got %v", got)
+	}
+	for index, item := range []string{"RFC2661-5.4-1", "rfc7947"} {
+		if !strings.Contains(got[index], "names "+item+", which is neither") || !strings.Contains(got[index], "ls rfc/short/") {
+			t.Errorf("refusal %d does not name %s and its fix: %q", index, item, got[index])
+		}
+	}
+}

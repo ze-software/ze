@@ -82,7 +82,7 @@ func group(out *strings.Builder, snapshot *Snapshot, bucket, title string, local
 		out.WriteString("No work items in this bucket.\n\n")
 		return
 	}
-	out.WriteString("| Work item | Priority | Release reason | Status | Updated | Phase | Dependencies | Diagnostics |\n|---|---|---|---|---|---|---|---|\n")
+	out.WriteString("| Work item | Priority | Release reason | Profiles | Status | Updated | Phase | Dependencies | Diagnostics |\n|---|---|---|---|---|---|---|---|---|\n")
 	for index := range snapshot.Items {
 		item := &snapshot.Items[index]
 		if item.Bucket != bucket {
@@ -96,9 +96,15 @@ func group(out *strings.Builder, snapshot *Snapshot, bucket, title string, local
 		if _, err := time.Parse(time.DateOnly, date); err != nil {
 			date = "unavailable"
 		}
-		fmt.Fprintf(out, "| [%s](%s) (%s) | %s | %s | %s | %s | %s | %s | %s |\n",
+		// A spec with no placed gap shows `-`: Diagnostics says when a gap
+		// was declared and could not be placed.
+		profiles := "-"
+		if len(item.Profiles) != 0 {
+			profiles = strings.Join(item.Profiles, ", ")
+		}
+		fmt.Fprintf(out, "| [%s](%s) (%s) | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 			escape(title), itemLink(item, localLinks), escape("spec-"+item.Name),
-			escape(item.Priority), escape(item.ReleaseReason), escape(item.Status), escape(date), escape(item.Phase),
+			escape(item.Priority), escape(item.ReleaseReason), escape(profiles), escape(item.Status), escape(date), escape(item.Phase),
 			dependencies(snapshot, item.Depends, localLinks), escape(strings.Join(item.Diagnostics, "; ")))
 	}
 	out.WriteByte('\n')

@@ -193,7 +193,8 @@ Agreed shape (owner, 2026-10-25):
 | `./le rfc next profile lns` | → | next answer | `TestNextActionNamesLowestUncoveredLevel` (`internal/le/rfc/next_test.go`) |
 | `./le rfc check` | → | `checkUpdatedBy`, `checkHeaderLinks`, profile parse | `TestCheckRefusesUpdatedByWithoutHeaderLink`, `TestCheckRefusesMetaLinkHeaderMismatch` (`internal/le/rfc/check_test.go`) |
 | `./le site build` | → | `rfc-profiles` producer | `TestRFCProfilePagesRendered` (`internal/le/site/rfcprofiles_test.go`) |
-| `./le spec roadmap` | → | `RFC gaps` column | `TestRoadmapProfilesColumnFromRFCGaps` (`internal/le/spec/roadmap/roadmap_test.go`) |
+| `./le spec roadmap` | → | `RFC gaps` column | `TestRoadmapProfilesColumnFromRFCGaps` (`internal/le/spec/roadmap/rfccorpus/rfccorpus_test.go`) |
+| spec validation hook (`./le ai hooks validate-spec`) | → | `validateSpecRFCGaps` | `TestValidateSpecRefusesUnknownRFCGap` (`internal/le/hookruntime/runtime_test.go`) |
 
 ## Acceptance Criteria
 
@@ -237,7 +238,10 @@ Agreed shape (owner, 2026-10-25):
 | `TestNextActionNamesLowestUncoveredLevel` | `internal/le/rfc/next_test.go` | AC-10, AC-11, AC-12 | |
 | `TestTreeActionRendersLevelsAndFigures` | `internal/le/rfc/tree_test.go` | AC-13 | |
 | `TestRFCProfilePagesRendered` | `internal/le/site/rfcprofiles_test.go` | AC-15 | |
-| `TestRoadmapProfilesColumnFromRFCGaps` | `internal/le/spec/roadmap/roadmap_test.go` | AC-16 | |
+| `TestRoadmapProfilesColumnFromRFCGaps` | `internal/le/spec/roadmap/rfccorpus/rfccorpus_test.go` | AC-16 Profiles cell, unknown-id and malformed-cell diagnostics | |
+| `TestRoadmapProfilesUnjudgedCorpus` | `internal/le/spec/roadmap/rfccorpus/rfccorpus_test.go` | AC-16, a corpus that does not load is a diagnostic | |
+| `TestRoadmapProfilesOverRealCorpus` | `internal/le/spec/roadmap/rfccorpus/corpus_test.go` | AC-16 over the committed tree | |
+| `TestValidateSpecRefusesUnknownRFCGap` | `internal/le/hookruntime/runtime_test.go` | AC-16 refusal | |
 | `TestCorpusProfilesParse` | `internal/le/rfc/profile_test.go` | AC-17 over the real `rfc/profiles/` | |
 
 Existing tests updated in Phase 1 (fixture syntax `bgp-base 10` → aggregate): `render_test.go`, `site/rfcdetail_test.go`, `rfc/fixture.go`, `selftest_core.go`, `health/collect_rfc_test.go`, `check_test.go` `TestOneSummaryRendersExactlyOneStatusRow` and `TestSupportedRowScopeFixtures` (the shared-rank refusal is deleted with the rank; the omission, duplication, substitution and wrong-section refusals stay). This is a fixture syntax change, not a weakening: each assertion keeps its claim.
@@ -453,6 +457,7 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 
 - Phase 3: a closure follows builds-on edges and the updates edges pointing at a member (its updaters); an aggregate's members follow no edge. A text the closure reaches with no summary has no requirement list: it renders `no summary`, counts not walked in the rollup, and `next` names it as owed at its level, because the owner rule covers every RFC a release profile reaches.
 - Phase 3: `next` judges the mandatory register until the rollup is complete. An RFC owes there when a mandatory row is owed and unproven (a `{not-applicable}` row included: the 2026-09-02 ruling keeps it owed, and `next` prints the annotation), when it has no summary, or when it is not walked. The gap is the lowest level, the lowest RFC number there, and every member of its cycle owing at that level. With no leveled gap left and absent RFCs listed, the absent RFCs are the gap (R-7). A summary whose text is not in the corpus (rfc4762, rfc5120, rfc5925) has no level, renders `L?` and sorts after every leveled node, on the status page too.
+- Phase 5, second part: "refused by the spec parser" lands in the spec validation hook (`validateSpecRFCGaps`, `internal/le/hookruntime/lifecycle.go`), the one place a spec edit is refused; `parseMetadata` can only warn. The hook reads the working tree's index (`rfc.LoadRequirementStems`) only for a spec that declares a gap, and refuses an index that does not load. The judgement is one function (`specstatus.ResolveRFCGaps`) and one message (`specstatus.UnknownRFCGap`) that the roadmap's diagnostics share. The roadmap reads the corpus from the revision's own objects (`roadmap.rfcBlobs`), only when a spec of that revision declares a gap. The reader that parses it sits in `internal/le/spec/roadmap/rfccorpus` and registers through `roadmap.RegisterCorpusReader`: importing `internal/le/rfc` into `roadmap` linked actions of the build, doc, go, repo, test and other namespaces into the roadmap's test binary, whose `Dispatch` then refused each namespace with no summary, and the `repo` summary package imports `internal/le/site`, which imports `roadmap`, so no blank import could close it. A binary without the reader reports every gap unjudged. Collection of HEAD with the corpus took 1.08 s on 2026-10-26 (`TestRoadmapProfilesOverRealCorpus`). Over HEAD, `RFC3948-5.1-1` lands in all eight use-case profiles, which is what Phase 3's closure answers for rfc3948.
 - Phase 3: exported for the roadmap (Phase 5): `ParseProfiles(files map[string]string, stems map[string]bool) (Profiles, []string)`, `ProfileClosures(g *graph.Graph, profiles Profiles) map[string][]string`, `LoadProfileClosures(tree string) (map[string][]string, error)`, `RequirementStems(summaries map[string]string) (map[string]string, error)`, `LoadRequirementStems(tree string) (map[string]string, error)`.
 
 ## Owned journal rows
