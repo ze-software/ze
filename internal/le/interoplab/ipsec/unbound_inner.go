@@ -156,6 +156,12 @@ func checkUnboundInnerAddressUniqueness(ctx context.Context, lab *scenarioLab) e
 	// The refused initiation exits non-zero by design, so its error is the expected
 	// outcome and its log is what is judged.
 	initiate, initiateErr := lab.exec(ctx, swanPeer, cmdSwanctl, "--initiate", "--child", second.child)
+	// The kernel is judged first: two outbound policies to the inner address are the
+	// RFC 3948 Section 5.1 confusion itself, and they are the failure an absent guard
+	// shows, so that is the failure this scenario reports rather than the notify.
+	if err := lab.requireOneInnerTunnel(ctx, "after "+second.ike); err != nil {
+		return err
+	}
 	if err := requireContains(initiate, "TS_UNACCEPTABLE",
 		"strongSwan's second client was not refused with TS_UNACCEPTABLE"); err != nil {
 		return fmt.Errorf("%w (initiate error: %w)", err, initiateErr)
@@ -171,9 +177,6 @@ func checkUnboundInnerAddressUniqueness(ctx context.Context, lab *scenarioLab) e
 		return fmt.Errorf("strongSwan installed a Child SA for %s although Ze refused it:\n%s", second.ike, interoplab.OutputExcerpt(ike))
 	}
 	if err := lab.requireZeRefusedSecond(ctx); err != nil {
-		return err
-	}
-	if err := lab.requireOneInnerTunnel(ctx, "after "+second.ike); err != nil {
 		return err
 	}
 	return lab.verifyESPDirectionsToward(ctx, "the first client's tunnel stopped carrying traffic",
