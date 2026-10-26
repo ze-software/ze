@@ -10,7 +10,6 @@
 package leroot
 
 import (
-	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -43,7 +42,7 @@ var aiSections = []struct {
 }{
 	{sectionCommands, "every command, each action, each parameter with its kind, values, required and repeat", fillCommands},
 	{sectionGroups, "the purpose tags a command declares, and what each means", fillGroups},
-	{sectionVerbs, "every verb an action is spelled with, and how many commands use it", fillVerbs},
+	{sectionVerbs, "the closed verb vocabulary: each verb, its kind, its meaning, and the names that declare it", fillVerbs},
 	{sectionExitCodes, "what each exit code means, and the commands that answer another program's code", fillExitCodes},
 	{sectionLauncher, "the words the ./le launcher reads before le starts, and what each does", fillLauncher},
 }
@@ -171,26 +170,31 @@ func fillGroups(ref *reference.Reference, _ string) {
 	}
 }
 
-// fillVerbs counts, for every verb an action table spells, the commands that
-// use it. The meaning of each verb is the action's own Why; this section says
-// which verbs exist and how common each is.
+// fillVerbs copies the closed vocabulary (leaction.Vocabulary), in its
+// declared order, each verb with its kind, its meaning, and every name that
+// declares it performs that verb (Action.Does). It reads the vocabulary and the
+// manifest themselves, so no verb reaches the page without its meaning and no
+// declaring name is left off.
 func fillVerbs(ref *reference.Reference, program string) {
-	used := map[string]int{}
+	declaredBy := map[string][]string{}
 	for _, area := range manifestOf(program).Areas {
 		for _, row := range area.Actions {
-			// A verbless action has no word to count (leaction.List.Verbless).
-			if row.Verb == "" {
+			if row.Does == "" {
 				continue
 			}
-			used[row.Verb]++
+			// A verbless action is run by its area word alone (D-P4-areaword),
+			// so the area word is the name that declares the verb.
+			name := area.Name
+			if row.Verb != "" {
+				name = textbuf.New().Str(area.Name).Byte(' ').Str(row.Verb).String()
+			}
+			declaredBy[row.Does] = append(declaredBy[row.Does], name)
 		}
 	}
-	for _, verb := range slices.Sorted(maps.Keys(used)) {
-		meaning := textbuf.New().Str("used by ").Int(int64(used[verb])).Str(" command")
-		if used[verb] != 1 {
-			meaning.Byte('s')
-		}
-		ref.Verbs = append(ref.Verbs, reference.Entry{Name: verb, Meaning: meaning.String()})
+	for _, verb := range leaction.Vocabulary() {
+		ref.Verbs = append(ref.Verbs, reference.Verb{
+			Name: verb.Word, Kind: verb.Kind.String(), Meaning: verb.Meaning, Names: declaredBy[verb.Word],
+		})
 	}
 }
 

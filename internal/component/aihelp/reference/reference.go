@@ -31,8 +31,8 @@ type Reference struct {
 	Commands []Command `json:"commands,omitempty"`
 	// Groups is the purpose tags a command declares, and what each means.
 	Groups []Entry `json:"groups,omitempty"`
-	// Verbs is every verb an action is spelled with.
-	Verbs []Entry `json:"verbs,omitempty"`
+	// Verbs is the program's closed verb vocabulary.
+	Verbs []Verb `json:"verbs,omitempty"`
 	// ExitCodes is what each exit code means, and who answers another.
 	ExitCodes []ExitCode `json:"exit-codes,omitempty"`
 	// Launcher is the words a launcher script reads before the program
@@ -44,6 +44,16 @@ type Reference struct {
 type Entry struct {
 	Name    string `json:"name"`
 	Meaning string `json:"meaning"`
+}
+
+// Verb is one entry of a closed verb vocabulary: the word, the kind of job it
+// does, its one meaning, and the names (commands spelled with a noun rather
+// than the verb) that declare they perform it.
+type Verb struct {
+	Name    string   `json:"name"`
+	Kind    string   `json:"kind"`
+	Meaning string   `json:"meaning"`
+	Names   []string `json:"names,omitempty"`
 }
 
 // Namespace is one first word several commands share: its one line and its
@@ -127,7 +137,7 @@ func (r Reference) Text() string {
 	r.writeNamespaces(&tb)
 	r.writeCommands(&tb)
 	writeEntries(&tb, "Groups", r.Groups)
-	writeEntries(&tb, "Verbs", r.Verbs)
+	writeVerbs(&tb, r.Verbs)
 	r.writeExitCodes(&tb)
 	writeEntries(&tb, "Launcher", r.Launcher)
 	return tb.String()
@@ -261,6 +271,27 @@ func writeEntries(tb *textbuf.Buffer, title string, entries []Entry) {
 	tb.Str("## ").Str(title).Str("\n\n")
 	for _, entry := range entries {
 		tb.Str("  ").PadRight(entry.Name, width).Str("  ").Str(entry.Meaning).Byte('\n')
+	}
+	tb.Byte('\n')
+}
+
+// writeVerbs prints each verb with its kind and meaning, then the names that
+// declare it on one indented line.
+func writeVerbs(tb *textbuf.Buffer, verbs []Verb) {
+	if len(verbs) == 0 {
+		return
+	}
+	width, kindWidth := 0, 0
+	for _, verb := range verbs {
+		width = max(width, len(verb.Name))
+		kindWidth = max(kindWidth, len(verb.Kind))
+	}
+	tb.Str("## Verbs\n\n")
+	for _, verb := range verbs {
+		tb.Str("  ").PadRight(verb.Name, width).Str("  ").PadRight(verb.Kind, kindWidth).Str("  ").Str(verb.Meaning).Byte('\n')
+		if len(verb.Names) != 0 {
+			tb.Str("      declared by: ").Join(verb.Names, ", ").Byte('\n')
+		}
 	}
 	tb.Byte('\n')
 }

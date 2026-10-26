@@ -135,8 +135,8 @@ still asks its own terminal question once the line is complete
 `commands` lists every namespace with what it is for, then every area, each action and each parameter with its kind, its
 values, whether it is required and whether it repeats, and the program a
 pass-through area hands its words to, and every hidden area (one Ze spawns,
-absent from help pages and completion) marked hidden; `groups` the purpose tags; `verbs` every
-verb in use; `exit-codes` what each code means and who answers another
+absent from help pages and completion) marked hidden; `groups` the purpose tags; `verbs` the
+closed verb vocabulary (below); `exit-codes` what each code means and who answers another
 program's; `launcher` the words the `./le` script reads before le starts
 (below); `all` every section. Render it with the pipe layer, never a flag:
 `./le help ai commands | json`, `./le help ai all | yaml`. A dash-leading word
@@ -219,6 +219,10 @@ rewrites a committed artifact from its source; `record` appends to a ledger;
 has side effects outside the tree's committed files. `update` regenerates a
 committed artifact; `write` and `generate` are not verbs.
 
+`./le help ai verbs` renders the vocabulary from that table: each verb in
+its declared order with its kind and meaning, then every name that declares it
+(`declared by: test functional bgp, ...`, or `names` in `| json`).
+
 The tests in `internal/le/vocabulary_test.go` judge every registered action.
 While the renames of `spec-le-cli-usability` Phase 4 land in batches, the
 findings the tree still holds are listed in
@@ -228,6 +232,7 @@ no longer holds fails too, so the list only shrinks.
 
 <!-- source: internal/le/le/action/vocabulary.go -- vocabulary, ForbiddenNamePart -->
 <!-- source: internal/le/vocabulary_test.go -- vocabularyFindings, judgeAction -->
+<!-- source: internal/le/le/root/helpai.go -- fillVerbs -->
 
 ### Install completion
 

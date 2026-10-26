@@ -15,12 +15,14 @@
 package le
 
 import (
+	"encoding/json"
 	"maps"
 	"os"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/aihelp/reference"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -202,3 +204,66 @@ var phase4Owed = func() map[string]string {
 	}
 	return owed
 }()
+
+// TestHelpAiVerbsRendersTheVocabulary proves `le help ai verbs` is the
+// vocabulary itself (AC-26, D-P4-vocab): it lists every vocabulary verb in its
+// declared order with its kind and meaning, and under each verb every
+// registered name whose Does declares it, as JSON and as text.
+// METHOD: dispatch `help ai verbs | json` and `help ai verbs` through le's
+// own dispatcher, and compare with leaction.Vocabulary and every action table.
+// PREVENTS: a verbs section that counts spellings rather than rendering the
+// closed set, and a name that declares a verb the page does not show.
+func TestHelpAiVerbsRendersTheVocabulary(t *testing.T) {
+	out, code := dispatchToStdout(t, "help", "ai", "verbs", "|", "json")
+	if code != 0 {
+		t.Fatalf("help ai verbs | json: exit %d\n%s", code, out)
+	}
+	var ref reference.Reference
+	if err := json.Unmarshal([]byte(out), &ref); err != nil {
+		t.Fatalf("help ai verbs | json is not the reference: %v\n%s", err, out)
+	}
+	vocabulary := leaction.Vocabulary()
+	if len(ref.Verbs) != len(vocabulary) {
+		t.Fatalf("help ai verbs lists %d verbs, the vocabulary holds %d", len(ref.Verbs), len(vocabulary))
+	}
+	listed := map[string][]string{}
+	for index, verb := range vocabulary {
+		got := ref.Verbs[index]
+		if got.Name != verb.Word || got.Kind != verb.Kind.String() || got.Meaning != verb.Meaning {
+			t.Errorf("help ai verbs row %d is %+v, the vocabulary declares %+v", index, got, verb)
+		}
+		listed[got.Name] = got.Names
+	}
+	text, code := dispatchToStdout(t, "help", "ai", "verbs")
+	if code != 0 {
+		t.Fatalf("help ai verbs: exit %d\n%s", code, text)
+	}
+	declarations := 0
+	for _, command := range leroot.Commands() {
+		list, tabled := leroot.ActionsOf(command.Name)
+		if !tabled {
+			continue
+		}
+		for _, row := range list.Actions {
+			if row.Does == "" {
+				continue
+			}
+			declarations++
+			name := strings.TrimSpace(command.Name + " " + row.Verb)
+			if !slices.Contains(listed[row.Does], name) {
+				t.Errorf("%s declares Does %q, and help ai verbs does not list it under that verb", name, row.Does)
+			}
+			if !strings.Contains(text, name) {
+				t.Errorf("help ai verbs (text) does not name %s, which declares %q", name, row.Does)
+			}
+		}
+	}
+	if declarations == 0 {
+		t.Fatal("no registered action declares Does, so no name was checked")
+	}
+	for _, verb := range vocabulary {
+		if !strings.Contains(text, verb.Meaning) {
+			t.Errorf("help ai verbs (text) does not carry the meaning of %s: %q", verb.Word, verb.Meaning)
+		}
+	}
+}
