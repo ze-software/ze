@@ -226,6 +226,8 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `guard-keyed-on-a-field-its-consumer-ignores` | 2026-10-26 | `validateOpenPeerAS` reads the ASN4 capability with `asn4 disable` |
+| `test-against-broken-path` | 2026-10-26 | `bgp-linklocal-only-multihop-withdraw-frr` route setup `File exists` |
 | `bulk-rename-corruption` | 2026-09-13 | `flowspec_legacy_test.go` |
 | `bulk-rename-corruption` | 2026-09-06 | flowspec `destination` keyword |
 | `bulk-rename-corruption` | 2026-09-04 | `plugins/cmd/update` |
