@@ -41,7 +41,7 @@ Measured on the Mac on 2026-10-25:
 | `tmp/qemu/serial-*.log`, `.qemu-errors-*`, `docker-lab-console-*.log` | small, many | kept until a run passes, then pile up |
 | `~/.cache/ze/alpine-iso` | 395M | both versions live (3.24.3 QEMU, 3.21.3 kernel builder); not a target |
 
-Goal: on every host, the hourly store trim and `./le scratch store-trim`
+Goal: on every host, the hourly store trim and `./le scratch trim`
 hold these stores to the budgets of O-4, removing only what no live run uses,
 and the Colima disk gives freed space back to the host.
 
@@ -108,7 +108,7 @@ and the Colima disk gives freed space back to the host.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The hourly detached store trim (`storeTrimBeforeDispatch`), and `./le scratch store-trim` on demand
+- The hourly detached store trim (`storeTrimBeforeDispatch`), and `./le scratch trim` on demand
 
 ### Transformation Path
 1. `trimStoresScanning` runs the existing groups, then the new rows
@@ -175,8 +175,8 @@ and the Colima disk gives freed space back to the host.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le scratch store-trim` with seeded docker-host keys, QEMU run directories and leftovers | → | the new rows in `trimStoresScanning` | `test/ui/le-lab-storage-trim.ci` |
-| `./le scratch store-trim` with a reachable Docker daemon and labelled dead-owner images | → | the Docker image row | `TestTrimRemovesUntaggedDeadOwnerLabImages` (`internal/le/interoplab/orphans_test.go`) |
+| `./le scratch trim` with seeded docker-host keys, QEMU run directories and leftovers | → | the new rows in `trimStoresScanning` | `test/ui/le-lab-storage-trim.ci` |
+| `./le scratch trim` with a reachable Docker daemon and labelled dead-owner images | → | the Docker image row | `TestTrimRemovesUntaggedDeadOwnerLabImages` (`internal/le/interoplab/orphans_test.go`) |
 
 ## Acceptance Criteria
 
@@ -222,7 +222,7 @@ and the Colima disk gives freed space back to the host.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `le-lab-storage-trim` | `test/ui/le-lab-storage-trim.ci` + fixture | Seeded docker-host keys, run directories with live and dead markers, go-dl releases and old logs; `./le scratch store-trim` removes exactly AC-1 to AC-7's targets and reports each row | |
+| `le-lab-storage-trim` | `test/ui/le-lab-storage-trim.ci` + fixture | Seeded docker-host keys, run directories with live and dead markers, go-dl releases and old logs; `./le scratch trim` removes exactly AC-1 to AC-7's targets and reports each row | |
 
 Docker and Colima behaviour (AC-8 to AC-11) is proven on the Mac against `colima-ze`, recorded in the spec, with a forced red per row.
 
@@ -247,7 +247,7 @@ N-A: tooling, no protocol peer.
 | YANG schema (new RPCs/config) | N-A | le tooling |
 | YANG validation constraints | N-A | no YANG |
 | YANG custom validators | N-A | no YANG |
-| CLI commands/flags | No | rows join `./le scratch store-trim`; no new verb |
+| CLI commands/flags | No | rows join `./le scratch trim`; no new verb |
 | CLI grammar (keyword before value) | N-A | no new command |
 | Editor autocomplete | N-A | no new command |
 | Functional test for new RPC/API | Yes | `test/ui/le-lab-storage-trim.ci` |
@@ -299,7 +299,7 @@ N-A: tooling, no protocol peer.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| New trim rows | `./le scratch store-trim` report lists them |
+| New trim rows | `./le scratch trim` report lists them |
 | A-1 proven | Recorded before and after `du` of the Colima disk |
 | No prune | grep the diff for `prune` |
 

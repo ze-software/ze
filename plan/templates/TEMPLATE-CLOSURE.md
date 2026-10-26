@@ -24,7 +24,7 @@
 
 ### Documentation Updates
 - [docs updated, naming each source anchor, or "None" with the grep that proves it]
-- [`./le doc check verify` result if docs changed]
+- [`./le doc check all` result if docs changed]
 
 ### Deviations from Plan
 - [what differed from the spec and why]

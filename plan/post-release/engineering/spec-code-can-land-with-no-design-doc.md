@@ -77,7 +77,7 @@ one registry against one table.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le doc check verify` runs `internal/le/docvalid/drift.go`, and `./le doc check verify` is a
+- `./le doc check all` runs `internal/le/docvalid/drift.go`, and `./le doc check all` is a
   stage of `./le verify current mode full` (`stagesForMode` in `internal/le/verify/engine/run.go`).
 
 ### Transformation Path
@@ -130,8 +130,8 @@ one registry against one table.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le doc check verify` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
-| `./le doc check verify` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
+| `./le doc check all` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
+| `./le doc check all` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
 
 This is agent tooling with no user-facing surface, so the existing test suite
 carries the proof: the Go test beside the check, plus the gate over the real tree.
@@ -163,7 +163,7 @@ target over the real tree.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le doc check verify` | `internal/le/doc/check/actions.go` | an agent cannot land a package with no documentation home | |
+| `./le doc check all` | `internal/le/doc/check/actions.go` | an agent cannot land a package with no documentation home | |
 
 ## Files to Modify
 - `internal/le/docvalid/drift.go` - the check
@@ -215,7 +215,7 @@ target over the real tree.
 
 1. **Phase: Classify the 85** -- every undocumented directory gets a page, a reason, or an exclusion with a stated property
    - Verify: A-1 answered with numbers
-2. **Phase: Wiring** -- the check exists, reachable from `./le doc check verify`, reporting nothing
+2. **Phase: Wiring** -- the check exists, reachable from `./le doc check all`, reporting nothing
    - Tests: `TestRecordedReasonSuppressesTheFinding`
 3. **Phase: Both registries** -- the class-b check sees a CLI-root plugin
    - Tests: `TestPluginRegisteringACLIRootIsSeen`
@@ -236,7 +236,7 @@ target over the real tree.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The check exists and reports a package with no doc | `go test ./scripts/docvalid/` |
-| The tree is clean under it | `./le doc check verify` |
+| The tree is clean under it | `./le doc check all` |
 | The escape is counted, not silent | the published reason count |
 
 ### Security Review Checklist

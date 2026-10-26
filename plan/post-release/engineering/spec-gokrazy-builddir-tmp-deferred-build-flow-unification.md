@@ -538,7 +538,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Documentation Updates
 - [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `./le doc check verify` result]
+- [If docs were changed: `./le doc check all` result]
 
 ### Deviations from Plan
 - [Differences from original plan and why]

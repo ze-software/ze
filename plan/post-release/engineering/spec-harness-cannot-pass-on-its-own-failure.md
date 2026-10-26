@@ -66,7 +66,7 @@ Source files read on 2026-10-23:
 
 ### Entry Point
 - `./le test functional <suite>` and `./le test bgp plugin` run `.ci` files through `internal/test/runner`
-- `./le rfc discriminate-record` runs a broken build through `observationRunner`
+- `./le rfc record` runs a broken build through `observationRunner`
 
 ### Transformation Path
 1. The runner builds or resolves ze, starts the daemon, fixtures and ze-peer, and collects each process's output
@@ -120,7 +120,7 @@ Each case MUST go red, and the corpus runs with the runner's own package tests.
 |-------------|---|--------------|------|
 | `.ci` with a plugin fixture that fails after shutdown | → | runner failure sink reader | `TestFixtureFailureAfterShutdownIsRed` |
 | `ZE_BIN` naming a broken ze | → | `(*Runner).Build` pin arm | `TestExplicitZEBinIsNeverRebuilt` |
-| `./le rfc discriminate-record` with a non-compiling mutant | → | `observationRunner.attribution` | `TestBuildFailureIsNeverDiscrimination` |
+| `./le rfc record` with a non-compiling mutant | → | `observationRunner.attribution` | `TestBuildFailureIsNeverDiscrimination` |
 
 ## Acceptance Criteria
 

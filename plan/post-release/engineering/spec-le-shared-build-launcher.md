@@ -191,7 +191,7 @@ reclaims a stored build no name links to.
 |-------------|---|--------------|------|
 | `./le --name a help` then `./le --name b help`, identical inputs | → | the script's publishing step after `build_le` | `TestNamedBuildsWithIdenticalInputsShareOneInode` |
 | `./le --name a` after a source edit | → | same step, new digest | `TestNamedBuildsWithDifferentEditsDoNotShare` |
-| `./le scratch store-trim` | → | `trimLiveness` → `trimLauncherStore` | `TestTrimLauncherStoreRemovesUnlinkedEntries` |
+| `./le scratch trim` | → | `trimLiveness` → `trimLauncherStore` | `TestTrimLauncherStoreRemovesUnlinkedEntries` |
 
 ## Acceptance Criteria
 
@@ -207,7 +207,7 @@ reclaims a stored build no name links to.
 | AC-8 | The build fails | Exit 1, staging removed, `bin/le-<name>/le` and `bin/.store/` unchanged; the existing "the build failed" message names `bin/le-<name>/le` rather than `bin/le` on the named path |
 | AC-9 | Hard link creation fails for a reason other than "exists" (filesystem without hard links, EXDEV, permission) | Exit 1; stderr names the link that failed and `ln`'s own reason, says `bin/` must be on a filesystem that supports hard links (APFS, ext4, xfs, btrfs), says `bin/le-<name>/le` is unchanged, and names the way out: move the checkout to such a filesystem, or run the command without `--name` against a refreshed shared binary (`./le --update <cmd>`). Staging removed |
 | AC-10 | Neither `sha256sum` nor `shasum` on PATH | Exit 1 before any link; stderr names both programs, the PATH searched, why the launcher needs them (naming the shared build), and how to get them on Linux (coreutils) and macOS (`shasum` ships with the system Perl); `bin/le-<name>/le` unchanged; staging removed |
-| AC-11 | `./le scratch store-trim` with one store entry of link count 1 and ctime older than the floor, one of link count 2, and one of link count 1 younger than the floor | Only the first is removed; the `launcher-store` row reports 1 removed, 2 kept, and bytes before and after measured from the entries' allocated size |
+| AC-11 | `./le scratch trim` with one store entry of link count 1 and ctime older than the floor, one of link count 2, and one of link count 1 younger than the floor | Only the first is removed; the `launcher-store` row reports 1 removed, 2 kept, and bytes before and after measured from the entries' allocated size |
 | AC-12 | The `launchers` row removes `bin/le-x/` whose `le` has link count above 1 | The row counts that `le` as shared: it adds 0 to SizeBefore for it and the removal subtracts 0; the bytes stay on the `launcher-store` row |
 | AC-13 | `bin/.store/` absent | The `launcher-store` row is a skip that says "no bin/.store directory"; exit 0 |
 | AC-14 | No Claude CLI in the process table | `launcher-store` follows the same rule as `launchers`: skipped with "no session process visible" |
@@ -340,7 +340,7 @@ N-A: tooling, no protocol peer.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Two identical named builds share one inode in this checkout | `ls -li` of `bin/le-<a>/le`, `bin/le-<b>/le` and `bin/.store/` |
-| Store trim reports the new row | `./le scratch store-trim` output shows `launcher-store` |
+| Store trim reports the new row | `./le scratch trim` output shows `launcher-store` |
 | Script tests ran | The job log carries `--- PASS: TestNamedBuildsWithIdenticalInputsShareOneInode` and each sibling |
 
 ### Security Review Checklist

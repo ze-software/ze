@@ -196,7 +196,7 @@ no wire behavior.
    entire
    - Verify: AC-3, AC-4
 5. **Phase: Close the deferral row and the doc**
-   - Verify: AC-5, `./le doc check verify`
+   - Verify: AC-5, `./le doc check all`
 
 ## Checklist
 

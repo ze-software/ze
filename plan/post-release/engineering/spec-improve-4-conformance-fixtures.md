@@ -304,7 +304,7 @@ state before diffing:
 |----------|------------------------|-----------|
 | One BGP fixture first | fixture sets for every protocol | prove the format before spending on breadth (the review's own advice) |
 | Reuse spec-improve-3 capture schema for event input | separate fixture event dialect | production captures become fixtures with zero translation |
-| Regen via `-update` flag on the runner + `./le rfc index-update` | HOLO_UPDATE-style env var | mirrors the tree's ONLY existing golden regenerator (`all_test.go` + `internal/le/` native action tables); env conventions stay for harness plumbing, flags for regen |
+| Regen via `-update` flag on the runner + `./le rfc update` | HOLO_UPDATE-style env var | mirrors the tree's ONLY existing golden regenerator (`all_test.go` + `internal/le/` native action tables); env conventions stay for harness plumbing, flags for regen |
 | Expected-state files are semantic slices diffed after canonicalization | full-dump byte compare | state producers are ad-hoc maps with volatile fields; `compareJSON`/`normalizeNeighborSection` precedent (`internal/test/runner/decoding.go`) makes slice-diffs stable (A-1, R-1) |
 | Runner hosted as le test subcommand + make target | extending the .ci dialect with fixture directives | fixtures are data, .ci is a script dialect; mixing them creates the parallel-dialect layering R-3/no-layering forbids |
 | Verify wiring goes in BOTH `stagesForMode` branches ONLY | the native action tables under `internal/le/` `_ze-verify-impl`/`_ze-verify-changed-impl` | those the native action tables under `internal/le/` targets are documented dead with zero callers (post-wave corrections below; `internal/le/` native action tables) |

@@ -18,7 +18,7 @@ second defect is stale (see the correction under Defect 2).
 
 ## Task
 
-`./le test qemu netns-test` is the only vehicle that runs the `firewall`, `policy`,
+`./le test qemu netns` is the only vehicle that runs the `firewall`, `policy`,
 `ospf` and `ospfv3` suites natively on a Linux dev host (`ZE_NETNS_SUITES`,
 `internal/le/integration/gates.go`). It has two independent defects that make it
 report failures no test is responsible for.
@@ -75,7 +75,7 @@ Defect 1 is untouched by this correction.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- A developer runs `./le test qemu netns-test` on a Linux host.
+- A developer runs `./le test qemu netns` on a Linux host.
 
 ### Transformation Path
 1. make builds/refreshes the DUT binaries named by the target's prerequisites.
@@ -134,9 +134,9 @@ Defect 1 is untouched by this correction.
 
 | AC ID | Piece | Expected Behavior |
 |-------|-------|-------------------|
-| AC-1 | DUT tags | `./le test qemu netns-test` runs the suites against a daemon built with the same tag set as `ZE_ALT_BUILD` (`internal/le/functional/suites.go`), so `zetest`-only YANG augments resolve |
-| AC-2 | ddos-local-withdraw | passes under `./le test qemu netns-test` with no change to the test; it already passes in 653ms against a correctly-tagged DUT |
-| AC-3 | On-session | `./le test qemu netns-test` works with `CLAUDE_CODE_SESSION_ID` set, OR fails fast with a message naming the off-session invocation; never the current opaque `bin/ze is missing` |
+| AC-1 | DUT tags | `./le test qemu netns` runs the suites against a daemon built with the same tag set as `ZE_ALT_BUILD` (`internal/le/functional/suites.go`), so `zetest`-only YANG augments resolve |
+| AC-2 | ddos-local-withdraw | passes under `./le test qemu netns` with no change to the test; it already passes in 653ms against a correctly-tagged DUT |
+| AC-3 | On-session | `./le test qemu netns` works with `CLAUDE_CODE_SESSION_ID` set, OR fails fast with a message naming the off-session invocation; never the current opaque `bin/ze is missing` |
 | AC-4 | No new production surface | the fix is confined to the make graph and, if needed, the netns launch path; no `.ci` test and no production binary changes |
 | AC-5 | Regression | `firewall`, `policy`, `ospf`, `ospfv3` all green under the fixed target, host nft tables unchanged |
 
@@ -158,8 +158,8 @@ Defect 1 is untouched by this correction.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le test qemu netns-test` | -> | netns recipe picks the zetest DUT | `test/firewall/ddos-local-withdraw.ci` green under the target |
-| `./le test qemu netns-test` on-session | -> | session-id handling in the recipe | run with `CLAUDE_CODE_SESSION_ID` set |
+| `./le test qemu netns` | -> | netns recipe picks the zetest DUT | `test/firewall/ddos-local-withdraw.ci` green under the target |
+| `./le test qemu netns` on-session | -> | session-id handling in the recipe | run with `CLAUDE_CODE_SESSION_ID` set |
 
 ## 🧪 TDD Test Plan
 
@@ -171,7 +171,7 @@ Defect 1 is untouched by this correction.
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `test/firewall/ddos-local-withdraw.ci` | `test/firewall/` | the zetest-gated case: passes under `./le test qemu netns-test` with NO change to the .ci file (it already passes in 653ms against a correctly-tagged DUT) | |
+| `test/firewall/ddos-local-withdraw.ci` | `test/firewall/` | the zetest-gated case: passes under `./le test qemu netns` with NO change to the .ci file (it already passes in 653ms against a correctly-tagged DUT) | |
 | `test/firewall/firewall-boot-apply.ci` | `test/firewall/` | a production-path control: must stay green under the retagged DUT, proving A-2 (zetest only adds surface) | |
 | `test/policy/policy-boot-apply.ci` | `test/policy/` | second suite, second netns, same DUT: the target's other suites are unaffected by the retag | |
 | `test/ospf/*.ci` (full suite) | `test/ospf/` | 97 tests, the largest netns suite: no regression from the DUT change | |

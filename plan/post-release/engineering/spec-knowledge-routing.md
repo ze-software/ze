@@ -148,13 +148,13 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Closure ↔ routing | Preserve direct routing under `ai/rules/planning.md`; no write-summary prerequisite | Rule read; closure integration remains to check |
-| Record ↔ `docs/` | routed factual text carries source anchors checked by `./le doc check verify` | Existing documentation contract; pilot proof owed |
+| Record ↔ `docs/` | routed factual text carries source anchors checked by `./le doc check all` | Existing documentation contract; pilot proof owed |
 | Record ↔ code comment | an invariant belongs at its producing function | Pilot proof owed |
 | Unrouted age ↔ gate | proposed check uses the current inventory and a defined routing state | Not designed |
 
 ### Integration Points
 - `ai/skills/ze-close.md`, lesson routing: preserve the governing rule rather than adding a summary-writing stage.
-- `internal/le/doc/check/actions.go` `./le doc check verify`, where a queue-depth gate would join.
+- `internal/le/doc/check/actions.go` `./le doc check all`, where a queue-depth gate would join.
 - `ai/INDEX.md` Dev Tools, where any new tool must appear in the same phase.
 
 ### Architectural Verification
@@ -182,7 +182,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | R-1 | Routed prose is appended rather than merged, moving the pile into `docs/` | `docs/architecture/` grows by roughly the size of what left `plan/learned/` | Measure both sides. The budget is one to three lines per item |
 | R-2 | "Already documented" is asserted without opening the target | A routed summary is deleted and its knowledge is in neither place | The verdict requires a quoted line from the target. Spot-audit a sample |
 | R-3 | The un-routable set is quietly forced into the nearest file rather than recorded | The gap list comes back suspiciously short | The gap list is a deliverable with its own AC. A short list is a finding to challenge, not a success |
-| R-4 | Routing introduces dead live references | `./le doc check links` or `./le doc check verify` reports a new finding | Run the current checks before and after each batch; historical record citations retain their policy |
+| R-4 | Routing introduces dead live references | `./le doc check links` or `./le doc check all` reports a new finding | Run the current checks before and after each batch; historical record citations retain their policy |
 | R-5 | An age gate suppresses lesson recording or makes every closure create a record | Closures omit needed governing updates or create empty journal rows | Count age only for a defined unrouted population; preserve direct routing and conditional journal creation |
 
 ## Blast Radius
@@ -198,7 +198,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le spec journal report` | → | proposed unrouted-age reporting alongside the existing recurrence answer | functional report test over a fixture with both populations; concrete test location is a design prerequisite |
-| `./le doc check verify` | → | proposed age guard registered in the native action surface | refusal test for an over-age unrouted item and admission for an already-routed item |
+| `./le doc check all` | → | proposed age guard registered in the native action surface | refusal test for an over-age unrouted item and admission for an already-routed item |
 | A closure that produced a lesson | → | direct routing under `ai/rules/planning.md` | inspect the governing update and absence of a mandatory intermediate summary |
 
 ## Acceptance Criteria
@@ -207,11 +207,11 @@ These are not anecdotes. Each one changes a design decision in this spec.
 |-------|-------------------|-------------------|
 | AC-1 | The pilot runs over one subsystem of 30 to 50 eligible records from the current inventory | A ratio table reports every record as exactly one destination, with `ALREADY-THERE` proven by a quoted line from the target. An insufficient population requires an owner scope decision before the pilot |
 | AC-2 | The pilot completes | A documentation-gap list names every un-routable item and the document that should exist to hold it |
-| AC-3 | Five records are routed for real, spanning at least three destinations | Each target carries merged content with a source anchor where `docs/` received it, the pilot deletes nothing, and `./le doc check verify` and `./le doc check links` stay green |
+| AC-3 | Five records are routed for real, spanning at least three destinations | Each target carries merged content with a source anchor where `docs/` received it, the pilot deletes nothing, and `./le doc check all` and `./le doc check links` stay green |
 | AC-4 | `docs/architecture/` is measured before and after the pilot | Growth is under 3 lines per routed item, proving merge rather than append (A-3, R-1) |
 | AC-5 | Two independent agents route the same 5 summaries | Their destinations agree on at least 4 of 5, or the disagreement is reported as a taxonomy defect (A-4) |
 | AC-6 | `./le spec journal report` runs | It retains its existing recurrence report, adds the count and oldest age of the defined unrouted population, and names the destination taxonomy in its help |
-| AC-7 | A record in the defined residual population sits unrouted past the agreed age | `./le doc check verify` reports it. The gate counts unrouted age, preserves direct routing and never requires a closure summary (R-5) |
+| AC-7 | A record in the defined residual population sits unrouted past the agreed age | `./le doc check all` reports it. The gate counts unrouted age, preserves direct routing and never requires a closure summary (R-5) |
 | AC-8 | The pilot's numbers do not justify the full pass | The spec records that plainly and the full pass is not done. A pilot that says no is a successful pilot |
 | AC-9 | Any tool this spec adds | Appears in `ai/INDEX.md` Dev Tools in the same phase that creates it |
 | AC-10 | Any tool this spec adds that rewrites a file | Preserves the file's mode, with a test that fails when the restoration is removed |

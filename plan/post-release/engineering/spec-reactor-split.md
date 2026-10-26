@@ -116,7 +116,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Internal cross-references force import cycles between the new subpackages | first extraction fails to compile without dependency inversion | design phase must produce a dependency-ordered extraction sequence before any move |
-| R-2 | 331 doc anchors + prose make the sweep error-prone | `./le doc check verify` red tail | per-extraction anchor sweeps, not one big-bang sweep |
+| R-2 | 331 doc anchors + prose make the sweep error-prone | `./le doc check all` red tail | per-extraction anchor sweeps, not one big-bang sweep |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 

@@ -112,7 +112,7 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 |-------------|----|--------------|------|
 | `./le test plugin` under synthetic load | -> | event barriers, stall kill | the suite under 4 CPU burners plus one 192 MB `conv=fsync` writer (the load the rows measured) is green |
 | `./le test unit` with free memory below the class | -> | admission | the run waits, then starts; it is never OOM-killed |
-| any action with the cache volume below its disk class | -> | admission | refuses before starting, naming the volume, the free space, and `./le scratch store-trim` |
+| any action with the cache volume below its disk class | -> | admission | refuses before starting, naming the volume, the free space, and `./le scratch trim` |
 
 ## Acceptance Criteria
 

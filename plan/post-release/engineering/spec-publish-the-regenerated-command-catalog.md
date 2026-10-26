@@ -38,7 +38,7 @@ did not regenerate, because both writes land outside this repository's commit.
 
 Re-establish the current drift, then regenerate both artifacts and commit them
 in their own checkouts with the required permissions. Confirm both present
-artifacts agree with the live catalog and `./le doc check verify` reports no
+artifacts agree with the live catalog and `./le doc check all` reports no
 drift for either file; an absent sibling checkout is not publication evidence.
 
 **The question this spec must answer, and the reason it is a spec rather than a
@@ -51,7 +51,7 @@ generators is the smaller half.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/contributing/documentation-testing.md` - what `./le doc check verify` runs, and which of its findings judge this tree rather than a sibling
+- [ ] `docs/contributing/documentation-testing.md` - what `./le doc check all` runs, and which of its findings judge this tree rather than a sibling
 
 **Key insights:** (minimal context to resume after compaction)
 - Both sibling checkouts were CLEAN on 2026-09-08, so the regeneration is the only thing that dirties them.
@@ -93,7 +93,7 @@ generators is the smaller half.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le doc check verify` runs over a checkout whose command surface just changed | it names neither `../gh-pages/data/cli-commands.json` nor `../wiki/command-catalog.md` |
+| AC-1 | `./le doc check all` runs over a checkout whose command surface just changed | it names neither `../gh-pages/data/cli-commands.json` nor `../wiki/command-catalog.md` |
 | AC-2 | Design is approved | Record the recurring publication responsibility: either publication belongs to command-surface closure, or the checks explicitly identify sibling-checkout drift and a separate publication owner and trigger are named. The decision preserves AC-1 and the requirement that both published artifacts match the live catalog |
 
 ## 🧪 TDD Test Plan

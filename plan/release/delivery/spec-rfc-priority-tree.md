@@ -46,7 +46,7 @@ Agreed shape (owner, 2026-10-25):
 | Release profiles | A profile file marks itself a release profile; the owner rule applies to those |
 | Coverage | Numerator: rows whose covering tagged units carry a verified discrimination record. Denominator: the owner ruling of 2026-09-02 (`provenshare.go`): not-applicable and lower-layer rows stay in, `{rollup}` rows are out of both. An RFC with no valid extraction sign-off shows no number ("not walked") |
 | Support cell | `<section> <rank>` becomes `<aggregate>`. The `-` declaration (no public row) stays. Support status, coverage and remaining stay editorial, with their existing gates. Order inside an aggregate: DAG level, then RFC number |
-| Graph storage | Generated `rfc/graph.tsv` written by `./le rfc index-update`, under the same freshness check as `rfc/enrolled.txt` |
+| Graph storage | Generated `rfc/graph.tsv` written by `./le rfc update`, under the same freshness check as `rfc/enrolled.txt` |
 | Old combined References | 49 old RFCs have one References section; its informative citations become edges. Accepted: a profile may reach more RFCs than it needs, never fewer |
 | Commands | `./le rfc tree` (DAG with both figures per node, optionally limited to one profile), `./le rfc next` (the next gap: lowest level with uncovered mandatory rows across the release profiles, or inside one named profile) |
 | Website | One generated page per use-case profile and per aggregate under `/quality/rfc-compliance/profiles/`, showing both figures and the tree with a bar per RFC, built by `./le site build`. The existing RFC compliance index becomes the all-RFCs view |
@@ -120,7 +120,7 @@ Agreed shape (owner, 2026-10-25):
 - spec Meta `RFC gaps` field
 
 ### Transformation Path
-1. `./le rfc index-update` parses every text into edges (builds-on, updates, obsoletes), redirects edges to obsoleted stems to their successor, drops RFC 2119/8174 and self-edges, and writes `rfc/graph.tsv`
+1. `./le rfc update` parses every text into edges (builds-on, updates, obsoletes), redirects edges to obsoleted stems to their successor, drops RFC 2119/8174 and self-edges, and writes `rfc/graph.tsv`
 2. `rfc.Collect` loads the graph, the profiles and the summaries; the graph collapses citation cycles into components and assigns each component a level (0 = no in-corpus dependency, else 1 + the highest dependency level)
 3. The coverage function answers per stem: mandatory proven and denominator, optional proven and denominator, walked or not; rows carrying `{updated-by}` are attributed to the updater's level for ordering, and counted in their own RFC's figure
 4. Profile closure = roots plus everything reachable by builds-on and updated-by edges; profile figures are sums over the closure
@@ -170,7 +170,7 @@ Agreed shape (owner, 2026-10-25):
 | R-2 | Page order changes publicly | `docs/features/rfc-status.md` diff reorders rows | expected; the row SET is asserted unchanged (AC-6) |
 | R-3 | Over-reach from combined References inflates profiles | a profile closure holds RFCs unrelated to its use | accepted by owner; `tree profile <name>` shows why each RFC is in (the edge path) |
 | R-4 | `{updated-by}` markers are authored and can be wrong | a marker on a row the updater does not touch | gate against the header link; marker names the updater's requirement id, which must exist |
-| R-5 | Stale `rfc/graph.tsv` after a new text lands | freshness check red | `./le rfc index-update` regenerates; check names the command |
+| R-5 | Stale `rfc/graph.tsv` after a new text lands | freshness check red | `./le rfc update` regenerates; check names the command |
 | R-6 | Low published numbers read as regressions | readers compare with the status page | each page states the numerator definition and links the 2026-09-02 denominator rule |
 | R-7 | A profile root missing from the corpus silently drops | closure smaller than intended | a root must exist in `rfc/short` or be listed as `absent` with its RFC number, rendered as an uncovered node |
 
@@ -188,7 +188,7 @@ Agreed shape (owner, 2026-10-25):
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le rfc index-update` | → | graph parser writes `rfc/graph.tsv` | `TestIndexUpdateWritesGraph` (`internal/le/rfc/write_test.go`) |
+| `./le rfc update` | → | graph parser writes `rfc/graph.tsv` | `TestIndexUpdateWritesGraph` (`internal/le/rfc/write_test.go`) |
 | `./le rfc tree` | → | tree answer over fixture corpus | `TestTreeActionRendersLevelsAndFigures` (`internal/le/rfc/tree_test.go`) |
 | `./le rfc next profile lns` | → | next answer | `TestNextActionNamesLowestUncoveredLevel` (`internal/le/rfc/next_test.go`) |
 | `./le rfc check` | → | `checkUpdatedBy`, `checkHeaderLinks`, profile parse | `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater` (`internal/le/rfc/updatedby_test.go`), `TestCheckRefusesMetaLinkHeaderMismatch` (`internal/le/rfc/check_headerlinks_test.go`) |
@@ -200,7 +200,7 @@ Agreed shape (owner, 2026-10-25):
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le rfc index-update` over the corpus | `rfc/graph.tsv` holds one row per in-corpus edge with kind builds-on, updates or obsoletes; no RFC 2119/8174 edge; no self-edge; an edge to an obsoleted stem points at its successor |
+| AC-1 | `./le rfc update` over the corpus | `rfc/graph.tsv` holds one row per in-corpus edge with kind builds-on, updates or obsoletes; no RFC 2119/8174 edge; no self-edge; an edge to an obsoleted stem points at its successor |
 | AC-2 | Fixture texts with TOC duplicates, `RFC` wrapped to the next line, `RFC-NNNN`, combined References, header continuation lines, prose "This memo obsoletes" | each yields exactly the expected edges |
 | AC-3 | Fixture with a citation cycle A↔B and C citing A | A and B share one level; C's level is one above |
 | AC-4 | Summary `Support` cell naming an aggregate with no `rfc/profiles/<name>.md`, or `<section> <rank>` | `./le rfc check` refuses, naming the file and the valid aggregates; a `-` summary still names its aggregate in a separate `Aggregate` cell so it joins rollups |
@@ -275,7 +275,7 @@ N-A: tooling, no protocol peer.
 - `ai/skills/ze-rfc.md` - step 6b
 - `docs/contributing/rfc-conformance-gates.md` - graph, profiles, `{updated-by}`, coverage figures
 - `rfc/README.md`, `ai/INDEX.md`, `plan/templates/TEMPLATE.md` (`RFC gaps` Meta row)
-- `docs/architecture/core-design.md` - its section on the RFC artifacts `./le rfc index-update` writes ("the five RFC artifacts", `SessionStartDefer`) gains `rfc/graph.tsv` (Phase 2)
+- `docs/architecture/core-design.md` - its section on the RFC artifacts `./le rfc update` writes ("the five RFC artifacts", `SessionStartDefer`) gains `rfc/graph.tsv` (Phase 2)
 - `docs/contributing/spec-workflow.md` - the metadata table gains the `RFC gaps` field and the roadmap Profiles column (Phase 5)
 - `docs/contributing/rfc-implementation-guide.md` - any `<section> <rank>` Support example (Phase 1)
 
@@ -356,7 +356,7 @@ Five phases, one commit each; each phase updates its pages before the next start
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `rfc/graph.tsv` fresh | `./le rfc index-update` produces no diff |
+| `rfc/graph.tsv` fresh | `./le rfc update` produces no diff |
 | No `<section> <rank>` Support cell | `grep -E '^\| Support \| [a-z-]+ [0-9]+ \|' rfc/short/*.md` returns nothing |
 | Profiles parse | `./le rfc check` green on profiles |
 | `next` answers | `./le rfc next` names an RFC for each release profile |
