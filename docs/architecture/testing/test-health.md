@@ -127,13 +127,15 @@ A third gate, on a different failure: a test that stopped proving something.
 
 The compiled weakening detector in `internal/le/test/weakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
-assertion that cannot fail. Only Thomas can let such an edit through, and he is
-asked before the edit. His answer is recorded with
-`./le test weakened approve unit <package>.<TestName> reason "<his words>"`,
+assertion that cannot fail. Only an independent agent running the
+`ze-test-judge` skill (`ai/skills/ze-test-judge.md`) can let such an edit
+through, before the edit; the agent that wrote the change never judges it, and
+the question is never put to Thomas. The judge records its verdict with
+`./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`,
 which writes one row to `tmp/commit-weakening-approved-<session>.md`. git never
 reads that file. The commit that uses the row carries it as a
-`Weakening-approved: <package>.<TestName>: <his words>` trailer, and that commit
-is the record. The owner's approval of an RFC-tagged test change works the same
+`Weakening-approved: <package>.<TestName>: <the judge's verdict>` trailer, and that commit
+is the record. The judge's approval of an RFC-tagged test change works the same
 way through `./le rfc approve` and an `RFC-approved:` trailer
 (`docs/contributing/rfc-implementation-guide.md`), and an `RFC-approved:` row for
 a unit also accepts that unit's weakening, so one test never needs two answers.
@@ -167,7 +169,7 @@ refuses a second edit under it and names that commit, as the commit gate does.
 The unit keeps only the base name of its directory, so a test `TestX` in
 `a/cmd` and one in `b/cmd` are both `cmd.TestX`. When one commit changes that
 unit in more than one directory, whether as a weakening or as an RFC-tagged
-change, no approval of it can say which test Thomas approved. The commit gate
+change, no approval of it can say which test the judge approved. The commit gate
 refuses the commit before it judges any approval or `rfc-change-ok` admission,
 naming the directories and telling the author to split the commit so each
 carries one of them. The audit lets no approval line admit either test, and each
@@ -179,8 +181,9 @@ case never arises there.
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates -->
 
 The file is keyed on the main thread's commit namespace (`./le commit session`
-in the main thread), not on the agent that makes the edit. Thomas answers the
-main thread, so a subagent's edit sees the approval its parent recorded.
+in the main thread), not on the agent that makes the edit or the judge that
+records the verdict, so a subagent's edit sees an approval the judge recorded
+under the same main thread.
 <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
 ### A row is used once
@@ -189,7 +192,7 @@ main thread, so a subagent's edit sees the approval its parent recorded.
 row's trailer into the message, and stages nothing for it. The generated script
 removes every used row from the approval file only after `git commit` succeeds,
 so a failed commit keeps the approval for the retry, and a row nothing used stays
-because it is still Thomas's live answer. A row whose trailer git history
+because it is still the judge's live verdict. A row whose trailer git history
 already carries approves nothing further: a second weakening of the same test is
 refused, naming the commit that used the first approval.
 <!-- source: internal/le/commit/script.go -- renderApprovalPrune -->

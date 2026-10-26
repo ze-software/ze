@@ -287,21 +287,26 @@ A red test means the CODE is wrong by default. Fix the code. When the coverage i
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.
 
-Only Thomas approves a test weakening, and he is asked BEFORE the edit. Agents
-never record their own excuse: the edit hook refuses the weakening, names the
-test, and prints the command that records his answer.
+A test weakening is approved BEFORE the edit by an independent agent running
+the `ze-test-judge` skill (`ai/skills/ze-test-judge.md`), never by Thomas and
+never by the agent that wrote the change. The judge approves only when the new
+test proves at least what the old one did, or when the old expectation is wrong
+against its source; otherwise it refuses, and the refusal stands. The edit hook
+refuses the weakening, names the test, and prints the command that records the
+verdict.
 
 The route, in order:
 
-1. Ask Thomas, naming the test and what leaves the suite.
-2. Record his words, for one test at a time:
-   `./le test weakened approve unit <package>.<TestName> reason "<his words>"`.
+1. Hand the test, the diff and your reason to a fresh agent running
+   `ze-test-judge`.
+2. On APPROVE the judge records its verdict, for one test at a time:
+   `./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`.
    The row goes to `tmp/commit-weakening-approved-<session>.md`, keyed on the
    main thread's commit namespace, so a subagent's edit sees it too. git never
-   reads that file.
+   reads that file. On REFUSE, fix the code instead.
 3. Make the edit.
 4. Commit with `./le commit create` as usual. The message gains one
-   `Weakening-approved: <package>.<TestName>: <his words>` line per test, and
+   `Weakening-approved: <package>.<TestName>: <the judge's verdict>` line per test, and
    the script drops each used row once the commit lands. A row a landed commit
    already used approves nothing further.
 
@@ -320,8 +325,8 @@ and by every reader.
 
 An edit that only lowers a COUNT lands with a notice and no approval:
 consolidating three cases into one table lowers a count exactly as deleting a
-check does. The COMMIT still needs an approval for it, and Thomas's words are
-where the commit says which of the two happened.
+check does. The COMMIT still needs an approval for it, and the judge's verdict
+is where the commit says which of the two happened.
 
 Git history is where past approvals are read: `git log --grep
 '^Weakening-approved:'` lists each one beside the change it accepted, and

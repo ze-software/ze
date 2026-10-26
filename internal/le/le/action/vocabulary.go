@@ -81,7 +81,7 @@ var vocabulary = []Verb{
 	{"update", "rewrite a committed artifact from its canonical source", VerbRegenerate},
 	{"reseal", "re-pin the recorded fingerprints a mechanical edit moved, keeping every verdict", VerbRegenerate},
 	{"record", "append one result, verdict or measurement to its ledger", VerbRecord},
-	{"approve", "record the owner's approval of one named change, in his words", VerbRecord},
+	{"approve", "record an independent judge's approval of one named change, in its verdict", VerbRecord},
 	{"render", "produce a page, deck or recording for the published site", VerbRender},
 	{"run", "start the area's job, with its side effects; exit is the job's", VerbRun},
 	{"build", "produce a binary or image that is not committed", VerbRun},

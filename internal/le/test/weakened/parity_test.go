@@ -49,11 +49,11 @@ func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {
 		"\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
 
 	missing := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}})
-	wantProblem := "pkg/a_test.go weakens pkg.TestA, and no owner approval names it:\n" +
+	wantProblem := "pkg/a_test.go weakens pkg.TestA, and no ze-test-judge approval names it:\n" +
 		"    - adding t.Skip (0 -> 1); the test stops running\n" +
-		"    Fix the code by default. Only Thomas approves a test weakening, and he is asked BEFORE the edit.\n" +
-		"    Once he has answered, record his words and retry:\n" +
-		"    ./le test weakened approve unit pkg.TestA reason \"<the owner's words>\""
+		"    Fix the code by default. Only an independent ze-test-judge agent approves a test weakening, BEFORE the edit.\n" +
+		"    On approval the judge records its verdict, then retry:\n" +
+		"    ./le test weakened approve unit pkg.TestA reason \"<the judge's verdict>\""
 	if missing.ExitCode() != 1 || !slices.Equal(missing.Problems, []string{wantProblem}) {
 		t.Fatalf("missing approval = code %d, problems %q", missing.ExitCode(), missing.Problems)
 	}
@@ -157,7 +157,7 @@ func TestCheckFailsClosedForEveryLedgerShape(t *testing.T) {
 		t.Fatalf("absent approval file with a weakening = code %d, problems %q",
 			weakening.ExitCode(), weakening.Problems)
 	}
-	if !strings.Contains(weakening.Problems[0], "no owner approval names it") ||
+	if !strings.Contains(weakening.Problems[0], "no ze-test-judge approval names it") ||
 		!strings.Contains(weakening.Problems[0], ApproveCommand("pkg.TestA")) {
 		t.Fatalf("absent-approval refusal = %q, want the unit refused and the approve command",
 			weakening.Problems[0])

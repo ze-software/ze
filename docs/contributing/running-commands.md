@@ -610,7 +610,7 @@ session directory and its scratch, and owns what follows:
 |----------|----------|--------------------|-----------------|----------|
 | Commit namespace (8 hex): the commit script and the message | session and agent | `tmp/commit-session-id-<session>` | `tmp/commit-session-id-<session>+<agent>` | `lepath.CommitSession` |
 | Spec claim | session and agent | `tmp/session/.session-<session>` | `tmp/session/.session-<session>+<agent>` | `lepath.SpecClaimMarker` |
-| RFC approval | the session alone, because the owner approves to the main thread | `tmp/commit-rfc-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
+| RFC approval | the session alone, because the `ze-test-judge` verdict serves the main thread, whichever agent records it | `tmp/commit-rfc-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
 | Test weakening approval | the session alone, for the same reason | `tmp/commit-weakening-approved-<ns>.md`, `<ns>` the main thread's namespace | the main thread's file | `lepath.SessionCommitSession` |
 
 A session id and an agent id hold only letters, digits, `.`, `_` and `-`, so the

@@ -96,19 +96,19 @@ var actions = leaction.New(area,
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{
 		Verb:    "approve",
-		Summary: "record the owner's approval of an RFC test change",
-		Why: "record the OWNER's approval of a change to one RFC-tagged test unit, as one row in " +
+		Summary: "record a ze-test-judge approval of an RFC test change",
+		Why: "record the approval an independent ze-test-judge agent gave a change to one RFC-tagged test unit, as one row in " +
 			"this commit session's tmp/commit-rfc-approved-<session>.md. The edit hook and " +
 			"`./le commit create` read that file; the commit carries each row it used as an " +
 			"`RFC-approved:` trailer line and drops it from the file once the commit lands. A " +
-			"second call for the same unit replaces the reason. RUN IT whenever the owner has " +
-			"ruled, quoting his words as the reason: recording a decision he has already given " +
-			"is the whole job. What it MUST NOT do is manufacture one, so the reason is never " +
+			"second call for the same unit replaces the reason. The judge RUNS IT whenever it " +
+			"approves, with its verdict sentence as the reason. What it MUST NOT do is manufacture " +
+			"an approval, so the agent that made the change never runs it, and the reason is never " +
 			"the author's own reasoning about why the change is fine",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved RFC-tagged unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
-			{Keyword: keyReason, Kind: leaction.KindString, Help: "the owner's words approving the change", Value: keyReason, Requirement: leaction.Required},
+			{Keyword: keyReason, Kind: leaction.KindString, Help: "the judge's verdict approving the change", Value: keyReason, Requirement: leaction.Required},
 		},
 		AnswerArgs: approveAnswer},
 	leaction.Action{Verb: "check", Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
@@ -122,7 +122,7 @@ var actions = leaction.New(area,
 		"staled: the tagged unit is byte-identical and only the file around it moved, " +
 		"so nothing was re-judged and no human should be asked to re-read. A verdict " +
 		"whose unit, cited producer code, or requirement text MOVED is refused and " +
-		"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
+		"stays stale: that one needs /ze-rfc-audit <rfc>, then `./le rfc update`",
 		Writes: true,
 		Answer: resealAnswer},
 	leaction.Action{Verb: "evidence-split", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
@@ -203,7 +203,7 @@ var actions = leaction.New(area,
 			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to judge alone", Value: "name", Requirement: leaction.Optional},
 		},
 		AnswerArgs: nextAnswer},
-	leaction.Action{Verb: "index-update", Summary: "regenerate the RFC requirement index and tables", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
+	leaction.Action{Verb: "update", Summary: "regenerate the RFC requirement index and tables", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
 		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
 		"tests themselves carry. It DELETES a table the render no longer produces, " +
 		"so it refuses outright when a summary did not parse: that RFC's rows would " +

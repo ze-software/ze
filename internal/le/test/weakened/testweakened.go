@@ -247,7 +247,7 @@ func unapprovedProblem(finding Finding, carrier string) string {
 	var text textbuf.Buffer
 	text.Str(finding.Path).Str(" weakens ").Str(finding.Unit())
 	if carrier == "" {
-		text.Str(", and no owner approval names it:\n")
+		text.Str(", and no ze-test-judge approval names it:\n")
 	} else {
 		text.Str(", and the approval naming it was already used by commit ").Str(carrier).
 			Str(", so it approves nothing further:\n")
@@ -255,8 +255,8 @@ func unapprovedProblem(finding Finding, carrier string) string {
 	for _, detail := range finding.Details {
 		text.Str("    - ").Str(detail).Byte('\n')
 	}
-	text.Str("    Fix the code by default. Only Thomas approves a test weakening, and he is asked BEFORE the edit.\n").
-		Str("    Once he has answered, record his words and retry:\n    ").Str(ApproveCommand(finding.Unit()))
+	text.Str("    Fix the code by default. Only an independent ze-test-judge agent approves a test weakening, BEFORE the edit.\n").
+		Str("    On approval the judge records its verdict, then retry:\n    ").Str(ApproveCommand(finding.Unit()))
 	return text.String()
 }
 

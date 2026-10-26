@@ -61,17 +61,17 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
 body wrap, and appends one `RFC-approved: <package>.<TestName>: <reason>`
-trailer line, never wrapped, for each owner approval the commit uses. The
+trailer line, never wrapped, for each `ze-test-judge` approval the commit uses. The
 approval is written once, by `./le rfc approve unit <package>.<TestName> reason
-"<the owner's words>"`, into `tmp/commit-rfc-approved-<session>.md`; the
+"<the judge's verdict>"`, into `tmp/commit-rfc-approved-<session>.md`; the
 generated script drops the used rows from that file after `git commit`
 succeeds, so the trailer in the commit is the only record
 (`docs/contributing/rfc-implementation-guide.md`).
 
-An owner-approved test weakening is carried the same way, after the RFC
-approvals: one `Weakening-approved: <package>.<TestName>: <the owner's words>`
+A judge-approved test weakening is carried the same way, after the RFC
+approvals: one `Weakening-approved: <package>.<TestName>: <the judge's verdict>`
 line per weakened test, never wrapped. `./le test weakened approve unit
-<package>.<TestName> reason "<the owner's words>"` writes the approval into
+<package>.<TestName> reason "<the judge's verdict>"` writes the approval into
 `tmp/commit-weakening-approved-<session>.md`, and the script drops each used row
 after `git commit` succeeds (`docs/contributing/testing.md`, "When a test must be
 weakened"). A weakening no approval names refuses the commit, and no keyword

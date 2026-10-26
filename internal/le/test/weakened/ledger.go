@@ -134,7 +134,7 @@ func SharedUnitProblem(unit string, directories []string) string {
 	var text textbuf.Buffer
 	text.Str("the approval unit ").Str(unit).Str(" names a test in each of ").
 		Str(strings.Join(directories, ", ")).
-		Str(" in this one commit, so no approval of it can say which test Thomas approved: ").
+		Str(" in this one commit, so no approval of it can say which test the judge approved: ").
 		Str("split the commit so each carries the change to one of them, and record one approval for each commit")
 	return text.String()
 }
@@ -219,7 +219,7 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 			problems = append(problems, text.Reset().Str(source.Path).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which is not <package>.<TestName>, so it approves nothing.\n").
-				Str("    Remove the row, and record the owner's approval of the qualified unit:\n    ").
+				Str("    Remove the row, and record a ze-test-judge approval of the qualified unit:\n    ").
 				Str(source.Command("<package>.<TestName>")).String())
 		}
 	}

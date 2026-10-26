@@ -297,7 +297,7 @@ func TestProposedWeakeningNeedsAnOwnerApproval(t *testing.T) {
 		t.Fatalf("unapproved weakening = %#v, %v", refused, err)
 	}
 	text := refused.Text()
-	for _, want := range []string{"pkg/a_test.go", "ask Thomas first", ApproveCommand("pkg.TestA"), "BEFORE the edit"} {
+	for _, want := range []string{"pkg/a_test.go", "/ze-test-judge", ApproveCommand("pkg.TestA"), "BEFORE the edit"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("refusal text lacks %q:\n%s", want, text)
 		}

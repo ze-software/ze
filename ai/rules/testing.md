@@ -7,7 +7,7 @@
 ## Directives
 
 - **A test MUST exist and MUST go red before the code that satisfies it is written.** A test that passes the moment it is written proves nothing about the code, so it MUST be strengthened until it fails.
-- **A red test means the code is wrong. MUST NOT weaken, skip, retarget, or delete a test to reach green, and MUST ask the user before deleting or weakening any `*_test.go`, `.ci`, or `.et` content.**
+- **A red test means the code is wrong. MUST NOT weaken, skip, retarget, or delete a test to reach green, and MUST get an approval from an independent `ze-test-judge` agent before deleting or weakening any `*_test.go`, `.ci`, or `.et` content.**
 - **A change MUST NOT be claimed done on unit tests alone.** A unit test proves the logic; only a `.ci` or `.et` proves the daemon exposes the behavior through the entry point an operator uses. Which suite runs which format, and what each one asserts, is `docs/functional-tests.md`.
 - **A test that cannot run everywhere MUST carry `//go:build linux` on its file or `t.Skip` with a reason, and its assertion MUST NOT be widened to accept both outcomes.**
 
@@ -17,14 +17,14 @@
 ## Fix Code, Not Tests
 
 - **When a test fails, MUST show the observed failure, trace its cause to the producing code, fix that code, and rerun the existing failing test.** The test's expectations MUST NOT be weakened, simplified, or retargeted to match the code. When the mechanism underneath changes, the expectation stays and the replacement mechanism satisfies it.
-- **Test data is covered too: a golden file, an expected output, a fixture, a `.ci` expectation MUST NOT be updated to turn a red run green without the user's explicit approval**, however plausible the new output looks.
-- **If the test itself is wrong, MUST explain its exact defect and why its expectation is incorrect before changing or replacing it.** This explanation MUST NOT replace required owner approval.
+- **Test data is covered too: a golden file, an expected output, a fixture, a `.ci` expectation MUST NOT be updated to turn a red run green without a `ze-test-judge` approval**, however plausible the new output looks.
+- **If the test itself is wrong, MUST explain its exact defect and why its expectation is incorrect before changing or replacing it.** That explanation is what the `ze-test-judge` agent judges, and it MUST NOT replace the judgement.
 - **Test and verification maintenance MUST be reported separately from product fixes.** Moving or replacing tests and refreshing snapshots MUST NOT be presented as fixing the product.
 
 - **Two weakenings pass the gate and MUST be judged by hand.** `writeWeakening` reads structure, so it sees neither an expected value changed in place (`Equal(t, 1, x)` to `Equal(t, 2, x)`) nor a rewrite that repoints an existing test at new behavior: the function count and the assertion count are unchanged, and the coverage loss is semantic.
 - **A new behavior MUST get a new case, and an existing test MUST NOT be repurposed to carry it.** The behavior that test verified still needs proving.
 
-- **A test weakening MUST be approved by the owner before the edit, and his words MUST be recorded with `./le test weakened approve unit <package>.<TestName> reason "<the owner's words>"`.** An agent MUST NOT write its own approval, and one approval names one test, never a tree or a file. The edit hook and `./le commit create` read the row from `tmp/commit-weakening-approved-<session>.md`, keyed on the main thread's namespace, so a subagent's edit sees its parent's record; the commit carries each used row as a `Weakening-approved:` line, and a row a landed commit used approves nothing further. An `RFC-approved:` row for the unit also accepts its weakening. The route is in `docs/contributing/testing.md`, and the design in `docs/architecture/testing/test-health.md`.
+- **A test weakening MUST be approved before the edit by an independent agent running the `ze-test-judge` skill, MUST NOT be put to the owner, and the judge's verdict MUST be recorded with `./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`.** The agent that made the change MUST NOT judge it or record its own approval, and one approval names one test, never a tree or a file. The edit hook and `./le commit create` read the row from `tmp/commit-weakening-approved-<session>.md`, keyed on the main thread's namespace, so a subagent's edit sees its parent's record; the commit carries each used row as a `Weakening-approved:` line, and a row a landed commit used approves nothing further. An `RFC-approved:` row for the unit also accepts its weakening. The route is in `docs/contributing/testing.md`, and the design in `docs/architecture/testing/test-health.md`.
 
 ## The Affected Population Is Not the Edited Population
 
@@ -47,7 +47,7 @@
 ## RFC-Tagged Tests
 
 - **A test carrying an `RFC requirement: <id> <polarity>` tag MUST NOT be edited to match the code.** It is the proof behind a public claim in `docs/features/rfc-status.md`, and `./le rfc check` counts it as that proof, so the edit retires the evidence while the claim stays up. Fix your code instead.
-- **Only the user approves a change to an RFC-tagged test, and an agent MUST NOT record an approval the user did not give.** Once the user approves, what they approved MUST be recorded before the edit with `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"`, which writes one row into the main thread's `tmp/commit-rfc-approved-<session>.md`; `writeWeakening` and the commit gate both read that file from disk, the commit carries each row it used as an `RFC-approved:` trailer line, and the generated script drops the used rows once the commit lands. That row also accepts a weakening of the same unit.
+- **A change to an RFC-tagged test MUST be approved by an independent agent running the `ze-test-judge` skill, which approves only when the old expectation is wrong against the RFC text it cites, and it MUST NOT be put to the owner.** The agent that made the change MUST NOT judge it. The judge's verdict MUST be recorded before the edit with `./le rfc approve unit <package>.<TestName> reason "<the judge's verdict>"`, which writes one row into the main thread's `tmp/commit-rfc-approved-<session>.md`; `writeWeakening` and the commit gate both read that file from disk, the commit carries each row it used as an `RFC-approved:` trailer line, and the generated script drops the used rows once the commit lands. That row also accepts a weakening of the same unit.
 
 - **Every gated requirement MUST have both a positive and a negative test, and the assertion MUST name the exact outcome rather than a floor.** A negative-only test passes when the code rejects everything and a positive-only test passes when it accepts everything, so only the pair pins behavior to the requirement. `GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it cannot fail when the implementation over-reacts.
 

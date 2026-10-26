@@ -78,12 +78,20 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   release (tac_plus-ng, freeRtr) is built from source, first updated to
   upstream's latest when the source in use is more than a month old.
 
-## Test weakening
+## Test changes
 
-- Weakening a test needs Thomas's approval, asked before the edit. His words
-  are recorded in an untracked file the edit hook and the commit gate read,
-  and the commit carries one `Weakening-approved:` line per test. No tracked
-  ledger of weakenings is kept in the repository.
+- A test change that could lower what a test proves (a weakening, a change to
+  an RFC-tagged test, a golden file, fixture or expected output refreshed to
+  turn a red run green) is judged by an independent agent running the
+  `ze-test-judge` skill, never put to Thomas. The judge approves only when the
+  new test proves at least what the old one did, or when the old expectation
+  is shown wrong against its source (the RFC text, the spec, the producing
+  code's contract). The agent that made the change never judges it. A refusal
+  stands: the author fixes the code instead.
+- The judge's verdict is recorded through the existing approval route (an
+  untracked file the edit hook and the commit gate read), and the commit
+  carries one `Weakening-approved:` or `RFC-approved:` line per test. No
+  tracked ledger of approvals is kept in the repository.
 
 ## Code and dependencies
 

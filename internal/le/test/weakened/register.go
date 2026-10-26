@@ -12,7 +12,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "Detect committed and proposed test weakenings, and record the owner approvals that admit them, so no test loses an assertion without his words.",
+		Description: "Detect committed and proposed test weakenings, and record the ze-test-judge approvals that admit them, so no test loses an assertion without an independent verdict.",
 		ShortHelp:   "detect test weakening and record approvals",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

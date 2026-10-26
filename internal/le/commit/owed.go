@@ -455,9 +455,9 @@ func (item *owedItem) describe() string {
 		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerReviewOwed) + ") owes an independent review of " + subjectOr(item.Subject) +
 			" (" + item.Reason + "): record a clean review with /ze-review, or the owner's " + attest
 	case owedItemRFCApproval:
-		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerRFCApprovalOwed) + ") owes the owner's approval of RFC-tagged test " +
+		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerRFCApprovalOwed) + ") owes a ze-test-judge approval of RFC-tagged test " +
 			subjectOr(item.Subject) + " (" + item.Reason + "): ./le rfc approve unit " + item.Subject +
-			` reason "<owner words>" and commit it, or the owner's ` + attest
+			` reason "<the judge's verdict>" and commit it, or the owner's ` + attest
 	case owedItemUnspecified:
 	}
 	return "BUG: commit " + shortSHA(item.Commit) + " carries an owed item of no kind"

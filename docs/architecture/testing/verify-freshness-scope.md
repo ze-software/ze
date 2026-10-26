@@ -327,7 +327,7 @@ The walk starts at C and follows `git rev-list --reverse --first-parent C..HEAD`
 
 ### Person acts, read from trailers
 
-A review or an owner approval is an act no verification performs, so it is carried by the commit that owes it, as a trailer `create` writes when it grants the admission (`docs/contributing/committing.md`). `readPersonActs` (`internal/le/commit/owed_trailers.go`) reads every trailer over `P ^@{u}` (`HEAD ^@{u}` with no P) in one `git log`, and keeps each obligation no answer holds. Answers are read over the same range, so an attestation committed after P does not count for a push of P. A malformed declared trailer is a refusal, never skipped.
+A review or a recorded approval is an act no verification performs, so it is carried by the commit that owes it, as a trailer `create` writes when it grants the admission (`docs/contributing/committing.md`). `readPersonActs` (`internal/le/commit/owed_trailers.go`) reads every trailer over `P ^@{u}` (`HEAD ^@{u}` with no P) in one `git log`, and keeps each obligation no answer holds. Answers are read over the same range, so an attestation committed after P does not count for a push of P. A malformed declared trailer is a refusal, never skipped.
 
 | Answer | `Review-owed: <stem>: <reason>` | `RFC-approval-owed: <package>.<Test>: <reason>` |
 |--------|---------------------------------|-------------------------------------------------|

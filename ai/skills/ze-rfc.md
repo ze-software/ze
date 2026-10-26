@@ -29,7 +29,7 @@ is this skill's work; one named `not walked` owes its extraction sign-off.
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
-6. REGISTER: run `./le rfc index-update` to render the requirement into `rfc/requirements/<stem>.md`,
+6. REGISTER: run `./le rfc update` to render the requirement into `rfc/requirements/<stem>.md`,
    then `./le rfc check`. **A summary that is new since HEAD and declares gated MUSTs
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
@@ -43,7 +43,7 @@ is this skill's work; one named `not walked` owes its extraction sign-off.
 
 6b. DECLARE ENROLMENT AND THE PUBLIC ROW (BLOCKING). Both are declared in the summary's
    own `## Meta` table, and nowhere else. `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
-   `docs/features/rfc-status.md` are GENERATED from those tables by `./le rfc index-update`,
+   `docs/features/rfc-status.md` are GENERATED from those tables by `./le rfc update`,
    so an edit to one of the three is lost at the next run. The summary parser REFUSES an
    absent or unrecognized value and never defaults (`internal/le/rfc/meta.go` `ParseMeta`).
    A summary that declares nothing does not parse. An RFC leaves the gated population by a
@@ -60,7 +60,7 @@ is this skill's work; one named `not walked` owes its extraction sign-off.
    | `Support remaining` | what is not complete, or `-`. An aggregate whose profile says `| Shape | brief |` (`drafts`) has no such column, so a row there writes `-` |
 
    Enrolling is ONE edit to ONE file: write `| Enrolment | enrolled |` with its reason,
-   then run `./le rfc index-update`. Two states are unrepresentable now rather than
+   then run `./le rfc update`. Two states are unrepresentable now rather than
    refused: a stem in both disposition files, and a disposition naming a summary that does
    not exist. One field holds one value, and it dies with the summary that carries it.
 
@@ -144,7 +144,7 @@ list says which sentence, by name.
 
 ## The ledger is DERIVED, never committed (BLOCKING)
 
-`./le rfc index-update` writes five outputs from the summaries and the `RFC requirement:`
+`./le rfc update` writes five outputs from the summaries and the `RFC requirement:`
 tags: `ai/RFC-REQUIREMENTS.md`, one file per RFC under `rfc/requirements/`,
 `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md`.
 
@@ -154,7 +154,7 @@ verdict, a discrimination record or any tag carrier REMOVES them, and a command 
 one REBUILDS it before that command runs. `./le rfc check` reads the summaries, the tags and
 the audits directly, so a generated file it never opens cannot be stale.
 
-So: do not run `./le rfc index-update` because a tagged test moved, and do not carry one of
+So: do not run `./le rfc update` because a tagged test moved, and do not carry one of
 the five in a commit -- `./le commit create` refuses an ignored path. Run it when you want to
 READ the rendered ledger, which is the same thing a grep of one of those paths does for you.
 
@@ -582,20 +582,21 @@ record", and `rfc/discrimination/README.md`.
 ## Changing an RFC Test (BLOCKING)
 
 **Once a test carries an `RFC requirement:` tag, do not change its behavior without
-explicit user approval.** `ai/rules/testing.md` already says fix the code, not the test;
+an approval from an independent agent running `/ze-test-judge`.** `ai/rules/testing.md` already says fix the code, not the test;
 for RFC-tagged tests this is enforced, because a test that encodes a standards obligation
 is the only thing standing between a regression and a shipped protocol violation.
 
 | Situation | Do |
 |-----------|-----|
 | A tagged test fails after your change | Fix YOUR code. The test is the requirement |
-| You believe the test is genuinely wrong | STOP. Show the user the RFC text and the test, and ask. Do not edit and explain afterwards |
+| You believe the test is genuinely wrong | STOP. Hand the RFC text, the test and your diff to an independent agent running `/ze-test-judge`, never to Thomas. Do not edit and explain afterwards |
 | The RFC text itself was misquoted | Fix the summary line (keep the ID), then re-run `/ze-rfc-audit` |
 | Refactor/rename/format only | Allowed — behavior must be unchanged |
 
-Only the user can approve a change to a tagged test, and an agent never records
-an approval the user did not give. Their answer is recorded with `./le rfc
-approve unit <package>.<TestName> reason "<the owner's words>"`, which the
+Only the `ze-test-judge` agent approves a change to a tagged test, and the
+author never judges or records its own approval. The judge records its verdict
+with `./le rfc approve unit <package>.<TestName> reason "<the judge's
+verdict>"`, which the
 commit carries as an `RFC-approved:` trailer. That row also accepts a weakening
 of the same test, so no second `./le test weakened approve` answer is owed.
 
@@ -662,7 +663,7 @@ Step-by-step, pseudocode if RFC provides it.
 | Need | Use |
 |------|-----|
 | Check requirements are covered | `./le rfc check` |
-| Regenerate the requirement ledger | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
-| Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc index-update` |
+| Regenerate the requirement ledger | `./le rfc update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
+| Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc update` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
-| Public per-RFC support status | Declare it in the summary's `## Meta` `Support` rows. `./le rfc index-update` renders `docs/features/rfc-status.md` from them, and it must agree with the `{gap}` annotations |
+| Public per-RFC support status | Declare it in the summary's `## Meta` `Support` rows. `./le rfc update` renders `docs/features/rfc-status.md` from them, and it must agree with the `{gap}` annotations |

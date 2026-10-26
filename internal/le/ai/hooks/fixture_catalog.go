@@ -251,7 +251,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryRFCTestGuard, name: "rfc-guard-one-line-func-neighbor-still-blocks", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-unlocatable-hunk-fails-closed", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-untagged-file-unaffected", expectedExit: 0},
-	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}, {match: matchContains, text: "./le test weakened approve unit "}, {match: matchContains, text: "ask Thomas first"}}},
+	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}, {match: matchContains, text: "./le test weakened approve unit "}, {match: matchContains, text: "/ze-test-judge"}}},
 	{category: categoryWeakenedHatch, name: "weakened-row-opens-the-hatch", expectedExit: 0},
 	{category: categoryWeakenedHatch, name: "weakened-row-for-another-test-buys-nothing", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}}},
 	{category: categoryWeakenedHatch, name: "weakened-qualified-row-opens-the-hatch", expectedExit: 0},

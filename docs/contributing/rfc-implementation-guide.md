@@ -613,7 +613,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
 
 - **Five native RFC actions clear different failures.**
   - `./le rfc check` gates coverage and validates the audit records.
-  - `./le rfc index-update` renders one ledger per RFC and
+  - `./le rfc update` renders one ledger per RFC and
     `ai/RFC-REQUIREMENTS.md`.
   - `./le rfc extraction-create stem <stem>` writes an extraction skeleton. It
     reaches `rfc/extraction/` only when every site and section already carries a
@@ -631,7 +631,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **Declare enrolment in the summary, and the public row with it.** Both live in
   the `## Meta` table of `rfc/short/<stem>.md`, and nowhere else.
   `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` are
-  generated from those tables by `./le rfc index-update`. A hand edit to one of the
+  generated from those tables by `./le rfc update`. A hand edit to one of the
   three is lost at the next run. Write `| Enrolment | <kind> |` beside
   `| Enrolment reason | <why> |`, kind one of `enrolled`, `non-normative`,
   `backlog`, `blocked`, `out-of-scope` or `source-restricted`. A summary that
@@ -696,7 +696,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `./le rfc reseal` then `./le rfc index-update`. Reseal owns mechanical
+  `./le rfc reseal` then `./le rfc update`. Reseal owns mechanical
   fingerprint shifts, not independent rejudgment. Semantic changes require a
   new audit and `audit-stamp ... mode rejudge`; regeneration never authorizes
   a broader claim.
@@ -706,7 +706,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
-  Changing its behavior needs the owner's approval.
+  Changing its behavior needs a `ze-test-judge` approval.
 - **The lock holds what HEAD records.** The Write/Edit hook refuses an edit to
   a tagged unit only when the edit changes that unit and the unit carries its
   tag at HEAD. A unit is one Go function, or the whole file when the file is
@@ -719,20 +719,26 @@ never sums the two, because a nightly tier is not merge-gate proof.
   session's uncommitted change to it does not lock an edit to another
   function. Where the unit is the whole file (a `.ci` or other non-Go
   carrier, or Go with a file-scope tag), that change makes every edit to the
-  file refuse until the file matches HEAD again or the owner approves. The
+  file refuse until the file matches HEAD again or the judge approves. The
   commit gate,
   `rfcChangeProblems` in `internal/le/commit/rfcchange.go`, reads its baseline
   from HEAD too.
   <!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
 
-### The owner's approval lives in the commit
+### The judge's approval lives in the commit
 
-An author cannot approve their own change. Once the owner has answered, record
-his words, once:
+An author cannot approve their own change, and the question is never put to
+Thomas. An independent agent running the `ze-test-judge` skill
+(`ai/skills/ze-test-judge.md`) reads the old and new test, the producing code
+and the cited RFC text, and approves only when the old expectation is wrong
+against the RFC sentence it quotes, or the new test proves at least what the
+old one did. On APPROVE the judge records its verdict, once:
 
 ```
-./le rfc approve unit <package>.<TestName> reason "<the owner's words>"
+./le rfc approve unit <package>.<TestName> reason "<the judge's verdict>"
 ```
+
+On REFUSE the refusal stands, and the author fixes the code.
 
 The command writes one row into `tmp/commit-rfc-approved-<session>.md`, the
 file this commit session owns (`./le commit session`) and git never sees. A
@@ -747,14 +753,14 @@ RFC-approved:` lists every approval. A row whose whole trailer line a commit
 already carries approves nothing further: `TrailerLanded`
 (`internal/le/rfc/approve.go`) compares each message line to the trailer,
 and the refusal names that commit by short hash and subject. A row with no
-answer from the owner behind
-it is a forgery, not a shortcut, so the reason names what the owner approved
+judge's verdict behind
+it is a forgery, not a shortcut, so the reason names what the judge approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id. The row also accepts a weakening of the same unit, so a tagged
-test the owner approved needs no second `./le test weakened approve` answer
+test the judge approved needs no second `./le test weakened approve` answer
 (`docs/contributing/testing.md`, "When a test must be weakened").
 
-When the owner has not answered yet, `rfc-change-ok "<reason>"` on
+When the judge has not ruled yet, `rfc-change-ok "<reason>"` on
 `./le commit create` admits the commit anyway and writes one trailer per
 unapproved unit, `RFC-approval-owed: <package>.<TestName>: <reason>`. The
 commit lands, and the push is refused while the trailer is open: a later commit

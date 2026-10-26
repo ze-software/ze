@@ -141,7 +141,7 @@ func rfcChangeProblems(
 		approvals.Unapproved = append(approvals.Unapproved, change.unit())
 		problems = append(problems, fmt.Sprintf(
 			"%s changes RFC-tagged test %s and %s.\n"+
-				"  Only the OWNER approves a change to a tagged test. Once Thomas has answered, record his words and retry:\n"+
+				"  Only an independent ze-test-judge agent approves a change to a tagged test. On approval it records its verdict; then retry:\n"+
 				"    %s", change.Path, change.Name, why, rfc.ApproveCommand(change.unit())))
 	}
 	return changes, approvals, problems

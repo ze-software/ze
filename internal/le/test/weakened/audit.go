@@ -325,7 +325,7 @@ func (file *auditFile) judge(accepted auditApprovals, shared map[string][]string
 func rfcDetails(tags []string) []string {
 	return []string{
 		"RFC-TAGGED test changed: " + strings.Join(tags, ", "),
-		"only the OWNER approves this, and the approval is recorded with `./le rfc approve unit <package>.<TestName> reason \"<the owner's words>\"`, which the commit carries as an RFC-approved: trailer",
+		"only an independent ze-test-judge agent approves this, and it records its approval with `./le rfc approve unit <package>.<TestName> reason \"<the judge's verdict>\"`, which the commit carries as an RFC-approved: trailer",
 	}
 }
 

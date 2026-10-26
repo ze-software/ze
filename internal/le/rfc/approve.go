@@ -39,10 +39,10 @@ func ApprovalPath(session string) string {
 	return "tmp/commit-rfc-approved-" + session + ".md"
 }
 
-// ApproveCommand renders the command an author runs once the owner has
-// answered, for the hook and the gate to print beside a refusal.
+// ApproveCommand renders the command the ze-test-judge agent runs once it has
+// approved, for the hook and the gate to print beside a refusal.
 func ApproveCommand(unit string) string {
-	return "./le rfc approve unit " + unit + " reason \"<the owner's words>\""
+	return "./le rfc approve unit " + unit + " reason \"<the judge's verdict>\""
 }
 
 // ApprovalTrailerLine renders the commit message line for one used row.
@@ -74,13 +74,13 @@ func ValidApprovalUnit(unit string) bool {
 	return approvalUnitPattern.MatchString(unit)
 }
 
-// Approve writes the owner's approval of a change to one tagged unit into the
+// Approve writes the judge's approval of a change to one tagged unit into the
 // session's RFC approval file (ApproveInto).
 func Approve(root, session, unit, reason string) (ApprovalReport, error) {
 	return ApproveInto(root, ApprovalFile{Path: ApprovalPath(session), Header: approvalHeader, Command: "rfc approve"}, unit, reason)
 }
 
-// ApproveInto writes the owner's approval of one unit into file, creating it,
+// ApproveInto writes the judge's approval of one unit into file, creating it,
 // and replaces the reason of a row that already names the unit rather than
 // adding a second row. A unit that is not `<package>.<TestName>`, an empty
 // reason, and a reason that would not fit on one trailer line are refused
@@ -91,7 +91,7 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 		return report, errors.New(file.Command + ": unit must be <package>.<TestName>, got " + unit)
 	}
 	if report.Reason == "" {
-		return report, errors.New(file.Command + ": reason is required: the owner's words, in quotes")
+		return report, errors.New(file.Command + ": reason is required: the judge's verdict, in quotes")
 	}
 	if strings.ContainsAny(report.Reason, "\r\n|") {
 		return report, errors.New(file.Command + ": reason must be one line and carry no '|': it becomes one trailer line and one ledger cell")
@@ -181,7 +181,7 @@ func rowNames(line, unit string) bool {
 // approveAnswer is the `le rfc approve` command body.
 func approveAnswer(args leaction.Arguments) (any, int) {
 	if !args.Has(keyUnit) || !args.Has(keyReason) {
-		leaction.ReportError(errors.New("rfc approve requires unit <package>.<TestName> reason \"<the owner's words>\""))
+		leaction.ReportError(errors.New("rfc approve requires unit <package>.<TestName> reason \"<the judge's verdict>\""))
 		return nil, 2
 	}
 	root, err := lepath.Root()
@@ -189,8 +189,8 @@ func approveAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	// The approval is the owner's, given to the main thread, so it is keyed
-	// on the main thread's namespace even when an agent records it.
+	// The approval admits the main thread's commit, so it is keyed on the
+	// main thread's namespace even when the judge agent records it.
 	session, err := lepath.SessionCommitSession(root)
 	if err != nil {
 		leaction.ReportError(err)

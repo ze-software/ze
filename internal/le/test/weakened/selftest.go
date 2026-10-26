@@ -117,7 +117,7 @@ func SelfTest() SelfTestReport {
 		"finding population must cover every positive fixture")
 
 	check(containsProblem(missing.Problems, "./le test weakened approve unit "),
-		"the refusal must print the command that records the owner's approval")
+		"the refusal must print the command that records the judge's approval")
 
 	text.Reset().Str(approvalHeader)
 	for _, finding := range missing.Findings {
@@ -136,7 +136,7 @@ func SelfTest() SelfTestReport {
 		text.Reset().Str(approvalHeader).Str("| pkg.TestGone | an approval for another test |\n").String()) == nil,
 		"write an approval naming another test")
 	other := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
-	check(other.ExitCode() == 1 && containsProblem(other.Problems, "no owner approval names it"),
+	check(other.ExitCode() == 1 && containsProblem(other.Problems, "no ze-test-judge approval names it"),
 		"an approval for another test must not admit a weakening")
 
 	check(writeSelfTestFile(root, selfTestApprovals, "# Tests\n\nno table\n") == nil,
@@ -148,7 +148,7 @@ func SelfTest() SelfTestReport {
 	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
 		"remove fixture approval file")
 	absent := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
-	check(absent.ExitCode() == 1 && containsProblem(absent.Problems, "no owner approval names it"),
+	check(absent.ExitCode() == 1 && containsProblem(absent.Problems, "no ze-test-judge approval names it"),
 		"an absent approval file must refuse a commit that weakens a test")
 
 	// A malformed file would fail closed if it were read, so a clean verdict

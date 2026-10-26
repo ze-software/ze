@@ -191,7 +191,7 @@ a test that no longer enforces its requirement.
 | State | What moved | What clears it |
 |-------|-----------|----------------|
 | `fresh` | nothing | — |
-| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `./le rfc reseal`, then `./le rfc index-update`. **No re-reading is asked for** |
+| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `./le rfc reseal`, then `./le rfc update`. **No re-reading is asked for** |
 | `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
 | `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
 
@@ -205,7 +205,7 @@ the verdicts an author has just judged, with their fingerprints. By default it r
 requirement that already has one; with `mode rejudge` it replaces the verdict a judge has
 re-made, and refuses a requirement that has none. `./le rfc reseal` is the ONLY thing that
 re-stamps a recorded verdict nobody re-judged.
-`./le rfc check` is read-only, and `./le rfc index-update` writes the five DERIVED outputs
+`./le rfc check` is read-only, and `./le rfc update` writes the five DERIVED outputs
 alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
 `docs/features/rfc-status.md`. None of the five is tracked, so no run of it can put a byte
@@ -215,7 +215,8 @@ in a commit.
 
 - Read the RFC. The summary is under audit, not evidence.
 - Do not change an expectation merely to match the implementation. If the assertion
-  contradicts the RFC, obtain owner approval for the correction and preserve the intended
+  contradicts the RFC, obtain a `/ze-test-judge` approval for the correction from an
+  agent that did not write it, and preserve the intended
   proof (`ai/rules/testing.md`).
 - `weak` and `wrong` are the valuable outputs. A run that returns all `enforced` on first
   pass has probably not read anything.
@@ -225,7 +226,7 @@ in a commit.
   Report implemented-tested, implemented-unverified, and unimplemented behavior separately.
   Full RFC support is the long-term goal, not an automatic audit acceptance criterion.
 - A `{gap}` must still be disclosed on the public row. Edit `Support status` or `Support
-  remaining` in that summary's `## Meta` table and run `./le rfc index-update`:
+  remaining` in that summary's `## Meta` table and run `./le rfc update`:
   `docs/features/rfc-status.md` is generated from those rows and a hand edit to it is lost.
   The gate checks that the row is not claiming clean support, but only a reader can tell
   whether it says enough.
@@ -235,12 +236,12 @@ in a commit.
 | Need | Use |
 |------|-----|
 | Does every MUST have its pair of tests? | `./le rfc check` |
-| Requirement → test map for one RFC | `./le rfc index-update`, then read `rfc/requirements/<stem>.md` |
-| The backlog over every RFC | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` |
+| Requirement → test map for one RFC | `./le rfc update`, then read `rfc/requirements/<stem>.md` |
+| The backlog over every RFC | `./le rfc update` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
 | Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
-| Record new verdicts | a pending file, then `./le rfc audit-stamp stem <stem> from <path>`, then `./le rfc index-update` |
-| Replace a verdict you re-judged | a pending file, then `./le rfc audit-stamp stem <stem> from <path> mode rejudge`, then `./le rfc index-update` |
-| Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
+| Record new verdicts | a pending file, then `./le rfc audit-stamp stem <stem> from <path>`, then `./le rfc update` |
+| Replace a verdict you re-judged | a pending file, then `./le rfc audit-stamp stem <stem> from <path> mode rejudge`, then `./le rfc update` |
+| Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
-| Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc index-update` renders `docs/features/rfc-status.md` from them |
+| Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc update` renders `docs/features/rfc-status.md` from them |

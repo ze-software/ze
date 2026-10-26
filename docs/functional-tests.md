@@ -495,13 +495,14 @@ needle, or inverts a `reject=` is a weakening.
 `internal/le/test/weakened` detects it, and a whole `.ci` file is one test, named by
 its file stem.
 
-Ask Thomas BEFORE the edit. His answer is recorded with
-`./le test weakened approve unit <dir>.<stem> reason "<his words>"`, the edit is
+Before the edit, an independent agent running the `ze-test-judge` skill judges
+it, never Thomas. On APPROVE the judge records its verdict with
+`./le test weakened approve unit <dir>.<stem> reason "<the judge's verdict>"`, the edit is
 made, and the commit carries one `Weakening-approved:` line for the test. The
 full route is in `docs/contributing/testing.md`, "When a test must be weakened".
 
-An RFC-tagged test is stricter still: any behavior change to it needs the
-owner's approval through `./le rfc approve`, and that approval also accepts the
+An RFC-tagged test is stricter still: any behavior change to it needs a
+`ze-test-judge` approval recorded through `./le rfc approve`, and that approval also accepts the
 test's weakening. See "RFC Requirement Tags"
 below.
 
@@ -1450,7 +1451,7 @@ Rules the gate enforces:
   `{not-applicable}` / `{single-polarity}` / `{lower-layer}` /
   `{feature-declined}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
-  `./le rfc index-update` renders each RFC's requirement to test rows into
+  `./le rfc update` renders each RFC's requirement to test rows into
   `rfc/requirements/<stem>.md`, and the index over them into
   `ai/RFC-REQUIREMENTS.md`. Neither file is tracked: both are registered in
   `internal/le/derived` from `internal/le/rfc/register.go`, so writing a tagged
@@ -1458,11 +1459,11 @@ Rules the gate enforces:
   the summaries and the tags rather than either file, so running it after a
   tagged test moves needs no regeneration and owes no commit.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
-  `RFC requirement:` tag its behavior cannot change without the owner's approval.
+  `RFC requirement:` tag its behavior cannot change without a `ze-test-judge` approval.
   The lock covers the tagged units HEAD records, so a test you have not
-  committed yet stays yours to repair. Fix the code instead. Once the owner
-  has answered, record his words with
-  `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"`: the
+  committed yet stays yours to repair. Fix the code instead. When an
+  independent `ze-test-judge` agent approves, it records its verdict with
+  `./le rfc approve unit <package>.<TestName> reason "<the judge's verdict>"`: the
   native weakening check reads that session file and blocks the edit until a
   row names the unit, and the commit carries the row as an `RFC-approved:`
   trailer (`docs/contributing/rfc-implementation-guide.md`).
@@ -1539,7 +1540,7 @@ The five derived outputs are a separate question, and they need one step.
 runs for an agent's `Write` or `Edit` alone (`postInvalidateDerived`,
 `internal/le/hookruntime/postwrite.go`), so it never sees a write a native
 action made. An output the tree happens to hold is therefore left present and
-stale. Run `./le rfc index-update` after any of them to re-render the five.
+stale. Run `./le rfc update` after any of them to re-render the five.
 An output the tree does NOT hold is unaffected: the next shell command that
 names one builds it from the tree as it now stands.
 
@@ -1567,7 +1568,7 @@ alone. It is required when a `weak` or `wrong` verdict becomes `enforced` over
 byte-identical units, and refused on any other move.
 <!-- source: internal/le/rfc/audit_stamp.go -- auditStamp -->
 <!-- source: internal/le/rfc/audit_stamp.go -- rejudgeRefusal -->
-`./le rfc check` is read-only, and `./le rfc index-update` writes the five derived
+`./le rfc check` is read-only, and `./le rfc update` writes the five derived
 outputs alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
 `docs/features/rfc-status.md`. None of the five is tracked. A re-stamp can
@@ -3163,7 +3164,7 @@ func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
   `terminator=` block is file content, not a tag, and is skipped.
 - On a table-driven test, put the tag on the line of the enforcing case, not only on
   the function, so deleting that case re-opens the coverage.
-- Once tagged, a test's behaviour must not be edited without user approval. The
+- Once tagged, a test's behaviour must not be edited without a `ze-test-judge` approval. The
   native weakening check blocks it. Fix the code, not the test.
   <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 

@@ -13,8 +13,8 @@ import (
 )
 
 // ApprovalTrailer is the key of the commit message line that records one
-// owner approval of a test weakening for good:
-// `Weakening-approved: <package>.<TestName>: <the owner's words>`.
+// ze-test-judge approval of a test weakening for good:
+// `Weakening-approved: <package>.<TestName>: <the judge's verdict>`.
 const ApprovalTrailer = "Weakening-approved: "
 
 // approvalHeader opens a session's weakening approval file, in the row
@@ -33,10 +33,10 @@ func ApprovalPath(session string) string {
 	return "tmp/commit-weakening-approved-" + session + ".md"
 }
 
-// ApproveCommand renders the command an author runs once the owner has
-// answered, for the hook and the gate to print beside a refusal.
+// ApproveCommand renders the command the ze-test-judge agent runs once it has
+// approved, for the hook and the gate to print beside a refusal.
 func ApproveCommand(unit string) string {
-	return "./le test weakened approve unit " + unit + " reason \"<the owner's words>\""
+	return "./le test weakened approve unit " + unit + " reason \"<the judge's verdict>\""
 }
 
 // ApprovalTrailerLine renders the commit message line for one used row.
@@ -44,7 +44,7 @@ func ApprovalTrailerLine(unit, reason string) string {
 	return ApprovalTrailer + unit + ": " + reason
 }
 
-// Approve writes the owner's approval of one test weakening into the
+// Approve writes the judge's approval of one test weakening into the
 // session's weakening approval file, with the writer and the refusals the RFC
 // approval file has (rfc.ApproveInto).
 func Approve(root, session, unit, reason string) (rfc.ApprovalReport, error) {
@@ -56,7 +56,7 @@ func Approve(root, session, unit, reason string) (rfc.ApprovalReport, error) {
 // approveAnswer is the `le test weakened approve` command body.
 func approveAnswer(args leaction.Arguments) (any, int) {
 	if !args.Has(keyUnit) || !args.Has(keyReason) {
-		leaction.ReportError(errors.New("test weakened approve requires unit <package>.<TestName> reason \"<the owner's words>\""))
+		leaction.ReportError(errors.New("test weakened approve requires unit <package>.<TestName> reason \"<the judge's verdict>\""))
 		return nil, 2
 	}
 	root, err := lepath.Root()
@@ -64,8 +64,8 @@ func approveAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	// The approval is the owner's, given to the main thread, so it is keyed
-	// on the main thread's namespace even when an agent records it.
+	// The approval admits the main thread's commit, so it is keyed on the
+	// main thread's namespace even when the judge agent records it.
 	session, err := lepath.SessionCommitSession(root)
 	if err != nil {
 		leaction.ReportError(err)

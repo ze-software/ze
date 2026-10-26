@@ -301,7 +301,7 @@ func taggedScopeBlockedMessage(path string, changes []TaggedScopeChange) string 
 	for _, change := range changes {
 		out.Str("\n  ").Str(change.Name).Str(": ").Join(change.Tags, ", ")
 	}
-	out.Str("\nRecord the owner's approval for each named unit before writing:")
+	out.Str("\nRecord a ze-test-judge approval for each named unit before writing:")
 	packageName := filepath.Base(filepath.Dir(path))
 	for _, change := range changes {
 		out.Str("\n  ").Str(ApproveCommand(packageName + "." + change.Name))

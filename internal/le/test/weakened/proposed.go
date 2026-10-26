@@ -142,12 +142,12 @@ func (r ProposedReport) Text() string {
 				text.Str("  the approval naming ").Str(ledger.Package).Byte('.').Str(name).
 					Str(" was already used by commit ").Str(carrier).Str(", so it approves nothing further\n")
 			}
-			text.Str("  ask Thomas first; once he has approved, run: ").Str(command).Byte('\n')
+			text.Str("  hand it to an independent agent running /ze-test-judge; on approval it runs: ").Str(command).Byte('\n')
 		}
 	}
 	if r.Blocking {
-		text.Str("  Fix the code by default. Only Thomas approves a test weakening or a change to an ").
-			Str("RFC-tagged test, and he is asked BEFORE the edit; the command records his words, never yours.\n")
+		text.Str("  Fix the code by default. Only an independent ze-test-judge agent approves a test weakening or a change to an ").
+			Str("RFC-tagged test, BEFORE the edit; the command records its verdict, never the author's reasoning.\n")
 	}
 	return text.String()
 }

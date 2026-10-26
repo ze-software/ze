@@ -46,7 +46,7 @@ func TestCreateRefusesAnUnapprovedWeakening(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = ledgerCreate(t, root, "pkg/one_test.go")
-	if err == nil || !strings.Contains(err.Error(), "no owner approval names it") {
+	if err == nil || !strings.Contains(err.Error(), "no ze-test-judge approval names it") {
 		t.Fatalf("Create reading a peer's approval = %v, want the weakening still refused", err)
 	}
 
