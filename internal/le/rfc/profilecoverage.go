@@ -115,12 +115,13 @@ func absentFigures(number int) StemFigures {
 // zero totals. walked is the stems carrying a valid extraction sign-off.
 // proven is provenRequirements over the tree's verdicts.
 //
-// Which rows count, by annotation, is the rule ProvenShareOf applies
-// (provenshare.go, owner ruling 2026-09-02):
+// Which rows count, by annotation, is the same row partition as ProvenShareOf
+// (provenshare.go, owner ruling 2026-09-02), proven only by a verified record:
 //   - `{rollup}` is out of both sides: it carries no obligation of its own.
 //   - `{single-polarity}` is the one annotation that can be proven: its
 //     annotation records why the other side has no input, and the row is
-//     proven when a recorded break proves its one side.
+//     proven only when a verified record proves its one side. ProvenShareOf
+//     credits such a row from its annotation alone; these figures do not.
 //   - `{not-applicable}`, `{lower-layer}` and `{feature-declined}` stay in
 //     the denominator and are never proven by Ze, whatever records their
 //     tags carry: annotating a row may not raise its figure.

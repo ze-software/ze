@@ -522,9 +522,10 @@ func nextAnswer(args leaction.Arguments) (any, int) {
 // profileCandidates answers the names rfc/profiles/ holds, use cases and
 // aggregates, for the `profile` value of `./le rfc tree` and `./le rfc next`.
 // It reads the profiles the action itself reads, so completion offers
-// exactly the names scope accepts. A keystroke calls it, so it reports no
-// error: a profile file that does not parse is left out, as scope refuses
-// it, and a checkout that cannot be read offers nothing.
+// exactly the names scope accepts: a nil stems set makes LoadProfiles read
+// summaryStems over the tree, the same set Collect passes. A keystroke calls
+// it, so it reports no error: a profile file that does not parse is left out,
+// as scope refuses it, and a checkout that cannot be read offers nothing.
 func profileCandidates() []leaction.Candidate {
 	tree, err := lepath.Root()
 	if err != nil {

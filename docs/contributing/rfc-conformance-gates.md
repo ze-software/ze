@@ -329,11 +329,12 @@ Each RFC has two figures: MANDATORY over the gated levels (`IsGatedLevel`) and
 OPTIONAL over every other level. Each is rows proven over rows owed. A row is
 proven only when a tagged unit covering it carries a discrimination record
 that still verifies and is not the `no-break` escape
-(`DiscriminationVerdict.Proven`, the one per-row predicate). The denominator
-follows the 2026-09-02 ruling, the one `ProvenShareOf` applies:
-`{rollup}` rows are out of both sides, and every other annotated row stays in
-the denominator. `{single-polarity}` is the one annotation a row can be
-proven under, by a verifying record on its one side. A `{not-applicable}`,
+(`DiscriminationVerdict.Proven`, the one per-row predicate). The figures use
+the same row partition as `ProvenShareOf` (the 2026-09-02 ruling), proven only
+by a verified record: `{rollup}` rows are out of both sides, and every other
+annotated row stays in the denominator. `{single-polarity}` is the one
+annotation a row can be proven under, and only by a verifying record on its
+one side; `ProvenShareOf` credits such a row from its annotation alone. A `{not-applicable}`,
 `{lower-layer}` or `{feature-declined}` row is never proven by Ze, whatever
 records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
 or `{partial}` row stays in and is never proven either, because the summary

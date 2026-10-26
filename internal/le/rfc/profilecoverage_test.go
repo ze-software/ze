@@ -1,7 +1,8 @@
 // VALIDATES: AC-7, AC-8 and the owner ruling of 2026-10-25 on absent RFCs. The
 // mandatory figure is proven rows over gated rows minus {rollup}; a
 // not-applicable row stays in the denominator; a tagged row without a verified
-// proof, a stale proof, an escape and a {gap} row are all unproven; the
+// proof, a stale proof, an escape and a {gap} row are all unproven; a
+// {single-polarity} row is proven by its verified record and by nothing else; the
 // optional figure counts the same way over the other levels. An unwalked RFC
 // renders "not walked", an absent one renders 0%, and a rollup holding either
 // is never complete.
@@ -27,16 +28,18 @@ func coverageFixture() ([]Requirement, []DiscriminationVerdict) {
 		return out
 	}
 	requirements := []Requirement{
-		row("RFC1-1-1", levelMust, ""),                      // proven
-		row("RFC1-1-2", levelMust, ""),                      // tagged, no record
-		row("RFC1-1-3", levelMust, ""),                      // stale record
-		row("RFC1-1-4", levelMust, ""),                      // no-break escape
-		row("RFC1-1-5", levelMust, AnnotationNotApplicable), // denominator only, its record proves nothing
-		row("RFC1-1-6", levelMust, AnnotationRollup),        // out of both
-		row("RFC1-1-7", levelMust, AnnotationGap),           // a record cannot prove a gap
-		row("RFC1-1-8", levelMust, AnnotationLowerLayer),    // denominator only, its record proves nothing
-		row("RFC1-2-1", levelShould, ""),                    // optional, proven
-		row("RFC1-2-2", "MAY", ""),                          // optional, unproven
+		row("RFC1-1-1", levelMust, ""),                        // proven
+		row("RFC1-1-2", levelMust, ""),                        // tagged, no record
+		row("RFC1-1-3", levelMust, ""),                        // stale record
+		row("RFC1-1-4", levelMust, ""),                        // no-break escape
+		row("RFC1-1-5", levelMust, AnnotationNotApplicable),   // denominator only, its record proves nothing
+		row("RFC1-1-6", levelMust, AnnotationRollup),          // out of both
+		row("RFC1-1-7", levelMust, AnnotationGap),             // a record cannot prove a gap
+		row("RFC1-1-8", levelMust, AnnotationLowerLayer),      // denominator only, its record proves nothing
+		row("RFC1-1-9", levelMust, AnnotationSinglePolarity),  // proven by its verified record
+		row("RFC1-1-10", levelMust, AnnotationSinglePolarity), // no record: the annotation alone proves nothing
+		row("RFC1-2-1", levelShould, ""),                      // optional, proven
+		row("RFC1-2-2", "MAY", ""),                            // optional, unproven
 		{RFC: "rfc2", RID: "RFC2-1-1", Level: levelMust},
 	}
 	verdict := func(rid, route, state string) DiscriminationVerdict {
@@ -50,6 +53,7 @@ func coverageFixture() ([]Requirement, []DiscriminationVerdict) {
 		verdict("RFC1-1-6", RouteRevert, ProofVerified),
 		verdict("RFC1-1-7", RouteRevert, ProofVerified),
 		verdict("RFC1-1-8", RouteRevert, ProofVerified),
+		verdict("RFC1-1-9", RouteRevert, ProofVerified),
 		verdict("RFC1-2-1", RouteMutant, ProofVerified),
 		verdict("RFC2-1-1", RouteRevert, ProofVerified),
 	}
@@ -63,14 +67,29 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts))
 
 	one := figures["rfc1"]
-	if one.Mandatory != (Figure{Proven: 1, Total: 7}) {
-		t.Errorf("mandatory = %+v, want 1 proven of 7 owed", one.Mandatory)
+	if one.Mandatory != (Figure{Proven: 2, Total: 9}) {
+		t.Errorf("mandatory = %+v, want 2 proven of 9 owed", one.Mandatory)
 	}
 	if one.Optional != (Figure{Proven: 1, Total: 2}) {
 		t.Errorf("optional = %+v, want 1 proven of 2 owed", one.Optional)
 	}
-	if got := one.mandatoryCell(); got != "1 of 7 (14.3%)" {
+	if got := one.mandatoryCell(); got != "2 of 9 (22.2%)" {
 		t.Errorf("mandatory cell = %q", got)
+	}
+
+	// A {single-polarity} row is owed either way, and proven only by its
+	// verified record: the annotation alone proves nothing.
+	proven := provenRequirements(verdicts)
+	for index := range requirements {
+		requirement := &requirements[index]
+		if requirement.Annotation == nil || requirement.Annotation.Kind != AnnotationSinglePolarity {
+			continue
+		}
+		owed, met := rowCounts(requirement, proven)
+		want := requirement.RID == "RFC1-1-9"
+		if !owed || met != want {
+			t.Errorf("%s: owed=%v proven=%v, want owed and proven=%v", requirement.RID, owed, met, want)
+		}
 	}
 
 	// AC-8: a proven row on an unwalked RFC still renders no figure.
@@ -94,7 +113,7 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 
 	rollup := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3"}, []int{7948, 8212})
 	want := Rollup{RFCs: 5, NotWalked: 1, Absent: 2,
-		Mandatory: Figure{Proven: 1, Total: 7}, Optional: Figure{Proven: 1, Total: 2}}
+		Mandatory: Figure{Proven: 2, Total: 9}, Optional: Figure{Proven: 1, Total: 2}}
 	if rollup != want {
 		t.Errorf("rollup = %+v, want %+v", rollup, want)
 	}
