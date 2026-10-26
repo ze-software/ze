@@ -137,6 +137,56 @@ func TestVPPRemovalSparesLiveSAEntry(t *testing.T) {
 	}
 }
 
+// TestVPPRemovalWhileBothSAsLive: method: install two PROTECT entries with one selector
+// over two SAs, as a make-before-break rekey does, keep both SAs installed, then remove
+// the first policy. The delete must name the first SA's SAD id, and the entry naming the
+// second SA must stay recorded.
+// PREVENTS: entryOfSA accepting every PROTECT entry while p's SA is live, which makes
+// both entries candidates, so the removal of the old Child SA's policy during a rekey
+// is refused as ambiguous, or deletes the new Child SA's entry.
+func TestVPPRemovalWhileBothSAsLive(t *testing.T) {
+	b, ch := installedPolicyBackend(t)
+	first := testSPParams()
+	second := testSPParams()
+	second.SAID = 0x55667788
+	sa := testSAParams()
+	sa.SPI = second.SAID
+	if err := b.InstallSA(sa); err != nil {
+		t.Fatalf("InstallSA: %v", err)
+	}
+	for _, p := range []SPParams{first, second} {
+		if err := b.InstallPolicy(p); err != nil {
+			t.Fatalf("InstallPolicy: %v", err)
+		}
+	}
+	if len(b.spdEntries) != 2 {
+		t.Fatalf("setup: %d recorded entries, want 2", len(b.spdEntries))
+	}
+	identity, err := saIdentityOf(first.SAID, first.TunnelDst, first.Proto)
+	if err != nil {
+		t.Fatalf("saIdentityOf: %v", err)
+	}
+	firstID, ok := b.sadIDs[identity]
+	if !ok {
+		t.Fatal("setup: the first SA has no SAD id")
+	}
+	kept := b.spdEntries[1]
+	if kept.SaID == firstID {
+		t.Fatalf("setup: both entries name SAD id %d", firstID)
+	}
+
+	ch.sent = nil
+	if err := b.RemovePolicyParams(first); err != nil {
+		t.Fatalf("RemovePolicyParams with both SAs live: %v", err)
+	}
+	if req := sentSPD(t, ch); req.IsAdd || req.Entry.SaID != firstID {
+		t.Fatalf("the removal sent add=%v SaID %d, want the delete of the first SA's entry, SaID %d", req.IsAdd, req.Entry.SaID, firstID)
+	}
+	if len(b.spdEntries) != 1 || b.spdEntries[0] != kept {
+		t.Fatalf("recorded entries %+v, want only the second SA's %+v", b.spdEntries, kept)
+	}
+}
+
 // TestVPPPolicyDeleteCommandRefusesUnknownEntry: method: ask for the command of a policy
 // the backend never installed. It must refuse, naming the vppctl command that lists the
 // SPD, rather than write a command for an entry that does not exist.

@@ -141,6 +141,9 @@ the VPP backend a replace step keyed on the selector, or give the engine a way t
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `upsert-assumed-across-backends.md` | 2026-10-26 | `adoptStrandedLocked` assumes XFRM upsert; VPP keeps the old SPD entry |
+| `upsert-assumed-across-backends.md` | 2026-10-26 | `recordedEntry` refuses identical duplicate or orphaned SPD entries forever |
+| `upsert-assumed-across-backends.md` | 2026-10-26 | VPP fast-path delete of an absent entry fails, so the retry stays stranded |
+| `identifier-reused-after-its-owner-is-gone.md` | 2026-10-26 | `liveSADID` resolves a new SA that reused a removed SA's identity |
 
 ## Known Limitations
 
