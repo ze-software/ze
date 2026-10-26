@@ -282,6 +282,7 @@ func TestRFCInteropCheckerBindings(t *testing.T) {
 		"bgp-rfc7999-blackhole-frr",
 		"bgp-role-otc-withdraw-frr",
 		"bgp-route-server-frr",
+		"bgp-route-server-replacement-frr",
 		"bgp-self-nexthop-withheld-frr",
 		"bgp-wellknown-noexport-frr",
 		"isis-p2p-frr",
@@ -304,6 +305,7 @@ func TestRFCInteropCheckerBindings(t *testing.T) {
 		"bgp-rfc7999-blackhole-frr":             checkRFC7999Blackhole,
 		"bgp-role-otc-withdraw-frr":             checkOTCWithdrawal,
 		"bgp-route-server-frr":                  checkRouteServerASPath,
+		"bgp-route-server-replacement-frr":      checkRouteServerReplacement,
 		"bgp-self-nexthop-withheld-frr":         checkSelfNextHopWithheld,
 		"bgp-wellknown-noexport-frr":            checkNoExportBoundary,
 		"isis-p2p-frr":                          checkISISDynamicHostname,
@@ -560,6 +562,28 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		if _, _, ok := zeLastNotificationReceived(`{"peers":{"fd00:1e::3":{"last-notification":{"direction":"received"}}}}`, "fd00:1e::3"); ok {
 			t.Fatal("a NOTIFICATION with no code read as code 0")
+		}
+	})
+
+	// The ADD-PATH reading of bgp-route-server-replacement-frr: both polarities,
+	// and the two answers that carry no capability block at all, which must not
+	// pass as "no ADD-PATH".
+	t.Run("bgp-route-server-replacement-frr", func(t *testing.T) {
+		const plain = "ze_peer    BGP  ---  up  12:00:00  Established\n" +
+			"  BGP state:          Established\n" +
+			"    Neighbor capabilities\n      Multiprotocol\n        AF announced: ipv4\n      4-octet AS numbers\n"
+		if err := requireBIRDNoAddPath(plain); err != nil {
+			t.Fatalf("a session with no ADD-PATH capability was refused: %v", err)
+		}
+		withAddPath := plain + "      ADD-PATH\n        RX: ipv4\n        TX:\n"
+		if requireBIRDNoAddPath(withAddPath) == nil {
+			t.Fatal("a neighbor advertising ADD-PATH passed as a session without it")
+		}
+		if requireBIRDNoAddPath("") == nil {
+			t.Fatal("an empty BIRD answer passed as a session without ADD-PATH")
+		}
+		if requireBIRDNoAddPath("ze_peer    BGP  ---  start  12:00:00  Active\n") == nil {
+			t.Fatal("a session that is not Established passed as one without ADD-PATH")
 		}
 	})
 
