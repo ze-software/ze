@@ -577,6 +577,17 @@ const (
 		"to install it; no traffic is protected until a Child SA exists, and the peer may ask again " +
 		"with CREATE_CHILD_SA; the error names what the kernel refused: make the esp-group " +
 		"algorithms ones this kernel supports, then reload the configuration: ze signal reload"
+	childRefusedFixResponderCPRequired = "this node refused the peer's Child SA with FAILED_CP_REQUIRED " +
+		"because the peer is bound to a virtual-ip-pool and asked for no inner address in IKE_AUTH " +
+		"(RFC 7296 Section 2.19); no traffic is protected until it reconnects asking for one: " +
+		"configure the client to request a virtual IP (strongSwan: vips = 0.0.0.0), or delete " +
+		"virtual-ip-pool from this peer, then reload the configuration: ze signal reload"
+	childRefusedFixResponderNoAddress = "this node refused the peer's Child SA with " +
+		"INTERNAL_ADDRESS_FAILURE because its virtual-ip-pool could not lease an address of any " +
+		"family the peer asked for: the range is full, the pool serves neither requested family, " +
+		"or the pool is not built; no traffic is protected until it reconnects: widen range or " +
+		"range6 of the pool under vpn ipsec remote-access, or add the requested family, then " +
+		"reload the configuration: ze signal reload"
 )
 
 // childRefusedResponderFix is the next step for a Child SA this node refused to create as
@@ -592,6 +603,10 @@ func childRefusedResponderFix(err error) string {
 		return childRefusedFixResponderAddress
 	case errors.Is(err, errChildInstall):
 		return childRefusedFixResponderInstall
+	case errors.Is(err, errCPRequired):
+		return childRefusedFixResponderCPRequired
+	case errors.Is(err, errNoAddressAssigned):
+		return childRefusedFixResponderNoAddress
 	default:
 		return childRefusedFixResponder
 	}

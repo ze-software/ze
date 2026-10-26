@@ -51,8 +51,8 @@
     "claim-sha": "0d96e916bcea5ee1",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors",
-    "producer-sha": "9873af9d7238100f",
-    "break": "line 665: \"closedSubset(narrowed, answerPairsMax)\" -\u003e \"narrowed\""
+    "producer-sha": "a59e875b785cc758",
+    "break": "line 671: \"closedSubset(narrowed, answerPairsMax)\" -\u003e \"narrowed\""
   },
   {
     "rid": "RFC7296-2.9-1",
@@ -62,8 +62,8 @@
     "claim-sha": "c5efd6bca91bc894",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors",
-    "producer-sha": "9873af9d7238100f",
-    "break": "line 665: \"answerPairsMax)\" -\u003e \"1)\""
+    "producer-sha": "a59e875b785cc758",
+    "break": "line 671: \"answerPairsMax)\" -\u003e \"1)\""
   },
   {
     "rid": "RFC7296-2.9-1",

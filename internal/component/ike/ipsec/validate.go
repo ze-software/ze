@@ -579,9 +579,16 @@ func prefixesOverlap(a, b string) bool {
 func (c *IPsecConfig) ValidateVirtualIPPoolBindings() error {
 	for _, name := range slices.Sorted(maps.Keys(c.Peers)) {
 		peer := c.Peers[name]
-		poolName := peer.VirtualIPPoolName()
-		if poolName == "" {
+		if peer.VirtualIP == nil {
 			continue
+		}
+		poolName := peer.VirtualIP.Pool
+		// An empty name would read as no binding at all (VirtualIPPoolName), so the peer
+		// would run unbound while its configuration says it is bound.
+		if poolName == "" {
+			return fmt.Errorf("ipsec peer %q: virtual-ip-pool is empty, so it names no pool and the peer "+
+				"would lease no address; set it to a pool declared under `vpn ipsec remote-access pool "+
+				"<name>`, or delete `virtual-ip-pool` to leave the peer unbound", name)
 		}
 		var pool VirtualIPPool
 		found := false

@@ -57,8 +57,20 @@ func observedRemoteAddress(sa *SA) net.IP {
 // (ts_narrow.go), which keeps the single-address filter and the substitution deciding
 // together: a substituted host address that the filter then dropped would answer
 // TS_UNACCEPTABLE to a proposal the substitution had just made acceptable.
+//
+// A pool-bound peer's request is the one decided before narrowing:
+// decideResponderTransportMode declines it unconditionally, because the lease is a
+// tunnel-mode inner address, and RFC 7296 Section 1.3.1 says "If the responder declines
+// the request, the Child SA will be established in tunnel mode." Its request is therefore
+// not in play, so the single-address filter does not refuse the tunnel answer.
 func transportSelectorsInPlay(sa *SA) bool {
-	return sa.UseTransportMode || sa.PeerRequestedTransport
+	if sa.UseTransportMode {
+		return true
+	}
+	if sa.PeerCfg.VirtualIPPoolName() != "" {
+		return false
+	}
+	return sa.PeerRequestedTransport
 }
 
 // storeOriginalSelectorAddresses records the traffic-selector addresses as they arrived,

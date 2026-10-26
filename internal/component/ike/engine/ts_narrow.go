@@ -645,7 +645,10 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// RFC 7296 Section 2.23.1 MUST: "For transport mode, it MUST use exactly one IP
 	// address in the TSi and TSr payloads." A selector wider than a host cannot satisfy
 	// it, so a transport-mode exchange refuses rather than narrows silently.
-	if sa.UseTransportMode || sa.PeerRequestedTransport {
+	// It is gated on transportSelectorsInPlay (ts_nat_substitute.go), the predicate the
+	// substitution above uses, so a pool-bound peer whose request was declined is
+	// answered in tunnel mode instead of being refused here.
+	if transportSelectorsInPlay(sa) {
 		narrowed = keepSingleAddress(narrowed)
 		if len(narrowed) == 0 {
 			return errTSUnacceptable
