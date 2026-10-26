@@ -17,6 +17,7 @@ import (
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "tagged-scope",
+		Does:    "judge",
 		Summary: "judge a proposed file against its RFC-tagged tests",
 		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
 			"and return the carrier predicate, widened edit scope, and owner-approval decision",
@@ -103,7 +104,7 @@ var actions = leaction.New(area,
 		"stays stale: that one needs /ze-rfc-audit <rfc>, then `./le rfc update`",
 		Writes: true,
 		Answer: resealAnswer},
-	leaction.Action{Verb: "evidence-split", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
+	leaction.Action{Verb: "evidence-split", Does: "migrate", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
 		"rfc/discrimination/<stem>.json and rfc/audit/<stem>.json, into one file per requirement under " +
 		"<dir>/<stem>/<requirement-id>.json, so two sessions working different requirements never edit " +
 		"one file. Every loader refuses a per-stem file and names this command. It writes only the files " +
@@ -119,7 +120,7 @@ var actions = leaction.New(area,
 				Requirement: leaction.Optional},
 		},
 		AnswerArgs: evidenceSplitAnswer},
-	leaction.Action{Verb: "audit-stamp", Summary: "add newly judged verdicts to an RFC audit file", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
+	leaction.Action{Verb: "audit-stamp", Does: "record", Summary: "add newly judged verdicts to an RFC audit file", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
 		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
 		"pending file OUTSIDE rfc/audit/, an object of rfc and requirements keyed by id, because an unstamped verdict " +
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
@@ -188,7 +189,7 @@ var actions = leaction.New(area,
 		"be absent from the render and its file removed as an orphan",
 		Writes: true,
 		Answer: indexUpdateAnswer},
-	leaction.Action{Verb: "quote-backfill", Summary: "rewrite an RFC's rows to quote its own sentences", Why: "rewrite the requirement rows of one RFC whose text can be the RFC's own " +
+	leaction.Action{Verb: "quote-backfill", Does: "update", Summary: "rewrite an RFC's rows to quote its own sentences", Why: "rewrite the requirement rows of one RFC whose text can be the RFC's own " +
 		"sentence mechanically: a row mapped to exactly one site that is not a lead-in, and whose " +
 		"paraphrase shares enough with the sentence. It keeps id, level, section and markers. " +
 		"Every other row is listed for a human to quote. Without apply it writes nothing",
