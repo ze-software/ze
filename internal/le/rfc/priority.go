@@ -68,6 +68,13 @@ func loadPriorityCorpus(tree string) (*priorityCorpus, error) {
 	if err != nil {
 		return nil, err
 	}
+	return priorityCorpusOf(&in)
+}
+
+// priorityCorpusOf assembles the corpus from an input already rendered, so a
+// caller that holds one (the site's ledger) reads the same figures without a
+// second pass over the tree.
+func priorityCorpusOf(in *RenderInput) (*priorityCorpus, error) {
 	signed, _, err := evaluateExtractions(in.Deriver, in.Requirements)
 	if err != nil {
 		return nil, err

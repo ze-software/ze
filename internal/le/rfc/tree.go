@@ -40,14 +40,16 @@ type TreeRow struct {
 	Profiles []string `json:"profiles"`
 	// Path is why the node is in the named profile, empty without one.
 	Path string `json:"path"`
-
-	figures StemFigures
 }
 
 // TreeReport is the answer of `./le rfc tree`.
 type TreeReport struct {
 	// Profile is the profile the tree is limited to, empty for the corpus.
 	Profile string `json:"profile"`
+	// Title is the profile file's Title, and Heading an aggregate's Heading
+	// (empty for a use case); both are empty for the whole corpus.
+	Title   string `json:"title"`
+	Heading string `json:"heading"`
 	Kind    string `json:"kind"`
 	Release bool   `json:"release"`
 	// Rollup sums the profile's members; nil for the whole corpus, which is
@@ -55,6 +57,10 @@ type TreeReport struct {
 	Rollup *ScopeRollup `json:"rollup"`
 	Rows   []*TreeRow   `json:"rows"`
 }
+
+// IsAggregate answers whether the report is a technology aggregate's, whose
+// members are the RFCs naming it rather than a closure reached over edges.
+func (r *TreeReport) IsAggregate() bool { return r.Kind == profileKindTechnology }
 
 // treeReport answers the tree of one checkout, limited to profile when it is
 // not empty.
@@ -91,6 +97,7 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 		}
 		named = &scope
 		report.Profile, report.Kind, report.Release = scope.name, scope.kind, scope.release
+		report.Title, report.Heading = c.profileTitles(profile)
 		rollup := c.rollupOfScopes([]profileScope{scope})
 		report.Rollup = &rollup
 		stems = sortedKeysOf(scope.reached)
@@ -125,11 +132,23 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 			absent := absentFigures(number)
 			report.Rows = append(report.Rows, &TreeRow{Stem: absent.Stem, Absent: true,
 				Component: []string{}, BuildsOn: []string{}, UpdatedBy: []string{},
-				Profiles: []string{named.name}, Path: named.name + ": listed under Absent",
-				figures: absent})
+				Profiles: []string{named.name}, Path: named.name + ": listed under Absent"})
 		}
 	}
 	return report, nil
+}
+
+// profileTitles answers a profile's Title and, for an aggregate, its Heading.
+// MUST be called with a name scope accepted.
+func (c *priorityCorpus) profileTitles(name string) (title, heading string) {
+	if useCase, held := c.profiles.UseCases[name]; held {
+		return useCase.Title, ""
+	}
+	aggregate, held := c.profiles.Aggregates[name]
+	if !held {
+		panic("BUG: priorityCorpus.profileTitles asked for " + name + ", which scope did not accept")
+	}
+	return aggregate.Title, aggregate.Heading
 }
 
 // treeRow answers one node's row, without its path.
@@ -141,7 +160,7 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 		Summary: summarized, Walked: figures.Walked,
 		MandatoryProven: figures.Mandatory.Proven, MandatoryTotal: figures.Mandatory.Total,
 		OptionalProven: figures.Optional.Proven, OptionalTotal: figures.Optional.Total,
-		Profiles: []string{}, figures: figures}
+		Profiles: []string{}}
 	if members, held := c.graph.Component(stem); held {
 		for _, member := range members {
 			if member != stem {
@@ -157,12 +176,17 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 	return row
 }
 
-// cells answers the row's two figure cells in the state the node is in.
-func (r *TreeRow) cells() (mandatory, optional string) {
+// Cells answers the row's two figure cells in the state the node is in. It
+// reads only the exported fields, so a row read back from JSON (the site's
+// published ledger) renders the cells `./le rfc tree` prints.
+func (r *TreeRow) Cells() (mandatory, optional string) {
 	if !r.Summary && !r.Absent {
 		return noSummaryCell, noSummaryCell
 	}
-	return r.figures.mandatoryCell(), r.figures.optionalCell()
+	figures := StemFigures{Stem: r.Stem, Absent: r.Absent, Walked: r.Walked,
+		Mandatory: Figure{Proven: r.MandatoryProven, Total: r.MandatoryTotal},
+		Optional:  Figure{Proven: r.OptionalProven, Total: r.OptionalTotal}}
+	return figures.mandatoryCell(), figures.optionalCell()
 }
 
 // Text renders the tree, one line per node, for a reader at a terminal.
@@ -183,7 +207,7 @@ func (r *TreeReport) Text() string {
 	}
 	for index := range r.Rows {
 		row := r.Rows[index]
-		mandatory, optional := row.cells()
+		mandatory, optional := row.Cells()
 		tb.Str("  ").Str(levelCell(row.Level)).Byte(' ').Str(row.Stem)
 		if len(row.Component) != 0 {
 			tb.Str(" (cycle with ").Str(strings.Join(row.Component, ", ")).Byte(')')

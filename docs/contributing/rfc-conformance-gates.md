@@ -1091,8 +1091,18 @@ through `ProfileClosures` (parsed inputs: `ParseProfiles` over the profile
 files and `graph.Build` over `graph.Parse` of each text) or
 `LoadProfileClosures` (a checkout), and maps requirement ids to stems through
 `RequirementStems` or `LoadRequirementStems`, which read only the summaries.
-<!-- source: internal/le/rfc/priority.go -- closure, scope, loadPriorityCorpus -->
-<!-- source: internal/le/rfc/tree.go -- tree, treeRow -->
+
+The website publishes the same trees. `PriorityOf` answers the whole-corpus
+tree and one tree per profile file over a `RenderInput` the caller already
+holds, and the site's requirement ledger carries them: its `graph` holds every
+node with its level, cycle and figures and every edge with its kind, and its
+`profiles` one tree per profile. The `rfc-profiles` producer renders one page
+per profile from them (`docs/contributing/gh-pages.md`, "Quality pages"). A row
+read back from that JSON renders its cells through `TreeRow.Cells`, the cells
+`./le rfc tree` prints.
+<!-- source: internal/le/rfc/priority.go -- closure, scope, loadPriorityCorpus, priorityCorpusOf -->
+<!-- source: internal/le/rfc/tree.go -- tree, treeRow, Cells -->
+<!-- source: internal/le/rfc/priority_export.go -- PriorityOf -->
 <!-- source: internal/le/rfc/next.go -- next, gapCandidates -->
 <!-- source: internal/le/rfc/priority_export.go -- ProfileClosures, RequirementStems -->
 <!-- source: internal/le/rfc/profile.go -- ParseProfiles -->

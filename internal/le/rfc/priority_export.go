@@ -33,6 +33,41 @@ func ProfileClosures(g *graph.Graph, profiles Profiles) map[string][]string {
 	return out
 }
 
+// PriorityAnswer is the priority tree of one rendered input: the whole
+// corpus, and every profile limited to its own members.
+type PriorityAnswer struct {
+	// Corpus is the unlimited tree: every graph node and every summary, the
+	// nodes a release profile reaches first.
+	Corpus *TreeReport
+	// Profiles is one tree per profile file: the use cases by name, then the
+	// technology aggregates by name.
+	Profiles []*TreeReport
+}
+
+// PriorityOf answers the trees `./le rfc tree` prints, over an input the
+// caller already rendered, so the site publishes exactly what the command
+// counts and pays for no second reading of the tree.
+func PriorityOf(in *RenderInput) (PriorityAnswer, error) {
+	corpus, err := priorityCorpusOf(in)
+	if err != nil {
+		return PriorityAnswer{}, err
+	}
+	whole, err := corpus.tree("")
+	if err != nil {
+		return PriorityAnswer{}, err
+	}
+	answer := PriorityAnswer{Corpus: whole}
+	names := append(sortedKeysOf(corpus.profiles.UseCases), sortedKeysOf(corpus.profiles.Aggregates)...)
+	for _, name := range names {
+		report, err := corpus.tree(name)
+		if err != nil {
+			return PriorityAnswer{}, err
+		}
+		answer.Profiles = append(answer.Profiles, report)
+	}
+	return answer, nil
+}
+
 // LoadProfileClosures answers ProfileClosures over a checkout. A profile that
 // does not parse is refused rather than dropped: a profile missing from the
 // answer would read as one whose closure holds nothing.

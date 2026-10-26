@@ -819,6 +819,8 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcMechanismHTML(snapshot)).
 		Str("\n</section>\n")
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
+	body.Str("<section><h2>").Str(rfcProfilesPointerHeading).Str("</h2>\n").
+		Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
 	body.Str("<section><h2>Enrolled RFCs</h2>\n").Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str("<section><h2>Summaries that are not enrolled</h2>\n").
 		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
@@ -2150,6 +2152,7 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
+	out.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcProfilesPointerMirror())
 	out.Str("\n## Enrolled RFCs\n\n")
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {

@@ -26,6 +26,27 @@ import (
 // (ai/rules/principles.md).
 type rfcLedger struct {
 	Stems []rfcLedgerStem `json:"stems"`
+	// Graph is the RFC dependency graph with both coverage figures per node,
+	// and Profiles one tree per profile file. Both are rfc.PriorityOf's
+	// answer, the trees `./le rfc tree` prints, so the profile pages count
+	// exactly what the command counts.
+	Graph    rfcLedgerGraph    `json:"graph"`
+	Profiles []*rfc.TreeReport `json:"profiles"`
+}
+
+// rfcLedgerGraph is the dependency graph: every node with its level, cycle
+// component and two figures, and every in-corpus edge with its kind.
+type rfcLedgerGraph struct {
+	Nodes []*rfc.TreeRow  `json:"nodes"`
+	Edges []rfcLedgerEdge `json:"edges"`
+}
+
+// rfcLedgerEdge is one in-corpus edge, its kind spelled as rfc/graph.tsv
+// spells it: builds-on, updates or obsoletes.
+type rfcLedgerEdge struct {
+	From string `json:"from"`
+	Kind string `json:"kind"`
+	To   string `json:"to"`
 }
 
 // rfcLedgerStem is one summary and everything the repository knows about it.
@@ -424,6 +445,18 @@ func requirementLedgerFrom(tree string, input rfc.RenderInput) (rfcLedger, error
 		}
 		ledger.Stems = append(ledger.Stems, rfcLedgerStemOf(&one))
 	}
+	priority, err := rfc.PriorityOf(&input)
+	if err != nil {
+		return rfcLedger{}, err
+	}
+	ledger.Graph.Nodes = priority.Corpus.Rows
+	edges := input.Graph.Edges()
+	ledger.Graph.Edges = make([]rfcLedgerEdge, 0, len(edges))
+	for _, edge := range edges {
+		ledger.Graph.Edges = append(ledger.Graph.Edges,
+			rfcLedgerEdge{From: edge.From, Kind: edge.Kind.String(), To: edge.To})
+	}
+	ledger.Profiles = priority.Profiles
 	return ledger, nil
 }
 

@@ -406,6 +406,23 @@ recorded audit verdicts, and `Check` for the verdict and the open issues. It
 writes `../gh-pages/data/rfc-compliance.json`, which is the same answer in
 machine-readable form and is linked from the page.
 
+`../gh-pages/quality/rfc-compliance/profiles/` is the priority tree in public:
+one page per file under `rfc/profiles/`, each use-case profile and each
+technology aggregate, and an index listing them with the release profiles
+first, then the other use cases, then the aggregates. A page carries both
+coverage figures of its rollup, the not-walked and absent counts, and its RFCs
+grouped by DAG level, roots first, each with a bar for the mandatory and the
+optional figure. An RFC that is not walked, or a text with no summary, keeps
+an empty dashed bar and says so in words; an absent RFC is a bar at 0%. A use
+case's rows also say why each RFC is in its closure. The `rfc-profiles`
+producer reads the `profiles` of the published requirement ledger, which
+`rfc.PriorityOf` fills, so a page counts what `./le rfc tree profile <name>`
+counts. It refuses a ledger with no profile, and it retires a page of a profile
+that no longer exists by the marker its pages carry, never by name. The
+compliance index links to it under "Coverage by profile", which makes the
+compliance index the all-RFCs view.
+<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages -->
+
 One page per RFC sits under that route, one for every summary in `rfc/short/`,
 190 of them today. The compliance page itself is the index over them: two link tables, one for the
 enrolled summaries and one for the summaries that are not enrolled, so no page
@@ -691,7 +708,10 @@ These figures come from the native RFC collector, not hand-maintained totals.
 
 The input is `../gh-pages/data/rfc-requirements.json`, derived once per build by
 `publishRFCLedger` before any producer runs, in the way the plugin registry and
-the command catalog already are. It is one reading of the checkout through
+the command catalog already are. Beside the per-stem entries it carries the
+dependency graph (`graph`: nodes with level, cycle and both figures, edges with
+their kind) and one priority tree per profile (`profiles`), from
+`rfc.PriorityOf` over the same render input. It is one reading of the checkout through
 `rfc.Collect` and `rfc.NewRenderInput`. It never calls `rfc.Check`, which is a
 second full pass that also type-checks every tagged package; the aggregate page
 pays for that once and publishes the verdict it answers.
