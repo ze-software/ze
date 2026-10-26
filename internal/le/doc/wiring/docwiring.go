@@ -42,6 +42,7 @@ const (
 var actions = leaction.New(name,
 	leaction.Action{
 		Verb:    checkVerb,
+		Default: true,
 		Summary: "run every check the changed files select",
 		Why: "run every wiring, documentation, command and inventory check the changed files select." +
 			" Naming no file reads the changed set from git, which is what the gate runs",
@@ -87,9 +88,9 @@ type checker struct {
 // Answer is the `le doc wiring` command.
 //
 // A bare command line runs the router, and so does a line opening with one of
-// the router's keywords. Both are the `check` action, so the verb is supplied
-// here and ONE parser reads the rest of the line. The bare spelling stays the
-// command a reader copies: `internal/le/verify/engine` runs the structural
+// the router's keywords. Both are the `check` action, so the table supplies
+// the verb (leaction.Action.Default) and ONE parser reads the rest of the
+// line. The bare spelling stays the command a reader copies: `internal/le/verify/engine` runs the structural
 // stage as `le doc wiring`, and every failure group prints that rerun line.
 //
 // The table decides which line is which. A word the area declares is a verb.
@@ -98,14 +99,7 @@ type checker struct {
 // unreachable. The line grew a second `check`, and the keyword parser refused
 // the published verb.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-
-	line := make([]string, 0, len(args)+1)
-	line = append(line, checkVerb)
-	line = append(line, args...)
-	return actions.Answer(line)
+	return actions.Answer(args)
 }
 
 // answerRouter runs the router over the files the invocation named.

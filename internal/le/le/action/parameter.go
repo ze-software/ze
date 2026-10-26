@@ -8,6 +8,7 @@ package leaction
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -264,13 +265,7 @@ func valueForm(parameter Parameter) string {
 // refused here: Missing and Accepts read a partial line through this function,
 // and parseLine adds that refusal for a line that is about to run.
 func parseArguments(command string, parameters []Parameter, args []string) (Arguments, error) {
-	declared := make(map[string]Parameter, len(parameters))
-	for _, parameter := range parameters {
-		if !parameter.positional() {
-			declared[parameter.Keyword] = parameter
-		}
-	}
-
+	declared := declaredKeywords(parameters)
 	parsed := make(Arguments, len(parameters))
 	index, err := parsePositional(command, parameters, declared, args, parsed)
 	if err != nil {
@@ -278,13 +273,9 @@ func parseArguments(command string, parameters []Parameter, args []string) (Argu
 	}
 	for index < len(args) {
 		keyword := args[index]
-		parameter, ok := declared[keyword]
-		if !ok {
-			return nil, fmt.Errorf("%s takes no argument keyword %q; use one of: %s",
-				command, keyword, spellings(command, parameters))
-		}
-		if parameter.Retired != "" {
-			return nil, fmt.Errorf("%s no longer takes %q: use %s", command, keyword, parameter.Retired)
+		parameter, err := keywordOf(command, parameters, declared, keyword)
+		if err != nil {
+			return nil, err
 		}
 		// A keyword given twice is a mistake, unless the parameter declared that
 		// it may be given again and that every value it introduces is kept.
@@ -326,6 +317,60 @@ func parseArguments(command string, parameters []Parameter, args []string) (Argu
 		index += 1 + len(slots)
 	}
 	return parsed, nil
+}
+
+// OpensWith reports whether verb's own parser takes word as the first word
+// after the verb, the positional value or a keyword, without reading what
+// follows it, which a cited line may leave out. It is the first step of
+// parseArguments, so a line it holds is one dispatch reads past its first
+// word. A forwarding action takes any word, because the word is its
+// program's, and a verb this listing does not hold is refused.
+func (l List) OpensWith(verb, word string) error {
+	for _, row := range l.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		if row.Forwards {
+			return nil
+		}
+		command := spelled("le", l.Area, verb)
+		declared := declaredKeywords(row.Parameters)
+		taken, err := parsePositional(command, row.Parameters, declared, []string{word}, make(Arguments, 1))
+		if err != nil {
+			return err
+		}
+		if taken == 1 {
+			return nil
+		}
+		_, err = keywordOf(command, row.Parameters, declared, word)
+		return err
+	}
+	return errors.New("le " + l.Area + " holds no action " + verb)
+}
+
+// declaredKeywords answers the keyword parameters of one action by keyword.
+func declaredKeywords(parameters []Parameter) map[string]Parameter {
+	declared := make(map[string]Parameter, len(parameters))
+	for _, parameter := range parameters {
+		if !parameter.positional() {
+			declared[parameter.Keyword] = parameter
+		}
+	}
+	return declared
+}
+
+// keywordOf answers the parameter keyword names, refusing a word the action
+// does not declare and a keyword it retired, naming the successor.
+func keywordOf(command string, parameters []Parameter, declared map[string]Parameter, keyword string) (Parameter, error) {
+	parameter, ok := declared[keyword]
+	if !ok {
+		return Parameter{}, fmt.Errorf("%s takes no argument keyword %q; use one of: %s",
+			command, keyword, spellings(command, parameters))
+	}
+	if parameter.Retired != "" {
+		return Parameter{}, fmt.Errorf("%s no longer takes %q: use %s", command, keyword, parameter.Retired)
+	}
+	return parameter, nil
 }
 
 // parsePositional reads the action's positional value from the first slot,

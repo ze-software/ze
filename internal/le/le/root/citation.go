@@ -22,13 +22,15 @@ import (
 var ErrCitationRetired = errors.New("the line names a retired spelling")
 
 // JudgeCitation answers whether le holds what a cited line names: the area,
-// or the namespace, and the first word after an area that has verbs. words
+// or the namespace, and the first word after the area, read from the verb the
+// way dispatch reads it (leaction.List.AtVerb). words
 // are the line's words after the program, its launcher words included; a word
 // that is not a command word (a placeholder, a value) ends the line before
 // it reaches here. It answers nil when dispatch would reach a command, an
 // area listing, a namespace page or a help page, and an error naming the word
-// le does not hold otherwise. A keyword or a value after the verb is the
-// action's grammar and is not judged here.
+// le does not hold otherwise. A keyword or a value after a typed verb is the
+// action's grammar and is not judged here; a first word whose verb the table
+// supplies is that grammar's first word, and the action's parser judges it.
 //
 // It reads the shared registry, so it MUST be called after every area's init
 // has run.
@@ -114,10 +116,14 @@ func judgeNamespaceWords(token string, rest []string) error {
 
 // judgeActionWord judges the first word after a resolved area against the
 // table the area registered. No word asks for the listing, a help word asks
-// for the area's page, and an area that passes its words to another program,
-// or whose bare line is its sole action (Verbless), reads that word as its
-// grammar. Every area registers a table (requireEveryAreaHasATable), so one
-// that did not is said rather than read as held.
+// for the area's page, and an area that passes its words to another program
+// reads that word as its grammar. The line is then read from its verb as
+// Area.Answer reads it (leaction.List.AtVerb): where the table supplies the
+// verb, a verbless area's or a default action's (leaction.Action.Default), the
+// word is that action's first word and its own parser judges it
+// (leaction.List.OpensWith); otherwise the word is a verb the table holds.
+// Every area registers a table (requireEveryAreaHasATable), so one that did
+// not is said rather than read as held.
 func judgeActionWord(name string, rest []string) error {
 	if len(rest) == 0 {
 		return nil
@@ -134,12 +140,13 @@ func judgeActionWord(name string, rest []string) error {
 	if list.PassesWords {
 		return nil
 	}
-	if list.Verbless() {
-		return nil
+	line := list.AtVerb(rest)
+	if len(line) > len(rest) {
+		return list.OpensWith(line[0], rest[0])
 	}
 	verbs := make([]string, 0, len(list.Actions))
 	for _, row := range list.Actions {
-		if row.Verb == rest[0] {
+		if row.Verb == line[0] {
 			return nil
 		}
 		verbs = append(verbs, row.Verb)

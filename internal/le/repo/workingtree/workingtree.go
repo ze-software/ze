@@ -158,6 +158,7 @@ const reportVerb = "report"
 // tool that guesses at a lone positional is where that rule stops holding.
 var actions = leaction.New(name, leaction.Action{
 	Verb:    reportVerb,
+	Default: true,
 	Summary: "report how wide the uncommitted tree is",
 	Why:     "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
 	Parameters: []leaction.Parameter{
@@ -176,14 +177,12 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le repo working-tree` command. A line that does not open with
 // the verb runs the report, as callers have always typed it (D-P3-bare in
-// spec-le-cli-usability), so the verb is supplied here and the table reads the
-// rest of the line: `le repo working-tree max-areas 3` is `report max-areas 3`.
-// A refusal the table's parser makes answers 2 (D-P3-stray).
+// spec-le-cli-usability), so the table supplies the verb
+// (leaction.Action.Default) and reads the rest of the line:
+// `le repo working-tree max-areas 3` is `report max-areas 3`. A refusal the
+// table's parser makes answers 2 (D-P3-stray).
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{reportVerb}, args...))
+	return actions.Answer(args)
 }
 
 // answerReport groups the uncommitted paths of the checkout and judges them

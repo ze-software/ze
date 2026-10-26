@@ -68,6 +68,7 @@ const (
 // usage, the help pages and the parse read one grammar (internal/le/le/action).
 var actions = leaction.New("weekly", leaction.Action{
 	Verb:    publishVerb,
+	Default: true,
 	Summary: "publish the weekly update to Discord",
 	Why: "publish the weekly update to Discord; without confirm it answers what would be published" +
 		" and posts nothing",
@@ -101,17 +102,15 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le weekly` command. A line that does not open with the verb
-// is the update, as callers have always typed it (D-P3-bare in
-// spec-le-cli-usability), so the verb is supplied here and the table reads the
-// rest of the line: bare `le weekly` still publishes nothing and answers the
-// plan. A refusal the table's parser makes answers 2 (D-P3-stray); one the
-// body makes keeps the 1 it answered before.
+// Answer is the `le weekly` command. A line that does not open with the verb is
+// the update, as callers have always typed it (D-P3-bare in
+// spec-le-cli-usability), so the table supplies the verb
+// (leaction.Action.Default) and reads the rest of the line: bare `le weekly`
+// still publishes nothing and answers the plan. A refusal the table's parser
+// makes answers 2 (D-P3-stray); one the body makes keeps the 1 it answered
+// before.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{publishVerb}, args...))
+	return actions.Answer(args)
 }
 
 // answerUpdate publishes, or plans, the update one parsed line names.

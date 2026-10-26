@@ -43,6 +43,15 @@ type Action struct {
 	// declares the vocabulary verb it performs in Does, and every surface
 	// renders it with no verb word (List.Verbless).
 	Verb string
+	// Default says a line that does not open with one of the area's verbs is
+	// this action's, the bare line included: `le weekly source <file>` is
+	// `le weekly publish source <file>`, as callers have always typed it
+	// (D-P3-bare of spec-le-cli-usability). The table supplies the verb
+	// (List.AtVerb), so dispatch, help, the prompt and the citation judge read
+	// one resolution and no area compares a word against its verbs by hand. At
+	// most one action of an area declares it, and a verbless action needs it
+	// not, because its area word already names it.
+	Default bool
 	// Summary is what the action does in one line of at most 60 characters:
 	// the menu's right column, the area page's listing, completion and the
 	// action page's heading show it.
@@ -107,8 +116,16 @@ func New(name string, actions ...Action) Area {
 	area := Area{name: name, actions: actions}
 
 	seen := make(map[string]bool, len(actions))
+	defaults := 0
 	for _, act := range actions {
+		if act.Default {
+			defaults++
+		}
 		switch {
+		case defaults > 1:
+			panic("BUG: leaction.New: two actions of one area declare Default, so a line opening with neither verb has two owners")
+		case act.Default && act.Verb == "":
+			panic("BUG: leaction.New: a verbless action declares Default, which its area word already gives it")
 		case act.Verb == "" && len(actions) != 1:
 			panic("BUG: leaction.New: only an area's sole action may leave its Verb empty; see the init frame above for the area")
 		case act.Verb == "" && act.Does == "":
@@ -159,18 +176,11 @@ func (a Area) verbOf(act Action) string {
 	return act.Verb
 }
 
-// verbless reports whether the area word alone names this area's sole action
-// (Action.Verb).
-func (a Area) verbless() bool {
-	return len(a.actions) == 1 && a.actions[0].Verb == ""
-}
-
 // Holds reports whether this area declares the named action.
 //
-// An area whose bare command line means one of its own verbs asks this before
-// it supplies that verb. The word a developer typed is then read by the table
-// rather than by a second parser, and `le doc wiring check` and `le doc wiring`
-// are one action.
+// A caller outside the table asks it of a verb the area must hold. A line
+// that names no verb is resolved by the table itself (List.AtVerb), so no area
+// compares a typed word against its verbs to supply one.
 func (a Area) Holds(verb string) bool {
 	for _, act := range a.actions {
 		if a.verbOf(act) == verb {
@@ -196,7 +206,10 @@ func (a Area) TakesArguments(name string) bool {
 
 // Row is one row of the bare command's answer.
 type Row struct {
-	Verb    string `json:"verb"`
+	Verb string `json:"verb"`
+	// Default publishes that a line not opening with a verb is this action's
+	// (Action.Default).
+	Default bool   `json:"default,omitempty"`
 	Writes  bool   `json:"writes"`
 	Summary string `json:"summary"`
 	Why     string `json:"why"`
@@ -278,14 +291,46 @@ func (l List) Verbless() bool {
 
 // AtVerb answers words, the line after the area's name, as the line that
 // begins at the action's verb, which is what every method taking a verb and
-// its words reads. A verbless listing's line begins at the empty verb, so the
-// typed words are all the action's own; any other listing's line is words as
-// typed.
+// its words reads. It is the one resolution of that line: Area.Answer runs
+// it, and help, the prompt and the citation judge read it, so none of them can
+// hold a line the others refuse. A verbless listing's line begins at the empty
+// verb, so the typed words are all the action's own. A listing with a default
+// action (Action.Default) begins a line that does not open with one of its
+// verbs, the empty line included, at that action's verb. Any other listing's
+// line is words as typed.
 func (l List) AtVerb(words []string) []string {
-	if !l.Verbless() {
+	if l.Verbless() {
+		return append([]string{""}, words...)
+	}
+	verb, defaulted := l.defaultVerb()
+	if !defaulted {
 		return words
 	}
-	return append([]string{""}, words...)
+	if len(words) != 0 && l.holds(words[0]) {
+		return words
+	}
+	return append([]string{verb}, words...)
+}
+
+// defaultVerb answers the verb of the listing's default action, and false
+// when it declares none (Action.Default).
+func (l List) defaultVerb() (string, bool) {
+	for _, row := range l.Actions {
+		if row.Default {
+			return row.Verb, true
+		}
+	}
+	return "", false
+}
+
+// holds reports whether the listing declares verb.
+func (l List) holds(verb string) bool {
+	for _, row := range l.Actions {
+		if row.Verb == verb {
+			return true
+		}
+	}
+	return false
 }
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -294,7 +339,7 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: act.Verb, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Does: act.Does, Frozen: act.Frozen,
+			Verb: act.Verb, Default: act.Default, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Does: act.Does, Frozen: act.Frozen,
 			Alone: act.Alone, WholeTree: act.WholeTree,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
@@ -535,16 +580,18 @@ func spelled(program, area, verb string) string {
 // Answer is the area's command. The action and each parameter are closed
 // keywords. A free-form value is consumed only after its parameter names it.
 //
-// A verbless area's line is its sole action's whole grammar, the bare line
-// included, so it runs that action; a lone help word still answers the
-// listing, which renders as that action's page (List.Page).
+// The line is read from its verb on (List.AtVerb): a verbless area's line is
+// its sole action's whole grammar, and a line that does not open with a verb
+// is the default action's (Action.Default), the bare line included in both,
+// so it runs that action. A lone help word still answers the listing, which
+// renders a verbless area as its action's page (List.Page). Without either, a
+// bare line answers the listing.
 func (a Area) Answer(args []string) (any, int) {
 	if len(args) == 1 && IsHelpArg(args[0]) {
 		return a.Actions(), 0
 	}
-	if a.verbless() {
-		args = append([]string{""}, args...)
-	} else if len(args) == 0 {
+	args = a.Actions().AtVerb(args)
+	if len(args) == 0 {
 		return a.Actions(), 0
 	}
 

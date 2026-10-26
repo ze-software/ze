@@ -41,19 +41,16 @@ var revEntry = env.MustRegister(env.EnvEntry{
 // Answer implements the `le repo bootstraps` command.
 //
 // The three codes have separate meanings, as they did in the script. Code 0
-// means le works for the commit. Code 1 means it does not work. Code 2 means the
-// run failed to judge the commit.
+// means le works for the commit. Code 1 means it does not work. Code 2 means
+// the run failed to judge the commit.
 //
 // A bare line runs the gate, as hooks and verify stages have always typed it
 // (D-P3-bare in plan/post-release/engineering/spec-le-cli-usability.md), so the
-// verb is supplied here and the table reads the rest of the line. A word the
-// area declares travels as it stands, so `le repo bootstraps check` is the same
-// gate.
+// table supplies the verb (leaction.Action.Default) and reads the rest of the
+// line. A word the area declares travels as it stands, so `le repo bootstraps
+// check` is the same gate.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{checkVerb}, args...))
+	return actions.Answer(args)
 }
 
 // checkVerb is the one action: the gate itself.
@@ -63,6 +60,7 @@ const checkVerb = "check"
 // commit it judges comes from ze.le.tracked.rev.
 var actions = leaction.New(area, leaction.Action{
 	Verb:    checkVerb,
+	Default: true,
 	Summary: "check le builds from what git holds",
 	Why:     "does le still work when built from what git holds, rather than from the working tree",
 	Answer:  answerCheck,

@@ -450,6 +450,7 @@ const reportVerb = "report"
 // pipe operator (ai/rules/cli.md).
 var actions = leaction.New("repo inventory", leaction.Action{
 	Verb:    reportVerb,
+	Default: true,
 	Summary: "report what ze is made of",
 	Why:     "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
 	Answer:  answerReport,
@@ -464,15 +465,12 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le repo inventory` command. A bare line runs the report, as
 // callers have always typed it (D-P3-bare in
-// plan/post-release/engineering/spec-le-cli-usability.md), so the verb is
-// supplied here and the table reads the rest of the line. A word the area
-// declares travels as it stands, so `le repo inventory report` is the same
-// action.
+// plan/post-release/engineering/spec-le-cli-usability.md), so the table
+// supplies the verb (leaction.Action.Default) and the table reads the rest of
+// the line. A word the area declares travels as it stands, so `le repo
+// inventory report` is the same action.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{reportVerb}, args...))
+	return actions.Answer(args)
 }
 
 // answerReport collects the inventory of the checkout.

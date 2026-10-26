@@ -255,6 +255,7 @@ func phaseRows(agents []Agent, subContext int64) []PhaseRow {
 func table() leaction.Area {
 	return leaction.New(area, leaction.Action{
 		Verb:    reportVerb,
+		Default: true,
 		Summary: "report the tokens each session spent",
 		Why:     areaDescription,
 		Parameters: []leaction.Parameter{
@@ -287,11 +288,7 @@ func table() leaction.Area {
 // callers type its keywords after the area's name (`le ai tokens session
 // <prefix>`), so a line that does not open with the verb is the report's.
 func Answer(args []string) (any, int) {
-	actions := table()
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{reportVerb}, args...))
+	return table().Answer(args)
 }
 
 // answerReport runs the report one parsed line names.

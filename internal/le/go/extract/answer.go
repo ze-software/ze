@@ -39,6 +39,7 @@ const (
 // usage, the help pages and the parse read one grammar (internal/le/le/action).
 var actions = leaction.New("go extract", leaction.Action{
 	Verb:    moveVerb,
+	Default: true,
 	Summary: "move named declarations between Go files",
 	Why:     "move named declarations from one Go file to another, comments and formatting intact",
 	Writes:  true,
@@ -62,14 +63,12 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le go extract` command. A line that does not open with the
 // verb moves, as callers have always typed it (D-P3-bare in
-// spec-le-cli-usability), so the verb is supplied here and the table reads the
-// rest of the line. A refusal the table's parser makes answers 2
-// (D-P3-stray); one the body makes keeps the 1 it answered before.
+// spec-le-cli-usability), so the table supplies the verb
+// (leaction.Action.Default) and reads the rest of the line. A refusal the
+// table's parser makes answers 2 (D-P3-stray); one the body makes keeps the 1
+// it answered before.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && actions.Holds(args[0]) {
-		return actions.Answer(args)
-	}
-	return actions.Answer(append([]string{moveVerb}, args...))
+	return actions.Answer(args)
 }
 
 // answerMove moves the declarations one parsed line names.

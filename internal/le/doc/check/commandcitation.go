@@ -147,12 +147,6 @@ var citationExceptions = [...]citationException{
 		lines: []string{`"internal", "le", "interoplab", "l2tp", `},
 		why:   "the words are the segments of a path under internal/le, joined by filepath.Join, not an argv",
 	},
-	{
-		file:  "internal/le/repo/workingtree/workingtree.go",
-		lines: []string{"`le repo working-tree max-areas 3` is `report max-areas 3`"},
-		why: "the comment shows the bare line the area accepts (D-P3-bare): its Answer supplies the report verb, " +
-			"which the action table does not declare",
-	},
 }
 
 // citationSentenceWhy is the reason of an error string that opens with le as
@@ -335,6 +329,7 @@ func opensLine(before string) bool {
 // answers no words.
 func spanWords(text string, closer byte) []string {
 	span, _, closed := strings.Cut(text, string(closer))
+	// refuse-by-default: guards citationsOf -- an unclosed span is prose, and no words is how a line says it cites nothing
 	if !closed {
 		return nil
 	}

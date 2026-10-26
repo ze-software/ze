@@ -237,6 +237,14 @@ action word to be a verb, so it is judged as a name: it declares in `Does` the
 verb it performs (`rollback` declares `rollback`), or `undeclared-name` fails.
 `le help <area>` shows it as the bare area line.
 
+An area with verbs may declare one action `Default` instead: a line that does
+not open with one of the area's verbs, the bare line included, is that
+action's, so `./le weekly source <file>` runs
+`./le weekly publish source <file>`. The table supplies the verb, so
+dispatch, help, the missing-value prompt and the citation judge read the line
+the same way.
+<!-- source: internal/le/le/action/leaction.go -- AtVerb, Answer -->
+
 The `le ai hooks <name>` words that `.claude/settings.json` calls are frozen:
 the rules do not judge them, and a test holds the frozen set equal to the
 settings file's calls. Each verb has a kind: `report` reads and prints, exit 0

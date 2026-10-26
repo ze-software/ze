@@ -63,6 +63,10 @@ type session struct {
 	warmFn  func() error
 }
 
+// runDoes is the vocabulary verb a suite name and the gating run perform:
+// each starts a job whose exit is the job's (leaction.VerbRun).
+const runDoes = "run"
+
 // checkout answers the repository root this invocation runs against.
 func (s *session) checkout() (string, error) {
 	if s.found {
@@ -145,7 +149,7 @@ func (s *session) release() {
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
 		{Verb: listVerb, Summary: "list every functional suite and its budget", Why: "every suite and its budget", Alone: true, Answer: s.runList},
-		{Verb: gatingVerb, Does: "run", Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
+		{Verb: gatingVerb, Does: runDoes, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
 			Answer: s.runGating},
 		{Verb: previewVerb,
 			Summary: "list the suites a gating run would start",
@@ -210,7 +214,7 @@ func table(s *session) leaction.Area {
 	for _, suite := range Suites {
 		rows = append(rows, leaction.Action{
 			Verb:    suite.Name,
-			Does:    "run",
+			Does:    runDoes,
 			Summary: suite.Summary,
 			Why:     suite.Why,
 			Answer:  s.suiteRunner(suite),
@@ -218,7 +222,7 @@ func table(s *session) leaction.Area {
 	}
 	rows = append(rows, leaction.Action{
 		Verb:    "exabgp",
-		Does:    "run",
+		Does:    runDoes,
 		Summary: "run every ExaBGP compatibility case",
 		Why:     "build the isolated ze and le test subjects and run every ExaBGP compatibility case",
 		Answer:  s.runExaBGP,
