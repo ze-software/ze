@@ -355,6 +355,12 @@ Only `internal/le/rfc/partial_test.go` and `test/ui/le-rfc-partial-proof.ci`. Pr
 
 This changes evidence representation, not native SRv6 BGP EPE origination. That absence remains a public gap under the existing RFC9514 rows and the parent owner's scope. No guarantee of full semantic sentence partition can be obtained from substring matching, so partial never earns whole credit. Arbitrary per-tag clause composition is not part of this bounded contract.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `reference-checked-claim-unchecked.md` | 2026-10-26 | `ProvenShareOf` credits a `{single-polarity}` row from its annotation alone |
+
 ## Review Gate
 
 Reserved for the independent implementation review; no review has run in this design phase.
