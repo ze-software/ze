@@ -316,9 +316,7 @@ naming the commit and the log, and that commit is not built again. A build
 that does not start (not executable, the wrong platform, or failing the smoke
 test a hand-placed build gets before its first run) is moved aside to
 `bin/builds/.failed-<name>` and the call runs the next newest, saying so in one
-line. `./le rollback` moves the newest build aside the same way on demand (it
-takes no other word: `./le rollback newest` is refused with exit 2, naming
-`./le rollback`, and moves nothing), and
+line. `./le rollback` moves the newest build aside the same way on demand, and
 the inputs of a build moved aside are not rebuilt, except when it was the only
 build: the next call then finds no build and builds HEAD in the foreground,
 because some le must run. Nothing in this path
@@ -327,6 +325,21 @@ deletes: a process running a build keeps its file.
 completion offers it, but the move is the launcher's: a build run by its path,
 or as a `--name` build, refuses `rollback` with exit 2 and names `./le rollback`.
 <!-- source: internal/le/rollback/rollback.go -- Answer, refusal -->
+
+The launcher reads the words after `rollback` before it chooses or makes any
+build:
+
+| Words after `rollback` | What the launcher does |
+|------------------------|------------------------|
+| none, or only a pipe chain of `\| json`, `\| yaml`, `\| table` | moves the newest build aside; the format changes nothing, because the answer is one line on stderr |
+| one help word (`help`, `-h`, `--help`), with an optional pipe chain | runs the build, which prints the help page and answers 0 |
+| any other word | refuses with exit 2, naming `./le rollback`, and moves nothing |
+
+A child of a `./le --name` call inherits `ZE_LE_BUILD_NAME`, and with it set
+`./le rollback` would run that named build, which cannot roll back. The
+launcher refuses that call with exit 2 and names the variable and the command
+that runs without it, `env -u ZE_LE_BUILD_NAME ./le rollback`.
+<!-- source: le -- rollback_words -->
 
 A machine that shares the checkout with another platform, a QEMU guest
 mounting it, finds the newest build's header is not its own, and its builds are

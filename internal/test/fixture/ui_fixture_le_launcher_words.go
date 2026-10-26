@@ -57,10 +57,21 @@ func leLauncherWords(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, extra := range [][]string{{"newest"}, {"newest", "now"}} {
+	for _, extra := range [][]string{{"newest"}, {"newest", "now"}, {"help", "now"}, {"|", "match"}} {
 		if err := leLauncherWordsRefused(ctx, checkout, script, extra, before); err != nil {
 			return err
 		}
+	}
+	if err := leLauncherWordsInherited(ctx, checkout, script, before); err != nil {
+		return err
+	}
+	for _, extra := range [][]string{{"help"}, {"-h"}, {"--help"}, {"help", "|", "json"}} {
+		if err := leLauncherWordsHelp(ctx, checkout, script, extra); err != nil {
+			return err
+		}
+	}
+	if err := leLauncherWordsPiped(ctx, checkout, script); err != nil {
+		return err
 	}
 
 	build := filepath.Join(work, "build")
@@ -84,8 +95,12 @@ func leLauncherWords(ctx context.Context) error {
 		}
 	}
 	var tb textbuf.Buffer
-	tb.Str("refused: ./le rollback newest, ./le rollback newest now (exit 2, store unchanged: ").
-		Int(int64(len(before))).Str(" entries)\nle help names: --name, session, rollback\n").
+	tb.Str("refused: ./le rollback newest, ./le rollback newest now, ./le rollback help now, ./le rollback | match (exit 2, store unchanged: ").
+		Int(int64(len(before))).Str(" entries)\n").
+		Str("refused with ZE_LE_BUILD_NAME inherited: ./le rollback (exit 2, names the variable)\n").
+		Str("passed to the build: ./le rollback help, -h, --help, help | json (exit 0, nothing moved)\n").
+		Str("rolled back: ./le rollback | json (the build moved aside)\n").
+		Str("le help names: --name, session, rollback\n").
 		// The .ci reads this line; an exit code of 0 alone would also pass
 		// a driver that returned before its checks ran.
 		Str("OK\n").StdOut() //nolint:errcheck // fixture output
@@ -119,6 +134,84 @@ func leLauncherWordsRefused(ctx context.Context, checkout, script string, extra,
 	return nil
 }
 
+// leLauncherWordsInherited runs a bare `./le rollback` with ZE_LE_BUILD_NAME
+// set, as a parent `./le --name` call leaves it for its children, and requires
+// exit 2, a refusal that names the variable and how to unset it, and a build
+// store equal to before. A refusal that only said "run ./le rollback" would
+// send the caller round the same loop, because the variable is still set.
+func leLauncherWordsInherited(ctx context.Context, checkout, script string, before []string) error {
+	environ := append(os.Environ(), "ZE_LE_BUILD_NAME=launcher-words-parent")
+	result, err := leLauncherWordsRunWith(ctx, checkout, script, environ, leLauncherWordsRollback)
+	if err != nil {
+		return err
+	}
+	if result.exitCode != 2 {
+		return fmt.Errorf("./le rollback with ZE_LE_BUILD_NAME set answered %d, want 2; stderr %q", result.exitCode, result.stderr)
+	}
+	for _, want := range []string{"ZE_LE_BUILD_NAME=launcher-words-parent", "env -u ZE_LE_BUILD_NAME ./le rollback"} {
+		if !strings.Contains(result.stderr, want) {
+			return fmt.Errorf("./le rollback with ZE_LE_BUILD_NAME set: stderr does not say %q: %q", want, result.stderr)
+		}
+	}
+	after, err := leLauncherWordsStore(checkout)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(before, after) {
+		return fmt.Errorf("./le rollback with ZE_LE_BUILD_NAME set changed the build store: before %q, after %q", before, after)
+	}
+	return nil
+}
+
+// leLauncherWordsHelp runs `./le rollback <help word...>` and requires exit 0,
+// the placed build receiving the whole line (its stand-in echoes its
+// arguments), and no build moved aside: a help word asks the binary for the
+// page, and must neither be refused nor roll anything back.
+func leLauncherWordsHelp(ctx context.Context, checkout, script string, extra []string) error {
+	typed := strings.Join(extra, " ")
+	result, err := leLauncherWordsRun(ctx, checkout, script, append([]string{leLauncherWordsRollback}, extra...)...)
+	if err != nil {
+		return err
+	}
+	if result.exitCode != 0 {
+		return fmt.Errorf("./le rollback %s answered %d, want 0; stderr %q", typed, result.exitCode, result.stderr)
+	}
+	if want := "stand-in: rollback " + typed + "\n"; !strings.Contains(result.stdout, want) {
+		return fmt.Errorf("./le rollback %s did not reach the build as %q: stdout %q, stderr %q", typed, want, result.stdout, result.stderr)
+	}
+	after, err := leLauncherWordsStore(checkout)
+	if err != nil {
+		return err
+	}
+	for _, entry := range after {
+		if strings.Contains(entry, ".failed-") {
+			return fmt.Errorf("./le rollback %s moved a build aside: %q", typed, after)
+		}
+	}
+	return nil
+}
+
+// leLauncherWordsPiped runs `./le rollback | json`, the form the help page's
+// usage line shows, and requires exit 0 and the placed build moved aside: the
+// pipe chain shapes an answer and is not a reason to refuse the rollback.
+func leLauncherWordsPiped(ctx context.Context, checkout, script string) error {
+	result, err := leLauncherWordsRun(ctx, checkout, script, leLauncherWordsRollback, "|", "json")
+	if err != nil {
+		return err
+	}
+	if result.exitCode != 0 {
+		return fmt.Errorf("./le rollback | json answered %d, want 0; stderr %q", result.exitCode, result.stderr)
+	}
+	after, err := leLauncherWordsStore(checkout)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(after, "/.failed-"+leLauncherWordsBuild) {
+		return fmt.Errorf("./le rollback | json did not move the build aside: store %q, stderr %q", after, result.stderr)
+	}
+	return nil
+}
+
 // leLauncherWordsPlace copies the repository's le script into checkout and
 // places one build in its store, answering the script's path.
 func leLauncherWordsPlace(root, checkout string) (string, error) {
@@ -130,7 +223,7 @@ func leLauncherWordsPlace(root, checkout string) (string, error) {
 	if err := os.MkdirAll(placed, 0o750); err != nil {
 		return "", fmt.Errorf("create the build store: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(placed, "le"), []byte("#!/bin/sh\nexit 0\n"), 0o750); err != nil { //nolint:gosec // an executable stand-in for a build
+	if err := os.WriteFile(filepath.Join(placed, "le"), []byte("#!/bin/sh\necho \"stand-in: $*\"\nexit 0\n"), 0o750); err != nil { //nolint:gosec // an executable stand-in for a build
 		return "", fmt.Errorf("place a build: %w", err)
 	}
 	script := filepath.Join(checkout, "le")
@@ -159,10 +252,18 @@ func leLauncherWordsStore(checkout string) ([]string, error) {
 	return paths, nil
 }
 
-// leLauncherWordsRun runs program in dir and answers what a shell would read.
+// leLauncherWordsRun runs program in dir, in this process's environment, and
+// answers what a shell would read.
 func leLauncherWordsRun(ctx context.Context, dir, program string, args ...string) (leHelpPagesResult, error) {
+	return leLauncherWordsRunWith(ctx, dir, program, nil, args...)
+}
+
+// leLauncherWordsRunWith runs program in dir with environ, or this process's
+// environment when environ is nil, and answers what a shell would read.
+func leLauncherWordsRunWith(ctx context.Context, dir, program string, environ []string, args ...string) (leHelpPagesResult, error) {
 	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
+	cmd.Env = environ
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

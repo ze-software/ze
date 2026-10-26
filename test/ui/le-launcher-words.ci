@@ -1,11 +1,15 @@
 # Test: the ./le launcher refuses a word after rollback, and le's root page
 # names every word the launcher reads before le starts.
 # accept-only: the registered native fixture copies the repository's own le
-# script beside a placed build, runs `le rollback newest` and
-# `le rollback newest now` through it, and reads the exit code, stderr and the
-# build store a shell would see: exit 2, a refusal naming ./le rollback, and the
-# store unchanged. It then builds the le personality and reads `le help`, which
-# must name --name, its value session, and rollback.
+# script beside a placed build and runs `rollback` through it with stray words
+# after it (the retired verb, a second word after a help word, a pipe to an
+# operator that is not a format), reading the exit code, stderr and the build
+# store a shell would see: exit 2, a refusal naming ./le rollback, and the store
+# unchanged. With ZE_LE_BUILD_NAME set, a bare rollback is refused with exit 2
+# and the variable named. A help word (help, -h, --help, help | json) reaches
+# the placed build and answers 0 with nothing moved, and a pipe chain alone
+# (| json) moves the build aside. It then builds the le personality and reads
+# `le help`, which must name --name, its value session, and rollback.
 #
 # VALIDATES: spec-le-cli-usability AC-51 and D-P4-launcher through the real
 # launcher script and the product binary's composition root.

@@ -651,6 +651,56 @@ if [ "${1:-}" = "--update" ]; then
 	exit 2
 fi
 
+# Sets $rollback_kind to what the words after `rollback` ask for: `act` for
+# none, or only a pipe chain of output formats (the usage line `le rollback
+# [| json | yaml | table]`), `help` for one help word with an optional pipe
+# chain after it, and `stray` for anything else. A stray word would be
+# accepted and ignored, which no help page can show, so it is refused.
+rollback_words() {
+	rollback_kind=act
+	case ${1:-} in
+	help | -h | --help)
+		rollback_kind=help
+		shift
+		;;
+	esac
+	while [ $# -gt 0 ]; do
+		if [ "$1" != "|" ] || [ $# -lt 2 ]; then
+			rollback_kind=stray
+			return
+		fi
+		case $2 in
+		json | yaml | table) ;;
+		*)
+			rollback_kind=stray
+			return
+			;;
+		esac
+		shift 2
+	done
+}
+
+# `./le rollback` is read here, before any build is chosen or made, so a stray
+# word is refused with nothing touched. A help word goes on to the build, which
+# renders the page. The rollback itself is the launcher's, and with
+# ZE_LE_BUILD_NAME inherited from a parent `./le --name` call it would run that
+# named build instead, which cannot roll back and would tell the caller to run
+# `./le rollback` again: the same call, the same answer. So that refusal names
+# the variable and how to run without it.
+if [ "${1:-}" = rollback ]; then
+	shift
+	rollback_words "$@"
+	if [ "$rollback_kind" = stray ]; then
+		echo "le: ./le rollback takes no other word, and was given: $*. It always sets the newest build aside, so there is nothing to choose. Run: ./le rollback" >&2
+		exit 2
+	fi
+	if [ "$rollback_kind" = act ] && [ -n "${ZE_LE_BUILD_NAME:-}" ]; then
+		echo "le: ./le rollback sets the newest build in bin/builds/ aside, but ZE_LE_BUILD_NAME=$ZE_LE_BUILD_NAME is set here (a parent ./le --name call exported it), so this call would run that named build, which cannot roll back. Run it without the variable: env -u ZE_LE_BUILD_NAME ./le rollback" >&2
+		exit 2
+	fi
+	set -- rollback "$@"
+fi
+
 # `./le --name <name> <command>...` builds bin/le-<name>/le from the WORKING
 # TREE and runs it: the one way to run uncommitted edits to le itself. The
 # option is consumed here and only here, so everything after it reaches the
@@ -728,15 +778,11 @@ fi
 
 # `./le rollback` moves the newest build aside, as an automatic rollback does,
 # and the next call runs the one before it. The inputs of the build moved aside
-# count as rejected, so HEAD is not simply built again. It takes no other
-# word: a word after it would be accepted and ignored, which no help page can
-# show, so it is refused before any build is touched.
-if [ "${1:-}" = rollback ]; then
-	if [ $# -gt 1 ]; then
-		shift
-		echo "le: ./le rollback takes no other word, and was given: $*. It always sets the newest build aside, so there is nothing to choose. Run: ./le rollback" >&2
-		exit 2
-	fi
+# count as rejected, so HEAD is not simply built again. Its words were judged
+# by rollback_words before any build was touched: a help word falls through to
+# the build below, which renders the page. A pipe chain asks for a format, and
+# the rollback's whole answer is the one line below, so it changes nothing.
+if [ "${1:-}" = rollback ] && [ "$rollback_kind" = act ]; then
 	choose_build
 	if [ -z "$build_dir" ]; then
 		echo "le: there is no build of le for this machine in $builds to roll back" >&2
