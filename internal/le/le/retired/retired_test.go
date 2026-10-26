@@ -3,6 +3,7 @@
 package leretired
 
 import (
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -164,4 +165,67 @@ func TestSuccessorFollowsAShorteningChainLongerThanTheBound(t *testing.T) {
 				strings.Join(tc.typed, " "), tc.repeat, got, tc.want)
 		}
 	}
+}
+
+// VALIDATES: the successor of a line the caller made long costs memory linear
+// in its length: `test harness` then 10,000 `harness` answers `test` and
+// allocates under 4 MiB, a few copies of the 160 KiB line.
+// PREVENTS: a successor quadratic in the typed line, where each shortening hop
+// copied the whole tail into a fresh slice and the repeat check kept every
+// line, so this line allocated about 800 MB and a line near ARG_MAX ran the
+// le out of memory before it could print the refusal.
+//
+// Method: bytes, not wall time, because a busy host slows any loop. The line is
+// built before the measurement, and TotalAlloc counts every allocation the
+// call makes whatever the collector frees meanwhile.
+func TestSuccessorOfALongTypedLineAllocatesLinearly(t *testing.T) {
+	const repeats = 10_000
+	const allocatedBytesMax = 4 << 20
+	line := make([]string, 0, repeats+2)
+	line = append(line, "test", "harness")
+	for range repeats {
+		line = append(line, "harness")
+	}
+	row, ok := Match(line)
+	if !ok {
+		t.Fatalf("`le test harness ...` names no row of the real map")
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	got := row.Successor(line)
+	runtime.ReadMemStats(&after)
+	if !slices.Equal(got, []string{"test"}) {
+		t.Errorf("the successor of `le test harness` then %d `harness` is %q, want [test]", repeats, got)
+	}
+	allocated := after.TotalAlloc - before.TotalAlloc
+	t.Logf("the successor of %d words allocated %d bytes", repeats+2, allocated)
+	if allocated > allocatedBytesMax {
+		t.Errorf("the successor of `le test harness` then %d `harness` allocated %d bytes, want at most %d",
+			repeats, allocated, allocatedBytesMax)
+	}
+}
+
+// VALIDATES: a cycle whose lap holds a shortening hop, entered from a line
+// outside it, still panics as a cycle: `s` answers `c z`, `c z` -> `b`
+// shortens into the lap, `b` -> `a x` grows, `a x` -> `b` shortens, and the
+// line the growing hop produces repeats one lap later.
+// PREVENTS: a repeat check that records only the lines counted hops produce
+// missing a cycle that passes through lines a shortening hop made, or one that
+// records only the starting line, which this lap never meets again, so the
+// cycle ran to the hop bound and panicked as a line that grows.
+func TestSuccessorPanicsOnACycleThroughAShorteningHop(t *testing.T) {
+	cycle := newRenameTable([]Rename{
+		{Retired: "s", Command: "c z"},
+		{Retired: "c z", Command: "b"},
+		{Retired: "b", Command: "a x"},
+		{Retired: "a x", Command: "b"},
+	})
+	defer func() {
+		message, isString := recover().(string)
+		if !isString || !strings.HasPrefix(message, "BUG: leretired: the rename map holds a cycle through `") {
+			t.Errorf("a cyclic map answered the panic %q, want the cycle BUG", message)
+		}
+	}()
+	got := cycle.successor(cycle.rows[0], []string{"s"})
+	t.Errorf("a cyclic map answered %q instead of panicking", got)
 }

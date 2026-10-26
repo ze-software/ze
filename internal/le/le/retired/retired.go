@@ -304,18 +304,25 @@ func Renames() []Rename {
 	return slices.Clone(renames)
 }
 
-// renameTable is a rename map with each row's old words split once, so the
-// Match that every dispatch and every Tab runs allocates nothing per row.
+// renameTable is a rename map with each row's old and new words split once, so
+// the Match that every dispatch and every Tab runs allocates nothing per row,
+// and neither does a hop of Successor that shortens the line.
 type renameTable struct {
-	rows []Rename
-	old  [][]string
+	rows        []Rename
+	old         [][]string
+	replacement [][]string
 }
 
-// newRenameTable splits the old words of every row of rows.
+// newRenameTable splits the old and new words of every row of rows.
 func newRenameTable(rows []Rename) renameTable {
-	table := renameTable{rows: rows, old: make([][]string, len(rows))}
+	table := renameTable{
+		rows:        rows,
+		old:         make([][]string, len(rows)),
+		replacement: make([][]string, len(rows)),
+	}
 	for index, row := range rows {
 		table.old[index] = row.Old()
+		table.replacement[index] = row.New()
 	}
 	return table
 }
@@ -328,11 +335,16 @@ var table = newRenameTable(renames)
 // `spec session claim` answers its own row and not the bare `spec session`
 // one. words is the line le was given, its own words only (no pipe).
 func Match(words []string) (Rename, bool) {
-	return table.match(words)
+	index, matched := table.match(words)
+	if !matched {
+		return Rename{}, false
+	}
+	return table.rows[index], true
 }
 
-// match is Match over this table.
-func (t renameTable) match(words []string) (Rename, bool) {
+// match answers the index of the row of this table words names, and whether
+// one does.
+func (t renameTable) match(words []string) (int, bool) {
 	best := -1
 	for index, old := range t.old {
 		if len(old) > len(words) {
@@ -347,9 +359,9 @@ func (t renameTable) match(words []string) (Rename, bool) {
 		best = index
 	}
 	if best < 0 {
-		return Rename{}, false
+		return 0, false
 	}
-	return t.rows[best], true
+	return best, true
 }
 
 // Successor answers the line a caller types now in place of words, which row
@@ -362,11 +374,16 @@ func (r Rename) Successor(words []string) []string {
 	return table.successor(r, words)
 }
 
-// successorHopsMax bounds the hops successor follows that do not shorten the
+// successorHopsMax bounds the hops successor follows that keep or grow the
 // line. A hop that shortens it needs no bound of its own: the line keeps at
 // least one word, so shortening hops run out once they have removed every word
 // the caller typed and every word the counted hops added, and a caller may type
 // as many as they like (`test harness harness ...` shortens one word a hop).
+// A typed line costs successor time and memory linear in its length: a
+// shortening hop writes the row's new words over the end of its old ones and
+// reslices, and only the at most successorHopsMax+1 lines kept for the repeat
+// check are copies, so a line near ARG_MAX (about 250,000 words) is settled
+// in a few copies of itself.
 // The row count is no bound on the counted hops either: a chain may reuse a
 // row while the caller's trailing words grow (a->b, b->a q, then b q q->z takes
 // six hops over three rows), so a chain that ends can be longer than the map.
@@ -379,34 +396,53 @@ const successorHopsMax = 64
 // successor is Successor over this table.
 func (t renameTable) successor(r Rename, words []string) []string {
 	line := append(r.New(), words[len(r.Old()):]...)
-	// Each hop applies one row of the map, and every line is checked for a
-	// repeat before the bound, so a cycle met late still panics as a cycle. A
-	// line met twice is a cycle; a line that never repeats yet keeps or grows
-	// its length for successorHopsMax hops grows without end (a row whose new
-	// words re-open its own old ones). What a caller types decides only how
-	// many shortening hops there are, which the bound does not count, so only
-	// a Ze defect in the declaration above reaches either BUG panic.
-	var seen [][]string
+	// Each hop applies one row of the map. A line met twice is a cycle; a line
+	// that never repeats yet keeps or grows its length for successorHopsMax
+	// hops grows without end (a row whose new words re-open its own old ones).
+	// What a caller types decides only how many shortening hops there are,
+	// which the bound does not count, so only a Ze defect in the declaration
+	// above reaches either BUG panic.
+	//
+	// seen holds the starting line and each line a counted hop produced, never
+	// a line a shortening hop produced, and that still catches every cycle: the
+	// lengths around a cycle's lap change by zero in sum, a shortening hop
+	// changes it by less than zero, so every lap holds at least one counted
+	// hop. The line that hop produces is in seen after the first lap and is
+	// met again one lap later, so the cycle panics as a cycle unless the bound
+	// fires first. seen therefore holds at most successorHopsMax+1 lines.
+	//
+	// A shortening hop rewrites line in place, so every line seen holds is a
+	// copy: line is never one of them, and neither are the table's words or
+	// the caller's, since line starts as a fresh slice New built and a counted
+	// hop builds the next one fresh.
+	seen := [][]string{slices.Clone(line)}
 	kept := 0
 	for {
-		next, retired := t.match(line)
+		index, retired := t.match(line)
 		if !retired {
 			return line
 		}
+		old, replacement := t.old[index], t.replacement[index]
+		if len(replacement) < len(old) {
+			start := len(old) - len(replacement)
+			copy(line[start:], replacement)
+			line = line[start:]
+			continue
+		}
+		after := make([]string, 0, len(replacement)+len(line)-len(old))
+		after = append(append(after, replacement...), line[len(old):]...)
 		for _, earlier := range seen {
-			if slices.Equal(earlier, line) {
-				panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
+			if slices.Equal(earlier, after) {
+				panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(after, " ") + "`")
 			}
 		}
 		if kept == successorHopsMax {
 			panic("BUG: leretired: the rename of `" + strings.Join(words, " ") + "` did not settle within " +
-				strconv.Itoa(successorHopsMax) + " hops, at `" + strings.Join(line, " ") + "`")
+				strconv.Itoa(successorHopsMax) + " hops, at `" + strings.Join(line, " ") +
+				"`, counting only the hops that keep or grow the line")
 		}
-		seen = append(seen, line)
-		after := append(next.New(), line[len(next.Old()):]...)
-		if len(after) >= len(line) {
-			kept++
-		}
+		kept++
+		seen = append(seen, slices.Clone(after))
 		line = after
 	}
 }
