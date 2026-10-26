@@ -4,6 +4,7 @@ package leretired
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -90,4 +91,43 @@ func TestSuccessorPanicsOnACycle(t *testing.T) {
 	}()
 	got := cycle.successor(cycle.rows[0], []string{"a"})
 	t.Errorf("a cyclic map answered %q instead of panicking", got)
+}
+
+// VALIDATES: a chain that reuses rows while its trailing words grow, and so
+// takes more hops than the map has rows, is followed to its end: `a` answers
+// `z` through a->b, b->a q, a q->b q (row a again), b q->a q q (row b again),
+// a q q->b q q (row a a third time), b q q->z. Six hops over three rows.
+// PREVENTS: a hop count above the row count taken for a cycle, which panicked
+// on a chain that ends, though no line on it repeats.
+func TestSuccessorFollowsAChainThatReusesRowsAsItGrows(t *testing.T) {
+	chain := newRenameTable([]Rename{
+		{Retired: "a", Command: "b"},
+		{Retired: "b", Command: "a q"},
+		{Retired: "b q q", Command: "z"},
+	})
+	got := chain.successor(chain.rows[0], []string{"a"})
+	if !slices.Equal(got, []string{"z"}) {
+		t.Errorf("the successor of `a` is %q, want [z]", got)
+	}
+}
+
+// VALIDATES: a rename map whose row re-opens its own old words, so the line
+// grows on every hop and never repeats, panics with the BUG message naming the
+// hop bound rather than looping.
+// PREVENTS: a repeat check alone, which never fires on a growing line, turning
+// such a declaration into an le that hangs every session.
+func TestSuccessorPanicsOnAChainThatNeverSettles(t *testing.T) {
+	growing := newRenameTable([]Rename{
+		{Retired: "a", Command: "a q"},
+	})
+	defer func() {
+		message, isString := recover().(string)
+		want := "BUG: leretired: the rename of `a` did not settle within " +
+			strconv.Itoa(successorHopsMax) + " hops, at `a "
+		if !isString || !strings.HasPrefix(message, want) {
+			t.Errorf("a growing map answered the panic %q, want the hop-bound BUG", message)
+		}
+	}()
+	got := growing.successor(growing.rows[0], []string{"a"})
+	t.Errorf("a growing map answered %q instead of panicking", got)
 }

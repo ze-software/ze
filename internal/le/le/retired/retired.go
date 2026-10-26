@@ -16,6 +16,7 @@ package leretired
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -361,25 +362,41 @@ func (r Rename) Successor(words []string) []string {
 	return table.successor(r, words)
 }
 
+// successorHopsMax bounds the hops successor follows after a row's own. The
+// row count is no bound: a chain may reuse a row while the caller's trailing
+// words grow (a->b, b->a q, then b q q->z takes six hops over three rows), so
+// a chain that ends can be longer than the map. The declared map's chains are
+// a few hops long, and TestSuccessorIsNeverARetiredLine walks every row of it
+// with tails derived from the map, so a declaration whose chain outgrew this
+// bound panics in that test before it reaches a session's le.
+const successorHopsMax = 64
+
 // successor is Successor over this table.
 func (t renameTable) successor(r Rename, words []string) []string {
 	line := append(r.New(), words[len(r.Old()):]...)
-	// Each hop applies one row of the map. After r's own hop the loop allows
-	// one more hop per row, and checks the line before each one and once after
-	// the last, so a chain of that full length still answers. A line still
-	// retired then is taken for a cycle in the map, which only a Ze defect in
-	// the declaration above can make.
-	for range t.rows {
+	// Each hop applies one row of the map. A line met twice is a cycle, and a
+	// line that never repeats yet stays retired past successorHopsMax grows
+	// without end (a row whose new words re-open its own old ones). Only a Ze
+	// defect in the declaration above makes either, so both are BUG panics.
+	seen := make([][]string, 0, successorHopsMax)
+	for range successorHopsMax {
 		next, retired := t.match(line)
 		if !retired {
 			return line
 		}
+		for _, earlier := range seen {
+			if slices.Equal(earlier, line) {
+				panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
+			}
+		}
+		seen = append(seen, line)
 		line = append(next.New(), line[len(next.Old()):]...)
 	}
 	if _, retired := t.match(line); !retired {
 		return line
 	}
-	panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
+	panic("BUG: leretired: the rename of `" + strings.Join(words, " ") + "` did not settle within " +
+		strconv.Itoa(successorHopsMax) + " hops, at `" + strings.Join(line, " ") + "`")
 }
 
 // RetiredKind says what sort of name a Retirement retires. The zero value is
