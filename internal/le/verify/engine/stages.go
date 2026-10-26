@@ -51,15 +51,6 @@ type Identity struct {
 // Stage is one ordered pre-commit action.
 type Stage struct {
 	Identity Identity `json:"identity"`
-	// Structural says a red here means the tree is BROKEN rather than merely
-	// unverified, so a commit is refused instead of taking a debt row.
-	//
-	// It lives on the stage because the population lives here. The commit gate
-	// used to keep its own list of the same eight names, and a stage renamed
-	// or re-argumented in this file silently left that set: its red then filed
-	// as unattributed and the commit went through. Two lists of one population
-	// drift, and this one drifted toward letting commits past a broken tree.
-	Structural bool `json:"structural,omitempty"`
 	// Whole declares that the stage's action judges its whole subject whatever
 	// change scope the run published (publishChangeScope), so a partial
 	// population's verdict on it is a full judgement and replaces a full run's
@@ -156,24 +147,13 @@ func parsePart(index, count string) (Part, error) {
 	return part, part.Valid()
 }
 
-// Structural answers the stages whose red refuses a commit outright.
-func Structural(mode string) map[string]bool {
-	named := map[string]bool{}
-	for _, one := range StagesForMode(mode) {
-		if one.Structural {
-			named[one.Identity.Name] = true
-		}
-	}
-	return named
-}
-
 // staticcheckStages returns one stage per piece of the Staticcheck feature
 // matrix. The rows each piece judges are dealt by the matrix itself, so a
 // feature gate added to `feature-gates.txt` needs nothing here.
 func staticcheckStages() []Stage {
 	stages := make([]Stage, 0, staticcheckParts)
 	for part := 1; part <= staticcheckParts; part++ {
-		stages = append(stages, structural("go staticcheck", "check",
+		stages = append(stages, stage("go staticcheck", "check",
 			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
 	}
 	return stages
@@ -203,11 +183,11 @@ func raceStages() []Stage {
 // partial population that shares it, which is the safe answer.
 func fullStages() []Stage {
 	stages := whole(
-		structural("go lint", "run"),
-		structural("arch tier", "check"),
+		stage("go lint", "run"),
+		stage("arch tier", "check"),
 		stage("rfc", "check"),
-		structural("arch iface-resolution"),
-		structural("plugin boundary", "check"),
+		stage("arch iface-resolution"),
+		stage("plugin boundary", "check"),
 		stage("config coercion", "check"),
 		stage("arch fs-persistence", "check"),
 		stage("cli stdio", "check"),
@@ -220,9 +200,9 @@ func fullStages() []Stage {
 		stage("test sensitivity", "check"),
 	)
 	return slices.Concat(stages, staticcheckStages(), whole(
-		structural("repo compiles", "check"),
+		stage("repo compiles", "check"),
 		stage("go vet-platforms", "darwin", "freebsd", "openbsd"),
-		structural("doc wiring"),
+		stage("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),
 		// Every caller of a name the subject-first rename retired is rewritten,
@@ -274,7 +254,7 @@ func fullStages() []Stage {
 		stage("test health", "check"),
 		stage("site facts", "check"),
 		stage("web htmx", "check"),
-		structural("verify deps", "evidence-vet"),
+		stage("verify deps", "evidence-vet"),
 		stage("ai hooks", "unit"),
 		stage("verify deps", "vulnerability"),
 		stage("verify deps", "unit-cached"),
@@ -336,7 +316,7 @@ func fastStages() []Stage {
 // through the job slots like any job and is not a release check.
 func changedStages() []Stage {
 	stages := []Stage{
-		structural("go lint", "run", "changed"),
+		stage("go lint", "run", "changed"),
 		stage("verify deps", "unit-changed"),
 	}
 	return slices.Concat(stages, staticcheckStages(), raceStages(), []Stage{
@@ -387,11 +367,6 @@ func StagesForMode(mode string) []Stage {
 
 func stage(command string, args ...string) Stage {
 	return Stage{Identity: identity(command, args)}
-}
-
-// structural is stage for an action whose red says the tree is broken.
-func structural(command string, args ...string) Stage {
-	return Stage{Identity: identity(command, args), Structural: true}
 }
 
 func identity(command string, args []string) Identity {

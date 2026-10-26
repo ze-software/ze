@@ -109,14 +109,12 @@ const (
 	fieldContainer          = "container"
 	fieldContent            = "content"
 	fieldCount              = "count" // The field in a payload.
-	fieldDetailLog          = "detail-log"
 	fieldEntries            = "entries"
 	fieldError              = "error" // The field that carries the message in a payload.
 	fieldErrors             = "errors"
 	fieldFamily             = "family"
 	fieldFile               = "file"
 	fieldFiles              = "files"
-	fieldGroupID            = "group-id"
 	fieldImage              = "image"
 	fieldInput              = "input" // The field in a payload.
 	fieldKind               = "kind"
@@ -129,7 +127,6 @@ const (
 	fieldOrigin             = "origin" // The ORIGIN attribute name in the filter text protocol.
 	fieldName               = "name"   // The field in a payload.
 	fieldPackages           = "packages"
-	fieldParallel           = "parallel"
 	fieldPassed             = "passed"
 	fieldPath               = "path"
 	fieldPeer               = "peer"  // The field in a payload.
@@ -137,7 +134,6 @@ const (
 	fieldPeersConfigured    = "peers-configured"
 	fieldPeersEstablished   = "peers-established"
 	fieldReady              = "ready"
-	fieldRelated            = "related"
 	fieldRerun              = "rerun"
 	fieldResult             = "result" // The field in a dispatch answer.
 	fieldRouterID           = "router-id"
@@ -145,8 +141,7 @@ const (
 	fieldStage              = "stage"
 	fieldState              = "state" // The peer or interface field in a payload.
 	fieldStatus             = "status"
-	fieldSummary            = "summary" // The field in a payload.
-	fieldTop                = "top"     // The field in a payload.
+	fieldTop                = "top" // The field in a payload.
 	fieldTotals             = "totals"
 	fieldTunnelID           = "tunnel-id"
 	fieldType               = "type"    // The field in a payload.
@@ -354,7 +349,6 @@ const (
 	logLevelDebug                   = "debug"
 	logLevelInfo                    = "info"
 	logLevelWarn                    = "warn"
-	pathDocWiringLog                = "tmp/verify/doc-wiring.log"
 	pathEFIConsoleConfig            = "tools/kernel-builder/common/efi-console.config"
 	pathGokrazyKernel               = "gokrazy/kernel"
 	pathGokrazyKernelConfig         = "gokrazy/kernel/kernel.config"

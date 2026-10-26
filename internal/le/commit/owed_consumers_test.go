@@ -116,8 +116,6 @@ func TestAttestRefusesAdmissionKeywords(t *testing.T) {
 	for keyword, set := range map[string]func(*Options){
 		keywordReviewOverride:  func(o *Options) { o.ReviewOverride = "a reason" },
 		keywordRFCChangeOK:     func(o *Options) { o.RFCChangeOK = "a reason" },
-		keywordStructuralRedOK: func(o *Options) { o.StructuralRedOK = "a reason" },
-		keywordBrokenHeadFix:   func(o *Options) { o.BrokenHeadFix = "a reason" },
 		"no-test":              func(o *Options) { o.NoTest = "a reason" },
 		keywordLedgerCarried: func(o *Options) {
 			o.LedgerCarried = []string{"0123456789abcdef0123456789abcdef01234567 review: a reason"}

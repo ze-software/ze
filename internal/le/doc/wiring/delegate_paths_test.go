@@ -3,10 +3,9 @@
 //
 // VALIDATES: a delegated check that fails names the files it failed about, so
 // its group carries paths.
-// PREVENTS: an unattributable structural red. A group with no paths is charged
-// to EVERY commit in the checkout rather than to the one that caused it
-// (internal/le/commit/verification.go, structuralGateReds), so one session's
-// red blocks every other session's commit however unrelated the change.
+// PREVENTS: an unattributable structural red. A group with no paths names no
+// file to `./le verify reds` (internal/le/verify/reds.go, readReds), so no
+// session can tell whether the red is its own.
 package docwiring
 
 import (
@@ -110,8 +109,7 @@ func TestRunGoActionPutsTheReportsPathsIntoTheGroup(t *testing.T) {
 	group := g.report.Groups[0]
 	if !slices.Equal(group.Related, []string{"docs/alpha.md", "docs/beta.md"}) {
 		t.Fatalf("group.Related = %v, want the report's own paths. With no paths the "+
-			"group is unattributable, and structuralGateReds charges an unattributable "+
-			"red to every commit in the checkout", group.Related)
+			"group is unattributable, and ./le verify reds cannot name whose red it is", group.Related)
 	}
 	if group.Kind == unattributableKind {
 		t.Errorf("group.Kind = %q: a group carrying paths must not be the "+

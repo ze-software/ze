@@ -1,13 +1,14 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- failure attribution
 // Related: ../engine/artifacts.go -- DeclaredGroups, which reads what Declare writes
-// Related: ../../commit/verification.go -- structuralGateReds, which charges the red
+// Related: ../reds.go -- readReds, which asks whether a red names one path
 //
 // Package failuregroup lets a verify stage say WHICH files its red is about.
 //
-// A stage that declares no usable paths is UNATTRIBUTABLE, and an unattributable
-// structural red is charged to every commit in the checkout rather than to the
-// one that caused it. So a stage whose output already names files owes those
-// names to the gate, and two stages needed the same scanner to give them.
+// A stage that declares no usable paths is UNATTRIBUTABLE: `./le verify reds
+// file <path>` answers undetermined for every path, and nobody reading the
+// failure index can tell which change caused the red. So a stage whose output
+// already names files owes those names to the index, and two stages needed the
+// same scanner to give them.
 //
 // The declaration goes into what the action RETURNS. The engine reads a stage's
 // groups back out of the stage log, and that log holds the action's answer

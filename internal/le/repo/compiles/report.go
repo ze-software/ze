@@ -122,10 +122,9 @@ func (r Report) Text() string {
 const trackedBuildGroupID = "files:repo compiles/check"
 
 // failingPaths answers the source files the compiler named across every flavor
-// that failed. Without them a red here is unattributable, and the commit gate
-// charges an unattributable structural red to every commit in the checkout
-// (internal/le/commit/verification.go, structuralGateReds) rather than to the
-// one that left a consumer without its producer.
+// that failed. Without them a red here is unattributable: `./le verify reds
+// file <path>` (internal/le/verify/reds.go, readReds) cannot name the file
+// whose consumer was committed without its producer.
 func (r Report) failingPaths() []string {
 	var paths []string
 	for _, result := range r.Results {

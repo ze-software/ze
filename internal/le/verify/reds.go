@@ -1,6 +1,5 @@
 // Design: docs/contributing/running-commands.md -- asking a run in flight whether it reddened one file
 // Related: engine/artifacts.go -- DeclaredGroups, the one reader of a stage's declaration
-// Related: ../commit/verification.go -- structuralGateReds, which asks the same question of the FINISHED index
 package verify
 
 import (

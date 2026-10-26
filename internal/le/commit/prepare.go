@@ -30,17 +30,15 @@ type Options struct {
 	Files   []string `json:"files,omitempty"`
 	// Hunks is each `hunks <path> <patch-file>` pair: a path whose commit
 	// carries HEAD's blob with only that patch's hunks applied.
-	Hunks           []HunkSelection `json:"hunks,omitempty"`
-	Remove          []string        `json:"remove,omitempty"`
-	Script          string          `json:"script,omitempty"`
-	Append          bool            `json:"append"`
-	Replace         bool            `json:"replace"`
-	NoTest          string          `json:"no-test,omitempty"`
-	StructuralRedOK string          `json:"structural-red-ok,omitempty"`
-	ReviewOverride  string          `json:"review-override,omitempty"`
-	BrokenHeadFix   string          `json:"broken-head-fix,omitempty"`
-	RFCChangeOK     string          `json:"rfc-change-ok,omitempty"`
-	DryRun          bool            `json:"dry-run"`
+	Hunks          []HunkSelection `json:"hunks,omitempty"`
+	Remove         []string        `json:"remove,omitempty"`
+	Script         string          `json:"script,omitempty"`
+	Append         bool            `json:"append"`
+	Replace        bool            `json:"replace"`
+	NoTest         string          `json:"no-test,omitempty"`
+	ReviewOverride string          `json:"review-override,omitempty"`
+	RFCChangeOK    string          `json:"rfc-change-ok,omitempty"`
+	DryRun         bool            `json:"dry-run"`
 	// Attest is the commit an attestation answers and AttestWords the owner's
 	// words. An attestation names no file and no remove path (D-7).
 	Attest      string `json:"attest,omitempty"`
@@ -74,8 +72,7 @@ type Prepared struct {
 	WeakeningApprovals testweakened.Approvals `json:"weakening-approvals"`
 	// Trailers is the record of each admission a gate granted this commit:
 	// `Review-owed:` and `RFC-approval-owed:`, which the push derivation reads
-	// as owed person acts, and the audit-only `Structural-red-ok:` and
-	// `Broken-head-fix:`.
+	// as owed person acts.
 	Trailers []string `json:"trailers,omitempty"`
 	// Debt is the derived verification debt as this commit is prepared: how
 	// many commits owe a scoped verify, and since which scoped record. It is
@@ -399,11 +396,11 @@ func mergeRFCApprovals(approvals RFCApprovals, weakening testweakened.Approvals)
 }
 
 // checkVerificationGates judges the commit against the native verification
-// certificate, the recorded structural reds and the independent-review
-// artifact. It refuses a charged structural red with no admission and a
-// closure with no clean review and no override, and answers the review
-// re-check line the script runs. It never refuses for a missing verification:
-// that is owed before a push, and the push derives it.
+// certificate and the independent-review artifact. It refuses a closure with
+// no clean review and no override, and answers the review re-check line the
+// script runs. It never refuses for a missing verification, which is owed
+// before a push and the push derives, nor for a red, which is owed at release
+// (ai/META-DECISIONS.md, "Ze is pre-release").
 func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string,
 	selection hunks.Selection,
 ) (string, error) {
@@ -415,43 +412,6 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 		// content the commit does not carry.
 		result.Verify = VerificationState{State: "stale", Detail: hunkSelectedDetail}
 	}
-	if result.Verify.State != verifyFresh {
-		reds := structuralGateReds(root, all)
-		charged := append([]string(nil), reds.Charged...)
-		if len(charged) == 1 && charged[0] == compilesStage &&
-			strings.TrimSpace(options.BrokenHeadFix) != "" {
-			trailer, err := admissionTrailer(trailerBrokenHeadFix, "", options.BrokenHeadFix)
-			if err != nil {
-				return "", err
-			}
-			result.Trailers = append(result.Trailers, trailer)
-			charged = nil
-		}
-		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) != "" {
-			trailer, err := admissionTrailer(trailerStructuralRedOK, "", options.StructuralRedOK)
-			if err != nil {
-				return "", err
-			}
-			result.Trailers = append(result.Trailers, trailer)
-		}
-		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) == "" {
-			detail := ""
-			if len(reds.Unattributed) != 0 {
-				detail = "\n  charged for want of path attribution: " +
-					strings.Join(reds.Unattributed, ", ")
-			}
-			for _, cause := range reds.Causes {
-				detail += "\n  " + cause
-			}
-			return "", fmt.Errorf(
-				"deterministic structural gate(s) block this commit, red or not reached: %s%s\n"+
-					"  fix the producer, use broken-head-fix for the sole compiles red, "+
-					"or name structural-red-ok with a truthful reason",
-				strings.Join(charged, ", "), detail,
-			)
-		}
-	}
-
 	base, err := appendBase(root, result.Session, options)
 	if err != nil {
 		return "", err

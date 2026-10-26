@@ -269,7 +269,7 @@ Reach for one of these before inventing a new mechanism.
 | Spec progress | `./le spec status` |
 | Generated plugin imports | `./le plugin imports check` |
 | Which build tag carries a plugin a binary was built without | `registry.GatedPluginTags` over the generated `internal/component/plugin/registry/gated_plugins_gen.go`; `./le plugin gated-table check` judges the table |
-| Whether the tree git holds compiles | `./le repo compiles check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
+| Whether the tree git holds compiles | `./le repo compiles check`. It runs in both full verification modes; its red refuses no commit and is owed at the release check |
 | Runtime readiness | `ze doctor --json` and `ze show diagnostic <diagnostic-code>` |
 
 Each of these answers with structured data, so `| json`, `| yaml` and `| table`
@@ -636,7 +636,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le test netlab check`, `docker/Dockerfile.lab` |
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
 | changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le repo changed scope`, `internal/le/repo/changed.Answer`, `internal/le/go/staticcheck.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
-| declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
+| declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/verify.Reds`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
 | commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
 | spec status, spec metadata, RFC gaps, spec closure, release fixes, release validation, release delivery, post-release features, post-release engineering, proposals, work not done, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/templates/TEMPLATE.md`, `plan/templates/TEMPLATE-CLOSURE.md`, `./le spec status` |

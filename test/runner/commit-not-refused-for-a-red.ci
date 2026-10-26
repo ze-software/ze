@@ -1,0 +1,17 @@
+# A red prevents a release, never a commit, end to end through `le commit create`.
+#
+# The compiled fixture creates an isolated checkout and records three failure
+# indexes the deleted structural red check refused: a red naming the committed
+# file, a red naming no path, and a first-red stage never reached. Each commit
+# is prepared with no admission. The two retired admissions are then refused,
+# naming the keyword and its replacement, the body.
+
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture runner/commit-not-refused-for-a-red
+expect=exit:code=0
+expect=stdout:contains=scratch-repo-ready
+expect=stdout:contains=owned-red-not-refused
+expect=stdout:contains=blind-red-not-refused
+expect=stdout:contains=unreached-red-not-refused
+expect=stdout:contains=retired-red-admissions-name-the-body

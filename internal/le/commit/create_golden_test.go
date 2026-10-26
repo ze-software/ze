@@ -55,7 +55,6 @@ func goldenCreateOutput(t *testing.T) string {
 		"body", "", "body", "A second paragraph.",
 		"file", "mine.txt", "file-list", list, "hunks", path, patch, "remove", "gone.txt",
 		"no-test", "the golden fixture carries no test of its own",
-		"structural-red-ok", "no structural red is charged here",
 		"review-override", "no closure in this fixture",
 		"rfc-change-ok", "no RFC-tagged unit in this fixture",
 		"replace", "dry-run",

@@ -3,8 +3,8 @@
 // VALIDATES: a failing matrix run says what broke and which files it was about,
 // in the answer the verify engine reads its groups from.
 // PREVENTS: an unattributable structural red. A group carrying no usable paths
-// is charged to EVERY commit in the checkout (internal/le/commit/verification.go,
-// structuralGateReds), and a run that failed before producing a diagnostic used
+// names no file to `./le verify reds` (internal/le/verify/reds.go, readReds),
+// and a run that failed before producing a diagnostic used
 // to render nothing at all, so its stage log named neither the cause nor a file.
 package gostaticcheck
 

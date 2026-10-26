@@ -3,9 +3,8 @@
 // VALIDATES: a tracked-build red names the source files the compiler named, in
 // the answer the verify engine reads its groups from.
 // PREVENTS: an unattributable structural red. A group carrying no usable paths
-// is charged to EVERY commit in the checkout (internal/le/commit/verification.go,
-// structuralGateReds), so a consumer committed without its producer refuses
-// every other session's commit rather than the one that broke the tree.
+// names no file to `./le verify reds`, so nobody can tell which commit left a
+// consumer without its producer.
 package repocompiles
 
 import (

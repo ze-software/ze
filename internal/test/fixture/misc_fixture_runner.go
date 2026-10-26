@@ -3,20 +3,20 @@ package fixture
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/creack/pty"
 )
 
 func init() {
-	Register("runner/verify-scope-wiring-attribution", verifyScopeWiringDriver)
+	Register("runner/commit-not-refused-for-a-red", commitNotRefusedForARedDriver)
 	Register("runner/commit-push-refused-by-derived-debt", commitPushRefusedByDerivedDebtDriver)
 	Register("runner/commit-push-script-rechecks", commitPushScriptRechecksDriver)
 	Register("runner/verify-changed-record-clears-derived-debt", verifyChangedRecordClearsDerivedDebtDriver)
@@ -201,22 +201,39 @@ func gitFixture(ctx context.Context, root string, files map[string]string) error
 	return nil
 }
 
-func verifyScopeWiringDriver(ctx context.Context, args []string) error {
+// commitNotRefusedForARedIndexes is each failure index the deleted structural
+// red check refused a commit of mine.go for, keyed by the marker the driver
+// prints once `le commit create` prepares the commit anyway.
+var commitNotRefusedForARedIndexes = []struct{ marker, index string }{
+	{"owned-red-not-refused", `{"stages":[{"stage":"doc wiring","exit-code":1,"groups":[` +
+		`{"group-id":"files:mine","kind":"files","related":["mine.go"],"summary":"a Design reference does not resolve","rerun":"le doc wiring"}]}]}`},
+	{"blind-red-not-refused", `{"stages":[{"stage":"doc wiring","exit-code":1,"groups":[` +
+		`{"group-id":"subcheck:ci-sleep-ratchet","kind":"subcheck","related":[],"summary":"functional fixtures exceed the wait-call ceiling","rerun":"le doc wiring"}]}]}`},
+	{"unreached-red-not-refused", `{"stopped-at":"rfc check","stages":[` +
+		`{"stage":"rfc check","reached":true,"exit-code":1,"groups":[]},{"stage":"doc wiring","reached":false,"exit-code":0}]}`},
+}
+
+// commitNotRefusedForARedDriver proves, through the real `le commit create`,
+// that a red prevents a release, never a commit (ai/META-DECISIONS.md, "Ze is
+// pre-release"). In a scratch checkout it records each index in
+// commitNotRefusedForARedIndexes and prepares a commit of mine.go with no
+// admission: each must succeed. It then names each retired admission, which
+// must be refused naming the keyword and its replacement, the body.
+func commitNotRefusedForARedDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
-		return errors.New("wiring attribution fixture takes no arguments")
+		return errors.New("commit-not-refused-for-a-red fixture takes no arguments")
 	}
-	repo, err := os.MkdirTemp("", "ze-verify-scope-wiring-")
+	repo, err := os.MkdirTemp("", "ze-commit-red-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
 	if err := gitFixture(ctx, repo, map[string]string{
-		fileGoMod:                      "module fixture/wiring\n\ngo 1.24\n",
+		fileGoMod:                      "module fixture/red\n\ngo 1.24\n",
 		fileFeatureGates:               contentFeatureGate,
 		fileGitIgnore:                  contentGitIgnoreTmp,
 		"docs/architecture/fixture.md": "# Fixture\n",
 		"mine.go":                      "// Design: docs/architecture/fixture.md -- fixture\npackage mine\n",
-		"theirs.go":                    "// Design: docs/architecture/fixture.md -- fixture\npackage theirs\n",
 	}); err != nil {
 		return err
 	}
@@ -231,58 +248,28 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	env := envRootedAt(repo)
-	if output, code, err := rawCommand(ctx, repo, env, leBinary, "verify status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
-		return fmt.Errorf("write verify status exit=%d: %w %s", code, err, output)
-	}
 	fmt.Fprintln(os.Stdout, "scratch-repo-ready") //nolint:errcheck // progress output
-	writeIndex := func(extra map[string]any) error {
-		groups := []any{map[string]any{
-			fieldStage: checkDocWiring, fieldGroupID: "files:wiring", fieldKind: fieldFiles, fieldRelated: []string{"theirs.go"},
-			fieldSummary: "an exported symbol added by this change has no non-test reference", fieldRerun: "le doc wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
-		}}
-		if extra != nil {
-			groups = append(groups, extra)
+	runCreate := func(session string, extra ...string) (string, int, error) {
+		line := append([]string{argCommit, "create", "session", session, "subject", "fixture change", "file", "mine.go",
+			"no-test", "mine.go is a scratch-repo fixture for the commit gate, not product code"}, extra...)
+		return rawCommand(ctx, repo, env, leBinary, line...)
+	}
+	for position, recorded := range commitNotRefusedForARedIndexes {
+		if err := os.WriteFile(filepath.Join(repo, "tmp", "ze-verify-failures.json"), []byte(recorded.index), 0o600); err != nil {
+			return err
 		}
-		value := map[string]any{"stages": []any{map[string]any{fieldStage: checkDocWiring, "exit-code": 1, "groups": groups}}}
-		data, _ := json.Marshal(value)
-		return os.WriteFile(filepath.Join(repo, "tmp", "ze-verify-failures.json"), data, 0o600)
+		output, code, err := runCreate("aaaa000" + strconv.Itoa(position+1))
+		if err != nil || code != 0 {
+			return fmt.Errorf("%s: a red in the index refused the commit: exit=%d %w %s", recorded.marker, code, err, output)
+		}
+		fmt.Fprintln(os.Stdout, recorded.marker) //nolint:errcheck // progress output
 	}
-	runCreate := func(session string) (string, int, error) {
-		return rawCommand(ctx, repo, env, leBinary, argCommit, "create",
-			"session", session, "subject", "fixture change", "file", "mine.go",
-			"no-test", "mine.go is a scratch-repo fixture for gate attribution, not product code")
+	for position, keyword := range []string{"structural-red-ok", "broken-head-fix"} {
+		output, code, err := runCreate("bbbb000"+strconv.Itoa(position+1), keyword, "a reason")
+		if err != nil || code == 0 || !strings.Contains(output, strconv.Quote(keyword)) || !strings.Contains(output, "use body") {
+			return fmt.Errorf("retired %s was not refused naming the body: exit=%d %w %s", keyword, code, err, output)
+		}
 	}
-	if err := writeIndex(nil); err != nil {
-		return err
-	}
-	// No structural-red-ok is named, so a red charged to this commit would
-	// refuse it: the commit landing is the proof the foreign red was not charged.
-	output, code, err := runCreate("aaaa1111")
-	if err != nil || code != 0 {
-		return fmt.Errorf("foreign wiring red refused commit: exit=%d %w %s", code, err, output)
-	}
-	fmt.Fprintln(os.Stdout, "wiring-red-of-another-session-not-charged") //nolint:errcheck // progress output
-	if err := writeIndex(map[string]any{
-		fieldStage: checkDocWiring, fieldGroupID: "files:design-refs", fieldKind: fieldFiles, fieldRelated: []string{"mine.go"},
-		fieldSummary: "a Design reference does not resolve", fieldRerun: "le doc check links", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
-	}); err != nil {
-		return err
-	}
-	output, code, err = runCreate("bbbb2222")
-	if err != nil || code == 0 || !strings.Contains(output, "deterministic structural gate(s)") || !strings.Contains(output, "doc wiring") {
-		return fmt.Errorf("own wiring red did not refuse: exit=%d %w %s", code, err, output)
-	}
-	fmt.Fprintln(os.Stdout, "wiring-red-of-my-own-file-still-refuses") //nolint:errcheck // progress output
-	if err := writeIndex(map[string]any{
-		fieldStage: checkDocWiring, fieldGroupID: "subcheck:ci-sleep-ratchet", fieldKind: "subcheck", fieldRelated: []string{},
-		fieldSummary: "functional fixtures exceed the wait-call ceiling", fieldRerun: "le doc wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
-	}); err != nil {
-		return err
-	}
-	output, code, err = runCreate("cccc3333")
-	if err != nil || code == 0 || !strings.Contains(output, "charged for want of path attribution") || !strings.Contains(output, "subcheck:ci-sleep-ratchet") {
-		return fmt.Errorf("blind wiring red did not refuse: exit=%d %w %s", code, err, output)
-	}
-	fmt.Fprintln(os.Stdout, "unattributable-wiring-red-is-charged") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "retired-red-admissions-name-the-body") //nolint:errcheck // progress output
 	return nil
 }

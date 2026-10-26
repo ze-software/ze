@@ -2,9 +2,9 @@
 // Related: ../failuregroup/failuregroup.go -- Paths and Declare, shared with the
 // repo compiles stage
 //
-// A lint red must say WHICH files its findings were about, or the commit gate
-// charges it to every commit in the checkout (../../commit/verification.go,
-// structuralGateReds). golangci-lint names them; this keeps them.
+// A lint red must say WHICH files its findings were about, or `./le verify
+// reds file <path>` cannot tell whose red it is (../../verify/reds.go,
+// readReds). golangci-lint names them; this keeps them.
 
 package golint
 

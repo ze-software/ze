@@ -52,7 +52,7 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
 | `session` | no | The eight-hex commit namespace. `./le commit session` creates or reuses this harness session's |
 | `tag` | no | The block tag inside the script |
-| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the verify it exists to spare. Takes no `no-test`, `review-override`, `rfc-change-ok`, `structural-red-ok`, `broken-head-fix` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
+| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the verify it exists to spare. Takes no `no-test`, `review-override`, `rfc-change-ok` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
 | `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
 | `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
@@ -85,8 +85,6 @@ after the approvals (`Prepared.Trailers`):
 |-----------|---------|-----------------------------|
 | `review-override "<reason>"` on a closure with no clean review | `Review-owed: <spec stem>: <reason>` | yes, until a clean review, a recorded Review Gate or the owner's attestation answers it |
 | `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a later `RFC-approved:` for the unit or the owner's attestation |
-| `structural-red-ok "<reason>"` with a charged structural red | `Structural-red-ok: <reason>` | no, audit only |
-| `broken-head-fix "<reason>"` for the sole compiles red | `Broken-head-fix: <reason>` | no, audit only |
 
 An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
@@ -94,6 +92,15 @@ starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:` and
 `Ledger-carried:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
+
+No admission exists for a red. A red prevents a release, never a commit
+(`ai/META-DECISIONS.md`, "Ze is pre-release"), so `create` reads no failure
+index and refuses nothing a test, lint, a structural check or a generated-file
+check found, whether or not the commit caused it. Name each red you know of in
+the body; it is owed at the release check. The two admissions the deleted
+structural red check took, `structural-red-ok` and `broken-head-fix`, are
+refused as retired keywords naming that replacement.
+<!-- source: internal/le/commit/actions.go -- createParameters, redsInTheBody -->
 
 ## Committing some hunks of a shared file
 
@@ -171,14 +178,10 @@ The refusal prints no command that pins anything by itself. A printed re-pin
 command was tried and removed: whatever it carried, pasting it vouched for
 content no reviewer had read, which cleared the gate's own refusal.
 
-Three judgements do not read the selected blob, and each says so:
+Two judgements do not read the selected blob, and each says so:
 
 - The verification state is reported stale, because the certificate's manifest
   hashes the working-tree file, which holds hunks the commit does not carry.
-- The structural gate (`structuralGateReds`) charges reds by path from the
-  failure index the last verify run wrote over the working tree, so a hunks
-  path is charged with whatever that run found in the whole file, the other
-  session's hunks included.
 - The drift note and the script's review re-check leave a hunks path out: its
   working tree differs from the commit by design, and its content was judged
   at create time.
@@ -194,7 +197,6 @@ script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 <!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
 <!-- source: internal/le/spec/review.go -- recordedHash -->
-<!-- source: internal/le/commit/verification.go -- structuralGateReds -->
 <!-- source: internal/le/commit/script.go -- renderSharedIndexRepair -->
 
 ## What the command refuses

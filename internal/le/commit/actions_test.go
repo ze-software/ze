@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -33,8 +34,7 @@ func TestCommitCreateHelpRendersEveryLiveKeyword(t *testing.T) {
 	}
 	want := []string{keywordSubject, keywordBody, keywordFile, keywordFileList, keywordHunks, keywordRemove,
 		keywordRemoveList, keywordReplace, keywordAppend, keywordScript, keywordSession, keywordTag, keywordAttest,
-		keywordLedgerCarried, keywordNoTest, keywordStructuralRedOK, keywordReviewOverride, keywordBrokenHeadFix,
-		keywordRFCChangeOK, keywordDryRun}
+		keywordLedgerCarried, keywordNoTest, keywordReviewOverride, keywordRFCChangeOK, keywordDryRun}
 	if len(live) != len(want) {
 		t.Errorf("create lists %d keywords, want the %d live ones", len(live), len(want))
 	}
@@ -61,7 +61,7 @@ func TestCommitCreateHelpRendersEveryLiveKeyword(t *testing.T) {
 			t.Errorf("%s is not marked repeatable", keyword)
 		}
 	}
-	for _, retired := range []string{keywordPush, "unverified", "missing-full-verify-ok"} {
+	for _, retired := range []string{keywordPush, "unverified", "missing-full-verify-ok", "structural-red-ok", "broken-head-fix"} {
 		if _, listed := live[retired]; listed {
 			t.Errorf("create lists the retired keyword %q", retired)
 		}
@@ -71,6 +71,25 @@ func TestCommitCreateHelpRendersEveryLiveKeyword(t *testing.T) {
 	}
 	if _, code := Answer([]string{"create", "--help"}); code != 0 {
 		t.Errorf("create --help answered %d, want 0", code)
+	}
+}
+
+// TestTheRetiredRedAdmissionsNameTheBody proves the two admissions the deleted
+// structural red check took are refused by name, with their value, and that the
+// refusal names the replacement: the reds go in the body. Method: one create
+// line per keyword through Answer, which must answer the usage code and print
+// a refusal naming the keyword and `body`.
+func TestTheRetiredRedAdmissionsNameTheBody(t *testing.T) {
+	for _, keyword := range []string{"structural-red-ok", "broken-head-fix"} {
+		t.Run(keyword, func(t *testing.T) {
+			_, err := parseCreate([]string{"subject", "s", "file", "a", keyword, "a reason"})
+			if err == nil {
+				t.Fatalf("create accepted %q, whose gate is deleted", keyword)
+			}
+			if !strings.Contains(err.Error(), strconv.Quote(keyword)) || !strings.Contains(err.Error(), "use body") {
+				t.Fatalf("the refusal %q does not name %q and its replacement body", err, keyword)
+			}
+		})
 	}
 }
 

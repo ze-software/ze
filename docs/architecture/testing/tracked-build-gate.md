@@ -139,25 +139,25 @@ tried first and both were inert:
 ## Detective, not preventive
 
 The gate judges what git already holds, so the commit that breaks HEAD is
-caught by the next run, not by itself. Two things make that bite:
-`ai/rules/precommit-verify.md` requires the check right after a commit script that
-carried Go, and the gate is in `STRUCTURAL_GATES`, so the next commit is
-refused while HEAD is red.
+caught by the next run, not by itself. What makes that bite is
+`ai/rules/precommit-verify.md`, which requires the check right after a commit script that
+carried Go. Its red refuses no commit: a red prevents a release, never a commit
+(`ai/META-DECISIONS.md`, "Ze is pre-release"), so the commit that lands the
+missing producer clears it, and the release check owes it green.
 
 Running it during `./le commit create` against a prospective tree was rejected.
 One generated script can hold several commit blocks, and an overlay of a later
 block's paths onto HEAD omits an earlier block's producer. That produces a false
 red and makes the gate untrustworthy.
 
-### The deadlock the structural listing created
+### Why a commit-time refusal on this red deadlocked
 
-Every other structural gate reads the working tree, so its red is cleared
-before the next commit. This one reads HEAD, so its red is cleared BY the next
-commit, the one landing the missing producer. The refusal blocked exactly that
-commit. The escape is a dedicated `--broken-head-fix "<reason>"`, not the
-owner-only `--structural-red-ok`, because otherwise HEAD stays broken for
-everybody until the owner is available. Round five of the review found this;
-four earlier rounds did not.
+Every other stage reads the working tree, so its red is cleared before the
+next commit. This one reads HEAD, so its red is cleared BY the next commit, the
+one landing the missing producer. When the commit gate refused for a red, it
+refused exactly that commit, and a dedicated `broken-head-fix` admission had to
+let it through. The gate and the admission are both gone: no red refuses a
+commit.
 
 ## Failure diagnostics and selftest deadlines
 

@@ -85,11 +85,10 @@ func (g *checker) runGoAction(action string, one call) CheckResult {
 // failurePathLister is implemented by a delegated action's report that can name
 // the files its failure is about.
 //
-// It exists because a group with no paths is UNATTRIBUTABLE, and an
-// unattributable structural red is charged to every commit in the checkout
-// rather than to the one that caused it (internal/le/commit/verification.go,
-// structuralGateReds). Every delegated action used to report nil here, so one
-// session's red blocked every other session's commit, however unrelated.
+// It exists because a group with no paths is UNATTRIBUTABLE: `./le verify
+// reds file <path>` answers undetermined for every path
+// (internal/le/verify/reds.go, readReds), so no session can tell whether the
+// red is its own. Every delegated action used to report nil here.
 //
 // Opting in is per-report: an action whose report cannot name files keeps the
 // old behavior, which is the honest answer for a check that judges the tree as

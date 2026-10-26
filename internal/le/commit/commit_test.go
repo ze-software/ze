@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +12,6 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/spec"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
-	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 func TestNormalizePathRefusesNonFilePopulations(t *testing.T) {
@@ -128,304 +126,39 @@ func TestGoSourceRequiresTestUnlessExplicitlyExempt(t *testing.T) {
 	}
 }
 
-func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
-	root := t.TempDir()
-	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
-	writeCommitFixture(t, root, "theirs/b.go", "package theirs\n")
-	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
-		{"stage":"go lint/run","exit-code":1,"groups":[
-			{"group-id":"lint:theirs","kind":"lint","related":["theirs/b.go"]}]},
-		{"stage":"arch tier/check","exit-code":1,"groups":[
-			{"group-id":"tier:unknown","kind":"subcheck","related":["theirs/b.go"]}]},
-		{"stage":"doc wiring","exit-code":1,"groups":[
-			{"group-id":"files:mine","kind":"files","related":["mine/a.go"]}]}
-	]}`)
-	reds := structuralGateReds(root, []string{"mine/a.go"})
-	if !slices.Equal(reds.Charged, []string{"arch tier/check", "doc wiring"}) ||
-		!slices.Equal(reds.Foreign, []string{"go lint/run"}) ||
-		!slices.Equal(reds.Unattributed, []string{"arch tier/check (tier:unknown)"}) {
-		t.Fatalf("structuralGateReds = %#v", reds)
-	}
-}
-
-// TestStructuralRedsSeeNothingUntilARunPublishesItsIndex points the commit
-// gate's red reader at a run that has written 3 of its 49 stage logs and no
-// published index.
-//
-// It answers NOTHING: no charge, no foreign red, no unattributed red, while a
-// stage log on disk already says a red names the path. The gate is not wrong to
-// do that, because the index is the artifact it reads, but the empty answer is
-// an absence rather than a verdict, and the freshness certificate is the guard
-// that keeps it from reading as a pass. This test pins both halves, because a
-// change that made a missing certificate fresh would turn a partial run into a
-// silent green (ai/rules/principles.md).
-//
-// `le verify reds file <path>` (internal/le/verify/reds.go) is what reads those
-// three logs, and it answers undetermined rather than nothing.
-func TestStructuralRedsSeeNothingUntilARunPublishesItsIndex(t *testing.T) {
-	root := t.TempDir()
-	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
-	writeCommitFixture(t, root, "tmp/verify/full-fixture/01-go-lint-run.log",
-		"### Stage: go lint/run\n"+
-			`VERIFY FAILURE GROUP: {"group-id":"lint:mine","kind":"lint","related":["mine/a.go"],`+
-			`"summary":"findings","rerun":"le go lint run"}`+"\n"+
-			"VERIFY FAILURE GROUPS COMPLETE: 1\n"+
-			"### Stage result: go lint/run exit=1\n")
-	writeCommitFixture(t, root, "tmp/verify/full-fixture/02-tier-check.log",
-		"### Stage result: tier/check exit=0\n")
-	writeCommitFixture(t, root, "tmp/verify/full-fixture/03-rfc-check.log",
-		"### Stage result: rfc/check exit=2\n")
-
-	reds := structuralGateReds(root, []string{"mine/a.go"})
-
-	if len(reds.Charged) != 0 || len(reds.Foreign) != 0 || len(reds.Unattributed) != 0 {
-		t.Fatalf("structuralGateReds read an unpublished run = %#v", reds)
-	}
-	state := verificationState(root, []string{"mine/a.go"})
-	if state.State == verifyFresh {
-		t.Fatalf("a checkout with no certificate is %q, so an empty red set reads as a pass", state.State)
-	}
-}
-
-func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "structural-create-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[{
-		"stage":"doc wiring","exit-code":1,
-		"groups":[{"group-id":"files:mine","kind":"files","related":["mine.txt"]}]
-	}]}`)
-	options := Options{
-		Subject: "charged red", Files: []string{"mine.txt"},
-		DryRun: true,
-	}
-	if _, err := Create(root, &options); err == nil || !strings.Contains(err.Error(), "deterministic structural gate") {
-		t.Fatalf("Create structural refusal = %v", err)
-	}
-	options.StructuralRedOK = "other session owns the red and this text cannot affect it"
-	if _, err := Create(root, &options); err != nil {
-		t.Fatalf("Create refused a charged red the override admits: %v", err)
-	}
-}
-
-// TestAnUnreachedStructuralStageIsCharged proves AC-11: a structural stage a
-// first-red run never reached proved nothing, so the commit gate charges it as
-// not reached and refuses the commit until structural-red-ok names a reason. A
-// non-structural unreached stage is not charged, and an index written before
-// first-red existed (no reached key) still reads every stage as run.
-func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "unreached-structural-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stopped-at":"rfc check","stages":[
-		{"stage":"rfc check","reached":true,"exit-code":1,"groups":[]},
-		{"stage":"doc wiring","reached":false,"exit-code":0},
-		{"stage":"go lint/run","exit-code":0},
-		{"stage":"test unit/cached","reached":false,"exit-code":0}
-	]}`)
-	reds := structuralGateReds(root, []string{"mine.txt"})
-	if !slices.Contains(reds.Charged, "doc wiring") || !slices.Equal(reds.Unreached, []string{"doc wiring"}) {
-		t.Fatalf("structuralGateReds = %#v, want doc wiring charged as not reached", reds)
-	}
-	if slices.Contains(reds.Charged, "go lint/run") || slices.Contains(reds.Charged, "test unit/cached") {
-		t.Fatalf("a stage with no reached key or a non-structural stage was charged: %#v", reds)
-	}
-	options := Options{Subject: "after a stopped run", Files: []string{"mine.txt"}, DryRun: true}
-	_, err := Create(root, &options)
-	if err == nil || !strings.Contains(err.Error(), "doc wiring: not reached, because the run stopped at its first red (rfc check)") {
-		t.Fatalf("Create after a stopped run = %v", err)
-	}
-	options.StructuralRedOK = "the stopped run's remaining stages run in the parent's full gate"
-	if _, err := Create(root, &options); err != nil {
-		t.Fatalf("structural-red-ok did not pass the unreached stage: %v", err)
-	}
-}
-
-// partWithout answers a piece of the full population cut in three that does
-// not hold stage, read from the engine's own dealing.
-//
-// A hard-coded piece goes stale whenever a stage is added to or removed from
-// the population, because the dealing is by position: the piece then holds
-// the stage under test and publishes it green, and the carried red is cleared
-// before the assertion reads it.
-func partWithout(t *testing.T, stage string) verifyengine.Part {
-	t.Helper()
-	const pieces = 3
-	for index := 1; index <= pieces; index++ {
-		part := verifyengine.Part{Index: index, Of: pieces}
-		stages, err := verifyengine.Dealt(verifyengine.Mode, part)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !slices.ContainsFunc(stages, func(dealt verifyengine.Stage) bool {
-			return dealt.Identity.Name == stage
-		}) {
-			return part
-		}
-	}
-	t.Fatalf("every piece of the full population cut in %d holds %s", pieces, stage)
-	return verifyengine.Part{}
-}
-
-// publishRun runs one verification through the engine in a throwaway worktree
-// and publishes its failure index into root, the way a worktree run does.
-func publishRun(t *testing.T, root, commit string, part verifyengine.Part, red string) {
-	t.Helper()
-	worktree := t.TempDir()
-	runner := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		result := verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
-		if identity.Name == red {
-			result.Code = 1
-		}
-		return result
-	}
-	verifyengine.RunPart(context.Background(), worktree, commit, verifyengine.Mode, part,
-		verifyengine.Plan{}, runner, verifyengine.Slot{})
-	if err := verifyengine.PublishFailureIndex(worktree, root, ""); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TestAPieceKeepsAnEarlierStructuralRedCharged proves a piece of a cut run
-// cannot erase a structural red an earlier run recorded for a stage the piece
-// never ran, and that a piece which reaches the stage green clears it. The
-// piece's index is the checkout's latest, so before carry-forward it replaced
-// the full run's index and a lint red disappeared with lint never rerun.
-//
-// Method: publish a full run red at `go lint/run` as commit aaa, then part 2
-// of 3 green (lint is dealt to part 1), and require lint charged, not as
-// unreached, with the refusal naming it red at aaa. Then publish part 1 green
-// and require nothing charged.
-func TestAPieceKeepsAnEarlierStructuralRedCharged(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "piece-index-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	publishRun(t, root, "aaa", verifyengine.Uncut(), "go lint/run")
-	publishRun(t, root, "bbb", verifyengine.Part{Index: 2, Of: 3}, "")
-	reds := structuralGateReds(root, []string{"mine.txt"})
-	if !slices.Contains(reds.Charged, "go lint/run") || slices.Contains(reds.Unreached, "go lint/run") {
-		t.Fatalf("structuralGateReds after a piece = %#v, want go lint/run charged as the carried red", reds)
-	}
-	options := Options{Subject: "after a piece", Files: []string{"mine.txt"}, DryRun: true}
-	_, err := Create(root, &options)
-	if err == nil || !strings.Contains(err.Error(), "go lint/run: red at aaa in ") {
-		t.Fatalf("Create after a piece = %v, want a refusal naming go lint/run red at aaa", err)
-	}
-	publishRun(t, root, "ccc", verifyengine.Part{Index: 1, Of: 3}, "")
-	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
-		t.Fatalf("structuralGateReds after the piece holding lint ran green = %#v, want nothing charged", reds)
-	}
-}
-
-// TestACarriedRedNamesTheRunThatClearsIt proves the refusal for a carried
-// structural red names a command that clears the charge, not only one that
-// diagnoses it. The group's rerun runs the stage directly and publishes no
-// failure index, so a fixed stage rerun green that way left the carried red
-// refusing every commit.
-//
-// Method: publish a full run red at `go lint/run` (in the fast population)
-// and at `verify deps/evidence-vet` (full population only), then a piece the
-// engine's dealing gives no copy of the stage under test, and require each refusal line to name the diagnosing rerun
-// and the verify runs that clear it, with `le verify current fast` named for
-// lint only. The diagnosing rerun is pinned to the group's own rerun string,
-// so a refusal that fell back to the full run would go red.
-func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
-	for _, tc := range []struct {
-		stage string
-		rerun string
-	}{
-		{stage: "go lint/run", rerun: "le go lint run"},
-		{stage: "verify deps/evidence-vet", rerun: "le verify deps evidence-vet"},
+// TestCreateIsNotRefusedForARedInTheIndex proves the owner rule that a red
+// prevents a release, never a commit (ai/META-DECISIONS.md, "Ze is
+// pre-release"). Method: three failure indexes, each holding a red the old
+// structural gate charged (a group naming the committed file, a group naming
+// no path beside a first-red stage not reached, and an index that does not
+// parse), each through Create with no admission. Each commit is prepared, its
+// message carries no admission trailer, and its verify detail says nothing of
+// the index, which the commit no longer reads.
+func TestCreateIsNotRefusedForARedInTheIndex(t *testing.T) {
+	for _, tc := range []struct{ name, index string }{
+		{"a red naming the committed file", `{"stages":[{"stage":"doc wiring","exit-code":1,
+			"groups":[{"group-id":"files:mine","kind":"files","related":["mine.txt"]}]}]}`},
+		{"a red naming no path and a stage not reached", `{"stopped-at":"rfc check","stages":[
+			{"stage":"arch tier/check","exit-code":1,"groups":[{"group-id":"tier:unknown","kind":"subcheck","related":[]}]},
+			{"stage":"doc wiring","reached":false,"exit-code":0}]}`},
+		{"an index that does not parse", `{"stages":[`},
 	} {
-		t.Run(tc.stage, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			root := newCommitRepository(t)
-			t.Setenv("CLAUDE_CODE_SESSION_ID", "carried-clear-fixture")
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "red-not-refused-fixture")
 			writeCommitFixture(t, root, "mine.txt", "mine\n")
-			publishRun(t, root, "aaa", verifyengine.Uncut(), tc.stage)
-			publishRun(t, root, "bbb", partWithout(t, tc.stage), "")
-			reds := structuralGateReds(root, []string{"mine.txt"})
-			cause := ""
-			for index, charged := range reds.Charged {
-				if charged == tc.stage {
-					cause = reds.Causes[index]
-				}
+			writeCommitFixture(t, root, "tmp/ze-verify-failures.json", tc.index)
+			prepared, err := Create(root, &Options{Subject: "a commit over a red", Files: []string{"mine.txt"}, DryRun: true})
+			if err != nil {
+				t.Fatalf("Create refused a commit for a red in the index: %v", err)
 			}
-			if cause == "" {
-				t.Fatalf("structuralGateReds = %#v, want %s charged", reds, tc.stage)
+			if strings.Contains(prepared.MessageText, "-red-ok:") || strings.Contains(prepared.MessageText, "Broken-head-fix:") {
+				t.Fatalf("the message records an admission for a red:\n%s", prepared.MessageText)
 			}
-			for _, want := range []string{
-				"; diagnose with: " + tc.rerun + "; ",
-				// Neither stage is in the changed population, so only the release
-				// check clears it, and the text hands that command to Thomas.
-				"clears only when the release check reaches it, which you never run: give Thomas the command ./le verify worktree",
-			} {
-				if !strings.Contains(cause, want) {
-					t.Fatalf("cause = %q, want it to contain %q", cause, want)
-				}
-			}
-			if strings.Contains(cause, "rerun it with") {
-				t.Fatalf("cause = %q still offers a rerun as the clearing command", cause)
-			}
-			if strings.Contains(cause, "verify current") {
-				t.Fatalf("cause = %q tells the agent to run a full verify", cause)
+			if strings.Contains(prepared.Verify.Detail, "ze-verify-failures") {
+				t.Fatalf("the verify detail reads the failure index: %q", prepared.Verify.Detail)
 			}
 		})
-	}
-}
-
-// TestACarriedRedWithNoRecordedCommitSaysSo proves the refusal for a carried
-// red whose earlier run recorded no commit names it as such, rather than the
-// empty "red at  in ".
-func TestACarriedRedWithNoRecordedCommitSaysSo(t *testing.T) {
-	root := newCommitRepository(t)
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
-		{"stage":"go lint/run","reached":true,"exit-code":1,"groups":[],"outside-run":true,"carried-from":{"commit":"","run-dir":""}}
-	]}`)
-	reds := structuralGateReds(root, []string{"mine.txt"})
-	if len(reds.Causes) != 1 {
-		t.Fatalf("structuralGateReds = %#v, want go lint/run charged", reds)
-	}
-	cause := reds.Causes[0]
-	if !strings.Contains(cause, "go lint/run: red in an earlier run (commit not recorded), carried") ||
-		strings.Contains(cause, "red at  in") {
-		t.Fatalf("cause = %q, want it to name an earlier run whose commit was not recorded", cause)
-	}
-}
-
-// TestAGreenFastRunChargesNoStructuralStage proves a green `verify current
-// fast` leaves no structural charge for the stages the fast population drops
-// (verify deps/evidence-vet): a stage no run judged is not red, and the push
-// gate already owes the full verify that covers "not run".
-func TestAGreenFastRunChargesNoStructuralStage(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "fast-index-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	passing := func(_ context.Context, _ string, identity verifyengine.Identity) verifyengine.ActionResult {
-		return verifyengine.ActionResult{Identity: identity, Registered: true, Completed: true}
-	}
-	fast := verifyengine.RunMode(context.Background(), root, "aaa", verifyengine.FastMode,
-		verifyengine.Plan{}, passing, verifyengine.Slot{})
-	if fast.Code != 0 {
-		t.Fatalf("fast run = %#v", fast.Failure)
-	}
-	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
-		t.Fatalf("structuralGateReds after a green fast run = %#v, want nothing charged", reds)
-	}
-}
-
-// TestAGreenSweepOfEveryPieceChargesNoStructuralStage proves a cut
-// sweep that runs every piece of a cut green leaves no structural charge: the
-// last piece's index carries the other pieces' green verdicts.
-func TestAGreenSweepOfEveryPieceChargesNoStructuralStage(t *testing.T) {
-	root := newCommitRepository(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "sweep-index-fixture")
-	writeCommitFixture(t, root, "mine.txt", "mine\n")
-	for index := 1; index <= 3; index++ {
-		publishRun(t, root, "aaa", verifyengine.Part{Index: index, Of: 3}, "")
-	}
-	if reds := structuralGateReds(root, []string{"mine.txt"}); len(reds.Charged) != 0 {
-		t.Fatalf("structuralGateReds after a green sweep = %#v, want nothing charged", reds)
 	}
 }
 
@@ -975,7 +708,6 @@ func TestCreateRefusesBadTagBeforeTheGates(t *testing.T) {
 
 	options := Options{
 		Tag: "fix(bgp)", Subject: "parenthesised tag", Files: []string{"mine.txt"},
-		StructuralRedOK: "fixture repository carries no gate record",
 	}
 	_, err := Create(root, &options)
 	if err == nil || !strings.Contains(err.Error(), "tag must start with an alphanumeric") {
@@ -1177,7 +909,7 @@ func TestStaleIndexOKIsNotAKeyword(t *testing.T) {
 	}
 	// The discrimination: a keyword that IS declared still parses, so the
 	// refusal above is about this one name and not about the shape of the call.
-	if _, err := parseCreate([]string{"subject", "s", "file", "a", "structural-red-ok", "why"}); err != nil {
+	if _, err := parseCreate([]string{"subject", "s", "file", "a", "review-override", "why"}); err != nil {
 		t.Fatalf("parseCreate refused a declared override keyword: %v", err)
 	}
 }

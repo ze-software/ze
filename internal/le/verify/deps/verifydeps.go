@@ -132,10 +132,10 @@ type Report struct {
 	Children     []ChildReport       `json:"children,omitempty"`
 	Allocations  []AllocationVerdict `json:"allocations,omitempty"`
 	// FailedPackages are the checkout-relative directories `go test` named as
-	// failing. A stage that answers a red and names nothing is charged to
-	// EVERY commit in the checkout rather than to the one that caused it
-	// (internal/le/commit/verification.go, structuralGateReds), and a test run
-	// is the largest stage that used to name nothing.
+	// failing. A stage that answers a red and names nothing leaves `./le
+	// verify reds file <path>` undetermined for every path
+	// (internal/le/verify/reds.go, readReds), and a test run is the largest
+	// stage that used to name nothing.
 	FailedPackages []string `json:"failed-packages,omitempty"`
 	// Skipped says the stage executed no test, and Reason says why it was
 	// entitled to. The pair exists because an exit code cannot tell a stage

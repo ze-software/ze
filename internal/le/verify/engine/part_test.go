@@ -158,25 +158,24 @@ func TestACutRunKeepsTheDealtOrder(t *testing.T) {
 
 // TestAnIndexNamesEveryFullStageItDidNotRun proves a piece of a cut run, and a
 // fast run, publish an index that names every stage of the uncut full
-// population they never started as not reached. The commit gate charges only
-// the structural stages an index lists, so an index that lists only the stages
-// its own run held let a piece replace an earlier full run's lint red and the
-// commit go through with lint never run.
+// population they never started as not reached. An index that lists only the
+// stages its own run held let a piece replace an earlier full run's lint red,
+// so the index read clean with lint never run.
 //
 // Method: run part 2 of 3 and the fast population with a passing runner, read
 // each index back, and require every full-population stage to appear once:
 // reached when the run started it, reached false otherwise. `go lint/run` is
-// dealt to part 1, and `verify deps/evidence-vet` is a structural stage the
-// fast population drops, so each run has a structural stage it never ran.
+// dealt to part 1, and `verify deps/evidence-vet` is a stage the fast
+// population drops, so each run has a stage it never ran.
 func TestAnIndexNamesEveryFullStageItDidNotRun(t *testing.T) {
 	cases := []struct {
-		name       string
-		mode       string
-		part       Part
-		structural string
+		name  string
+		mode  string
+		part  Part
+		unrun string
 	}{
-		{name: "piece", mode: Mode, part: Part{Index: 2, Of: 3}, structural: "go lint/run"},
-		{name: "fast", mode: FastMode, part: Uncut(), structural: "verify deps/evidence-vet"},
+		{name: "piece", mode: Mode, part: Part{Index: 2, Of: 3}, unrun: "go lint/run"},
+		{name: "fast", mode: FastMode, part: Uncut(), unrun: "verify deps/evidence-vet"},
 	}
 	full := StagesForMode(Mode)
 	for _, tc := range cases {
@@ -205,8 +204,8 @@ func TestAnIndexNamesEveryFullStageItDidNotRun(t *testing.T) {
 					t.Fatalf("index says %s reached=%v, and the run started %v", name, was, started)
 				}
 			}
-			if reached[tc.structural] {
-				t.Fatalf("structural %s reads as reached in a run that never started it", tc.structural)
+			if reached[tc.unrun] {
+				t.Fatalf("%s reads as reached in a run that never started it", tc.unrun)
 			}
 		})
 	}

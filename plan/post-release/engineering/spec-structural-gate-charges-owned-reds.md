@@ -8,7 +8,7 @@
 | Release reason | Owner rule (`ai/META-DECISIONS.md`, "Ze is pre-release"): a red prevents a release, never a commit. The commit gate's structural red check contradicts it and is deleted. Thomas ordered it implemented now, ahead of the post-release queue (2026-10-26). No shipped behaviour changes |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Handoff | - |
 | Updated | 2026-10-26 |
 
@@ -109,9 +109,9 @@ Measured on 2026-10-26 with `git log --since=2026-10-23 --format=%b | grep '^Str
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Nothing outside `internal/le/commit` reads `structuralReds`, the commit package's index types or the two Options fields | grep for the symbols over `internal`, `cmd`, `test` | A build break elsewhere | `./le repo compiles check` and the scoped build | unvalidated |
-| A-2 | The engine's carry-forward and interrupted marking keep their own tests after the commit-side tests go | `internal/le/verify/engine/carry_test.go`, `carry_partial_test.go`, `artifacts_interrupted_test.go` | Engine semantics lose coverage | Read the named engine tests before deleting the commit-side ones | unvalidated |
-| A-3 | A `Retired` keyword with a value (`structural-red-ok "<reason>"`) is refused before its value is read | `parameter.go` refuses on the keyword | The reason would parse as an unknown word and the message would not name the replacement | `TestTheRetiredRedAdmissionsNameTheBody` | unvalidated |
+| A-1 | Nothing outside `internal/le/commit` reads `structuralReds`, the commit package's index types or the two Options fields | grep for the symbols over `internal`, `cmd`, `test` | A build break elsewhere | `./le repo compiles check` and the scoped build | confirmed: grep finds no reader; `verifyengine.Structural` was the one indirect dependency and is deleted with it |
+| A-2 | The engine's carry-forward and interrupted marking keep their own tests after the commit-side tests go | `internal/le/verify/engine/carry_test.go`, `carry_partial_test.go`, `artifacts_interrupted_test.go` | Engine semantics lose coverage | Read the named engine tests before deleting the commit-side ones | confirmed: `TestAPieceCarriesAnEarlierRedForAStageItDidNotRun`, `TestAFullGreenRunAfterACarriedRedCarriesNothing`, `TestACutFullRunPieceIsAFullJudgement`, `TestAnInterruptedStageIsWrittenAsNeverJudged` and siblings stay |
+| A-3 | A `Retired` keyword with a value (`structural-red-ok "<reason>"`) is refused before its value is read | `parameter.go` refuses on the keyword | The reason would parse as an unknown word and the message would not name the replacement | `TestTheRetiredRedAdmissionsNameTheBody` | confirmed: green, refusal names the keyword and `use body` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -179,7 +179,8 @@ N-A: tooling, no protocol peer.
 - `internal/le/commit/prepare.go` - delete the two `Options` fields, the structural block in `checkVerificationGates`, the doc comments naming it, the `Prepared.Trailers` mention
 - `internal/le/commit/actions.go` - delete the two keyword, trailer, `declaredTrailers`, `reasonParameter` and `createPolicy` entries and the `optionsOf` reads; add two `Retired` rows
 - `internal/le/commit/commit_test.go`, `input_test.go`, `owed_consumers_test.go`, `actions_test.go`, `create_golden_test.go` (+ its golden file if it renders the keyword) - per the TDD plan
-- `internal/test/fixture/misc_fixture_runner.go` - replace `verifyScopeWiringDriver` and its registration with `commitNotRefusedForARedDriver`
+- `internal/test/fixture/misc_fixture_runner.go` - replace `verifyScopeWiringDriver` and its registration with `commitNotRefusedForARedDriver`; `internal/test/fixture/constants.go` loses the six constants only the old driver used
+- `internal/le/verify/engine/stages.go` - delete `Stage.Structural`, `Structural(mode)` and the `structural(...)` wrapper (each stage becomes `stage(...)`, populations unchanged): their only reader was `commit.structuralStages`, and their contract ("the stages whose red refuses a commit") is false under the owner rule. Tests: `TestStructuralStagesAreMembersOfThePopulation`, `TestStructuralIsASubsetOfFull` deleted, one assertion of `TestChangedPopulationReadsScope` removed, `TestAnIndexNamesEveryFullStageItDidNotRun` comment and case-field rename (all judged)
 - Comment-only: `internal/le/verify/engine/artifacts.go`, `internal/le/verify/reds.go`, `internal/le/verify/failuregroup/failuregroup.go`, `internal/le/go/lint/failuregroup.go`, `internal/le/doc/wiring/delegate.go`, `internal/le/repo/compiles/report.go`, `internal/le/verify/deps/verifydeps.go`, and the test-file header comments in `verify/lifecycle_test.go`, `verify/engine/artifacts_test.go`, `verify/failuregroup/failuregroup_test.go`, `verify/deps/verifydeps_test.go`, `doc/wiring/delegate_paths_test.go`, `go/lint/failuregroup_test.go`, `go/staticcheck/failuregroup_test.go`, `repo/compiles/failuregroup_test.go`, `setup/probes_toolchain_test.go`
 - `docs/contributing/committing.md` - `attest` row, admission table rows, hunks bullet, source anchor
 - `docs/architecture/testing/verify-freshness-scope.md` - publication paragraph sentence, "Failure attribution" commit-package text and table, "Asking before the run ends", anchors
@@ -276,6 +277,9 @@ N-A: tooling, no protocol peer.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+- Forced red (before the deletion): `TestCreateIsNotRefusedForARedInTheIndex` failed all three cases with `deterministic structural gate(s) block this commit` (owned, blind+unreached) and the index text in the verify detail (unparsable); `TestTheRetiredRedAdmissionsNameTheBody` failed with `create accepted "structural-red-ok"`. Both green after.
+- Test judge (`ze-test-judge`, separate agent): 24 units approved in batch one (16 deleted commit tests, 7 edited, runner `verify-scope-wiring-attribution`), 3 in batch two (engine Structural tests); rows in the session's weakening approval file.
+- `TestDispatchStopsACanceledStageWithSIGTERM` (`internal/le/verify/dispatch`) is red alone and repeatably (`stage was not given SIGTERM: ""`); this work does not touch that package (last changed by 140c318edd, another session's).
 - After D1 the JSON failure index has no in-tree program reader: `./le verify reds` reads stage logs, and people read the text index. The engine keeps writing it (D4: the release check is unchanged). Whether the JSON copy should go is a separate question for the owner, not this spec's.
 
 ## Owned journal rows

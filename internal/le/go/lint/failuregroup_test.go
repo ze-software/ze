@@ -3,10 +3,9 @@
 //
 // VALIDATES: a lint red names the files whose findings caused it, in a failure
 // group the verify engine can read back out of the stage log.
-// PREVENTS: an unattributable lint red. internal/le/commit/verification.go's
-// structuralGateReds charges a failure group carrying no usable paths to EVERY
-// commit in the checkout, so one session's lint finding refuses every other
-// session's commit however unrelated the change.
+// PREVENTS: an unattributable lint red. A failure group carrying no usable
+// paths names no file to `./le verify reds` (internal/le/verify/reds.go,
+// readReds), so no session can tell whether the lint finding is its own.
 package golint
 
 import (

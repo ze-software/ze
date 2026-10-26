@@ -897,9 +897,9 @@ func TestACutRunPublishesItsPieceAndNeverAWholeVerification(t *testing.T) {
 // is the worktree run's own, for a red run and for a green one.
 //
 // Before this the worktree wrote its index under the throwaway tree and nothing
-// copied it, so commit preparation read whatever an in-place run left at the
-// checkout, or nothing: the 2026-10-18 worktree run went red in lint, a
-// structural stage, and structuralGateReds charged nothing. On a red run the
+// copied it, so the checkout's index held whatever an in-place run left, or
+// nothing: the 2026-10-18 worktree run went red in lint, a structural stage,
+// and the checkout showed no red. On a red run the
 // index names the saved-logs copy, because the worktree paths it was written
 // with are deleted with the worktree.
 func TestAWorktreeRunPublishesItsFailureIndex(t *testing.T) {

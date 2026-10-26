@@ -4,7 +4,7 @@
 // older than go.mod asks for is reported absent rather than present.
 // PREVENTS: a stale analyser binary reporting hundreds of import failures in
 // files that are correct, which reads as a source defect in someone else's
-// package and charges a structural gate red to whoever commits next.
+// package and leaves a structural red for the release check.
 package setup
 
 import (

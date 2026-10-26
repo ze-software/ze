@@ -179,15 +179,15 @@ the shared staging area. A refused gate writes no script.
 | rfc-approval | `rfcChangeProblems` (`rfcchange.go`), reading `tmp/commit-rfc-approved-<session>.md` and writing the `RFC-approved:` trailer | `rfc-change-ok` |
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | none: it never refuses a commit, because a missing verification is owed before a push |
-| structural-gate | `structuralGateReds` (`verification.go`) | `structural-red-ok`, `broken-head-fix` |
 | independent review | `closureStem`, `CheckReview` (`review.go`) | `review-override` |
 
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed.go -- deriveDebt -->
 An override does not discharge the obligation. `admissionTrailer` writes the
-reason into the commit as a trailer (`Review-owed:`, `RFC-approval-owed:`,
-`Structural-red-ok:`, `Broken-head-fix:`), and nothing else records it.
-`deriveDebt` reads the first two back on every ask and `./le commit push`
+reason into the commit as a trailer (`Review-owed:`, `RFC-approval-owed:`),
+and nothing else records it. No gate refuses a commit for a red: a red
+prevents a release, never a commit (`ai/META-DECISIONS.md`, "Ze is
+pre-release"). `deriveDebt` reads both trailers back on every ask and `./le commit push`
 refuses while one is open on a commit it would publish
 (`docs/contributing/committing.md`, "Pushing").
 

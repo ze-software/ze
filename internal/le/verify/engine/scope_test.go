@@ -300,7 +300,4 @@ func TestChangedPopulationReadsScope(t *testing.T) {
 			}
 		}
 	}
-	if !Structural(ChangedMode)["go lint/run/changed"] {
-		t.Error("the changed lint is not structural, so its red would not say the tree is broken")
-	}
 }

@@ -643,9 +643,8 @@ func publishWholeTree(t *testing.T, root string) {
 // VALIDATES: a red test stage says WHICH packages failed, in the answer the
 // verify engine reads its groups out of.
 // PREVENTS: the largest stage in the run staying unattributable. A group with
-// no usable paths is charged to EVERY commit in the checkout
-// (internal/le/commit/verification.go, structuralGateReds), so one package's
-// failing test refuses every other session's commit. Measured on 2026-09-21:
+// no usable paths names no file to `./le verify reds`, so no session can tell
+// whose failing test it is. When the commit gate charged reds, measured on 2026-09-21:
 // a run with five unattributed red stages charged each commit three debt rows,
 // and the same commit took one once four of them went green.
 func TestARedTestStageNamesThePackagesThatFailed(t *testing.T) {

@@ -91,8 +91,7 @@ func TestMessageRefusesDeclaredTrailerInBody(t *testing.T) {
 			t.Fatalf("a subject starting with %q was accepted", declared.Key)
 		}
 	}
-	for _, key := range []string{"Review-owed: ", "RFC-approval-owed: ", "Owner-attested: ", "Ledger-carried: ",
-		"Structural-red-ok: ", "Broken-head-fix: "} {
+	for _, key := range []string{"Review-owed: ", "RFC-approval-owed: ", "Owner-attested: ", "Ledger-carried: "} {
 		if _, err := Message("a subject", []string{key + "x: y"}, nil); err == nil {
 			t.Fatalf("the spec's trailer key %q is not declared", key)
 		}
@@ -102,8 +101,7 @@ func TestMessageRefusesDeclaredTrailerInBody(t *testing.T) {
 // TestMessageWritesOwedTrailers proves create records each admission it grants
 // as a trailer in the spelling the derivation reads: review-override as
 // `Review-owed: <stem>: <reason>`, rfc-change-ok as one
-// `RFC-approval-owed: <package>.<Test>: <reason>` per unit, and the audit-only
-// `Structural-red-ok:` and `Broken-head-fix:`.
+// `RFC-approval-owed: <package>.<Test>: <reason>` per unit.
 // VALIDATES: AC-13, AC-14, AC-20.
 func TestMessageWritesOwedTrailers(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "owed-trailer-fixture")
@@ -127,41 +125,6 @@ func TestMessageWritesOwedTrailers(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertTrailer(t, &prepared, "RFC-approval-owed: "+approvalUnit+": owner away")
-	})
-	for _, admission := range []struct{ stage, trailer string }{
-		{"doc wiring", "Structural-red-ok: "},
-		{compilesStage, "Broken-head-fix: "},
-	} {
-		t.Run(admission.trailer, func(t *testing.T) {
-			root := newCommitRepository(t)
-			writeCommitFixture(t, root, "mine.txt", "mine\n")
-			writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[{
-				"stage":"`+admission.stage+`","exit-code":1,
-				"groups":[{"group-id":"files:mine","kind":"files","related":["mine.txt"]}]}]}`)
-			options := Options{Subject: "charged red", Files: []string{"mine.txt"}, DryRun: true}
-			if admission.stage == compilesStage {
-				options.BrokenHeadFix = "the fix for the red itself"
-			} else {
-				options.StructuralRedOK = "the fix for the red itself"
-			}
-			prepared, err := Create(root, &options)
-			if err != nil {
-				t.Fatal(err)
-			}
-			assertTrailer(t, &prepared, admission.trailer+"the fix for the red itself")
-		})
-	}
-	t.Run("no admission, no trailer", func(t *testing.T) {
-		root := newCommitRepository(t)
-		writeCommitFixture(t, root, "mine.txt", "mine\n")
-		prepared, err := Create(root, &Options{Subject: "plain", Files: []string{"mine.txt"},
-			StructuralRedOK: "granted but unused", DryRun: true})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(prepared.MessageText, "Structural-red-ok:") {
-			t.Fatalf("an admission no gate used was recorded:\n%s", prepared.MessageText)
-		}
 	})
 }
 

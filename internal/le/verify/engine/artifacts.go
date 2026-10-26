@@ -49,8 +49,7 @@ type Group struct {
 // artifactStage is one stage of the full population in the failure index.
 //
 // A stage this run held is reached, or, after a first-red stop, not reached
-// with OutsideRun false: the run meant to judge it and did not, and
-// structuralGateReds in internal/le/commit charges it (AC-11).
+// with OutsideRun false: the run meant to judge it and did not.
 //
 // A stage this run did not hold (a piece of a cut run, the fast population, a
 // run that broke) has OutsideRun true and carries the earlier index's verdict
@@ -172,9 +171,7 @@ func writeRunArtifacts(root string, report Report, at time.Time) error {
 // index already there, as the JSON and text failure index (and the full-mode
 // copy for a full run).
 //
-// The checkout's index is whichever run wrote last, and the commit gate
-// charges structural reds from it (structuralGateReds in internal/le/commit).
-// A piece of a cut run, a fast run, and a run that broke each hold only part
+// The checkout's index is whichever run wrote last. A piece of a cut run, a fast run, and a run that broke each hold only part
 // of the full population, so the stages they did not hold take the verdict
 // the earlier index recorded (carryForward): a red stays red, naming the run
 // that found it, until a run reaches that stage again. The read, the merge and
@@ -478,10 +475,9 @@ func interruptedRerun(stage artifactStage) string {
 // target, merged with target's earlier index (writeFailureIndex), so the
 // checkout that asked for a worktree run reads that run's verdicts, and the
 // earlier verdicts for the stages the run did not hold.
-// The commit gate charges structural reds from the checkout's index
-// (structuralGateReds in internal/le/commit), and before this copy existed the
-// worktree's index was deleted with the worktree: the 2026-10-18 run went red
-// in lint and the gate charged nothing.
+// Before this copy existed the worktree's index was deleted with the
+// worktree: the 2026-10-18 run went red in lint and the checkout's index
+// showed nothing.
 //
 // logs names, relative to target, where the run's tmp/verify tree now lives
 // (the saved-logs copy of a red worktree run). Every log path in the index is

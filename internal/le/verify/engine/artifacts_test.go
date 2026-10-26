@@ -172,8 +172,8 @@ func TestAFailingStageWithNoDeclaredGroupsGetsOneThatNamesNoFile(t *testing.T) {
 		t.Fatalf("read the failure index: %v", err)
 	}
 	index := string(body)
-	// "generic" is outside the path-bearing set, and structuralGateReds counts a
-	// stage with no attributable group as blind and CHARGES it. A red stage that
+	// "generic" is outside the path-bearing set, so a stage with no
+	// attributable group names no file to `./le verify reds`. A red stage that
 	// declared nothing must never reach the ledger with an empty group list,
 	// which reads as "every group's files are foreign".
 	if !strings.Contains(index, `"kind": "generic"`) {

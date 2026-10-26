@@ -3,9 +3,8 @@
 // VALIDATES: a verify stage's output yields the distinct source files its
 // diagnostics named, and a declaration the engine can read back.
 // PREVENTS: an unattributable structural red. A group carrying no usable paths
-// is charged to EVERY commit in the checkout (../../commit/verification.go,
-// structuralGateReds), so one session's red refuses every other session's
-// commit however unrelated the change.
+// leaves `./le verify reds file <path>` undetermined for every path
+// (../reds.go, readReds), so no session can tell whether the red is its own.
 package failuregroup
 
 import (

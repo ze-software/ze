@@ -1260,14 +1260,15 @@ has finished, and answers one of four verdicts
 
 **It is a query, never a certificate.** Only `not-named` exits 0, and it demands
 a whole run. Every answer carries `stages`, `reported` and `pending`, so a
-reader can see how much of the run has judged nothing yet. The gate a commit
-passes is decided by `./le commit create` (`checkVerificationGates` in
-`internal/le/commit/prepare.go`): the commit lands when the verification
-certificate is FRESH for its paths, or when no deterministic structural gate is
-red or unreached for them. `./le commit push` only derives the verification
-debt from the recorded verify runs (`ai/rules/precommit-verify.md`). This action
-tells you whether to keep working or to go and fix something, and it starts no
-run.
+reader can see how much of the run has judged nothing yet. No red refuses a
+commit: `./le commit create` (`checkVerificationGates` in
+`internal/le/commit/prepare.go`) reports the verification certificate and reads
+no failure index, because a red prevents a release, never a commit
+(`ai/META-DECISIONS.md`, "Ze is pre-release"). `./le commit push` only derives
+the verification debt from the recorded verify runs
+(`ai/rules/precommit-verify.md`). This action tells you whether to keep working
+or to go and fix something, and which reds to name in your commit body, and it
+starts no run.
 
 The answer is structured data, so `| json`, `| yaml` and `| table` each render
 it.
@@ -1344,8 +1345,7 @@ verification is Thomas's to start", below).
 A stopped run is never a pass. Its exit is the stopping stage's (1, or 3 when
 that stage could not judge), its certificate is STALE for every path list, the
 failure index names the stage under `stopped-at` and lists every stage of its
-population it did not start with `reached: false`, and the commit gate charges
-each such structural stage as not reached until a run reaches it. The run
+population it did not start with `reached: false`. The run
 prints `stopped at <stage>, <n> stages not run` and the command that reruns
 them: `le verify current fast` for the fast population, whose stop leaves the
 full-only stages to `le verify worktree`; a stopped worktree run names
@@ -1356,25 +1356,16 @@ Every run's index names the whole full population, and a stage the run did not
 hold (a piece of a cut run, a fast run, a run that broke) carries the verdict
 the checkout's earlier index recorded for it, marked `outside-run` with
 `carried-from` naming the commit and run that judged it. A red therefore stays
-red until a run reaches that stage, and the commit refusal says
-`<stage>: red at <sha> in <run>` with two commands. `diagnose with:` names the
-stage's own rerun, which shows the red but publishes no index, so a stage fixed
-and rerun green that way stays charged. The clearing line names the run whose
-index rewrites the entry: `clears when ./le verify changed reaches it, which
-you run` when the changed population holds the stage, else `clears only when
-the release check reaches it, which you never run`, followed by the command to
-give Thomas, `./le verify worktree` or the `./le verify worktree part <i> of
-<n>` piece that holds the stage (`clearingRuns`). A stage no
-run has judged is listed as never judged and is not charged: not running a
-stage is the derived verification debt's business, not a red. A stage an
-interrupt cut short is the same: its exit is what its process died with, not a
-verdict, so the index writes it `interrupted` with no exit and no group (or
-carries the earlier verdict for it), and the commit report names it as never
-judged, with its own rerun as the command that judges it, without charging it.
-An index written before that marker existed records the interrupt status 130
-as the stage's exit, and the gate reads that the same way. So a green
-`verify current fast` charges nothing for the stages it drops, and a green
-`le verify worktree all of <m>` sweep Thomas starts over every piece leaves no structural charge. A
+red in the index until a run reaches that stage. A stage's own rerun shows
+the red but publishes no index. A stage no run has judged is `outside-run`
+with no verdict: not running a stage is the derived verification debt's
+business, not a red. A stage an interrupt cut short is the same: its exit is
+what its process died with, not a verdict, so the index writes it
+`interrupted` with no exit and no group (or carries the earlier verdict for
+it), with its own rerun as the command that judges it. So a green
+`verify current fast` leaves no red for the stages it drops, and a green
+`le verify worktree all of <m>` sweep Thomas starts over every piece leaves
+none either. No commit is refused for anything the index holds. A
 missing or malformed earlier index is treated as empty, and the index's
 `carry-note` (the `Earlier index:` line of the text index) says so. The merge
 runs under a lock on `tmp/ze-verify-failures.lock`, because sessions publish
@@ -1384,7 +1375,6 @@ pending stages will never report. A first-red run is separate work in the job
 registry, so it never attaches to a whole run of the same commit, nor a whole
 run to it.
 <!-- source: internal/le/verify/lifecycle.go -- worktreeArgv, firstRedWithPart -->
-<!-- source: internal/le/commit/verification.go -- structuralGateReds -->
 <!-- source: internal/le/verify/engine/artifacts.go -- carryForward -->
 
 Thomas runs `./le verify worktree part <i> of <m>` for one dealt piece, every stage of it,

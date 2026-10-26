@@ -50,12 +50,10 @@ const keywordDebtStatus = "debt-status"
 // Each one's reason is the operator's, and the admission it grants is
 // unchanged by the derived debt.
 const (
-	keywordSession         = "session"
-	actionReviewCheck      = "review-check"
-	keywordStructuralRedOK = "structural-red-ok"
-	keywordReviewOverride  = "review-override"
-	keywordBrokenHeadFix   = "broken-head-fix"
-	keywordRFCChangeOK     = "rfc-change-ok"
+	keywordSession        = "session"
+	actionReviewCheck     = "review-check"
+	keywordReviewOverride = "review-override"
+	keywordRFCChangeOK    = "rfc-change-ok"
 	// keywordAttest prepares the owner's attestation: an empty commit whose
 	// only content is its Owner-attested: trailer (D-7).
 	keywordAttest = "attest"
@@ -66,7 +64,7 @@ const (
 
 // The commit message trailers that record a person act or an admission. Each
 // key is the line's prefix, its value follows. The derivation (owed.go) reads
-// the first four back; the last two are an audit record only.
+// each one back.
 const (
 	// trailerReviewOwed is `Review-owed: <spec stem>: <reason>`.
 	trailerReviewOwed = "Review-owed: "
@@ -76,10 +74,6 @@ const (
 	trailerOwnerAttested = "Owner-attested: "
 	// trailerLedgerCarried is `Ledger-carried: <sha> [<stable patch-id>] <gate key>: <reason>`.
 	trailerLedgerCarried = "Ledger-carried: "
-	// trailerStructuralRedOK is `Structural-red-ok: <reason>`.
-	trailerStructuralRedOK = "Structural-red-ok: "
-	// trailerBrokenHeadFix is `Broken-head-fix: <reason>`.
-	trailerBrokenHeadFix = "Broken-head-fix: "
 )
 
 // declaredTrailers is every trailer create writes itself, with the one route
@@ -95,8 +89,6 @@ var declaredTrailers = []struct {
 	{trailerRFCApprovalOwed, `create ... ` + keywordRFCChangeOK + ` "<reason>"`},
 	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`},
 	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`},
-	{trailerStructuralRedOK, `create ... ` + keywordStructuralRedOK + ` "<reason>"`},
-	{trailerBrokenHeadFix, `create ... ` + keywordBrokenHeadFix + ` "<reason>"`},
 	{rfc.ApprovalTrailer, "create from ./le rfc approve"},
 	{testweakened.ApprovalTrailer, "create from ./le test weakened approve"},
 }
@@ -354,15 +346,21 @@ var createParameters = []leaction.Parameter{
 	{Keyword: keywordLedgerCarried, Kind: leaction.KindString, Value: "row", Requirement: leaction.Optional, Repeat: true,
 		Help: "a \"<sha> <gate key>: <reason>\" Ledger-carried: row"},
 	reasonParameter(keywordNoTest, "the reason the commit carries no test evidence"),
-	reasonParameter(keywordStructuralRedOK, "why a charged structural red does not hold this commit"),
 	reasonParameter(keywordReviewOverride, "why a closure commits with no clean review (Review-owed:)"),
-	reasonParameter(keywordBrokenHeadFix, "why this commit fixes the sole compiles red of a broken HEAD"),
 	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
 	{Keyword: "unverified", Retired: verify.ChangedCommand},
 	{Keyword: "missing-full-verify-ok", Retired: verify.ChangedCommand},
+	// A red prevents a release, never a commit (ai/META-DECISIONS.md, "Ze is
+	// pre-release"), so no gate is left for these two to admit a commit past.
+	{Keyword: "structural-red-ok", Retired: redsInTheBody},
+	{Keyword: "broken-head-fix", Retired: redsInTheBody},
 }
+
+// redsInTheBody is what replaced the two admissions the structural red check
+// took: the commit names each red its author knows of in its body.
+const redsInTheBody = `body "<each red you know of and its cause>"`
 
 // keywordPolicy is what one live create keyword means to an attestation.
 type keywordPolicy struct {
@@ -381,26 +379,24 @@ type keywordPolicy struct {
 // createPolicy holds one entry per live keyword of createParameters: how
 // Options holds it, and whether an attestation admits it.
 var createPolicy = map[string]keywordPolicy{
-	keywordSession:         {Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
-	keywordTag:             {Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
-	keywordSubject:         {Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
-	keywordBody:            {Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
-	keywordFile:            {Given: givenFiles},
-	keywordFileList:        {Given: givenFiles},
-	keywordHunks:           {Given: func(o *Options) bool { return len(o.Hunks) != 0 }},
-	keywordRemove:          {Given: givenRemove},
-	keywordRemoveList:      {Given: givenRemove},
-	keywordScript:          {Given: givenText(func(o *Options) string { return o.Script }), WithAttest: true},
-	keywordAppend:          {Given: func(o *Options) bool { return o.Append }, WithAttest: true},
-	keywordReplace:         {Given: func(o *Options) bool { return o.Replace }, WithAttest: true},
-	keywordNoTest:          {Given: givenText(func(o *Options) string { return o.NoTest })},
-	keywordStructuralRedOK: {Given: givenText(func(o *Options) string { return o.StructuralRedOK })},
-	keywordReviewOverride:  {Given: givenText(func(o *Options) string { return o.ReviewOverride })},
-	keywordBrokenHeadFix:   {Given: givenText(func(o *Options) string { return o.BrokenHeadFix })},
-	keywordRFCChangeOK:     {Given: givenText(func(o *Options) string { return o.RFCChangeOK })},
-	keywordDryRun:          {Given: func(o *Options) bool { return o.DryRun }, WithAttest: true},
-	keywordAttest:          {Given: givenText(func(o *Options) string { return o.Attest }), WithAttest: true},
-	keywordLedgerCarried:   {Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
+	keywordSession:        {Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
+	keywordTag:            {Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
+	keywordSubject:        {Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
+	keywordBody:           {Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
+	keywordFile:           {Given: givenFiles},
+	keywordFileList:       {Given: givenFiles},
+	keywordHunks:          {Given: func(o *Options) bool { return len(o.Hunks) != 0 }},
+	keywordRemove:         {Given: givenRemove},
+	keywordRemoveList:     {Given: givenRemove},
+	keywordScript:         {Given: givenText(func(o *Options) string { return o.Script }), WithAttest: true},
+	keywordAppend:         {Given: func(o *Options) bool { return o.Append }, WithAttest: true},
+	keywordReplace:        {Given: func(o *Options) bool { return o.Replace }, WithAttest: true},
+	keywordNoTest:         {Given: givenText(func(o *Options) string { return o.NoTest })},
+	keywordReviewOverride: {Given: givenText(func(o *Options) string { return o.ReviewOverride })},
+	keywordRFCChangeOK:    {Given: givenText(func(o *Options) string { return o.RFCChangeOK })},
+	keywordDryRun:         {Given: func(o *Options) bool { return o.DryRun }, WithAttest: true},
+	keywordAttest:         {Given: givenText(func(o *Options) string { return o.Attest }), WithAttest: true},
+	keywordLedgerCarried:  {Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
 }
 
 // givenText answers a Given for a keyword whose value is one string: blank is
@@ -444,10 +440,9 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 		Session: args.One(keywordSession), Tag: args.One(keywordTag), Subject: args.One(keywordSubject),
 		Body: args.Values(keywordBody), Files: files, Hunks: hunkSelections(args.Values(keywordHunks)), Remove: removed,
 		Script: args.One(keywordScript), Append: args.Has(keywordAppend), Replace: args.Has(keywordReplace),
-		NoTest:          args.One(keywordNoTest),
-		StructuralRedOK: args.One(keywordStructuralRedOK),
-		ReviewOverride:  args.One(keywordReviewOverride), BrokenHeadFix: args.One(keywordBrokenHeadFix),
-		RFCChangeOK: args.One(keywordRFCChangeOK), DryRun: args.Has(keywordDryRun),
+		NoTest:         args.One(keywordNoTest),
+		ReviewOverride: args.One(keywordReviewOverride),
+		RFCChangeOK:    args.One(keywordRFCChangeOK), DryRun: args.Has(keywordDryRun),
 		Attest: attest[0], AttestWords: attest[1], LedgerCarried: args.Values(keywordLedgerCarried),
 	}, nil
 }
