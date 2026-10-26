@@ -1,0 +1,109 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5635",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5635.txt",
+  "source-sha": "d5c6de8647891bec",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, status, copyright and contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.2:1",
+      "quote": "If this is configured, an operator MUST only accept announcements from the customer for prefixes that the customer is authorized to advertise, in order to prevent the customer from accidentally (or intentionally) black- holing space that they are not allowed to advertise.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5635-3.2-1"
+    }
+  ]
+}

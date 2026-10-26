@@ -1,0 +1,1366 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4861",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4861.txt",
+  "source-sha": "888f8e523e6703cd",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract and table of contents."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.3",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.4",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.5",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.6.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.6.2",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.6.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4.6.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.1.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.1.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.1",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.6",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.4",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.3.7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.1.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.1.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.2",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.5",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.6",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.2.8",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7.3.3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.2",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.3",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9",
+      "sites": 9,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "11.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "14.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "14.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "D",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "E",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "E.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "F",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.3:1",
+      "quote": "All interfaces on routers MUST have a link-local address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-2.3-1"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "The keywords MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL, when they appear in this document, are to be interpreted as described in [KEYWORDS].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The RFC 2119 key-words paragraph, written as 'The keywords MUST, MUST NOT ...', which the extractor did not strip as boilerplate."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "MUST NOT be included if the Source Address is the unspecified address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Receivers MUST silently ignore any options they do not recognize and continue processing the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.1-3"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Source Address MUST be the link-local address assigned to the interface from which this message is sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.2-2"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Receivers MUST silently ignore any options they do not recognize and continue processing the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.2-3"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "It MUST NOT be a multicast address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.3-2"
+    },
+    {
+      "id": "4.3:3",
+      "quote": "MUST NOT be included when the source IP address is the unspecified address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.3-3"
+    },
+    {
+      "id": "4.3:4",
+      "quote": "Otherwise, on link layers that have addresses this option MUST be included in multicast solicitations and SHOULD be included in unicast solicitations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.3-4"
+    },
+    {
+      "id": "4.3:5",
+      "quote": "Receivers MUST silently ignore any options they do not recognize and continue processing the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.3-5"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "It MUST NOT be set in multicast advertisements or in unsolicited unicast advertisements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-2"
+    },
+    {
+      "id": "4.4:3",
+      "quote": "The Target Address MUST NOT be a multicast address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-3"
+    },
+    {
+      "id": "4.4:4",
+      "quote": "This option MUST be included on link layers that have addresses when responding to multicast solicitations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-4"
+    },
+    {
+      "id": "4.4:5",
+      "quote": "The option MUST be included for multicast solicitations in order to avoid infinite Neighbor Solicitation \"recursion\" when the peer node does not have a cache entry to return a Neighbor Advertisements message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-5"
+    },
+    {
+      "id": "4.4:6",
+      "quote": "Receivers MUST silently ignore any options they do not recognize and continue processing the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.4-6"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "Source Address MUST be the link-local address assigned to the interface from which this message is sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.5-1"
+    },
+    {
+      "id": "4.5:2",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.5-2"
+    },
+    {
+      "id": "4.5:3",
+      "quote": "When the target is the actual endpoint of communication, i.e., the destination is a neighbor, the Target Address field MUST contain the same value as the ICMP Destination Address field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.5-3"
+    },
+    {
+      "id": "4.5:4",
+      "quote": "Otherwise, the target is a better first-hop router and the Target Address MUST be the router's link-local address so that hosts can uniquely identify routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.5-4"
+    },
+    {
+      "id": "4.5:5",
+      "quote": "In such cases, the option MUST be included in Redirect messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.5-5"
+    },
+    {
+      "id": "4.6:1",
+      "quote": "Nodes MUST silently discard an ND packet that contains an option with length zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6-1"
+    },
+    {
+      "id": "4.6.1:1",
+      "quote": "These options MUST be silently ignored for other Neighbor Discovery messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.1-1"
+    },
+    {
+      "id": "4.6.2:1",
+      "quote": "In other words, if the L flag is not set a host MUST NOT conclude that an address derived from the prefix is off-link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-1"
+    },
+    {
+      "id": "4.6.2:2",
+      "quote": "That is, it MUST NOT update a previous indication that the address is on-link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-2"
+    },
+    {
+      "id": "4.6.2:3",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-3"
+    },
+    {
+      "id": "4.6.2:4",
+      "quote": "Note that the value of this field MUST NOT exceed the Valid Lifetime field to avoid preferring addresses that are no longer valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-4"
+    },
+    {
+      "id": "4.6.2:5",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-5"
+    },
+    {
+      "id": "4.6.2:6",
+      "quote": "The bits in the prefix after the prefix length are reserved and MUST be initialized to zero by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-6"
+    },
+    {
+      "id": "4.6.2:7",
+      "quote": "The Prefix Information option appears in Router Advertisement packets and MUST be silently ignored for other messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.2-7"
+    },
+    {
+      "id": "4.6.3:1",
+      "quote": "They MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.3-1"
+    },
+    {
+      "id": "4.6.3:2",
+      "quote": "This option MUST be silently ignored for other Neighbor Discovery messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.3-2"
+    },
+    {
+      "id": "4.6.4:1",
+      "quote": "It MUST be initialized to zero by the sender and MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.4-1"
+    },
+    {
+      "id": "4.6.4:2",
+      "quote": "This option MUST be silently ignored for other Neighbor Discovery messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-4.6.4-2"
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "Hosts MUST silently discard any received Router Solicitation Messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.1-1"
+    },
+    {
+      "id": "6.1.1:2",
+      "quote": "A router MUST silently discard any received Router Solicitation messages that do not satisfy all of the following validity checks:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.1-2"
+    },
+    {
+      "id": "6.1.1:3",
+      "quote": "The contents of the Reserved field, and of any unrecognized options, MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.1-3"
+    },
+    {
+      "id": "6.1.1:4",
+      "quote": "The contents of any defined options that are not specified to be used with Router Solicitation messages MUST be ignored and the packet processed as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.1-4"
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "A node MUST silently discard any received Router Advertisement messages that do not satisfy all of the following validity checks:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.2-1"
+    },
+    {
+      "id": "6.1.2:2",
+      "quote": "The contents of the Reserved field, and of any unrecognized options, MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.2-2"
+    },
+    {
+      "id": "6.1.2:3",
+      "quote": "The contents of any defined options that are not specified to be used with Router Advertisement messages MUST be ignored and the packet processed as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.1.2-3"
+    },
+    {
+      "id": "6.2.1:1",
+      "quote": "A router MUST allow for the following conceptual variables to be configured by system management.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-1"
+    },
+    {
+      "id": "6.2.1:2",
+      "quote": "Note that AdvSendAdvertisements MUST be FALSE by default so that a node will not accidentally start acting as a router unless it is explicitly configured by system management to send Router Advertisements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-2"
+    },
+    {
+      "id": "6.2.1:3",
+      "quote": "MUST be no less than 4 seconds and no greater than 1800 seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-3"
+    },
+    {
+      "id": "6.2.1:4",
+      "quote": "MUST be no less than 3 seconds and no greater than .75 * MaxRtrAdvInterval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-4"
+    },
+    {
+      "id": "6.2.1:5",
+      "quote": "MUST be no greater than 3,600,000 milliseconds (1 hour).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-5"
+    },
+    {
+      "id": "6.2.1:6",
+      "quote": "MUST be either zero or between MaxRtrAdvInterval and 9000 seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-6"
+    },
+    {
+      "id": "6.2.1:7",
+      "quote": "This value MUST NOT be larger than AdvValidLifetime.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-7"
+    },
+    {
+      "id": "6.2.1:8",
+      "quote": "However, external router behavior MUST be the same as host behavior with respect to these variables.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.1-8"
+    },
+    {
+      "id": "6.2.2:1",
+      "quote": "A router MUST NOT send Router Advertisements out any interface that is not an advertising interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.2-1"
+    },
+    {
+      "id": "6.2.2:2",
+      "quote": "A router MUST join the all-routers multicast address on an advertising interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.2-2"
+    },
+    {
+      "id": "6.2.4:1",
+      "quote": "A host MUST NOT send Router Advertisement messages at any time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.4-1"
+    },
+    {
+      "id": "6.2.5:1",
+      "quote": "In addition, the host MUST ensure that subsequent Neighbor Advertisement messages sent from the interface have the Router flag set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.5-1"
+    },
+    {
+      "id": "6.2.5:2",
+      "quote": "In such cases, subsequent Router Advertisements MUST set the Router Lifetime field to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.5-2"
+    },
+    {
+      "id": "6.2.6:1",
+      "quote": "A host MUST silently discard any received Router Solicitation messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-1"
+    },
+    {
+      "id": "6.2.6:2",
+      "quote": "In all cases, Router Advertisements sent in response to a Router Solicitation MUST be delayed by a random time between 0 and MAX_RA_DELAY_TIME seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-2"
+    },
+    {
+      "id": "6.2.6:3",
+      "quote": "(If a single advertisement is sent in response to multiple solicitations, the delay is relative to the first solicitation.) In addition, consecutive Router Advertisements sent to the all-nodes multicast address MUST be rate limited to no more than one advertisement every MIN_DELAY_BETWEEN_RAS seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-3"
+    },
+    {
+      "id": "6.2.6:4",
+      "quote": "In all cases, however, unsolicited multicast advertisements MUST NOT be sent more frequently than indicated by MinRtrAdvInterval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-4"
+    },
+    {
+      "id": "6.2.6:5",
+      "quote": "Router Solicitations in which the Source Address is the unspecified address MUST NOT update the router's Neighbor Cache; solicitations with a proper source address update the Neighbor Cache as follows.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-5"
+    },
+    {
+      "id": "6.2.6:6",
+      "quote": "If the router already has a Neighbor Cache entry for the solicitation's sender, the solicitation contains a Source Link-Layer Address option, and the received link-layer address differs from that already in the cache, then the link-layer address SHOULD be updated in the appropriate Neighbor Cache entry, and its reachability state MUST also be set to STALE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-6"
+    },
+    {
+      "id": "6.2.6:7",
+      "quote": "Whether or not a Source Link-Layer Address option is provided, if a Neighbor Cache entry for the solicitation's sender exists (or is created) the entry's IsRouter flag MUST be set to FALSE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.2.6-7"
+    },
+    {
+      "id": "6.3.4:1",
+      "quote": "Hosts accept the union of all received information; the receipt of a Router Advertisement MUST NOT invalidate all information received in a previous advertisement or from another source.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-1"
+    },
+    {
+      "id": "6.3.4:2",
+      "quote": "In particular, a host MUST NOT interpret the unspecified value as meaning change back to the default value that was in use before the first Router Advertisement was received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-2"
+    },
+    {
+      "id": "6.3.4:3",
+      "quote": "However, a host MUST retain at least two router addresses and SHOULD retain more.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-3"
+    },
+    {
+      "id": "6.3.4:4",
+      "quote": "If the advertisement contains a Source Link-Layer Address option, the link-layer address SHOULD be recorded in the Neighbor Cache entry for the router (creating an entry if necessary) and the IsRouter flag in the Neighbor Cache entry MUST be set to TRUE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-4"
+    },
+    {
+      "id": "6.3.4:5",
+      "quote": "If no Source Link-Layer Address is included, but a corresponding Neighbor Cache entry exists, its IsRouter flag MUST be set to TRUE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-5"
+    },
+    {
+      "id": "6.3.4:6",
+      "quote": "If a Neighbor Cache entry is created for the router, its reachability state MUST be set to STALE as specified in Section 7.3.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-6"
+    },
+    {
+      "id": "6.3.4:7",
+      "quote": "If a cache entry already exists and is updated with a different link-layer address, the reachability state MUST also be set to STALE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-7"
+    },
+    {
+      "id": "6.3.4:8",
+      "quote": "Note, however, that a Prefix Information option with the on-link flag set to zero conveys no information concerning on-link determination and MUST NOT be interpreted to mean that addresses covered by the prefix are off-link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.4-8"
+    },
+    {
+      "id": "6.3.5:1",
+      "quote": "When removing a router from the Default Router list, the node MUST update the Destination Cache in such a way that all entries using the router perform next-hop determination again rather than continue sending traffic to the (deleted) router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.5-1"
+    },
+    {
+      "id": "6.3.7:1",
+      "quote": "Once the host sends a Router Solicitation, and receives a valid Router Advertisement with a non-zero Router Lifetime, the host MUST desist from sending additional solicitations on that interface, until the next time one of the above events occurs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-6.3.7-1"
+    },
+    {
+      "id": "7.1.1:1",
+      "quote": "A node MUST silently discard any received Neighbor Solicitation messages that do not satisfy all of the following validity checks:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.1-1"
+    },
+    {
+      "id": "7.1.1:2",
+      "quote": "The contents of the Reserved field, and of any unrecognized options, MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.1-2"
+    },
+    {
+      "id": "7.1.1:3",
+      "quote": "The contents of any defined options that are not specified to be used with Neighbor Solicitation messages MUST be ignored and the packet processed as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.1-3"
+    },
+    {
+      "id": "7.1.2:1",
+      "quote": "A node MUST silently discard any received Neighbor Advertisement messages that do not satisfy all of the following validity checks:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.2-1"
+    },
+    {
+      "id": "7.1.2:2",
+      "quote": "The contents of the Reserved field, and of any unrecognized options, MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.2-2"
+    },
+    {
+      "id": "7.1.2:3",
+      "quote": "The contents of any defined options that are not specified to be used with Neighbor Advertisement messages MUST be ignored and the packet processed as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.1.2-3"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "These messages MUST NOT create or update neighbor cache entries, except with respect to the IsRouter flag as specified in Sections 6.3.4 and 7.2.5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2-1"
+    },
+    {
+      "id": "7.2.1:1",
+      "quote": "When a multicast-capable interface becomes enabled, the node MUST join the all-nodes multicast address on that interface, as well as the solicited-node multicast address corresponding to each of the IP addresses assigned to the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.1-1"
+    },
+    {
+      "id": "7.2.1:2",
+      "quote": "In such cases the node MUST join and leave the solicited-node multicast address corresponding to the new and old addresses, respectively.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.1-2"
+    },
+    {
+      "id": "7.2.1:3",
+      "quote": "Note that multiple unicast addresses may map into the same solicited-node multicast address; a node MUST NOT leave the solicited-node multicast group until all assigned addresses corresponding to that multicast address have been removed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.1-3"
+    },
+    {
+      "id": "7.2.2:1",
+      "quote": "If the solicitation is being sent to a solicited-node multicast address, the sender MUST include its link-layer address (if it has one) as a Source Link-Layer Address option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.2-1"
+    },
+    {
+      "id": "7.2.2:2",
+      "quote": "While waiting for address resolution to complete, the sender MUST, for each neighbor, retain a small queue of packets waiting for address resolution to complete.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.2-2"
+    },
+    {
+      "id": "7.2.2:3",
+      "quote": "The queue MUST hold at least one packet, and MAY contain more.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.2-3"
+    },
+    {
+      "id": "7.2.2:4",
+      "quote": "Retransmissions MUST be rate-limited to at most one solicitation per neighbor every RetransTimer milliseconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.2-4"
+    },
+    {
+      "id": "7.2.2:5",
+      "quote": "The sender MUST return ICMP destination unreachable indications with code 3 (Address Unreachable) for each packet queued awaiting address resolution.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.2-5"
+    },
+    {
+      "id": "7.2.3:1",
+      "quote": "A valid Neighbor Solicitation that does not meet any of the following requirements MUST be silently discarded:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.3-1"
+    },
+    {
+      "id": "7.2.3:2",
+      "quote": "If an entry already exists, and the cached link-layer address differs from the one in the received Source Link-Layer option, the cached address should be replaced by the received address, and the entry's reachability state MUST be set to STALE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.3-2"
+    },
+    {
+      "id": "7.2.3:3",
+      "quote": "If a Neighbor Cache entry already exists, its IsRouter flag MUST NOT be modified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.3-3"
+    },
+    {
+      "id": "7.2.3:4",
+      "quote": "If the Source Address is the unspecified address, the node MUST NOT create or update the Neighbor Cache entry.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.3-4"
+    },
+    {
+      "id": "7.2.4:1",
+      "quote": "If the solicitation's IP Destination Address is a multicast address, the Target Link-Layer option MUST be included in the advertisement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.4-1"
+    },
+    {
+      "id": "7.2.4:2",
+      "quote": "Furthermore, if the node is a router, it MUST set the Router flag to one; otherwise, it MUST set the flag to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.4-2"
+    },
+    {
+      "id": "7.2.4:3",
+      "quote": "If the source of the solicitation is the unspecified address, the node MUST set the Solicited flag to zero and multicast the advertisement to the all-nodes address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.4-3"
+    },
+    {
+      "id": "7.2.4:4",
+      "quote": "Otherwise, the node MUST set the Solicited flag to one and unicast the advertisement to the Source Address of the solicitation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.4-4"
+    },
+    {
+      "id": "7.2.5:1",
+      "quote": "Otherwise, the received advertisement should be ignored and MUST NOT update the cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-1"
+    },
+    {
+      "id": "7.2.5:2",
+      "quote": "If the Override flag is set, or the supplied link-layer address is the same as that in the cache, or no Target Link-Layer Address option was supplied, the received advertisement MUST update the Neighbor Cache entry as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-2"
+    },
+    {
+      "id": "7.2.5:3",
+      "quote": "- The link-layer address in the Target Link-Layer Address option MUST be inserted in the cache (if one is supplied and differs from the already recorded address).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-3"
+    },
+    {
+      "id": "7.2.5:4",
+      "quote": "- If the Solicited flag is set, the state of the entry MUST be set to REACHABLE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-4"
+    },
+    {
+      "id": "7.2.5:5",
+      "quote": "If the Solicited flag is zero and the link- layer address was updated with a different address, the state MUST be set to STALE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-5"
+    },
+    {
+      "id": "7.2.5:6",
+      "quote": "- The IsRouter flag in the cache entry MUST be set based on the Router flag in the received advertisement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-6"
+    },
+    {
+      "id": "7.2.5:7",
+      "quote": "In those cases where the IsRouter flag changes from TRUE to FALSE as a result of this update, the node MUST remove that router from the Default Router List and update the Destination Cache entries for all destinations using that neighbor as a router as specified in Section 7.3.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.5-7"
+    },
+    {
+      "id": "7.2.6:1",
+      "quote": "These advertisements MUST be separated by at least RetransTimer seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.6-1"
+    },
+    {
+      "id": "7.2.6:2",
+      "quote": "The Solicited flag MUST be set to zero, in order to avoid confusing the Neighbor Unreachability Detection algorithm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.6-2"
+    },
+    {
+      "id": "7.2.6:3",
+      "quote": "If the node is a router, it MUST set the Router flag to one; otherwise, it MUST set it to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.6-3"
+    },
+    {
+      "id": "7.2.8:1",
+      "quote": "A proxy MUST join the solicited-node multicast address(es) that correspond to the IP address(es) assigned to the node for which it is proxying.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.8-1"
+    },
+    {
+      "id": "7.2.8:2",
+      "quote": "All solicited proxy Neighbor Advertisement messages MUST have the Override flag set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.2.8-2"
+    },
+    {
+      "id": "7.3.1:1",
+      "quote": "Receipt of other Neighbor Discovery messages, such as Router Advertisements and Neighbor Advertisement with the Solicited flag set to zero, MUST NOT be treated as a reachability confirmation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.3.1-1"
+    },
+    {
+      "id": "7.3.3:1",
+      "quote": "A node MUST NOT send Neighbor Solicitations to the same neighbor more frequently than once every RetransTimer milliseconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.3.3-1"
+    },
+    {
+      "id": "7.3.3:2",
+      "quote": "To properly detect the case where a router switches from being a router to being a host (e.g., if its IP forwarding capability is turned off by system management), a node MUST compare the Router flag field in all received Neighbor Advertisement messages with the IsRouter flag recorded in the Neighbor Cache entry.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.3.3-2"
+    },
+    {
+      "id": "7.3.3:3",
+      "quote": "When a node detects that a neighbor has changed from being a router to being a host, the node MUST remove that router from the Default Router List and update the Destination Cache as described in Section 6.3.5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.3.3-3"
+    },
+    {
+      "id": "7.3.3:4",
+      "quote": "However, link-specific information MUST NOT be used to confirm the reachability of a neighbor; such information does not provide end-to-end confirmation between neighboring IP layers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-7.3.3-4"
+    },
+    {
+      "id": "8:1",
+      "quote": "A router MUST be able to determine the link-local address for each of its neighboring routers in order to ensure that the target address in a Redirect message identifies the neighbor router by its link-local address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8-1"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "A host MUST silently discard any received Redirect message that does not satisfy all of the following validity checks:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.1-1"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "The contents of the Reserved field, and of any unrecognized options, MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.1-2"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "The contents of any defined options that are not specified to be used with Redirect messages MUST be ignored and the packet processed as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.1-3"
+    },
+    {
+      "id": "8.1:4",
+      "quote": "A host MUST NOT consider a redirect invalid just because the Target Address of the redirect is not covered under one of the link's prefixes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.1-4"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "If the target is a router, that router's link-local address MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.2-1"
+    },
+    {
+      "id": "8.2:2",
+      "quote": "If the target is a host, the target address field MUST be set to the same value as the Destination Address field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.2-2"
+    },
+    {
+      "id": "8.2:3",
+      "quote": "A router MUST limit the rate at which Redirect messages are sent, in order to limit the bandwidth and processing costs incurred by the Redirect messages when the source does not correctly respond to the Redirects, or the source chooses to ignore unauthenticated Redirect messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.2-3"
+    },
+    {
+      "id": "8.2:4",
+      "quote": "A router MUST NOT update its routing tables upon receipt of a Redirect.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.2-4"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "If a Neighbor Cache entry is created for the target, its reachability state MUST be set to STALE as specified in Section 7.3.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.3-1"
+    },
+    {
+      "id": "8.3:2",
+      "quote": "If a cache entry already existed and it is updated with a different link-layer address, its reachability state MUST also be set to STALE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.3-2"
+    },
+    {
+      "id": "8.3:3",
+      "quote": "If the Target and Destination Addresses are the same, the host MUST treat the Target as on-link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.3-3"
+    },
+    {
+      "id": "8.3:4",
+      "quote": "If the Target Address is not the same as the Destination Address, the host MUST set IsRouter to TRUE for the target.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.3-4"
+    },
+    {
+      "id": "8.3:5",
+      "quote": "A host MUST NOT send Redirect messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-8.3-5"
+    },
+    {
+      "id": "9:1",
+      "quote": "In order to ensure that future extensions properly coexist with current implementations, all nodes MUST silently ignore any options they do not recognize in received ND packets and continue processing the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "All options specified in this document MUST be recognized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-2"
+    },
+    {
+      "id": "9:3",
+      "quote": "A node MUST NOT ignore valid options just because the ND message contains unrecognized ones.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-3"
+    },
+    {
+      "id": "9:4",
+      "quote": "The option MUST NOT depend on the presence or absence of any other options.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of a future ND option specification, who must design an option whose meaning does not depend on another option. No implementation, Ze's or the kernel's, writes an option definition."
+    },
+    {
+      "id": "9:5",
+      "quote": "Thus, a receiver MUST NOT associate any action with the absence of an option in a particular packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-4"
+    },
+    {
+      "id": "9:6",
+      "quote": "Options in Neighbor Discovery packets can appear in any order; receivers MUST be prepared to process them independently of their order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-5"
+    },
+    {
+      "id": "9:7",
+      "quote": "The amount of data to include in the Redirected Header option MUST be limited so that the entire redirect packet does not exceed the minimum MTU required to support IPv6 as specified in [IPv6].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-6"
+    },
+    {
+      "id": "9:8",
+      "quote": "When adding options to an ND packet, a node MUST NOT exceed the link MTU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-7"
+    },
+    {
+      "id": "9:9",
+      "quote": "Receivers MUST silently ignore any options they do not recognize and continue processing the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-9-8"
+    },
+    {
+      "id": "11.2:1",
+      "quote": "In any case, if either [IPv6-AUTH] or [IPv6-ESP] is used, ND packets MUST be verified for the purpose of authentication.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-11.2-1"
+    },
+    {
+      "id": "11.2:2",
+      "quote": "Packets that fail authentication checks MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-11.2-2"
+    },
+    {
+      "id": "D:1",
+      "quote": "But when there is no host vs. router information in the ND message, the receipt of the message MUST NOT cause a change to the IsRouter state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4861-D-1"
+    }
+  ]
+}

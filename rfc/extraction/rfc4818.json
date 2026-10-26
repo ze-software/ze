@@ -1,0 +1,104 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4818",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4818.txt",
+  "source-sha": "a7bff0b57f7a36e1",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "Any bits in the prefix field that are not part of the prefix MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4818-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "The Delegated-IPv6-Prefix MUST NOT appear in any other RADIUS packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4818-3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "The meaning of the above table entries is as follows: 0 This attribute MUST NOT be present. 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present. 1+ One or more of these attributes MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4818-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "+---------------------+ | AVP Flag rules | |----+-----+----+-----|----+ AVP | | |SHLD| MUST| | Attribute Name Code Value Type |MUST| MAY | NOT| NOT|Encr| ---------------------------------|----+-----+----+-----|----| Delegated-IPv6- 123 OctetString| M | P | | V | Y | Prefix | | | | | | ---------------------------------|----+-----+----+-----|----|",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The Diameter AVP flag rules table. Its MUST, MAY and MUST NOT columns are the M, P and V flag rules of the Diameter base protocol, RFC 3588 Section 4.1, which the section cites; a RADIUS attribute carries no AVP flags."
+    }
+  ]
+}

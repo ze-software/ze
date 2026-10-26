@@ -1,0 +1,169 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3145",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc3145.txt",
+  "source-sha": "cc88e1c3c0d6320f",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "The AVP is valid in the L2TP Call-Disconnect-Notify (CDN) message only, and it MUST NOT be marked Mandatory.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "The length of the Value field MUST be at least 11 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "If the length is more than 11 octets, the additional octets MUST contain a descriptive text in UTF-8 [3] format that can be displayed to the user or in a log file.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "Mandatory (M) bit: MUST be 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-2-4"
+    },
+    {
+      "id": "2:5",
+      "quote": "The length MUST be at least 11.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-2-5"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The Control Protocol Number for these errors thus MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-3.1-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The Control Protocol Number for these errors MUST be set to C021 hexadecimal (LCP).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-3.2-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "The Control Protocol Number for such errors MUST correspond to the PPP Control Protocol number for the authentication protocol in use.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3145-3.3-1"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8212",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8212.txt",
+  "source-sha": "2049ae390841ef7d",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, status and copyright"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "No IANA actions"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A lists implementations, no obligation"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Implementation list, no obligation"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8212-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8212-3-2"
+    }
+  ]
+}

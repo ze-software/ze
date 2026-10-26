@@ -1,0 +1,354 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8522",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8522.txt",
+  "source-sha": "4dc3cf63cfe82351",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, abstract, status, copyright and contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3.1",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8522-3.1.1-1"
+      ]
+    },
+    {
+      "id": "3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8522-3.2.1-1"
+      ]
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Well-Known URI registration"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Well-Known URI registration"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    },
+    {
+      "id": "A",
+      "sites": 3,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.3:1",
+      "quote": "The examples skip some required parameters for reasons of simplicity.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: says the examples in the document omit some required parameters; it states nothing an implementation does"
+    },
+    {
+      "id": "2:1",
+      "quote": "The client must present all necessary parameters for the server to execute the command on the selected router.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the looking-glass API client, the HTTP caller that sends the request ('The client must present all necessary parameters'). Ze is the server; the client is outside Ze, and Ze holds no looking-glass API client code"
+    },
+    {
+      "id": "2:2",
+      "quote": "The path component of the resource URI must use the prefix of \".well- known/looking-glass\" (see Section 5.1) to stay namespace neutral.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2-1"
+    },
+    {
+      "id": "2:3",
+      "quote": "The client must not be able to execute random commands on the targeting router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2-2"
+    },
+    {
+      "id": "2:4",
+      "quote": "There must not be any direct communication between the client and the router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2-3"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "The server must ignore its value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.2-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "The response text must comply with the JSON syntax specification JSend, which is briefly explained in Appendix A.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3-1"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "Consequently, every response must contain a \"status\" field of either \"success\", \"fail\", or \"error\" as explained in the following sections.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3-2"
+    },
+    {
+      "id": "2.3.1:1",
+      "quote": "A successful response must set the \"status\" field to \"success\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.1-1"
+    },
+    {
+      "id": "2.3.1:2",
+      "quote": "It must also contain a \"data\" object including the following information:",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.1-2"
+    },
+    {
+      "id": "2.3.1:3",
+      "quote": "This information must be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.1-3"
+    },
+    {
+      "id": "2.3.1:4",
+      "quote": "This information must be present. router Name of the router that executed the command.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.1-4"
+    },
+    {
+      "id": "2.3.1:5",
+      "quote": "Adding more information to the response is permitted and must be placed inside the \"data\" object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.1-5"
+    },
+    {
+      "id": "2.3.2:1",
+      "quote": "The response message must set the \"status\" field to \"fail\" and must contain the \"data\" object with command-specific content listed in Section 2.3.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.2-1"
+    },
+    {
+      "id": "2.3.3:1",
+      "quote": "The response message must set the \"status\" field to \"error\" and must contain the \"message\" key, which keeps a meaningful message, explaining what went wrong.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.3-1"
+    },
+    {
+      "id": "2.3.3:2",
+      "quote": "The response may contain the \"data\" key with required values listed in Section 2.3.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-2.3.3-2"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "The following organizational commands must be included in the implementation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-3.3-1"
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "The response must contain the router's hostname and router index.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-3.3.2-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "The use of HTTPS is required to ensure a high level of security, privacy, and confidentiality during transit.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8522-6-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "A basic JSend-compliant response must contain a \"status\" key and should contain \"data\", \"message\", and \"code\" keys dependent on the status value.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the status-key obligation of Section 2.3 for JSend in general; the 'should contain' part is advisory and keyed to the status value, which Sections 2.3.1 to 2.3.3 state per status",
+      "mapped-to": "RFC8522-2.3-2"
+    },
+    {
+      "id": "A:2",
+      "quote": "The following table lists the required and optional keys.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: introduces Table 1; 'required' names a column of the table"
+    },
+    {
+      "id": "A:3",
+      "quote": "+---------+-----------------+---------------+ | Type | Required keys | Optional keys | +---------+-----------------+---------------+ | success | status, data | | | fail | status, data | | | error | status, message | code, data | +---------+-----------------+---------------+",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Table 1 of JSend keys; its Required column restates the per-status obligations of Sections 2.3.1, 2.3.2 and 2.3.3, which are mapped there"
+    }
+  ]
+}

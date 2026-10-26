@@ -1,0 +1,97 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8893",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8893.txt",
+  "source-sha": "8ceba4ba1710413c",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, abstract, status, copyright and contents"
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "No IANA actions"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8893-1-1"
+    },
+    {
+      "id": "1:2",
+      "quote": "Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8893-1-2"
+    },
+    {
+      "id": "3:1",
+      "quote": "BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8893-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8893-3-2"
+    }
+  ]
+}

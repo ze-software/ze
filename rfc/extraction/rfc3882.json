@@ -1,0 +1,92 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3882",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3882.txt",
+  "source-sha": "0686f642ef5a26e9",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, abstract, status, copyright and contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "After the BGP community assignment, R1 and R2 must be configured with the following:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A step of the operator configuration recipe the document describes ('R1 and R2 must be configured with the following'); the document carries no RFC 2119 keyword and binds no implementation"
+    },
+    {
+      "id": "2:2",
+      "quote": "The advertisement must contain the community value associated with the router(s) where the attack is arriving in addition to the well-known community (no-export).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A step of the operator configuration recipe: what the trigger announcement carries for the described technique to work; the document carries no RFC 2119 keyword and binds no implementation"
+    },
+    {
+      "id": "3:1",
+      "quote": "It might also be required to allow the traffic to reach its destination after being captured.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: 'It might also be required to allow the traffic to reach its destination' describes an optional sinkhole use, no obligation"
+    },
+    {
+      "id": "8:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate: the IETF intellectual property statement in the Full Copyright Statement"
+    }
+  ]
+}

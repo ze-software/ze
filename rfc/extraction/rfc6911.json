@@ -1,0 +1,169 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6911",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6911.txt",
+  "source-sha": "b20f9aa7e2880b8f",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.3:1",
+      "quote": "The bits in the prefix after the prefix length, if any, are reserved and MUST be initialized to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6911-3.3-1"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "If a NAS does not support prefix pools, the NAS MUST ignore this Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6911-3.4-1"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "If a NAS does not support address pools, the NAS MUST ignore this Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6911-3.5-1"
+    }
+  ]
+}

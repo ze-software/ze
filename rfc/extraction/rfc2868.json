@@ -1,0 +1,265 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2868",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2868.txt",
+  "source-sha": "b63be609d86aa086",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.4",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.5",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "3.10",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "A tunnel initiator is not required to implement any of these tunnel types; if a tunnel initiator receives an Access-Accept packet which contains only unknown or unsupported Tunnel-Types, the tunnel initiator MUST behave as though an Access-Reject had been received instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "If the Tag field is unused, it MUST be zero (0x00).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.1-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "If the Tag field is unused, it MUST be zero (0x00).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.2-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Conformant implementations MUST support the dotted-decimal format and SHOULD support the FQDN format for IP addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "Conformant implementations MUST support the preferred form and SHOULD support both the alternate text form and the FQDN format for IPv6 addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.3-2"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "The Tunnel-Server-Endpoint Attribute MAY be included (as a hint to the RADIUS server) in the Access-Request packet and MUST be included in the Access-Accept packet if the initiation of a tunnel is desired.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.4-1"
+    },
+    {
+      "id": "3.4:2",
+      "quote": "Conformant implementations MUST support the dotted-decimal format and SHOULD support the FQDN format for IP addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.4-2"
+    },
+    {
+      "id": "3.4:3",
+      "quote": "Conformant implementations MUST support the preferred form and SHOULD support both the alternate text form and the FQDN format for IPv6 addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.4-3"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "The most significant bit (leftmost) of the Salt field MUST be set (1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.5-1"
+    },
+    {
+      "id": "3.5:2",
+      "quote": "The contents of each Salt field in a given Access-Accept packet MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.5-2"
+    },
+    {
+      "id": "3.5:3",
+      "quote": "If the combined length (in octets) of the unencrypted Data-Length and Password sub-fields is not an even multiple of 16, then the Padding sub-field MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.5-3"
+    },
+    {
+      "id": "3.5:4",
+      "quote": "The String field MUST be encrypted as follows, prior to transmission:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.5-4"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "A tunnel initiator MUST NOT assign a session for which a Tunnel-Assignment-ID Attribute was not specified to a named tunnel (i.e. one that was initiated by a session specifying this attribute).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.7-1"
+    },
+    {
+      "id": "3.8:1",
+      "quote": "If the Tag field is unused, it MUST be zero (0x00).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.8-1"
+    },
+    {
+      "id": "3.9:1",
+      "quote": "The Tunnel-Client-Auth-ID Attribute MAY be included (as a hint to the RADIUS server) in the Access-Request packet, and MUST be included in the Access-Accept packet if an authentication name other than the default is desired.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.9-1"
+    },
+    {
+      "id": "3.10:1",
+      "quote": "The Tunnel-Client-Auth-ID Attribute MAY be included (as a hint to the RADIUS server) in the Access-Request packet, and MUST be included in the Access-Accept packet if an authentication name other than the default is desired.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-3.10-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "0 This attribute MUST NOT be present in packet. 0+ Zero or more instances of this attribute MAY be present in packet. 0-1 Zero or one instance of this attribute MAY be present in packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "In particular, end-users SHOULD NOT rely upon the security of the tunnel to protect their data; encryption and/or integrity protection of tunneled traffic MUST NOT be considered as a replacement for end-to-end security.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2868-5-1"
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7948",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7948.txt",
+  "source-sha": "c3435c9387bb11ec",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (spec-rfc-profile-declared-membership phase 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title page, abstract, status, copyright and contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Copyright boilerplate: the Trust Legal Provisions licence text for code components, not a protocol obligation"
+    },
+    {
+      "id": "2:1",
+      "quote": "As many exchanges have large numbers of participating networks, the amount of administrative and operation overhead required to implement an open interconnection scales quadratically.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: 'scales quadratically' states a cost of bilateral peering, and the lower-case modal binds nobody"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "As the BGP Decision Process [RFC4271] must be applied to all Loc-RIBs deployed on the route server, both CPU and memory requirements on the host computer scale approximately according to O(P * N), where P is the total number of unique paths received by the route server, and N is the number of route server clients that require a unique Loc-RIB.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: states that the RFC 4271 Decision Process runs per Loc-RIB to explain O(P * N) scaling; the obligation is RFC 4271's"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "As this is a super-linear scaling relationship, large route servers may derive benefit from deploying per-client Loc-RIBs only where they are required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: 'may derive benefit' is a lower-case observation about deployment cost, no keyword use"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "If we assume that in the worst case, each prefix is associated with a different set of BGP path attributes, so must be transmitted individually, the network bandwidth scaling function can be rewritten as O((P_avg * N) * N) or O(N^2).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: 'so must be transmitted individually' states a worst-case assumption in a scaling formula"
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "Scaling analysis indicates problems in three key areas: route processor CPU overhead associated with BGP Decision Process calculations, the memory requirements for handling many different BGP path entries, and the network traffic bandwidth required to distribute these BGP routes from the route server to each route server client.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: the sentence names three problem areas the scaling analysis indicates"
+    },
+    {
+      "id": "4.2.1.1:1",
+      "quote": "As this approach requires prior knowledge of interconnection relationships, the route server operator must depend on each client sharing their interconnection policies either in an internal provisioning database controlled by the operator or in an external data store such as an Internet Routing Registry Database.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: 'must depend on each client sharing their interconnection policies' states an operator dependency, not an obligation"
+    },
+    {
+      "id": "4.2.1.3:1",
+      "quote": "As route servers are usually deployed at IXPs where all connected routers are on the same Layer 2 broadcast domain, recursive resolution of the NEXT_HOP attribute is generally not required and can be replaced by a simple check to ensure that the NEXT_HOP value for each received BGP route is a network address on the IXP LAN's IP address range.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive: says recursive NEXT_HOP resolution 'is generally not required and can be replaced' by an IXP-LAN check; a lower-case observation with no keyword"
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3162",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc3162.txt",
+  "source-sha": "56fa0fda2bd77411",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract and table of contents."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. States the purpose of the six attributes; no normative keyword."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements language. RFC 2119 boilerplate only."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Attributes. Introduces the six attribute sections; no keyword of its own."
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "NAS-IPv6-Address. One MUST (NAS-Identifier when neither address is present), one SHOULD on uniqueness and one MAY on presence, all captured."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Framed-Interface-Id, printed as 3.2 in the RFC where 2.2 was meant. One conditional MUST captured as RFC3162-3.2-1 and one MAY captured as RFC3162-3.2-2."
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Framed-IPv6-Prefix. The Reserved-field MUST and two MAYs are captured."
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-IPv6-Host. Two MAYs; the request hint is captured as RFC3162-2.4-1. No MUST."
+    },
+    {
+      "id": "2.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Framed-IPv6-Route. The text MUST NOT and the SHOULD on an unspecified gateway are captured; the text format SHOULD is described in the summary."
+    },
+    {
+      "id": "2.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Framed-IPv6-Pool. The MUST to ignore and the SHOULD to use the pool are captured."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Table of Attributes. The quantity table is reproduced in the summary; it carries no legend with keywords."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References."
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. The zero-length secret MUST is captured as RFC3162-5-1."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: types 95 to 100."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Authors' Addresses and the full copyright statement."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "NAS-IPv6- Address and/or NAS-IP-Address MAY be present in an Access-Request packet; however, if neither attribute is present then NAS- Identifier MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-2.1-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "If the Interface-Identifier IPv6CP option [11] has been successfully negotiated, this Attribute MUST be included in an Access-Request packet as a hint by the NAS to the server that it would prefer that value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-3.2-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "This field, which is reserved and MUST be present, is always set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-2.3-1"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-2.5-1"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "If a NAS does not support multiple prefix pools, the NAS MUST ignore this Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-2.6-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "In this case, a shared secret of zero length MUST be assumed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3162-5-1"
+    }
+  ]
+}
