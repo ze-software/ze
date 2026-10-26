@@ -29,8 +29,8 @@
     "claim-sha": "1ced3937028e3841",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "cdc3a971c92b5ca5",
-    "break": "line 242: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer-sha": "6705aeacc306938b",
+    "break": "line 268: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -40,8 +40,8 @@
     "claim-sha": "b0ea20a147faabde",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "cdc3a971c92b5ca5",
-    "break": "line 242: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer-sha": "6705aeacc306938b",
+    "break": "line 268: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -69,12 +69,12 @@
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948FailedPolicyRemovalKeepsRecord",
-    "unit-sha": "2d32d7500efaafd4",
+    "unit-sha": "69035201b1f79492",
     "claim-sha": "608b7aa1ada2552b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::releaseInnerRecord",
-    "producer-sha": "7d9ef876dfda3496",
-    "break": "line 945: \"if policiesGone {\" -\u003e \"if true {\""
+    "producer-sha": "2806b0cd0da0ebda",
+    "break": "line 955: \"if len(left) == 0 {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -84,8 +84,8 @@
     "claim-sha": "b77925e99a563216",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
-    "producer-sha": "5c1c85ecf6dafec4",
-    "break": "line 282: \"if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {\" -\u003e \"if false {\""
+    "producer-sha": "148482028f2f4db9",
+    "break": "line 426: \"if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -95,8 +95,8 @@
     "claim-sha": "6cc84e29d111791b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
-    "producer-sha": "5c1c85ecf6dafec4",
-    "break": "line 285: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
+    "producer-sha": "148482028f2f4db9",
+    "break": "line 432: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
   },
   {
     "rid": "RFC3948-5.1-1",

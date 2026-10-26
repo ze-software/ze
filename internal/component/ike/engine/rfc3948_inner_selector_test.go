@@ -549,8 +549,7 @@ func TestInnerSelectorInitiatorInstallRefusedInstallsNothing(t *testing.T) {
 	}
 }
 
-// failingRemoveDP answers every policy removal with err, as a kernel whose netlink delete
-// fails (EIO) or finds nothing (ENOENT) does.
+// failingRemoveDP answers every policy removal with whatever err the case supplies.
 type failingRemoveDP struct {
 	mockDP
 	err error
@@ -562,7 +561,8 @@ func (f *failingRemoveDP) RemovePolicyParams(dataplane.SPParams) error { return 
 // peer a installs inner address 10.1.2.3/32 on a dataplane whose policy removal answers
 // err, removeChildSA ends it, and peer b then proposes the same address. A failed removal
 // (EIO) leaves a's policy in the kernel, so a's record must stay and b must be refused; a
-// removal the kernel answers ENOENT leaves nothing, so the record goes and b is served.
+// removal that policyGone accepts (ENOENT, no XFRM on the dataplane, another peer owns the
+// selector) leaves nothing, so the record goes and b is served.
 func TestRFC3948FailedPolicyRemovalKeepsRecord(t *testing.T) {
 	// RFC requirement: RFC3948-5.1-1 negative -- peer a's Child SA for inner address 10.1.2.3/32 (TSr 0.0.0.0/0) is removed by removeChildSA on a dataplane whose policy removal fails with EIO: the registry still holds one record, and peer b proposing 10.1.2.3/32 is answered TS_UNACCEPTABLE with no state or policy on its dataplane; when the removal answers ENOENT the registry holds none and peer b is served.
 	log := slogutil.DiscardLogger()
@@ -573,6 +573,9 @@ func TestRFC3948FailedPolicyRemovalKeepsRecord(t *testing.T) {
 	}{
 		{name: "removal fails", err: syscall.EIO, kept: true},
 		{name: "policy already gone", err: syscall.ENOENT, kept: false},
+		{name: "dataplane holds no policies", err: dataplane.ErrNotSupported, kept: false},
+		{name: "another peer owns the selector", err: &dataplane.PolicyOwnedError{HeldBy: "x", Wanted: "a"}, kept: false},
+		{name: "kernel offers no XFRM", err: syscall.EPROTONOSUPPORT, kept: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -599,7 +602,7 @@ func TestRFC3948FailedPolicyRemovalKeepsRecord(t *testing.T) {
 			_, err := innerAuthChild(t, innerPeerSA(t, reg, "b", "198.18.0.9"), dpB, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
 			if !tc.kept {
 				if err != nil {
-					t.Fatalf("peer b after a removal answered ENOENT: %v", err)
+					t.Fatalf("peer b after a removal answered %v: %v", tc.err, err)
 				}
 				return
 			}
