@@ -89,6 +89,8 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// read decides it.
 	"initiator-answer-one-local-two-remote": {run: checkResponderTwoSubnets},
 	"responder-raises-child-rekey":          {run: checkResponderRaisesChildRekey},
+	"virtual-ip-assignment":                 {run: checkVirtualIPAssignment},
+	"virtual-ip-uniqueness":                 {run: checkVirtualIPUniqueness},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

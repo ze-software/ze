@@ -1728,6 +1728,32 @@ names `sa-failed` and the size.
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
 
+### IPsec virtual-IP leases
+
+Two scenarios prove Ze as the IRAS of RFC 7296 Section 2.19: a strongSwan client
+sends a CFG_REQUEST, and Ze answers with a lease from the `remote-access pool` its
+peer's `virtual-ip-pool` names. Ze's inner address is 10.20.0.1 in both, and the
+checker puts it on Ze's loopback.
+
+| Scenario | Path | Proves |
+|----------|------|--------|
+| `virtual-ip-assignment` | EAP-MSCHAPv2, no NAT, `vips = 0.0.0.0` | charon reports an address inside 10.10.0.0/24, installed it, and narrowed its child to it. Ze's `show vpn ipsec sa` reports the same `virtual-ip`, and its Child SA's `ts-remote` is that address as a /32. Ze's kernel holds the /32 policy and no policy for the pool. charon wrote the pool's DNS server to `/etc/resolv.conf`. A ping from each end, from its inner address, moves ESP on all four simplex SAs |
+| `virtual-ip-uniqueness` | PSK, two clients behind the NAT box, both `vips = 10.1.2.3` | RFC 3948 Section 5.1: the two leases differ, one of them is 10.1.2.3, and both sit in 10.1.2.0/24. Each Ze peer reports its own client's lease as `virtual-ip` and as `ts-remote`. Ze's kernel holds both /32 policies and no policy for the pool. A ping to each lease moves that client's four SAs and leaves the other client's outbound SA at Ze still |
+
+The uniqueness scenario needs two client sources in one strongSwan container. The
+checker adds 172.28.0.8/32 to strongSwan's `eth0` before connection `ze-b`
+initiates. The scenario's `nat.conf` maps that address to 172.28.0.9 beside the two
+usual rows, so it has three translations, which is the most `readNATConfig` accepts
+(`natTranslationsMax`). Ze sees the clients at 172.28.0.7 and 172.28.0.9, one
+respond peer each, both bound to one pool.
+
+Each scenario must go red when the lease substitution is removed
+(`substituteVirtualIP`, `internal/component/ike/engine/cp.go`). A client then still
+receives a lease, but Ze's Child SA names the configured pool prefix as its remote
+selector, so the selector and policy assertions are the ones built to fail.
+<!-- source: internal/le/interoplab/ipsec/virtualip.go -- checkVirtualIPAssignment, checkVirtualIPUniqueness, requireZeLease, requireLeasePolicies, requireReturnTraffic -->
+<!-- source: internal/le/interoplab/ipsec/nat.go -- natTranslationsMax -->
+
 ### The strongSwan lab drop-in
 
 Every scenario that starts a strongSwan peer mounts

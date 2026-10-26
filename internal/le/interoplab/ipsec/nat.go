@@ -38,10 +38,11 @@ func natSysctlArguments() []string {
 	return arguments
 }
 
-// natTranslationsMax bounds a scenario's nat.conf. The lab has three peers and only
-// two of them can sit behind a translation, so a longer file is a mistake rather
-// than a topology.
-const natTranslationsMax = 2
+// natTranslationsMax bounds a scenario's nat.conf. Ze holds one address and
+// strongSwan at most two: its own, and the second client address
+// virtual-ip-uniqueness adds to its eth0, so two clients reach Ze from two
+// translated sources. A longer file is a mistake rather than a topology.
+const natTranslationsMax = 3
 
 // natTranslation is one address pair: the address a peer's own stack holds, and the
 // address the OTHER peer sees it at.
