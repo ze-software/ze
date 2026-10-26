@@ -6,7 +6,7 @@
 | Priority | P1 |
 | Release reason | Monitoring exports must report the actual session-down cause and advancing sample pool. |
 | Scope | protocol |
-| Depends | the RFC 7854 Section 3.3 change (Peer Down only for a peer reported up, `peerDownCause.reported`), committed as dce906c381 "fix(bmp): send Peer Down only for a peer reported up"; and, for AC-1 and AC-9 on the `Session.Run` exits that fire no FSM event, `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md` Phase 2b (the `runOnce` down defer fires the leave when `Run` returns with the FSM still Established). This spec records the cause on those exits and does not duplicate that fix |
+| Depends | the RFC 7854 Section 3.3 change (Peer Down only for a peer reported up, `peerDownCause.reported`), committed as dce906c381 "fix(bmp): send Peer Down only for a peer reported up"; and, for AC-1 and AC-9 on the `Session.Run` exits that fire no FSM event, `spec-bgp-rs-replacement-on-withdrawal` Phase 2b (the `runOnce` down defer fires the leave when `Run` returns with the FSM still Established). This spec records the cause on those exits and does not duplicate that fix |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-14 |

@@ -1,7 +1,9 @@
 # spec-bgp-rs-replacement-on-withdrawal: what remains after Phase 3 package d
 
-Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
-Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
+CLOSED 2026-10-26: the spec `spec-bgp-rs-replacement-on-withdrawal` was closed
+(`/ze-close`); nothing below is owed any more except `./le verify changed` over
+the closing commits. Spec at the time: `plan/immediate/`, then
+`plan/release/fixes/` (in-progress, Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
 ## STATE 2026-10-26: every phase implemented, status `verification`, the verify session closes
@@ -39,7 +41,7 @@ guest. The GR spec's D1 row still reads Open although 4ef90497c6 landed it.
 
 ## STATE 2026-10-25: reactor green, most of 3a landed, the rest listed here
 
-The spec now lives at `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md`.
+The spec then lived in `plan/release/fixes/` (`spec-bgp-rs-replacement-on-withdrawal`, closed 2026-10-26).
 Every reactor red the 3a draft left is fixed. Landed, local and not yet pushed:
 `677b0a2b4f` (recovery writes packed into shared UPDATEs, tests rewritten to Q-3,
 reviewed), `df98369ed9` (initial-source-message chain, the read waits on a full

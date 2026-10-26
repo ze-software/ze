@@ -1053,3 +1053,183 @@ What this hand-back already did, so the next closure does not repeat it:
 - `./le test weakened check base ee992f6425~1` finds nothing in this spec's paths. `./le repo check` lists no file of this spec. Unit tests: `pkg/plugin/rpc`, `bgp/plugins/gr` and `exabgp/bridge` pass under `-race`.
 - Recorded the owner's confirmation of the `adj-rib-in-invalid` spelling in the Q-6 row.
 - Still owed at closure: the full `/ze-review` gate over the complete diff (recorded with `./le spec review record`), the closure sections (`plan/templates/TEMPLATE-CLOSURE.md`), citer clearing (`plan/handover/12-rs-replacement-phase-3-remaining.md` and others), and `./le verify changed` after the closing commits.
+
+## Implementation Summary
+
+### What Was Implemented
+- Owner withdrawal at a non-ADD-PATH destination is owed to the `bgp-rib` election instead of written bare: `reactor/session_ownership.go::owesWithdrawal`, the per-destination owed set and worker `reactor/recovery_owed.go::recoveryWorker`, the per-key admission `reactor/relay_recovery.go`, the RIB side `plugins/rib` recovery lookup with per-key excluded sources and ordered survivors.
+- Announcement election (owner, Q-3): `reactor/session_ownership.go::oweAnnouncement` owes a contested announcement (forwarded, peer-up relay, initial replay) to the same worker; first arrival and an uncontested owner's re-announcement are written directly (A-14).
+- bgp-rr gets the same writer outcome on its cached rail and owes its departures through the owed set (`plugins/rr/rr.go`); bgp-rr and bgp-rs departures run on `syncutil.Coalescer` with eight long-lived workers (3dfec20d10).
+- Phase 2b: a session's down event follows its buffered UPDATEs (9886507d51); a receive-publication failure tears the source down and forbids GR retention (`reactor/peer_session_end.go::sessionDown`, reason `adj-rib-in-invalid`, 8ad62e730f).
+- Labelled withdrawal framing for every writer (AC-27, c972e77416), interop scenarios `bgp-route-server-replacement-frr` (94763c40c1) and `bgp-vpn-withheld-withdraw-frr` (69a6d31a08).
+
+### Bugs Found/Fixed
+- Defects found during implementation are recorded with their tests in Design Insights and in the commit bodies listed there (rounds 1 to 14 of Phase 3b, rounds 1 to 5 of Phases 3a to 6). Closure found no product defect.
+
+### Documentation Updates
+- Implementation commits edited the pages named in the Documentation Update Checklist (Pre-Commit Verification, Documentation Verified).
+- Closure: `docs/guide/route-reflection.md` still said "The competing-route election cutover remains unfinished" and cited this spec and handover 12; rewritten to state the election, anchored at `session_ownership.go::oweAnnouncement` and `recovery_owed.go::recoveryWorker`.
+- `./le doc check all`: one failure, `docs/functional-tests.md` release-gate suite list (not this spec's file); no finding on a file this spec touched.
+
+### Deviations from Plan
+- The two planned test files `rs_announcement_election_test.go` and `rs_withdrawal_replacement_test.go` were renamed `rfc7947_rs_announcement_election_test.go` and `rfc7947_rs_withdrawal_replacement_test.go` (ea4394c1fb) when they became RFC 7947 carriers.
+- `TestDrainReplayRefusedAtOwedKey` is not in this spec: the Blast Radius rule gives it to whichever of this spec and `spec-daemon-drain-before-stop` lands second, and this one lands first (Work Not Done).
+- A-7, A-8, A-12 and A-13 were withdrawn or found false by design review; the design changed with them (Mistake Log).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-8: a source whose receive publication failed ends its session | `publication.fail()` paths ended nothing and the enqueue only logged | design review round 3, I-1 | Phase 2b: the failure tears the source down and forbids retention (8ad62e730f) |
+| assumption | A-12: a per-source applied watermark separates "applied then removed" from "not applied yet" | the watermark was unsound; only a recovery write's candidate needs R-12 | design review round 5, I-1 | watermark deleted, R-12 scoped to recovery writes |
+| assumption | A-13: a receipt replay runs on an engine command goroutine and the forward worker never waits on bgp-rib | both halves false at the producer | design review round 6, B-1 | wait and reply count deleted (Data Flow 7) |
+| approach | A-7: KEEP outcome and departure cut | the owner test reads the owner's session generation in the writer's table | design review round 3, N-6 | cut deleted end to end (f749025a61) |
+| approach | `docs/guide/route-reflection.md` kept a "cutover remains unfinished" paragraph after the cutover landed | the paragraph was written by 01b86d8f1a while Phase 3a was open and no later phase re-read it | closure documentation review | rewritten in commit A |
+| approach | df98369ed9 shifted the file around the RFC5575-4-8 audit verdict's unit `flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop` (unit byte-identical) and the re-take in 93fdeccd64 did not reseal it | `./le rfc check` lists it as SHIFTED | closure `./le rfc check` | `./le rfc reseal` in a HEAD export, only `rfc/audit/rfc5575/RFC5575-4-8.json` carried |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RS client without ADD-PATH gets the remaining source's route after a withdrawal | Done | `reactor/session_ownership.go::owesWithdrawal`, `reactor/recovery_owed.go::recoveryWorker` | AC-1, AC-2, AC-5 to AC-21 |
+| bgp-rr per-prefix withdrawal and departure | Done | `plugins/rr/rr.go` (`handleStateDown`, `enqueueDeparture`) | AC-10, AC-19, AC-25 |
+| Announcements elect the RIB best for non-ADD-PATH clients, ADD-PATH clients get every path | Done | `reactor/session_ownership.go::oweAnnouncement` | AC-22 to AC-26 |
+| RFC7947-x-5 claimed | Done | `rfc/short/rfc7947.md`, carriers in `reactor/rfc7947_rs_*_test.go` | AC-3 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRSOwnerWithdrawalRecoversOnCachedRail`, `TestRSOwnerWithdrawalRecoversOnFastPath`, `bgp-rs-withdrawal-replacement.ci` | |
+| AC-2 | Done | `TestRecoveryOwnerWithdrawalAnswersWithdrawWhenNoSurvivor`, `.ci` second phase | |
+| AC-3 | Done | `rfc4271_rs_replacement_test.go`, `rfc7947_rs_decision_test.go` carriers; `./le rfc check` lists no stale record for them | |
+| AC-4 | Done | interop `bgp-route-server-replacement-frr`, `checkRouteServerReplacement`, red recorded in 94763c40c1 | |
+| AC-5 | Done | `TestRSOwnerWithdrawalPolicyDeniedReplacement`, `TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor` | |
+| AC-6 | Done | `TestRSOwnerWithdrawalLaterAnnouncementElected` | |
+| AC-7 | Done | `TestAdjOutOwnerWithdrawalOwedToRecovery` (ADD-PATH case) | |
+| AC-8 | Done | `TestAdjOutOwnerWithdrawalOwedToRecovery` (non-owner case) | |
+| AC-9 | Done | `TestRecoveryOwnerWithdrawalKeepsSourceOtherPaths`, `TestRSOwnerWithdrawalAddPathSourceKeepsOtherPath` | |
+| AC-10 | Done | `TestRROwnerWithdrawalRecovers`, `TestRRDepartureRecoversThroughOwedSet`, `TestRRDepartureHonoursRetention`, `bgp-rr-withdrawal-replacement.ci` | |
+| AC-11 | Done | `TestRecoveryAnswersEveryRequestedKey`, `TestRSOwnerWithdrawalLookupFailureRetiresDestination`, `TestOwedKeyOwnerGoneAfterOweRetires` | |
+| AC-12 | Done | `TestOwedKeyRealRIBConvergence`, `TestOwedKeyRealRIBConvergenceProperty`, `bgp-rs-withdrawal-replacement-many.ci` | |
+| AC-13 | Done | `TestRSOwnerWithdrawalSkipsDestinationOwnPath`, `TestRecoveryExcludesDestinationCandidate` | |
+| AC-14 | Done | `TestRSOwnerSynthesizedWithdrawalRecovers` | |
+| AC-15 | Done | `TestOwedKeyLivenessUnderChurn` | |
+| AC-16 | Done | `TestOwedKeyHandOffNeverBlocksWriter`, `TestOwedKeyStormKeepsSourceAndForwardWorkerMoving` | |
+| AC-17 | Done | `TestOwedKeyPublicationFailureTearsDownSource` | |
+| AC-18 | Done | `TestAdjOutDepartureOwesOnlyDepartedSession`, `TestRSDepartureAfterReconnectKeepsNewerRoute`, `TestOwedKeyCurrentAnnouncerNotExcluded` | |
+| AC-19 | Done | `TestOwedKeyGRPurgeRecoversSurvivor`, `TestRRGRPurgeRecoversSurvivor`, `bgp-rs-withdrawal-replacement-gr.ci` | |
+| AC-20 | Done | `TestOwedKeyRefreshDuringRoundKeepsRecord` | |
+| AC-21 | Done | `TestOwedKeyLookupChunked` | |
+| AC-22 | Done | `TestRSAnnouncementElectsOnCachedRail`, `TestRSAnnouncementElectsOnFastPath`, `bgp-rs-announcement-election.ci`, its fast-path twin | |
+| AC-23 | Done | `TestRSAnnouncementAddPathClientGetsEveryPath` | |
+| AC-24 | Done | `TestRSPeerUpReplayElectsBest`, `TestRSReconnectRibOutReplayElects` | |
+| AC-25 | Done | `TestRRAnnouncementElects`, `TestRRPeerUpReplayElects`, `bgp-rr-announcement-election.ci` | |
+| AC-26 | Done | `TestOwedKeyAnnounceMoverWritesAndReowes` | |
+| AC-27 | Done | `TestFwdWithdrawalLabelledCompatibility`, interop `bgp-vpn-withheld-withdraw-frr` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 65 of the 66 named tests and benchmarks | Done | `func` found at HEAD for each (closure grep over the TDD table) | files per the table, two renamed (Deviations) |
+| `TestDrainReplayRefusedAtOwedKey` | Changed | owned by `spec-daemon-drain-before-stop` | the spec that lands second carries it (Blast Radius) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create, every entry | Done | present at HEAD; the two rail test files under their `rfc7947_` names |
+| Files to Modify | Done | 167 Go files and 22 pages across the commits named in Design Insights |
+
+### Audit Summary
+- **Total items:** 4 requirements, 27 ACs, 66 tests
+- **Done:** 4, 27, 65
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 test moved to the drain spec, two files renamed (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A route-server client without ADD-PATH keeps a still-reachable prefix when one source withdraws | interop + functional | `bgp-route-server-replacement-frr`: BIRD reaches GoBGP's 65004 65004 path after FRR withdraws without losing the prefix, red recorded in 94763c40c1; `test/plugin/bgp-rs-withdrawal-replacement.ci` and its fast-path twin, exact hex |
+| The withdrawal is still sent when no source remains | functional + unit | `.ci` second phase exact withdrawal hex; `TestRecoveryOwnerWithdrawalAnswersWithdrawWhenNoSurvivor` |
+| Holds for any number of sources and simultaneous losses (AC-12) | property test + functional | `TestOwedKeyRealRIBConvergenceProperty`, `TestOwedKeyRealRIBConvergence`, `bgp-rs-withdrawal-replacement-many.ci` |
+| bgp-rr clients keep a reachable prefix after a withdrawal or a departure | functional + unit | `bgp-rr-withdrawal-replacement.ci`; `TestRRDepartureRecoversThroughOwedSet` |
+| A non-ADD-PATH client holds the elected route on every announcement; ADD-PATH clients hold every path | interop + functional | interop steps (2) and (3): BIRD keeps FRR's 65002 for 20 s while GoBGP re-announces worse; `bgp-rs-announcement-election.ci`, fast-path twin, `bgp-rr-announcement-election.ci`; `TestRSAnnouncementAddPathClientGetsEveryPath` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `TestDrainReplayRefusedAtOwedKey` | the drain refusal it proves exists only once the drain spec lands, and this spec lands first | `plan/release/fixes/spec-daemon-drain-before-stop.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-rs-replacement-on-withdrawal-34bb573e-95b4-416d-98bd-118a90b4b91e.md` (202 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 1 (closure); the implementation sessions ran rounds 1 to 14 (Phase 3b) and 1 to 5 (Phases 3a to 6), and the first closure attempt reviewed ee992f6425 and 8ad62e730f |
+| Reviewer lenses used | wiring and functional coverage; logic, panics, goroutines, loop bounds and style; documentation and RFC proof freshness |
+
+Closure round 1, over the complete diff (167 Go files, about 9400 production lines added since 0d056562a9): `./le repo check` names no file of this spec; no new exported symbol without a cross-package caller. The four new `panic` sites (`relay_recovery.go`, `session_validation_nlritype.go::mpAttributeAsReceived`) fire only on a Ze-produced enum zero or an attribute the same function already found, never on peer input (`receive_publication.go::receivePublicationCut.state` returns only Current or Ended). New goroutines are long-lived: one recovery worker per session (`Session.startRecovery`), one removal dispatcher per RIB manager, a fixed coalescer pool; every unbounded loop states its bound. `syncutil.Coalescer` read in full: one key per worker, Stop drains, a busy key's handler broadcasts on return. Tests the range check reports as weakened or deleted map to the Guards of deleted code table and to the `Weakening-approved` / `RFC-approved` lines of their commits. Scoped units green at HEAD in an export: `plugins/rs`, `plugins/rr`, `plugins/rib`, `nlrisplit`, `syncutil`; `reactor` under `-race` for the 50 reactor TDD tests (88 s; the reactor benchmark is not run by `-run`).
+
+Files with another session's uncommitted hunks in the working tree (reactor `peer_run.go`, `session.go`, `session_connection.go`, `session_handlers.go`, `session_read.go`, `peer_settings.go`, `fsm/fsm.go`, and the pages `behavior/fsm.md`, `behavior/peer-lifecycle.md`, `testing/interop.md`) were reviewed at HEAD and are not pinned in the artifact, whose pin would cover content this review did not see.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | user guide said the competing-route election "remains unfinished" and cited this spec | `docs/guide/route-reflection.md` | paragraph rewritten with source anchors |
+| 2 | ISSUE | RFC5575-4-8 audit verdict SHIFTED by df98369ed9 | `rfc/audit/rfc5575/RFC5575-4-8.json` | `./le rfc reseal` (mechanical; unit byte-identical) |
+
+NOTEs: `tmp/delete-34bb573e.sh` still exists although the two untracked duplicates it removes are gone; `backups/rs-repl-phase3b-20261018-192817*` (an Oct 18 patch and test copy from this spec) break another session's tree walk (journal row by terminal-demo-showcase): removal needs the owner.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-rs-withdrawal-replacement{,-fastpath,-many,-gr}.ci`, `bgp-rs-announcement-election{,-fastpath}.ci`, `bgp-rr-withdrawal-replacement.ci`, `bgp-rr-announcement-election.ci` | yes | `git cat-file -e HEAD:<path>` for each of the eight |
+| `reactor/recovery_owed.go`, `rfc4271_rs_replacement_test.go`, `rfc7947_rs_decision_test.go`, `rfc7947_rs_announcement_election_test.go`, `rfc7947_rs_withdrawal_replacement_test.go`, `rs_withdrawal_convergence_test.go`, `interoplab/bgp/check_route_server_replacement.go`, `check_vpn_withheld_withdraw.go` | yes | `git cat-file -e` at HEAD |
+| `test/interop/scenarios/bgp-route-server-replacement-frr/`, `bgp-vpn-withheld-withdraw-frr/` | yes | `git ls-tree HEAD test/interop/scenarios/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-27 except AC-3, AC-4 | each AC's tests above pass | closure run in a HEAD export: `go test -race -run '^(<50 reactor TDD tests>)$' ./internal/component/bgp/reactor/` ok 88.2 s; rs, rr, rib, nlrisplit, syncutil ok (logs `job-rs-close-reactor-0ff979ee.log`, `job-rs-close-units-174d7008.log` in the session scratch) |
+| AC-3 | carriers carry fresh proof records | `./le rfc check` in a HEAD export lists no stale record for rfc4271 9.2-7, 9.2-8 or RFC7947-x-5; the remaining RFC4271-9.2-9 negative belongs to a306bd35f2 |
+| AC-4 | interop proves replacement and election against BIRD | `checkRouteServerReplacement` registered (`check_special.go`), scenario at HEAD, red recorded in 94763c40c1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| bgp-rs owner withdrawal, cached rail and fast path | `bgp-rs-withdrawal-replacement.ci`, `-fastpath.ci` | present at HEAD; functional run owed in `./le verify changed` |
+| bgp-rr withdrawal and departure | `bgp-rr-withdrawal-replacement.ci` | present at HEAD |
+| announcement election, rs and rr | `bgp-rs-announcement-election.ci`, `-fastpath.ci`, `bgp-rr-announcement-election.ci` | present at HEAD |
+| GR purge | `bgp-rs-withdrawal-replacement-gr.ci` | present at HEAD |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestRecoveryOwnerWithdrawalKeepsSourceOtherPaths`, `TestOwedKeyRealRIBConvergence` (drives the drain against the real RIB) |
+| A-2 | confirmed | `TestRSOwnerWithdrawalRecoversOnCachedRail` and `...OnFastPath` |
+| A-3 | confirmed | owner, Q-1 and Q-3: the RIB-elected route |
+| A-4 | confirmed | `TestOwedKeyNoRecoveryOwnerWritesWithdrawal` (outcome gated on the registered recovery command) |
+| A-5 | confirmed | `TestOwedKeyNoRecoveryOwnerWritesWithdrawal`; `TestAdjOutContestedBitAndTombstone` for the window's aftermath |
+| A-6 | confirmed | `TestOwedKeyFenceInterleavings` |
+| A-7 | broken | withdrawn by round 3 N-6 (Mistake Log) |
+| A-8 | broken | round 3 I-1; made true by Phase 2b, `TestOwedKeyPublicationFailureTearsDownSource` (Mistake Log) |
+| A-9 | confirmed | `TestOwedKeyGRPurgeRecoversSurvivor`, `TestRIBSentProjectionOfPurgedOwnerRemoves` |
+| A-10 | confirmed | `TestRRGRPurgeRecoversSurvivor` |
+| A-11 | confirmed | `TestOwedKeyPublicationFailureTearsDownSource` under `-race` with a deadline |
+| A-12 | broken | withdrawn by round 5 I-1 (Mistake Log) |
+| A-13 | broken | withdrawn by round 6 B-1 (Mistake Log) |
+| A-14 | confirmed | `TestRSAnnouncementFirstArrivalConverges` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| route reflection guide: withdrawal and announcement election | `session_ownership.go::owesWithdrawal`, `oweAnnouncement`; `recovery_owed.go::recoveryWorker` | yes, stale paragraph fixed at closure |
+| operational reports and ExaBGP bridge: `adj-rib-in-invalid` down reason | `peer_session_end.go::sessionDown`, `bridge_event_state.go::exabgpDownReasons` | yes (e17528aa3b) |
+| architecture pages (rib-storage-design, update-building, structural-forwarding, fsm, peer-lifecycle, graceful-restart guide) | edited in the implementation commits; `./le doc check all` reports no source-anchor or drift finding on them | yes |
+| RFC status | `rfc/short/rfc7947.md` Meta; `./le rfc update` in a HEAD export changes no tracked file beyond the reseal | yes |

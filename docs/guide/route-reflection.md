@@ -153,11 +153,15 @@ from another source cannot erase a replacement or a locally originated route.
 Competing announcements are therefore not an unconditional latest-wins contract.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- oweAnnouncement, adjOutContests -->
 
-The competing-route election cutover remains unfinished: withdrawal and
-convergence regressions are tracked in
-`plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md` and
-`plan/handover/12-rs-replacement-phase-3-remaining.md`. Explicit-final policy
-validation does not certify that separate cutover.
+With `bgp-rib` loaded, a destination without ADD-PATH holds the route the
+`bgp-rib` election picks, on an announcement as on a withdrawal: the first route
+of a prefix is written as it arrives, and when another source announces a prefix
+the destination already holds, the announcement is decided by that election
+rather than written as the newest arrival. Explicit-final policy validation is a
+separate check and does not decide which route the election picks.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- oweAnnouncement -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker -->
+
 
 When the owner withdraws its route, or `bgp-rib` removes it, and `bgp-rib` is
 loaded, a destination without ADD-PATH is not sent the bare withdrawal. The

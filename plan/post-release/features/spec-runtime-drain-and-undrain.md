@@ -343,7 +343,7 @@ Epoch lifetime (design 6, NOTE-C). The BGP drain worker's counter is process sta
 |----------|--------|
 | What breaks if this is wrong? | a router stays drained after undrain (traffic stays away), or an undrain re-advertises wrong attributes, or the stop drain regresses for a router never runtime-drained |
 | How is it reverted? | single commit revert; no config, no persisted state under Q-1 (a) |
-| Who else touches this path? | `plan/release/fixes/spec-daemon-drain-before-stop.md` (amended 2026-10-14 to build the worker, the scope with an epoch, f at the writer over U and the per-epoch walk; this spec lands after it and adds to them); `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md` (its owed-key refusal covers `undrain`-kind receipts as it covers `drain` ones, since both are `adjOutExpected`); `plan/release/fixes/spec-ospf-max-metric-startup-shutdown-windows.md` (the drain state sits beside its `on-startup` input) |
+| Who else touches this path? | `plan/release/fixes/spec-daemon-drain-before-stop.md` (amended 2026-10-14 to build the worker, the scope with an epoch, f at the writer over U and the per-epoch walk; this spec lands after it and adds to them); `spec-bgp-rs-replacement-on-withdrawal` (its owed-key refusal covers `undrain`-kind receipts as it covers `drain` ones, since both are `adjOutExpected`); `plan/release/fixes/spec-ospf-max-metric-startup-shutdown-windows.md` (the drain state sits beside its `on-startup` input) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
