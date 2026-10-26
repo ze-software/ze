@@ -1,0 +1,274 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3022",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3022.txt",
+  "source-sha": "bb959214751a52fb",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.0",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Whenever external topology changes with time, address assignment for nodes within the local domain must also change to reflect the external changes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "1:2",
+      "quote": "Applications requiring ALG intervention must not have their payload encoded, as doing that would effectively disables the ALG, unless the ALG has the key to decrypt the payload.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "In this setup, only TCP/UDP sessions are allowed and must originate from the local network.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "In Basic NAT model, the IP header of every packet must be modified.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "For TCP ([TCP]) and UDP ([UDP]) sessions, modifications must include update of checksum in the TCP/UDP headers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:3",
+      "quote": "As for ICMP Query packets ([ICMP]), no further changes in ICMP header are required as the checksum in ICMP header does not cover IP addresses.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:4",
+      "quote": "For TCP/UDP sessions, modifications must be extended to include translation of TU port (source TU port for outbound packets and destination TU port for inbound packets) in the TCP/UDP header.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:5",
+      "quote": "ICMP header in ICMP Query packets must also be modified to replace the query ID and ICMP header checksum.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:6",
+      "quote": "Private host query ID must be translated into assigned ID on the outbound and the exact reverse on the inbound.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.1:7",
+      "quote": "ICMP header checksum must be corrected to account for Query ID translation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "The algorithm below is applicable only for even offsets (i.e., optr below must be at an even offset from start of header) and even lengths (i.e., olen and nlen below must be even).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "In order for NAT to be transparent to end-host, the IP address of the IP header embedded within the payload of ICMP-Error message must be modified, the checksum field of the embedded IP header must be modified, and lastly, the ICMP header checksum must also be modified to reflect changes to payload.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.3:2",
+      "quote": "Lastly, the IP header of the ICMP packet must also be modified.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "4.4:1",
+      "quote": "For NAPT setup, however, the translations must be extended to include the TCP port octets (in ASCII) following the address octets.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "Any given address must either be a private address or a global address.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "6.2:1",
+      "quote": "NAT must be enabled only on border routers of a stub domain.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "6.2:2",
+      "quote": "Responding to ARP requests for the NAT mapped global addresses with its own MAC address is a must in such a situation with Basic NAT setup.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 3022 is Informational and declares no RFC 2119 conventions; this lowercase 'must' describes how the Basic NAT or NAPT operation the document defines rewrites a packet or where it is deployed. The normative NAT behavioral requirements are stated by RFC 4787 and RFC 5382."
+    },
+    {
+      "id": "8.0:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Full Copyright Statement boilerplate of the Internet Society, about copying the document; no obligation on a NAT."
+    }
+  ]
+}
