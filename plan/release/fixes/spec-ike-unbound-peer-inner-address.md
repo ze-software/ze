@@ -424,6 +424,7 @@ Carried into the closure template's Goal Validation table by `/ze-close`.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-26 | IKE tunnel inner address: unbound peer keeps any proposed TSi, `claim` checks tunnel overlap never |
+| `one-state-held-in-two-fields.md` | 2026-10-26 | IKE transport Child SA rekey after an IKE SA rekey: no RFC 7296 2.23.1 substitution or single-address check (`transportSelectorsInPlay` reads SA flags `respondChildRekey` never sets) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
