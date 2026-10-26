@@ -2,7 +2,7 @@
   {
     "rid": "RFC7084-4.3-9",
     "polarity": "positive",
-    "unit": "internal/component/iface/config_ra_test.go::TestRAConfigParse",
+    "unit": "internal/component/iface/rfc7084_config_ra_test.go::TestRAConfigParse",
     "unit-sha": "c928869f646557e7",
     "claim-sha": "00c71ab8b8a3f00c",
     "route": "revert",

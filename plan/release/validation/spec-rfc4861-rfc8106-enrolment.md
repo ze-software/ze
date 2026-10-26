@@ -177,7 +177,7 @@ a requirement it finds unmet is a defect fixed at its producer.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| named at design time, one per requirement that owes a test | `internal/core/ndp/ra_test.go`, `internal/core/ndp/schedule_test.go`, `internal/component/iface/config_ra_test.go`, `internal/plugins/iface/ra/sender_linux_test.go`, `internal/component/l2tp/ppp/ra_send_test.go` | the MUST named in its `RFC requirement:` tag | |
+| named at design time, one per requirement that owes a test | `internal/core/ndp/ra_test.go`, `internal/core/ndp/schedule_test.go`, `internal/component/iface/rfc7084_config_ra_test.go`, `internal/plugins/iface/ra/sender_linux_test.go`, `internal/component/l2tp/ppp/ra_send_test.go` | the MUST named in its `RFC requirement:` tag | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
