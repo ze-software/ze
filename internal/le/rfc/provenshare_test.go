@@ -19,10 +19,10 @@ import "testing"
 // version that counted every RFC.
 func TestProvenShareOfCountsWhatTheOwnerDecided(t *testing.T) {
 	metas := map[string]Meta{
-		"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "core", Status: "Supported"},
-		"rfc2": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "core", Status: "Unsupported"},
+		"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Supported"},
+		"rfc2": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
 		"rfc3": {Enrolment: enrolmentEnrolled, Implementation: implementationZe},
-		"rfc4": {Enrolment: dispositionOutOfScope, Support: "core", Status: "Supported"},
+		"rfc4": {Enrolment: dispositionOutOfScope, Aggregate: "bgp-core", Row: true, Status: "Supported"},
 	}
 	requirements := []Requirement{
 		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
@@ -87,7 +87,7 @@ func TestProvenShareOfCountsWhatTheOwnerDecided(t *testing.T) {
 // caller cannot tell that from a ledger stating Ze proves nothing.
 func TestProvenShareOfRefusesAnEmptyPopulation(t *testing.T) {
 	metas := map[string]Meta{
-		"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "core", Status: "Unsupported"},
+		"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
 	}
 	requirements := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}}
 

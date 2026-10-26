@@ -141,7 +141,8 @@ func TestCheckStillRefusesPolarityTagOnGapRow(t *testing.T) {
 // result.
 func TestCheckRefusesGapTagInCI(t *testing.T) {
 	files := map[string]string{
-		selftestSummaryRel: gapFixtureSummary(),
+		FixtureAggregateRel: FixtureAggregateProfile,
+		selftestSummaryRel:  gapFixtureSummary(),
 		selftestCIPath: "# RFC requirement: " + selftestRIDSend + " gap -- the daemon sends no widget yet.\n" +
 			selftestCIDirective + "\n",
 	}

@@ -35,7 +35,7 @@ func TestEveryKindTheVocabularyDeclaresIsReadable(t *testing.T) {
 			meta, err := ParseMeta(metaHead+enrolmentRows+
 				"| Implementation | "+kind+" |\n"+
 				"| Implementation reason | "+reason+" |\n"+
-				"| Support | - |\n", "rfc9999", metaWhere)
+				"| Support | - |\n| Aggregate | bgp-core |\n", "rfc9999", metaWhere)
 			if err != nil {
 				t.Fatalf("a summary declaring %q did not parse: %v", kind, err)
 			}
@@ -62,7 +62,7 @@ func TestADocumentZeWritesNoGoForLeavesTheGatedPopulation(t *testing.T) {
 			meta, err := ParseMeta(metaHead+enrolmentRows+
 				"| Implementation | "+one.kind+" |\n"+
 				"| Implementation reason | "+one.reason+" |\n"+
-				"| Support | - |\n", "rfc9999", metaWhere)
+				"| Support | - |\n| Aggregate | bgp-core |\n", "rfc9999", metaWhere)
 			if err != nil {
 				t.Fatalf("the summary did not parse: %v", err)
 			}
@@ -81,16 +81,16 @@ func TestAnImplementationDeclarationIsRefusedWhenItSaysTooLittle(t *testing.T) {
 		rows string
 		want string
 	}{
-		{"absent", "| Support | - |\n", "no `Implementation` row"},
+		{"absent", "| Support | - |\n| Aggregate | bgp-core |\n", "no `Implementation` row"},
 		{"unknown value", "| Implementation | someone-else |\n" +
-			"| Implementation reason | x |\n| Support | - |\n", "not one of"},
-		{"no reason", "| Implementation | ze |\n| Support | - |\n",
+			"| Implementation reason | x |\n| Support | - |\n| Aggregate | bgp-core |\n", "not one of"},
+		{"no reason", "| Implementation | ze |\n| Support | - |\n| Aggregate | bgp-core |\n",
 			"no `Implementation reason` row"},
 		{"third-party naming only the kernel", "| Implementation | third-party |\n" +
-			"| Implementation reason | the kernel does it |\n| Support | - |\n",
+			"| Implementation reason | the kernel does it |\n| Support | - |\n| Aggregate | bgp-core |\n",
 			"names no implementer"},
 		{"mixed naming only the kernel", "| Implementation | mixed |\n" +
-			"| Implementation reason | the kernel handles the rest |\n| Support | - |\n",
+			"| Implementation reason | the kernel handles the rest |\n| Support | - |\n| Aggregate | bgp-core |\n",
 			"names no implementer"},
 	} {
 		t.Run(one.name, func(t *testing.T) {

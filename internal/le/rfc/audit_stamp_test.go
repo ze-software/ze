@@ -24,6 +24,7 @@ func stampTree(t *testing.T, recorded map[string]any) string {
 	t.Helper()
 
 	files := map[string]string{
+		FixtureAggregateRel: FixtureAggregateProfile,
 		selftestWorkflowRel: selftestWorkflow,
 		selftestSummaryRel: "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 			"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n" +

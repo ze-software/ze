@@ -15,65 +15,11 @@ package rfc
 
 import (
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-// statusSectionSpec is one `##` section of the public page.
-//
-// The section list is the renderer's own declaration, not a fact about any RFC.
-// A summary names its section by KEY and the heading is written once here, so a
-// heading reworded on the page cannot disagree with 158 summaries naming it.
-type statusSectionSpec struct {
-	Key     string
-	Heading string
-	// Intro is the prose between the heading and the table, empty for a
-	// section that goes straight to its rows.
-	Intro string
-	// Brief marks the four-column shape: the last section holds standards
-	// that are not RFCs, and it states a Note where the others state
-	// implemented coverage and a remainder.
-	Brief bool
-}
-
-// statusSections is the page's section order, and the ONE place each heading is
-// written.
-var statusSections = []statusSectionSpec{
-	{Key: "bgp-base", Heading: "BGP base protocol, capabilities, and session safety"},
-	{Key: "bgp-attributes", Heading: "BGP attributes, families, policy, and NLRI"},
-	{Key: "bgp-operations", Heading: "BGP operations, telemetry, RPKI, and BFD-adjacent standards"},
-	{Key: "igp-mpls", Heading: "IS-IS, OSPF, MPLS, and traffic engineering"},
-	{Key: "fhrp", Heading: "First-hop redundancy"},
-	{Key: "access-aaa", Heading: "Access, AAA, PPP, and subscriber services"},
-	{Key: "ipsec", Heading: "IPsec, IKE, EAP, and kernel security associations"},
-	{Key: "dns-telemetry", Heading: "DNS, provisioning, MRT, and flow telemetry"},
-	{Key: "management", Heading: "Configuration modeling and management protocols"},
-	{Key: "drafts", Heading: "Drafts and non-RFC standards tracked near RFC work", Brief: true,
-		Intro: "These are not RFCs, but they sit next to RFC implementation status and are useful when reading the tables above."},
-}
-
-// statusSection answers one section by key, or nil for a key nothing declares.
-func statusSection(key string) *statusSectionSpec {
-	for index := range statusSections {
-		if statusSections[index].Key == key {
-			return &statusSections[index]
-		}
-	}
-	return nil
-}
-
-// statusSectionKeys answers every key sorted, for a refusal that names the set.
-func statusSectionKeys() []string {
-	out := make([]string, 0, len(statusSections))
-	for _, section := range statusSections {
-		out = append(out, section.Key)
-	}
-	slices.Sort(out)
-	return out
-}
 
 // generatedBanner is the do-not-edit line every file here opens with, in the
 // comment syntax its format uses.
@@ -110,8 +56,12 @@ func share(count, total int) string {
 // coverage is the per-RFC polarity partition CoverageRows derives. The public
 // page publishes it beside every support claim, so a caller that has already
 // derived it hands it over rather than deriving it a second time.
-func ledgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]string, error) {
-	page, err := renderStatusPage(metas, coverage)
+//
+// aggregates is the parsed rfc/profiles/: the heading, intro and table shape
+// of every aggregate a row renders under.
+func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate,
+	coverage []CoverageRow) (map[string]string, error) {
+	page, err := renderStatusPage(metas, aggregates, coverage)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +79,7 @@ func ledgerFiles(metas map[string]Meta, coverage []CoverageRow) (map[string]stri
 // and a coverage set assembled from a different triple on one of them would
 // publish a Proof column the other cannot reproduce.
 func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
-	return ledgerFiles(in.Metas, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+	return ledgerFiles(in.Metas, in.Profiles.Aggregates, CoverageRows(in.Requirements, in.Tags, in.Carriers))
 }
 
 // StatusPage answers the public support page for one checkout: the same bytes
@@ -268,15 +218,21 @@ func renderNotEnrolled(metas map[string]Meta) string {
 }
 
 // renderStatusPage emits docs/features/rfc-status.md: the public support claim,
-// one row per summary that declares a section.
+// one row per summary whose `Support` names an aggregate, grouped under that
+// aggregate's heading.
 //
 // The four authored cells are moved verbatim from the summary that owns them.
 // No PROSE on this page is synthesized: a support claim is a product judgement,
 // and a generator that wrote the prose would be inventing the claim it exists
 // to publish. What IS derived is every count, the Proof cell beside each claim,
-// the row order inside a section, and the section headings themselves.
-func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, error) {
-	placed, err := placeRows(metas)
+// the row order inside an aggregate, and the aggregate headings themselves.
+//
+// Aggregates render in name order, and rows inside one in RFC number order
+// (statusRowLess). Neither order is authored, so no two summaries can claim
+// one place.
+func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate,
+	coverage []CoverageRow) (string, error) {
+	placed, err := placeRows(metas, aggregates)
 	if err != nil {
 		return "", err
 	}
@@ -289,16 +245,23 @@ func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, er
 	tb.Str(generatedBanner("<!--", "./le rfc index-update")).Str(" -->\n\n")
 	tb.Str("# RFC Implementation Status\n\n")
 	tb.Str(statusPageIntro(len(metas)-rowed, len(metas)))
-	for _, section := range statusSections {
-		rows := placed[section.Key]
+	for _, name := range sortedKeysOf(aggregates) {
+		aggregate := aggregates[name]
+		rows := placed[name]
 		if len(rows) == 0 {
 			continue
 		}
-		tb.Str("\n## ").Str(section.Heading).Str("\n\n")
-		if section.Intro != "" {
-			tb.Str(section.Intro).Str("\n\n")
+		if aggregate.Shape == shapeUnspecified {
+			var tb textbuf.Buffer
+			return "", parseErr(tb.Str("BUG: aggregate ").Str(pyRepr(name)).
+				Str(" reached the status page with no table shape; parseAggregate sets one for every parsed profile"))
 		}
-		if section.Brief {
+		brief := aggregate.Shape == ShapeBrief
+		tb.Str("\n## ").Str(aggregate.Heading).Str("\n\n")
+		if aggregate.Intro != "" {
+			tb.Str(aggregate.Intro).Str("\n\n")
+		}
+		if brief {
 			tb.Str("| Standard | Area | Status | Note |\n")
 			tb.Str("|----------|------|--------|------|\n")
 		} else {
@@ -309,11 +272,11 @@ func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, er
 			row := &rows[index]
 			tb.Str("| ").Str(publicRowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
 				Str(" | ").Str(row.Meta.Status).Str(" | ")
-			if !section.Brief {
+			if !brief {
 				tb.Str(proofCell(proof[row.Stem])).Str(" | ")
 			}
 			tb.Str(row.Meta.Coverage)
-			if !section.Brief {
+			if !brief {
 				tb.Str(" | ").Str(row.Meta.Remaining)
 			}
 			tb.Str(" |\n")
@@ -360,41 +323,65 @@ type statusRow struct {
 	Meta Meta
 }
 
-// placeRows groups every summary that declares a section, in the rank order the
-// summaries themselves state.
+// placeRows groups every summary that renders a row by its aggregate, each
+// group in RFC number order.
 //
-// A duplicate rank inside one section is REFUSED rather than broken by stem.
-// Two rows with the same rank have no order, and a tie-break invented here
-// would put the page's reading order in the renderer where the summaries are
-// meant to own it.
-func placeRows(metas map[string]Meta) (map[string][]statusRow, error) {
+// A row naming an aggregate the profiles do not declare is REFUSED: it has no
+// heading to render under, and dropping it would remove a public claim in
+// silence. summaryMetas refuses such a summary first, so this guards a caller
+// that hands in metas it built itself.
+func placeRows(metas map[string]Meta, aggregates map[string]Aggregate) (map[string][]statusRow, error) {
 	out := map[string][]statusRow{}
-	ranks := map[string]map[int]string{}
 	for _, stem := range sortMetaStems(metas) {
 		meta := metas[stem]
 		if !meta.HasRow() {
 			continue
 		}
-		if ranks[meta.Support] == nil {
-			ranks[meta.Support] = map[int]string{}
-		}
-		if taken, held := ranks[meta.Support][meta.Rank]; held {
+		if _, held := aggregates[meta.Aggregate]; !held {
 			var tb textbuf.Buffer
-			return nil, parseErr(tb.Str(summaryRel).Byte('/').Str(stem).
-				Str(".md and ").Str(summaryRel).Byte('/').Str(taken).
-				Str(".md both claim rank ").Int(int64(meta.Rank)).Str(" of section ").
-				Str(pyRepr(meta.Support)).Str(" on ").Str(statusRel).
-				Str(". Two rows with one rank have no order, and inventing a tie-break here ").
-				Str("would move the page's reading order out of the summaries that own it"))
+			return nil, parseErr(tb.Str(summaryRel).Byte('/').Str(stem).Str(".md names aggregate ").
+				Str(pyRepr(meta.Aggregate)).Str(", which has no ").Str(profileRel).Byte('/').
+				Str(meta.Aggregate).Str(".md, so its row has no heading on ").Str(statusRel))
 		}
-		ranks[meta.Support][meta.Rank] = stem
-		out[meta.Support] = append(out[meta.Support], statusRow{Stem: stem, Meta: meta})
+		out[meta.Aggregate] = append(out[meta.Aggregate], statusRow{Stem: stem, Meta: meta})
 	}
-	for key := range out {
-		rows := out[key]
-		sort.Slice(rows, func(i, j int) bool { return rows[i].Meta.Rank < rows[j].Meta.Rank })
+	for name := range out {
+		rows := out[name]
+		slices.SortFunc(rows, func(left, right statusRow) int { return statusRowCompare(left.Stem, right.Stem) })
 	}
 	return out, nil
+}
+
+// statusRowCompare orders two stems inside one aggregate: `rfc<number>` stems
+// by number, ahead of every other stem, which sort by name.
+//
+// The DAG level joins this order ahead of the number once the graph exists.
+func statusRowCompare(left, right string) int {
+	leftNumber, leftRFC := rfcStemNumber(left)
+	rightNumber, rightRFC := rfcStemNumber(right)
+	if leftRFC && rightRFC {
+		return leftNumber - rightNumber
+	}
+	if leftRFC {
+		return -1
+	}
+	if rightRFC {
+		return 1
+	}
+	return strings.Compare(left, right)
+}
+
+// rfcStemNumber answers the number of an `rfc<number>` stem.
+func rfcStemNumber(stem string) (int, bool) {
+	match := statusRowRFC.FindStringSubmatch(stem)
+	if match == nil {
+		return 0, false
+	}
+	number, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, false
+	}
+	return number, true
 }
 
 // statusPageIntro is the page's own prose, with its one count derived.
@@ -450,8 +437,8 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("the two escapes above do not reach it: each says the DOCUMENT imposes no MUST, which ")
 	tb.Str("is a different question from whether Ze meets one. `Partial` is the honest row there, ")
 	tb.Str("and it is not refused.\n\n")
-	tb.Str("Row presence needs no check any more. A row exists exactly where a summary declares a ")
-	tb.Str("section, so an enrolled RFC with no row, a row naming an RFC with no summary, and two ")
+	tb.Str("Row presence needs no check any more. A row exists exactly where a summary names an ")
+	tb.Str("aggregate in its `Support` cell, so an enrolled RFC with no row, a row naming an RFC with no summary, and two ")
 	tb.Str("rows for one RFC are each unrepresentable rather than refused.\n\n")
 	tb.Str("**Proof** is the one derived cell in these tables. It restates that RFC's own coverage ")
 	tb.Str("from `rfc/requirements/<stem>.md`: how many MUST-level requirements the summary gates, ")

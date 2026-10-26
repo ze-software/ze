@@ -6,6 +6,32 @@
 
 The owner rule behind it is in `ai/META-DECISIONS.md`, Goal and scope ("RFC work is ordered by use-case profile and by the RFC dependency tree"). Every design decision is in the spec's "Agreed shape", "Research gate decisions" and "Key Design Decisions" tables; do not reopen them.
 
+## Phase 1 done (2026-10-25, third agent)
+
+Phase 1 landed as ONE commit: the profile parser, the Support migration of all 204 summaries, the 36 profile files, the coverage function, the docs and this section. The third agent finished it: the fixture trees gained `FixtureAggregateRel` (`TestRatchetsFireWhenEnrolmentMovesToMeta`, `TestTheGeneratorRefusesToWriteWhenTheRenderProducesNoRowAtAll`), `TestStatusPageRowSetUnchanged` (AC-6, `render_ledger_test.go`) compares the public row cells of every summary across the migration commit, read from git (the commit that added `rfc/profiles/bgp-core.md` and its parent), and the doc wiring findings were cleared: the nine profile and coverage names no other package reads were unexported (`shapeUnspecified`, `provenRequirements`, `mandatoryCell`, `optionalCell`, `absentFigures`, `figuresByStem`, `rollupOf`, `Rollup.mandatoryComplete`; `aggregateNames` was deleted as unused), and `docs/contributing/rfc-implementation-guide.md` now states the `| Support | <aggregate> |` cell. `renderStatusPage` refuses an aggregate with no table shape rather than rendering it wide.
+
+`docs/features/rfc-status.md` and `rfc/requirements/` are derived on demand and never committed (`8ae7424594`); the post-write hook removes them and a command that names one rebuilds it.
+
+Phase 2 starts from this tree: `internal/le/rfc/graph/` (normative-reference and header parser, `rfc/graph.tsv` from `./le rfc index-update`, cycle components, levels), the header-vs-Meta link check with the 24 corrections, and `checkUpdatedBy` switched from the Meta `Updates` cell to the graph. A Phase 2 caller of the coverage figures re-exports the names it uses. AC-6's "ordered by level" part waits for the levels: Phase 1 orders rows by RFC number inside each aggregate.
+
+### What Phase 1 holds (second agent's table, kept for the record)
+
+| Path | State |
+|------|-------|
+| `rfc/profiles/*.md` (36, untracked) | 8 use-case profiles (spec table; the `vpn-concentrator` Title is the agent's wording) and 28 aggregates with Title, Heading, Intro, Shape, Release n/a. The committed `./le rfc check` ignores the directory (verified) |
+| `internal/le/rfc/profile.go`, `profile_test.go` (new) | `LoadProfiles`, `parseProfile`, `parseUseCase` (AC-9 refusal), `parseAggregate`, `Shape`; `TestProfileUnknownRootRefused`, `TestProfileRefusals`, `TestCorpusProfilesParse` |
+| `internal/le/rfc/profilecoverage.go`, `profilecoverage_test.go` (new) | `DiscriminationVerdict.Proven` (the one per-row predicate), `provenRequirements`, `figuresByStem`, `rowCounts` (`{gap}`/`{partial}` never proven), `absentFigures` (0%), `rollupOf`, `Rollup.mandatoryComplete`; the owner ruling on absent RFCs and the IKE pool is recorded in the spec under R-7 |
+| `meta.go` | `Meta.Support`/`Rank` replaced by `Aggregate` + `Row`; `readSupport` reads `<aggregate>`, or `-` plus an `Aggregate` cell; `checkAggregate` runs in `summaryMetas(tree, stems, profiles)`; `rowsFrom(metas, aggregates)` |
+| `render_ledger.go` | `statusSections` and the rank deleted; `placeRows(metas, aggregates)` refuses an undeclared aggregate; `statusRowCompare` orders by RFC number |
+| `status.go`, `render.go`, `check.go` | `Collected.Profiles`, `RenderInput.Profiles`; profile problems join `ParseErrors` |
+| `check_baseline.go` | `retiredSectionRank` reads a HEAD^ summary in the old shape, git history only, so the migration commit keeps its ratchets |
+| `fixture.go`, `selftest.go`, `selftest_core.go` | `FixtureAggregate` (`bgp-core`), `FixtureAggregateProfile`, `FixtureAggregateRel` in `FixtureFiles`; `newSelftestTree` writes the profile |
+| tests updated | `check_test.go`, `meta_test.go` (new: `TestSupportNamesAggregate`, `TestBaselineReadsTheRetiredSectionRank`), `render_test.go`, `render_ledger_test.go`, `partial_test.go`, `summary_test.go`, `meta_implementation_test.go`, `lowerlayer*_test.go`, `provenshare_test.go`, `featuredeclined_test.go`, `check_gap_test.go`, `site/facts_test.go`, `site/rfcdetail_test.go`, `test/health/collect_rfc_test.go`, `internal/test/fixture/ui_fixture_le_rfc_answers.go` |
+| docs | `docs/contributing/rfc-conformance-gates.md` ("Profiles and aggregates", "Coverage figures", the brief-shape paragraph, the `checkPublicRowMonotonic` row); `ai/skills/ze-rfc.md` step 6b |
+| spec | Phase 1/5, the R-7 owner decision, two Design Insights bullets |
+
+The migration was prepared in the session scratch (`tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch/`: `prof/members.tsv` is the membership of all 204 summaries, `migrated/` the migrated copies).
+
 ## Status
 
 ### Done (committed)
@@ -20,13 +46,13 @@ The owner rule behind it is in `ai/META-DECISIONS.md`, Goal and scope ("RFC work
 Evidence for `1facce9b44`: `go test -race ./internal/le/rfc` ok 287.844s; scoped lint leaves 7 findings, all pre-existing in `discriminate.go`, `discriminate_action.go`, `discriminate_observe.go`, `discriminate_progress_test.go`.
 
 ### In progress
-- Nothing uncommitted from this work.
+- Nothing uncommitted from this work: Phase 1 is committed.
 
 ### Remaining (spec phases)
 
 | Phase | Work |
 |-------|------|
-| 1 (rest) | `rfc/profiles/` parser and files (8 use-case profiles, about 28 aggregates); `Support | <section> <rank>` becomes `Support | <aggregate>` in all 204 summaries; delete `statusSections` (`internal/le/rfc/render_ledger.go`) and the rank (`placeRows` rank refusal goes); 36 summaries with `Support | -` gain an `Aggregate` cell; coverage function (`profilecoverage.go`) with mandatory and optional figures and "not walked"; update the `bgp-base 10` fixtures (`render_test.go`, `site/rfcdetail_test.go`, `rfc/fixture.go`, `selftest_core.go`, `health/collect_rfc_test.go`, `check_test.go`) |
+| 1 | Done: see "Phase 1 done" above |
 | 2 | `internal/le/rfc/graph/`: normative-reference and header parser, `rfc/graph.tsv` via `./le rfc index-update`, cycle components, levels; header-vs-Meta link check and the 24 corrections; switch `checkUpdatedBy` from the Meta `Updates` cell to the graph |
 | 3 | `./le rfc tree`, `./le rfc next` in `internal/le/rfc/actions.go`; status page ordered by aggregate, level, RFC number |
 | 4 | Ledger JSON gains graph, profiles, figures; `rfc-profiles` producer (`internal/le/site/rfcprofiles.go`); `./le site build` and `./le site check` on `../gh-pages` |
@@ -59,40 +85,3 @@ Evidence for `1facce9b44`: `go test -race ./internal/le/rfc` ok 287.844s; scoped
 - Lint caps findings at 10 per linter per run; a clean-looking list can hide more of the same kind.
 - `go test` under `./le job run` needs the feature tags: `tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"`.
 - `./le go lint run scope "./internal/le/rfc/..."` refuses while another session edits sources; retry.
-
-## Edits (first steps of Phase 1)
-
-EDIT 1: spec metadata table, `Phase` row
-- Replace: `| Phase | 0/5 |` -> `| Phase | 1/5 |`
-
-EDIT 2: new file `rfc/profiles/route-server.md`
-- Add: `# Profile: route-server`, blank line, then a two-column `| Field | Value |` table with rows:
-  `| Kind | use-case |`,
-  `| Title | IXP route server |`,
-  `| Release | yes |`,
-  `| Roots | rfc4271, rfc4760, rfc6793, rfc7947, rfc9234, rfc1997, rfc8092, rfc7999, rfc6811, rfc8210, rfc9582, rfc7911, rfc7454 |`,
-  `| Absent | RFC 7948, RFC 8212, RFC 8893 |`
-
-EDIT 3: new file `rfc/profiles/lns.md`
-- Add: same shape, `Kind use-case`, `Title L2TP network server`, `Release yes`,
-  `Roots rfc2661, rfc1661, rfc1332, rfc1877, rfc5072, rfc1334, rfc1994, rfc2759, rfc2865, rfc2866, rfc2869, rfc5176`,
-  `Absent RFC 1570, RFC 2867, RFC 2868, RFC 3162, RFC 4818, RFC 6911, RFC 3145, RFC 4861`
-
-EDIT 4: new file `rfc/profiles/fttx-edge.md`
-- Add: same shape, `Kind use-case`, `Title FTTx edge: customers to the internet over L2TP, local DNS for the LAN`, `Release yes`,
-  `Roots rfc2661, rfc2516, rfc1661, rfc1332, rfc5072, rfc1877, rfc1994, rfc2131, rfc2132, rfc9915, rfc1035, rfc2181, rfc4035, rfc4862`,
-  `Absent RFC 7084, RFC 3022, RFC 4787, RFC 5382, RFC 5905, RFC 8106, RFC 4638, RFC 4861`
-
-EDIT 5: spec, section `## Design Insights`, after its existing two bullets
-- Add: "Profile file format: a `| Field | Value |` table. Use-case profiles carry Kind (use-case), Title, Release (yes/no), Roots (comma list of stems), Absent (comma list of RFC numbers not yet in rfc/short). Technology aggregates carry Kind (technology), Title, Heading, Intro, Shape (wide/brief, replacing the `Brief` flag of `statusSections`), Release (n/a)."
-
-Then, in order: the remaining five use-case profiles from the spec's "Initial profiles" table (route-collector yes, looking-glass yes, vpn-endpoint yes, vpn-concentrator no, ddos-flowspec no); the aggregate files; the profile parser tests first (`TestProfileUnknownRootRefused`, `TestCorpusProfilesParse`), then the parser. The Support migration commit described in the traps section follows.
-
-## Then
-
-    tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
-    dir=$(./le session scratch ensure)
-    ./le job run label unit-pkg quiet command go test -race -timeout 20m -tags "$tags" ./internal/le/rfc > "$dir/rfc-test.log" 2>&1
-    ./le rfc check > "$dir/rfccheck.log" 2>&1
-
-Read both logs. Expected in `./le rfc check`: no finding naming `rfc/profiles/`; pre-existing reds from other sessions (discrimination fingerprints, the SHIFTED verdict on RFC4271-5.1.2-3) are not this work's.

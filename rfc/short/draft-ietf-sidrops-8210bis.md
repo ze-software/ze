@@ -15,6 +15,7 @@
 | Implementation | ze |
 | Implementation reason | Ze's RTR client decodes ASPA with `rtr_pdu.go::parseASPAPDU`, sends provider-list errors through `rtr_session.go::readLoop`, and applies received records with `RTRSession.handlePDU`. The cache's object validation and union construction are separate from these router operations. |
 | Support | - |
+| Aggregate | rpki |
 
 **Purpose:** Defines version 2 of the RPKI-to-Router protocol, which adds ASPA
 (Autonomous System Provider Authorization) PDUs to the ROA prefix and Router Key

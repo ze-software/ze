@@ -46,11 +46,23 @@ const fixtureSummary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|---
 	"| Enrolment reason | the fixture RFC, gated so the gate has a population |\n" +
 	"| Implementation | ze |\n" +
 	"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n" +
-	"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
+	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
 	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 	"| Support remaining | Zero MUST gaps. |\n\n" +
 	"## Compliance Checklist\n\n" +
 	"- [ ] [" + FixtureRequirement + "] [MUST] A speaker MUST send the widget (§2)\n"
+
+// FixtureAggregate is the technology aggregate the fixture summary names, and
+// FixtureAggregateProfile is its rfc/profiles/ file: a summary naming an
+// aggregate no profile declares does not parse, so the corpus carries both.
+const FixtureAggregate = "bgp-core"
+
+const FixtureAggregateProfile = "# Profile: " + FixtureAggregate + "\n\n| Field | Value |\n|-------|-------|\n" +
+	"| Kind | technology |\n| Title | BGP core |\n| Heading | BGP core |\n| Intro | - |\n" +
+	"| Shape | wide |\n| Release | n/a |\n"
+
+// FixtureAggregateRel is where FixtureAggregateProfile lives in a fixture tree.
+const FixtureAggregateRel = profileRel + "/" + FixtureAggregate + ".md"
 
 // FixtureFiles answers every file the three drivers write in common, keyed by
 // its path relative to the checkout root: the summary, the RFC text the
@@ -63,6 +75,7 @@ const fixtureSummary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|---
 func FixtureFiles() map[string]string {
 	return map[string]string{
 		"rfc/short/" + FixtureStem + ".md": fixtureSummary,
+		FixtureAggregateRel:                FixtureAggregateProfile,
 		"rfc/full/" + FixtureStem + ".txt": "A speaker MUST send the widget.\n",
 		"rfc/drain-budget.txt":             "start 2026-07-29\nrate 0\n",
 		".github/workflows/nightly.yml":    "on:\n  schedule:\n    - cron: '0 3 * * *'\n",

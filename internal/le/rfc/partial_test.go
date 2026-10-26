@@ -353,8 +353,12 @@ func TestPartialDisclosedInFourColumnNote(t *testing.T) {
 	req := partialRow(t)
 	enrolled := map[string]bool{selftestStem: true}
 	note := "One MUST row is partial: the -02 form is read, never sent"
-	brief := Meta{Support: "drafts", Rank: 1, Area: "a", Status: "Partial", Coverage: note, Remaining: supportNone}
-	rows := rowsFrom(map[string]Meta{selftestStem: brief})
+	aggregates := map[string]Aggregate{
+		"drafts":   {Name: "drafts", Shape: ShapeBrief},
+		"bgp-core": {Name: "bgp-core", Shape: ShapeWide},
+	}
+	brief := Meta{Aggregate: "drafts", Row: true, Area: "a", Status: "Partial", Coverage: note, Remaining: supportNone}
+	rows := rowsFrom(map[string]Meta{selftestStem: brief}, aggregates)
 	if rows[selftestStem].Remaining != note {
 		t.Fatalf("four-column Remaining = %q, want the Note %q", rows[selftestStem].Remaining, note)
 	}
@@ -362,8 +366,8 @@ func TestPartialDisclosedInFourColumnNote(t *testing.T) {
 		t.Fatal(errs)
 	}
 	full := brief
-	full.Support = "bgp-base"
-	rows = rowsFrom(map[string]Meta{selftestStem: full})
+	full.Aggregate = "bgp-core"
+	rows = rowsFrom(map[string]Meta{selftestStem: full}, aggregates)
 	if rows[selftestStem].Remaining != "" {
 		t.Fatalf("six-column `-` Remaining = %q, want empty", rows[selftestStem].Remaining)
 	}

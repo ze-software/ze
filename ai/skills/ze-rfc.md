@@ -43,10 +43,11 @@ Generate a structured implementation summary from an RFC text file.
    |----------|-------|
    | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `out-of-scope`, `source-restricted` |
    | `Enrolment reason` | what makes that kind true. Never blank |
-   | `Support` | `-` for no public row, or `<section-key> <rank>`. The keys are the sections `statusSections` declares (`internal/le/rfc/render_ledger.go`). The rank orders this RFC inside its section, because the page's reading order is authored |
+   | `Support` | the aggregate this RFC's public row renders under, a file name under `rfc/profiles/` (`bgp-core` for `rfc/profiles/bgp-core.md`), or `-` for no public row. The row's place is derived: its aggregate, then its RFC number |
+   | `Aggregate` | ONLY where `Support` is `-`: the aggregate the RFC still belongs to, so it joins that aggregate's coverage rollup. Refused beside a `Support` cell that names one |
    | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
-   | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names a section |
-   | `Support remaining` | what is not complete, or `-`. The four-column `drafts` section has no such column, so a row there writes `-` |
+   | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names an aggregate |
+   | `Support remaining` | what is not complete, or `-`. An aggregate whose profile says `| Shape | brief |` (`drafts`) has no such column, so a row there writes `-` |
 
    Enrolling is ONE edit to ONE file: write `| Enrolment | enrolled |` with its reason,
    then run `./le rfc index-update`. Two states are unrepresentable now rather than

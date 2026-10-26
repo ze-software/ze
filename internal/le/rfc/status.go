@@ -136,6 +136,9 @@ type Collected struct {
 	// consumer holding Collected can see which stems it is missing and why,
 	// without re-reading anything.
 	MetaProblems map[string]string
+	// Profiles is every parsed rfc/profiles/ file: the use-case profiles and
+	// the technology aggregates each summary names.
+	Profiles Profiles
 	// EnrolmentReasons is why each enrolled RFC was enrolled, and Titles is
 	// each summary's own Meta title.
 	//
@@ -155,13 +158,21 @@ func Collect(tree string) (Collected, error) {
 	if err != nil {
 		return Collected{}, err
 	}
-	metas, metaProblems, err := summaryMetas(tree, stems)
+	profiles, profileProblems, err := LoadProfiles(tree, stems)
 	if err != nil {
 		return Collected{}, err
 	}
-	out := Collected{Metas: metas, MetaProblems: metaProblems, Enrolled: enrolledFrom(metas),
+	metas, metaProblems, err := summaryMetas(tree, stems, profiles)
+	if err != nil {
+		return Collected{}, err
+	}
+	out := Collected{Metas: metas, MetaProblems: metaProblems, Profiles: profiles,
+		Enrolled:         enrolledFrom(metas),
 		EnrolmentReasons: enrolmentReasonsFrom(metas), Titles: titlesFrom(metas),
 		ParseByStem: map[string]string{}}
+	// A profile that did not parse is a parse error of the corpus, keyed by
+	// no stem: it is reported, and NewRenderInput refuses to publish over it.
+	out.ParseErrors = append(out.ParseErrors, profileProblems...)
 	for _, stem := range sortedKeysOf(metaProblems) {
 		out.ParseErrors = append(out.ParseErrors, metaProblems[stem])
 		out.ParseByStem[stem] = metaProblems[stem]

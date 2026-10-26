@@ -45,7 +45,7 @@ func fixtureMeta(enrolment, reason, support string) string {
 		Str("| Implementation reason | the fixture's own Go answers it |\n").
 		Str("| Support | ").Str(support).Str(" |\n")
 	if support == supportNone {
-		return tb.String()
+		return tb.Str("| Aggregate | ").Str(FixtureAggregate).Str(" |\n").String()
 	}
 	return tb.Str("| Support area | Widgets |\n| Support status | Supported |\n").
 		Str("| Support coverage | full |\n| Support remaining | - |\n").String()
@@ -58,9 +58,10 @@ func renderFixture(t *testing.T, extra map[string]string) RenderInput {
 	t.Helper()
 
 	files := map[string]string{
+		FixtureAggregateRel: FixtureAggregateProfile,
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
 			fixtureMeta(enrolmentEnrolled,
-				"the fixture RFC, gated so the render has a population", "bgp-base 10") +
+				"the fixture RFC, gated so the render has a population", FixtureAggregate) +
 			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2)\n",
 		// The carrier table derives each interop tree's tier from whether a
 		// SCHEDULED workflow names its runner, and an unreadable workflow
@@ -284,7 +285,7 @@ func TestASupersededSummaryCarriesItsSuccessorInEveryPlaceItIsNamed(t *testing.T
 	in := renderFixture(t, map[string]string{
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
 			fixtureMeta(enrolmentEnrolled,
-				"the fixture RFC, gated so the render has a population", "bgp-base 10") +
+				"the fixture RFC, gated so the render has a population", FixtureAggregate) +
 			"| Obsoleted-by | RFC 9998 |\n" +
 			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) " +
 			"{superseded: unresolved; the successor is not here} {gap: nothing sends it}\n",
@@ -618,9 +619,10 @@ func generatorTree(t *testing.T, extra map[string]string) string {
 	t.Helper()
 
 	files := map[string]string{
+		FixtureAggregateRel: FixtureAggregateProfile,
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
 			fixtureMeta(enrolmentEnrolled,
-				"the fixture RFC, gated so the generator has a population", "bgp-base 10") +
+				"the fixture RFC, gated so the generator has a population", FixtureAggregate) +
 			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) {gap: nothing sends it}\n",
 		// The carrier table derives each interop tree's tier from whether a
 		// SCHEDULED workflow names its runner, and an unreadable workflow
@@ -765,6 +767,7 @@ func TestTheGeneratorRefusesToWriteWhenTheRenderProducesNoRowAtAll(t *testing.T)
 	tree := fixtureTree(t, map[string]string{
 		"rfc/requirements/rfc9999.md": "# RFC 9999 -- would be deleted\n",
 		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify deps unit-cached\n",
+		FixtureAggregateRel:           FixtureAggregateProfile,
 	})
 	_, err := IndexUpdate(tree)
 	if err == nil {

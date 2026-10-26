@@ -119,12 +119,13 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 			summary := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
 				"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated fixture |\n" +
 				"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
-				"| Support | bgp-base 10 |\n| Support area | Widgets |\n| Support status | Partial |\n" +
+				"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +
 				"| Support coverage | receipt tests |\n| Support remaining | native sending absent |\n\n" +
 				"## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 			for rel, body := range map[string]string{
 				".github/workflows/fixture.yml": "name: fixture\non: push\njobs: {}\n",
 				summaryPath:                     summary,
+				rfc.FixtureAggregateRel:         rfc.FixtureAggregateProfile,
 				"test/plugin/widget.ci":         "# RFC requirement: RFC9999-2-1 positive -- receipt accepts zero\n# RFC requirement: RFC9999-2-1 negative -- receipt ignores nonzero\n",
 				"internal/sample/widget.go":     "package sample\n\nfunc SendWidget(n int) int { return n }\n",
 			} {

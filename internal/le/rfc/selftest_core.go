@@ -56,7 +56,7 @@ const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 	// implementation kinds declares its own table, in meta_implementation_test.go.
 	"| Implementation | ze |\n" +
 	"| Implementation reason | the fixture's own Go answers it |\n" +
-	"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
+	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
 	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 	"| Support remaining | Zero MUST gaps. |\n"
 
@@ -330,7 +330,8 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows := rowsFrom(map[string]Meta{selftestStem: meta})
+	rows := rowsFrom(map[string]Meta{selftestStem: meta},
+		map[string]Aggregate{FixtureAggregate: {Name: FixtureAggregate, Shape: ShapeWide}})
 	_, absent := ParseMeta("# RFC 8888\n\n## Meta\n\n| Field | Value |\n|--|--|\n| Title | X |\n",
 		selftestStemSecond, selftestSummaryRelSecond)
 	_, unknown := ParseMeta(selftestMetaWith("| Enrolment | maybe |\n"), selftestStemSecond, selftestSummaryRelSecond)
@@ -428,7 +429,7 @@ var Gating = []string{suiteParse, suiteUI}
 	// And the guard that stops it being a way to look green.
 	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
 		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
-		Support: "bgp-base", Status: "Partial",
+		Aggregate: FixtureAggregate, Row: true, Status: "Partial",
 	}, 1)
 	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
 

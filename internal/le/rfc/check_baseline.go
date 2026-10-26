@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -174,6 +175,9 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
 		meta, err := ParseMeta(text, stem, rel)
 		if err != nil {
+			meta, err = ParseMeta(retiredSectionRank(text), stem, rel)
+		}
+		if err != nil {
 			continue
 		}
 		out[stem] = meta
@@ -182,6 +186,36 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 		return out, true
 	}
 	return baselineMetasBeforeMigration(tree)
+}
+
+// retiredSupportRE matches the `| Support | <section> <rank> |` cell every
+// summary carried until the aggregate migration of 2026-10-25, and
+// retiredNoRowRE the `| Support | - |` cell, which then named no aggregate.
+var (
+	retiredSupportRE = regexp.MustCompile(`(?m)^\| Support \| ([a-z-]+) \d+ \|$`)
+	retiredNoRowRE   = regexp.MustCompile(`(?m)^\| Support \| - \|$`)
+)
+
+// retiredShapeAggregate is the aggregate a baseline read in the retired shape
+// states for a summary that had no row: that shape named none, and the
+// ratchets this baseline feeds read enrolment and the row, never the aggregate.
+const retiredShapeAggregate = "retired-section-rank"
+
+// retiredSectionRank rewrites a HEAD^ summary written before the aggregate
+// migration into the shape ParseMeta reads.
+//
+// It reads GIT HISTORY only, for the reason baselineMetasBeforeMigration
+// gives: without it the migration commit is the one commit whose baseline is
+// unreadable, and the four gated ratchets and the public-row ratchet stop
+// running over exactly the change that moved every Support cell. The working
+// tree has one shape and one reader (ai/rules/no-layering.md); a summary in the tree that still
+// writes a rank is refused by ParseMeta.
+func retiredSectionRank(text string) string {
+	if strings.Contains(text, "\n| "+metaAggregate+" |") {
+		return text
+	}
+	text = retiredSupportRE.ReplaceAllString(text, "| Support | $1 |")
+	return retiredNoRowRE.ReplaceAllString(text, "| Support | - |\n| "+metaAggregate+" | "+retiredShapeAggregate+" |")
 }
 
 // baselineMetasBeforeMigration reads an enrolment HEAD^ states in the shape it

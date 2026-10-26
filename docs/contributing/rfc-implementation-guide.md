@@ -653,6 +653,14 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `Unsupported`. `backlog` and `blocked` are debt, and the ledger renders them as
   debt.
 
+  The public row is declared by `| Support | <aggregate> |`, where the aggregate
+  is the name of a technology file under `rfc/profiles/`; the row renders under
+  that aggregate's heading, in RFC-number order. A summary with no public row
+  writes `| Support | - |` and still names its aggregate in an
+  `| Aggregate | <aggregate> |` row, so every summary belongs to one aggregate.
+  A name with no file under `rfc/profiles/` does not parse. The format of those
+  files is in `rfc-conformance-gates.md`, "Profiles and aggregates".
+
   Three related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
   real: a `non-normative` disposition, or a `manual-walk`

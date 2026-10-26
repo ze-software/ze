@@ -14,7 +14,7 @@
 | Enrolment reason | Router-verification requirements follow the cached revision 28. ASPA registration and AS-migration duties remain separate from router verification. |
 | Implementation | ze |
 | Implementation reason | Ze's RPKI plugin implements the verification and policy decisions; Adj-RIB-In and the selecting RIB apply route eligibility. The producers are `aspa_verify.go::aspaStateForPath`, `rpki.go::buildDecisions`, `adj_rib_in/rib_validation.go::applyDecision` and `rib/rib_validation.go::validationChanged`. |
-| Support | drafts 20 |
+| Support | drafts |
 | Support area | ASPA path verification |
 | Support status | Partial |
 | Support coverage | Sections 5.5 and 5.6 upstream/downstream verification, consecutive-prepend compression, Empty/AS_SET Invalid outcomes, IPv4/IPv6 unicast scope, role-based algorithm selection, and cache-change re-evaluation. `aspa_verify.go` produces path verdicts; `rpki_config.go` selects the algorithm and defaults Invalid policy to reject; `rpki.go` combines origin and path policy and dispatches eligibility decisions. This describes the source, not a fresh test or discrimination result. Section 5.1 prerequisite-order coverage and proof for the restored permanent IDs remain unverified. Extraction and discrimination provenance migration remains pending; the former neighbor-check SHOULD and mismatch SHALL have unresolved source-level identities in revision 28. Current validation and discrimination of the implemented paths, Section 5.1 prerequisite ordering, and final migration of the retired revision-27 source identities remain unresolved. The two retired IDs are reserved, not reassigned to different obligations. |

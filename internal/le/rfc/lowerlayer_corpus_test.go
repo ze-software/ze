@@ -144,20 +144,20 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 			}{
 				{
 					name:  "implemented",
-					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "bgp-base", Status: "Partial"},
+					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"},
 					level: levelMust,
 					with:  ProvenShare{Gated: 2, RFCs: 2, Inspected: 2, GatedInspected: 2},
 					owes:  true,
 				},
 				{
 					name:  "unsupported",
-					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "bgp-base", Status: "Unsupported"},
+					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
 					level: levelMust,
 					with:  ProvenShare{Gated: 1, RFCs: 1, Inspected: 2, GatedInspected: 2},
 				},
 				{
 					name:  "unenrolled",
-					meta:  Meta{Enrolment: dispositionOutOfScope, Implementation: implementationZe, Support: "bgp-base", Status: "Supported"},
+					meta:  Meta{Enrolment: dispositionOutOfScope, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Supported"},
 					level: levelMust,
 					with:  ProvenShare{Gated: 1, RFCs: 1, Inspected: 1, GatedInspected: 1},
 				},
@@ -169,7 +169,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 				},
 				{
 					name:  "advisory",
-					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "bgp-base", Status: "Partial"},
+					meta:  Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"},
 					level: levelShould,
 					with:  ProvenShare{Gated: 1, RFCs: 1, Inspected: 1, GatedInspected: 1},
 				},
@@ -181,7 +181,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 				}
 				t.Run(kind+"/"+evidence.name+"/"+scope.name, func(t *testing.T) {
 					metas := map[string]Meta{
-						"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "bgp-base", Status: "Partial"},
+						"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"},
 						"rfc2": scope.meta,
 					}
 					requirements := []Requirement{

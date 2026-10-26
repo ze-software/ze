@@ -17,7 +17,6 @@ package rfc
 import (
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -115,6 +114,9 @@ const (
 	metaSupportStatus        = "Support status"
 	metaSupportCoverage      = "Support coverage"
 	metaSupportRemain        = "Support remaining"
+	// metaAggregate names the aggregate of a summary whose `Support` is `-`:
+	// it renders no row and still joins its aggregate's rollup.
+	metaAggregate = "Aggregate"
 )
 
 // supportNone is the `Support` value of a summary that makes no public claim.
@@ -277,11 +279,16 @@ type Meta struct {
 	// that name another layer it carries the implementer.
 	Implementation       string
 	ImplementationReason string
-	// Support is the public page section this RFC's row renders under, and is
-	// empty when the summary claims no row. Rank orders it inside that section.
-	Support string
-	Rank    int
-	// Name overrides the first cell the section would derive from the stem.
+	// Aggregate is the technology aggregate this RFC belongs to, declared in
+	// rfc/profiles/<Aggregate>.md. Every summary names one: a summary with a
+	// public row names it in its `Support` cell, and one without names it in
+	// its `Aggregate` cell. The public row renders under the aggregate's
+	// heading, in the aggregate's table shape.
+	Aggregate string
+	// Row is whether this summary renders a row on the public page, which is
+	// exactly a `Support` cell naming an aggregate rather than `-`.
+	Row bool
+	// Name overrides the first cell the row would derive from the stem.
 	// Empty everywhere the derivation is right, which is every stem but one.
 	Name string
 	// The four authored cells of the public row, moved verbatim. Nothing here
@@ -323,7 +330,7 @@ func implementationCounts(kind string) bool {
 func (m Meta) OutOfScope() bool { return m.Enrolment == dispositionOutOfScope }
 
 // HasRow answers whether this summary renders a row on the public page.
-func (m Meta) HasRow() bool { return m.Support != "" }
+func (m Meta) HasRow() bool { return m.Row }
 
 // Disposition answers the recorded reason this summary is not gated, for a
 // summary that is not enrolled.
@@ -346,14 +353,14 @@ func (m Meta) Disposition() Disposition {
 
 // nearMissRE is the label a reader must not silently skip: anything naming
 // enrolment, support or obsolescence that is not one of the exact labels above.
-var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
+var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet|aggregat`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
 
 // knownMetaLabels are every label nearMissRE is allowed to match.
 var knownMetaLabels = map[string]bool{
 	metaEnrolment: true, metaEnrolmentReason: true, metaSupport: true,
 	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
 	metaSupportCoverage: true, metaSupportRemain: true,
-	metaImplementation: true, metaImplementationReason: true,
+	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
 }
 
 // knownObsolescenceLabel is the pair of lineage labels that carry a qualifier,
@@ -394,7 +401,7 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	if err := readImplementation(values, &out, where); err != nil {
 		return Meta{}, err
 	}
-	if err := readSupport(values, &out, stem, where); err != nil {
+	if err := readSupport(values, &out, where); err != nil {
 		return Meta{}, err
 	}
 	return out, nil
@@ -529,48 +536,64 @@ func namesAnImplementer(reason string) bool {
 	return namedComponentRE.MatchString(stripped)
 }
 
-// readSupport fills the public row, refusing an absent declaration, an unknown
-// section, a malformed rank, and any mismatch between the section's table shape
-// and the cells the summary declares.
-func readSupport(values map[string]string, out *Meta, stem, where string) error {
+// readSupport fills the public row and the aggregate, refusing an absent
+// declaration and a value that is not one aggregate name.
+//
+// Whether the aggregate EXISTS, and whether the cells fit its table shape, is
+// not decided here: the aggregates are files beside the summaries, and this
+// reader sees one summary's text. checkAggregate decides both once the
+// profiles are loaded (summaryMetas).
+func readSupport(values map[string]string, out *Meta, where string) error {
 	declared, held := values[metaSupport]
 	if !held {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(where).Str(": the Meta table has no `").Str(metaSupport).
 			Str("` row. Every summary declares whether it renders a row on ").Str(statusRel).
-			Str(": write `").Str(supportNone).Str("` for no row, or `<section> <rank>` with ").
-			Str("a section from ").Str(pyRepr(statusSectionKeys())))
+			Str(": write `<aggregate>`, a file name under ").Str(profileRel).
+			Str(", or `").Str(supportNone).Str("` for no row together with an `").
+			Str(metaAggregate).Str("` row naming the aggregate"))
 	}
 	if declared == supportNone {
-		return refuseOrphanCells(values, out, where)
+		if err := refuseOrphanCells(values, out, where); err != nil {
+			return err
+		}
+		aggregate, err := aggregateName(values[metaAggregate], metaAggregate, where)
+		if err != nil {
+			return err
+		}
+		out.Aggregate = aggregate
+		return nil
 	}
-	fields := strings.Fields(declared)
-	if len(fields) != 2 {
+	if _, doubled := values[metaAggregate]; doubled {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` is ").Str(pyRepr(declared)).
-			Str(", which is neither `").Str(supportNone).Str("` nor `<section> <rank>`. The rank ").
-			Str("orders this RFC inside its section, because the page's reading order is ").
-			Str("authored rather than alphabetical"))
+		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` already names aggregate ").
+			Str(pyRepr(declared)).Str(", so the `").Str(metaAggregate).
+			Str("` row is a second declaration of it. Delete the `").Str(metaAggregate).Str("` row"))
 	}
-	section := statusSection(fields[0])
-	if section == nil {
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` names section ").
-			Str(pyRepr(fields[0])).Str(", which is not one of ").Str(pyRepr(statusSectionKeys())))
+	aggregate, err := aggregateName(declared, metaSupport, where)
+	if err != nil {
+		return err
 	}
-	rank, err := strconv.Atoi(fields[1])
-	if err != nil || rank <= 0 {
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` rank ").Str(pyRepr(fields[1])).
-			Str(" is not a positive whole number"))
-	}
-	out.Support = section.Key
-	out.Rank = rank
+	out.Aggregate = aggregate
+	out.Row = true
 	out.Area = values[metaSupportArea]
 	out.Status = values[metaSupportStatus]
 	out.Coverage = values[metaSupportCoverage]
 	out.Remaining = values[metaSupportRemain]
-	return checkRowCells(out, section, stem, where)
+	return nil
+}
+
+// aggregateName refuses a cell that is not one lower-case hyphenated name,
+// which is what the retired `<section> <rank>` form fails.
+func aggregateName(value, label, where string) (string, error) {
+	if profileNameRE.MatchString(value) {
+		return value, nil
+	}
+	var tb textbuf.Buffer
+	return "", parseErr(tb.Str(where).Str(": `").Str(label).Str("` is ").Str(pyRepr(value)).
+		Str(", which is not one aggregate name. Write the name of a file under ").
+		Str(profileRel).Str(" (`").Str(label).Str(" | bgp-core |` for rfc/profiles/bgp-core.md); ").
+		Str("a rank is no longer written, because a row's place is its aggregate and its RFC number"))
 }
 
 // refuseOrphanCells refuses a support cell on a summary that declares no row.
@@ -586,14 +609,32 @@ func refuseOrphanCells(values map[string]string, out *Meta, where string) error 
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` is `").Str(supportNone).
 			Str("`, so this summary renders no row on ").Str(statusRel).Str(", but it carries a `").
-			Str(label).Str("` row. Nothing renders that cell: name a section, or delete the cell"))
+			Str(label).Str("` row. Nothing renders that cell: name an aggregate in `").Str(metaSupport).
+			Str("`, or delete the cell"))
 	}
 	out.Name = ""
 	return nil
 }
 
-// checkRowCells refuses a row whose cells do not match its section's shape.
-func checkRowCells(out *Meta, section *statusSectionSpec, stem, where string) error {
+// checkAggregate refuses a summary naming an aggregate no profile declares,
+// and a public row whose cells do not fit its aggregate's table shape (AC-4).
+func checkAggregate(meta *Meta, aggregates map[string]Aggregate, stem, where string) error {
+	aggregate, held := aggregates[meta.Aggregate]
+	if !held {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": aggregate ").Str(pyRepr(meta.Aggregate)).
+			Str(" has no ").Str(profileRel).Byte('/').Str(meta.Aggregate).
+			Str(".md, so this RFC belongs to no declared aggregate. The aggregates are ").
+			Str(pyRepr(sortedKeysOf(aggregates))))
+	}
+	if !meta.Row {
+		return nil
+	}
+	return checkRowCells(meta, &aggregate, stem, where)
+}
+
+// checkRowCells refuses a row whose cells do not match its aggregate's shape.
+func checkRowCells(out *Meta, aggregate *Aggregate, stem, where string) error {
 	for label, value := range map[string]string{
 		metaSupportArea: out.Area, metaSupportStatus: out.Status, metaSupportCoverage: out.Coverage,
 	} {
@@ -602,18 +643,18 @@ func checkRowCells(out *Meta, section *statusSectionSpec, stem, where string) er
 		}
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).
-			Str("` names a section, so this summary renders a public row, but its `").
+			Str("` names an aggregate, so this summary renders a public row, but its `").
 			Str(label).Str("` cell is absent or empty. A blank cell on the public page ").
 			Str("states nothing where a reader expects a claim"))
 	}
-	if section.Brief && out.Remaining != supportNone {
+	if aggregate.Shape == ShapeBrief && out.Remaining != supportNone {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": section ").Str(pyRepr(section.Key)).
+		return parseErr(tb.Str(where).Str(": aggregate ").Str(pyRepr(aggregate.Name)).
 			Str(" renders four columns and has no `Remaining` column, so `").
 			Str(metaSupportRemain).Str("` must be `").Str(supportNone).Str("`, not ").
 			Str(pyRepr(truncateRunes(out.Remaining, 40))))
 	}
-	if !section.Brief && out.Remaining == "" {
+	if aggregate.Shape != ShapeBrief && out.Remaining == "" {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(where).Str(": `").Str(metaSupportRemain).
 			Str("` is absent. Write what is not complete, or `").Str(supportNone).
@@ -750,7 +791,11 @@ func sortMetaStems(in map[string]Meta) []string {
 // The ONE reader. Enrolment, the disposition, the public row, the title and the
 // forward lineage all come out of this map, so no two consumers can read the
 // same table and disagree about what it says.
-func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, map[string]string, error) {
+//
+// Each summary's aggregate is judged against profiles, the parsed
+// rfc/profiles/: a summary naming an undeclared aggregate, or carrying cells
+// its aggregate's shape does not render, is a problem like a parse error.
+func summaryMetas(tree string, stems map[string]bool, profiles Profiles) (map[string]Meta, map[string]string, error) {
 	if stems == nil {
 		var err error
 		if stems, err = summaryStems(tree); err != nil {
@@ -780,6 +825,10 @@ func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, map[stri
 			// emit a ledger with that RFC missing, and `checkLedgerFresh`
 			// answers a finding rather than an error so the refusal reaches
 			// the writer without taking `check` down with it.
+			problems[stem] = err.Error()
+			continue
+		}
+		if err := checkAggregate(&meta, profiles.Aggregates, stem, rel); err != nil {
 			problems[stem] = err.Error()
 			continue
 		}
@@ -829,12 +878,15 @@ func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 // rowsFrom answers the public page row each summary declares, by the three
 // cells the checks read.
 //
-// A four-column section (statusSectionSpec.Brief) renders no Remaining cell,
+// A four-column aggregate (ShapeBrief) renders no Remaining cell,
 // and checkRowCells holds its `Support remaining` at `-`: the row's Note, its
 // Coverage, is the only cell that can say what is not complete. Remaining is
 // therefore the Note for such a row, so a {gap} or {partial} disclosed there
 // is read where the public page prints it.
-func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
+//
+// aggregates is the parsed rfc/profiles/. summaryMetas admits no summary whose
+// aggregate is undeclared, so every row's aggregate is present in it.
+func rowsFrom(metas map[string]Meta, aggregates map[string]Aggregate) map[string]LedgerRow {
 	out := map[string]LedgerRow{}
 	for stem := range metas {
 		if !metas[stem].HasRow() {
@@ -844,7 +896,7 @@ func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 		if remaining == supportNone {
 			remaining = ""
 		}
-		if section := statusSection(metas[stem].Support); section != nil && section.Brief {
+		if aggregates[metas[stem].Aggregate].Shape == ShapeBrief {
 			remaining = metas[stem].Coverage
 		}
 		out[stem] = LedgerRow{

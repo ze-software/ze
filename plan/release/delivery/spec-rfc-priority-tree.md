@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
 | Depends | - |
-| Phase | 0/5 |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-10-25 |
 
@@ -172,6 +172,8 @@ Agreed shape (owner, 2026-10-25):
 | R-5 | Stale `rfc/graph.tsv` after a new text lands | freshness check red | `./le rfc index-update` regenerates; check names the command |
 | R-6 | Low published numbers read as regressions | readers compare with the status page | each page states the numerator definition and links the 2026-09-02 denominator rule |
 | R-7 | A profile root missing from the corpus silently drops | closure smaller than intended | a root must exist in `rfc/short` or be listed as `absent` with its RFC number, rendered as an uncovered node |
+
+→ Decision (owner, 2026-10-25, until he decides on the gaps): the fttx-edge gaps (LAN DNS resolver, DHCPv6 server, NAT, NTP: the profile's Absent RFCs) and the IKE virtual-IP pool (no non-test caller) are reported at 0% completed. An RFC in a profile's `Absent` field renders 0% mandatory and 0% optional, never "not walked" and never blank, and the profile rollup states how many closure RFCs are absent at 0%, so the profile cannot read complete while any exist (`AbsentFigures`, `Rollup.MandatoryComplete`, `TestCoverageMandatoryOptional`, `TestRollupNeverCompleteWithAbsentOrUnwalked`). A requirement met only by the IKE virtual-IP pool counts unproven: a `{gap}` or `{partial}` row is never proven whatever records its tags carry (`rowCounts`), and `RFC3948-5.1-1`, the row the pool's tests tag, is a `{gap}` with no discrimination record (`rfc-compliance`: "a requirement that no layer performs MUST NOT be recorded as met").
 
 ## Blast Radius
 
@@ -440,6 +442,8 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 
 - The marker is `{updated-by: <ID>; why}`: the reason is mandatory, as on `{superseded}`, because a pointer nobody explained is a pointer nobody checked. One `{updated-by}` per row, composing with one coverage annotation and one `{superseded}` (`stripMarkers`, `rowMarkers`).
 - Until the graph lands, AC-5's "header Updated-by set" is read from the UPDATER's Meta `Updates` cell (`Meta.Updates`, `updatesFrom`), not from the updated summary's `Updated by` cell: the updater's own header carries the `Updates:` line, while the updated RFC's published text predates its updaters (`rfc/full/rfc4271.txt` names no RFC 7606). `updatesFrom` refuses a cell item that names no RFC, so `rfc/short/rfc2966.md`'s prose cell was corrected to its header (None).
+- Profile file format: a `| Field | Value |` table under `# Profile: <name>`. Use-case profiles carry Kind (use-case), Title, Release (yes/no), Roots (comma list of stems), Absent (comma list of `RFC <number>` not yet in rfc/short, or `-`). Technology aggregates carry Kind (technology), Title, Heading, Intro (`-` for none), Shape (wide/brief, replacing the `Brief` flag of `statusSections`), Release (n/a).
+- Phase 1 page order: aggregates in name order, rows by RFC number with non-RFC stems after them by name; the DAG level joins ahead of the number in Phase 3. A `{gap}` or `{partial}` row is never counted proven. A HEAD^ summary in the retired `<section> <rank>` shape is read by `retiredSectionRank` (`check_baseline.go`, git history only) so the migration commit keeps its ratchets.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

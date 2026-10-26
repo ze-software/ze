@@ -1,6 +1,7 @@
 package rfc
 
 import (
+	"path"
 	"regexp"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 	if err != nil {
 		t.Fatalf("read the carriers: %v", err)
 	}
-	files, err := ledgerFiles(collected.Metas,
+	files, err := ledgerFiles(collected.Metas, collected.Profiles.Aggregates,
 		CoverageRows(collected.Requirements, collected.Tags, known))
 	if err != nil {
 		t.Fatalf("render the ledger files: %v", err)
@@ -331,7 +332,7 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 
 	stemOf := map[string]string{}
 	for stem, meta := range metas {
-		if meta.HasRow() && statusSection(meta.Support) != nil && !statusSection(meta.Support).Brief {
+		if meta.HasRow() && collected.Profiles.Aggregates[meta.Aggregate].Shape == ShapeWide {
 			stemOf[publicRowName(stem, meta)] = stem
 		}
 	}
@@ -365,4 +366,165 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 	if checked != len(stemOf) {
 		t.Errorf("the page carries a Proof cell for %d of %d wide row(s)", checked, len(stemOf))
 	}
+}
+
+// VALIDATES: AC-6 -- the Support migration keeps the public row set: the same
+// stems carry a row, each with the same cells, and the rendered page groups
+// the rows only under headings a declared aggregate owns, each once.
+// PREVENTS: risk R-2, a regrouping that drops, adds or rewrites a row while the
+// reordering hides it in the page diff.
+//
+// The page is derived and never committed, so the comparison is between the
+// summaries on both sides of the migration, read from git: the commit that
+// added the first aggregate file is the migration, and its parent holds the
+// retired `<section> <rank>` cells. Before that commit exists the two sides are
+// HEAD and the working tree. Both sides are fixed once the commit lands, so a
+// later edit to a row's Status is never read as a migration defect.
+func TestStatusPageRowSetUnchanged(t *testing.T) {
+	files, metas, root := ledgerFixture(t)
+	before, after := supportMigrationRevisions(t, root)
+	old := summaryMetasAt(t, root, before)
+	current := metas
+	if after != "" {
+		current = summaryMetasAt(t, root, after)
+	}
+
+	rows := 0
+	for _, stem := range sortedKeysOf(old) {
+		was := old[stem]
+		now, held := current[stem]
+		if !held {
+			t.Errorf("%s has a summary at %s and none after the migration", stem, before)
+			continue
+		}
+		if was.HasRow() != now.HasRow() {
+			t.Errorf("%s: a public row before the migration %v, after %v", stem, was.HasRow(), now.HasRow())
+			continue
+		}
+		if !was.HasRow() {
+			continue
+		}
+		rows++
+		cells := [][2]string{
+			{publicRowName(stem, was), publicRowName(stem, now)},
+			{was.Area, now.Area},
+			{was.Status, now.Status},
+			{was.Coverage, now.Coverage},
+			{was.Remaining, now.Remaining},
+		}
+		for index, pair := range cells {
+			if pair[0] != pair[1] {
+				t.Errorf("%s cell %d: %q before the migration, %q after", stem, index, pair[0], pair[1])
+			}
+		}
+	}
+	for stem, now := range current {
+		if _, held := old[stem]; !held && now.HasRow() {
+			t.Errorf("%s gains a public row it did not have at %s", stem, before)
+		}
+	}
+	if rows == 0 {
+		t.Fatalf("no summary at %s carries a public row, so the comparison proves nothing", before)
+	}
+
+	rendered, held := files[statusRel]
+	if !held {
+		t.Fatalf("the ledger render produced no %s", statusRel)
+	}
+	if got := len(statusPageRowLines(rendered)); got != countRows(metas) {
+		t.Errorf("the rendered page carries %d distinct row(s) and the summaries declare %d", got, countRows(metas))
+	}
+	profiles, problems, err := LoadProfiles(root, nil)
+	if err != nil {
+		t.Fatalf("load the profiles: %v", err)
+	}
+	if len(problems) > 0 {
+		t.Fatalf("the profiles do not parse: %v", problems)
+	}
+	headings := map[string]bool{}
+	for _, aggregate := range profiles.Aggregates {
+		headings[aggregate.Heading] = true
+	}
+	seen := map[string]bool{}
+	for line := range strings.SplitSeq(rendered, "\n") {
+		heading, isHeading := strings.CutPrefix(line, "## ")
+		if !isHeading {
+			continue
+		}
+		if !headings[heading] {
+			t.Errorf("the page groups rows under %q, which no aggregate in %s declares", heading, profileRel)
+		}
+		if seen[heading] {
+			t.Errorf("the page opens the %q section twice", heading)
+		}
+		seen[heading] = true
+	}
+}
+
+// supportMigrationRevisions names the two sides of the Support migration: the
+// parent of the commit that added rfc/profiles/<FixtureAggregate>.md and that
+// commit, or HEAD and "" (the working tree) while the commit does not exist.
+func supportMigrationRevisions(t *testing.T, root string) (string, string) {
+	t.Helper()
+	out, ok := gitOutput(root, "log", "--diff-filter=A", "--format=%H", "--", FixtureAggregateRel)
+	if !ok {
+		t.Fatalf("git cannot answer which commit added %s", FixtureAggregateRel)
+	}
+	commits := strings.Fields(string(out))
+	if len(commits) == 0 {
+		return headRevision, ""
+	}
+	migration := commits[len(commits)-1]
+	return migration + "^", migration
+}
+
+// summaryMetasAt parses every summary git holds at revision, reading the
+// retired Support shape the way the ratchet baseline does.
+func summaryMetasAt(t *testing.T, root, revision string) map[string]Meta {
+	t.Helper()
+	paths, ok := gitTreePaths(root, revision, summaryRel, ".md")
+	if !ok {
+		t.Fatalf("git cannot list %s at %s", summaryRel, revision)
+	}
+	blobs, known := gitCatBlobs(root, revision, paths)
+	if !known {
+		t.Fatalf("git cannot read %s at %s", summaryRel, revision)
+	}
+	out := map[string]Meta{}
+	for _, rel := range paths {
+		stem := strings.TrimSuffix(path.Base(rel), ".md")
+		meta, err := ParseMeta(retiredSectionRank(blobs[rel]), stem, rel)
+		if err != nil {
+			t.Fatalf("%s at %s does not parse: %v", rel, revision, err)
+		}
+		out[stem] = meta
+	}
+	return out
+}
+
+// countRows counts the summaries that declare a public row.
+func countRows(metas map[string]Meta) int {
+	rows := 0
+	for stem := range metas {
+		if metas[stem].HasRow() {
+			rows++
+		}
+	}
+	return rows
+}
+
+// statusPageRowLines counts the data rows of a status page: every table line
+// except a header and a separator.
+func statusPageRowLines(page string) map[string]int {
+	rows := map[string]int{}
+	for line := range strings.SplitSeq(page, "\n") {
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		if strings.HasPrefix(line, "| RFC |") || strings.HasPrefix(line, "| Standard |") {
+			continue
+		}
+		rows[line]++
+	}
+	return rows
 }

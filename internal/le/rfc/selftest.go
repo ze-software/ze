@@ -8,6 +8,7 @@ package rfc
 
 import (
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -90,7 +91,11 @@ func newSelftestTree(prefix string, files map[string]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := writeSelftestFiles(root, files); err != nil {
+	// Every summary names an aggregate, so every fixture checkout declares the
+	// one the fixture summaries name, unless the case writes its own.
+	withAggregate := map[string]string{FixtureAggregateRel: FixtureAggregateProfile}
+	maps.Copy(withAggregate, files)
+	if err := writeSelftestFiles(root, withAggregate); err != nil {
 		cleanupErr := os.RemoveAll(root)
 		return "", errors.Join(err, cleanupErr)
 	}

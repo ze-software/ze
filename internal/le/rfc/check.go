@@ -364,7 +364,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if !stemsKnown {
 		baselineStems = map[string]bool{}
 	}
-	rows := rowsFrom(collected.Metas)
+	rows := rowsFrom(collected.Metas, collected.Profiles.Aggregates)
 	dispositions := dispositionsFrom(collected.Metas)
 	deriver := NewDeriver(tree)
 	signed, extractionErrors, err := evaluateExtractions(deriver, collected.Requirements)

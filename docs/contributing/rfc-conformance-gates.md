@@ -282,14 +282,64 @@ the only free simplification, and the one refusal that was not a copy stayed.
 reaches for a row only when a `{gap}` exists. Five classes of defect sit outside
 it, so each is a hard requirement rather than a HEAD comparison.
 
-A row in a four-column section (the drafts section, `Brief` in
-`statusSections`) renders no Remaining cell, and its `Support remaining` must
-be `-`. Its Note, the `Support coverage` cell, is the cell the public page
-prints there, so `rowsFrom` reads the Note as that row's Remaining: a `{gap}`
-or `{partial}` on a draft is disclosed in the Note, and `checkGapCountAgreement`
-counts a number spelled there.
-<!-- source: internal/le/rfc/meta.go -- rowsFrom -->
-<!-- source: internal/le/rfc/render_ledger.go -- statusSections -->
+A row whose aggregate declares `| Shape | brief |` (the `drafts` aggregate)
+renders in a four-column table with no Remaining cell, and its
+`Support remaining` must be `-`. Its Note, the `Support coverage` cell, is the
+cell the public page prints there, so `rowsFrom` reads the Note as that row's
+Remaining: a `{gap}` or `{partial}` on a draft is disclosed in the Note, and
+`checkGapCountAgreement` counts a number spelled there.
+<!-- source: internal/le/rfc/meta.go -- rowsFrom, checkRowCells -->
+
+### Profiles and aggregates
+
+Every summary names the technology aggregate it belongs to. A summary with a
+public row writes it in the `Support` cell (`| Support | bgp-core |`); a summary
+with no row writes `| Support | - |` and names it in an `Aggregate` cell
+(`| Aggregate | tunnels |`), so it still joins its aggregate's rollup. The
+retired `<section> <rank>` form is refused, and so is an `Aggregate` cell
+beside a `Support` cell that already names one.
+
+The aggregates are files, `rfc/profiles/<name>.md`, one `| Field | Value |`
+table each, opening with `# Profile: <name>`. `./le rfc check` loads them
+before the summaries (`LoadProfiles`), and a summary naming an aggregate with
+no file, or carrying a cell its aggregate's shape does not render, is refused
+naming the file and the declared aggregates (`checkAggregate`). A profile that
+does not parse is reported like a summary that does not parse.
+
+| Kind | Fields |
+|------|--------|
+| `technology` | `Title`, `Heading` (the status page heading), `Intro` (prose under it, or `-`), `Shape` (`wide` for the six-column table, `brief` for the four-column one), `Release` (`n/a`) |
+| `use-case` | `Title`, `Release` (`yes` marks a release profile), `Roots` (summary stems, each one present in `rfc/short/`), `Absent` (`RFC <number>` items the corpus holds no summary for, or `-`) |
+
+A root with no summary is refused naming the profile and the stem, so a root
+never drops out of a closure in silence; an `Absent` item whose summary exists
+is refused too. The status page renders one section per aggregate, in name
+order, with rows in RFC number order and the non-RFC stems after them by name.
+No order is authored, so no two summaries can claim one place.
+<!-- source: internal/le/rfc/profile.go -- LoadProfiles, parseProfile, parseUseCase, parseAggregate -->
+<!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate -->
+<!-- source: internal/le/rfc/render_ledger.go -- renderStatusPage, placeRows, statusRowCompare -->
+
+### Coverage figures
+
+Each RFC has two figures: MANDATORY over the gated levels (`IsGatedLevel`) and
+OPTIONAL over every other level. Each is rows proven over rows owed. A row is
+proven only when a tagged unit covering it carries a discrimination record
+that still verifies and is not the `no-break` escape
+(`DiscriminationVerdict.Proven`, the one per-row predicate). The denominator
+follows the 2026-09-02 ruling: `{not-applicable}` and `{lower-layer}` rows stay
+in, `{rollup}` rows are out of both sides. A `{gap}` or `{partial}` row stays
+in and is never proven, whatever records its tags carry, because the summary
+itself says the obligation is unmet: that is what keeps a requirement only
+unreached code meets at 0%.
+
+An RFC with no valid extraction sign-off renders `not walked` rather than a
+figure; an RFC a use-case profile lists under `Absent` renders 0% on both
+figures, never `not walked` and never blank. A rollup over a profile or an
+aggregate sums its walked members and states how many members are not walked
+and how many are absent at 0%, and it is never complete while either count is
+above zero.
+<!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete -->
 
 
 | Guard | Refuses |
@@ -297,7 +347,7 @@ counts a number spelled there.
 | `checkSummaryDisposition` | a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states, or that cites nothing a reviewer can check. `non-normative` is the one disposition that claims anything about conformance. Its reason rests on the document: the IETF category, an RFC 2119 / RFC 8174 / BCP 14 key-words paragraph, or a capitalized MUST/SHALL/REQUIRED scan of the source |
 | `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied, and the same kind written over a text that IS in the tree. It excuses no public support claim: being unable to bound a claim is a reason to stop making it, not a reason to be excused from proving it. It is the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
 | `checkUnprovenSupport` | two shapes of a claim nothing behind it can contradict. A support claim over a summary that declares ZERO gated requirements, where a claim is any Status other than `Unsupported` or `Future`, an empty cell included: a claim and a checklist that agree on NOTHING is the cheapest way to look green. Two escapes exist there, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, and a VALID `manual-walk` sign-off with a `register-reason`. The second one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero. The other shape is a row PROMISING conformance -- `Supported`, alone or with a scope after it -- over gated requirements of which not one carries a both-polarity test. Neither escape reaches it, because both answer whether the DOCUMENT imposes a MUST rather than whether Ze meets one, and `Partial` is the row that states what is true |
-| `checkPublicRowMonotonic` | a `Support` cell that read a section at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
+| `checkPublicRowMonotonic` | a `Support` cell that named an aggregate at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
 | `checkFeatureDeclined` | a `{feature-declined}` annotation whose quote is not in the RFC's own text, whose RFC has no text in this repository, or whose producer this checkout cannot show. Two facts, because the kind makes two claims: the DOCUMENT makes the feature optional, and ZE built the narrower thing |
 | `checkGapCountAgreement` | a Remaining cell whose spelled number (including zero), sitting immediately before MUST or SHALL, disagrees with the number of `{gap}` plus `{partial}` rows. The COUNT is the only fact on that page a machine can own: it counts unmet requirement rows, never distinct protocol obligations or whether their classifications are right |

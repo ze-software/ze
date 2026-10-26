@@ -138,8 +138,8 @@ func fixtureRFCLedger() rfc.Collected {
 		// both, and a fixture that left the kind absent would answer "not
 		// enrolled" for the reason the case is not about.
 		Metas: map[string]rfc.Meta{
-			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
-			"rfc7606": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
+			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Aggregate: "bgp-core", Row: true, Status: "Supported"},
+			"rfc7606": {Enrolment: "enrolled", Implementation: "ze", Aggregate: "bgp-core", Row: true, Status: "Supported"},
 			"rfc9999": {Enrolment: "backlog", Implementation: "ze"},
 			"rfc8654": {Enrolment: "backlog", Implementation: "ze"},
 		},
@@ -631,7 +631,7 @@ func manyRFCRequirements(total, gated int) rfc.Collected {
 	collected := rfc.Collected{
 		Enrolled: map[string]bool{"rfc4271": true},
 		Metas: map[string]rfc.Meta{
-			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
+			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Aggregate: "bgp-core", Row: true, Status: "Supported"},
 		},
 		Requirements: make([]rfc.Requirement, 0, total),
 	}

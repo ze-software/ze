@@ -210,7 +210,7 @@ func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
 	meta, err := ParseMeta(head+
 		"| Enrolment | enrolled |\n| Enrolment reason | treat-as-withdraw is proven both ways |\n"+
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n"+
-		"| Support | - |\n", "rfc9999", where)
+		"| Support | - |\n| Aggregate | bgp-core |\n", "rfc9999", where)
 	if err != nil {
 		t.Fatalf("a summary declaring its enrolment did not parse: %v", err)
 	}
@@ -223,12 +223,12 @@ func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
 		rows string
 		want string
 	}{
-		{"absent", "| Support | - |\n", "no `Enrolment` row"},
-		{"unknown value", "| Enrolment | maybe |\n| Enrolment reason | x |\n| Support | - |\n",
+		{"absent", "| Support | - |\n| Aggregate | bgp-core |\n", "no `Enrolment` row"},
+		{"unknown value", "| Enrolment | maybe |\n| Enrolment reason | x |\n| Support | - |\n| Aggregate | bgp-core |\n",
 			"not one of"},
-		{"no reason", "| Enrolment | backlog |\n| Support | - |\n", "no `Enrolment reason` row"},
+		{"no reason", "| Enrolment | backlog |\n| Support | - |\n| Aggregate | bgp-core |\n", "no `Enrolment reason` row"},
 		{"near-miss label", "| Enrolled | enrolled |\n| Enrolment | enrolled |\n" +
-			"| Enrolment reason | x |\n| Support | - |\n", "spelling nothing reads"},
+			"| Enrolment reason | x |\n| Support | - |\n| Aggregate | bgp-core |\n", "spelling nothing reads"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			_, err := ParseMeta(head+one.rows, "rfc9999", where)
@@ -251,7 +251,7 @@ func TestTheMetaScanStopsAtItsOwnTable(t *testing.T) {
 	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
-		"| Support | - |\n\n**Scope:**\n| AFI | SAFI | Description |\n|---|---|---|\n" +
+		"| Support | - |\n| Aggregate | bgp-core |\n\n**Scope:**\n| AFI | SAFI | Description |\n|---|---|---|\n" +
 		"| 1 | 4 | Labeled IPv4 Unicast |\n| 1 | 128 | VPN-IPv4 |\n"
 	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
@@ -290,7 +290,7 @@ func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 		"| Title | The Widget Protocol |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
-		"| Support | - |\n"
+		"| Support | - |\n| Aggregate | bgp-core |\n"
 	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("the fixture summary did not parse: %v", err)
@@ -301,7 +301,7 @@ func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 	bare, err := ParseMeta("# RFC 9999 -- Widgets\n\n## Meta\n\n| Field | Value |\n|--|--|\n"+
 		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n"+
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n"+
-		"| Support | - |\n",
+		"| Support | - |\n| Aggregate | bgp-core |\n",
 		"rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("a summary with no Title row did not parse: %v", err)
@@ -325,7 +325,11 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 	if len(stems) == 0 {
 		t.Fatal("this checkout carries no summary, so this proves nothing")
 	}
-	metas, metaProblems, err := summaryMetas(root, stems)
+	profiles, profileProblems, err := LoadProfiles(root, stems)
+	if err != nil || len(profileProblems) != 0 {
+		t.Fatal(err, profileProblems)
+	}
+	metas, metaProblems, err := summaryMetas(root, stems, profiles)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +361,7 @@ func TestAnUnescapedPipeInAMetaValueIsRefused(t *testing.T) {
 	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
-		"| Support | - |\n"
+		"| Support | - |\n| Aggregate | bgp-core |\n"
 
 	_, err := ParseMeta(head+"| Title | MD5(id|secret) |\n", "rfc9999", "rfc/short/rfc9999.md")
 	if err == nil {

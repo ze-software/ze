@@ -2830,11 +2830,12 @@ func partialPublicationTree(t *testing.T) (root, summary, marker string) {
 	summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated source fixture |\n" +
 		"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
-		"| Support | bgp-base 10 |\n| Support area | Widgets |\n| Support status | Partial |\n" +
+		"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +
 		"| Support coverage | receipt ignores the field |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n\n" +
 		"## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 	for path, body := range map[string]string{
 		"rfc/short/rfc9999.md":        summary,
+		rfc.FixtureAggregateRel:       rfc.FixtureAggregateProfile,
 		"rfc/full/rfc9999.txt":        "Test RFC 9999\n\n2.  Widgets\n\nA widget MUST be zero when sent and ignored on receipt.\n",
 		"internal/sample/widget.go":   "package sample\n\nfunc SendWidget(count int) int { return count }\n",
 		"test/plugin/widget.ci":       "# RFC requirement: RFC9999-2-1 positive -- receipt accepts zero\n# RFC requirement: RFC9999-2-1 negative -- receipt ignores nonzero\nexpect=stdout:contains=OK\n",

@@ -973,7 +973,7 @@ const (
 	leRFCPartialMeta     = "# RFC 99999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
 		"| Title | Scoped Widget Fixture |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | isolated tooling fixture |\n| Implementation | ze |\n" +
-		"| Implementation reason | the fixture's own Go boundary |\n| Support | bgp-base 999 |\n" +
+		"| Implementation reason | the fixture's own Go boundary |\n| Support | bgp-core |\n" +
 		"| Support area | Scoped Widget Fixture |\n| Support status | Partial |\n" +
 		"| Support coverage | scoped receive assertions |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n" +
 		"\n## Compliance Checklist\n\n"

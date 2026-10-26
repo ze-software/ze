@@ -20,6 +20,7 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 	t.Helper()
 
 	files := map[string]string{
+		FixtureAggregateRel: FixtureAggregateProfile,
 		selftestWorkflowRel: selftestWorkflow,
 		selftestSummaryRel: "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 			"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n",
@@ -964,7 +965,14 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, metaProblems, err := summaryMetas(root, nil)
+	profiles, profileProblems, err := LoadProfiles(root, nil)
+	if err != nil {
+		t.Fatalf("read the profiles: %v", err)
+	}
+	if len(profileProblems) > 0 {
+		t.Fatalf("the corpus holds unparsable profiles: %v", profileProblems)
+	}
+	metas, metaProblems, err := summaryMetas(root, nil, profiles)
 	if err != nil {
 		t.Fatalf("read the summaries: %v", err)
 	}
@@ -972,18 +980,18 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 
-	page, err := renderStatusPage(metas, nil)
+	page, err := renderStatusPage(metas, profiles.Aggregates, nil)
 	if err != nil {
 		t.Fatalf("render the public rows: %v", err)
 	}
-	if problems := supportedRowScopeProblems(metas, page); len(problems) != 0 {
+	if problems := supportedRowScopeProblems(metas, profiles.Aggregates, page); len(problems) != 0 {
 		t.Fatalf("public row accounting: %v", problems)
 	}
 }
 
 // supportedRowScopeProblems checks identities before counting: an omitted row
 // cannot be hidden by duplicating another, even within the same status shape.
-func supportedRowScopeProblems(metas map[string]Meta, page string) []string {
+func supportedRowScopeProblems(metas map[string]Meta, aggregates map[string]Aggregate, page string) []string {
 	var problems []string
 	expected := map[string]string{}
 	var statuses, rfcStatuses, draftStatuses []string
@@ -996,20 +1004,20 @@ func supportedRowScopeProblems(metas map[string]Meta, page string) []string {
 		if _, held := expected[prefix]; held {
 			problems = append(problems, "duplicate declared identity: "+stem)
 		}
-		expected[prefix] = meta.Support
+		expected[prefix] = meta.Aggregate
 		if !statusPromisesSupport(meta.Status) {
 			continue
 		}
 		statuses = append(statuses, meta.Status)
-		if meta.Support == "drafts" {
+		if aggregates[meta.Aggregate].Shape == ShapeBrief {
 			draftStatuses = append(draftStatuses, meta.Status)
 			continue
 		}
 		rfcStatuses = append(rfcStatuses, meta.Status)
 	}
 	sections := map[string]string{}
-	for _, section := range statusSections {
-		sections["## "+section.Heading] = section.Key
+	for name, aggregate := range aggregates {
+		sections["## "+aggregate.Heading] = name
 	}
 	seen := map[string]int{}
 	section := ""
@@ -1063,19 +1071,23 @@ func supportedRowScopeProblems(metas map[string]Meta, page string) []string {
 // balanced omission/duplication, which a total-only oracle would miss.
 func TestSupportedRowScopeFixtures(t *testing.T) {
 	metas := map[string]Meta{
-		"rfc1000":      {Support: "bgp-base", Rank: 10, Status: "Supported"},
-		"rfc1001":      {Support: "bgp-base", Rank: 20, Status: "Supported on Linux"},
-		"rfc1002":      {Support: "bgp-base", Rank: 30, Status: "Yes"},
-		"rfc1003":      {Support: "bgp-base", Rank: 40, Status: "Unsupported"},
-		"rfc1004":      {Support: "bgp-base", Rank: 50, Status: "Partial"},
-		"draft-widget": {Support: "drafts", Rank: 10, Status: "Supported"},
-		"rfc1005":      {Status: "Supported"},
+		"rfc1000":      {Aggregate: "bgp-core", Row: true, Status: "Supported"},
+		"rfc1001":      {Aggregate: "bgp-core", Row: true, Status: "Supported on Linux"},
+		"rfc1002":      {Aggregate: "bgp-core", Row: true, Status: "Yes"},
+		"rfc1003":      {Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
+		"rfc1004":      {Aggregate: "bgp-core", Row: true, Status: "Partial"},
+		"draft-widget": {Aggregate: "drafts", Row: true, Status: "Supported"},
+		"rfc1005":      {Aggregate: "bgp-core", Status: "Supported"},
 	}
-	page, err := renderStatusPage(metas, nil)
+	aggregates := map[string]Aggregate{
+		"bgp-core": {Name: "bgp-core", Heading: "BGP core", Shape: ShapeWide},
+		"drafts":   {Name: "drafts", Heading: "Drafts", Shape: ShapeBrief},
+	}
+	page, err := renderStatusPage(metas, aggregates, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if problems := supportedRowScopeProblems(metas, page); len(problems) != 0 {
+	if problems := supportedRowScopeProblems(metas, aggregates, page); len(problems) != 0 {
 		t.Fatalf("valid fixture: %v", problems)
 	}
 	var claims []string
@@ -1107,18 +1119,18 @@ func TestSupportedRowScopeFixtures(t *testing.T) {
 		"omission":              strings.Replace(page, rows[0]+"\n", "", 1),
 		"duplication":           page + rows[0] + "\n",
 		"balanced substitution": strings.Replace(page, rows[0], rows[1], 1),
-		"wrong section":         strings.Replace(page, "## "+statusSections[0].Heading, "## Unknown", 1),
+		"wrong section":         strings.Replace(page, "## "+aggregates["bgp-core"].Heading, "## Unknown", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
-			if problems := supportedRowScopeProblems(metas, broken); len(problems) == 0 {
+			if problems := supportedRowScopeProblems(metas, aggregates, broken); len(problems) == 0 {
 				t.Fatal("broken rendered population accepted")
 			}
 		})
 	}
 }
 
-// VALIDATES: AC-4 -- every summary renders at most one row, and no two summaries claim
-// one place on the page.
+// VALIDATES: AC-4 -- every summary renders at most one row, and a row naming an
+// aggregate no profile declares is refused rather than dropped.
 // PREVENTS: the duplicate-key defect the authored page could hold and its parser hid. A
 // stem stated twice kept only its LAST row, so a support promise could sit in public with
 // no check in this package able to see it.
@@ -1127,14 +1139,21 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, metaProblems, err := summaryMetas(root, nil)
+	profiles, profileProblems, err := LoadProfiles(root, nil)
+	if err != nil {
+		t.Fatalf("read the profiles: %v", err)
+	}
+	if len(profileProblems) > 0 {
+		t.Fatalf("the corpus holds unparsable profiles: %v", profileProblems)
+	}
+	metas, metaProblems, err := summaryMetas(root, nil, profiles)
 	if err != nil {
 		t.Fatalf("read the summaries: %v", err)
 	}
 	if len(metaProblems) > 0 {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
-	placed, err := placeRows(metas)
+	placed, err := placeRows(metas, profiles.Aggregates)
 	if err != nil {
 		t.Fatalf("place the rows: %v", err)
 	}
@@ -1145,25 +1164,21 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 		}
 	}
 
-	// The duplicate a summary CAN still write is a shared rank, and it is the
-	// one placeRows refuses. Two rows with one rank have no order, and a
-	// tie-break invented in the renderer would move the page's reading order
-	// out of the summaries that own it. Asserting "no stem appears twice" over
-	// the real corpus proves nothing: placeRows appends each stem once under
-	// its single Support key, so that loop cannot fail whatever the corpus
-	// says.
-	clash := map[string]Meta{
+	// The wrong row a summary CAN still write is one under an aggregate no
+	// profile declares. It has no heading to render under, and dropping it
+	// would take a public claim off the page in silence. Asserting "no stem
+	// appears twice" over the real corpus proves nothing: placeRows appends
+	// each stem once under its single aggregate, so that loop cannot fail
+	// whatever the corpus says.
+	stray := map[string]Meta{
 		"rfc1000": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
-			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
-			Coverage: "c", Remaining: "r"},
-		"rfc1001": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
-			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
+			Aggregate: "no-such-aggregate", Row: true, Area: "a", Status: "Partial",
 			Coverage: "c", Remaining: "r"},
 	}
-	if _, err := placeRows(clash); err == nil {
-		t.Error("two summaries claiming one rank were placed, so the page's row order is undefined")
-	} else if !strings.Contains(err.Error(), "both claim rank 10") {
-		t.Errorf("the refusal does not name the clash: %v", err)
+	if _, err := placeRows(stray, profiles.Aggregates); err == nil {
+		t.Error("a row under an undeclared aggregate was placed, so it would render under no heading")
+	} else if !strings.Contains(err.Error(), "rfc/profiles/no-such-aggregate.md") {
+		t.Errorf("the refusal does not name the missing profile: %v", err)
 	}
 	declared := 0
 	for _, meta := range metas {
@@ -1473,6 +1488,7 @@ func fixtureCorpus() map[string]string {
 	return map[string]string{
 		selftestCIPath:       fixtureWidgetCI,
 		selftestProducerPath: selftestProducerSource,
+		FixtureAggregateRel:  FixtureAggregateProfile,
 	}
 }
 
@@ -2175,8 +2191,9 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 	// The working tree carries the META shape, and drops the negative tag with
 	// it. That is the regression the ratchet exists to catch.
 	writeFixtureFiles(t, root, map[string]string{
-		selftestSummaryRel: postMigrationSummary,
-		carrier:            "# RFC requirement: " + selftestRIDSend + " positive\n",
+		selftestSummaryRel:  postMigrationSummary,
+		FixtureAggregateRel: FixtureAggregateProfile,
+		carrier:             "# RFC requirement: " + selftestRIDSend + " positive\n",
 	})
 	if _, err := IndexUpdate(root); err != nil {
 		t.Fatalf("regenerate the fixture ledger pages: %v", err)
@@ -2240,7 +2257,7 @@ func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
 			"an out-of-scope summary claiming public support",
 			checkSummaryDisposition("", map[string]Meta{selftestStem: {
 				Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01",
-				Support: "bgp-base", Status: "Supported",
+				Aggregate: FixtureAggregate, Row: true, Status: "Supported",
 			}}, gatedFixture()),
 			"cannot be advertised as supported",
 		},
@@ -2346,7 +2363,7 @@ func gatedFixture() []Requirement {
 // message wrongly claimed it did.
 func TestAPublicRowCannotBeDeletedWhileItsRFCStaysEnrolled(t *testing.T) {
 	rowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
-		Support: "bgp-base", Rank: 10, Status: "Partial"}
+		Aggregate: FixtureAggregate, Row: true, Status: "Partial"}
 	unrowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated"}
 
 	deleted := checkPublicRowMonotonic(
@@ -2444,11 +2461,11 @@ func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 		"| Title | Widgets |\n| Enrolment | non-normative |\n" +
 		"| Enrolment reason | Informational, and it invokes no RFC 2119 key-words machinery |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
-		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
+		"| Support | bgp-core |\n| Support area | Widgets |\n" +
 		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 		"| Support remaining | Zero MUST gaps. |\n\n## Compliance Checklist\n\n" +
 		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
-	retired := strings.Replace(declared, "| Support | bgp-base 10 |", "| Support | - |", 1)
+	retired := strings.Replace(declared, "| Support | bgp-core |", "| Support | - |\n| Aggregate | bgp-core |", 1)
 	for _, cell := range []string{"| Support area | Widgets |\n",
 		"| Support status | Partial |\n", "| Support coverage | unit tests |\n",
 		"| Support remaining | Zero MUST gaps. |\n"} {
@@ -2640,7 +2657,7 @@ func TestCheckBaselineRatchetsSeeTipCommit(t *testing.T) {
 func TestCheckMetaRatchetsSeeTipCommit(t *testing.T) {
 	base := "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
-	unrowed := strings.Replace(base, "| Support | bgp-base 10 |", "| Support | - |", 1)
+	unrowed := strings.Replace(base, "| Support | bgp-core |", "| Support | - |\n| Aggregate | bgp-core |", 1)
 	for _, cell := range []string{"| Support area | Widgets |\n", "| Support status | Partial |\n",
 		"| Support coverage | unit tests |\n", "| Support remaining | Zero MUST gaps. |\n"} {
 		unrowed = strings.Replace(unrowed, cell, "", 1)

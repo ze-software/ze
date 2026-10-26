@@ -51,7 +51,10 @@ type RenderInput struct {
 	Dispositions map[string]Disposition
 	// Metas is what every summary declares about itself, and is what Rows,
 	// Dispositions, Enrolled and Successors are each derived from.
-	Metas      map[string]Meta
+	Metas map[string]Meta
+	// Profiles is the parsed rfc/profiles/, which every Meta's aggregate is
+	// declared in.
+	Profiles   Profiles
 	Successors map[string]string
 	Audits     map[string]Audit
 	States     map[string]Freshness
@@ -99,9 +102,17 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	if in.Carriers, err = carriers(tree); err != nil {
 		return RenderInput{}, err
 	}
-	metas, problems := collected.Metas, collected.MetaProblems
+	metas, problems, profiles := collected.Metas, collected.MetaProblems, collected.Profiles
 	if metas == nil {
-		if metas, problems, err = summaryMetas(tree, in.Stems); err != nil {
+		var profileProblems []string
+		if profiles, profileProblems, err = LoadProfiles(tree, in.Stems); err != nil {
+			return RenderInput{}, err
+		}
+		if len(profileProblems) != 0 {
+			return RenderInput{}, refuseToWrite(profileProblems,
+				"a profile did not parse; refusing to publish rows under undeclared aggregates")
+		}
+		if metas, problems, err = summaryMetas(tree, in.Stems, profiles); err != nil {
 			return RenderInput{}, err
 		}
 	}
@@ -123,9 +134,10 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 				"absent from this render. Fix the summary, then re-run")
 	}
 	in.Metas = metas
+	in.Profiles = profiles
 	in.Successors = successorsFrom(metas)
 	if in.Rows == nil {
-		in.Rows = rowsFrom(metas)
+		in.Rows = rowsFrom(metas, profiles.Aggregates)
 	}
 	if in.Dispositions == nil {
 		in.Dispositions = dispositionsFrom(metas)
