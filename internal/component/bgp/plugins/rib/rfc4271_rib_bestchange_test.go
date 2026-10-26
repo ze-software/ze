@@ -665,13 +665,6 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 
 // VALIDATES: AC-3 -- BGP UPDATE does not change best path, no event published.
 // PREVENTS: Spurious EventBus events when best path is unchanged.
-// RFC requirement: RFC4271-9-3 negative -- re-running the Decision Process over an unchanged
-// Adj-RIB-In yields no change, so the run really compares state rather than emitting
-// unconditionally (internal/component/bgp/plugins/rib/rib_bestchange.go:832-846).
-// RFC requirement: RFC4271-9.2-7 negative -- a route that is still feasible is not advertised as
-// unfeasible (internal/component/bgp/plugins/rib/rib_bestchange.go:832-846).
-// RFC requirement: RFC4271-9.2-8 negative -- a still-feasible route is not removed from the
-// Loc-RIB (internal/component/bgp/plugins/rib/rib_bestchange.go:832-846).
 func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
@@ -701,14 +694,6 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 // VALIDATES: AC-2 -- BGP withdraws last route for prefix, RIB emits
 // (rib, best-change) with action "withdraw".
 // PREVENTS: Withdraw events not being published.
-// RFC requirement: RFC4271-9-3 positive -- the Decision Process is re-run once the Adj-RIB-In has
-// been updated by the withdrawal, and it produces the new outcome
-// (internal/component/bgp/plugins/rib/rib_structured.go:271-286, rib_bestchange.go:702-703).
-// RFC requirement: RFC4271-9.2-7 positive -- a newly unfeasible route with no replacement is
-// advertised as a withdrawal (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782).
-// RFC requirement: RFC4271-9.1.2-2 negative -- the Loc-RIB install is conditional: with no
-// candidate remaining the previous best is removed instead of being reinstalled
-// (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782).
 func TestRIBBestChangeWithdraw(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
