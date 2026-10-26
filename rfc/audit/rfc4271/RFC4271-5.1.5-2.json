@@ -6,8 +6,8 @@
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "33e3a14230a4a91e",
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "130297db967addd6",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "33a499fb23a13b0e",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "33a499fb23a13b0e",
     "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "49a47285ee4a16ca",
     "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
     "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"

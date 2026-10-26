@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "1e982907ef1ce4b4",
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "1e982907ef1ce4b4",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "33a499fb23a13b0e"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "dd1ed352098de2ea",

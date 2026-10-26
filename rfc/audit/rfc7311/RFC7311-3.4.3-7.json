@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "a175c0306331c18a",
     "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "a175c0306331c18a",
-    "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "b8ef58250dcbcb51",
-    "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "b8ef58250dcbcb51",
+    "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "0af9483e0aa6488e",
+    "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "0af9483e0aa6488e",
     "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery": "1efc004c5bdfce62",
     "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery#2": "1efc004c5bdfce62",
     "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311RecursiveZeroCostRemainsAnnounced": "1efc004c5bdfce62",

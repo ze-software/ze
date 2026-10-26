@@ -2,10 +2,10 @@
   "note": "Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: \"When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one.\" The commit changed checkReflectorWithdrawal (both tags) only in the text of its final Established failure, now wrapped by interoplab.WithSearchedOutput, which returns a non-nil error for the same cause; no condition moved. The interop positive still requires the exact token 800A04<3 octets>02, a newly created four-byte CLUSTER_LIST holding Ze's configured cluster-id (the empty-list clause), and the negative still requires the attribute-free byte-exact withdrawal. The prepend-onto-existing clause stays proven by the unchanged unit covers: TestReactorForwardRRInjects requires exact [1.2.3.2] and TestReactorForwardRRPreservesOriginator exact [1.2.3.2,5.5.5.5], so replacement, append, omission and a wrong local id all fail. The interop units carry no discrimination record and were not rerun for this failure-text change. Verdict unchanged.",
   "requirement_sha": "d017c078f2e893f8",
   "tests": {
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "6f4ac88dee1fa68d",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "6f4ac88dee1fa68d"
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "2c272fac7c7acf8a",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "2c272fac7c7acf8a",
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "0a0b84ff215732f8",
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "0a0b84ff215732f8"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",

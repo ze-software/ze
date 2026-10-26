@@ -3,7 +3,7 @@
     "internal/component/bgp/reactor/link_scope.go::classify": "47509c161b37778c",
     "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "823cff0faf0abb0c"
   },
-  "note": "Incremental M30 source audit, 2026-10-22; retain the existing partial verdict and both existing code guards. RFC 2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop, with internal/component/bgp/reactor/link_scope.go::classify. Reread both complete guarded functions: classify identifies externally owned globals as ThirdParty; linkLocalNextHop returns no address for ThirdParty/Unspecified and never substitutes the configured speaker link-local. A third-party global alone on a common subnet therefore still lacks the required matching link-local; this increment does not close that implementation gap or earn whole-requirement credit. Reread TestOrdinaryIPv6OwnGlobalJointSubnet, TestOrdinaryIPv6PolicyPairJointSubnet and their complete helpers. Dual-family Session negotiation restores IPv6 admission and preserves IPv4-dependent helper uses. Exact pair-on-common-subnet/global-only-off-link frames, NLRI, accounting, EOR and policy-call assertions remain unchanged on all three ordinary rails. normalizeOrdinaryNextHop judges the effective raw replacement, validates both slots before trimming, retains peer-owned-address refusal, and uses one prefix containing recipient and global. TestOrdinaryIPv6NormalizationPreservesAdmission retains exact invalid-pair refusals with and without optional capability 77. These are explicit prefix snapshots and available own-address/supplied-pair controls, not a new observation of physical adjacency or third-party discovery. Untouched functional, interop, forwarding and replay carriers were not reread; their earlier independent audit is retained, not recreated. RFC2545-3-6 remains unimplemented in canonical metadata and is deliberately absent from this merge input. No runtime proof or native discrimination freshness is asserted; parent owns renewals and stamping.",
+  "note": "Re-judged 2026-10-26 by an independent auditor who authored none of the change, after ece74e2827 (spec-bgp-rs-replacement-on-withdrawal). RFC 2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" The only change is to the tagged carrier test/plugin/rfc2545-joint-subnet.ci: each of the eight peers in the four cases (same-link, split-link, entity-off-link, recipient-off-link) gains attach process rs { receive [ update-received ]; send [ update ]; }, naming the internal rs (bgp-rs) process the config already declares. After 2de6f30f3b the rs fast path forwards only between peers granting the relay those permissions, so without the lines every case would see no forwarded UPDATE at all; the grants restore the route under test and change no input byte, no expect, no reject. The positive still requires the exact next hop of length 0x20 (global 2001:db8:a::9 plus fe80::9) at P on the real common link; the negatives still require the exact 16-octet global-only field and reject fe80::9 anywhere. Producers link_scope.go classify and linkLocalNextHop are byte-identical. The carrier is needs-linux (net-admin) and ece74e2827 records it has not yet run on the new config; that is a run owed, not a change in what it proves. Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::linkLocalNextHop, with classify: a third-party global on a common subnet still gets no matching link-local, so the if-half stays unimplemented. Verdict unchanged: partial. Earlier judgements are in this file's git history.",
   "requirement_sha": "5d1ea0fc7445ad5a",
   "tests": {
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "59f801a924a77387",
@@ -23,8 +23,8 @@
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "49a47285ee4a16ca",
     "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "5d36d6e49a32f302",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "ee64b297387a1e05",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "ee64b297387a1e05"
+    "test/plugin/rfc2545-joint-subnet.ci": "a7ab1fd2f26f1be5",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "a7ab1fd2f26f1be5"
   },
   "units": {
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "290df40559fe1ecf",
@@ -44,8 +44,8 @@
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "517005159bd1888a",
     "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "5d36d6e49a32f302",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "ee64b297387a1e05",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "ee64b297387a1e05"
+    "test/plugin/rfc2545-joint-subnet.ci": "a7ab1fd2f26f1be5",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "a7ab1fd2f26f1be5"
   },
   "verdict": "partial"
 }

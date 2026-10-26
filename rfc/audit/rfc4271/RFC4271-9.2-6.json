@@ -3,8 +3,8 @@
   "requirement_sha": "406f1f4d7c98a952",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "7966eca9efe6b2cb",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "94aa07ebd53dcc5b",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "94aa07ebd53dcc5b"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "33a499fb23a13b0e",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "33a499fb23a13b0e"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "60940c41b58dcc6e",

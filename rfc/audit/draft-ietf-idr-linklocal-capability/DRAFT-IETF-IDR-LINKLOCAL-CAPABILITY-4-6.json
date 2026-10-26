@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: for an off-segment client, sending the Link-Local-only route neither rewritten nor ineligible. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives exactly 2001:db8:1::254 and not a Link-Local-only field, and the client without rewrite is written no MP_REACH next hop (now the withdrawal under the owner's decision; assert.Empty does not distinguish withdrawal from nothing, which the sentence does not require). Negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld: a Global next hop reaches the same off-segment client unchanged. No assertion delivers a Link-Local-only next hop, so the capability-77 fixture gap does not touch this pair.",
   "requirement_sha": "3878bc1d729469f9",
   "tests": {
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "4c56331fbf72051e",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "4c56331fbf72051e"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "a4ece220ecabc71d",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "a4ece220ecabc71d"
   },
   "units": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",

@@ -2,8 +2,8 @@
   "note": "asserts nil output for non-client to non-client and non-nil for non-client to client; tag polarity labels are inverted against the new quote, whose conforming case is reflection to a client",
   "requirement_sha": "0e13e5e02720589c",
   "tests": {
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "b6fdc78829b3f890",
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule#2": "b6fdc78829b3f890"
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "2c272fac7c7acf8a",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule#2": "2c272fac7c7acf8a"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule": "bb026e67a52a9e8b",

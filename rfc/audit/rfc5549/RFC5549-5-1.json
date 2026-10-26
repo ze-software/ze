@@ -2,7 +2,7 @@
   "note": "Forbidden: a route reflector changing the encoding of a next hop it passes along unchanged. Red on it: require.Equal(mpReach, attrs[14]) and the next-hop byte compare in TestReactorForwardRRPreservesExtendedNextHop, which reflects a 16-byte IPv6 next hop for IPv4 NLRI through the reactor forward path. Single-polarity marker on the row.",
   "requirement_sha": "0da09b4f4a31922b",
   "tests": {
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "b6fdc78829b3f890"
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "2c272fac7c7acf8a"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "36a17730ebd19e1b"

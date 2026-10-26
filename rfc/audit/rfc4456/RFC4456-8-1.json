@@ -2,11 +2,11 @@
   "note": "Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: \"This attribute is 4 bytes long and it will be created by an RR in reflecting a route.\" The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904<3 octets>03 (flags 0x80, type 9, length 4, the client's identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.",
   "requirement_sha": "03b367adb6790836",
   "tests": {
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
-    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "2c272fac7c7acf8a",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "2c272fac7c7acf8a",
     "internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "cc6b0757b3a3332b",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "6f4ac88dee1fa68d",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "6f4ac88dee1fa68d"
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "0a0b84ff215732f8",
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "0a0b84ff215732f8"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",

@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "33a499fb23a13b0e",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "4d1e0cbb7558949b"
   },
   "units": {
