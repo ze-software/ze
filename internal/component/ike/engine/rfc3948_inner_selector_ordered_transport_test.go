@@ -92,9 +92,9 @@ func TestRFC3948OrderedTransportEqualPriorityRefused(t *testing.T) {
 			_, err := innerAuthChild(t, second, dp, secondTS[0], secondTS[1])
 			mustInnerRefused(t, err, "peer "+second.PeerName)
 			mustNamePeersAndFix(t, err, "a")
-			want := "the priorities order them only when the tunnel's remote half is exactly a traffic " +
-				"selector peer a's operator configured and the transport-mode connection's remote half is " +
-				"exactly peer b's configured remote address"
+			want := "the priorities order them only when the tunnel is exactly a traffic selector peer " +
+				"a's operator configured, both halves, and the transport-mode connection is exactly " +
+				"local 192.0.2.1/32 remote 198.18.0.9/32 for any protocol and any port"
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("refusal %q does not state when ordering exempts (%q)", err, want)
 			}
