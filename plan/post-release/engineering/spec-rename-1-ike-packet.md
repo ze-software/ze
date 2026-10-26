@@ -229,7 +229,7 @@ identifiers in any importer.
    - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: AC-1, AC-2 (code), AC-3
 3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
-   - Tests: `./le doc check verify`, `./le ai rules index-update` if rule headers changed
+   - Tests: `./le doc check verify`, `./le ai rules update index` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 4. **Full verification** — `./le verify current mode full`; AC-6.

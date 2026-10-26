@@ -525,7 +525,7 @@ N-A: tooling, no protocol peer.
 - `internal/le/doc/consistency/consistency.go` - `checkDesignRefs` reads the shared producer (one header parser)
 - `.claude/settings.json` - `PreToolUse` `Task|Agent` -> `pretool-agent`
 - `.claude/hooks/README.md` - wiring row, check rows, ledger, rollout switch
-- `ai/rules/points/documentation/directives/` - a directive that the hook enforces the read; `./le ai rules condensed-update` regenerates `ai/rules/CORE.md`
+- `ai/rules/points/documentation/directives/` - a directive that the hook enforces the read; `./le ai rules update condensed` regenerates `ai/rules/CORE.md`
 - `docs/contributing/navigating-the-code.md` - `./le doc coverage` beside the index table
 - `docs/contributing/spec-workflow.md` - a spec write needs its pages read
 - `docs/contributing/running-commands.md` - the ledger file in "what each agent owns"

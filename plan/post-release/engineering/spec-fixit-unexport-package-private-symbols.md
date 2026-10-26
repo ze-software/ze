@@ -25,7 +25,7 @@ population from `declaredSymbols(tree, changed)`, and `changed` is whatever
 `ChangedFiles` (`internal/le/repository/repository.go`) answers: `git diff
 --name-only HEAD` plus `git ls-files --others --exclude-standard`. A symbol
 declared in a file nobody is editing is therefore never examined, in either
-mode. `./le repo tree-check` passes an explicitly empty changed set, so it
+mode. `./le repo check tree` passes an explicitly empty changed set, so it
 examines none of them. A green run says the CHANGED files are clean. It says
 nothing about the tree. `plan/journal/gate-excludes-part-of-its-population.md`
 carries this as a 2026-08-18 row and a 2026-09-05 row.

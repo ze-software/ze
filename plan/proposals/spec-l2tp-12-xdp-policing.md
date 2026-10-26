@@ -89,7 +89,7 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 ### Architecture Docs
 - [ ] `ai/patterns/plugin.md` -- plugin file structure
   -> Constraint: register.go with init(), atomic logger, RunXxxPlugin(conn), CLIHandler closure
-  -> Constraint: run `./le repo generate` after creating plugin to update all.go
+  -> Constraint: run `./le repo update` after creating plugin to update all.go
 - [ ] `ai/rules/plugins.md` -- plugin design rules
   -> Constraint: plugin name hyphen-form (l2tp-policing); YANG required for plugins with config
   -> Constraint: proximity principle: all code in `internal/plugins/l2tppolicing/`
@@ -383,9 +383,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `test/plugin/l2tp-policing-config.ci`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`
    - Verify: `./le test functional` passes
 
-8. **Phase: ./le repo generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
+8. **Phase: ./le repo update** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
    - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
-   - Verify: `./le repo generate`, `./le go lint run` pass; `git diff go.mod` is empty unless a version bump was justified
+   - Verify: `./le repo update`, `./le go lint run` pass; `git diff go.mod` is empty unless a version bump was justified
 
 9. **Full verification** -- `./le verify current mode full`
 10. **Complete spec** -- Fill audit tables, write learned summary

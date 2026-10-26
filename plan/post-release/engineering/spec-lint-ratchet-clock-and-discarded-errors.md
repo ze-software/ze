@@ -273,7 +273,7 @@ Discrimination (owed before claiming the gates work, `ai/rules/interop-and-goal-
 - `docs/contributing/ze-go-style.md` - "Every error is handled" rewritten; new "Time comes from the injected clock" subsection; two rows in "The rules a tool enforces"; `<!-- source: -->` anchors
 - `docs/contributing/ze-go-style-background.md` - "How the gates choose what they judge" covers the three line gates and the shipped-closure scope of the two new ones
 - `ai/INDEX.md` - two command rows and keyword rows (clock bypass, time.Now, time.Sleep, time.NewTicker, discarded error, blank discard, check-blank, allowed discards)
-- `ai/rules/points/go-standards/...` (the point carrying the banned-pattern list, per `ai/rules/rule-format.md`) - add the clock bypass to the banned patterns with a pointer to the gate; regenerate with `./le ai rules condensed-update`
+- `ai/rules/points/go-standards/...` (the point carrying the banned-pattern list, per `ai/rules/rule-format.md`) - add the clock bypass to the banned patterns with a pointer to the gate; regenerate with `./le ai rules update condensed`
 - `plan/journal/clock-bypass.md`, `plan/journal/discarded-error-becomes-destructive.md` - capture record, Phase 5 only, in the lifecycle spec's format
 
 ## Files to Create

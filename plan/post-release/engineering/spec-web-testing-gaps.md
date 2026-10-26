@@ -74,7 +74,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le repo generate` and `./le verify current mode full`, for the checks that would carry these invariants.
+- `./le repo update` and `./le verify current mode full`, for the checks that would carry these invariants.
 
 ### Transformation Path
 1. To be filled by the implementing session.

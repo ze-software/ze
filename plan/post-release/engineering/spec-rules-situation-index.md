@@ -307,7 +307,7 @@ read points, couples two generators to save one walk.
 
 → Constraint: the authored unit is the manifest SECTION line, so
 `MANIFEST_SECTION`, `parse_manifest`, `format_manifest` and `ManifestSection`
-change together, and `./le ai rules points-roundtrip-check` is what proves the
+change together, and `./le ai rules check points-roundtrip` is what proves the
 new line shape survives split and render. A line shape it does not know raises
 `RulePointsError`, so render-check, roundtrip-check and gate-map-report fail
 hard rather than silently.

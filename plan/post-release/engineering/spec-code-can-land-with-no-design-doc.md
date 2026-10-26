@@ -221,7 +221,7 @@ target over the real tree.
    - Tests: `TestPluginRegisteringACLIRootIsSeen`
 4. **Phase: Arm** -- the finding fails the gate
    - Tests: `TestPackageWithNoDocumentationHomeIsReported`
-5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `./le ai rules condensed-update`
+5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `./le ai rules update condensed`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
