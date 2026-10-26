@@ -156,31 +156,34 @@ func registeringPackages(t *testing.T, dir string) []string {
 		return statErr == nil
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read %s: %v", dir, err)
-	}
-	packages := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	// Each word of a command name is one directory level, so the scan reads
+	// every directory down to the deepest name le dispatches
+	// (registeringDepth): `setup docker kernel` registers from
+	// internal/le/setup/docker/kernel.
+	packages := make([]string, 0, len(commandsAtStart))
+	var walk func(relative string, depth int)
+	walk = func(relative string, depth int) {
+		entries, err := os.ReadDir(filepath.Join(dir, relative))
+		if err != nil {
+			if relative == "" {
+				t.Fatalf("read %s: %v", dir, err)
+			}
+			return
 		}
-		if registers(filepath.Join(dir, entry.Name())) {
-			packages = append(packages, leImportPrefix+entry.Name())
-		}
-		members, readErr := os.ReadDir(filepath.Join(dir, entry.Name()))
-		if readErr != nil {
-			continue
-		}
-		for _, member := range members {
-			if !member.IsDir() {
+		for _, entry := range entries {
+			if !entry.IsDir() {
 				continue
 			}
-			if registers(filepath.Join(dir, entry.Name(), member.Name())) {
-				packages = append(packages, leImportPrefix+entry.Name()+"/"+member.Name())
+			child := filepath.Join(relative, entry.Name())
+			if registers(filepath.Join(dir, child)) {
+				packages = append(packages, leImportPrefix+filepath.ToSlash(child))
+			}
+			if depth < registeringDepth {
+				walk(child, depth+1)
 			}
 		}
 	}
+	walk("", 1)
 	slices.Sort(packages)
 	return packages
 }

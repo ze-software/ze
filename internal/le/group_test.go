@@ -181,8 +181,11 @@ func TestEveryCommandIsFoundAtThePathItsNamePredicts(t *testing.T) {
 }
 
 // namespaceDirectories answers the directory each live namespace predicts,
-// mapped to the namespace: every first word of le's tree that holds commands
-// and is no command itself.
+// mapped to the namespace. A first word of le's tree that holds commands and
+// is no command itself is a namespace. A namespace may also nest under
+// another one (`setup docker`, D-P4-depth3): every proper prefix of a
+// registered command name that leroot.RegisterNamespace recorded is one, so
+// the nested set derives from the namespace registry and from no list here.
 func namespaceDirectories(t *testing.T) map[string]string {
 	t.Helper()
 	directories := map[string]string{}
@@ -191,6 +194,15 @@ func namespaceDirectories(t *testing.T) map[string]string {
 			continue
 		}
 		directories[directoryFor(name)] = name
+	}
+	for _, tool := range commandsAtStart {
+		words := strings.Fields(tool.Name)
+		for end := 2; end < len(words); end++ {
+			prefix := strings.Join(words[:end], " ")
+			if _, held := leroot.NamespaceSummary(prefix); held {
+				directories[directoryFor(prefix)] = prefix
+			}
+		}
 	}
 	if len(directories) == 0 {
 		t.Fatal("le registered no namespace")
@@ -201,52 +213,53 @@ func namespaceDirectories(t *testing.T) map[string]string {
 // registeringDirectories answers every directory under internal/le holding a
 // register.go, as a path relative to internal/le.
 //
-// It walks two levels, because a namespace member sits one level below its
-// object and two words is the whole grammar. A library package registers
-// nothing, so it is not walked into and names nothing.
+// It walks as many levels as a command has words (registeringDepth), because
+// each word of a name is one directory level. Every directory down to that
+// depth is read, a library package included: one that registers nothing
+// names nothing, and one that does is held to the naming rule.
 func registeringDirectories(t *testing.T, tools string) []string {
 	t.Helper()
 
-	registers := func(dir string) bool {
-		_, err := os.Stat(filepath.Join(dir, "register.go"))
-		return err == nil
-	}
-
 	found := make([]string, 0, len(commandsAtStart))
-	outer, err := os.ReadDir(tools)
-	if err != nil {
-		t.Fatalf("read internal/le: %v", err)
-	}
-	for _, object := range outer {
-		if !object.IsDir() {
-			continue
+	var walk func(relative string, depth int)
+	walk = func(relative string, depth int) {
+		entries, err := os.ReadDir(filepath.Join(tools, relative))
+		if err != nil {
+			if relative == "" {
+				t.Fatalf("read internal/le: %v", err)
+			}
+			return
 		}
-		if registers(filepath.Join(tools, object.Name())) {
-			found = append(found, object.Name())
-		}
-		inner, readErr := os.ReadDir(filepath.Join(tools, object.Name()))
-		if readErr != nil {
-			continue
-		}
-		for _, member := range inner {
-			if !member.IsDir() {
+		for _, entry := range entries {
+			if !entry.IsDir() {
 				continue
 			}
-			if registers(filepath.Join(tools, object.Name(), member.Name())) {
-				found = append(found, filepath.Join(object.Name(), member.Name()))
+			child := filepath.Join(relative, entry.Name())
+			if _, statErr := os.Stat(filepath.Join(tools, child, "register.go")); statErr == nil {
+				found = append(found, child)
+			}
+			if depth < registeringDepth {
+				walk(child, depth+1)
 			}
 		}
 	}
+	walk("", 1)
 	return found
 }
 
-// TestNoRegisteredLeCommandExceedsTwoWords holds the bound Dispatch enforces.
-// A three-word command would register at a path the resolver never offers the
-// matcher, so it would be unreachable from argv while looking registered.
+// registeringDepth is the deepest command name le dispatches, in words: the
+// dispatcher's commandWordsMax (internal/le/le/root/dispatch.go), which
+// TestNoRegisteredLeCommandExceedsTwoWords holds every registration to.
+const registeringDepth = 3
+
+// TestNoRegisteredLeCommandExceedsTwoWords holds the bound Dispatch enforces,
+// three words since D-P4-depth3 (the name predates it). A four-word command
+// would register at a path the resolver never offers the matcher, so it would
+// be unreachable from argv while looking registered.
 func TestNoRegisteredLeCommandExceedsTwoWords(t *testing.T) {
 	for _, tool := range commandsAtStart {
-		if words := len(strings.Fields(tool.Name)); words > 2 {
-			t.Errorf("command %q is %d words; dispatch offers the matcher two", tool.Name, words)
+		if words := len(strings.Fields(tool.Name)); words > 3 {
+			t.Errorf("command %q is %d words; dispatch offers the matcher three", tool.Name, words)
 		}
 	}
 }

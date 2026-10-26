@@ -62,17 +62,18 @@ func TestDispatchPrefersTheLongerCommand(t *testing.T) {
 
 // TestDispatchBoundsTheLookupAtTwoWords is the guard against a value being read
 // as a command word. `le job run label x command le go lint` offers nine
-// words, and only the first two may ever reach the matcher.
+// words, and only the first three may ever reach the matcher (the name
+// predates D-P4-depth3, which raised the bound from two).
 func TestDispatchBoundsTheLookupAtTwoWords(t *testing.T) {
-	deep := registerProbe(t, "probe-deep one two", GroupGate)
-	shallow := registerProbe(t, "probe-deep one", GroupGate)
+	deep := registerProbe(t, "probe-deep one two three", GroupGate)
+	shallow := registerProbe(t, "probe-deep one two", GroupGate)
 
-	captureStdout(t, func() { Dispatch("le", []string{"probe-deep", "one", "two"}) })
+	captureStdout(t, func() { Dispatch("le", []string{"probe-deep", "one", "two", "three"}) })
 	if len(*deep) != 0 {
-		t.Errorf("a three-word command resolved with %v; the bound is two", *deep)
+		t.Errorf("a four-word command resolved with %v; the bound is three", *deep)
 	}
-	if len(*shallow) != 1 || (*shallow)[0] != "two" {
-		t.Errorf("the two-word command received %v, want the third word as its argument", *shallow)
+	if len(*shallow) != 1 || (*shallow)[0] != "three" {
+		t.Errorf("the three-word command received %v, want the fourth word as its argument", *shallow)
 	}
 }
 
@@ -120,6 +121,47 @@ func TestBareNamespaceTokenListsItsMembers(t *testing.T) {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("the refusal does not name %q: %s", want, stderr)
 		}
+	}
+}
+
+// TestNestedNamespaceTokenListsItsMembers covers a namespace under an area
+// (D-P4-depth3): `le setup docker` names the namespace `setup docker`, whose
+// first word is the area `setup`. The resolver offers the longest registered
+// command, so the line resolves to the area, and only the namespace check
+// keeps the nested token from being read as one of the area's actions.
+func TestNestedNamespaceTokenListsItsMembers(t *testing.T) {
+	area := registerProbe(t, "probe-nest", GroupGate)
+	registerProbe(t, "probe-nest inner alpha", GroupGate)
+	registerProbe(t, "probe-nest inner beta", GroupGate)
+	RegisterNamespace("probe-nest inner", "a nested namespace probe", "A nested namespace probe, holding two members.")
+
+	code := 0
+	page := captureStdout(t, func() { code = Dispatch("le", []string{"probe-nest", "inner"}) })
+	if code != 0 {
+		t.Errorf("a nested namespace token answered %d, want 0", code)
+	}
+	for _, want := range []string{"alpha", "beta"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the nested listing does not name %q: %s", want, page)
+		}
+	}
+	if len(*area) != 0 {
+		t.Errorf("the area ran with %v; the nested namespace token is no action of it", *area)
+	}
+
+	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-nest", "inner", "gamma"}) })
+	if code != 2 {
+		t.Errorf("a nested namespace token with an unknown member answered %d, want 2", code)
+	}
+	for _, want := range []string{"probe-nest inner is a namespace", "alpha", "beta"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("the nested refusal does not name %q: %s", want, stderr)
+		}
+	}
+
+	helped := captureStdout(t, func() { code = Dispatch("le", []string{"help", "probe-nest", "inner"}) })
+	if code != 0 || !strings.Contains(helped, "alpha") {
+		t.Errorf("`le help probe-nest inner` answered %d without the members: %s", code, helped)
 	}
 }
 

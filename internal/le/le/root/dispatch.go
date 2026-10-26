@@ -69,14 +69,14 @@ func helpRoot(program string) int {
 }
 
 // commandWordsMax bounds how many argv words the lookup may consume. le's
-// deepest registered path is one namespace and one member, so two words after
-// `le` is the whole grammar.
+// deepest registered path is a namespace, a nested namespace and one member
+// (`le setup docker kernel`), so three words after `le` is the whole grammar.
 //
 // The bound is load-bearing. LookupLocalData matches the longest registered
 // prefix of whatever it is handed, so an unbounded span would let a value
 // further along the line be read as a command word: `le job run label x
 // command le go lint` offers nine.
-const commandWordsMax = 2
+const commandWordsMax = 3
 
 // resolve answers the registered command among the leading words of argv: the
 // name as it was typed, its handler, and the words the tool itself receives.
@@ -180,6 +180,9 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 		}
 	}
 	name, handler, toolArgs := resolve(args)
+	if token, rest, nested := nestedNamespace(name, toolArgs); nested {
+		return answerNamespace(program, token, rest)
+	}
 	if handler != nil {
 		// A help word the reader typed LAST asks what this command takes, and
 		// it is answered here rather than by the handler: an area that
@@ -200,28 +203,48 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 		return Run(name, handler, toolArgs, os.Stdout, os.Stderr)
 	}
 
-	// A namespace token is not an unknown command, it is a question: what does
-	// this namespace hold. It is answered with the members and their summaries
-	// and exit 0 (owner decision, 2026-09-24), as a bare `le` is. A word typed
-	// after the token that names no member is a mistake, and is refused.
-	if held := members(args[0]); len(held) != 0 {
-		if len(args) == 1 {
-			return helpPage(program, args[0])
-		}
-		if len(args) == 2 && isHelpArg(args[1]) {
-			return helpPage(program, args[0])
-		}
-		var tb textbuf.Buffer
-		message := tb.Str("error: ").Str(args[0]).
-			Str(" is a namespace; it needs one of: ").Join(held, " | ").String()
-		fmt.Fprintln(os.Stderr, message) //nolint:errcheck // CLI output
-		return 2
+	if len(members(args[0])) != 0 {
+		return answerNamespace(program, args[0], args[1:])
 	}
 
 	var tb textbuf.Buffer
 	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
 	return 2
+}
+
+// answerNamespace answers a line that names a namespace token and stops
+// there. A namespace token is not an unknown command, it is a question: what
+// does this namespace hold. It is answered with the members and their
+// summaries and exit 0 (owner decision, 2026-09-24), as a bare `le` is. A word
+// typed after the token that names no member is a mistake, and is refused.
+func answerNamespace(program, token string, rest []string) int {
+	if len(rest) == 0 || (len(rest) == 1 && isHelpArg(rest[0])) {
+		return helpPage(program, token)
+	}
+	var tb textbuf.Buffer
+	message := tb.Str("error: ").Str(token).
+		Str(" is a namespace; it needs one of: ").Join(members(token), " | ").String()
+	fmt.Fprintln(os.Stderr, message) //nolint:errcheck // CLI output
+	return 2
+}
+
+// nestedNamespace answers the namespace the resolved command name and the
+// next word spell together, and the words after it, when that namespace
+// registered its summary and holds members (D-P4-depth3). The resolver offers
+// the longest registered command, and a namespace is no command, so `le setup
+// docker` resolves to the area `setup` with `docker` as its first word; read
+// as an action, the namespace's own word would be refused as unknown.
+func nestedNamespace(name string, rest []string) (string, []string, bool) {
+	if name == "" || len(rest) == 0 || rest[0] == pipeWord {
+		return "", nil, false
+	}
+	var tb textbuf.Buffer
+	token := tb.Str(name).Byte(' ').Str(rest[0]).String()
+	if _, held := NamespaceSummary(token); !held || len(members(token)) == 0 {
+		return "", nil, false
+	}
+	return token, rest[1:], true
 }
 
 // refuseRetired says the line names a retired spelling, and the exact line that
@@ -242,6 +265,9 @@ func refuseRetired(program string, row leretired.Rename, words []string) int {
 // keyword's page.
 func helpAsked(program string, words []string) int {
 	name, handler, rest := resolve(words)
+	if token, _, nested := nestedNamespace(name, rest); nested {
+		return helpPage(program, token)
+	}
 	if handler == nil {
 		// A namespace holds commands without being one, so it has no handler to
 		// resolve and its page is still worth printing.

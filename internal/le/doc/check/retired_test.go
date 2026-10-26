@@ -9,10 +9,10 @@ import (
 	leretired "github.com/ze-software/ze/internal/le/le/retired"
 )
 
-// commandWordsMax is the dispatcher's bound: a command is at most two words
+// commandWordsMax is the dispatcher's bound: a command is at most three words
 // after `le` (TestDispatchBoundsTheLookupAtTwoWords in leroot pins it). A row
 // naming a longer new command names nothing a caller can run.
-const commandWordsMax = 2
+const commandWordsMax = 3
 
 // retiredFound reports whether the row whose old form is old lists file:line.
 func retiredFound(report retiredReport, old, file string, line int) bool {

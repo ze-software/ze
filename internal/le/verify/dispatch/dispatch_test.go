@@ -40,6 +40,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/lab"
 	_ "github.com/ze-software/ze/internal/le/plugin"
 	_ "github.com/ze-software/ze/internal/le/repo"
+	_ "github.com/ze-software/ze/internal/le/setup/docker"
 	_ "github.com/ze-software/ze/internal/le/site"
 	_ "github.com/ze-software/ze/internal/le/spec"
 	_ "github.com/ze-software/ze/internal/le/test"

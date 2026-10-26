@@ -143,6 +143,18 @@ members it could have been, and exit 2, le's usage code. A first word that
 holds no members is `unknown command`, exit 2.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
+**A namespace can nest under an area, and a command is at most three words.**
+`setup` is an area, and `setup docker` is a namespace inside it holding
+`setup docker host` and `setup docker kernel`. The resolver offers the matcher
+at most three words after `le` (`commandWordsMax`), so a value further along the
+line is never read as a command word. It matches the longest registered command,
+which for `le setup docker` is the area `setup`; the dispatcher then reads the
+area's name and the next word as a nested namespace when that namespace
+registered a summary, and answers it as a bare namespace token is answered:
+its page and exit 0, or the refusal naming its members and exit 2.
+`le help setup docker` prints the same page.
+<!-- source: internal/le/le/root/dispatch.go -- commandWordsMax, nestedNamespace, answerNamespace -->
+
 **A namespace says what it is for, and its own package says it.** A namespace
 holds commands without being one, so no area registration describes it. The
 package at the path its name predicts calls `leroot.RegisterNamespace` with one
