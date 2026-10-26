@@ -16,6 +16,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Indirect modules too: without this, an indirect module moves only when a
+    # direct one drags it, and lands on that module's floor rather than the
+    # latest release (go-runewidth sat at v0.0.27 with an eager 50 ms init
+    # while v0.0.28 had made it lazy).
+    allow:
+      - dependency-type: all
     groups:
       go-modules:
         patterns:
