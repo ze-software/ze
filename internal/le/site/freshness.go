@@ -10,7 +10,7 @@
 //
 // The offer is the `refresh` keyword, never a prompt: the build runs in
 // scripts and in agents, and a build that waits on a terminal blocks them. A
-// refresh runs each feature's tests through `record-run`, which can need
+// refresh runs each feature's tests through `feature run`, which can need
 // Docker or a QEMU guest, so it is never the default.
 
 package site
@@ -88,5 +88,5 @@ func writeStaleWarning(tb *textbuf.Buffer, stale []feature.StaleFeature, refresh
 	if !refreshed {
 		tb.Str("`./le site build refresh` (runs the tests first; some need Docker or a QEMU guest) or ")
 	}
-	tb.Str("`./le feature record-run feature <id>`, then commit features/runs/\n")
+	tb.Str("`./le feature run feature <id>`, then commit features/runs/\n")
 }
