@@ -122,7 +122,7 @@ func (g GatingReport) Text() string {
 
 // SuiteRun is one suite run on its own, by name, rather than as part of the
 // gating run. It carries what the gating report carries per suite, so a reader
-// of `le test functional encode-test | json` gets the same facts about the same
+// of `le test functional encode | json` gets the same facts about the same
 // suite.
 type SuiteRun struct {
 	Suite   string `json:"suite"`

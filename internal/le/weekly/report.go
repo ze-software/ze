@@ -116,7 +116,7 @@ func (r Report) Text() string {
 				Colored(color.Reset).Byte('\n')
 			tb.Str(message.Text).Str("\n\n")
 		}
-		tb.Colored(color.BrightYellow).Str("(nothing sent -- `le weekly confirm` publishes this)").
+		tb.Colored(color.BrightYellow).Str("(nothing sent -- `le weekly publish confirm` publishes this)").
 			Colored(color.Reset).Byte('\n')
 	}
 	return tb.String()

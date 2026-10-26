@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- the vendored-web area, as one command
 //
-// actions.go is the Python area, ported. `le generate ze-vendor-web-sync`
+// actions.go is the Python area, ported. The Python gate `ze-vendor-web-sync`
 // selected one gate out of an area's GateSet; `le web vendor update` selects one
 // action out of the table below. The three fields the Gate carried travel with
 // it: the retired Make target, the reason `--list` printed, and whether it

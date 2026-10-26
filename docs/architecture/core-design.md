@@ -225,11 +225,17 @@ Go, or one of the argv forms above. `leroot.JudgeCitation` resolves its words
 with dispatch's own resolver and judges the area or the namespace and the
 first verb, never a keyword or a value; a retired spelling is left to its
 rename row. A line that hands le an unknown word on purpose is declared, line
-by line, in `citationExceptions`. It exits 1 on any such line and runs as a
-stage of the full verify.
+by line, in `citationExceptions`. The citation judgement skips two kinds of
+file, declared in `citationUnjudgedRules`: test code (`*_test.go`,
+`internal/test/`, `test/**/*.ci`), because a test that runs a command le does
+not hold fails itself when it runs, and a refusal or completion test hands le
+an unknown word on purpose; and the specs under `plan/`, which design commands
+le does not hold yet. The retired-name half still reads both. This scope is a
+reading of AC-25 the owner may overturn. It exits 1 on any such line and runs
+as a stage of the full verify.
 <!-- source: internal/le/le/retired/retired.go -- Renames, Match -->
 <!-- source: internal/le/le/root/citation.go -- JudgeCitation -->
-<!-- source: internal/le/doc/check/commandcitation.go -- citationsOf, citationExceptions -->
+<!-- source: internal/le/doc/check/commandcitation.go -- citationsOf, citationExceptions, citationUnjudgedRules -->
 <!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 <!-- source: internal/le/doc/check/retired.go -- retiredOwnedRowsAfter -->

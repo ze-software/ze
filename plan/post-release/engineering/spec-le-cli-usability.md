@@ -759,7 +759,7 @@ pattern); pty fixtures reuse the `creack/pty` pattern of
 | `TestLeMenuArrowsAndEnterDrillToAnAction` (extended) | `internal/le/le/root/menu_test.go` | AC-55: the menu le opens (`menu.NewDeclared`) shows an area's short whole in the right column and not its long before Enter; after Enter the area's long heads the level beside the action's short | |
 | `TestRootPageIsLaidOutByTree` (changed) | `internal/le/le/root/group_test.go` | AC-55: a root page line is the declared short whole, never the long | |
 | `TestZeMenuViewUnchanged` | `cmd/ze` | AC-55: ze's menu (`menu.New`, `LevelOf`) stays byte-identical | |
-| `TestNoCitationNamesAVerbTheRegistryDoesNotHold` | `internal/le/doc/check/citation_test.go` | AC-25 (carried from one-verb) | |
+| `TestNoCitationNamesAVerbTheRegistryDoesNotHold` | `internal/le/doc/check/commandcitation_test.go` | AC-25 (carried from one-verb) | |
 | `TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage` | `internal/le/le/root/dispatch_test.go` | AC-27, R-15 | |
 | `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes` | `internal/le/exitcode_test.go` | AC-28, AC-29 | |
 | `TestRefuseArgumentAndRefuseValueAgree` | `internal/le/le/root/leroot_test.go` | AC-30 | |

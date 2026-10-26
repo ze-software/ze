@@ -518,7 +518,7 @@ func slugPart(word string) string {
 // harnessArgs derives the child's argv after `le test` from the functional suite
 // registry (testfunctional.Suites), so `suite plugin` runs `le test bgp plugin`
 // and `suite ui` runs `le test ui`: a suite name is never passed through as a
-// `le test` verb, which launched `le test plugin` and `le test reload` and met
+// `le test` verb: passed through, plugin and reload launched a `le test <suite>` line that met
 // "test is a namespace". The first word of suite names the registered suite; the
 // words after it (`--draft`) follow the suite's own arguments. The registry's
 // select-everything word is dropped, because Invoke chooses the selector: `--all`

@@ -137,7 +137,7 @@ type actionRunner func(
 // by all selected actions, so the sweep reads the checkout once.
 //
 // `all` is a row like the three tools. No refusal can name a verb the listing
-// publishes and the table does not hold. `le chaos selftest zzprobe` named the
+// publishes and the table does not hold. A refusal of `le chaos selftest <verb>` named the
 // three tools and left `all` out of the help it printed. Its body sweeps the
 // three by name, so nothing restates the list.
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {

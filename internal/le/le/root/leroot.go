@@ -423,7 +423,7 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 // splitChain divides argv at the first pipe operator: what precedes it is the
 // tool's own arguments, and what follows is the chain the operator typed. The
 // bar arrives as its own word because a shell would otherwise consume it, so
-// `le parity | json` is typed as `le parity '|' json`.
+// `le doc check links | json` is typed as `le doc check links '|' json`.
 func splitChain(args []string) (toolArgs []string, pipeStr string) {
 	for i, arg := range args {
 		if arg != pipeWord {

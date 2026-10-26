@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- the arch-map area, as one command
 //
-// actions.go is the Python area, ported. `le generate ze-arch-map-check`
+// actions.go is the Python area, ported. The Python gate `ze-arch-map-check`
 // selected one gate out of a GateSet; `le repo arch-map check` selects one action
 // out of the table below. The three fields the Gate carried travel with it: the
 // retired Make target, the reason `--list` printed, and whether it WRITES.

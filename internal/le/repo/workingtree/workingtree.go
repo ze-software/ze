@@ -8,7 +8,7 @@
 // checkout destroys them and every later chunk has to be diffed around them.
 //
 // It is advisory by default and says so by exiting 0, because only a person can
-// say whether two areas are one logical change. `le repo working-tree max-areas N`
+// say whether two areas are one logical change. `le repo working-tree report max-areas N`
 // makes it a gate for a caller that wants one.
 //
 // Detail: report.go holds the answer, register.go the registration.

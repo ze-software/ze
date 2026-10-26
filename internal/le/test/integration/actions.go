@@ -9,7 +9,7 @@
 // Other areas run their complete set when given no gate name.
 // This set needs hours of Docker, root, and QEMU work.
 // No Make target ever requested all of it, so the shortest spelling must not do so.
-// `le test integration list` still lists the gate names and runs no gates.
+// The refusal still lists the gate names and runs no gates.
 
 package testintegration
 

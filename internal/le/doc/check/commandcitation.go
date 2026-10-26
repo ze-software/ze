@@ -60,31 +60,67 @@ type citationException struct {
 	why   string
 }
 
-// citationFixtureWhy is the reason of the sweep's own test, whose fixture
-// cites words le does not hold so the sweep is seen to refuse them.
-const citationFixtureWhy = "the citation sweep's test cites words le does not hold to prove each one is refused"
+// citationUnjudgedPath is one shape of tracked path: a prefix, a suffix, or
+// both. An empty part matches every path.
+type citationUnjudgedPath struct {
+	prefix string
+	suffix string
+}
 
-// citationFixtureLines are the lines of the sweep's test that cite a word le
-// does not hold. The exception table writes the same fragments out, so its
-// lines are covered by them too.
-var citationFixtureLines = []string{
-	"`le doc check no-such-verb`",
-	"`le no-such-area`",
-	`"le", "doc", "check", "absent"`,
-	`Cited: "le `,
-	`"unheld docs/verb.md:2: le doc check no-such-verb"`,
+// citationUnjudgedRule is one declared kind of file whose lines the
+// unheld-citation judgement does not read, with the reason. The retired-name
+// sweep still reads them: a retired spelling there is still a caller of a
+// name that is gone, and its row names the successor.
+type citationUnjudgedRule struct {
+	paths []citationUnjudgedPath
+	why   string
+}
+
+// citationUnjudgedRules are the two path rules of the unheld-citation
+// judgement (main-thread scope reading of AC-25 of spec-le-cli-usability,
+// which the owner may overturn). The judgement covers the instruction corpus
+// (docs/, ai/, .claude/, website/, top-level configuration, Dockerfiles,
+// workflows) and shipped Go: every other tracked file.
+var citationUnjudgedRules = [...]citationUnjudgedRule{
+	{
+		paths: []citationUnjudgedPath{
+			{suffix: "_test.go"},
+			{prefix: "internal/test/"},
+			{prefix: "test/", suffix: ".ci"},
+		},
+		why: "test code: a test that runs a command le does not hold fails itself when it runs, " +
+			"and a refusal or completion test hands le an unknown word on purpose",
+	},
+	{
+		paths: []citationUnjudgedPath{{prefix: "plan/"}},
+		why:   "a spec designs commands le does not hold yet",
+	},
+	{
+		paths: []citationUnjudgedPath{{prefix: citationDeclaration, suffix: citationDeclaration}},
+		why:   "the declaration of the exceptions: its table writes out every line it excuses",
+	},
+}
+
+// citationDeclaration is this file, which declares the judgement's exceptions.
+const citationDeclaration = "internal/le/doc/check/commandcitation.go"
+
+// citationUnjudged reports whether the unheld-citation judgement skips the
+// tracked file rel under one of citationUnjudgedRules.
+func citationUnjudged(rel string) bool {
+	for _, rule := range &citationUnjudgedRules {
+		for _, path := range rule.paths {
+			if strings.HasPrefix(rel, path.prefix) && strings.HasSuffix(rel, path.suffix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // citationExceptions are the declared exceptions of AC-25: each names the
 // file, the lines that cite a word le does not hold, and why that is the
 // line's purpose rather than a stale citation.
 var citationExceptions = [...]citationException{
-	{file: "internal/le/doc/check/commandcitation_test.go", lines: citationFixtureLines, why: citationFixtureWhy},
-	{
-		file:  "internal/le/doc/check/commandcitation.go",
-		lines: citationFixtureLines,
-		why:   "the exception table writes out the fragments of the sweep's test that it covers",
-	},
 	{
 		file: "docs/architecture/core-design.md",
 		lines: []string{
@@ -98,7 +134,30 @@ var citationExceptions = [...]citationException{
 	{file: "docs/architecture/cli/command-namespacing.md", lines: []string{"`le go lint`, not `le go-lint`"}, why: citationRefusedWhy},
 	{file: "docs/architecture/testing/qemu-integration.md", lines: []string{"`le test plugin <name>` names no suite"}, why: citationRefusedWhy},
 	{file: "docs/guide/developer-setup.md", lines: []string{"`./le --update` is gone and says so"}, why: citationRefusedWhy},
+	{file: "internal/le/le/root/complete.go", lines: []string{`errors.New("le has no such command")`}, why: citationSentenceWhy},
+	{file: "internal/le/le/root/citation.go", lines: []string{`tb.Str("le holds no command ")`}, why: citationSentenceWhy},
+	{
+		file:  "internal/le/setup/docker/kernel/dockerkernel_apparmor_colima.go",
+		lines: []string{`"le could not reach the Colima VM of profile "`},
+		why:   citationSentenceWhy,
+	},
+	{file: "internal/le/verify/dispatch/dispatch.go", lines: []string{`"le does not own root "`}, why: citationSentenceWhy},
+	{
+		file:  "internal/le/interoplab/l2tp/l2tp.go",
+		lines: []string{`"internal", "le", "interoplab", "l2tp", `},
+		why:   "the words are the segments of a path under internal/le, joined by filepath.Join, not an argv",
+	},
+	{
+		file:  "internal/le/repo/workingtree/workingtree.go",
+		lines: []string{"`le repo working-tree max-areas 3` is `report max-areas 3`"},
+		why: "the comment shows the bare line the area accepts (D-P3-bare): its Answer supplies the report verb, " +
+			"which the action table does not declare",
+	},
 }
+
+// citationSentenceWhy is the reason of an error string that opens with le as
+// the subject of a sentence whose words all happen to be command-shaped.
+const citationSentenceWhy = "an error sentence whose subject is le, not a cited command"
 
 // citationRefusedWhy is the reason of a page that cites a line le refuses to
 // show the reader the refusal, or the spelling it is not.
@@ -388,6 +447,9 @@ func citationExempt(rel, line string) bool {
 // hold. A citation of a retired spelling is the retired-name sweep's own
 // finding, which names the successor, so it is not reported a second time.
 func unheldCitations(rel string, lineNo int, line string) []UnheldCitation {
+	if citationUnjudged(rel) {
+		return nil
+	}
 	cited := citationsOf(rel, line)
 	if len(cited) == 0 {
 		return nil
