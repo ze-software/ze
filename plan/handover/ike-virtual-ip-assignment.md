@@ -370,3 +370,38 @@ Left:
 | `RFC7296-1.3.3-3` positive (`initiateChildRekey`) | stale only through another session's uncommitted `rekey.go` hunk; not touched |
 | Extraction re-map | done by the author of the rows. The page asks for no independent walker on a re-map that lowers the exclusion count; a reviewer can confirm it |
 | Erratum 5056 | `RFC7296-1.7-3` quotes the published "proposals" sentence. The erratum, which reads it as the attribute, is not stored under `rfc/errata/rfc7296/` |
+
+## Eighth agent, 2026-10-26: the lease answered only inside the proposal (RFC 7296 Section 2.9)
+
+The audit at 469838479d left `RFC7296-2.9-1` weak: `substituteVirtualIP` replaced every
+proposed TSi of a pool-bound peer with the lease /32, so a proposal of 192.0.2.50/32 was
+answered 10.10.0.1/32, fresh and on a rekey, where the floor check then judged the
+substituted list. Fixed in `cp.go`: `leaseHostIn` keeps the lease host only for a proposed
+selector that contains it, family read from the mask length (an IPv4-mapped IPv6 range is
+IPv6), and a proposal containing no lease draws TS_UNACCEPTABLE naming the proposal and the
+lease. strongSwan's `traffic_selector_list.c` `select_` does the same
+(`selected = ts1->get_subset(ts1, ts2);`). Spec AC-5 and AC-7b reworded, with a
+`-> Decision:` line quoting Section 2.9. Pages: `ipsec-14-responder.md`,
+`rfcgate-1b-rfc7296-pilot.md`, `docs/guide/ipsec.md` (that last one committed by hunks).
+
+Tests: new `TestRFC7296VirtualIPAnsweredOnlyInsideTheProposal`
+(`rfc7296_virtual_ip_subset_test.go`, `RFC7296-2.9-1` positive and negative, fresh and
+rekey, plus the IPv4-mapped case). `TestRemoteSelectorIsLease` (its comment claimed a
+10.1.2.3 proposal the fixture never made: cpAuth proposes 0.0.0.0/0) and
+`TestCreateChildUsesLease` (proposed 10.1.2.3/32 and expected the lease, an answer outside
+the proposal) now propose a selector containing the lease, still assert it, and each gained
+the refused case; both refused cases went red with the containment check disabled
+(`-overlay`, `scratch/sub4.log`).
+
+Records (`scratch/disc8/`, one-entry catalogs `*.json`, logs `rec-*.log`): `RFC7296-2.9-1`
+positive (`!containsNet` -> `true`) and negative (-> `false`); the family break
+(`len(proposed.Mask) == net.IPv4len` -> `proposed.IP.To4() != nil`) was also observed red on
+the IPv4-mapped case, then the containment record re-taken over it. Re-taken stale:
+`RFC3948-5.1-1` positive (`substituteVirtualIP`, mutant) and `RFC7296-2.21.4-8` positive
+(`maintainSA`, mutant).
+
+Interop: see the commit body.
+
+Left: `./le rfc check` could not run: `go vet` hits an import cycle in
+`internal/component/bgp/reactor` (`delay_open_regression_test.go` -> `bgp/config` ->
+`bfd_strict_doctor.go`), another session's uncommitted work.

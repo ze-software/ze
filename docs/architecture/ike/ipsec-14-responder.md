@@ -258,11 +258,18 @@ servers of each leased family, and an empty APPLICATION_VERSION when asked. It
 goes before SAr2 (Section 2.19), in the final IKE_AUTH of an EAP exchange and in
 the childless response too.
 
-`substituteVirtualIP` replaces the peer's proposed inner selector with the lease
+`substituteVirtualIP` narrows the peer's proposed inner selector to the lease
 in `narrowChildSelectors`, before the policy match, so the SPD lookup judges the
 leased address and two peers proposing the same address get two distinct
-selectors (RFC 3948 Section 5.1). A CREATE_CHILD_SA of the same IKE SA narrows
-the same way. A bound peer declines transport mode.
+selectors (RFC 3948 Section 5.1). It keeps the lease only for a proposed TSi
+that contains it, of the same family read from the mask length, and drops the
+others: RFC 7296 Section 2.9 lets the answer be only "some subset of the
+initiator's proposal". A proposal with no selector containing the lease draws
+TS_UNACCEPTABLE, as strongSwan answers it. A strongSwan client proposes
+0.0.0.0/0 before it knows its address, which contains any lease. A
+CREATE_CHILD_SA or a rekey of the same IKE SA narrows the same way, so the rekey
+floor check judges a proposal that covers the floor. A bound peer declines
+transport mode.
 
 The lease lives as long as the IKE SA or its rekeyed successors (Section
 3.15.1). `forgetKeys` releases it, and `adoptRekeyedIKESA`, the one swap site

@@ -233,11 +233,24 @@ func moveVirtualIP(retired, successor *SA) {
 	retired.virtualIP = nil
 }
 
-// substituteVirtualIP replaces the peer's proposed inner selectors with its leased host
-// addresses, keeping each proposal's protocol and ports, for a pool-bound peer. A selector
-// of a family with no lease is dropped. A bound peer whose IKE SA holds no lease gets no
-// Child SA (strongSwan ike_sa_get_dynamic_hosts), because installing its self-chosen
-// address would recreate the RFC 3948 Section 5.1 conflict.
+// substituteVirtualIP narrows the peer's proposed inner selectors to its leased host
+// addresses, keeping each proposal's protocol and ports, for a pool-bound peer. A bound
+// peer whose IKE SA holds no lease gets no Child SA (strongSwan ike_sa_get_dynamic_hosts),
+// because installing its self-chosen address would recreate the RFC 3948 Section 5.1
+// conflict.
+//
+// RFC 7296 Section 2.9: "When the responder chooses a subset of the traffic proposed by
+// the initiator, it narrows the Traffic Selectors to some subset of the initiator's
+// proposal (provided the set does not become the null set)."
+//
+// The lease host is a subset of a proposed selector only when that selector contains it,
+// so a selector that does not is dropped rather than replaced: answering the lease there
+// would hand the peer traffic it never proposed. strongSwan as a gateway does the same,
+// intersecting the selector resolved to the virtual IP with each received one
+// (traffic_selector_list.c select_: "selected = ts1->get_subset(ts1, ts2);") and answering
+// TS_UNACCEPTABLE when nothing is left. A peer that proposes no selector containing its
+// lease is therefore refused here, before the policy match and the rekey floor judge the
+// result, so both see only selectors the proposal genuinely covers.
 func substituteVirtualIP(sa *SA, proposed []tsSelector) ([]tsSelector, error) {
 	if sa.PeerCfg.VirtualIPPoolName() == "" {
 		return proposed, nil
@@ -247,26 +260,43 @@ func substituteVirtualIP(sa *SA, proposed []tsSelector) ([]tsSelector, error) {
 	}
 	out := make([]tsSelector, 0, len(proposed))
 	for _, s := range proposed {
-		family := eap.FamilyIPv6
-		bits := 128
-		if s.Net != nil && s.Net.IP.To4() != nil {
-			family = eap.FamilyIPv4
-			bits = 32
-		}
-		addr, ok := sa.virtualIP.addr(family)
+		host, ok := leaseHostIn(sa.virtualIP, s.Net)
 		if !ok {
 			continue
 		}
-		out = append(out, tsSelector{
-			Net:   &net.IPNet{IP: net.IP(addr.AsSlice()), Mask: net.CIDRMask(bits, bits)},
-			Port:  s.Port,
-			Proto: s.Proto,
-		})
+		out = append(out, tsSelector{Net: host, Port: s.Port, Proto: s.Proto})
 	}
 	if len(out) == 0 {
-		return nil, fmt.Errorf("%w: no proposed selector has the family of the peer's virtual IP", errTSUnacceptable)
+		return nil, fmt.Errorf("%w: the proposed TSi %s contains none of the peer's virtual IPs %v, "+
+			"and RFC 7296 Section 2.9 lets the answer be only a subset of the proposal; the peer "+
+			"must propose a TSi containing its assigned address, such as 0.0.0.0/0 or ::/0",
+			errTSUnacceptable, selectorsText(proposed), sa.VirtualIPs())
 	}
 	return out, nil
+}
+
+// leaseHostIn returns the lease host of the selector's family as a host prefix, and true,
+// when the selector contains it. The family is read from the mask length, as sameFamily
+// does, so an IPv4-mapped IPv6 selector is of the IPv6 family and is never given the
+// IPv4 lease. A selector with no prefix contains nothing.
+func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) {
+	if proposed == nil {
+		return nil, false
+	}
+	family := eap.FamilyIPv6
+	if len(proposed.Mask) == net.IPv4len {
+		family = eap.FamilyIPv4
+	}
+	addr, ok := grant.addr(family)
+	if !ok {
+		return nil, false
+	}
+	bits := len(proposed.Mask) * 8
+	host := &net.IPNet{IP: net.IP(addr.AsSlice()), Mask: net.CIDRMask(bits, bits)}
+	if !containsNet(proposed, host) {
+		return nil, false
+	}
+	return host, true
 }
 
 // buildCFGReply builds the CFG_REPLY of a granted request.

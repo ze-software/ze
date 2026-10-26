@@ -64,5 +64,27 @@
     "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors",
     "producer-sha": "9873af9d7238100f",
     "break": "line 665: \"answerPairsMax)\" -\u003e \"1)\""
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_virtual_ip_subset_test.go::TestRFC7296VirtualIPAnsweredOnlyInsideTheProposal",
+    "unit-sha": "6d2dc1d5a23c2caf",
+    "claim-sha": "cd9b36a30fd8d0b6",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::leaseHostIn",
+    "producer-sha": "b7b13e734fd280f2",
+    "break": "line 296: \"!containsNet(proposed, host)\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_virtual_ip_subset_test.go::TestRFC7296VirtualIPAnsweredOnlyInsideTheProposal",
+    "unit-sha": "6d2dc1d5a23c2caf",
+    "claim-sha": "ae70c281e999a848",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::leaseHostIn",
+    "producer-sha": "b7b13e734fd280f2",
+    "break": "line 296: \"!containsNet(proposed, host)\" -\u003e \"false\""
   }
 ]

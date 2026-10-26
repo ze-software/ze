@@ -135,18 +135,20 @@ substitution is the identity.
 <!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors, observedLocalAddress, observedRemoteAddress -->
 <!-- source: internal/component/ike/engine/sa.go -- BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
 
-**A leased virtual IP replaces the peer's proposed TSi, after the NAT
+**A leased virtual IP narrows the peer's proposed TSi, after the NAT
 substitution and before the policy match.** For a responder SA that holds a
-lease from a remote-access pool, `substituteVirtualIP` swaps the proposed
-initiator selectors for the leased host addresses, inside
+lease from a remote-access pool, `substituteVirtualIP` narrows each proposed
+initiator selector that contains a leased host address to that host, inside
 `narrowChildSelectors`, so every caller of that entry point gets it: the direct
-and EAP IKE_AUTH, the childless path and CREATE_CHILD_SA. The SPD match then
-judges the lease, and the narrowed TSi names it, whatever inner address the peer
-proposed. Two peers that propose the same address therefore get two distinct
-remote selectors, which is the duplicate inner address RFC 3948 Section 5.1
-warns of. A proposed selector of a family the lease does not cover is dropped.
-A pool-bound SA that holds no lease, or whose lease matches no proposed family,
-is refused with TS_UNACCEPTABLE rather than narrowed to the proposal. The
+and EAP IKE_AUTH, the childless path, CREATE_CHILD_SA and a Child SA rekey. The
+SPD match then judges the lease, and the narrowed TSi names it. Two peers that
+request the same address therefore get two distinct remote selectors, which is
+the duplicate inner address RFC 3948 Section 5.1 warns of. A proposed selector
+that does not contain the lease of its family (read from the mask length, so an
+IPv4-mapped IPv6 range is IPv6) is dropped, because RFC 7296 Section 2.9 lets
+the answer be only "some subset of the initiator's proposal". A pool-bound SA
+that holds no lease, or whose proposal contains none of its leases, is refused
+with TS_UNACCEPTABLE rather than answered outside the proposal. The
 selectors of a peer bound to no pool pass through unchanged.
 
 <!-- source: internal/component/ike/engine/cp.go -- substituteVirtualIP -->

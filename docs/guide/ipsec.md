@@ -224,7 +224,10 @@ A `remote-access pool` serves the `site-to-site` peers whose `virtual-ip-pool` l
 names it. Such a peer must use `connection-type respond` and send a CFG_REQUEST in
 IKE_AUTH: Ze leases it an inner address no other live peer holds (RFC 3948 Section
 5.1), answers with a CFG_REPLY carrying the address and the pool's DNS servers, and
-narrows every Child SA of that IKE SA to the address. A bound peer that asks for no
+narrows every Child SA of that IKE SA to the address. The peer's proposed inner
+selector must contain that address, as a strongSwan client's 0.0.0.0/0 does: a
+Child SA proposing only other addresses is refused with TS_UNACCEPTABLE, because
+the answer may only narrow what the peer proposed. A bound peer that asks for no
 address is refused its Child SA with FAILED_CP_REQUIRED, and one Ze cannot serve
 with INTERNAL_ADDRESS_FAILURE; both keep the IKE SA. The address returns to the
 pool when the IKE SA ends, and the same peer gets it back on reconnect while it is

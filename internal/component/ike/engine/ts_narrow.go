@@ -616,9 +616,12 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// narrows exactly as it did before (ts_nat_substitute.go).
 	proposedI, proposedR = substituteResponderSelectors(sa, proposedI, proposedR)
 
-	// RFC 3948 Section 5.1: the lease replaces the peer's proposed inner selector (cp.go).
-	// It runs before the policy match, so the SPD lookup below judges the leased address
-	// and no Child SA of a pool-bound peer names an inner source the registry did not grant.
+	// RFC 3948 Section 5.1: the peer's proposed inner selector is narrowed to the lease,
+	// and a proposed selector that does not contain the lease is dropped, because RFC 7296
+	// Section 2.9 lets the answer be only a subset of the proposal (cp.go). It runs before
+	// the policy match, so the SPD lookup and the rekey floor below judge the leased
+	// address, and no Child SA of a pool-bound peer names an inner source the registry did
+	// not grant.
 	proposedI, err := substituteVirtualIP(sa, proposedI)
 	if err != nil {
 		return err

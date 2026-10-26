@@ -9,6 +9,7 @@ package engine
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"net/netip"
 	"testing"
@@ -243,10 +244,62 @@ func TestDNSAttributesSplitByFamily(t *testing.T) {
 	}
 }
 
-// TestRemoteSelectorIsLease checks AC-5: a peer that proposes and requests 10.1.2.3, which
-// lies outside the pool, gets a lease, and both the answered TSi and the recorded remote
-// selector name the lease, never 10.1.2.3.
+// cpAuthTSi is cpAuth with the initiator's proposed TSi replaced by tsi, so a test can
+// send IKE_AUTH a proposal the unconfigured initiator (which proposes the wildcard) would
+// not make.
+func cpAuthTSi(t *testing.T, ini, resp *SA, ps *PeerSession, tsi wire.TrafficSelector, cps ...*wire.PayloadCP) []wire.PayloadEntry {
+	t.Helper()
+	hdr := parseMsg(t, ini.LastSentMsg).Header
+	inner := mbDecrypt(t, resp, ini.LastSentMsg)
+	replaced := false
+	for i, e := range inner {
+		ts, ok := e.Payload.(*wire.PayloadTS)
+		if !ok || ts.TSPayloadType != wire.PayloadTypeTSi {
+			continue
+		}
+		inner[i] = wire.PayloadEntry{Payload: &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi,
+			TrafficSelectors: []wire.TrafficSelector{tsi}}}
+		replaced = true
+	}
+	if !replaced {
+		t.Fatal("the IKE_AUTH request carries no TSi payload to replace")
+	}
+	for _, cp := range cps {
+		inner = append(inner, wire.PayloadEntry{Payload: cp})
+	}
+	request, err := buildEncryptedMessageEx(ini, inner, hdr.MessageID, hdr.ExchangeType, hdr.Flags)
+	if err != nil {
+		t.Fatalf("buildEncryptedMessageEx: %v", err)
+	}
+	ps.handleAuthRequest(resp, parseMsg(t, request), request, nil, nil, slogutil.DiscardLogger())
+	if resp.State != StateEstablished {
+		t.Fatalf("responder state = %v, want established", resp.State)
+	}
+	return mbDecrypt(t, ini, resp.LastSentMsg)
+}
+
+// TestRemoteSelectorIsLease checks AC-5: a peer that requests 10.1.2.3, which lies outside
+// the pool, and proposes TSi 0.0.0.0/0 as strongSwan does before it knows its address,
+// gets a lease, and both the answered TSi and the recorded remote selector name the lease,
+// never 10.1.2.3. A peer that proposes TSi 10.1.2.3/32 itself, which does not contain the
+// lease, is answered TS_UNACCEPTABLE with no TSi, because RFC 7296 Section 2.9 lets the
+// answer be only a subset of the proposal; its IKE SA stays established.
 func TestRemoteSelectorIsLease(t *testing.T) {
+	t.Run("own address proposed", func(t *testing.T) {
+		vip := cpVIP(t, cpPool())
+		ini, resp, ps := cpResponder(t, vip, "ze", true)
+		self := wire.TrafficSelector{TSType: wire.TSTypeIPv4AddrRange, EndPort: 65535,
+			StartAddress: []byte{10, 1, 2, 3}, EndAddress: []byte{10, 1, 2, 3}}
+		answer := cpAuthTSi(t, ini, resp, ps, self, cfgRequest(ip4Ask(netip.MustParseAddr("10.1.2.3"))))
+		if !notifyIn(answer, wire.NotifyTSUnacceptable) {
+			t.Fatal("a TSi of 10.1.2.3/32, outside the lease, was not answered TS_UNACCEPTABLE")
+		}
+		for _, e := range answer {
+			if ts, ok := e.Payload.(*wire.PayloadTS); ok {
+				t.Fatalf("a refused Child SA answered a TS payload %+v", ts)
+			}
+		}
+	})
 	vip := cpVIP(t, cpPool())
 	ini, resp, ps := cpResponder(t, vip, "ze", true)
 	answer := cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.MustParseAddr("10.1.2.3"))))
@@ -694,8 +747,10 @@ func TestIKERekeyKeepsLease(t *testing.T) {
 }
 
 // TestCreateChildUsesLease checks AC-7b at narrowChildSelectors, the entry CREATE_CHILD_SA
-// and both Child rekey paths share: a leased SA's later Child SA proposing 10.1.2.3 is
-// narrowed to the lease.
+// and both Child rekey paths share: a leased SA's later Child SA proposing TSi 0.0.0.0/0
+// beside its own pre-lease address 10.1.2.3 is narrowed to the lease, and one proposing
+// only 10.1.2.3, which does not contain the lease, is refused with TS_UNACCEPTABLE
+// (RFC 7296 Section 2.9 lets the answer be only a subset of the proposal).
 func TestCreateChildUsesLease(t *testing.T) {
 	vip := cpVIP(t, cpPool())
 	ini, resp, ps := cpResponder(t, vip, "ze", true)
@@ -705,13 +760,27 @@ func TestCreateChildUsesLease(t *testing.T) {
 		StartAddress: []byte{10, 1, 2, 3}, EndAddress: []byte{10, 1, 2, 3}}
 	any4 := wire.TrafficSelector{TSType: wire.TSTypeIPv4AddrRange, EndPort: 65535,
 		StartAddress: []byte{0, 0, 0, 0}, EndAddress: []byte{255, 255, 255, 255}}
-	tsi := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{self}}
+	tsi := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{self, any4}}
 	tsr := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSr, TrafficSelectors: []wire.TrafficSelector{any4}}
 	if err := narrowChildSelectors(resp, tsi, tsr, nil); err != nil {
 		t.Fatalf("narrowChildSelectors: %v", err)
 	}
 	if !resp.NegotiatedTSi.IP.Equal(net.IP(lease.AsSlice())) {
 		t.Fatalf("second Child SA names %v, want the lease %v", resp.NegotiatedTSi, lease)
+	}
+	for _, p := range resp.NegotiatedPairs {
+		if !p.I.Net.IP.Equal(net.IP(lease.AsSlice())) {
+			t.Fatalf("second Child SA answers TSi %v beside the lease %v", p.I.Net, lease)
+		}
+	}
+
+	resp.NegotiatedPairs = nil
+	tsi = &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{self}}
+	if err := narrowChildSelectors(resp, tsi, tsr, nil); !errors.Is(err, errTSUnacceptable) {
+		t.Fatalf("a Child SA proposing only 10.1.2.3, outside the lease %v: err=%v, want TS_UNACCEPTABLE", lease, err)
+	}
+	if len(resp.NegotiatedPairs) != 0 {
+		t.Fatalf("recorded %s for a proposal that does not contain the lease", pairsText(resp.NegotiatedPairs))
 	}
 }
 
