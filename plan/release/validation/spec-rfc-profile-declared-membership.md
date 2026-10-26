@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | The release profiles' coverage figures are what the first release is judged against. `./le rfc tree profile route-server` reports mandatory 909 of 2246 (40.5%) over 133 RFCs because membership follows normative citations into PPP, CHAP, DHCP, TFTP, IS-IS, DNSSEC, GRE, IKEv2, ESP, AH, MPLS, LDP and OSPF. The published figure is false, and the release gate it feeds is unreachable for a reason that is not a Ze defect |
@@ -572,3 +572,138 @@ The aggregate column is a proposal that `ze-rfc` confirms.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-rfc-profile-declared-membership.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Owner rules: 1e7a9dbc34 and 38a3281ae1 (`ai/META-DECISIONS.md`, Goal and scope).
+- Phase 1: the 36 missing summaries, each with `rfc/extraction/<stem>.json` (for example 40bdca6189, 7d6491ada9), then the test passes that tagged and recorded their MUST rows: 7ce04086e1 (RFC 3162, 4861, 7084), e1467639d8 (IKE: RFC 8247, 8221, 4106, 7634, 5998), d49d3a5bc5 (RFC 5280). 89dccb73fe turned declined rows into gaps where no owner ruling names them.
+- Phases 2-5 in 36a89bf4c6: `Use cases` / `Optional use cases` Meta rows parsed and refused by `ParseMeta` and `checkUseCases` (`internal/le/rfc/meta.go`); `Roots` and `Absent` retired and refused (`parseUseCase`, `profile.go`); `useCaseScope` builds two declared tiers with no edge followed (`priority.go`); the absent state deleted (`profilecoverage.go`); the optional section and the candidates list in `tree.go` and `next.go`; AC-5 and AC-6 findings (`check_core.go`); the roadmap reads `rfc/short` and `rfc/profiles` only (`rfcDirs`, `roadmap/profiles.go`; `readRoadmapCorpus`); the site profile pages (`site/rfcprofiles.go`); help text (`actions.go`); both rows written into all 240 summaries; `Roots` deleted from the eight profiles.
+- Review fixes in 5e84b24cb5: the tier is a bool read through `profileScope.tier`, so the two BUG panics go; `ProfileMembers`/`ProfileTiers` replaced by `requiredMembers` (`roadmapcorpus.go`); stale comments and two doc attributions corrected; `TestRouteServerProfileExcludesCitationClosure` asserts both route-server tiers exactly; RFC 7454 extraction sign-off.
+- Closure (commit A): the 14 summaries whose Enrolment reason cited this spec by path now cite their own `Optional use cases` row (RFC 4034 cites the bare stem); RFC7296-3.6-2 audit verdict re-judged after d49d3a5bc5 added a comment-only RFC 5280 tag inside its test unit.
+
+### Bugs Found/Fixed
+- Product fixes in the Phase 1 test passes, each with its tagged test: `Root.IssueLeafFor` refuses a leaf CN equal to the CA's (`pki/rfc5280_ca_profile_test.go`); the self-signed web certificate never draws serial 0 (`selfcert/rfc5280_alt_name_only_test.go` and the serial test). Defects walked into are journal rows owned by `plan/release/fixes/spec-rfc4861-ze-owned-must-gaps.md`, `plan/release/fixes/spec-ike-rfc8247-mandatory-algorithms.md` and `plan/post-release/features/spec-ike-eap-only-authentication.md`.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md` (profiles, coverage figures, dependency graph, priority tree), `docs/contributing/rfc-implementation-guide.md`, `docs/contributing/gh-pages.md`, `docs/contributing/spec-workflow.md`, `docs/architecture/site-facts.md`, `ai/skills/ze-rfc.md`: all in 36a89bf4c6; two attributions corrected in 5e84b24cb5.
+- `./le doc check all` at closure: exit 1. Its failures are outside this spec's files (journal/digest sections pass; see Pre-Commit Verification).
+
+### Deviations from Plan
+- `ProfileClosures` was first replaced by an exported `ProfileMembers` answering both tiers; review found the optional half had no production reader, so it became the unexported `requiredMembers`, and tests read both tiers through `useCaseTiers` over the same scope.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | d49d3a5bc5 added an RFC 5280 tag comment inside `TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured`, which staled the RFC7296-3.6-2 audit verdict | any byte change inside a judged unit stales its verdict, comments included | `./le rfc check` at closure | re-judged at closure (`rfc/audit/rfc7296/RFC7296-3.6-2.json`, verdict unchanged) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal 1: every listed RFC has a valid summary | Done | 36 `rfc/short/` + `rfc/extraction/` files | all eight profiles report 0 not walked |
+| Goal 2: two declared tiers in each summary's Meta | Done | `meta.go` `ParseMeta`, `checkUseCases` | 240 summaries carry both rows |
+| Goal 3: closure, `Roots` and `Absent` deleted; graph orders and suggests candidates | Done | `priority.go`, `profile.go`, `tree.go` `candidates` | grep finds no `.Roots`/`.Absent`/`absentFigures` reader in `internal/le/rfc`, `site`, `spec` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseMetaUseCases`, `TestTreeProfileMembersAreDeclared` | path text `route-server: required by rfc/short/<stem>.md` |
+| AC-2 | Done | `TestParseMetaUseCasesRefusals` | |
+| AC-3 | Done | `TestUseCasesNamingUnknownProfileRefused` | |
+| AC-4 | Done | `TestTreeProfileMembersAreDeclared`, `TestTreeProfileListsCandidates`, `TestNextIgnoresUndeclaredCitations` | |
+| AC-5 | Done | `TestEmptyUseCaseProfileRefused`, `TestRollupNeverCompleteWithUnwalkedOrEmpty` | |
+| AC-6 | Done | `TestUpdatedByMarkerRequiresUpdaterListed` | |
+| AC-7 | Done | `TestProfileRetiredFieldsRefused` | |
+| AC-8 | Done | `TestTreeOptionalTierNotCounted` | |
+| AC-9 | Done | `TestNextOptionalSectionSeparate` | |
+| AC-10 | Done | `TestRFCProfilePagesRendered` | |
+| AC-11 | Done | `TestEveryProfileMemberHasASummary`, `TestRouteServerProfileExcludesCitationClosure`, `./le rfc tree profile route-server` | |
+| AC-12 | Done | `TestRoadmapProfilesColumnFromRFCGaps`, `TestRoadmapDigestCoversTheRFCCorpus`; `rfcDirs` | |
+| AC-13 | Done | `TestTreeProfileMembersAreDeclared` (whole-corpus rows, `optional-profiles`) | |
+| AC-14 | Done | `TestHelpDescribesDeclaredMembership` | |
+| AC-15 | Done | `./le rfc check` at closure names none of the 36 Phase 1 stems with a Meta, row-quote or extraction problem | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| all 20 named tests | Done | `internal/le/rfc/{meta,profile,tree,next,check_core,priority_export,profilecoverage,roadmapcorpus,actions}_test.go`, `internal/le/site/rfcprofiles_test.go` | each `func` found by grep at closure; packages pass |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify / Files to Create | Done | 36a89bf4c6, 5e84b24cb5 and the Phase 1 commits |
+
+### Audit Summary
+- **Total items:** 3 goals, 15 ACs, 20 tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`ProfileMembers` became `requiredMembers`, in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Every RFC a profile lists has a valid summary | command output over the real corpus | `./le rfc tree profile <p>` for all eight use cases ends `0 not walked` in both tiers; `TestEveryProfileMemberHasASummary` passes over the checkout; the 36 stems each have `rfc/short/` and `rfc/extraction/` files |
+| 2. Membership declared in two tiers, optional never counted | command output + test | route-server: `mandatory 181 of 395 (45.8%), optional 15 of 221 (6.8%); 24 RFCs, 0 not walked`, then a separate `optional members, not counted: mandatory 57 of 97 (58.8%) ...; 12 RFCs, 0 not walked`. `TestTreeOptionalTierNotCounted` proves the required figure is unchanged with and without optional members |
+| 3. Citation closure deleted; graph only orders and suggests | command output + test | Before: route-server mandatory 909 of 2246 (40.5%) over 133 RFCs. After: 24 declared RFCs. No PPP, CHAP, DHCP, TFTP, IS-IS, DNSSEC, GRE, IKEv2, ESP, AH, MPLS, LDP or OSPF row in either tier (grep of the tier rows: 0 hits); rfc2003, rfc2784, rfc4301, rfc4364, rfc8277 appear only under `candidates, not owed`. `TestRouteServerProfileExcludesCitationClosure` asserts both tiers equal the Population lists |
+| Release profiles' figures (`./le rfc next`) | command output | six release profiles together: mandatory 862 of 1903 (45.3%), optional 32 of 772 (4.1%); 67 RFCs, 0 not walked; optional tier apart: mandatory 79 of 429 (18.4%), 30 RFCs. Per profile (required tier): route-server 181/395 (45.8%), route-collector 196/360 (54.4%), looking-glass 159/307 (51.8%), vpn-endpoint 229/545 (42.0%), lns 256/458 (55.9%), fttx-edge 322/747 (43.1%) |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met; MUST-row gaps found during the Phase 1 walks are product work already homed | `plan/release/fixes/spec-rfc4861-ze-owned-must-gaps.md`, `plan/release/fixes/spec-ike-rfc8247-mandatory-algorithms.md`, `plan/post-release/features/spec-ike-eap-only-authentication.md` |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the commit A body) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: independent ze-review of 36a89bf4c6 (logic, wiring, stale comments, docs, style); round 2: closing agent over 5e84b24cb5 (the fixes, style pass: the diff removes two `panic` calls and adds none) and the closure edits |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | a three-value tier enum with an unspecified zero value guarded by `panic("BUG: ...")` in `nextGap` and `profileScope.path` | `next.go`, `priority.go` | 5e84b24cb5: `profileScope.tier(optional bool)`, no panic |
+| 2 | ISSUE | `ProfileMembers`/`ProfileTiers.Optional` exported with no production reader beyond the roadmap's required half | `priority_export.go` | 5e84b24cb5: `requiredMembers` in `roadmapcorpus.go` |
+| 3 | ISSUE | stale comments and two doc attributions; route-server membership test did not pin the tiers exactly | `priority.go`, `profile.go`, `rfc-conformance-gates.md`, `profile_test.go` | 5e84b24cb5 |
+
+Round 2: 0 BLOCKER, 0 ISSUE. NOTE: the optional rollup of a profile whose optional members carry no rows prints `mandatory complete` (ddos-flowspec, `1 RFCs`); it is the optional tier, which never counts, so AC-5 is unaffected.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| 36 Phase 1 `rfc/short/<stem>.md` + `rfc/extraction/<stem>.json` | Yes | loop over the 36 stems printed no MISSING line |
+| summaries with both rows | Yes | `grep -L '^| Use cases |' rfc/short/*.md` and the `Optional use cases` variant: 0 files each, over 240 summaries |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-15 | package tests | `./le job run ... go test -count=1 ./internal/le/rfc/ ./internal/le/spec/roadmap/`: `ok internal/le/rfc 99.843s`, `ok internal/le/spec/roadmap 1.991s`; `go test -run TestRFCProfilePagesRendered ./internal/le/site/`: ok |
+| AC-7 | no retired field | `grep -lE '^\| (Roots|Absent) \|' rfc/profiles/*.md`: nothing |
+| AC-12 | two directories | `var rfcDirs = []string{"rfc/short", "rfc/profiles"}` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc tree profile route-server`, `./le rfc next` on the checkout | none (le tooling; package tests over fixture trees) | run at closure, output in Goal Validation |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | owner direction quoted in Task |
+| A-2 | confirmed | `TestUpdatedByMarkerRequiresUpdaterListed`; unmarked updaters (rfc7705, rfc8538, rfc8642, rfc8810) show under route-server candidates |
+| A-3 | confirmed | spec approved by the owner with both rows mandatory; 240 summaries carry them |
+| A-4 | confirmed | Population approved with the spec; `TestRouteServerProfileExcludesCitationClosure` pins route-server to it |
+| A-5 | confirmed | `Roots`/`Absent` deleted from `UseCase`; grep for `.Roots`, `.Absent`, `absentFigures` in `internal/le/rfc`, `site`, `spec` finds only `site/plugins.go` config-group roots, unrelated |
+| A-6 | confirmed | all 36 walked: every profile reports 0 not walked |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #9 RFC, #10 test infrastructure, #12 architecture, #16 anchors, #17 examples | the pages named in Documentation Updates changed in 36a89bf4c6 and 5e84b24cb5 against `ParseMeta`, `useCaseScope`, `rfcDirs`, `renderRFCProfiles` | Yes |
+| citers of this spec | `git grep 'release/validation/spec-rfc-profile-declared-membership'` outside the spec: 0 after the closure edit | Yes |
