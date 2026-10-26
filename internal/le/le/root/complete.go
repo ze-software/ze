@@ -57,6 +57,11 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 			if list.PassesWords {
 				return nil, nil
 			}
+			// A verbless area's words are its sole action's grammar, from
+			// the first one on (leaction.List.Verbless).
+			if list.Verbless() {
+				return afterVerb(list.Actions[0], typed[index:], partial)
+			}
 			row, held := rowOf(list, word)
 			if !held {
 				return nil, unknownWord(path, word)
@@ -73,6 +78,9 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 	name := strings.Join(path, " ")
 	if list, declared := ActionsOf(name); declared && name != "" && list.PassesWords {
 		return nil, nil
+	}
+	if list, declared := ActionsOf(name); declared && name != "" && list.Verbless() {
+		return afterVerb(list.Actions[0], nil, partial)
 	}
 	return withPrefix(childrenOf(node), partial), nil
 }

@@ -195,7 +195,13 @@ func (r Reference) writeCommands(tb *textbuf.Buffer) {
 			tb.Str("  <words>...  passed to ").Str(command.PassesTo).Byte('\n')
 		}
 		for _, action := range command.Actions {
-			tb.Str("  ").Str(action.Verb).Str("  ").Str(action.ShortHelp).Byte('\n')
+			// A verbless action (an area's sole action, run by the bare
+			// area line) has no verb word to print.
+			tb.Str("  ")
+			if action.Verb != "" {
+				tb.Str(action.Verb).Str("  ")
+			}
+			tb.Str(action.ShortHelp).Byte('\n')
 			writeDescription(tb, "      ", action.Description)
 			for _, parameter := range action.Parameters {
 				writeParameter(tb, parameter)

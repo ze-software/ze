@@ -140,7 +140,7 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	if current, ok := payload.(currentReport); code != 0 || !ok || current.Spec != "" {
 		t.Fatalf("current before claim = (%#v, %d)", payload, code)
 	}
-	payload, code = Claim([]string{"spec", "plan/post-release/engineering/spec-a.md"})
+	payload, code = Claim([]string{"plan/post-release/engineering/spec-a.md"})
 	if claim, ok := payload.(ClaimReport); code != 0 || !ok || !claim.Transitioned {
 		t.Fatalf("claim = (%#v, %d)", payload, code)
 	}
@@ -177,8 +177,10 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	if payload, code = Release(nil); code != 0 {
 		t.Fatalf("release = (%#v, %d)", payload, code)
 	}
-	if _, code = Claim([]string{"spec-a.md"}); code != 2 {
-		t.Fatalf("claim accepted a value without the spec selector, code %d", code)
+	// `spec` before the file is the retired verb (D-P4-areaword): the
+	// verbless table reads it as the spec and refuses the second value.
+	if _, code = Claim([]string{"spec", "spec-a.md"}); code != 2 {
+		t.Fatalf("claim accepted the retired spec selector before a value, code %d", code)
 	}
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "../unreadable")
 	if payload, code = Model([]string{"current"}); code != 1 {

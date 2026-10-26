@@ -172,7 +172,7 @@ Thomas's to start").
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim spec <spec-name>`. Resolve its actual path through `./le spec status`, then read that path.
+1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim <spec-name>`. Resolve its actual path through `./le spec status`, then read that path.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.

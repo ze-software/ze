@@ -67,7 +67,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
    - Is there a simpler framing of the same goal?
 7. **GATE:** ASK user to confirm scope and direction. Present your concern alongside the recommendation. Do not proceed until confirmed.
 8. Create spec file with `Status: skeleton`
-9. Claim it for this session: `./le spec claim spec <spec-file>`
+9. Claim it for this session: `./le spec claim <spec-file>`
 
 ---
 

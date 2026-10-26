@@ -66,6 +66,14 @@ func TestDerivedTreeHoldsEveryRegisteredAction(t *testing.T) {
 			continue
 		}
 		for _, row := range list.Actions {
+			// A verbless action is the area's own node: its keywords and
+			// values sit on that node, and no child names it (D-P4-areaword).
+			if list.Verbless() {
+				if len(row.Parameters) != 0 && len(node.ArgDefs) == 0 && node.ValueHints == nil {
+					t.Errorf("area %q: the tree lacks the verbless action's grammar", area.Name)
+				}
+				continue
+			}
 			if node.Children[row.Verb] == nil {
 				t.Errorf("area %q: the tree lacks action %q", area.Name, row.Verb)
 			}

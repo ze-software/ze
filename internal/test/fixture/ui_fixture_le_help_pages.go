@@ -186,7 +186,7 @@ func leHelpPagesRefusals(run leHelpPagesRun, lePath, zePath string) error {
 		if err != nil {
 			return err
 		}
-		if refused.exitCode != 2 || !strings.Contains(refused.stderr, "usage: "+program.name+" spec claim spec <spec>") {
+		if refused.exitCode != 2 || !strings.Contains(refused.stderr, "usage: "+program.name+" spec claim <spec>") {
 			return fmt.Errorf("%s spec claim answered %d, stderr %q", program.name, refused.exitCode, refused.stderr)
 		}
 		if strings.Contains(refused.stderr, "release") {

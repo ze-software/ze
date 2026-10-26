@@ -228,7 +228,7 @@ func leMenuAndPromptClaim(ctx context.Context, dir string, env []string, lePath,
 	if err != nil {
 		return fmt.Errorf("prompt: %w", err)
 	}
-	echo := "running: le spec claim spec " + leMenuAndPromptSpec + "\n"
+	echo := "running: le spec claim " + leMenuAndPromptSpec + "\n"
 	_, after, echoed := strings.Cut(screen, echo)
 	if !echoed {
 		return fmt.Errorf("prompt: Enter did not echo %q:\n%s", echo, screen)

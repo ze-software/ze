@@ -37,7 +37,11 @@ func SetWholeTreeAdmission(admit func(commandLine string) error) (restore func()
 
 // Action is one callable row in an area's command table.
 type Action struct {
-	// Verb is the word a developer types.
+	// Verb is the word a developer types. An area's SOLE action may leave it
+	// empty, and the area word alone then names it: `le spec claim <file>`,
+	// `le rollback` (D-P4-areaword of spec-le-cli-usability). Such an action
+	// declares the vocabulary verb it performs in Does, and every surface
+	// renders it with no verb word (List.Verbless).
 	Verb string
 	// Summary is what the action does in one line of at most 60 characters:
 	// the menu's right column, the area page's listing, completion and the
@@ -105,8 +109,10 @@ func New(name string, actions ...Action) Area {
 	seen := make(map[string]bool, len(actions))
 	for _, act := range actions {
 		switch {
-		case act.Verb == "":
-			panic("BUG: leaction.New: an action needs a Verb; see the init frame above for the area")
+		case act.Verb == "" && len(actions) != 1:
+			panic("BUG: leaction.New: only an area's sole action may leave its Verb empty; see the init frame above for the area")
+		case act.Verb == "" && act.Does == "":
+			panic("BUG: leaction.New: a verbless action declares the vocabulary verb it performs in Does")
 		case answerCount(act) != 1:
 			panic("BUG: leaction.New: an action needs exactly one Answer, AnswerArgs or AnswerWords")
 		case act.AnswerWords != nil && len(act.Parameters) != 0:
@@ -151,6 +157,12 @@ func (a Area) Name() string { return a.name }
 // verbOf answers the word a developer types for one action.
 func (a Area) verbOf(act Action) string {
 	return act.Verb
+}
+
+// verbless reports whether the area word alone names this area's sole action
+// (Action.Verb).
+func (a Area) verbless() bool {
+	return len(a.actions) == 1 && a.actions[0].Verb == ""
 }
 
 // Holds reports whether this area declares the named action.
@@ -257,6 +269,25 @@ func (l List) PassesLine() string {
 		Str(", which reads and refuses it; a trailing help word asks it for its own help").String()
 }
 
+// Verbless reports whether the area word alone names this listing's sole
+// action, so every word after the area's name is that action's grammar and no
+// surface renders a verb word for it (Action.Verb).
+func (l List) Verbless() bool {
+	return len(l.Actions) == 1 && l.Actions[0].Verb == ""
+}
+
+// AtVerb answers words, the line after the area's name, as the line that
+// begins at the action's verb, which is what every method taking a verb and
+// its words reads. A verbless listing's line begins at the empty verb, so the
+// typed words are all the action's own; any other listing's line is words as
+// typed.
+func (l List) AtVerb(words []string) []string {
+	if !l.Verbless() {
+		return words
+	}
+	return append([]string{""}, words...)
+}
+
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
 func (a Area) Actions() List {
@@ -284,7 +315,7 @@ func (l List) Accepts(verb string, args []string) error {
 		if row.Verb != verb {
 			continue
 		}
-		_, err := parseArguments("le "+l.Area+" "+verb, row.Parameters, args)
+		_, err := parseArguments(spelled("le", l.Area, verb), row.Parameters, args)
 		return err
 	}
 	return errors.New("le " + l.Area + " holds no action " + verb)
@@ -301,7 +332,7 @@ func (l List) Missing(verb string, args []string) ([]Parameter, error) {
 		if row.Verb != verb {
 			continue
 		}
-		given, err := parseArguments("le "+l.Area+" "+verb, row.Parameters, args)
+		given, err := parseArguments(spelled("le", l.Area, verb), row.Parameters, args)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +361,7 @@ func (a Area) Parse(verb string, args []string) (Arguments, error) {
 		if a.verbOf(act) != verb {
 			continue
 		}
-		return parseLine(Program()+" "+a.name+" "+verb, act.Parameters, args)
+		return parseLine(spelled(Program(), a.name, verb), act.Parameters, args)
 	}
 	return nil, errors.New(Program() + " " + a.name + " holds no action " + verb)
 }
@@ -381,6 +412,7 @@ func (l List) TrailingWordAsksForHelp(args []string) bool {
 	if l.PassesWords {
 		return false
 	}
+	args = l.AtVerb(args)
 	for _, row := range l.Actions {
 		if row.Verb != args[0] {
 			continue
@@ -488,10 +520,31 @@ func IsHelpArg(word string) bool {
 	return word == helpWord || word == "--help" || word == "-h" || word == "-help"
 }
 
+// spelled answers the words that name one action: the program, the area and
+// the verb, which a verbless action has none of (Action.Verb), so its line
+// never carries a doubled space.
+func spelled(program, area, verb string) string {
+	var tb textbuf.Buffer
+	tb.Str(program).Byte(' ').Str(area)
+	if verb != "" {
+		tb.Byte(' ').Str(verb)
+	}
+	return tb.String()
+}
+
 // Answer is the area's command. The action and each parameter are closed
 // keywords. A free-form value is consumed only after its parameter names it.
+//
+// A verbless area's line is its sole action's whole grammar, the bare line
+// included, so it runs that action; a lone help word still answers the
+// listing, which renders as that action's page (List.Page).
 func (a Area) Answer(args []string) (any, int) {
-	if len(args) == 0 || IsHelpArg(args[0]) {
+	if len(args) == 1 && IsHelpArg(args[0]) {
+		return a.Actions(), 0
+	}
+	if a.verbless() {
+		args = append([]string{""}, args...)
+	} else if len(args) == 0 {
 		return a.Actions(), 0
 	}
 
@@ -519,7 +572,7 @@ func (a Area) Answer(args []string) (any, int) {
 			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
-			parsed, err := parseLine(Program()+" "+a.name+" "+verb, act.Parameters, args[1:])
+			parsed, err := parseLine(spelled(Program(), a.name, verb), act.Parameters, args[1:])
 			if err != nil {
 				ReportError(err)
 				a.writeUsage(verb)
@@ -580,7 +633,7 @@ func (a Area) refuseVerb(got string) int {
 // parameter can introduce a value (ai/rules/cli.md).
 func (a Area) refuseValue(verb, got string) int {
 	var tb textbuf.Buffer
-	tb.Str("error: ").Str(a.name).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(spelled("", a.name, verb)[1:]).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	a.writeUsage(verb)
 	return 2
 }

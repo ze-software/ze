@@ -67,6 +67,10 @@ var renames = []Rename{
 	{Retired: "spec session", RetiredAction: "review", Command: "spec review"},
 	{Retired: "spec session", RetiredAction: "state", Command: "spec state"},
 	{Retired: "spec session", RetiredAction: "wip", Command: "spec wip"},
+	// The area word became the whole command (D-P4-areaword): a value spelled
+	// `spec` is the retired verb, since a spec path ends in .md.
+	{Retired: "spec claim spec", Command: "spec claim"},
+	{Retired: "rollback newest", Command: "rollback"},
 	{Retired: "journal", Command: "spec journal"},
 	{Retired: "evidence", Command: "verify evidence"},
 	{Retired: "go-extract", Command: "go extract"},

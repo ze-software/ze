@@ -64,7 +64,7 @@ func requireEveryItemHasText(roots []registry.RootCommand) {
 // requireRowHasText refuses the first blank text of one action row: its Why,
 // a live parameter's Help, then each declared value's line.
 func requireRowHasText(area string, row leaction.Row) {
-	action := area + " " + row.Verb
+	action := strings.TrimSuffix(area+" "+row.Verb, " ") // a verbless action names no verb
 	requireShort(area, "action \""+action+"\"", "Summary", row.Summary,
 		"fill Summary in its leaction.Action, saying in one line what the action does")
 	if blank(row.Why) {

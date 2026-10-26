@@ -100,6 +100,12 @@ func PageWidth(file *os.File) int {
 // writes marker in brackets, then the action's declared Summary. A
 // pass-through area's usage takes its program's words, not an action.
 func (l List) Page(program string) helpfmt.Page {
+	// The area word alone names a verbless listing's action, so the area's
+	// page is that action's page (Action.Verb).
+	if l.Verbless() {
+		page, _ := l.ActionPage(program, "")
+		return page
+	}
 	var tb textbuf.Buffer
 	command := tb.Str(program).Byte(' ').Str(l.Area).String()
 	tb.Reset()
@@ -163,8 +169,22 @@ func (l List) row(verb string) (Row, bool) {
 // grammar, under the program name the reader typed.
 func (l List) usageLine(program string, row Row) string {
 	var tb textbuf.Buffer
-	tb.Str(program).Byte(' ').Str(l.Area).Byte(' ').Str(rowGrammar(row))
+	tb.Str(program).Byte(' ').Str(l.Area)
+	if grammar := rowGrammar(row); grammar != "" {
+		tb.Byte(' ').Str(grammar)
+	}
 	return tb.Str(renderings).String()
+}
+
+// commandOf answers the words that name one action under the program name:
+// the area, then the verb, which a verbless action has none of (Action.Verb).
+func (l List) commandOf(program string, row Row) string {
+	var tb textbuf.Buffer
+	tb.Str(program).Byte(' ').Str(l.Area)
+	if row.Verb != "" {
+		tb.Byte(' ').Str(row.Verb)
+	}
+	return tb.String()
 }
 
 // Grammar answers the line one action takes after the area's name, its verb
@@ -180,17 +200,22 @@ func (l List) Grammar(verb string) (string, bool) {
 	return rowGrammar(row), true
 }
 
-// rowGrammar renders a row's verb and its keyword forms.
+// rowGrammar renders a row's verb and its keyword forms. A verbless row
+// (Action.Verb) starts at its first keyword form, and one that takes nothing
+// renders empty.
 func rowGrammar(row Row) string {
-	var tb textbuf.Buffer
-	tb.Str(row.Verb)
+	words := make([]string, 0, len(row.Parameters)+2)
+	if row.Verb != "" {
+		words = append(words, row.Verb)
+	}
 	for _, parameter := range row.Parameters {
-		tb.Byte(' ').Str(parameterForm(parameter))
+		words = append(words, parameterForm(parameter))
 	}
 	if row.Forwards {
-		tb.Byte(' ').Str(passedWords)
+		words = append(words, passedWords)
 	}
-	return tb.String()
+	var tb textbuf.Buffer
+	return tb.Join(words, " ").String()
 }
 
 // ActionPage answers one action's page: its whole purpose, its usage line, and
@@ -205,9 +230,8 @@ func (l List) ActionPage(program, verb string) (helpfmt.Page, bool) {
 	if !held {
 		return helpfmt.Page{}, false
 	}
-	var tb textbuf.Buffer
 	page := helpfmt.Page{
-		Command:     tb.Str(program).Byte(' ').Str(l.Area).Byte(' ').Str(row.Verb).String(),
+		Command:     l.commandOf(program, row),
 		ShortHelp:   row.Summary,
 		Description: row.Why,
 		Usage:       []string{l.usageLine(program, row)},
@@ -247,8 +271,7 @@ func (l List) KeywordPage(program, verb, keyword string) (helpfmt.Page, error) {
 		var tb textbuf.Buffer
 		return helpfmt.Page{}, errors.New(tb.Str(l.Area).Str(" has no action ").Quoted(verb).String())
 	}
-	var tb textbuf.Buffer
-	command := tb.Str(program).Byte(' ').Str(l.Area).Byte(' ').Str(row.Verb).String()
+	command := l.commandOf(program, row)
 	for _, parameter := range row.Parameters {
 		if parameter.Keyword != keyword {
 			continue
@@ -264,7 +287,7 @@ func (l List) KeywordPage(program, verb, keyword string) (helpfmt.Page, error) {
 	for _, parameter := range row.Parameters {
 		names = append(names, slotForm(parameter))
 	}
-	tb.Reset()
+	var tb textbuf.Buffer
 	tb.Str(command).Str(": ").Err(errNoSuchKeyword).Byte(' ').Quoted(keyword).Str("; it takes: ")
 	if len(names) == 0 {
 		tb.Str("no keywords")

@@ -25,10 +25,9 @@ import (
 // the bodies it runs, so the table is the only parser of its line. A member
 // whose bare line does one thing (current, claim, release, wip) still does it
 // when bare: hooks and skills call it that way, and a bare listing would answer
-// them 0 with nothing done. The spellings callers type are kept until the
-// rename phase of plan/post-release/engineering/spec-le-cli-usability.md, so
-// `spec claim spec <spec>` is the action `spec` with the spec file as its
-// positional value.
+// them 0 with nothing done. `spec claim <spec>` is a verbless action: the area
+// word is the whole command and the spec file its positional value
+// (D-P4-areaword of plan/post-release/engineering/spec-le-cli-usability.md).
 
 // The value slots the review and state grammars name more than once.
 const (
@@ -48,10 +47,13 @@ func CurrentArea() leaction.Area {
 	})
 }
 
-// ClaimArea is `le spec claim spec <spec>`: this session takes the spec.
+// ClaimArea is `le spec claim <spec>`: this session takes the spec.
 func ClaimArea() leaction.Area {
+	// The area word is the whole command, `le spec claim <file>` (D-3): the
+	// one action is verbless and performs the vocabulary verb claim
+	// (D-P4-areaword).
 	return leaction.New("spec claim", leaction.Action{
-		Verb:    keywordSpec,
+		Does:    "claim",
 		Summary: "claim a spec for this session",
 		Why:     "claim a spec for this session and move a ready spec to in-progress",
 		Parameters: []leaction.Parameter{{
@@ -221,11 +223,11 @@ func Current(args []string) (any, int) {
 	return CurrentArea().Answer(bareRuns(args, verbShow))
 }
 
-// Claim is the `le spec claim` command. A bare line reaches the `spec` action,
-// whose body refuses it with claim's own usage, so the refusal names no other
-// member of the namespace.
+// Claim is the `le spec claim` command. Its one action is verbless, so a bare
+// line reaches it and its parser refuses the missing spec with claim's own
+// usage, naming no other member of the namespace.
 func Claim(args []string) (any, int) {
-	return ClaimArea().Answer(bareRuns(args, keywordSpec))
+	return ClaimArea().Answer(args)
 }
 
 // Release is the `le spec release` command. A bare line releases the claim.

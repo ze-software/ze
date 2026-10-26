@@ -294,6 +294,9 @@ func helpAsked(program string, words []string) int {
 		return refuseHelp(program, name, tb.Str("passes its words to ").Str(list.PassesTo).
 			Str(", so `").Str(program).Byte(' ').Str(name).Str(" <words> --help` asks it, and le's page for it is").String())
 	}
+	// A verbless area's words are its sole action's own, so they are read
+	// from the empty verb on (leaction.List.AtVerb).
+	own = list.AtVerb(own)
 	switch len(own) {
 	case 1:
 		return writeActionPage(program, name, list, own[0])
@@ -444,6 +447,12 @@ func areaPage(program, name string) helpfmt.Page {
 	page := helpfmt.Page{Command: command, ShortHelp: meta.ShortHelp, Description: meta.Description}
 	list, declared := ActionsOf(name)
 	switch {
+	case declared && list.Verbless():
+		// The area word alone names the action, so the area's page is the
+		// action's: its usage and its keywords (D-P4-areaword).
+		action := list.Page(program)
+		page.Usage = action.Usage
+		page.Sections = append(page.Sections, action.Sections...)
 	case declared && !list.PassesWords:
 		page.Usage = list.Page(program).Usage
 		page.Sections = append(page.Sections, list.Section())

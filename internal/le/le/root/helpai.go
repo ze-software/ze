@@ -178,6 +178,10 @@ func fillVerbs(ref *reference.Reference, program string) {
 	used := map[string]int{}
 	for _, area := range manifestOf(program).Areas {
 		for _, row := range area.Actions {
+			// A verbless action has no word to count (leaction.List.Verbless).
+			if row.Verb == "" {
+				continue
+			}
 			used[row.Verb]++
 		}
 	}

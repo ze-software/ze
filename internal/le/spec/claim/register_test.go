@@ -38,7 +38,7 @@ func TestClaimWithoutASpecRefusesWithClaimsUsageOnly(t *testing.T) {
 	if code != 2 {
 		t.Errorf("a claim with no spec answered %d, want 2", code)
 	}
-	if !strings.Contains(stderr, "\nusage: le spec claim spec <spec> [| json | yaml | table]\n") {
+	if !strings.Contains(stderr, "\nusage: le spec claim <spec> [| json | yaml | table]\n") {
 		t.Errorf("the refusal does not carry claim's usage line:\n%s", stderr)
 	}
 	for _, sibling := range []string{"release", "wip", "state", "model", "review", "current"} {

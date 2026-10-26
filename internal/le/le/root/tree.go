@@ -47,6 +47,14 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 			node.Description = list.PassesLine()
 			continue
 		}
+		// The area word alone names a verbless action, so the area's own
+		// node takes the action's keywords and values (D-P4-areaword).
+		if list.Verbless() {
+			action := actionNode(list.Actions[0])
+			node.ArgDefs = action.ArgDefs
+			node.ValueHints = action.ValueHints
+			continue
+		}
 		for _, row := range list.Actions {
 			if _, taken := node.Children[row.Verb]; taken {
 				panic("BUG: leroot.Tree: an action of " + area.Name + " is spelled like an area under it: " + row.Verb)

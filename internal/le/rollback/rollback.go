@@ -20,18 +20,17 @@ import (
 // area is the le command this package registers.
 const area = "rollback"
 
-// newestVerb is the one action: set the newest build aside. A bare
-// `le rollback` means it, so the bare line and the explicit one are one action.
-const newestVerb = "newest"
-
 // codeUsage is the exit code of a line le cannot act on where it runs, the
 // code a parse refusal answers, so a caller reads it apart from work that ran
 // and failed.
 const codeUsage = 2
 
 var actions = leaction.New(area,
+	// The area word is the whole command, as the launcher reads it: the one
+	// action is verbless and performs the vocabulary verb rollback
+	// (D-P4-areaword, D-P4-launcher).
 	leaction.Action{
-		Verb:    newestVerb,
+		Does:    "rollback",
 		Summary: "set the newest le build aside",
 		Why:     "set the newest le build aside so the previous one runs; use when the newest misbehaves",
 		Writes:  true,
@@ -45,18 +44,10 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le rollback` command. A help word or a declared verb travels
-// as typed; any other line, the bare one included, is the newest action, so
-// one parser reads it and a stray value is refused by the table.
+// Answer is the `le rollback` command. The table's one action is verbless, so
+// the bare line runs it and a stray value is refused by the table.
 func Answer(args []string) (any, int) {
-	if len(args) > 0 && (actions.Holds(args[0]) || leaction.IsHelpArg(args[0])) {
-		return actions.Answer(args)
-	}
-
-	line := make([]string, 0, len(args)+1)
-	line = append(line, newestVerb)
-	line = append(line, args...)
-	return actions.Answer(line)
+	return actions.Answer(args)
 }
 
 // answerNewest refuses: this build was started without the launcher, so it

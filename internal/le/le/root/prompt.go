@@ -65,7 +65,8 @@ func fillLine(program, name string, toolArgs []string, echo bool) (filled, error
 		if err != nil {
 			return filled{}, err
 		}
-		toolArgs = append(append([]string{verb}, line...), tail...)
+		// A verbless action's verb is the empty word, which is never typed.
+		toolArgs = append(append(strings.Fields(verb), line...), tail...)
 	}
 	if echo || len(missing) != 0 {
 		echoLine(program, name, toolArgs)
@@ -88,6 +89,7 @@ func missingIn(name string, own []string) (string, []string, []leaction.Paramete
 	if list.PassesWords {
 		return "", nil, nil
 	}
+	own = list.AtVerb(own)
 	if len(own) == 0 {
 		if len(list.Actions) != 1 {
 			return "", nil, nil
@@ -115,14 +117,14 @@ func askMissing(program, name, verb string, rest []string, missing []leaction.Pa
 	line := slices.Clone(rest)
 	for _, parameter := range missing {
 		if parameter.Keyword == "" {
-			words, err := askOne(program, parameter, parameter.Value, append(strings.Fields(name), verb))
+			words, err := askOne(program, parameter, parameter.Value, append(strings.Fields(name), strings.Fields(verb)...))
 			if err != nil {
 				return nil, err
 			}
 			line = append(words, line...)
 			continue
 		}
-		before := append(append(append(strings.Fields(name), verb), line...), parameter.Keyword)
+		before := append(append(append(strings.Fields(name), strings.Fields(verb)...), line...), parameter.Keyword)
 		words, err := askOne(program, parameter, parameter.Value, before)
 		if err != nil {
 			return nil, err

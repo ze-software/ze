@@ -32,7 +32,8 @@ func TestRefusalNamesTheLauncherCommand(t *testing.T) {
 // PREVENTS: a bare `le rollback` from a build answering the action listing
 // with 0, which a caller reads as a rollback that happened.
 func TestEveryLineRefusesExceptHelp(t *testing.T) {
-	for _, line := range [][]string{nil, {newestVerb}, {"stray"}, {newestVerb, "stray"}} {
+	// `newest` is the retired verb, a stray value to the verbless table now.
+	for _, line := range [][]string{nil, {"newest"}, {"stray"}, {"newest", "stray"}} {
 		payload, code := Answer(line)
 		if code != 2 {
 			t.Errorf("le rollback %v answered %d, want 2", line, code)
@@ -49,8 +50,8 @@ func TestEveryLineRefusesExceptHelp(t *testing.T) {
 	if !ok {
 		t.Fatalf("le rollback help answered %T, want the action listing", payload)
 	}
-	if len(list.Actions) != 1 || list.Actions[0].Verb != newestVerb {
-		t.Errorf("le rollback help listed %+v, want the one %q action", list.Actions, newestVerb)
+	if len(list.Actions) != 1 || !list.Verbless() || list.Actions[0].Does != "rollback" {
+		t.Errorf("le rollback help listed %+v, want the one verbless action that does rollback", list.Actions)
 	}
 }
 
@@ -77,7 +78,7 @@ func TestCompletionOffersRollback(t *testing.T) {
 		want  string
 	}{
 		{[]string{"roll"}, area},
-		{[]string{area, ""}, newestVerb},
+		{[]string{area}, area},
 	} {
 		candidates, err := leroot.Complete(tc.words)
 		if err != nil {

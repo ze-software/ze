@@ -105,9 +105,17 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 		// the CODE is asserted here. An area CAN map a bare line onto one of
 		// its verbs, and the refusal then names the keyword rather than the
 		// action.
-		if _, code := probeAnswer(judged(t, tool.Name, handler), []string{probeWord}); code != refusalCode {
-			t.Errorf("area %q answered %d for a word naming no action, want %d: a line its table cannot read reached the area",
-				tool.Name, code, refusalCode)
+		// A verbless area's first word is its action's own value when the
+		// action takes a positional one (D-P4-areaword), so no word names "no
+		// action" there: its rows' probes below refuse the lines instead.
+		frontDoor := !list.Verbless() || len(list.Actions[0].Parameters) == 0 || list.Actions[0].Parameters[0].Keyword != ""
+		// The probe itself stays behind the flag: there the word would be a
+		// valid value and the action would run, and nothing here may run.
+		if frontDoor {
+			if _, code := probeAnswer(judged(t, tool.Name, handler), []string{probeWord}); code != refusalCode {
+				t.Errorf("area %q answered %d for a word naming no action, want %d: a line its table cannot read reached the area",
+					tool.Name, code, refusalCode)
+			}
 		}
 
 		reference := referenceArea(t, list)
@@ -147,7 +155,10 @@ func probesFor(row leaction.Row) [][]string {
 	// A positional value takes the first word after the verb, so a word naming
 	// no keyword is a stray only after it: `commit push <words> <probe>`. A
 	// dash-leading word in its slot is an option where a value is expected.
-	lead := []string{row.Verb}
+	// A verbless action (D-P4-areaword) is typed with no verb word, so every
+	// probe line starts at its first keyword.
+	head := func(words ...string) []string { return append(strings.Fields(row.Verb), words...) }
+	lead := head()
 	positional := len(row.Parameters) != 0 && row.Parameters[0].Keyword == ""
 	// A positional argv is the whole line (`commit push <words>`), so every
 	// word is data and the table refuses none: any probe would RUN the action,
@@ -166,24 +177,24 @@ func probesFor(row leaction.Row) [][]string {
 	}
 	for _, parameter := range row.Parameters {
 		if parameter.Keyword == "" {
-			probes = append(probes, []string{row.Verb, "-" + probeWord})
+			probes = append(probes, head("-"+probeWord))
 			continue
 		}
 		if parameter.Kind == leaction.KindArgv {
-			probes = append(probes, []string{row.Verb, parameter.Keyword})
+			probes = append(probes, head(parameter.Keyword))
 			continue
 		}
 		if parameter.Value != "" {
 			probes = append(probes,
-				[]string{row.Verb, parameter.Keyword, "-" + probeWord},
-				[]string{row.Verb, parameter.Keyword})
+				head(parameter.Keyword, "-"+probeWord),
+				head(parameter.Keyword))
 		}
 		if parameter.Repeat {
 			continue
 		}
-		twice := []string{row.Verb, parameter.Keyword, parameter.Keyword}
+		twice := head(parameter.Keyword, parameter.Keyword)
 		if parameter.Value != "" {
-			twice = []string{row.Verb, parameter.Keyword, probeWord, parameter.Keyword, probeWord}
+			twice = head(parameter.Keyword, probeWord, parameter.Keyword, probeWord)
 		}
 		probes = append(probes, twice)
 	}
@@ -270,7 +281,7 @@ func referenceArea(t *testing.T, list leaction.List) leaction.Area {
 	rows := make([]leaction.Action, 0, len(list.Actions))
 	for _, row := range list.Actions {
 		action := leaction.Action{
-			Verb: row.Verb, Why: row.Why, Writes: row.Writes, Alone: row.Alone,
+			Verb: row.Verb, Does: row.Does, Why: row.Why, Writes: row.Writes, Alone: row.Alone,
 			Parameters: row.Parameters,
 		}
 		switch {
@@ -355,6 +366,10 @@ func TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea(t *testing.T) {
 		}
 		for _, row := range list.Actions {
 			action := node.Children[row.Verb]
+			// A verbless action is the area's own node (D-P4-areaword).
+			if list.Verbless() {
+				action = node
+			}
 			if action == nil {
 				t.Errorf("le %s %s: absent from the derived tree", tool.Name, row.Verb)
 				continue

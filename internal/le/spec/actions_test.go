@@ -62,15 +62,15 @@ func parseReviewRecordLine(args []string) (reviewRecord, error) {
 //
 // VALIDATES: the tables of spec claim, state, model and review read the lines
 // their callers type today.
-// PREVENTS: a migration that answers a hook's `spec claim spec <file>` with a
+// PREVENTS: a migration that answers a hook's `spec claim <file>` with a
 // usage refusal.
 func TestTheSpecMembersKeepTheirSpellings(t *testing.T) {
 	lines := []struct {
 		name  string
 		parse func() error
 	}{
-		{"spec claim spec <file>", func() error {
-			parsed, err := ClaimArea().Parse(keywordSpec, []string{"plan/x/spec-y.md"})
+		{"spec claim <file>", func() error {
+			parsed, err := ClaimArea().Parse("", []string{"plan/x/spec-y.md"})
 			if err == nil && parsed.One(keywordSpec) != "plan/x/spec-y.md" {
 				t.Errorf("claim read the spec as %q", parsed.One(keywordSpec))
 			}

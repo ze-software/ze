@@ -10,7 +10,7 @@ main concurrently never collide -- nothing to append, nothing to remove.
 
 | Action | Command |
 |--------|---------|
-| Claim the spec you are about to work on | `./le spec claim spec <spec-file>` |
+| Claim the spec you are about to work on | `./le spec claim <spec-file>` |
 | Read this session's claimed spec | `./le spec current` |
 | Release the claim when the spec is closed | `./le spec release` |
 
