@@ -1,0 +1,189 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5998",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5998.txt",
+  "source-sha": "372e7f2780fe73e7",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (ze-rfc phase-1 agent, session 45f03892)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "title, status and table of contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA considerations"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "acknowledgments"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "references"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "normative references"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "informative references"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "alternative approaches the authors rejected"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "rejected alternative"
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "rejected alternative"
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "rejected alternative"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "In this case, the initiator MUST verify that payload and any associated certificates, as per [RFC4306].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "When receiving message 4, the initiator MUST verify that the proposed EAP method is allowed by this specification, and MUST abort the protocol immediately otherwise.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-3-2"
+    },
+    {
+      "id": "3:3",
+      "quote": "Both the initiator and responder MUST verify that the EAP method actually used provided mutual authentication and established a shared secret key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-3-3"
+    },
+    {
+      "id": "3:4",
+      "quote": "The AUTH payloads sent after EAP Success MUST use the EAP-generated key, and MUST NOT use SK_pi or SK_pr (see Section 2.15 of [RFC5996]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-3-4"
+    },
+    {
+      "id": "3:5",
+      "quote": "Therefore, during the IKE_AUTH exchange of the resumed session, this extension MUST NOT be sent by the initiator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-3-5"
+    },
+    {
+      "id": "4:1",
+      "quote": "EAP methods to be used with this extension MUST have the following properties:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5998-4-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "Thus, EAP methods that do not provide mutual authentication or establish a shared secret key MUST NOT be used with the modifications presented in this document.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the Section 3 rule that the EAP method used must provide mutual authentication and a shared secret key",
+      "mapped-to": "RFC5998-3-3"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "These AAA proxies MUST be trusted for secure operation, and therefore SHOULD be avoided when possible; see Section 2.3.4 of [RFC4072] and Section 4.3.7 of [RFC3579] for more discussion.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "AAA deployment operator: the sentence obliges whoever places AAA proxies between the IKEv2 gateway and the backend AAA server to trust them; no IKEv2 implementation, ze's included, chooses or vets the AAA path"
+    }
+  ]
+}

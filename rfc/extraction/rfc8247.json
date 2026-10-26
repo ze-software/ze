@@ -1,0 +1,406 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8247",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8247.txt",
+  "source-sha": "1faf9eb5ca639556",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (ze-rfc phase-1 agent, session 45f03892)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "title, status and table of contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA considerations"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "references"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "normative references"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "informative references"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.1:1",
+      "quote": "When used in the tables in this document, these terms indicate that the listed algorithm MUST, MUST NOT, SHOULD, SHOULD NOT, or MAY be implemented as part of an IKEv2 implementation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.1:2",
+      "quote": "However, it is likely that an algorithm marked as SHOULD+ will be promoted at some future time to be a MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.1:3",
+      "quote": "MUST- This term means the same as MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.1:4",
+      "quote": "However, it is expected at some point that this algorithm will no longer be a MUST in a future document.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.1:5",
+      "quote": "Although its status will be determined at a later time, it is reasonable to expect that if a future revision of a document alters the status of a MUST- algorithm, it will remain at least a SHOULD or a SHOULD- level.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.3:1",
+      "quote": "Unless there are strong security reasons, an algorithm is expected to be downgraded from MUST to MUST- or SHOULD, instead of MUST NOT.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "1.3:2",
+      "quote": "Similarly, an algorithm that has not been mentioned as mandatory-to- implement is expected to be introduced with a SHOULD instead of a MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 1.1) or states the authors' expectation for future revisions (Section 1.3); it obliges no implementer"
+    },
+    {
+      "id": "2.1:1",
+      "quote": "Algorithms that are not AEAD MUST be used in conjunction with one of the integrity algorithms in Section 2.3. +------------------------+----------+-------+---------+ | Name | Status | AEAD? | Comment | +------------------------+----------+-------+---------+ | ENCR_AES_CBC | MUST | No | (*) | | ENCR_CHACHA20_POLY1305 | SHOULD | Yes | | | ENCR_AES_GCM_16 | SHOULD | Yes | (*) | | ENCR_AES_CCM_8 | SHOULD | Yes | (IoT) | | ENCR_3DES | MAY | No | | | ENCR_DES | MUST NOT | No | | | ENCR_NULL | MUST NOT | No | | +------------------------+----------+-------+---------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "ENCR_AES_CBC is raised from SHOULD+ for 128-bit keys and MAY for 256-bit keys in [RFC4307] to MUST. 192-bit keys remain at the MAY level.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.1-2"
+    },
+    {
+      "id": "2.1:3",
+      "quote": "ENCR_3DES has been downgraded from RFC 4307 MUST- to MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"ENCR_3DES has been downgraded from RFC 4307 MUST- to MAY\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "2.1:4",
+      "quote": "It provides no meaningful security whatsoever and, therefore, MUST NOT be implemented.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.1-3"
+    },
+    {
+      "id": "2.1:5",
+      "quote": "ENCR_NULL was incorrectly specified as MAY in RFC 4307, even when [RFC7296], Section 5 clearly states that it MUST NOT be used.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the ENCR_NULL MUST NOT that the next sentence of Section 2.1 grades",
+      "mapped-to": "RFC8247-2.1-4"
+    },
+    {
+      "id": "2.1:6",
+      "quote": "This was fixed and this document now lists ENCR_NULL as MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.1-4"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "+-------------------+----------+---------+ | Name | Status | Comment | +-------------------+----------+---------+ | PRF_HMAC_SHA2_256 | MUST | | | PRF_HMAC_SHA2_512 | SHOULD+ | | | PRF_HMAC_SHA1 | MUST- | | | PRF_AES128_XCBC | SHOULD | (IoT) | | PRF_HMAC_MD5 | MUST NOT | | +-------------------+----------+---------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 2.2 table; each graded row is captured by the prose sentences that follow it",
+      "mapped-to": "RFC8247-2.2-1"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "PRF_HMAC_SHA2_256 MUST be implemented in order to replace SHA1 and PRF_HMAC_SHA1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.2-1"
+    },
+    {
+      "id": "2.2:3",
+      "quote": "PRF_HMAC_SHA1 has been downgraded from MUST in RFC 4307 to MUST-, as cryptographic attacks against SHA1 are increasing, resulting in an industry-wide trend to deprecate its usage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.2-2"
+    },
+    {
+      "id": "2.2:4",
+      "quote": "PRF_HMAC_MD5 has been downgraded from MAY in RFC 4307 to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.2-3"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "+------------------------+----------+---------+ | Name | Status | Comment | +------------------------+----------+---------+ | AUTH_HMAC_SHA2_256_128 | MUST | | | AUTH_HMAC_SHA2_512_256 | SHOULD | | | AUTH_HMAC_SHA1_96 | MUST- | | | AUTH_AES_XCBC_96 | SHOULD | (IoT) | | AUTH_HMAC_MD5_96 | MUST NOT | | | AUTH_DES_MAC | MUST NOT | | | AUTH_KPDK_MD5 | MUST NOT | | +------------------------+----------+---------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 2.3 table; each graded row is captured by the prose sentences that follow it",
+      "mapped-to": "RFC8247-2.3-1"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "AUTH_HMAC_SHA2_256_128 MUST be implemented in order to replace AUTH_HMAC_SHA1_96.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.3-1"
+    },
+    {
+      "id": "2.3:3",
+      "quote": "AUTH_HMAC_SHA1_96 has been downgraded from MUST in RFC 4307 to MUST- as cryptographic attacks against SHA1 are increasing, resulting in an industry-wide trend to deprecate its usage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.3-2"
+    },
+    {
+      "id": "2.3:4",
+      "quote": "These have been downgraded to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.3-3"
+    },
+    {
+      "id": "2.3:5",
+      "quote": "AUTH_HMAC_MD5_96 is also demoted to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.3-4"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "This differs from attacks that need to be executed during the authentication that must be performed online and in near real time. +--------+---------------------------------------------+------------+ | Number | Description | Status | +--------+---------------------------------------------+------------+ | 14 | 2048-bit MODP Group | MUST | | 19 | 256-bit random ECP group | SHOULD | | 5 | 1536-bit MODP Group | SHOULD NOT | | 2 | 1024-bit MODP Group | SHOULD NOT | | 1 | 768-bit MODP Group | MUST NOT | | 22 | 1024-bit MODP Group with 160-bit Prime | MUST NOT | | | Order Subgroup | | | 23 | 2048-bit MODP Group with 224-bit Prime | SHOULD NOT | | | Order Subgroup | | | 24 | 2048-bit MODP Group with 256-bit Prime | SHOULD NOT | | | Order Subgroup | | +--------+---------------------------------------------+------------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 2.4 table; each graded group is captured by the prose sentences that follow it",
+      "mapped-to": "RFC8247-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "Group 14 or the 2048-bit MODP Group is raised from SHOULD+ in RFC 4307 to MUST as a replacement for the 1024-bit MODP Group.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.4-1"
+    },
+    {
+      "id": "2.4:3",
+      "quote": "Group 2 or the 1024-bit MODP Group has been downgraded from MUST- in RFC 4307 to SHOULD NOT.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"downgraded from MUST- in RFC 4307 to SHOULD NOT\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "2.4:4",
+      "quote": "It is expected in the near future to be downgraded to MUST NOT.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "predicts a future downgrade of group 2 and grades nothing today"
+    },
+    {
+      "id": "2.4:5",
+      "quote": "It has, therefore, been downgraded to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.4-2"
+    },
+    {
+      "id": "2.4:6",
+      "quote": "This has resulted in group 22 to be demoted to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-2.4-3"
+    },
+    {
+      "id": "2.4:7",
+      "quote": "Groups 23 and 24 have been demoted to SHOULD NOT and are expected to be further downgraded in the near future to MUST NOT.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"Groups 23 and 24 have been demoted to SHOULD NOT\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "2.4:8",
+      "quote": "Since groups 23 and 24 have small subgroups, the checks specified in the first bullet point of Section 2.2 of \"Additional Diffie-Hellman Tests for the Internet Key Exchange Protocol Version 2 (IKEv2)\" [RFC6989] MUST be done when these groups are used.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "\"Groups 23 and 24 have been demoted to SHOULD NOT\": the RFC 6989 small-subgroup check is owed only when those groups are used, and ze offers neither (internal/component/ike/crypto/transform.go dhGroupRegistry holds 14, 19 and 20). The absent groups are disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc8247.md"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "+---------------------+--------------------------+------------+ | Algorithm | RFC 4307 | RFC 8247 | +---------------------+--------------------------+------------+ | ENCR_3DES | MUST- | MAY | | ENCR_NULL | MUST NOT (per [Err1937]) | MUST NOT | | ENCR_AES_CBC | SHOULD+ | MUST | | ENCR_AES_CTR | SHOULD | MAY(*) | | PRF_HMAC_MD5 | MAY | MUST NOT | | PRF_HMAC_SHA1 | MUST | MUST- | | PRF_AES128_XCBC | SHOULD+ | SHOULD | | AUTH_HMAC_MD5_96 | MAY | MUST NOT | | AUTH_HMAC_SHA1_96 | MUST | MUST- | | AUTH_AES_XCBC_96 | SHOULD+ | SHOULD | | Group 2 (1024-bit) | MUST- | SHOULD NOT | | Group 14 (2048-bit) | SHOULD+ | MUST | +---------------------+--------------------------+------------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 2.5 change summary restates the levels graded in Sections 2.1 to 2.4",
+      "mapped-to": "RFC8247-2.1-2"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "+--------+---------------------------------------+------------+ | Number | Description | Status | +--------+---------------------------------------+------------+ | 1 | RSA Digital Signature | MUST | | 2 | Shared Key Message Integrity Code | MUST | | 3 | DSS Digital Signature | SHOULD NOT | | 9 | ECDSA with SHA-256 on the P-256 curve | SHOULD | | 10 | ECDSA with SHA-384 on the P-384 curve | SHOULD | | 11 | ECDSA with SHA-512 on the P-521 curve | SHOULD | | 14 | Digital Signature | SHOULD | +--------+---------------------------------------+------------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "The status remains MUST.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "They are currently at SHOULD NOT and are expected to be downgraded to MUST NOT in the future.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"They are currently at SHOULD NOT\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "3.1.1:1",
+      "quote": "+-------------------------------------------+------------+ | Description | Status | +-------------------------------------------+------------+ | RSA with key length 2048 | MUST | | RSA with key length 3072 and 4096 | SHOULD | | RSA with key length between 2049 and 4095 | MAY | | RSA with key length smaller than 2048 | SHOULD NOT | +-------------------------------------------+------------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.1.1-1"
+    },
+    {
+      "id": "3.1.1:2",
+      "quote": "Since these signatures only have value in real time and need no future protection, smaller keys were kept at SHOULD NOT instead of MUST NOT.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"smaller keys were kept at SHOULD NOT instead of MUST NOT\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "+--------+-------------+----------+---------+ | Number | Description | Status | Comment | +--------+-------------+----------+---------+ | 1 | SHA1 | MUST NOT | | | 2 | SHA2-256 | MUST | | | 3 | SHA2-384 | MAY | | | 4 | SHA2-512 | SHOULD | | +--------+-------------+----------+---------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "When the Digital Signature authentication method is used with RSA signature algorithm, RSASSA-PSS MUST be supported and RSASSA- PKCS1-v1.5 MAY be supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "+------------------------------------+----------+---------+ | Description | Status | Comment | +------------------------------------+----------+---------+ | RSASSA-PSS with SHA-256 | MUST | | | ecdsa-with-sha256 | SHOULD | | | sha1WithRSAEncryption | MUST NOT | | | dsa-with-sha1 | MUST NOT | | | ecdsa-with-sha1 | MUST NOT | | | RSASSA-PSS with Empty Parameters | MUST NOT | (*) | | RSASSA-PSS with Default Parameters | MUST NOT | (*) | +------------------------------------+----------+---------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC8247-3.2-3"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "(*) Empty or Default parameters means it is using SHA1, which is at the MUST NOT level.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the footnote to the Section 3.2 table restates its MUST NOT rows for the SHA-1 based algorithms",
+      "mapped-to": "RFC8247-3.2-3"
+    },
+    {
+      "id": "5:1",
+      "quote": "The algorithms identified in this document as \"MUST implement\" or \"SHOULD implement\" are not known to be broken at the current time, and cryptographic research so far leads us to believe that they will likely remain secure into the foreseeable future.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Security Considerations describe the algorithms graded MUST or SHOULD in quotation; no obligation is stated"
+    }
+  ]
+}

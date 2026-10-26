@@ -1,0 +1,322 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8221",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8221.txt",
+  "source-sha": "71e978851ccbe2c5",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude (ze-rfc phase-1 agent, session 45f03892)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "title, status and table of contents"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 13,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA considerations"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "references"
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "normative references"
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "informative references"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.2:1",
+      "quote": "Unless there are strong security reasons, an algorithm is expected to be downgraded from MUST to MUST- or SHOULD, instead of MUST NOT (see Section 2).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "1.2:2",
+      "quote": "Similarly, an algorithm that has not been mentioned as mandatory-to-implement is expected to be introduced with a SHOULD instead of a MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "2:1",
+      "quote": "However, it is likely that an algorithm marked as SHOULD+ will be promoted at some future time to be a MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "2:2",
+      "quote": "MUST- This term means the same as MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "2:3",
+      "quote": "However, we expect at some point that this algorithm will no longer be a MUST in a future document.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "2:4",
+      "quote": "Although its status will be determined at a later time, it is reasonable to expect that if a future revision of a document alters the status of a MUST- algorithm, it will remain at least a SHOULD or a SHOULD- level.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "defines the requirement levels this document uses (Section 2) or states the authors' expectation for future revisions (Section 1.2); it obliges no implementer"
+    },
+    {
+      "id": "3:1",
+      "quote": "If manual keying is used regardless, Counter Mode algorithms such as ENCR_AES_CTR, ENCR_AES_CCM, ENCR_AES_GCM, and ENCR_CHACHA20_POLY1305 MUST NOT be used, as it is incompatible with a secure and persistent handling of the counter (as explained in the Security Considerations section of [RFC3686]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-3-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "Encryption without authentication is not effective and MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "+-------------------------+------------+---------+----------------+ | Name | Status | AEAD | Comment | +-------------------------+------------+---------+----------------+ | ENCR_DES_IV64 | MUST NOT | No | UNSPECIFIED | | ENCR_DES | MUST NOT | No | [RFC2405] | | ENCR_3DES | SHOULD NOT | No | [RFC2451] | | ENCR_BLOWFISH | MUST NOT | No | [RFC2451] | | ENCR_3IDEA | MUST NOT | No | UNSPECIFIED | | ENCR_DES_IV32 | MUST NOT | No | UNSPECIFIED | | ENCR_NULL | MUST | No | [RFC2410] | | ENCR_AES_CBC | MUST | No | [RFC3602][1] | | ENCR_AES_CCM_8 | SHOULD | Yes | [RFC4309](IoT) | | ENCR_AES_GCM_16 | MUST | Yes | [RFC4106][1] | | ENCR_CHACHA20_POLY1305 | SHOULD | Yes | [RFC7634] | +-------------------------+------------+---------+----------------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 5 table; its MUST NOT rows are the older ciphers graded by the prose sentence that follows it",
+      "mapped-to": "RFC8221-5-4"
+    },
+    {
+      "id": "5:2",
+      "quote": "For that purpose, the requirement level for 128-bit keys and 256-bit keys is MUST (when applicable).",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-1"
+    },
+    {
+      "id": "5:3",
+      "quote": "In that sense, the status for 256-bit keys has been raised from MAY in [RFC7321] to MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates for 256-bit keys the key-length MUST of the previous sentence",
+      "mapped-to": "RFC8221-5-1"
+    },
+    {
+      "id": "5:4",
+      "quote": "These algorithms were not mentioned in [RFC7321], and this document clarifies that such algorithms MUST NOT be implemented for IPsec communications.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-2"
+    },
+    {
+      "id": "5:5",
+      "quote": "As a result, these algorithms MUST NOT be implemented.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-3"
+    },
+    {
+      "id": "5:6",
+      "quote": "Various ciphers that are older, not well tested, and never widely implemented have been changed to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-4"
+    },
+    {
+      "id": "5:7",
+      "quote": "ENCR_BLOWFISH has been downgraded to MUST NOT as it has been deprecated for years by TWOFISH, which is not standardized for ESP and therefore not listed in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-5"
+    },
+    {
+      "id": "5:8",
+      "quote": "ENCR_NULL status was set to MUST in [RFC7321] and remains a MUST to enable the use of ESP with only authentication, which is preferred over AH due to NAT traversal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-6"
+    },
+    {
+      "id": "5:9",
+      "quote": "ENCR_NULL is expected to remain MUST by protocol requirements.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "predicts that ENCR_NULL stays MUST; the grade itself is the previous sentence"
+    },
+    {
+      "id": "5:10",
+      "quote": "ENCR_AES_CBC status remains at MUST.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ENCR_AES_CBC MUST is graded by the next sentence of Section 5",
+      "mapped-to": "RFC8221-5-7"
+    },
+    {
+      "id": "5:11",
+      "quote": "ENCR_AES_CBC MUST be implemented in order to enable interoperability between implementations that followed [RFC7321].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-7"
+    },
+    {
+      "id": "5:12",
+      "quote": "ENCR_AES_GCM_16 status has been updated from SHOULD+ to MUST in order to favor the use of authenticated encryption and AEAD algorithms.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-5-8"
+    },
+    {
+      "id": "5:13",
+      "quote": "Its status has been set to SHOULD and is expected to become MUST in the long term.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "the enclosing construction is \"Its status has been set to SHOULD and is expected to become MUST in the long term\": the capitalised MUST names the level the algorithm held in the obsoleted RFC or the level it may reach later; the grade the sentence assigns today is advisory"
+    },
+    {
+      "id": "6:1",
+      "quote": "o Communications that are encrypted with a non-AEAD algorithm that MUST be combined with an authentication algorithm.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the Section 4 rule that a non-AEAD cipher needs an integrity algorithm",
+      "mapped-to": "RFC8221-4-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "+------------------------+----------------+-------------------------+ | Name | Status | Comment | +------------------------+----------------+-------------------------+ | AUTH_NONE | MUST / | [RFC7296][RFC5282] | | | MUST NOT | AEAD-only | | AUTH_HMAC_MD5_96 | MUST NOT | [RFC2403][RFC7296] | | AUTH_HMAC_SHA1_96 | MUST- | [RFC2404][RFC7296] | | AUTH_DES_MAC | MUST NOT | UNSPECIFIED | | AUTH_KPDK_MD5 | MUST NOT | UNSPECIFIED | | AUTH_AES_XCBC_96 | SHOULD / MAY | [RFC3566][RFC7296] | | | | (IoT) | | AUTH_AES_128_GMAC | MAY | [RFC4543] | | AUTH_AES_256_GMAC | MAY | [RFC4543] | | AUTH_HMAC_SHA2_256_128 | MUST | [RFC4868] | | AUTH_HMAC_SHA2_512_256 | SHOULD | [RFC4868] | +------------------------+----------------+-------------------------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 6 table; each graded row is captured by the prose sentences that follow it",
+      "mapped-to": "RFC8221-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "AUTH_NONE has been downgraded from MAY in [RFC7321] to MUST NOT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-1"
+    },
+    {
+      "id": "6:4",
+      "quote": "In all other cases, AUTH_NONE MUST NOT be selected.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-2"
+    },
+    {
+      "id": "6:5",
+      "quote": "As MD5 is known to be vulnerable to collisions, these algorithms MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-3"
+    },
+    {
+      "id": "6:6",
+      "quote": "AUTH_HMAC_SHA1_96 has been downgraded from MUST in [RFC7321] to MUST- as there is an industry-wide trend to deprecate its usage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-4"
+    },
+    {
+      "id": "6:7",
+      "quote": "As DES is known to be vulnerable, it MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-5"
+    },
+    {
+      "id": "6:8",
+      "quote": "AUTH_HMAC_SHA2_256_128 MUST be implemented in order to replace AUTH_HMAC_SHA1_96.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8221-6-6"
+    },
+    {
+      "id": "7:1",
+      "quote": "+----------------+----------+-------------+ | Name | Status | Comment | +----------------+----------+-------------+ | IPCOMP_OUI | MUST NOT | UNSPECIFIED | | IPCOMP_DEFLATE | MAY | [RFC3173] | | IPCOMP_LZS | MAY | [RFC2395] | | IPCOMP_LZJH | MAY | [RFC3051] | +----------------+----------+-------------+",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "\"As it is not widely deployed, it remains optional and at the MAY level.\": the IPCOMP_OUI MUST NOT grades a compression transform, and ze negotiates no IPComp transform for a Child SA (internal/component/ike/crypto/transform.go holds no compression registry). The absent compression is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc8221.md"
+    },
+    {
+      "id": "8:1",
+      "quote": "+-------------------+----------+-----------------+ | Algorithm | RFC 7321 | RFC 8221 | +-------------------+----------+-----------------+ | ENCR_AES_GCM_16 | SHOULD+ | MUST | | ENCR_AES_CCM_8 | MAY | SHOULD | | ENCR_AES_CTR | MAY | MAY(*) | | ENCR_3DES | MAY | SHOULD NOT | | AUTH_HMAC_SHA1_96 | MUST | MUST- | | AUTH_AES_128_GMAC | SHOULD+ | MAY | | AUTH_NONE | MAY | MUST / MUST NOT | +-------------------+----------+-----------------+",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Section 8 change summary restates the levels graded in Sections 5 and 6",
+      "mapped-to": "RFC8221-5-8"
+    },
+    {
+      "id": "10:1",
+      "quote": "The algorithms identified in this document as \"MUST implement\" or \"SHOULD implement\" are not known to be broken at the current time, and cryptographic research to date leads us to believe that they will likely remain secure into the foreseeable future.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Security Considerations describe the algorithms graded MUST or SHOULD in quotation; no obligation is stated"
+    }
+  ]
+}
