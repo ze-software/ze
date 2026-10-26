@@ -216,7 +216,7 @@ see the [RFC summary's proof boundaries](../../../rfc/short/rfc8654.md#proof-bou
 <!-- source: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go -->
 <!-- source: internal/component/bgp/reactor/rfc8654_rib_recovery_test.go -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- emitPurgedWithdraws -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, departureQueue, sendBatchedWithdrawals -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, sendBatchedWithdrawals -->
 
 The named FRR interop scenarios exercise a real producer and consumer. An
 OPEN-only fixture relay makes asymmetric advertisements visible to Ze because

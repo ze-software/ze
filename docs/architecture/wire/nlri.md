@@ -809,12 +809,12 @@ Identifier distinguish inventory entries. Identifier zero remains a valid path.
 Both inventories retain the announcement's native bytes separately. A
 peer-down command uses `update hex` and the stored ADD-PATH framing, and names
 the routes the source had not withdrawn when it went down. The DOWN handler
-only queues that command's routes on the plugin's one departure worker, which
+only queues that command's routes on the plugin's departure workers, which
 sends them to the engine as a recovery for the departed source. The plugin
 does not select a replacement route from another source itself: the engine
 decides each destination's replacement or withdrawal from the selecting RIB.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, sendBatchedWithdrawals -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, departureQueue, sendPeerDown -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture, sendPeerDown -->
 
 ### Native VPN withdrawal decoding
 

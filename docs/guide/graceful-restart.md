@@ -237,12 +237,14 @@ that filter a reflector would withdraw every retained route from its other
 peers during the restart window. Both handlers decide retention while they
 handle the DOWN, so a reconnect or a Restart Time expiry that follows cannot
 change which families that DOWN withdraws. Each handler then queues the routes
-left over on its plugin's one departure worker and returns without waiting.
-The worker sends departures to the engine one at a time, in the order the
-sources went down, and a source that goes down again before its waiting
-departure was sent is merged into it. At shutdown each plugin cancels its
-outstanding departure requests, then stops the worker once it has handled
-every queued departure. `bgp-gr` orders itself against both owners so
+left over on its plugin's departure workers and returns without waiting.
+Up to eight workers send departures to the engine, taking sources in the order
+they went down, so a source whose departure the engine is slow to complete
+holds back only its own worker. One source's departures are sent one at a
+time, and a source that goes down again before its waiting departure was sent
+is merged into it. At shutdown each plugin cancels its outstanding departure
+requests, then stops the workers once they have handled every queued
+departure; a plugin that never queued a departure has no workers to stop. `bgp-gr` orders itself against both owners so
 its retention decision for a DOWN is delivered before either handler asks:
 `bgp-rs` is an optional dependency of `bgp-gr`, and `bgp-rr` is named in its
 `StartAfter` (order only, since a GR configuration does not load the
@@ -266,8 +268,8 @@ lifecycle described here.
 <!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->
 <!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
 <!-- source: test/plugin/gr-external-refuses.ci -- a forked bgp-gr refuses to start -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, departureQueue, stopDepartures -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, departureQueue -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, stopDepartures -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture -->
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer, Enqueue, Stop -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
 <!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->

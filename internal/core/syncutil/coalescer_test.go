@@ -3,6 +3,7 @@ package syncutil
 import (
 	"maps"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 )
@@ -21,7 +22,7 @@ func TestCoalescerOrderMergeAndStop(t *testing.T) {
 	release := make(chan struct{})
 	var handled []string
 	values := make(map[string][]int)
-	c := NewCoalescer(
+	c := NewCoalescer(1,
 		func(waiting, next []int) []int { return append(waiting, next...) },
 		func(key string, value []int) {
 			if key == "first" {
@@ -62,4 +63,65 @@ func TestCoalescerOrderMergeAndStop(t *testing.T) {
 		t.Fatal("Enqueue after Stop answered true")
 	}
 	c.Stop()
+}
+
+// TestCoalescerKeysRunConcurrently holds one key's handler and queues a
+// second key, then queues the held key again.
+//
+// VALIDATES: with two workers, a second key is handled while the first key's
+// handler is still blocked; a value queued for a key whose handler is running
+// waits for that handler and never runs beside it; Stop drains both.
+// PREVENTS: one stalled departure holding every other source's departure
+// behind it (head-of-line), and two departures of one source racing.
+func TestCoalescerKeysRunConcurrently(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	otherDone := make(chan struct{})
+	var mu sync.Mutex
+	running := make(map[string]int)
+	overlap := false
+	calls := make(map[string]int)
+	c := NewCoalescer(2,
+		func(waiting, next []int) []int { return append(waiting, next...) },
+		func(key string, _ []int) {
+			mu.Lock()
+			running[key]++
+			if running[key] > 1 {
+				overlap = true
+			}
+			calls[key]++
+			first := key == "stalled" && calls[key] == 1
+			mu.Unlock()
+			if first {
+				close(entered)
+				<-release
+			}
+			if key == "other" {
+				close(otherDone)
+			}
+			mu.Lock()
+			running[key]--
+			mu.Unlock()
+		},
+	)
+	c.Enqueue("stalled", []int{0})
+	<-entered
+	c.Enqueue("stalled", []int{1})
+	c.Enqueue("other", []int{2})
+	select {
+	case <-otherDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a second key waited behind a stalled handler")
+	}
+	close(release)
+	c.Stop()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if overlap {
+		t.Fatal("two values of one key were handled concurrently")
+	}
+	if calls["stalled"] != 2 || calls["other"] != 1 {
+		t.Fatalf("calls %v, want stalled:2 other:1", calls)
+	}
 }

@@ -107,13 +107,16 @@ type routeReflector struct {
 	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
 	withdrawals map[string]map[string]withdrawalInfo
 
-	// departures is the one worker that sends each departed source's routes
-	// to the engine (sendPeerDown), in the order the sources went down. It
-	// starts on first use (departureQueue). Event delivery MUST stop and
-	// downCtx MUST be canceled before stopDepartures, and stopDepartures MUST
-	// return before the plugin connection is released.
-	departureOnce sync.Once
-	departures    *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo]
+	// departures holds the workers that send each departed source's routes
+	// to the engine (sendPeerDown), up to departureWorkers sources at once,
+	// taking sources in the order they went down. enqueueDeparture starts
+	// them on the first departure. Event delivery MUST stop and downCtx MUST
+	// be canceled before stopDepartures, and stopDepartures MUST return
+	// before the plugin connection is released. departureMu guards both
+	// fields.
+	departureMu       sync.Mutex
+	departures        *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo]
+	departuresStopped bool
 	// downCtx bounds every peer-down recovery request. It is canceled at
 	// shutdown and carries no deadline: the engine keeps a departure's keys
 	// owed until it decides them, so a command timeout would only stop the
@@ -368,8 +371,9 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 // names what each destination is sent: the best surviving route, or the
 // withdrawal under the Path Identifier ze advertised to that destination, which
 // differs from the source's own toward a destination that negotiated ADD-PATH
-// send (RFC 7911 Section 2). The requests run on the plugin's one departure
-// worker (departureQueue, sendPeerDown), never on the event delivery goroutine.
+// send (RFC 7911 Section 2). The requests run on the plugin's departure
+// workers (enqueueDeparture, sendPeerDown), never on the event delivery
+// goroutine.
 //
 // Concurrency: OnStructuredEvent is called serially by the engine's delivery
 // goroutine, so handleStateDown and UPDATE processing for the same peer cannot
@@ -416,36 +420,60 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
 		return
 	}
-	if !rr.departureQueue().Enqueue(addr, entries) {
+	if !rr.enqueueDeparture(addr, entries) {
 		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
 	}
 }
 
-// departureQueue answers the plugin's one departure worker, starting it on
-// first use. A source that goes down again before the worker took its
-// waiting departure is merged into it, the later announcement of a route
-// winning, so the queue holds at most one departure per source and
-// handleStateDown never blocks the event delivery goroutine: blocking it would
-// hold back the events the engine's recovery of an earlier departure may wait
-// on.
-func (rr *routeReflector) departureQueue() *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo] {
-	rr.departureOnce.Do(func() {
-		rr.departures = syncutil.NewCoalescer(
+// departureWorkers bounds how many sources' departures the route reflector
+// sends at once. The engine answers a departure request only once every owed
+// key is decided at every destination, so one source's full table, or one
+// destination slow to take its writes, holds its worker for as long as that
+// takes. Several workers keep that from holding every other source's
+// departure behind it, and the bound keeps a burst of downs from opening one
+// recovery per source against the engine at once.
+const departureWorkers = 8
+
+// enqueueDeparture queues a departed source's routes for the departure
+// workers, starting them on first use. A source that goes down again before a
+// worker took its waiting departure is merged into it, the later announcement
+// of a route winning, so the queue holds at most one departure per source; a
+// source's departures are sent one at a time, in order. It never blocks the
+// event delivery goroutine: blocking it would hold back the events the
+// engine's recovery of an earlier departure may wait on. It answers false,
+// queuing nothing, once stopDepartures was called.
+func (rr *routeReflector) enqueueDeparture(source netip.Addr, entries map[string]withdrawalInfo) bool {
+	rr.departureMu.Lock()
+	defer rr.departureMu.Unlock()
+	if rr.departuresStopped {
+		return false
+	}
+	if rr.departures == nil {
+		rr.departures = syncutil.NewCoalescer(departureWorkers,
 			func(waiting, next map[string]withdrawalInfo) map[string]withdrawalInfo {
 				maps.Copy(waiting, next)
 				return waiting
 			},
 			rr.sendPeerDown,
 		)
-	})
-	return rr.departures
+	}
+	return rr.departures.Enqueue(source, entries)
 }
 
-// stopDepartures stops the departure worker after it sent every queued
-// departure. MUST be called after downCtx is canceled, so a request the
-// engine has not answered ends rather than holding shutdown.
+// stopDepartures refuses further departures and, when the workers were
+// started, stops them after they sent every queued departure. With no
+// departure ever queued it starts nothing. MUST be called after downCtx is
+// canceled, so a request the engine has not answered ends rather than
+// holding shutdown.
 func (rr *routeReflector) stopDepartures() {
-	rr.departureQueue().Stop()
+	rr.departureMu.Lock()
+	rr.departuresStopped = true
+	departures := rr.departures
+	rr.departureMu.Unlock()
+	if departures == nil {
+		return
+	}
+	departures.Stop()
 }
 
 // withdrawalGroup names one batched peer-down command: every route in it shares
@@ -458,7 +486,7 @@ type withdrawalGroup struct {
 	addPath  bool
 }
 
-// sendPeerDown runs one departure on the departure worker. It sends the
+// sendPeerDown runs one departure on a departure worker. It sends the
 // departed source's routes to every peer except that source, grouped by
 // family, wire form and ADD-PATH, at most withdrawalBatchSize routes per
 // request to bound command length.

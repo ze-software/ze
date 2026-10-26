@@ -190,12 +190,15 @@ type routeServer struct {
 	workers *workerPool
 	downCtx context.Context // Canceled before stopDepartures; no command deadline owns DOWN.
 
-	// departures is the one worker that sends each departed source's routes
-	// to the engine (sendBatchedWithdrawals), in the order the sources went
-	// down. It starts on first use (departureQueue). SDK event delivery MUST
-	// stop and downCtx MUST be canceled before stopDepartures.
-	departureOnce sync.Once
-	departures    *syncutil.Coalescer[string, map[withdrawalKey]withdrawalEntry]
+	// departures holds the workers that send each departed source's routes
+	// to the engine (sendBatchedWithdrawals), up to departureWorkers sources
+	// at once, taking sources in the order they went down. enqueueDeparture
+	// starts them on the first departure. SDK event delivery MUST stop and
+	// downCtx MUST be canceled before stopDepartures. departureMu guards
+	// both fields.
+	departureMu       sync.Mutex
+	departures        *syncutil.Coalescer[string, map[withdrawalKey]withdrawalEntry]
+	departuresStopped bool
 
 	// clk is the time source for peer-up replay convergence (replayForPeer).
 	// Production sets clock.RealClock{}; a test injects a fake so the catch-up

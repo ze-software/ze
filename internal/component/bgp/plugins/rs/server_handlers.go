@@ -152,8 +152,8 @@ func (rs *routeServer) handleState(event *Event) {
 const withdrawalBatchSize = 500
 
 // handleStateDown processes peer session teardown.
-// Reconciles sent ownership asynchronously on the plugin's one departure
-// worker (departureQueue), never on the event delivery goroutine.
+// Reconciles sent ownership asynchronously on the plugin's departure workers
+// (enqueueDeparture), never on the event delivery goroutine.
 // Batches native/text identities by family; the RIB elects any replacement.
 func (rs *routeServer) handleStateDown(peerAddr string) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
@@ -187,37 +187,60 @@ func (rs *routeServer) handleStateDown(peerAddr string) {
 	if len(entries) == 0 {
 		return
 	}
-	if !rs.departureQueue().Enqueue(peerAddr, entries) {
+	if !rs.enqueueDeparture(peerAddr, entries) {
 		logger().Debug("peer-down after the departure worker stopped (plugin stopping)", "peer", peerAddr)
 	}
 }
 
-// departureQueue answers the plugin's one departure worker, starting it on
-// first use. A source that goes down again before the worker took its
-// waiting departure is merged into it, the later announcement of a route
-// winning, so the queue holds at most one departure per source and
-// handleStateDown never blocks the event delivery goroutine: blocking it would
-// hold back the events the engine's recovery of an earlier departure may wait
-// on.
-func (rs *routeServer) departureQueue() *syncutil.Coalescer[string, map[withdrawalKey]withdrawalEntry] {
-	rs.departureOnce.Do(func() {
-		rs.departures = syncutil.NewCoalescer(
+// departureWorkers bounds how many sources' departures the route server sends
+// at once. The engine answers a departure request only once every owed key is
+// decided at every destination, so one source's full table, or one
+// destination slow to take its writes, holds its worker for as long as that
+// takes. Several workers keep that from holding every other source's
+// departure behind it, and the bound keeps a burst of downs from opening one
+// recovery per source against the engine at once.
+const departureWorkers = 8
+
+// enqueueDeparture queues a departed source's routes for the departure
+// workers, starting them on first use. A source that goes down again before a
+// worker took its waiting departure is merged into it, the later announcement
+// of a route winning, so the queue holds at most one departure per source; a
+// source's departures are sent one at a time, in order. It never blocks the
+// event delivery goroutine: blocking it would hold back the events the
+// engine's recovery of an earlier departure may wait on. It answers false,
+// queuing nothing, once stopDepartures was called.
+func (rs *routeServer) enqueueDeparture(peerAddr string, entries map[withdrawalKey]withdrawalEntry) bool {
+	rs.departureMu.Lock()
+	defer rs.departureMu.Unlock()
+	if rs.departuresStopped {
+		return false
+	}
+	if rs.departures == nil {
+		rs.departures = syncutil.NewCoalescer(departureWorkers,
 			func(waiting, next map[withdrawalKey]withdrawalEntry) map[withdrawalKey]withdrawalEntry {
 				maps.Copy(waiting, next)
 				return waiting
 			},
 			rs.sendBatchedWithdrawals,
 		)
-	})
-	return rs.departures
+	}
+	return rs.departures.Enqueue(peerAddr, entries)
 }
 
-// stopDepartures stops the departure worker after it sent every queued
-// departure. MUST be called after downCtx is canceled, so a request the
-// engine has not answered ends rather than holding shutdown, and before the
-// plugin connection is released.
+// stopDepartures refuses further departures and, when the workers were
+// started, stops them after they sent every queued departure. With no
+// departure ever queued it starts nothing. MUST be called after downCtx is
+// canceled, so a request the engine has not answered ends rather than holding
+// shutdown, and before the plugin connection is released.
 func (rs *routeServer) stopDepartures() {
-	rs.departureQueue().Stop()
+	rs.departureMu.Lock()
+	rs.departuresStopped = true
+	departures := rs.departures
+	rs.departureMu.Unlock()
+	if departures == nil {
+		return
+	}
+	departures.Stop()
 }
 
 // withdrawalGroup names one batched withdrawal command: every entry in it
