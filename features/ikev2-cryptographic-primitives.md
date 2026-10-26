@@ -13,7 +13,7 @@
 | Interop | ipsec/ike-aes-ccm16, ipsec/psk-site-to-site |
 | RFCs | rfc7296 |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-07: checked DH groups 14, 19 and 20 (DH_MODP_2048, DH_ECP_256, DH_ECP_384 in internal/component/ike/crypto/transform.go) and the AES-CCM and GCM transform ids there |
+| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; DH groups 14, 19 and 20 (DH_MODP_2048, DH_ECP_256, DH_ECP_384) and the AES-CCM and GCM transform ids are still in internal/component/ike/crypto/transform.go, and the description still matches |
 | Defect review | 2026-10-07: audit found no open immediate spec against the primitives; the ESN-in-IKE_SA question is held in an open spec not yet confirmed against a peer; journal rows naming a Component, not each re-verified here: feature-test-missing-build-tag.md:4, silent-fall-through.md:58 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

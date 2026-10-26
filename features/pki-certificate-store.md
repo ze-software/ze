@@ -11,7 +11,7 @@
 | Components | internal/component/pki, internal/component/plugin/leaf.go, internal/appliance/ca.go |
 | Real-path tests | test/plugin/pki-ca-root-export.ci, test/plugin/pki-certificate-export-show.ci, test/reload/pki-reference-reload.ci, test/reload/pki-reference-reload-broken.ci, test/ui/doctor-pki-cert.ci, test/ui/test-pki-certificate-forms-are-separate-commands.ci |
 | Docs | docs/guide/configuration.md, docs/guide/ipsec.md |
-| Doc review | 2026-10-07: every source anchor resolves; checked rootValidity ten years, leafValidity 24h, clockSkewMargin five minutes (internal/component/pki/ca.go), the two-thirds renewal fraction (internal/component/plugin/leaf.go), and that show pki local-ca pem is the documented export |
+| Doc review | 2026-10-26: re-read after docs/guide/ipsec.md and docs/guide/configuration.md changed; every source anchor resolves; rootValidity ten years, leafValidity 24h, clockSkewMargin five minutes (internal/component/pki/ca.go), the two-thirds renewal in renewalDeadline (internal/component/plugin/leaf.go), handleShowPKILocalCAPEM and listenerTLSMaterial are unchanged |
 | Defect review | 2026-10-07: audit found no open immediate spec against the PKI store; journal rows naming a Component, not each re-verified here: concurrent-session-corruption.md:12, declared-format-contradicts-payload.md:33, deferral-sized-from-the-visible-half.md:2, documentation-shows-config-the-parser-refuses.md:27, full-disk-false-red.md:25, lint-contract-not-applied.md:20, material-expires-with-no-renewal-path.md:3 |
 | Extra criteria | supported: an intermediate chain served by a TLS listener is asserted end to end = test/plugin/lg-pki-certificate.ci; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

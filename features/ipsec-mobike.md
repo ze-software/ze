@@ -14,7 +14,7 @@
 | Interop | ipsec/mobike-initiator, ipsec/mobike-responder |
 | RFCs | rfc4555 |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-07: checked the XFRM_MSG_MIGRATE_STATE message (xfrmMsgMigrateState in internal/component/ike/dataplane/xfrm_migrate_linux.go) and mobike.go; the row states the scenarios have no recorded run, which is true |
+| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; XFRM_MSG_MIGRATE_STATE (xfrmMsgMigrateState in internal/component/ike/dataplane/xfrm_migrate_linux.go), TunnelMigrator in dataplane.go and mobike.go still hold the described behavior; the description still matches |
 | Defect review | 2026-10-07: plan/release/fixes/spec-ipsec-11-mobike.md is stale; journal rows naming a Component, not each re-verified here: false-synchronization-claim.md:17, guard-added-to-one-half-of-a-pair.md:44, silent-fall-through.md:65, stale-artifact-reused.md:60, test-against-broken-path.md:58 |
 | Extra criteria | supported: live migration proven on the appliance kernel = test/ipsec/ipsec-mobike-migrate.ci; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
