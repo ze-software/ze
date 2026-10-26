@@ -604,7 +604,7 @@ func addPathClientPaths(t *testing.T, client *lowLivePeer, prefix netip.Prefix) 
 		for field := update.NLRI; len(field) >= 5; {
 			size := 5 + (int(field[4])+7)/8
 			require.LessOrEqual(t, size, len(field), "an ADD-PATH NLRI overruns its field")
-			if string(field[4:size]) == string(want) {
+			if bytes.Equal(field[4:size], want) {
 				ids = append(ids, binary.BigEndian.Uint32(field))
 				attrs = append(attrs, update.PathAttributes)
 			}

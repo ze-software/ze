@@ -1125,13 +1125,15 @@ func (g *lookupGate) after(request *ribevents.RecoveryRequest, outcomes []ribeve
 // recoveryWorker.round: a round whose later chunk finds the read pool dry
 // after an earlier chunk was decided is partial, not a stall, so the stall
 // count resets and the next round starts at once. A owns 1000 prefixes at C,
-// two lookup chunks of 500; B's export policy denies A's routes, so C alone
-// owes. The test steps every lookup of C's worker and holds every free read
-// buffer, so the first six rounds stall on their first chunk and the backoff
-// reaches 640 ms. The seventh round's first chunk gets the buffers back and
-// is decided; before its second chunk the test holds the pool dry again. The
-// next lookup MUST follow within 300 ms: a round counted as the seventh stall
-// would wait 640 ms first.
+// two full lookup chunks of 500; B's export policy denies A's routes, so C
+// alone owes. The test steps every lookup of C's worker and holds every free
+// read buffer, so the first six rounds stall on their first chunk and the
+// backoff reaches 640 ms. A chunk is sized from the buffers the pool can lend
+// (recoveryChunkKeys), so every round after the first asks one key over the
+// dry pool. The seventh round's one-key first chunk gets the buffers back and
+// is decided; its second chunk is sized over them, and before its admission
+// the test holds the pool dry again. The next lookup MUST follow within
+// 300 ms: a round counted as the seventh stall would wait 640 ms first.
 //
 // VALIDATES: a round that decided a chunk resets the stall count.
 // PREVENTS: a destination making progress backing off, and reset at
@@ -1187,18 +1189,28 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 	// Six rounds stall on their first chunk; their waits are 10 to 320 ms.
 	// The pool is held dry only once the first is parked at its lookup:
 	// every session's reads share it, and A's withdrawal must be read first.
+	// A chunk is sized from what the pool can lend when the round reaches
+	// it (recoveryChunkKeys), so the first round asks a full chunk and every
+	// later one, sized over the dry pool, asks the one key it always asks.
 	var held []BufHandle
 	for round := range 6 {
-		if got := step.next(t); got != recoveryLookupKeysMax {
-			t.Fatalf("stalled round %d asked for %d keys, want %d", round+1, got, recoveryLookupKeysMax)
+		want := 1
+		if round == 0 {
+			want = recoveryLookupKeysMax
+		}
+		if got := step.next(t); got != want {
+			t.Fatalf("stalled round %d asked for %d keys, want %d", round+1, got, want)
 		}
 		if round == 0 {
 			held = drainReadPool(t)
 		}
 		step.proceed <- struct{}{}
 	}
-	// The seventh round's first chunk is decided with the buffers back.
-	step.next(t)
+	// The seventh round's first chunk, sized over the dry pool at one key,
+	// is decided with the buffers back.
+	if got := step.next(t); got != 1 {
+		t.Fatalf("the seventh round's first chunk asked for %d keys, want 1", got)
+	}
 	if got := adjOutOwedCount(c.peer); got != keys {
 		t.Fatalf("C decided %d keys while the pool was dry, want 0", keys-got)
 	}
@@ -1206,10 +1218,11 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 		returnReadBuffer(h)
 	}
 	step.proceed <- struct{}{}
-	// Its second chunk finds the pool dry again.
+	// Its second chunk, sized over the returned buffers, finds the pool dry
+	// again.
 	step.next(t)
-	if got := adjOutOwedCount(c.peer); got != keys-recoveryLookupKeysMax {
-		t.Fatalf("C owes %d keys after the seventh round's first chunk, want %d", got, keys-recoveryLookupKeysMax)
+	if got := adjOutOwedCount(c.peer); got != keys-1 {
+		t.Fatalf("C owes %d keys after the seventh round's first chunk, want %d", got, keys-1)
 	}
 	held = holdReadPoolDry(t)
 	asked := time.Now()

@@ -423,7 +423,7 @@ func owedFramingThreeLabels(fam family.Family) []byte {
 }
 
 // TestOwedKeyAnnouncementWithdrawFraming proves round 11, I-6 and AC-22 (g).
-// Method: at C, a labelled route of the source with a THREE-label stack is
+// Method: at C, a labeled route of the source with a THREE-label stack is
 // installed, then another source's announcement of the same route owes the
 // key. The record holds the withdrawal framing: the request names the
 // announced route, and the RIB's WITHDRAW answer reaches C's wire as an
