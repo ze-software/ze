@@ -1,7 +1,8 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- the IKE_AUTH response
 // Related: rfc7296_cp_test.go -- the sweep over every CP payload Ze builds
-// VALIDATES: Ze, which supports no Configuration payload, answers a peer's request for its
-// APPLICATION_VERSION with no CP payload (RFC 7296 Section 2.20).
+// VALIDATES: Ze answers a request for its APPLICATION_VERSION from a peer bound to no
+// virtual-IP pool, for which it supports no Configuration payload, with no CP payload
+// (RFC 7296 Section 2.20). A pool-bound peer's reply: rfc7296_cp_version_reply_test.go.
 // PREVENTS: a responder that answers the request with a version string, or that fails the
 // exchange because a request carried a CP payload it does not support.
 
@@ -53,7 +54,8 @@ func TestRFC7296ResponderAnswersAVersionRequestWithNoCP(t *testing.T) {
 	answer := mbDecrypt(t, ini, resp.LastSentMsg)
 	for _, entry := range answer {
 		if cp, ok := entry.Payload.(*wire.PayloadCP); ok {
-			t.Fatalf("the IKE_AUTH response carries a CP payload (%+v), want none: Ze supports no CP", cp)
+			t.Fatalf("the IKE_AUTH response carries a CP payload (%+v), want none: "+
+				"Ze supports no CP for a peer bound to no virtual-IP pool", cp)
 		}
 	}
 	if len(answer) == 0 {

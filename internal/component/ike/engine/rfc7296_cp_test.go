@@ -135,8 +135,8 @@ func TestZeSendsNoConfigurationRequest(t *testing.T) {
 // no CP payload at all when CP is not supported. Ze declines. None of the message builders
 // the sweep drives answers a CFG_REQUEST, and none emits an APPLICATION_VERSION attribute:
 // the sweep asserts that the attribute count is zero over every message kind it builds, at
-// both nesting levels. A granted IKE_AUTH CFG_REQUEST that asks the version is answered
-// with the empty string, the first form (buildCFGReply in cp.go).
+// both nesting levels. The sweep does not reach buildCFGReply (cp.go), the CFG_REPLY to a
+// pool-bound peer; rfc7296_cp_version_reply_test.go proves that reply's empty string.
 //
 // RFC requirement: RFC7296-2.20-1 negative -- the silence is a decline, not a missing code
 // path. The codec carries a non-empty APPLICATION_VERSION and returns it unchanged. Ze CAN
