@@ -414,6 +414,7 @@ gives `bgp-rs`.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted, reportRSRelayGrants -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver fast-path gate -->
+<!-- test: test/plugin/bgp-rs-fastpath-relay-grants.ci -- a destination without send [ update ] gets nothing and logs send refused; a source without receive [ update-received ] is relayed to nobody -->
 
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
 It needs only `receive [ update-received state ]`. When a peer comes up, the

@@ -1,0 +1,237 @@
+# bgp-rs-fastpath-relay-grants -- the rs fast path obeys the route server's grants
+#
+# VALIDATES: a destination whose attach block grants the route server no
+# `send [ update ]` is sent nothing on rs-fast-path, while a granted destination
+# receives the same UPDATE; the refused destination is handed back to bgp-rs,
+# whose cached forward refuses it and logs `send refused` naming that peer
+# (reactorForwardRSSection, forward_rs.go; sendPermissionDenied,
+# send_permission.go).
+# VALIDATES: a source whose attach block feeds the route server no
+# `receive [ update-received ]` is relayed to nobody on rs-fast-path
+# (notifyMessageReceiver declines it, reactor_notify.go), and the daemon warns
+# once that the peer lacks the grant (reportRSRelayGrants,
+# peer_forward_facts.go).
+#
+# PREVENTS: the fast path relaying past an attach block the cached rail obeys,
+# which made the two rails disagree on who receives a relayed route.
+#
+# Four peers, each its own le test peer bound to its own address:
+#   N 127.0.0.1 AS65001  no receive [ update-received ]; sends X 10.0.1.0/24
+#   G 127.0.0.2 AS65002  full grant; sends Y 10.0.0.0/24
+#   D 127.0.0.3 AS65003  full grant; must receive Y, never X
+#   E 127.0.0.4 AS65004  no send [ update ]; must receive neither
+#
+# ORDER: G holds Y until e.up exists. e.up is E's established-file: ze's first
+# UPDATE to E proves E Established, so Y reaches the fast path while E is a
+# live destination and the fast path, not a peer-up replay, decides E.
+#
+# END: one await fence, two needles, then=stop.
+#   `forward-cached failed`: bgp-rs's cached forward of Y refused E, the
+#     destination the fast path handed back. Y's fast-path decision is made.
+#   `peer=127.0.0.1 event=attribute-discard`: ze parsed X. X and Y both carry
+#     LOCAL_PREF, which RFC 7606 Section 7.5 makes ze discard from an external
+#     neighbor and log per UPDATE, so the line is ze's receipt of X; the fast
+#     path decides X in the same receive call (notifyMessageReceiver).
+# Then the runner waits for every lingering peer's expectations, stops the
+# daemon, and a reject=bgp that fired at any point before the stop fails its
+# peer. The absence assertions cannot fail falsely: in the correct run X is
+# relayed to nobody, and Y never reaches E, at any time.
+
+option=timeout:value=30s
+
+stdin=src-n:terminator=EOF_N
+option=tcp_connections:value=1
+option=linger:value=true
+# X: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, LOCAL_PREF 100, 10.0.1.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0001
+# ze's End-of-RIB from initial sync: the delivery this block's rejections run beside.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_N
+
+stdin=src-g:terminator=EOF_G
+option=tcp_connections:value=1
+option=linger:value=true
+option=await-file:path=e.up
+# Y: ORIGIN IGP, AS_PATH [65002], NEXT_HOP 1.1.1.1, LOCAL_PREF 100, 10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEA4003040101010140050400000064180A0000
+# ze's End-of-RIB from initial sync: the delivery this block's rejections run beside.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_G
+
+stdin=dest-d:terminator=EOF_D
+option=tcp_connections:value=1
+option=linger:value=true
+# Y relayed: AS_PATH [65000, 65002], NEXT_HOP 1.1.1.1 unchanged. A withdrawal
+# carries no path attribute, so only an announcement of Y satisfies this.
+expect=bgp:conn=1:seq=1:contains=40020A02020000FDE80000FDEA40030401010101
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_D
+
+stdin=dest-e:terminator=EOF_E
+option=tcp_connections:value=1
+option=established-file:path=e.up
+option=linger:value=true
+# ze's End-of-RIB from initial sync: the delivery this block's rejections run beside.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_E
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+}
+bgp {
+	peer src-n {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		attach process rs {
+			receive [ state open-received refresh ]
+			send [ update ]
+		}
+	}
+	peer src-g {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+	peer dest-d {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+	peer dest-e {
+		connection {
+			remote {
+				ip 127.0.0.4
+			}
+			local {
+				ip 127.0.0.4
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65004
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.1 --port $PORT:stdin=src-n
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=src-g
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=dest-d
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=dest-e
+cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=forward-cached failed:timeout=20s:then=stop
+await=stderr:contains=peer=127.0.0.1 event=attribute-discard
+expect=exit:code=0
+# bgp-rs's cached forward of Y refused E, and only E: the reactor names the
+# refused peer, and bgp-rs reports the one refused destination of that forward.
+# E's other refusal, bgp-rs's End-of-RIB after E's replay, is an
+# `update-route failed` line, so this pair is Y's.
+expect=stderr:pattern=forward-cached failed.*send refused: no peer this selector names attaches this process.*1 destinations, process rs, send type update
+expect=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.4
+reject=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.[123][^0-9]
+# The once-per-snapshot grant warnings name N's missing receive and E's missing send.
+expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.1.*update-received
+expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.4.*send \[ update \]
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

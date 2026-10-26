@@ -65,7 +65,7 @@ module ze-rs-conf {
                 it forwards only from a peer that attaches this plugin with receive [ update-received ], and only
                 to a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer:
                 attach process <route-server> { receive [ update-received ]; send [ update ]; }.";
-            ze:help "Forward a received UPDATE inside the reactor for an RS-client peer. Needs attach process <route-server> { receive [ update-received ]; send [ update ]; }.";
+            ze:help "Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.";
         }
     }
 
