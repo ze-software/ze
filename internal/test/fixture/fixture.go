@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -20,6 +21,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -99,8 +102,12 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "unknown fixture %q; use one of: %s\n", args[0], strings.Join(Names(), ", "))
 		return 2
 	}
-	if err := refuseRepoRoot(); err != nil {
-		ReportFailure(err)
+	// The refusal is plain text, not a ReportFailure line: the .ci runner
+	// always starts a fixture in its per-test directory, so the only reader of
+	// this message is a person at a terminal, and the command it prints goes on
+	// a line of its own.
+	if err := refuseRepoRoot(args[0]); err != nil {
+		os.Stderr.WriteString(err.Error() + "\n") //nolint:errcheck // stderr is the report; nothing is left to tell if it fails
 		return 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -134,7 +141,10 @@ func Run(args []string) int {
 // A working directory this process cannot read is refused too. "Not the
 // checkout root" would then be a guess, and the caller cannot tell a guess from
 // a fact.
-func refuseRepoRoot() error {
+//
+// The refusal ends with the command that does what the reader wanted: run
+// fixture through the .ci test that starts it, which gives it that directory.
+func refuseRepoRoot(fixture string) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("read the working directory: %w", err)
@@ -142,9 +152,92 @@ func refuseRepoRoot() error {
 	if !sessionpath.IsRepoRoot(dir) {
 		return nil
 	}
-	return fmt.Errorf(
-		"refusing to run a fixture in the ze checkout root %s: a fixture writes relative file names, "+
-			"so it runs in the per-test working directory the .ci runner gives it", dir)
+	var tb textbuf.Buffer
+	tb.Str("refusing to run a fixture in the ze checkout root ").Str(dir).
+		Str(": a fixture writes relative file names, so it runs in the per-test working directory the .ci runner gives it.\n")
+	commands, err := fixtureTestCommands(dir, fixture)
+	if err != nil {
+		return errors.New(tb.Str("Cannot name the .ci test that starts ").Str(fixture).Str(": ").Str(err.Error()).String())
+	}
+	if len(commands) == 0 {
+		return errors.New(tb.Str("No .ci test under test/ starts ").Str(fixture).
+			Str(", so no runner command can run it. Add this step to a .ci file, then run that test:\n  ").
+			Str("cmd=foreground:seq=1:exec=" + fixtureStep + fixture).String())
+	}
+	tb.Str("Run the .ci test that starts ").Str(fixture).Str(" instead:")
+	for _, command := range commands {
+		tb.Str("\n  ").Str(command)
+	}
+	return errors.New(tb.String())
+}
+
+// fixtureStep is how a .ci exec= value starts a fixture.
+const fixtureStep = "le test fixture "
+
+// fixtureTestCommands answers the command that runs each .ci test whose exec=
+// step starts fixture, one test per command, in suite-table order.
+//
+// The suite table (functional.Suites) is the one declaration of which runner
+// walks which test/<suite>/ directory, and a runner selects one test by its
+// file stem (indexRecordSelector, internal/test/runner/selection.go), so each
+// command is that suite's own words with the select-every-test flag replaced
+// by the stem.
+func fixtureTestCommands(root, fixture string) ([]string, error) {
+	var commands []string
+	for _, suite := range testfunctional.Suites {
+		files, err := filepath.Glob(filepath.Join(root, "test", suite.Name, "*.ci"))
+		if err != nil {
+			return nil, fmt.Errorf("list the .ci files of suite %s: %w", suite.Name, err)
+		}
+		for _, file := range files {
+			content, err := os.ReadFile(file) //nolint:gosec // the path is a .ci file of this checkout's own suite
+			if err != nil {
+				return nil, fmt.Errorf("read %s: %w", file, err)
+			}
+			if !startsFixture(string(content), fixture) {
+				continue
+			}
+			commands = append(commands, suiteTestCommand(suite, strings.TrimSuffix(filepath.Base(file), ".ci")))
+		}
+	}
+	return commands, nil
+}
+
+// startsFixture answers whether a .ci file's content holds a step that starts
+// fixture by its whole name, so `plugin/a` does not match a step for `plugin/ab`.
+func startsFixture(content, fixture string) bool {
+	step := fixtureStep + fixture
+	for rest := content; ; {
+		index := strings.Index(rest, step)
+		if index < 0 {
+			return false
+		}
+		rest = rest[index+len(step):]
+		if rest == "" || !fixtureNameByte(rest[0]) {
+			return true
+		}
+	}
+}
+
+// fixtureNameByte answers whether b can continue a fixture name.
+func fixtureNameByte(b byte) bool {
+	return b == '-' || b == '_' || b == '/' || b == '.' ||
+		('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9')
+}
+
+// suiteTestCommand answers the command line that runs the one test named stem
+// of suite. The words after the select-every-test flag set the suite's
+// concurrency (`-p 8`), which one test does not need, so they are dropped.
+func suiteTestCommand(suite testfunctional.Suite, stem string) string {
+	var tb textbuf.Buffer
+	tb.Str("./le test")
+	for _, arg := range suite.Args {
+		if arg == testfunctional.AllTests {
+			break
+		}
+		tb.Byte(' ').Str(arg)
+	}
+	return tb.Byte(' ').Str(stem).String()
 }
 
 // ObserverScenario runs after all daemon plugins are ready.

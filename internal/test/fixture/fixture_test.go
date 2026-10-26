@@ -145,6 +145,8 @@ func TestRunRefusesADriverStartedInTheCheckoutRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := "fixture-test-checkout-root"
+	writeCheckoutCI(t, checkout, "ui", "checkout-root-probe", "cmd=foreground:seq=1:exec=le test fixture "+name+"\n")
+	writeCheckoutCI(t, checkout, "ui", "decoy", "cmd=foreground:seq=1:exec=le test fixture "+name+"-other\n")
 	ran := false
 	Register(name, func(context.Context, []string) error {
 		ran = true
@@ -162,6 +164,60 @@ func TestRunRefusesADriverStartedInTheCheckoutRoot(t *testing.T) {
 	}
 	if !strings.Contains(report, "refusing to run a fixture in the ze checkout root") {
 		t.Fatalf("stderr = %q", report)
+	}
+	// The refusal names the fixture and ends with the command that runs it
+	// properly, on a line of its own: the .ci test whose step starts it, through
+	// its suite's runner. The decoy's step names a longer fixture, so it is not
+	// offered.
+	if !strings.Contains(report, "starts "+name) {
+		t.Fatalf("the refusal does not name the fixture %s: %q", name, report)
+	}
+	if !strings.Contains(report, "\n  ./le test ui checkout-root-probe\n") {
+		t.Fatalf("the refusal does not print the command that runs the .ci test starting %s: %q", name, report)
+	}
+	if strings.Contains(report, "decoy") {
+		t.Fatalf("the refusal offers a .ci test that starts another fixture: %q", report)
+	}
+}
+
+// writeCheckoutCI writes one .ci file into a stand-in checkout's suite
+// directory.
+func writeCheckoutCI(t *testing.T, checkout, suite, stem, content string) {
+	t.Helper()
+	dir := filepath.Join(checkout, "test", suite)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, stem+".ci"), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRunRefusalInTheCheckoutRootNamesTheStepWhenNoTestStartsTheFixture covers the refusal's
+// other branch: no .ci test starts the fixture, so no runner command can run it.
+//
+// VALIDATES: the refusal says so and prints the exec= step that would start the
+// fixture, rather than a runner command that selects nothing.
+// PREVENTS: a refusal that names no next step, the defect Thomas met twice.
+func TestRunRefusalInTheCheckoutRootNamesTheStepWhenNoTestStartsTheFixture(t *testing.T) {
+	checkout := t.TempDir()
+	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/ze-software/ze\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	name := "fixture-test-checkout-root-unstarted"
+	Register(name, func(context.Context, []string) error { return nil })
+
+	t.Chdir(checkout)
+	code := 0
+	report := readOneReport(t, func() { code = Run([]string{name}) })
+	if code != 1 {
+		t.Fatalf("Run exited %d, want 1", code)
+	}
+	if !strings.Contains(report, "No .ci test under test/ starts "+name) {
+		t.Fatalf("stderr = %q", report)
+	}
+	if !strings.Contains(report, "\n  cmd=foreground:seq=1:exec=le test fixture "+name+"\n") {
+		t.Fatalf("the refusal does not print the step that starts %s: %q", name, report)
 	}
 }
 

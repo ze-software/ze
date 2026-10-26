@@ -2040,13 +2040,19 @@ find them and nothing survives the run. The same names in the checkout land
 beside tracked source: on 2026-09-05 a run left two ed25519 private keys and
 five config files at the repository root, none of them ignored, so a `git add -A`
 from any session would have committed a private key. `fixture.Run` therefore
-reads its own working directory first and exits 1 with the `ZE-OBSERVER-FAIL`
-sentinel when that directory holds the ze `go.mod`
-(`sessionpath.IsRepoRoot`). A driver that needs the checkout reads
-`$ZE_REPO_ROOT`, which the runner exports; it never reads the working directory
-for one.
-<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot -->
-<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
+reads its own working directory first and exits 1 when that directory holds the
+ze `go.mod` (`sessionpath.IsRepoRoot`). The runner never starts a fixture
+there, so the refusal is written for a person who typed
+`./le test fixture <name>` at the root: plain text, not a `ZE-OBSERVER-FAIL`
+line, ending with the command that runs each `.ci` test whose step starts the
+fixture, such as `./le test ui ze-help-ai-unchanged`. It finds those tests in
+the `test/<suite>/` directories of the functional suite table and builds each
+command from that suite's own words, with `--all` replaced by the file's stem.
+When no `.ci` test starts the fixture, it prints the `exec=` step to add
+instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
+runner exports; it never reads the working directory for one.
+<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, suiteTestCommand -->
+<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunRefusalInTheCheckoutRootNamesTheStepWhenNoTestStartsTheFixture, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
 
 An observer assertion is therefore worth only what its wait is worth: a value
 that a plugin fills asynchronously (the Adj-RIB-In after RPKI validation, the
