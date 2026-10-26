@@ -282,7 +282,10 @@ prefix); the owner's last released address while it is still free; the next
 free address after a rotating per-pool cursor, so a just-released address is
 not handed to someone else while another is free. Only the requested family is
 leased. `Release` drops one holder and frees the address at the last one; a
-release the registry did not grant returns `ErrNotAllocated`. `NewPool` refuses
+release the registry did not grant returns `ErrNotAllocated`. A lease a pool
+edit moved off its slot is not remembered as the owner's last address when it is
+released: the slot already holds its in-range successor, whose own release is the
+one remembered. `NewPool` refuses
 an IPv4 prefix outside /8 to /30 and an IPv6 prefix outside /48 to /126, and an
 IPv6 pool hands out at most 65535 host identifiers, so every scan is bounded.
 

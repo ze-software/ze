@@ -185,6 +185,40 @@ func TestAcquireLeasesInsideTheEditedRange(t *testing.T) {
 	}
 }
 
+// VALIDATES: releasing a lease a pool edit moved off its slot leaves no last-address memory
+// behind, so when the range is edited back and another owner is leased that address, the
+// slot's owner still reconnects to the last address its own lease held.
+// PREVENTS: Release recording the out-of-range lease as the slot's last address, whose
+// reverse entry outlives the slot's next release and later makes grantLocked delete the
+// owner's real hint.
+func TestReleaseOfMovedLeaseKeepsTheOwnersLastAddress(t *testing.T) {
+	wide := mustPool(t, "10.10.0.0/24", "")
+	r := NewRegistry()
+	old := mustAcquire(t, r, wide, "a", FamilyIPv4, netip.MustParseAddr("10.10.0.200"))
+	narrow := mustPool(t, "10.10.0.0/25", "")
+	fresh := mustAcquire(t, r, narrow, "a", FamilyIPv4, netip.MustParseAddr("10.10.0.50"))
+	if fresh.Addr() != netip.MustParseAddr("10.10.0.50") {
+		t.Fatalf("setup: the owner was leased %s in the edited range, want the requested 10.10.0.50", fresh.Addr())
+	}
+	if err := r.Release(old); err != nil {
+		t.Fatalf("release the out-of-range lease: %v", err)
+	}
+	if err := r.Release(fresh); err != nil {
+		t.Fatalf("release the slot's lease: %v", err)
+	}
+
+	back := mustPool(t, "10.10.0.0/24", "")
+	other := mustAcquire(t, r, back, "b", FamilyIPv4, netip.MustParseAddr("10.10.0.200"))
+	if other.Addr() != netip.MustParseAddr("10.10.0.200") {
+		t.Fatalf("setup: owner b was leased %s, want the requested 10.10.0.200", other.Addr())
+	}
+	again := mustAcquire(t, r, back, "a", FamilyIPv4, netip.Addr{})
+	if again.Addr() != fresh.Addr() {
+		t.Fatalf("owner a reconnected to %s, want its last address %s: leasing the moved lease's "+
+			"address to owner b deleted a's hint", again.Addr(), fresh.Addr())
+	}
+}
+
 // VALIDATES: an IPv4-only pool refuses an IPv6 lease with ErrFamilyNotServed (AC-15 at the
 // pool layer).
 func TestVirtualIPPoolFamilyNotServed(t *testing.T) {

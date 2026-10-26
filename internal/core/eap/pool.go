@@ -386,8 +386,9 @@ func (r *Registry) grantLocked(slot ownerSlot, addr netip.Addr) *Lease {
 	return lease
 }
 
-// Release drops one holder of lease. At the last holder the address is free again and is
-// remembered as the owner's last address of that family in that pool. It returns
+// Release drops one holder of lease. At the last holder the address is free again and,
+// unless a pool edit moved the lease off its slot, is remembered as the owner's last
+// address of that family in that pool. It returns
 // ErrNotAllocated for a lease this registry does not hold (already released, or another
 // registry's), so a double release is reported rather than freeing another owner's lease.
 //
@@ -409,11 +410,16 @@ func (r *Registry) Release(lease *Lease) error {
 	}
 	slot := ownerSlot{owner: lease.owner, pool: lease.pool, family: lease.family}
 	delete(r.byAddr, lease.addr)
-	// A lease an edit moved out of the range left the slot to its in-range successor
-	// (Acquire), so only the slot's own lease clears it.
-	if r.byOwner[slot] == lease {
-		delete(r.byOwner, slot)
+	// A lease an edit moved out of the range left the slot (Acquire), so it neither clears
+	// the slot nor becomes its last address: the pool no longer serves it, and remembering
+	// it would overwrite the slot's own hint and leave a reverse entry in lastBy that a
+	// later grant of that address reads as the slot's, deleting the owner's real hint.
+	// Recording only the slot's own lease keeps last and lastBy exact inverses, because
+	// grantLocked cleared the slot's entry when that lease was granted.
+	if r.byOwner[slot] != lease {
+		return nil
 	}
+	delete(r.byOwner, slot)
 	if len(r.last) < registryLastMax {
 		r.last[slot] = lease.addr
 		r.lastBy[lease.addr] = slot
