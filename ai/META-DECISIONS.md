@@ -39,6 +39,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   MAY, OPTIONAL) are reported as a second figure and improved after mandatory
   coverage reaches 100%. RFCs no release profile declares wait until after
   the first release.
+- RFC validation scope does not grow: no summary is written or enrolled for an
+  RFC that no profile lists, because too many enrolled RFCs are still not fully
+  implemented. Adding an RFC text under `rfc/full/` is fine.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
@@ -47,6 +50,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   design is approved, read FRR's and BIRD's source and quote the deciding
   function.
 - A logic bug or misbehaviour is fixed, never put to Thomas as a question.
+- Every MUST of an implemented RFC is a requirement unless Thomas has named its
+  role or feature as unwanted. An annotation that proves less (declined, not
+  applicable) is written only for a role or feature he named, a lower-layer
+  requirement still owes a test of what Ze installs, and no annotation class
+  is put to him row by row.
 - An agreed design answers the questions that follow from it.
 
 ## ExaBGP compatibility
