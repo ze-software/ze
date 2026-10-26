@@ -108,9 +108,11 @@ every other section.
 
 **Never open with a statement that the checking exists or continues** ("Ze is
 being checked against every RFC it implements, one MUST at a time. The work
-continues."). It read the same every week, and readers skip it. Open with the
-movement: how many MUST requirements became proven this week, where each release
-profile now stands, and what the checking found and fixed in the product.
+continues."). It read the same every week, and readers skip it. Show PROGRESS:
+the proven count week by week, then the work done that week to make it move (new
+ways of proving a requirement, defects the checking found and fixed), then where
+the whole stands today. Per-profile or per-service figures stay out of the post
+until that feature is complete (owner instruction, 2026-10-26).
 
 A MUST counts as covered only when a recorded break proved its test goes red
 (`ai/META-DECISIONS.md`). Report that figure first. The ledger's "checked" count
@@ -121,8 +123,8 @@ Read the counts live. Never copy them from a commit message or a previous post.
 | Fact | Source |
 |------|--------|
 | MUSTs proven by a recorded break, overall and per RFC | `./le rfc tree \| json` (`mandatory-proven` over `mandatory-total`) |
-| Each release profile's position (MUST proven of owed, RFCs not yet walked) | `./le rfc tree profile <name> \| json` for every `rfc/profiles/*.md` whose `Release` is `yes` |
-| Movement over the week | distinct `rid` values under `rfc/discrimination/` at `release-from` and at `release-to` (`git show`), so the delta is pinned to the same revisions as the queue comparison |
+| Movement over the week, and the trend | distinct `rid` values under `rfc/discrimination/` at `release-from`, at `release-to`, and at earlier posts' `release-to` (`git show`), so every point is pinned to a published revision |
+| The work that moved it | commits in the range under `internal/le/rfc` and the fix specs closed in the range, described as capabilities, never by tool or file name |
 | Defects the checking surfaced and fixed | the closed fix specs and their commits in the range, verified at the producer like any shipped claim |
 | Total requirements, MUST-level, ledger count, MUSTs still owing a test | the header and "Coverage by RFC" line of `ai/RFC-REQUIREMENTS.md` |
 | Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction report` |
