@@ -1,17 +1,14 @@
 {
-  "note": "No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A's withdrawal of the selected route leaves peer B's route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.",
+  "code": {},
+  "note": "RFC 4271 Section 9: \"Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process.\" Re-judged 2026-10-26 by an independent auditor: the rib_bestchange_test.go units lost their tags, leaving the two plugins/rib/rfc4271_receive_decision_test.go carriers, both byte-identical to the units previously judged. Both feed an UPDATE body to handleReceivedStructured, never calling checkBestPathChange. Positive: one received route reaches the Loc-RIB with next hop 10.0.0.1 and exactly one BestChangeAdd names 10.0.0.0/8. Negative: after peer A withdraws its selected route, the Loc-RIB holds peer B's 10.0.0.2 rather than A's stale route or none, so a skipped run on the withdrawal update fails. The pair is two triggers of one obligation (announce, withdraw) rather than a confining case; no conforming input exists where the process must not run, so this is the strongest available pair. Discrimination records verified: revert of rib_bestchange.go::checkRouteBestChange reddens both units.",
   "requirement_sha": "e4253de42d023dd5",
   "tests": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "0ca91d85d8302a14",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "0ca91d85d8302a14"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819"
   },
   "verdict": "enforced"
 }

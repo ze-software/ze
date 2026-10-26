@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "RFC 7947 Section 2.1: \"The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1.\" First judgement 2026-10-26 by an independent auditor. The tagged pair (reactor/rfc7947_rs_decision_test.go, live bgp-rs/bgp-rib/bgp-adj-rib-in sessions, fenced TCP history) strongly enforces the first clause for a non-ADD-PATH client: positive, when the holder's source re-announces a route worse than B's, the client ends on B's exact attributes with no withdrawal (forward-all would leave A's newest route); negative, a worse later route from B sends the client nothing for P (neither B's route nor A's again). Both are discriminated by the recorded mutant oweAnnouncement contest test -> true (session_ownership.go). The finding is the second clause: no tagged unit asserts that the decision 'takes into account' a configuration providing multiple NLRI paths (Section 2.3.2.2, ADD-PATH) or multiple Loc-RIBs (Section 2.3.2.1), so a decision that gave an ADD-PATH client only the elected path would leave both tags green. The behaviour exists and an untagged test appears to cover the ADD-PATH half: TestRSAnnouncementAddPathClientGetsEveryPath (reactor/rs_announcement_election_test.go) has an ADD-PATH-send client receive both paths with distinct path identifiers in both arrival orders and owe nothing. Remedy: tag a carrier for the ADD-PATH clause (that test, with a discrimination record), and either tag per-client Loc-RIB/policy evidence or narrow the row with a reasoned annotation; then re-judge.",
+  "requirement_sha": "0df170c77ac192a4",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace": "e9c1ed12909a1346",
+    "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute": "e9c1ed12909a1346"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace": "7061e1fe15fb6e1b",
+    "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute": "e8d356d263a006a3"
+  },
+  "verdict": "weak"
+}

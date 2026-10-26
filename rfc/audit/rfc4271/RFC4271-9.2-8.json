@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "RFC 4271 Section 9.2: \"Any routes in the Loc-RIB marked as unfeasible SHALL be removed.\" First judgement 2026-10-26 by an independent auditor. Positive TestLocRIBMirror (plugins/rib/rfc4271_rib_bestchange_test.go): after the only route is removed from the Adj-RIB-In and the decision re-runs, loc.Best reports the prefix absent; it calls checkBestPathChange directly rather than through a received withdrawal (the receive path running the decision is 9-3's carrier) and carries no discrimination record, but its assertion is exact and fails if the no-candidate branch of checkRouteBestChange stopped calling removeLocRIB. Negatives (reactor/rfc4271_rs_replacement_test.go, split in 1d549b72cd, live bgp-rs/bgp-rib/bgp-adj-rib-in sessions): a second source's worse route is announced then withdrawn while the best stays feasible; TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB reads locrib.Default() behind a causal fence (bgp-rib stored B's marker sent after its withdrawal) and requires P still installed with A's NEXT_HOP, which confines removal to unfeasible routes; TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn requires the client wire to keep A's route with one announcement and zero withdrawals, the wire consequence of the feasible route staying. Discrimination records verified for both negatives: mutant checkRouteBestChange 'newBest == nil' -> true reddens the Loc-RIB unit; mutant oweAnnouncement contest test -> true reddens the wire unit. Two negatives for one requirement are distinct observations (Loc-RIB, wire), not one assertion wearing two hats.",
+  "requirement_sha": "27c8d5a8e4e59ab6",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "b0e5a077cb98aa2f",
+    "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn": "4db6d4e359a0b908",
+    "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB": "4db6d4e359a0b908"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a",
+    "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn": "aff26329dd87a91f",
+    "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB": "bc0d92ffb9b54bf6"
+  },
+  "verdict": "enforced"
+}
