@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/ike/engine/child.go::installChildSA": "6fc1a0f4e179999f",
+    "internal/component/ike/engine/child.go::installChildSA": "5feb49c51edd9469",
     "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "9591a4573e493268"
   },
-  "note": "Re-judged 2026-10-21 (independent judge, over the uncommitted errChildEncapPort change for plan/immediate/spec-ike-eap-rfc-defects.md). Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" installChildSA changed in one place only: before anything is installed it refuses a Child SA with UDPEncap set and a zero udpLocalPort or udpRemotePort (errChildEncapPort). That narrows which negotiated SAs install; it adds no path from an outbound packet to IKEv2. PROTECT entries are still installed only beside a Child SA IKEv2 already negotiated, and no XFRM acquire is handled under internal/component/ike (the non-test 'acquire' hits are a netlink receiver comment, redistevents.AcquireBatch and a lock comment). {gap} text at rfc/short/rfc4301.md:540 remains accurate. Gap stands.",
+  "note": "Re-judged 2026-10-26 at HEAD 4741b4f68f (independent judge, clean clone). Section 5.1: \"If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.\" installChildSA (child.go) changed in 286bd6e63f only to claim the Child SA's tunnel selectors in the cross-peer inner-selector registry under one lock before installChildDataplane, and to release on a failed install. That narrows which negotiated SAs install; it adds no path from an outbound packet to IKEv2. PROTECT entries are still installed only beside a Child SA IKEv2 already negotiated, and nothing under internal/component/ike subscribes to XFRM acquire (the only non-test 'Acquire' hits are vip.leases.Acquire in cp.go, redistevents.AcquireBatch, a lock comment and a migrate receiver comment; XFRMNLGRP_ACQUIRE appears only in vendor). parseSPDPolicy is unchanged since the last verdict. The {gap} text on the row stays accurate. Gap stands.",
   "requirement_sha": "fd7074473f3565e7",
   "verdict": "unimplemented"
 }
