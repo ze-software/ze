@@ -2,8 +2,8 @@
   "note": "Judged on the path where Ze has multicast SAs (R24): the RFC 4552 manual OSPFv3 installer (buildIPsecInterfaceSAs/buildIPsecSA) run through onInterfaceUp over the real XFRM backend in a rootless user+net namespace; the lookup is netlink XFRM_MSG_GETSA against the kernel SAD (xfrm_state_lookup, the function XFRM input uses), not a mock (run by the judge 2026-09-30: child ran, not skipped). Positive: ff02::5 and ff02::6 share one SPI and each (group, SPI) lookup returns that group's own SA, i.e. step 2 (SPI + destination) of the section 4.1 search resolves an Any-Source Multicast group SA. Negative: after a control lookup, ff02::5 under an unconfigured SPI and the configured SPI to ff02::1 map to no SA (step 3 fails, packet has no SA). Step 1 (SPI+dst+src) is vacuous: Ze builds no source-specific multicast SA. Caveat recorded, not a finding against the tests: the ff02::1 case rests on Linux identifying the fe80:: unicast SA by (dst, SPI, proto) rather than the section 4.1 SPI(+protocol) identifier, so a literal step 3 would match that unicast SA; the stray-SPI case alone carries the negative without that reading. Records: revert buildIPsecSA, both polarities observed red.",
   "requirement_sha": "098fdde1487143c7",
   "tests": {
-    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "a6a0f4d19b34dfe4",
-    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSAsAreMappedBySPIAndGroup": "a6a0f4d19b34dfe4"
+    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "ce7c8fc1288da94c",
+    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSAsAreMappedBySPIAndGroup": "ce7c8fc1288da94c"
   },
   "units": {
     "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup": "1905c849baeea356",

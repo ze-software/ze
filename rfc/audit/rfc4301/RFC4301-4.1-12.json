@@ -2,7 +2,7 @@
   "note": "Re-judged pass 6. The unit now asserts what Linux actually reads for inbound source matching on a transport-mode SA: the state selector x->sel (xfrm_selector_match in __xfrm_policy_check), read back from the kernel for the ff02::5 and ff02::6 states found by (group, SPI), with source ::/0; a control AH state installed with selector source fe80::2/128 is read back first as a /128, so the read-back discriminates a pinned source from the wildcard. The props-source :: assertion is kept and correctly described as the outbound address check, not claimed. Doc comment, PREVENTS line and failure text now name the right mechanism. Producer read: buildIPsecSA sets Sel.Src to ospfWildcardNet(). Each probe runs in its own user+net namespace (no cross-test state). Revert record of buildIPsecSA observed red; author's overlay pinning Sel.Src also went red. single-polarity holds: multicast SAs exist only as RFC 4552 manual config, which always sets the indication, so no refusal path exists. Full ospf package -race green.",
   "requirement_sha": "791090e9b5ff7269",
   "tests": {
-    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "a6a0f4d19b34dfe4"
+    "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "ce7c8fc1288da94c"
   },
   "units": {
     "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "fb30c59b152d1308"

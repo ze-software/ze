@@ -5,10 +5,10 @@
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "69d0d6fedadb8664",
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "69d0d6fedadb8664",
     "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "574abc2fa42f900d",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "d0849a2d44763916",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "d0849a2d44763916",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "d0849a2d44763916",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "d0849a2d44763916"
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "6b84b68fd51da835",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "6b84b68fd51da835",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "6b84b68fd51da835",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "6b84b68fd51da835"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
