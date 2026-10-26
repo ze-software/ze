@@ -215,9 +215,21 @@ end of the comment, because it records the spelling a sealed source carried
 at a past re-seal; the rest of that file is swept. A command is
 found as `le <old>` after any path prefix, and as a Go argv of literals whose
 program is the literal `"le"`, a variable named `le`, or a helper named for le
-(`runLE(nil, "<old>")`). It exits 1 on any such line and runs as a stage of
-the full verify.
+(`runLE(nil, "<old>")`). The same walk, with the same records, owned rows,
+reseal notes and exceptions skipped, also judges every le command a line
+cites against what le holds (AC-25 of spec-le-cli-usability). A citation is a
+code span or a string opening with `le` (alone, after a path such as `./le`,
+or as `ze le`) and closed on the line with nothing but command words,
+placeholders and a pipe inside, an undelimited `./le` or `$ le` line outside
+Go, or one of the argv forms above. `leroot.JudgeCitation` resolves its words
+with dispatch's own resolver and judges the area or the namespace and the
+first verb, never a keyword or a value; a retired spelling is left to its
+rename row. A line that hands le an unknown word on purpose is declared, line
+by line, in `citationExceptions`. It exits 1 on any such line and runs as a
+stage of the full verify.
 <!-- source: internal/le/le/retired/retired.go -- Renames, Match -->
+<!-- source: internal/le/le/root/citation.go -- JudgeCitation -->
+<!-- source: internal/le/doc/check/commandcitation.go -- citationsOf, citationExceptions -->
 <!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 <!-- source: internal/le/doc/check/retired.go -- retiredOwnedRowsAfter -->

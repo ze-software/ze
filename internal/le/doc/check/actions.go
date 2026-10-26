@@ -47,9 +47,10 @@ var actions = []leaction.Action{
 	{
 		Verb:    "retired-commands",
 		Does:    doesCheck,
-		Summary: "refuse a tracked line naming a retired command form",
-		Why:     "no tracked line names a form the subject-first rename retired",
-		Answer:  atRoot(runRetiredCheck),
+		Summary: "refuse a line naming a retired or unheld le command",
+		Why: "no tracked line names a form the subject-first rename retired, " +
+			"or cites an le command le does not hold: its area, namespace and first verb",
+		Answer: atRoot(runRetiredCheck),
 	},
 }
 

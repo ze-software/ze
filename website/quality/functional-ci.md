@@ -17,12 +17,12 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 <table>
 <thead><tr><th>Behavior</th><th>Files</th><th>Narrow run</th><th>Native suite</th></tr></thead>
 <tbody>
-<tr><td>BGP encode and route output</td><td><code>test/encode/*.ci</code></td><td><code>./le test bgp encode NAME -v</code></td><td><code>./le test functional encode-test</code></td></tr>
-<tr><td>BGP plugin behavior</td><td><code>test/plugin/*.ci</code></td><td><code>./le test bgp plugin NAME -v</code></td><td><code>./le test functional plugin-test</code></td></tr>
-<tr><td>Config parsing</td><td><code>test/parse/*.ci</code></td><td><code>./le test bgp parse NAME -v</code></td><td><code>./le test functional parse-test</code></td></tr>
-<tr><td>Decode command output</td><td><code>test/decode/*.ci</code></td><td><code>./le test bgp decode NAME -v</code></td><td><code>./le test functional decode-test</code></td></tr>
-<tr><td>Reload behavior</td><td><code>test/reload/*.ci</code></td><td><code>./le test bgp reload NAME -v</code></td><td><code>./le test functional reload-test</code></td></tr>
-<tr><td>CLI output</td><td><code>test/ui/*.ci</code></td><td><code>./le test ui NAME -v</code></td><td><code>./le test functional ui-test</code></td></tr>
+<tr><td>BGP encode and route output</td><td><code>test/encode/*.ci</code></td><td><code>./le test bgp encode NAME -v</code></td><td><code>./le test functional encode</code></td></tr>
+<tr><td>BGP plugin behavior</td><td><code>test/plugin/*.ci</code></td><td><code>./le test bgp plugin NAME -v</code></td><td><code>./le test functional plugin</code></td></tr>
+<tr><td>Config parsing</td><td><code>test/parse/*.ci</code></td><td><code>./le test bgp parse NAME -v</code></td><td><code>./le test functional parse</code></td></tr>
+<tr><td>Decode command output</td><td><code>test/decode/*.ci</code></td><td><code>./le test bgp decode NAME -v</code></td><td><code>./le test functional decode</code></td></tr>
+<tr><td>Reload behavior</td><td><code>test/reload/*.ci</code></td><td><code>./le test bgp reload NAME -v</code></td><td><code>./le test functional reload</code></td></tr>
+<tr><td>CLI output</td><td><code>test/ui/*.ci</code></td><td><code>./le test ui NAME -v</code></td><td><code>./le test functional ui</code></td></tr>
 <tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>./le test &lt;suite&gt; NAME -v</code></td><td><code>./le test functional &lt;suite&gt;-test</code></td></tr>
 </tbody>
 </table>

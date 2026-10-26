@@ -22,7 +22,7 @@ Use `.wb` when navigation, form behavior, HTMX replacement, visible copy, page t
 ```bash
 ./le test web --list
 ./le test web -p config -v
-./le test functional web-test
+./le test functional web
 ```
 
 ### Browser syntax
@@ -50,7 +50,7 @@ An `.et` file is a replay script for the interactive configuration editor. The r
 ```bash
 ./le test editor --list
 ./le test editor -p completion -v
-./le test functional editor-test
+./le test functional editor
 ```
 
 ### Editor syntax

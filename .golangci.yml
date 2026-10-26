@@ -9,7 +9,7 @@ run:
   # after the work is done reports "Timeout exceeded" and throws the findings
   # away, which is the most expensive way to fail.
   timeout: 30m
-  # The worker cap is not static YAML. `./le verify-lint run` passes `-j` from
+  # The worker cap is not static YAML. `./le go lint run` passes `-j` from
   # internal/le/go/toolchain, which assigns one quarter of the machine's cores.
   #
   # The former `concurrency: 8` matched one 32-core host and consumed half of a

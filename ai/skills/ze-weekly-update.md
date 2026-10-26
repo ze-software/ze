@@ -18,7 +18,7 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 - Do not mention internal process in the public update: specs, acceptance criteria, review gates, agent sessions, learned summaries, commit-count bragging, or implementation bureaucracy.
 - Write as Zeledon, not as Thomas. Use the project voice. If Thomas must be named, use third person.
 - No em dashes. Use commas, periods, colons, or parentheses.
-- The whole update fits in 3 Discord messages, 4 at the very most. Check with `./le weekly source <file>` before showing it to Thomas. Over budget means too many items, so cut items (`website/changes/discord/STYLE.md`, "How long").
+- The whole update fits in 3 Discord messages, 4 at the very most. Check with `./le weekly publish source <file>` before showing it to Thomas. Over budget means too many items, so cut items (`website/changes/discord/STYLE.md`, "How long").
 - A fix gets one line. A new command, field, config leaf, counter, or default keeps its full spelling (`website/changes/discord/STYLE.md`, "How much detail").
 - No repository vocabulary and no raw wire bytes in the post (`website/changes/discord/STYLE.md`, "Hard rules").
 - Do not hand-edit generated site pages. Edit the source data or Markdown, then run the generator.
@@ -224,20 +224,20 @@ revision fields fixed. A changed body requires a new preview and approval.
 1. Run a dry run first:
 
 ```sh
-le weekly source website/changes/posts/<covers-start>.md
+le weekly publish source website/changes/posts/<covers-start>.md
 ```
 
 2. Compare the chunk count and exact text with the approved preview. Existing date stamping can change a header as time passes. If any text differs, obtain approval again. Never recollect release counts here.
 3. If Thomas wants a Discord preview, post to test only:
 
 ```sh
-le weekly source website/changes/posts/<covers-start>.md channel ze-test confirm
+le weekly publish source website/changes/posts/<covers-start>.md channel ze-test confirm
 ```
 
 4. Post to `ze-news` only after approval:
 
 ```sh
-./le weekly source website/changes/posts/<covers-start>.md confirm
+./le weekly publish source website/changes/posts/<covers-start>.md confirm
 ```
 
 The posting tool refuses incomplete weeks unless `force` is used. Do not use `force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `website/changes/discord/<covers-start>-weekly.md` after a successful post.
@@ -245,7 +245,7 @@ The posting tool refuses incomplete weeks unless `force` is used. Do not use `fo
 5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the arguments that finish the post:
 
 ```sh
-./le weekly source website/changes/posts/<covers-start>.md resume-from <N> confirm
+./le weekly publish source website/changes/posts/<covers-start>.md resume-from <N> confirm
 ```
 
 Never answer a partial send by running the command again without `resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.

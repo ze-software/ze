@@ -159,10 +159,10 @@ code does (`ai/rules/evidence.md`).
 `./le ai tokens` reads this machine's Claude Code transcript store and
 prints per-session and per-agent-type context costs. The store grows with every
 session, so re-run it for current ratios instead of copying an absolute figure
-into a rule or a document. `./le ai tokens session <id-prefix>` prints the
+into a rule or a document. `./le ai tokens report session <id-prefix>` prints the
 per-agent-type table for one session, which is the only comparison that holds:
 across sessions the always-on preamble changes size and swamps the difference.
-`./le ai tokens project <checkout>` reads another checkout's sessions: it takes
+`./le ai tokens report project <checkout>` reads another checkout's sessions: it takes
 the checkout's path, and le derives the store's project slug from it, because
 every slug begins with a dash and a value never does.
 

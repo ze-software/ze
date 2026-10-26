@@ -5,9 +5,13 @@
 // The retired-name sweep finds every tracked line that still names a form le
 // retired (spec-le-subject-first-command-tree, spec-le-cli-usability).
 // It reads the one rename map package leretired declares, which dispatch also
-// reads to refuse a typed old spelling, and holds no list of its own. It is a gate: a line that names an old form outside the declared
-// records and exceptions makes it exit 1, and it runs as a stage of the full
-// verify (internal/le/verify/engine/stages.go).
+// reads to refuse a typed old spelling, and holds no list of its own. The same
+// walk judges every le command a line cites against what le holds
+// (commandcitation.go, AC-25 of spec-le-cli-usability), so a citation of a
+// command le never had, or lost without a rename row, is refused too. It is a
+// gate: a line that names an old form, or cites a command le does not hold,
+// outside the declared records and exceptions makes it exit 1, and it runs as
+// a stage of the full verify (internal/le/verify/engine/stages.go).
 
 package doccheck
 
@@ -736,11 +740,13 @@ type RetiredRow struct {
 }
 
 // retiredReport is the answer of `le doc check retired-commands`: every
-// row of the rename map, with the lines that still name it.
+// row of the rename map, with the lines that still name it, and every cited
+// le command le does not hold.
 type retiredReport struct {
-	Rows       []RetiredRow `json:"rows"`
-	Lines      int          `json:"lines"`
-	Unreadable []string     `json:"unreadable,omitempty"`
+	Rows       []RetiredRow     `json:"rows"`
+	Lines      int              `json:"lines"`
+	Unheld     []UnheldCitation `json:"unheld"`
+	Unreadable []string         `json:"unreadable,omitempty"`
 }
 
 // Text renders the rows that still have callers, then the count.
@@ -756,22 +762,29 @@ func (r retiredReport) Text() string {
 			out.Str("  ").Str(match.File).Byte(':').Int(int64(match.Line)).Byte('\n')
 		}
 	}
+	for _, unheld := range r.Unheld {
+		out.Str("unheld ").Str(unheld.File).Byte(':').Int(int64(unheld.Line)).Str(": ").
+			Str(unheld.Cited).Str(": ").Str(unheld.Reason).Byte('\n')
+	}
 	for _, rel := range r.Unreadable {
 		out.Str("unreadable: ").Str(rel).Byte('\n')
 	}
 	out.Int(int64(r.Lines)).Str(" tracked line(s) name a retired form\n")
+	out.Int(int64(len(r.Unheld))).Str(" cited le command(s) le does not hold\n")
 	return out.String()
 }
 
 // sweepRetired reads every tracked file and answers, per rename-map row, the
-// lines that name the row's old form.
+// lines that name the row's old form, and every cited le command le does not
+// hold. Both read the same lines, so the history records, the owned journal
+// rows and the reseal notes skip a citation exactly as they skip an old form.
 func sweepRetired(root string) (retiredReport, error) {
 	files, err := trackedFiles(root)
 	if err != nil {
 		return retiredReport{}, err
 	}
 	patterns := retiredPatterns()
-	report := retiredReport{Rows: make([]RetiredRow, len(patterns))}
+	report := retiredReport{Rows: make([]RetiredRow, len(patterns)), Unheld: []UnheldCitation{}}
 	for index, pattern := range patterns {
 		report.Rows[index] = RetiredRow{
 			Kind: pattern.kind, Old: pattern.old, Replacement: pattern.replacement,
@@ -792,11 +805,9 @@ func sweepRetired(root string) (retiredReport, error) {
 				candidates = append(candidates, index)
 			}
 		}
-		if len(candidates) == 0 {
-			return nil
-		}
 		// A needle is checked on the line before its expression runs: most
-		// lines of a file that names an old form somewhere name none.
+		// lines of a file that names an old form somewhere name none. Every
+		// line is still read for a citation (commandCitationCandidate).
 		ownsRows := retiredOwnsRows(rel)
 		inOwnedRows := false
 		sealed := retiredSealed(rel)
@@ -824,6 +835,7 @@ func sweepRetired(root string) (retiredReport, error) {
 					continue
 				}
 			}
+			report.Unheld = append(report.Unheld, unheldCitations(rel, lineNo, line)...)
 			for _, index := range candidates {
 				pattern := patterns[index]
 				if !strings.Contains(folded, pattern.needle) {
@@ -853,9 +865,9 @@ func sweepRetired(root string) (retiredReport, error) {
 }
 
 // runRetiredCheck is `le doc check retired-commands`, the gate AC-16 of
-// spec-le-subject-first-command-tree names. Every line that still
-// names a retired form makes it answer 1, and the report names each file and
-// line. A file it could not read makes the answer incomplete, and that is said
+// spec-le-subject-first-command-tree and AC-25 of spec-le-cli-usability name.
+// Every line that still names a retired form, or cites an le command le does
+// not hold, makes it answer 1, and the report names each file and line. A file it could not read makes the answer incomplete, and that is said
 // with 2 rather than hidden behind a verdict the sweep cannot support.
 func runRetiredCheck(root string) (any, int) {
 	report, err := sweepRetired(root)
@@ -866,6 +878,9 @@ func runRetiredCheck(root string) (any, int) {
 		return report, 2
 	}
 	if report.Lines != 0 {
+		return report, 1
+	}
+	if len(report.Unheld) != 0 {
 		return report, 1
 	}
 	return report, 0

@@ -69,7 +69,7 @@ trusting the words even when the facts are right, so avoid the tells:
 
 ## How long
 
-**Three Discord messages. Four at the very most.** `./le weekly source
+**Three Discord messages. Four at the very most.** `./le weekly publish source
 <draft.md>` prints the count without publishing, so the budget is measured
 rather than guessed.
 
@@ -195,10 +195,10 @@ Avoid (hype / internal / em dash):
    Collect the pinned release comparison before drafting.
 2. Verify shipped claims at their source producers for the selected end revision.
    Draft in the template above and keep internal terms out of the body.
-3. Preview with `./le weekly source <draft.md>` without `confirm`.
+3. Preview with `./le weekly publish source <draft.md>` without `confirm`.
    Show Thomas the exact messages. Do not post until he approves them.
-4. On approval, inspect the exact messages again with `./le weekly source <draft.md>`,
-   then publish with `./le weekly source <draft.md> confirm`. Use `channel
+4. On approval, inspect the exact messages again with `./le weekly publish source <draft.md>`,
+   then publish with `./le weekly publish source <draft.md> confirm`. Use `channel
    ze-test confirm` for a rehearsal. The command splits at section boundaries
    to stay within Discord's 2000-character limit.
 5. The command archives the exact posted text in `website/changes/discord/`

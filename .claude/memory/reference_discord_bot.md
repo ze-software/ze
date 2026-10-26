@@ -26,7 +26,7 @@ Do NOT strip the token out again without being asked.
 process/spec language). The style guide and archive live under
 `website/changes/discord/`; approved source posts live under
 `website/changes/posts/`. Follow the `ze-weekly-update` skill: draft, get
-Thomas's approval, preview with `./le weekly source <post>`, then add `confirm`
+Thomas's approval, preview with `./le weekly publish source <post>`, then add `confirm`
 to post to `ze-news` and archive the exact text. The native producer is
 `internal/le/weekly`; it calls `~/Unix/bin/discord.sh` for the external transport
 (override with the `DISCORD_SH` environment variable).
