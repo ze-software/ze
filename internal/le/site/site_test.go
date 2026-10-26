@@ -24,7 +24,7 @@ func TestActionsExposeNativeWebsiteWorkflows(t *testing.T) {
 	for _, action := range Actions().Actions {
 		verbs[action.Verb] = true
 	}
-	for _, verb := range []string{"build", "check", "bundle", "activity", "update-talk"} {
+	for _, verb := range []string{"build", "check", "bundle", "activity", "talk"} {
 		if !verbs[verb] {
 			t.Errorf("site action %q is not registered", verb)
 		}

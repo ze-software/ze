@@ -287,16 +287,16 @@ var portedProducers = []portedProducer{
 	{Target: "ze-evidence-perf-record", Area: "perf", Verb: "record", Note: "the evidence target of record; run, append, then `le perf track --check` over the history, which is the regression gate the recipe ended on"},
 
 	// The published terminal demonstrations.
-	{Target: "ze-terminal-demo-image-build", Area: "site terminal-demo", Verb: "image-build", Note: "the action reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},
-	{Target: "ze-terminal-demo-check-all", Area: "site terminal-demo", Verb: "check-all"},
-	{Target: "ze-terminal-demo-validation-check-all", Area: "site terminal-demo", Verb: "validation-check-all"},
-	{Target: "ze-terminal-demo-release-check-all", Area: "site terminal-demo", Verb: "release-check-all"},
-	{Target: "ze-terminal-demo-render-all", Area: "site terminal-demo", Verb: "render-all"},
+	{Target: "ze-terminal-demo-image-build", Area: "site terminal-demo", Verb: "build", Note: "`build image` reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},
+	{Target: "ze-terminal-demo-check-all", Area: "site terminal-demo", Verb: "check", Note: "`check artifacts`"},
+	{Target: "ze-terminal-demo-validation-check-all", Area: "site terminal-demo", Verb: "check", Note: "`check validation`"},
+	{Target: "ze-terminal-demo-release-check-all", Area: "site terminal-demo", Verb: "check", Note: "`check release`"},
+	{Target: "ze-terminal-demo-render-all", Area: "site terminal-demo", Verb: "render", Note: "`render all`"},
 	{Target: "ze-terminal-demo-render", Area: "site terminal-demo", Verb: "render", Note: "`render name <id>` selects the one demo the target selected with DEMO=; RenderOne shares validateAndRender with RenderAll"},
-	{Target: "ze-terminal-demo-release-render-all", Area: "site terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-render-all alone"},
-	{Target: "ze-terminal-demo-binaries-build", Area: "site terminal-demo", Verb: "binaries-build-ze", Note: "binaries-build-ze-test carries the second half the target ran"},
-	{Target: "ze-release-assets-update", Area: "site terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-release-render-all alone"},
-	{Target: "ze-release-assets-check", Area: "site terminal-demo", Verb: "release-check-all", Note: "the target sequenced ze-terminal-demo-release-check-all alone"},
+	{Target: "ze-terminal-demo-release-render-all", Area: "site terminal-demo", Verb: "render", Note: "`render all`; the target sequenced ze-terminal-demo-render-all alone"},
+	{Target: "ze-terminal-demo-binaries-build", Area: "site terminal-demo", Verb: "build", Note: "`build binaries`; it also builds the recorder le and ze-demo, the second half the target ran"},
+	{Target: "ze-release-assets-update", Area: "site terminal-demo", Verb: "render", Note: "`render all`; the target sequenced ze-terminal-demo-release-render-all alone"},
+	{Target: "ze-release-assets-check", Area: "site terminal-demo", Verb: "check", Note: "`check release`; the target sequenced ze-terminal-demo-release-check-all alone"},
 
 	// One Go test, named by its -run pattern and its own flag. The area is the
 	// generic job grammar `le job run label <label> command <argv...>`, which

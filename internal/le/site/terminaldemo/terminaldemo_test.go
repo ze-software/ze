@@ -19,21 +19,21 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; only the single-demo render takes a value, and pty forwards its words.
-// PREVENTS: a port that claims a writing renderer as a read-only check, drops one build action, or lets a demo id sit in an untyped positional slot.
+// VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; check and build take their target, render takes a demo id or all, and pty forwards its words.
+// PREVENTS: a port that claims a writing renderer as a read-only check, drops one build target, or lets a demo id sit in an untyped positional slot.
 func TestActionsCarryTheirContracts(t *testing.T) {
 	want := []struct {
 		verb   string
 		writes bool
 		why    string
 	}{
-		{"check-all", false, "every demo the manifest declares has its published artifacts"},
-		{"validation-check-all", false, "each scenario's output validators pass, so a demo shows the product working"},
-		{"release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
-		{"image-build", true, "the container every demo is recorded in, tagged as the manifest names it"},
-		{"binaries-build-ze", true, "the ze a demo drives, and the le that records it, cross-built for the renderer container"},
-		{"render-all", true, "re-record every website demo from its checked-in tape"},
-		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo"},
+		{"check", false, "the published demos hold up: every demo the manifest declares has its published artifacts (artifacts), " +
+			"each scenario's output validators pass, so a demo shows the product working (validation), " +
+			"or the published artifacts carry this release identity, which is what a tag ships (release)"},
+		{"build", true, "the container every demo is recorded in, tagged as the manifest names it (image), " +
+			"or the ze a demo drives, and the le that records it, cross-built for the renderer container (binaries)"},
+		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo, " +
+			"or every website demo (all)"},
 		{"pty", false, "record one tape, or drive a program through a PTY; the renderer container runs it"},
 	}
 	got := Actions()
@@ -50,7 +50,7 @@ func TestActionsCarryTheirContracts(t *testing.T) {
 		}
 	}
 	// The demo id is typed by a keyword, pty's words are RunPTY's command line,
-	// and no other action consumes a value.
+	// and check and build each take the target they act on.
 	table := actionTable()
 	if !table.TakesArguments("render") {
 		t.Error("render declares no keyword grammar, so a demo id would sit in an untyped positional slot")
@@ -58,9 +58,9 @@ func TestActionsCarryTheirContracts(t *testing.T) {
 	if !got.Actions[len(got.Actions)-1].Forwards {
 		t.Error("pty does not forward its words, so RunPTY's options would be refused by le")
 	}
-	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "image-build", "binaries-build-ze", "render-all"} {
-		if table.TakesArguments(verb) {
-			t.Errorf("%s takes arguments, and a sweep of several actions can no longer name it", verb)
+	for _, verb := range []string{"check", "build"} {
+		if !table.TakesArguments(verb) {
+			t.Errorf("%s declares no target, so it cannot tell which property or artifact it acts on", verb)
 		}
 	}
 }
@@ -76,6 +76,20 @@ func TestRenderWithoutADemoIdIsRefused(t *testing.T) {
 		if payload != nil {
 			t.Errorf("%v answered the payload %v", args, payload)
 		}
+	}
+}
+
+// VALIDATES: `le site terminal-demo render all` naming a demo as well is refused
+// with exit 2 before any renderer runs.
+// PREVENTS: one of the two selections silently winning, so a developer who
+// meant one demo re-records the whole gallery, or the reverse.
+func TestRenderAllWithADemoIdIsRefused(t *testing.T) {
+	payload, code := Answer([]string{"render", "all", "name", "term"})
+	if code != 2 {
+		t.Errorf("render all name term answered code %d, want 2", code)
+	}
+	if payload != nil {
+		t.Errorf("render all name term answered the payload %v", payload)
 	}
 }
 
@@ -105,7 +119,7 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	if !reflect.DeepEqual(ze.Args, wantZe) {
 		t.Errorf("ze argv = %#v, want %#v", ze.Args, wantZe)
 	}
-	if zeReport.Action != "terminal-demo binaries-build-ze" {
+	if zeReport.Action != "terminal-demo build binaries" {
 		t.Errorf("ze action = %q", zeReport.Action)
 	}
 	assertEnvironmentLast(t, ze.Env, "CGO_ENABLED", "0")
@@ -757,7 +771,7 @@ func TestValidationStopsAtTheFirstFailure(t *testing.T) {
 	}
 }
 
-// VALIDATES: image-build tags the image the manifest names and reads the
+// VALIDATES: build image tags the image the manifest names and reads the
 // Dockerfile from the demo tree.
 // PREVENTS: building under any other tag, which leaves the recorder pulling an
 // image nobody publishes while a correctly built one sits beside it.
@@ -821,7 +835,7 @@ func TestRenderRefusesAnUnbuiltRendererImage(t *testing.T) {
 	if err == nil {
 		t.Fatal("a render with no renderer image was accepted")
 	}
-	if !strings.Contains(err.Error(), "le site terminal-demo image-build") {
+	if !strings.Contains(err.Error(), "le site terminal-demo build image") {
 		t.Errorf("error = %v, want the action that builds the image", err)
 	}
 	if len(fixture.commands) != 1 {
@@ -840,7 +854,7 @@ func TestRenderReportsAnImageCheckTheDaemonDidNotAnswer(t *testing.T) {
 	if err == nil {
 		t.Fatal("a render whose image check failed was accepted")
 	}
-	if strings.Contains(err.Error(), "image-build") {
+	if strings.Contains(err.Error(), "build image") {
 		t.Errorf("error = %v, a daemon that did not answer was read as an unbuilt image", err)
 	}
 	if !strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {

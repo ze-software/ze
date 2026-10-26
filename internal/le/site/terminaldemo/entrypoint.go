@@ -71,7 +71,7 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 
 // recorderCommand answers the program and the argv that run
 // `le site terminal-demo pty <args>` in the renderer container: the linux le
-// that the binaries-build-ze action writes (recorderBuildCommand).
+// that the `build binaries` action writes (recorderBuildCommand).
 func recorderCommand(args ...string) (string, []string) {
 	words := append(strings.Fields(area), ptyVerb)
 	return demoBinary(linuxle.Name), append(words, args...)

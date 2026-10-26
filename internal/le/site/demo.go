@@ -105,7 +105,7 @@ type demoCatalog struct {
 // that writes it. So a checkout whose artifact tree holds no recording cannot
 // publish the pages that show one, and this error names the command to run
 // rather than a path that is missing.
-var errDemoMediaAbsent = errors.New("this checkout holds no rendered terminal demonstrations: run `./le site terminal-demo render-all` before a site build")
+var errDemoMediaAbsent = errors.New("this checkout holds no rendered terminal demonstrations: run `./le site terminal-demo render all` before a site build")
 
 // newDemoCatalog answers a catalog that has read nothing yet.
 func newDemoCatalog(paths Paths) *demoCatalog {

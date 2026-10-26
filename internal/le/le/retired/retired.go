@@ -263,6 +263,15 @@ var renames = []Rename{
 	{Retired: "web vendor update-report", Command: "web vendor", Action: "report"},
 	{Retired: "feature record-run", Command: "feature", Action: "run"},
 	{Retired: "setup proto-generate", Command: "setup", Action: "proto"},
+	{Retired: "site update-talk", Command: "site", Action: "talk"},
+	// One verb over several targets takes the target as its first value
+	// (D-P4-positional), and the whole gallery is render's `all` switch.
+	{Retired: "site terminal-demo check-all", Command: "site terminal-demo", Action: "check artifacts"},
+	{Retired: "site terminal-demo release-check-all", Command: "site terminal-demo", Action: "check release"},
+	{Retired: "site terminal-demo validation-check-all", Command: "site terminal-demo", Action: "check validation"},
+	{Retired: "site terminal-demo render-all", Command: "site terminal-demo", Action: "render all"},
+	{Retired: "site terminal-demo binaries-build-ze", Command: "site terminal-demo", Action: "build binaries"},
+	{Retired: "site terminal-demo image-build", Command: "site terminal-demo", Action: "build image"},
 	// `*-test` words are nouns to restructure (owner ruling); `install-*` kept
 	// the vocabulary verb install inside a name, and the whole run is `all`.
 	{Retired: "test qemu all-tests", Command: "test qemu", Action: "all"},

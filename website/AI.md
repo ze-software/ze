@@ -8,9 +8,9 @@ Website sources live in `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `./le site build` replaces that worktree with the publishable artifact and keeps `.git`.
 It reuses the existing demo artifacts unless the checked-in tape definitions changed.
-Use `./le site terminal-demo render-all` to force new demo artifacts.
+Use `./le site terminal-demo render all` to force new demo artifacts.
 A recording runs in a container this repository builds, so run
-`./le site terminal-demo image-build` once per checkout first. A render refuses to
+`./le site terminal-demo build image` once per checkout first. A render refuses to
 start without it and names the action.
 Commit `../gh-pages` without source code.
 
@@ -533,9 +533,9 @@ hardcoded list to the renderer.
 
 ## Presentation tooling
 
-Published decks live at `talks/<slug>/`. `./le site update-talk talk <slug>`
+Published decks live at `talks/<slug>/`. `./le site talk talk <slug>`
 refreshes a deck's statistics and activity page, then writes
-`<deck>-inlined.html`. Use `./le site update-talk talk <slug> bundle-only` when
+`<deck>-inlined.html`. Use `./le site talk talk <slug> bundle-only` when
 only the standalone bundle should change. The lower-level
 `./le site bundle input <deck.html>` and `./le site activity output <file> days
 <count>` actions remain available for one-off artifacts.
@@ -554,11 +554,11 @@ published deck keeps the year it was presented with.
 1. Create a new directory under `talks/`.
 2. Add `index.html` and, when used by the deck, `slides.md`.
 3. Add frozen images under `screenshots/`.
-4. Run `./le site update-talk talk <slug>`.
+4. Run `./le site talk talk <slug>`.
 
 ## Updating presentations
 
-`./le site update-talk talk <slug>` replaces each former per-talk update
+`./le site talk talk <slug>` replaces each former per-talk update
 script. It refreshes live slide statistics and embedded activity when the deck
 uses them, then regenerates the standalone bundle.
 

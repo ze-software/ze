@@ -116,7 +116,7 @@ func (e *Engine) BuildImage() (Report, error) {
 // Docker's own answer to a missing image is to try a registry pull, and this
 // image is published to none, so the run dies on "pull access denied" after
 // every validator has already run. Nothing else builds the image: it comes from
-// demos/terminal/Dockerfile through `le site terminal-demo image-build`.
+// demos/terminal/Dockerfile through `le site terminal-demo build image`.
 func (e *Engine) requireRendererImage(manifest Manifest) error {
 	image := manifest.Renderer.Image
 	if _, err := e.lookup(dockerProgram); err != nil {
@@ -129,7 +129,7 @@ func (e *Engine) requireRendererImage(manifest Manifest) error {
 	if !present {
 		var buffer textbuf.Buffer
 		return errors.New(buffer.Str("the renderer image ").Str(image).
-			Str(" is not built on this host; run: le site terminal-demo image-build").String())
+			Str(" is not built on this host; run: le site terminal-demo build image").String())
 	}
 	return nil
 }

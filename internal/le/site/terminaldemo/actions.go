@@ -50,30 +50,82 @@ type BuildReport struct {
 // Text returns no additional prose. The Go toolchain streams its own output.
 func (BuildReport) Text() string { return "" }
 
+// The targets `site terminal-demo check` and `site terminal-demo build` take in
+// their first slot, and the switch that makes `render` record every demo
+// (D-P4-positional of spec-le-cli-usability).
+const (
+	targetValue     = "target"
+	checkArtifacts  = "artifacts"
+	checkRelease    = "release"
+	checkValidation = "validation"
+	buildBinaries   = "binaries"
+	buildImage      = "image"
+	renderAll       = "all"
+)
+
+// checkTargets answers each check target's renderer run. None of them writes.
+var checkTargets = map[string]func() (any, int){
+	checkArtifacts:  func() (any, int) { return runRenderer("check", false) },
+	checkRelease:    func() (any, int) { return runRenderer("check", true) },
+	checkValidation: func() (any, int) { return runRenderer(rendererValidateMode, false) },
+}
+
+// buildTargets answers each build target's builder.
+var buildTargets = map[string]func() (any, int){
+	buildBinaries: runBuild,
+	buildImage:    runImageBuild,
+}
+
 func actionTable() leaction.Area {
 	return leaction.New(area,
-		leaction.Action{Verb: "check-all", Summary: "check every demo has its published artifacts", Why: "every demo the manifest declares has its published artifacts",
-			Answer: func() (any, int) { return runRenderer("check", false) }},
-		leaction.Action{Verb: "validation-check-all", Summary: "check every demo's output validators pass", Why: "each scenario's output validators pass, so a demo shows the product working",
-			Answer: func() (any, int) { return runRenderer(rendererValidateMode, false) }},
-		leaction.Action{Verb: "release-check-all", Summary: "check demo artifacts carry this release identity", Why: "the published artifacts carry this release identity, which is what a tag ships",
-			Answer: func() (any, int) { return runRenderer("check", true) }},
-		leaction.Action{Verb: "image-build", Summary: "build the container demos are recorded in", Why: "the container every demo is recorded in, tagged as the manifest names it",
+		leaction.Action{Verb: "check", Summary: "check one property of the published demos", Why: "the published demos hold up: every demo the manifest declares has its published artifacts (artifacts), " +
+			"each scenario's output validators pass, so a demo shows the product working (validation), " +
+			"or the published artifacts carry this release identity, which is what a tag ships (release)",
+			Parameters: []leaction.Parameter{{
+				Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
+				Help:   "the property of the published demos to check",
+				Values: []string{checkArtifacts, checkRelease, checkValidation},
+				ValueHelp: map[string]string{
+					checkArtifacts:  "every demo has its published artifacts",
+					checkRelease:    "the demo artifacts carry this release identity",
+					checkValidation: "every demo's output validators pass",
+				},
+			}},
+			AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(checkTargets, args) }},
+		leaction.Action{Verb: "build", Summary: "build the demo renderer image or its binaries", Why: "the container every demo is recorded in, tagged as the manifest names it (image), " +
+			"or the ze a demo drives, and the le that records it, cross-built for the renderer container (binaries)",
 			Writes: true,
-			Answer: runImageBuild},
-		leaction.Action{Verb: "binaries-build-ze", Summary: "cross-build ze and le for the demo renderer", Why: "the ze a demo drives, and the le that records it, cross-built for the renderer container",
+			Parameters: []leaction.Parameter{{
+				Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
+				Help:   "what to build for the demo renderer",
+				Values: []string{buildBinaries, buildImage},
+				ValueHelp: map[string]string{
+					buildBinaries: "cross-build ze and le for the demo renderer",
+					buildImage:    "build the container demos are recorded in",
+				},
+			}},
+			AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(buildTargets, args) }},
+		leaction.Action{Verb: "render", Summary: "re-record one website demo, or every one", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo, " +
+			"or every website demo (all)",
 			Writes: true,
-			Answer: runBuild},
-		leaction.Action{Verb: "render-all", Summary: "re-record every website demo", Why: "re-record every website demo from its checked-in tape",
-			Writes: true,
-			Answer: func() (any, int) { return runRenderer(rendererRenderMode, true) }},
-		leaction.Action{Verb: "render", Summary: "re-record one website demo", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo",
-			Writes:     true,
-			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Kind: leaction.KindLabel, Help: "the demo to re-record, by its manifest id", Value: "demo-id", Requirement: leaction.Required}},
-			AnswerArgs: runRenderOne},
-		leaction.Action{Verb: ptyVerb, Summary: "record one tape or drive a program through a PTY", Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
+			Parameters: []leaction.Parameter{
+				{Keyword: demoKeyword, Kind: leaction.KindLabel, Help: "the demo to re-record, by its manifest id", Value: "demo-id", Requirement: leaction.Optional},
+				{Keyword: renderAll, Kind: leaction.KindSwitch, Help: "re-record every website demo"},
+			},
+			AnswerArgs: runRender},
+		leaction.Action{Verb: ptyVerb, Does: "run", Summary: "record one tape or drive a program through a PTY", Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
 			AnswerWords: runPTYAction},
 	)
+}
+
+// targetAnswer runs the answer a declared target selects. The parser has
+// already refused a target the action does not declare.
+func targetAnswer(targets map[string]func() (any, int), args leaction.Arguments) (any, int) {
+	answer, declared := targets[args.One(targetValue)]
+	if !declared {
+		panic("BUG: site terminal-demo: a declared target has no answer: " + args.One(targetValue))
+	}
+	return answer()
 }
 
 // runPTYAction hands its words to RunPTY verbatim, so every option, a help
@@ -88,18 +140,8 @@ func Actions() leaction.List { return actionTable().Actions() }
 // Subs answers the action hint from the same table.
 func Subs() string { return actionTable().Subs() }
 
-// Answer dispatches one action or sweeps several in command-line order.
-//
-// The words after an argument-aware action are its values, not more action
-// names, so that action routes to Answer whatever follows it. A sweep names
-// actions alone and carries no value.
-func Answer(args []string) (any, int) {
-	table := actionTable()
-	if len(args) <= 1 || table.TakesArguments(args[0]) {
-		return table.Answer(args)
-	}
-	return table.Sweep(args, leaction.RunEveryAction)
-}
+// Answer dispatches one action.
+func Answer(args []string) (any, int) { return actionTable().Answer(args) }
 
 func runBuild() (any, int) {
 	root, err := lepath.Root()
@@ -161,7 +203,7 @@ func rendererGOARCH() (string, error) {
 func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string) (Command, BuildReport) {
 	tags := demoTags(toolchain)
 	ldflags := []string{"-ldflags", toolchain.LDFlags()}
-	action := "terminal-demo binaries-build-ze"
+	action := "terminal-demo build binaries"
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze")
 	args := make([]string, 0, 7+len(ldflags))
 	args = append(args, "go", goCommandBuild, "-tags", tags)
@@ -245,7 +287,7 @@ func runRendererIn(ctx context.Context, mode string, releaseRequired bool) (any,
 	return report, code
 }
 
-// imageBuildEngine answers the engine image-build runs under ctx. It is the
+// imageBuildEngine answers the engine `build image` runs under ctx. It is the
 // one seam a test replaces, with an engine over a fixture Docker, so the test
 // drives runImageBuild itself and not a copy of its rooting.
 var imageBuildEngine = func(ctx context.Context) (*Engine, error) {
@@ -277,15 +319,24 @@ func runImageBuildIn(ctx context.Context) (any, int) {
 	return report, 0
 }
 
-// runRenderOne records the one demo the invocation names.
+// runRender records every demo when the invocation says all, and otherwise the
+// one demo it names.
 //
-// A missing name is refused rather than read as "every demo". The action that
-// records the whole gallery is render-all, and a developer who typed `render`
-// asked for one demo.
-func runRenderOne(args leaction.Arguments) (any, int) {
-	return signalRooted(func(ctx context.Context) (any, int) {
-		return runRenderOneIn(ctx, args)
-	})
+// A missing name is refused rather than read as "every demo": a developer who
+// typed `render` asked for one demo, and the whole gallery is `render all`.
+func runRender(args leaction.Arguments) (any, int) {
+	if !args.Has(renderAll) {
+		return signalRooted(func(ctx context.Context) (any, int) {
+			return runRenderOneIn(ctx, args)
+		})
+	}
+	if args.Has(demoKeyword) {
+		leaction.ReportError(errors.New(
+			"site terminal-demo render records one demo or all of them, not both:" +
+				" run le site terminal-demo render name <demo-id>, or le site terminal-demo render all"))
+		return nil, 2
+	}
+	return runRenderer(rendererRenderMode, true)
 }
 
 func runRenderOneIn(ctx context.Context, args leaction.Arguments) (any, int) {
@@ -293,7 +344,7 @@ func runRenderOneIn(ctx context.Context, args leaction.Arguments) (any, int) {
 	if demoID == "" {
 		leaction.ReportError(errors.New(
 			"site terminal-demo render names one demo: le site terminal-demo render name <demo-id>" +
-				" (the ids are in demos/terminal/manifest.json; render-all records every one)"))
+				" (the ids are in demos/terminal/manifest.json; render all records every one)"))
 		return nil, 2
 	}
 	engine, release, err := renderEngine(ctx, true)

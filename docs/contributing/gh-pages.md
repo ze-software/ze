@@ -4,7 +4,7 @@ Website sources live under `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `./le site build` writes the publishable artifact to `../gh-pages` and removes
 old source-only files there. It reuses matching demo artifacts. Run
-`./le site terminal-demo render-all` first to force new demo artifacts.
+`./le site terminal-demo render all` first to force new demo artifacts.
 `./le site terminal-demo render name <demo-id>` re-records one demo while you work on
 its tape, and publishes it beside the artifacts it did not record. The ids are in
 `demos/terminal/manifest.json`.
@@ -33,7 +33,7 @@ stays beside the worktree.
 <!-- source: internal/le/site/terminaldemo/actions.go -- renderEngine -->
 
 A recording runs in a container this repository builds and publishes to no
-registry, so build it once per checkout with `./le site terminal-demo image-build`.
+registry, so build it once per checkout with `./le site terminal-demo build image`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
 recorder runs. The build goes through the lab's `interoplab.Docker.Build`, so
 it carries the owner labels and runs `docker build -q`: the action prints one
@@ -53,7 +53,7 @@ one every Docker run that runs Ze makes, described in
 `docs/architecture/testing/interop.md`, "The Docker host kernel check".
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.preflightContainers, Engine.checkKernel -->
 
-`./le site terminal-demo binaries-build-ze` cross-builds the programs the
+`./le site terminal-demo build binaries` cross-builds the programs the
 container runs into `tmp/terminal-demos/bin`: `ze`, `ze-demo`, and a linux
 `le`. The `le` build takes the recipe the perf sender container uses: the
 `ze_le` tag plus every daemon feature tag, `GOOS=linux`, `CGO_ENABLED=0`, and
@@ -105,7 +105,7 @@ lab owner labels and a `ze-oneshot-` name. An interrupt (SIGINT or SIGTERM) to
 a validate or render action cancels the run, and the wrapper removes the
 running container by that name rather than leaving it to record to the end. A
 container that runs past one hour is stopped and removed the same way. The
-same interrupt to `image-build` cancels the `docker build` it runs.
+same interrupt to `build image` cancels the `docker build` it runs.
 <!-- source: internal/le/site/terminaldemo/render.go -- runDemoContainer, demoContainerTimeout -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- signalRooted -->
 <!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot -->
