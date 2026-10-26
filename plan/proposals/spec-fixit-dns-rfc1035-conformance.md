@@ -35,14 +35,14 @@ AC-23..25 aggregate the feature decision and the release proof child; they do no
 | Scope | Current owner |
 |---|---|
 | Owner decision on zone-transfer applicability, WP-4/AC-11..14 if selected, aggregate enrollment AC-23..25; no permission to start. | `plan/proposals/spec-fixit-dns-rfc1035-conformance.md` |
-| WP-DNSSEC / AC-27 only; trust-anchor and unsigned-answer design remains paused. | `plan/release/fixes/spec-firewall-dnssec-membership-validation.md` |
+| WP-DNSSEC / AC-27 only; trust-anchor and unsigned-answer design remains paused. | `plan/post-release/features/spec-firewall-dnssec-membership-validation.md` |
 | Existing-behavior AC-1..10 excluding void5/7, AC-15..22, published claims AC-26, weak proof AC-28. | `plan/release/validation/spec-dns-existing-support-proof.md` |
 
 ## Work Not Done
 
 | Scope | Current owner |
 |---|---|
-| WP-DNSSEC / AC-27 only; trust-anchor and unsigned-answer design remains paused. | `plan/release/fixes/spec-firewall-dnssec-membership-validation.md` |
+| WP-DNSSEC / AC-27 only; trust-anchor and unsigned-answer design remains paused. | `plan/post-release/features/spec-firewall-dnssec-membership-validation.md` |
 | Existing-behavior AC-1..10 excluding void5/7, AC-15..22, published claims AC-26, weak proof AC-28. | `plan/release/validation/spec-dns-existing-support-proof.md` |
 
 ## Historical planning record
