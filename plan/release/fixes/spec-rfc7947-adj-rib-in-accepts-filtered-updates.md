@@ -247,7 +247,7 @@ is not a prerequisite for this change.
 | AC-11 | A config names a misspelling of that token | The config is refused, naming the token and listing the valid names |
 | AC-12 | `./le rfc check` runs on the tree | `RFC7947-2.1-1` exists at MUST with a positive and a negative tagged test, and the check is clean |
 | AC-13 | `rfc/short/rfc7947.md` is read | `RFC7947-x-4` reads SHOULD and `RFC7947-x-5` reads MAY; each has a `Correction 2026-08-30:` paragraph naming its id in backticks and quoting the RFC sentence that states the lower strength |
-| AC-14 | `./le rfc extraction-status` runs | rfc7947 is reported signed, with no site carrying a null disposition |
+| AC-14 | `./le rfc extraction report` runs | rfc7947 is reported signed, with no site carrying a null disposition |
 | AC-15 | An `rs-client true` peer with a configured prefix maximum of N sends N+1 denied prefixes | The session is torn down with Cease and the Maximum Number of Prefixes Reached subcode, exactly as it is for accepted prefixes |
 
 ## End-to-End User Stories
@@ -394,7 +394,7 @@ is not a prerequisite for this change.
    - Files: the scenario directory, modelled on `bgp-route-server-frr`
    - Verify: revert phase 3's skip, rebuild the daemon binary the scenario drives, confirm the third party learns the filtered prefix (RED), restore, confirm GREEN, and record the RED output
 7. **Phase: RFC ledger** -- the requirement row, the two corrections, the sign-off
-   - Tests: `./le rfc check`, `./le rfc extraction-status`
+   - Tests: `./le rfc check`, `./le rfc extraction report`
    - Files: `rfc/short/rfc7947.md`, `rfc/extraction/rfc7947.json`, `docs/features/rfc-status.md`
    - Verify: AC-12, AC-13, AC-14; the level ratchet is silent because each correction quotes the RFC verbatim
 8. **Phase: Documentation** -- every row of the checklist above that reads Yes
@@ -423,7 +423,7 @@ is not a prerequisite for this change.
 | The new event type reaches only its subscriber | grep the plugin tree for startup subscriptions and read all seven call sites |
 | No filtered entry ever becomes a stored route | `TestBuildReplayRoutesOmitsFilteredEntries` plus `gopls references` on the store field, re-run after the change |
 | Both polarities for `RFC7947-2.1-1` | `./le rfc check` |
-| rfc7947 signed off | `./le rfc extraction-status` reports rfc7947 as signed |
+| rfc7947 signed off | `./le rfc extraction report` reports rfc7947 as signed |
 | Level corrections accepted | `./le rfc check` reports no level-ratchet violation |
 | Interop scenario exists and is named, not numbered | list `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr` |
 | Spec valid | `./le ai hooks validate-spec` exits 0 |

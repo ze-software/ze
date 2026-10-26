@@ -25,7 +25,7 @@ seam reaches it. The proof is an integration-tier tag in the existing harness:
 `internal/component/l2tp/pppoeclient/dialer_integration_linux_test.go` drives the
 client and `internal/le/qemu/pppoe_accel_linux.go` boots the AC, so the test reads the
 `ppp<N>` interface from netlink on both guests after PADS and asserts it is absent
-before PADI. One record per polarity through `./le rfc discriminate-record`.
+before PADI. One record per polarity through `./le rfc record`.
 
 ### Requirements this spec covers
 

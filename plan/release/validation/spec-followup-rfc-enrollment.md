@@ -146,7 +146,7 @@ No current green gate is claimed by this planning reconciliation.
 
 **Behavior to change:** finish the owned programme slices above. Author enrolment
 and support declarations in summary Meta tables, add the required tests and
-evidence records, and regenerate the views through `./le rfc index-update`.
+evidence records, and regenerate the views through `./le rfc update`.
 
 ### Data Flow
 
@@ -159,7 +159,7 @@ evidence records, and regenerate the views through `./le rfc index-update`.
    uncovered or unjustifiably annotated MUST-level requirements.
 2. Tagging enforcing tests (`RFC requirement: <id> <polarity>`) makes the derived ledger show the
    requirement→test link; the gate turns green for that RFC.
-3. `./le rfc index-update` regenerates the enrolment, status and requirement views from the same owners.
+3. `./le rfc update` regenerates the enrolment, status and requirement views from the same owners.
 
 #### Boundaries Crossed
 | Boundary | How | Verified |
@@ -224,7 +224,7 @@ Design not started. When picked up, run `/ze-spec` to:
 #### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `./le rfc index-update` and read the rollup | unvalidated |
+| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `./le rfc update` and read the rollup | unvalidated |
 
 #### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

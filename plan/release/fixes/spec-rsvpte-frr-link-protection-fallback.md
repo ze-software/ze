@@ -42,7 +42,7 @@ backup, a different protection method; neither spec depends on the other).
 | Both polarities | a node bypass at the NNHOP is still preferred when both exist; no bypass at either hop arms nothing |
 | RRO flags | armed link fallback: protection-available set, node protection clear; armed node bypass: node protection set |
 | Test correction | `TestNodeProtectionNeedsNodeBypass` asserts the refusal the RFC advises against; it is rewritten to the fallback, not deleted |
-| Rows | a verbatim row for the Section 6 fallback sentence in `rfc/short/rfc4090.md`, tagged and discriminated with `./le rfc discriminate-record` |
+| Rows | a verbatim row for the Section 6 fallback sentence in `rfc/short/rfc4090.md`, tagged and discriminated with `./le rfc record` |
 | Interop | an RSVP-TE FRR scenario against FRR or another RSVP-TE speaker as head end, the PLR holding only a link bypass |
 
 ## Owner decisions

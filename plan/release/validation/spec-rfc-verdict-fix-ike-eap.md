@@ -278,7 +278,7 @@ Decision A is BLOCKED, not done: enrolling RFC 9190 gates its 33 MUST-level rows
 
 ### RFC 9190 enrolment: write the tests, then enrol (owner decision C, 2026-10-11)
 
-Thomas, 2026-10-11: "Write the tests, then enrol (Recommended)". Before RFC 9190 is enrolled, every gated MUST row in `rfc/short/rfc9190.md` gets real tests in both polarities through the real entry point, each proven by `./le rfc discriminate-record`. An annotation is used only where it is TRUE and the gate doc allows it: `{gap}` only where Ze genuinely does not implement the obligation, `{single-polarity}` only where no negative can exist. The 2026-08-01 owner ruling recorded in the summary's Meta closed annotations as a way to skip tests, and it stands. A row Ze does not implement is recorded as a gap and listed for the owner's scope decision, never built. Enrolment flips to `enrolled` in a final commit, and only once `./le rfc check` would show zero rfc9190 violations.
+Thomas, 2026-10-11: "Write the tests, then enrol (Recommended)". Before RFC 9190 is enrolled, every gated MUST row in `rfc/short/rfc9190.md` gets real tests in both polarities through the real entry point, each proven by `./le rfc record`. An annotation is used only where it is TRUE and the gate doc allows it: `{gap}` only where Ze genuinely does not implement the obligation, `{single-polarity}` only where no negative can exist. The 2026-08-01 owner ruling recorded in the summary's Meta closed annotations as a way to skip tests, and it stands. A row Ze does not implement is recorded as a gap and listed for the owner's scope decision, never built. Enrolment flips to `enrolled` in a final commit, and only once `./le rfc check` would show zero rfc9190 violations.
 
 Progress by row (the gated MUST rows that lacked a test in one or both polarities on 2026-10-11: 32, plus the `{gap}` row 2.3-4):
 
@@ -409,7 +409,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 ### Transformation Path
 1. The author agent records `./le rfc approve unit` (P-1), then changes a tagged test, a row, a tag, or a producer (D-8)
 2. `./le rfc reseal` re-stamps sibling verdicts the edit only shifted
-3. `./le rfc discriminate-record` records the observed red under a break for each added or changed cover
+3. `./le rfc record` records the observed red under a break for each added or changed cover
 4. A judging agent that did not author the test writes the verdict in a pending file under session scratch
 5. `./le rfc audit-stamp ... mode rejudge` replaces the verdict in place with fresh fingerprints
 6. `./le rfc check` compares verdicts, records and rows against HEAD^
@@ -565,7 +565,7 @@ Logs: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/inter
 
 ## Implementation Steps
 
-**Procedure P, for every package phase.** One author agent per package, never two on one test file. It reads the listing restricted to the package, records `./le rfc approve unit <pkg>.<Test> reason "D-15: ..."` before each tagged-unit edit (P-1), makes each clause of the quoted sentence asserted in both polarities or corrects the row, and fixes a verified defect under D-8. It runs the scoped package test under `./le job run`, then `./le rfc discriminate-record` for each added or changed cover. An independent judge that wrote none of the tests writes the verdicts in a pending file under session scratch and stamps them with `./le rfc audit-stamp stem <stem> from <pending> mode rejudge`. `./le rfc reseal` runs when the edit shifted sibling verdicts, serialized between children. Each package lands in one commit through `./le commit create` with the `RFC-approved:` trailer, author and judge together where they can. Verify: the listing filtered to the package holds only blocked ids, and `./le rfc check` adds no violation.
+**Procedure P, for every package phase.** One author agent per package, never two on one test file. It reads the listing restricted to the package, records `./le rfc approve unit <pkg>.<Test> reason "D-15: ..."` before each tagged-unit edit (P-1), makes each clause of the quoted sentence asserted in both polarities or corrects the row, and fixes a verified defect under D-8. It runs the scoped package test under `./le job run`, then `./le rfc record` for each added or changed cover. An independent judge that wrote none of the tests writes the verdicts in a pending file under session scratch and stamps them with `./le rfc audit-stamp stem <stem> from <pending> mode rejudge`. `./le rfc reseal` runs when the edit shifted sibling verdicts, serialized between children. Each package lands in one commit through `./le commit create` with the `RFC-approved:` trailer, author and judge together where they can. Verify: the listing filtered to the package holds only blocked ids, and `./le rfc check` adds no violation.
 
 1. **Phase: Wiring** - confirm the parent's `mode rejudge` has landed (A-1), reproduce the derived listing and its counts, and move each "Blocked by" verdict into its blocking spec's acceptance criteria (P-3)
    - Tests: the Wiring Test row

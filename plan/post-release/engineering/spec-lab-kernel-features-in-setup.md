@@ -27,8 +27,8 @@ modules in a refusal string, and nothing in `./le setup` or in
 The symptom, on this Linux dev host (2026-10-20): it runs Ze's runtime kernel
 `7.2.9-ze`, installed by `./le setup docker kernel install`. `/proc/config.gz`
 shows `# CONFIG_VHOST_NET is not set`, and `sudo modprobe vhost_net` fails with
-"Module vhost_net not found". `./le test deployment vpp-test` and
-`./le test deployment vpp-iface-test` fail at container start with a raw Docker
+"Module vhost_net not found". `./le test deployment vpp` and
+`./le test deployment vpp-iface` fail at container start with a raw Docker
 error ("no such file or directory") that names neither the kernel option nor
 the fix.
 
@@ -125,7 +125,7 @@ Today's sites that state a lab kernel fact, as found on 2026-10-20 (an inventory
 ### Entry Point
 - `./le setup install` and `./le setup check` (Linux).
 - `./le setup docker kernel install [builder <b>] [confirm <release>]`.
-- `./le test deployment vpp-test`, `vpp-iface-test`, `l2tp-test`, `docker-l2tp-ppp-test`, and each `./le test integration interop-*` lab with a preflight.
+- `./le test deployment vpp`, `vpp-iface-test`, `l2tp-test`, `docker-l2tp-ppp-test`, and each `./le test integration interop-*` lab with a preflight.
 
 ### Transformation Path
 1. Each lab and deployment proof package registers its kernel needs from its `register.go` init into one registry (fields below).
@@ -205,7 +205,7 @@ Two labs that need one feature name one record, owned by the package that declar
 | a lab's `register.go` init | → | the registry, then every consumer | `TestLabKernelNeedReachesEveryConsumer` (a test record reaches the container argv, the preflight probe, the refusal, setup's step list and install's rows with no other edit) |
 | `./le setup install` on Linux | → | `Setup.Run` → the lab-kernel row → `runPrivileged` | `TestSetupLoadsLabKernelModules` (`internal/le/setup`) |
 | `./le setup docker kernel install` | → | `cachedKernelServesHost` → `zeKernelServesHost` with the lab rows | `TestInstallRefusesKernelWithoutLabFeature` (`internal/le/setup/docker/kernel`) |
-| `./le test deployment vpp-test`, `vpp-iface-test` | → | the VPP device preflight | `TestVPPPreflightNamesTheKernelOption` (`internal/le/test/deployment`) |
+| `./le test deployment vpp`, `vpp-iface-test` | → | the VPP device preflight | `TestVPPPreflightNamesTheKernelOption` (`internal/le/test/deployment`) |
 | every lab and deployment container spec | → | the registered devices | `TestEveryLabDeviceGrantIsRegistered` |
 
 ## Acceptance Criteria
@@ -216,8 +216,8 @@ Two labs that need one feature name one record, owned by the package that declar
 | AC-2 | `./le setup docker kernel install` (no `confirm`) with a cached kernel config that lacks `CONFIG_VHOST_NET` | exit 1 before any root step; the refusal names `vpp-test` and `vpp-iface-test`, `/dev/vhost-net`, `CONFIG_VHOST_NET`, and the fix (enable it in `gokrazy/kernel/runtime.config` and `runtime.require`, then the rebuild command `runtimeKernelRebuild` prints for the backend). Proof: `TestInstallRefusesKernelWithoutLabFeature`, and the real dry run on this host before AC-4's kernel is cached, output pasted |
 | AC-3 | `./le setup install` on Linux on a stock distro kernel where a lab module is not loaded | each missing module is loaded through setup's root route, each command printed before it runs; `/etc/modules-load.d/ze-labs.conf` lists every lab module the running kernel builds as a module; a feature already present (loaded or built in) gets no step. `./le setup check` prints the same commands, runs none, and exits nonzero while one is owed. A module the running kernel cannot provide is a FAIL row naming the lab, the module, the option and the fix (a kernel with the option, or `./le setup docker kernel install`), and the run exits nonzero. Proof: `TestSetupLoadsLabKernelModules` over an injected shell and host root; a real run on a stock-kernel Linux host with output pasted; a real `./le setup check` on this host before the reboot, naming `vhost_net` and `CONFIG_VHOST_NET` |
 | AC-4 | `gokrazy/kernel/runtime.config` and `runtime.require` | both carry `CONFIG_VHOST_NET`, set `=y`; `./ze-host appliance kernel --target runtime --arch amd64` exits 0 and its emitted config shows `CONFIG_VHOST_NET=y`; `TestHostDependencyOptionsAreInTheRuntimeProfile` (or its successor) also covers every registered lab option and fails when one is missing from the fragment |
-| AC-5 | `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` on a Docker host without `/dev/vhost-net` | each exits 1 before the image pull and the cross-compile, with no verdict; the message names the proof, `/dev/vhost-net`, `CONFIG_VHOST_NET`, the module `vhost_net`, and the fix on a line of its own (stock kernel: `./le setup install`; Ze kernel: the runtime option, the rebuild, `./le setup docker kernel install`, a reboot; through `DockerKernelRoute` for the platform); the Docker error is kept as the cause, never shown alone. Proof: `TestVPPPreflightNamesTheKernelOption`, and both real runs on this host before the reboot, output pasted |
-| AC-6 | After the owner action (rebuild, `./le setup docker kernel install confirm 7.2.9-ze`, reboot) on this host | `uname -r` prints `7.2.9-ze`; `/proc/config.gz` shows `CONFIG_VHOST_NET=y`; `/dev/vhost-net` is a character device; `./le setup check` reports the lab-kernel row present; `./le test deployment vpp-test` and `./le test deployment vpp-iface-test` each start their container (`docker events --filter label=ze.lab` shows the start) and reach their verdict with no device refusal, output pasted |
+| AC-5 | `./le test deployment vpp` and `./le test deployment vpp-iface` on a Docker host without `/dev/vhost-net` | each exits 1 before the image pull and the cross-compile, with no verdict; the message names the proof, `/dev/vhost-net`, `CONFIG_VHOST_NET`, the module `vhost_net`, and the fix on a line of its own (stock kernel: `./le setup install`; Ze kernel: the runtime option, the rebuild, `./le setup docker kernel install`, a reboot; through `DockerKernelRoute` for the platform); the Docker error is kept as the cause, never shown alone. Proof: `TestVPPPreflightNamesTheKernelOption`, and both real runs on this host before the reboot, output pasted |
+| AC-6 | After the owner action (rebuild, `./le setup docker kernel install confirm 7.2.9-ze`, reboot) on this host | `uname -r` prints `7.2.9-ze`; `/proc/config.gz` shows `CONFIG_VHOST_NET=y`; `/dev/vhost-net` is a character device; `./le setup check` reports the lab-kernel row present; `./le test deployment vpp` and `./le test deployment vpp-iface` each start their container (`docker events --filter label=ze.lab` shows the start) and reach their verdict with no device refusal, output pasted |
 
 ## 🧪 TDD Test Plan
 
@@ -245,8 +245,8 @@ Two labs that need one feature name one record, owned by the package that declar
 | `./le setup docker kernel install` dry run | this host, output pasted here | AC-2 | |
 | `./le setup check` before the reboot | this host, output pasted here | AC-3 (absent module) | |
 | `./le setup install` on a stock distro kernel | a Linux host on its distro kernel, output pasted here | AC-3 (load and persist) | |
-| `./le test deployment vpp-test`, `vpp-iface-test` before the reboot | this host, output pasted here | AC-5 | |
-| `./le test deployment vpp-test`, `vpp-iface-test` after the reboot | this host, output pasted here | AC-6 | |
+| `./le test deployment vpp`, `vpp-iface-test` before the reboot | this host, output pasted here | AC-5 | |
+| `./le test deployment vpp`, `vpp-iface-test` after the reboot | this host, output pasted here | AC-6 | |
 
 ### Interop Tests (Scope: protocol)
 N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs run against a real VPP daemon on this host.

@@ -84,7 +84,7 @@ size of each work package.
 ### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 #### Entry Point
-- `./le rfc discriminate stem <stem> report <gomu.json> upgrade`, then `./le rfc discriminate-record ... route mutant`
+- `./le rfc discriminate stem <stem> report <gomu.json> upgrade`, then `./le rfc record ... route mutant`
 
 #### Transformation Path
 1. one gomu run per producer package

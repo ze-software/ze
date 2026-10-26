@@ -314,7 +314,7 @@ and a counter Ze could not read is never reported as a zero.
 5. **Phase: proof against a real server** -- the interop scenario and the operator path
    - Tests: `radius-accounting-pppoe`, `pppoe-accounting.ci`
    - Files: `test/interop-pppoe/scenarios/`, `test/pppoe/`, `internal/le/qemu/netns_linux.go`
-   - Verify: revert the subscription change, watch the scenario go red, restore it, confirm green, and record that red. Where a unit carries an `RFC requirement:` tag, the walk runs through `./le rfc discriminate-record`
+   - Verify: revert the subscription change, watch the scenario go red, restore it, confirm green, and record that red. Where a unit carries an `RFC requirement:` tag, the walk runs through `./le rfc record`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

@@ -192,7 +192,7 @@ corpus changes for one stem, `rfc9582`, and one draft.
 3. Apply it to `rfc9582`: mark the 13 rows, enrol the draft, move the 13 tags.
    The tag move needs an owner-approval row in `test/rfc-changed.md`; the owner
    approved the re-attribution itself on 2026-09-01.
-4. Correct the public row, then `./le rfc index-update`.
+4. Correct the public row, then `./le rfc update`.
 
 ## Design Insights
 

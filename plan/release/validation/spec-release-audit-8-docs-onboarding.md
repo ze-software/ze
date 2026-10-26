@@ -51,14 +51,14 @@ Every docs/onboarding finding must include:
   -> Constraint: docs findings should map to a first-user or release-engineer path
 - [ ] `ai/rules/writing.md` - source anchors and validation targets
   -> Decision: audit factual docs against source and tooling rather than memory
-  -> Constraint: every factual docs claim should be source-backed, and `./le doc check verify` is the documented validation target for docs changes
+  -> Constraint: every factual docs claim should be source-backed, and `./le doc check all` is the documented validation target for docs changes
 - [ ] `ai/rules/evidence.md` - line-backed factual claims
   -> Constraint: findings cite exact source or tool output, and avoid inferred status
 - [ ] `ai/rules/commands.md` - no pipes for build/test/verify commands
   -> Constraint: validation commands were run cleanly, without piping their output
 - [ ] `docs/contributing/documentation-testing.md` - documentation drift and command validator workflow
-  -> Decision: `./le doc check verify`, `./le doc yang-contract doc-drift`, `./le doc yang-contract command-contract`, `./le doc consistency`, and `./le doc index check` are separate evidence tools
-  -> Constraint: `./le doc check verify` is not part of `./le verify current mode full` today, so docs drift can exist outside the default gate
+  -> Decision: `./le doc check all`, `./le doc yang-contract doc-drift`, `./le doc yang-contract command-contract`, `./le doc consistency`, and `./le doc index check` are separate evidence tools
+  -> Constraint: `./le doc check all` is not part of `./le verify current mode full` today, so docs drift can exist outside the default gate
 
 ### Source and Documentation Files
 
@@ -69,7 +69,7 @@ Every docs/onboarding finding must include:
 - [ ] `docs/guide/quickstart.md` - build, init, minimal config, validate, start, verify path
   -> Decision: quickstart must be executable from a clean checkout with current command output
 - [ ] `docs/guide/ze-install.md` - local install, systemd, remote provisioning onboarding path
-  -> Decision: install docs belong in the first-user docs surface even when not tested by `./le doc check verify`
+  -> Decision: install docs belong in the first-user docs surface even when not tested by `./le doc check all`
 - [ ] `docs/functional-tests.md` - release gate and evidence documentation
   -> Decision: release engineers depend on this file for what is and is not gated
 - [ ] `docs/DESIGN.md` - shipped plugin table, test philosophy, interop count
@@ -95,7 +95,7 @@ Every docs/onboarding finding must include:
 
 **Source files and docs read:**
 - [ ] `go.mod` - declares `go 1.26` at line 3
-- [ ] `docs/contributing/documentation-testing.md` - says `./le doc check verify` runs all documentation tests at lines 8-14 and is not part of `./le verify current mode full` at lines 42-44
+- [ ] `docs/contributing/documentation-testing.md` - says `./le doc check all` runs all documentation tests at lines 8-14 and is not part of `./le verify current mode full` at lines 42-44
 - [ ] `internal/le/docvalid/drift.go` - checks docs against registry, filesystem, the native action tables under `internal/le/`, README, features, and functional docs at lines 73-90
 - (Observation bullets for the removed findings RA-DOC-001 and RA-DOC-005 deleted 2026-07-10; see Post-wave corrections.)
 - [ ] `internal/le/` native action tables - includes split the native action tables under `internal/le/` modules at lines 50-59, including `internal/le/functional/suites.go`
@@ -106,11 +106,11 @@ Every docs/onboarding finding must include:
 
 **Validation commands run:**
 - the retired `ze-consistency-check` (current: `./le doc consistency`) failed with 42 errors and 712 warnings; doc-relevant output includes stale source refs in `internal/component/bgp/plugins/rib/storage/pathset.go` and missing plugin command package documentation/schema markers. (2026-07-10 re-run: 84 errors, 1021 warnings, same pathset refs; see Post-wave corrections.)
-- (Command-run bullets for the removed findings RA-DOC-002-as-filed, RA-DOC-006, and RA-DOC-007 deleted 2026-07-10; the 2026-07-10 `./le doc check verify` state is recorded in Post-wave corrections.)
+- (Command-run bullets for the removed findings RA-DOC-002-as-filed, RA-DOC-006, and RA-DOC-007 deleted 2026-07-10; the 2026-07-10 `./le doc check all` state is recorded in Post-wave corrections.)
 
 **Behavior to preserve:**
 - Documentation remains source-backed and should not rely on memory.
-- `./le doc check verify` remains the main documentation drift and command-contract target.
+- `./le doc check all` remains the main documentation drift and command-contract target.
 - `./le verify current mode full` remains the fast code gate, while docs-specific checks stay explicit until a separate release-gate design changes that policy.
 - Source anchors remain invisible comments in rendered Markdown.
 - The release audit does not edit docs or tooling directly.
@@ -126,7 +126,7 @@ Every docs/onboarding finding must include:
 
 - New users enter through `README.md`, `docs/guide/quickstart.md`, `docs/guide/README.md`, install docs, feature pages, and command reference pages.
 - Release engineers enter through `docs/functional-tests.md`, `docs/contributing/documentation-testing.md`, Make targets, and generated code-to-doc reverse indexes.
-- Documentation validation enters through `./le doc check verify`, `./le doc yang-contract doc-drift`, `./le doc yang-contract command-contract`, `./le doc consistency`, `./le doc index check`, and local markdown link scans.
+- Documentation validation enters through `./le doc check all`, `./le doc yang-contract doc-drift`, `./le doc yang-contract command-contract`, `./le doc consistency`, `./le doc index check`, and local markdown link scans.
 
 ### Transformation Path
 
@@ -140,7 +140,7 @@ Every docs/onboarding finding must include:
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Docs -> live registry/filesystem | `./le doc check verify` and `doc_drift.go` | RA-DOC-002, RA-DOC-004, RA-DOC-005 |
+| Docs -> live registry/filesystem | `./le doc check all` and `doc_drift.go` | RA-DOC-002, RA-DOC-004, RA-DOC-005 |
 | Consistency docs -> code refs | `./le doc consistency` output | RA-DOC-008 |
 | Gate docs -> live stage list | `docs/functional-tests.md` vs `stagesForMode` | RA-DOC-009 |
 | Interop docs -> scenario tree | documented counts vs `test/interop/scenarios/` | RA-DOC-010 |
@@ -176,7 +176,7 @@ Every docs/onboarding finding must include:
 
 | ID | Severity | Surface | File/line | User Impact | Reproduction | Expected | Actual | Missing Test | Suggested Direction | Owner | Verification Requested |
 |----|----------|---------|-----------|-------------|--------------|----------|--------|--------------|---------------------|-------|------------------------|
-| RA-DOC-002 | Major | documentation gate and release evidence docs | `docs/contributing/documentation-testing.md`, `:42-44`; `docs/functional-tests.md`, `:1112-1124`; the retired `Makefile:180-184` (current producers: `internal/le/` native action tables); `internal/le/fuzz/actions.go`, `:14-70`; `internal/le/docvalid/drift.go`; `./le doc check verify` output | Release engineers cannot trust docs to be release-ready while the repository's own doc target fails and release-evidence docs omit or stale-check current targets | Run `./le doc check verify`; compare `docs/functional-tests.md` with the retired `Makefile` (current producers: `internal/le/` native action tables) and `internal/le/fuzz/actions.go` | Documentation drift target passes or reports only explicitly deferred issues, and release evidence docs match current verification and fuzz targets | `./le doc check verify` fails with 11 drift issues before command validation; command validation itself reports `All commands validated`; `docs/functional-tests.md` omits `ze-evidence-vet` from `./le verify current mode full` and says fuzz runs 15s each while `internal/le/fuzz/actions.go` uses 10s | No release blocker check currently requires a clean doc target before release; doc-test does not catch the `ze-evidence-vet` or fuzz-duration drift | Future fix should clear or route every doc-test issue, update release evidence docs against Makefiles, then decide whether release evidence requires `./le doc check verify` clean output | docs/tooling and release evidence | Passing `./le doc check verify`; source-backed `docs/functional-tests.md` updates for `ze-evidence-vet` and fuzz duration; if any issue is deferred, it is tied to an existing spec and not counted as clean release evidence |
+| RA-DOC-002 | Major | documentation gate and release evidence docs | `docs/contributing/documentation-testing.md`, `:42-44`; `docs/functional-tests.md`, `:1112-1124`; the retired `Makefile:180-184` (current producers: `internal/le/` native action tables); `internal/le/fuzz/actions.go`, `:14-70`; `internal/le/docvalid/drift.go`; `./le doc check all` output | Release engineers cannot trust docs to be release-ready while the repository's own doc target fails and release-evidence docs omit or stale-check current targets | Run `./le doc check all`; compare `docs/functional-tests.md` with the retired `Makefile` (current producers: `internal/le/` native action tables) and `internal/le/fuzz/actions.go` | Documentation drift target passes or reports only explicitly deferred issues, and release evidence docs match current verification and fuzz targets | `./le doc check all` fails with 11 drift issues before command validation; command validation itself reports `All commands validated`; `docs/functional-tests.md` omits `ze-evidence-vet` from `./le verify current mode full` and says fuzz runs 15s each while `internal/le/fuzz/actions.go` uses 10s | No release blocker check currently requires a clean doc target before release; doc-test does not catch the `ze-evidence-vet` or fuzz-duration drift | Future fix should clear or route every doc-test issue, update release evidence docs against Makefiles, then decide whether release evidence requires `./le doc check all` clean output | docs/tooling and release evidence | Passing `./le doc check all`; source-backed `docs/functional-tests.md` updates for `ze-evidence-vet` and fuzz duration; if any issue is deferred, it is tied to an existing spec and not counted as clean release evidence |
 | RA-DOC-008 | Minor | consistency and doc-ref backlog | `./le doc consistency` output; `internal/component/bgp/plugins/rib/storage/pathset.go`; `internal/component/bgp/plugins/cmd/cache`; `internal/component/bgp/plugins/cmd/commit` | Release engineers cannot treat `./le doc consistency` as a clean documentation consistency gate because doc-relevant errors are mixed into a large backlog | Run `./le doc consistency` | Consistency output is clean or split into actionable release-gate categories with doc failures visible | Command fails with 42 errors and 712 warnings, including stale refs to non-existent storage files and missing plugin command package docs/schema markers | No focused docs-consistency gate separates source-anchor/link/plugin-doc failures from broader code size and style backlog | Future fix should either clean doc-relevant consistency errors or split a narrower docs consistency target from broad code health checks | docs/tooling plus relevant subsystem owners | Passing focused docs consistency target, or `./le doc consistency` clean enough that docs failures are actionable |
 | RA-DOC-009 | Major | release gate documentation | `docs/functional-tests.md`; `internal/le/verify/engine/run.go`; `internal/le/` native action tables | Release engineers reading the documented ./le verify current mode full order miss five live gates and cannot route their failures | Compare `docs/functional-tests.md` with `stagesForMode` (`internal/le/verify/engine/run.go`) | Docs list the live stage order | Docs omit `./le arch tier check`, `ze-iface-resolution-check`, `./le plugin boundary check`, `./le config ports check`, `ze-platform-vet`, which the live producer runs between ./le go lint run and ./le doc wiring (`verify_run.go`); the dead `_ze-verify-impl` target (`internal/le/` native action tables, zero callers per `internal/le/` native action tables) additionally lists `./le cli grammar`, absent from the live list | `doc_drift.go` does not compare the documented order sentence against `stagesForMode` | Future fix should update the order sentence from `stagesForMode` and consider deriving the check in `doc_drift.go` | docs/onboarding plus docs/tooling | `docs/functional-tests.md` ./le verify current mode full order matches `stagesForMode`; ideally a drift check guards it |
 | RA-DOC-010 | Minor | interop inventory docs | `docs/features/interoperability-testing.md`; `docs/architecture/testing/interop.md`; `docs/DESIGN.md`; `test/interop/scenarios/` | Users and release engineers see three different scenario counts | Compare documented counts with the scenario directory count | All docs state the live count or a generated-list policy | Features doc says 96, interop architecture doc says 97, DESIGN.md says 101; the tree has 101 scenario directories (2026-07-10) | No inventory check keeps counts in sync (successor to removed RA-DOC-003) | Future fix should derive or validate scenario counts from the tree | docs/onboarding plus BGP protocol audit | Counts consistent across docs or generated from the tree |
@@ -199,7 +199,7 @@ This audit spec has no runtime product code. Its wiring test is that each docume
 
 | Entry Point | -> | Feature Code or Tool | Test |
 |-------------|----|----------------------|------|
-| Documentation drift target | -> | `internal/le/docvalid/drift.go` | `./le doc check verify`, currently failing RA-DOC-002 |
+| Documentation drift target | -> | `internal/le/docvalid/drift.go` | `./le doc check all`, currently failing RA-DOC-002 |
 | ./le verify current mode full order documentation | -> | `internal/le/verify/engine/run.go` stagesForMode | Future drift check requested by RA-DOC-009 |
 | Interop scenario counts | -> | `test/interop/scenarios/` | Future inventory check requested by RA-DOC-010 |
 
@@ -242,7 +242,7 @@ N/A for this audit itself -- it adds no tests; `.ci` coverage obligations live i
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Docs validation umbrella | `./le doc check verify` | Release engineer checks docs drift and command contract | Currently failing RA-DOC-002 |
+| Docs validation umbrella | `./le doc check all` | Release engineer checks docs drift and command contract | Currently failing RA-DOC-002 |
 
 ### Interop Tests
 
@@ -318,7 +318,7 @@ This audit spec has no implementation phase. Future fix specs should be created 
 
 | Failure | Route To |
 |---------|----------|
-| `./le doc check verify` fails | Capture the current RA-DOC-002 population, then assign each surviving repair to a named implementation spec |
+| `./le doc check all` fails | Capture the current RA-DOC-002 population, then assign each surviving repair to a named implementation spec |
 | Stale source consistency references | RA-DOC-008 audit evidence; implementation ownership remains unassigned and blocks a routed/closed claim |
 | Release gate documentation | Revalidate RA-DOC-009 against the producer query; only a reproduced residual needs a repair owner |
 | Interop inventory drift | RA-DOC-010/child 2 audit reconciliation; a surviving repair needs its own implementation owner |
@@ -406,14 +406,14 @@ Removed findings:
 
 - Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-001: `README.md` now says "Go 1.26+", matching `go.mod:3`; `docs/guide/quickstart.md` says Go 1.26+ and its expected output "configuration valid: example.conf" (`quickstart.md`) matches the producer `internal/component/config/cli/cmd_validate.go` (the validate command moved there from `cmd/ze/config/cmd_validate.go`).
 - Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-003 (as filed): no doc says 32 or 33 scenarios any more; `docs/DESIGN.md` says "101 interop scenarios" (the tree has 101 scenario directories); `docs/architecture/testing/interop.md` lists `bfd-frr` in its core table and its coverage text names BFD failover (`interop.md`). Residual count drift re-filed as RA-DOC-010 below.
-- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-004: all nine plugins the finding named (`bgp-filter-aspath-length`, `bgp-filter-remove-private-as`, `dhcpserver`, `flowspec-firewall`, `ike`, `imageserver`, `kernel`, `routing-table`, `tftpserver`) now appear in `docs/DESIGN.md`, and the doc-drift stage of `./le doc check verify` reports "No documentation drift detected" (run 2026-07-10).
-- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-005: `functionalGateSuites` (`internal/le/docvalid/drift.go`) now follows `include`/`-include`/`sinclude` directives (`doc_drift.go`, `:221`); the "could not derive ./le test functional suites" error no longer appears in the 2026-07-10 `./le doc check verify` run.
+- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-004: all nine plugins the finding named (`bgp-filter-aspath-length`, `bgp-filter-remove-private-as`, `dhcpserver`, `flowspec-firewall`, `ike`, `imageserver`, `kernel`, `routing-table`, `tftpserver`) now appear in `docs/DESIGN.md`, and the doc-drift stage of `./le doc check all` reports "No documentation drift detected" (run 2026-07-10).
+- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-005: `functionalGateSuites` (`internal/le/docvalid/drift.go`) now follows `include`/`-include`/`sinclude` directives (`doc_drift.go`, `:221`); the "could not derive ./le test functional suites" error no longer appears in the 2026-07-10 `./le doc check all` run.
 - Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-006: check mode is read-only (`internal/le/docstocode/codetodocs.go` writes `ai/CODE-TO-DOCS.md` only in non-check mode) and the description separator accepts `--`, single hyphen, and the long dash (`code_to_docs.py`); the 2026-07-10 run reports "checked 1366 code paths, 429 packages ... all references valid".
-- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-007: all 8 cited broken links now resolve (`docs/guide/benchmarking.md`, `docs/guide/config-archive.md`, `docs/guide/looking-glass.md`, `docs/guide/healthcheck.md`, `docs/guide/rpki.md`, `docs/guide/web-interface.md` exist for the `docs/features/*` links; `docs/guide/mcp/overview.md` -> `ai/rules/protocol.md` resolves; `docs/architecture/config/environment.md` links at `:115`/`:126` resolve). A local Markdown link checker is still absent from `./le doc check verify`, so the Future item for it is retained.
+- Removed 2026-07-10 per user instruction: resolved by followup wave -- RA-DOC-007: all 8 cited broken links now resolve (`docs/guide/benchmarking.md`, `docs/guide/config-archive.md`, `docs/guide/looking-glass.md`, `docs/guide/healthcheck.md`, `docs/guide/rpki.md`, `docs/guide/web-interface.md` exist for the `docs/features/*` links; `docs/guide/mcp/overview.md` -> `ai/rules/protocol.md` resolves; `docs/architecture/config/environment.md` links at `:115`/`:126` resolve). A local Markdown link checker is still absent from `./le doc check all`, so the Future item for it is retained.
 
 Retained findings, status re-verified 2026-07-10:
 
-- RA-DOC-002 (retained, narrowed): the drift checker now passes ("No documentation drift detected"); `docs/functional-tests.md` includes `ze-evidence-vet` in the documented ./le verify current mode full order; fuzz docs match the the native action tables under `internal/le/` (54 targets at `functional-tests.md`, "10s each" at `:1503`; `internal/le/fuzz/actions.go` uses 10s per target). `./le doc check verify` still exits non-zero, but only on the discovery-index freshness stage: `ai/DOCS-TO-CODE.md` and `ai/LEARNED-FULL-INDEX.md` are stale against the wave (fix: `./le repo package-map update`). The finding's remaining substance is that index regeneration plus RA-DOC-009 below.
+- RA-DOC-002 (retained, narrowed): the drift checker now passes ("No documentation drift detected"); `docs/functional-tests.md` includes `ze-evidence-vet` in the documented ./le verify current mode full order; fuzz docs match the the native action tables under `internal/le/` (54 targets at `functional-tests.md`, "10s each" at `:1503`; `internal/le/fuzz/actions.go` uses 10s per target). `./le doc check all` still exits non-zero, but only on the discovery-index freshness stage: `ai/DOCS-TO-CODE.md` and `ai/LEARNED-FULL-INDEX.md` are stale against the wave (fix: `./le repo package-map update`). The finding's remaining substance is that index regeneration plus RA-DOC-009 below.
 - RA-DOC-008 (retained, still reproducible): the retired `ze-consistency-check` (current: `./le doc consistency`) re-run 2026-07-10 fails with 84 errors and 1021 warnings (was 42/712; the backlog grew). The cited stale refs persist (`internal/component/bgp/plugins/rib/storage/pathset.go` -> `familyrib_bart.go`, `:3` -> `familyrib_map.go`, both missing), as do the `cmd/cache`/`cmd/commit` missing-schema errors.
 
 Fresh instances (added as rows in Initial Findings above):

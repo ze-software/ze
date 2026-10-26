@@ -45,7 +45,7 @@ pins it, and each suite carries one `.ci` proving it discriminates:
 This spec owes functional verify-tier proofs for all 206 BFD, VRRP and DHCP
 obligations in that snapshot: RFC 5880/5881/5883, RFC 5798 and RFC 2131/2132.
 Every obligation owes positive and negative tagged assertions and a valid
-discrimination record from `./le rfc discriminate-record` for each binding.
+discrimination record from `./le rfc record` for each binding.
 The number describes obligations, not a required number of files; sharing a
 test never excuses an untested requirement or polarity.
 
@@ -176,7 +176,7 @@ is a compliance decision, not bookkeeping.
 |-------|-------------------|-------------------|
 | AC-1 | The original 206 BFD/VRRP/DHCP obligations and the current summary ids are reconciled | A dated requirement-to-test map accounts for every original obligation and every newly extracted obligation; no count change, annotation or carrier downgrade removes a proof owed |
 | AC-2 | Each obligation in AC-1 is exercised through the running subsystem | Positive and negative tagged functional assertions in `test/bfd/*.ci`, `test/dhcp/*.ci` or `test/vrrp/*.ci` observe its required behaviour at verify tier; a config-only assertion cannot stand in for an unexercised wire requirement |
-| AC-3 | Each requirement/polarity/test binding from AC-2 | `./le rfc discriminate-record` records a break that makes that named test fail; the restored producer passes and the record verifies against the final tree |
+| AC-3 | Each requirement/polarity/test binding from AC-2 | `./le rfc record` records a break that makes that named test fail; the restored producer passes and the record verifies against the final tree |
 | AC-4 | The proof inventory is checked after the backfill | Every AC-1 obligation has both functional polarities and valid discrimination evidence, with no loss of existing evidence; each owning suite has a recorded execution result |
 | AC-5 | The separate geodns/dnsserver remainder is reconciled | Thomas's carrier decision is recorded for the historical 36 obligations and their current id set. Any resulting proof work remains open here until completed, or is named in an owner-approved live destination spec before this spec can close |
 

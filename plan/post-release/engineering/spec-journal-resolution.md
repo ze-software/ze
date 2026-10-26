@@ -95,7 +95,7 @@ banner prints goes down rather than up.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le spec journal report` and `./le spec journal validate`, reading committed class files (report) or the working tree (validate).
+- `./le spec journal report` and `./le spec journal check`, reading committed class files (report) or the working tree (validate).
 - A spec's metadata table, read by `hookValidateSpec`, `writeSpecStatus` and `./le spec status`.
 
 ### Transformation Path
@@ -144,7 +144,7 @@ and the check-repair steps are in `plan/journal/README.md` and are not repeated.
 |------|------|
 | 1 | The session appends a Pass Log row with result `running`, its session id and the class, and commits it alone before any other edit, so a second session reading HEAD skips that class |
 | 2 | A `running` row whose session directory `tmp/session/<date>-<id>/` is no longer written is abandoned: the next session rewrites its result to `abandoned` and may take the class |
-| 3 | The pass session claims this spec (`./le spec claim spec plan/post-release/engineering/spec-journal-resolution.md`) for the edit hook, and works the class through `/ze-explore` (read every row), `/ze-implement` (check, proof, fixes) and `/ze-review` in an independent context |
+| 3 | The pass session claims this spec (`./le spec claim plan/post-release/engineering/spec-journal-resolution.md`) for the edit hook, and works the class through `/ze-explore` (read every row), `/ze-implement` (check, proof, fixes) and `/ze-review` in an independent context |
 
 ### Resolving a row
 
@@ -222,7 +222,7 @@ append-only otherwise.
 |-------------|---|--------------|------|
 | `./le spec journal report` | → | `Report` sort | `TestReportOrdersCheckGapClassesFirst` |
 | `./le spec journal report` | → | `Report` spec-pointer check | `TestReportNamesUnresolvedSpecPointer` |
-| `./le spec journal validate` and the post-write hook | → | `ValidateFile` | `TestValidateFileRefusesOpenRowNamingMissingSpec` |
+| `./le spec journal check` and the post-write hook | → | `ValidateFile` | `TestValidateFileRefusesOpenRowNamingMissingSpec` |
 | spec write through Write/Edit | → | `validateSpecText` via `Vocabulary` | `TestValidateSpecTextAcceptsStanding` |
 | source edit under a claimed standing spec | → | `writeSpecStatus` | `TestWriteSpecStatusAllowsStandingClaim` |
 
@@ -232,7 +232,7 @@ append-only otherwise.
 |-------|-------------------|-------------------|
 | AC-1 | HEAD holds a check-captured class DUE at 1 counted row and an uncaptured class at 40 | the report prints the check-captured class first among DUE classes, then the rest by counted rows descending; text and JSON agree |
 | AC-2 | HEAD holds an `open:` row whose Fix cell cites a spec path that does not exist at HEAD | the report names the class, the row date and the path under an unresolved-pointer line and still exits 0 |
-| AC-3 | A row added in the working tree is `open:` and cites a `plan/` spec path that does not exist on disk | `./le spec journal validate` names the line with a problem kind for the unresolved pointer and exits non-zero; a `fixed:` row citing a closed spec is not refused |
+| AC-3 | A row added in the working tree is `open:` and cites a `plan/` spec path that does not exist on disk | `./le spec journal check` names the line with a problem kind for the unresolved pointer and exits non-zero; a `fixed:` row citing a closed spec is not refused |
 | AC-4 | A spec declares `| Status | standing |` (if the owner approves the status) | the spec validation hook accepts it, `./le spec status` reports it, and the roadmap counts it as Backlog |
 | AC-5 | The session's claimed spec is `standing` and the session edits a `.go` file | `writeSpecStatus` allows the edit; the permitted set is read from `internal/le/spec/status`, and the hook holds no status literal |
 | AC-6 | A pass is run on a DUE class per this process | its Pass Log row names class, result, rows fixed, rows re-homed with the owning spec, and SHAs; every row of the class still open is listed in a spec's owned journal rows table; the class is no longer DUE in the report at the pass's last commit |

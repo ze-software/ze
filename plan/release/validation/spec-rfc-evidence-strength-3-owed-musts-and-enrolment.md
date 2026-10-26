@@ -100,7 +100,7 @@ has no summary, so no reader can follow it.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `rfc/short/<stem>.md` Meta rows; `./le rfc index-update`
+- `rfc/short/<stem>.md` Meta rows; `./le rfc update`
 
 ### Transformation Path
 1. `Collect` reads the Meta tables
@@ -110,7 +110,7 @@ has no summary, so no reader can follow it.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| summaries and the generated page | `./le rfc index-update` | No |
+| summaries and the generated page | `./le rfc update` | No |
 
 ### Integration Points
 - `RenderInput` gains the Meta map or an out-of-count set; no new registry
@@ -153,7 +153,7 @@ has no summary, so no reader can follow it.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le rfc index-update` | → | `renderRollup` state column | `TestRollupNeverCallsAnOutOfCountSummaryEnrollable` in `internal/le/rfc/render_test.go` |
+| `./le rfc update` | → | `renderRollup` state column | `TestRollupNeverCallsAnOutOfCountSummaryEnrollable` in `internal/le/rfc/render_test.go` |
 | `./le rfc check` page freshness | → | the regenerated `ai/RFC-REQUIREMENTS.md` | existing freshness check in `check_status.go` |
 
 ## Acceptance Criteria

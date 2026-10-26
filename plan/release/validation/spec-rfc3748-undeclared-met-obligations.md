@@ -113,7 +113,7 @@ account for.
 | Summary ↔ gate | requirement rows and extraction mappings | No |
 
 ### Integration Points
-- `./le rfc discriminate-record` - writes the discrimination record each new tag owes
+- `./le rfc record` - writes the discrimination record each new tag owes
 - `rfc/extraction/rfc3748.json` - the sign-off artifact each site's mapping lands in
 
 ### Architectural Verification
@@ -159,7 +159,7 @@ account for.
 |-------|-------------------|-------------------|
 | AC-1 | Each of the fourteen sites | Carries a requirement id in `rfc/short/rfc3748.md` and a mapping in the extraction artifact |
 | AC-2 | Each new requirement id | Carries a tagged test whose claim states what the test body checks and no more |
-| AC-3 | Each new tag | Carries a discrimination record written by `./le rfc discriminate-record` from an observed red |
+| AC-3 | Each new tag | Carries a discrimination record written by `./le rfc record` from an observed red |
 | AC-4 | `./le rfc check` after the change | Passes, with no site left unmapped and no claim unproven |
 
 ## End-to-End User Stories
@@ -196,7 +196,7 @@ account for.
 - `internal/core/eap/` - the tagged tests, and any producer comment a new requirement id anchors
 
 ## Files to Create
-- `rfc/discrimination/` - one record per new tag, written by `./le rfc discriminate-record`
+- `rfc/discrimination/` - one record per new tag, written by `./le rfc record`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

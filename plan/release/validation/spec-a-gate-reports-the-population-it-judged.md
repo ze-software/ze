@@ -130,7 +130,7 @@ Not applicable. This spec changes no protocol behavior and no wire format.
 ### Entry Point
 - `./le verify worktree [commit <revision>]` -- an agent or a person runs the pre-commit gate. `runHere` (`internal/le/verify/actions.go`) resolves the commit, adds a detached worktree, and calls `verifyengine.Run` at that path.
 - `./le verify current mode full|changed` -- the same engine over the shared checkout.
-- `./le test qemu run command "./le test qemu all-tests"` -- the in-VM run that produces `AllTestsReport`.
+- `./le test qemu run command "./le test qemu all"` -- the in-VM run that produces `AllTestsReport`.
 - Format at entry: a keyword-value argument list resolved by `leaction`; no file or wire input.
 
 ### Transformation Path
@@ -199,7 +199,7 @@ Not applicable. This spec changes no protocol behavior and no wire format.
 | `./le verify worktree` at a commit | → | `planUnitRaceChanged` deriving the commit's own diff, `runUnitRaceChanged` reporting its judged count | `TestRaceChangedInADetachedWorktreeJudgesTheCommitsOwnDiff` |
 | `./le verify current mode full` over a tree with no changed Go file | → | `runUnitRaceChanged` answering `examined nothing` | `TestRaceChangedEmptyPopulationAnswersExaminedNothing` |
 | `./le verify status check` reading `tmp/ze-verify.status` | → | `WriteCertificate` and `CheckCertificate` carrying the examined-nothing stage names | `TestCertificateNamesTheStagesThatExaminedNothing` |
-| `./le test qemu all-tests` inside the VM | → | `PhaseResult` carrying the executed test count, `AllTestsReport.Text` refusing `ALL PHASES PASSED` | `TestAPhaseThatExecutedNoTestIsNotAPass` |
+| `./le test qemu all` inside the VM | → | `PhaseResult` carrying the executed test count, `AllTestsReport.Text` refusing `ALL PHASES PASSED` | `TestAPhaseThatExecutedNoTestIsNotAPass` |
 | A new stage added to `verifyengine` stages | → | the stage table's empty-population declaration | `TestEveryVerifyStageDeclaresWhatAnEmptyPopulationMeans` |
 | An operator running `./le verify current mode changed` | → | the whole chain, from the command to the rendered verdict | `test/ui/le-verify-names-what-it-judged.ci` |
 
@@ -286,7 +286,7 @@ Not applicable. This spec changes build-host tooling only, and no wire-visible b
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | Nothing an operator of the shipped binary reaches |
 | 2 | Config syntax changed? | No | No config surface touched |
-| 3 | CLI command added/changed? | Yes | `./le verify` and `./le test qemu all-tests` output changes; the pages in row 12 carry those, and `docs/guide/command-reference.md` documents the shipped `ze` CLI rather than the build-host tool |
+| 3 | CLI command added/changed? | Yes | `./le verify` and `./le test qemu all` output changes; the pages in row 12 carry those, and `docs/guide/command-reference.md` documents the shipped `ze` CLI rather than the build-host tool |
 | 4 | API/RPC added/changed? | No | No RPC touched |
 | 5 | Plugin added/changed? | No | No plugin touched |
 | 6 | Has a user guide page? | No | Build-host tooling |

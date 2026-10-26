@@ -309,7 +309,7 @@ yet.
 
 | Step | What it requires |
 |------|------------------|
-| Extraction sign-off | `./le rfc extraction-create STEM=rfc7999` writes an unclassified skeleton, and every derived site and section is then classified by hand at `rfc/extraction/rfc7999.json`. A generated skeleton always fails the check, so only the walk makes it pass |
+| Extraction sign-off | `./le rfc extraction create STEM=rfc7999` writes an unclassified skeleton, and every derived site and section is then classified by hand at `rfc/extraction/rfc7999.json`. A generated skeleton always fails the check, so only the walk makes it pass |
 | Register | Derived, and a stronger claim than the source supports is refused. RFC 7999 carries capitalised RFC 2119 keywords, so it takes the `rfc2119` register and needs no `register-reason` |
 | Disposition move | The stem leaves `rfc/not-enrolled.txt` by arriving in `rfc/enrolled.txt`. A deletion alone returns it to the undeclared state, which the gate also refuses |
 | Public row | `docs/features/rfc-status.md` gains an RFC 7999 row in the same change, per `check_status_completeness` |

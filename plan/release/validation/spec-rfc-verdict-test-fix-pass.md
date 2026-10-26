@@ -33,7 +33,7 @@ resolved in one of two ways:
 1. **A test proves the whole sentence.** Every clause of the quoted sentence is
    asserted in both polarities: the compliant input gives the RFC's outcome, and
    the non-compliant input gives the RFC's refusal. The tagged unit carries a
-   discrimination record from `./le rfc discriminate-record`, and the verdict is
+   discrimination record from `./le rfc record`, and the verdict is
    re-judged `enforced` by an agent that did not write the test.
 2. **The row is corrected.** The row claimed more than its RFC states, or the
    wrong sentence: it is corrected, retired or re-attributed under D-2, D-3, D-7
@@ -727,7 +727,7 @@ Dropped after reading, with the reason:
 ### Transformation Path
 1. The child's author agent changes a tagged test (approval recorded under P-1), a row, or a producer
 2. `./le rfc reseal` re-stamps the sibling verdicts the edit only shifted
-3. `./le rfc discriminate-record` records the observed red under a break for each added or changed cover
+3. `./le rfc record` records the observed red under a break for each added or changed cover
 4. A judging agent that did not author the test writes the new verdict in a pending file in session scratch
 5. `./le rfc audit-stamp ... mode rejudge` refuses or replaces, computing `requirement_sha`, `tests`, `units` and `code`
 6. `./le rfc check` compares verdicts, records and rows against HEAD^
