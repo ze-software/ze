@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.19-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoCPReplyWithoutRequest",
+    "unit-sha": "ed7ead03c43a7aba",
+    "claim-sha": "f6a0c7bda69cbde3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
+    "producer-sha": "9bad47de42e548c1",
+    "break": "body of assignVirtualIP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.19-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoChildSAWithoutLeaseOnBoundPeer",
+    "unit-sha": "96006af21af34c72",
+    "claim-sha": "bfba240bdfabeceb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::decideCPRequest",
+    "producer-sha": "ba58ef39c05e57a4",
+    "break": "line 107: \"cp.CFGType != wire.CFGTypeRequest\" -\u003e \"false\""
+  }
+]

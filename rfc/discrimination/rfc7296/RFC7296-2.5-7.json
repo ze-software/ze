@@ -7,8 +7,8 @@
     "claim-sha": "b1354d0232b5e75a",
     "route": "revert",
     "producer": "internal/component/ike/wire/payload_cp.go::ReadFrom",
-    "producer-sha": "9157358fc124f8a1",
-    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2a5bebcdb5820fe9",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.5-7",
@@ -18,8 +18,8 @@
     "claim-sha": "03ad377130bfbca4",
     "route": "revert",
     "producer": "internal/component/ike/wire/payload_cp.go::ReadFrom",
-    "producer-sha": "9157358fc124f8a1",
-    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2a5bebcdb5820fe9",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.5-7",

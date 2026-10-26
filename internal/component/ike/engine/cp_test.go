@@ -162,6 +162,9 @@ func tsiOf(t *testing.T, entries []wire.PayloadEntry) wire.TrafficSelector {
 // Goal: AC-1 and the wiring row: the registry is reached from the wire. Method: the reply
 // carries an INTERNAL_IP4_ADDRESS inside the pool, the registry holds it, and AC-4: the CP
 // payload precedes the SA payload.
+//
+// RFC requirement: RFC7296-2.19-7 positive -- a pool-bound peer's IKE_AUTH request carrying a CFG_REQUEST for an IPv4 address is answered with a CFG_REPLY whose position in the decrypted response comes before the SA payload's.
+// RFC requirement: RFC7296-4-6 positive -- the CFG_REQUEST in the peer's first IKE_AUTH message, asking INTERNAL_IP4_ADDRESS with an empty value, is parsed and its address attribute recognized: the response carries a CFG_REPLY with one four-octet INTERNAL_IP4_ADDRESS inside the pool, and the lease registry holds that address.
 func TestResponderCFGRequestLeasesFromBoundPool(t *testing.T) {
 	vip := cpVIP(t, cpPool())
 	ini, resp, ps := cpResponder(t, vip, "ze", true)
@@ -195,6 +198,9 @@ func TestResponderCFGRequestLeasesFromBoundPool(t *testing.T) {
 
 // TestNetmaskOnlyBesideIPv4Address checks AC-2: one netmask when asked beside an IPv4
 // address, none on an IPv6-only reply.
+//
+// RFC requirement: RFC7296-3.15.1-8 positive -- a request for an IPv4 address and the netmask is answered with exactly one INTERNAL_IP4_NETMASK, the mask of the pool's /29.
+// RFC requirement: RFC7296-3.15.1-8 negative -- a request for an IPv6 address and the netmask, answered with an IPv6 address only, carries no INTERNAL_IP4_NETMASK.
 func TestNetmaskOnlyBesideIPv4Address(t *testing.T) {
 	ini, resp, ps := cpResponder(t, cpVIP(t, cpPool()), "ze", true)
 	cp, _, _ := replyOf(cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{}),
@@ -305,6 +311,10 @@ func TestTwoPeersSameRequestedAddressDistinctLeases(t *testing.T) {
 // with a FAILED_CP_REQUIRED error."
 //
 // RFC requirement: RFC3948-5.1-1 negative -- a pool-bound peer that holds no lease, because it sent no CFG_REQUEST or because the pool is exhausted, is answered with no SA and no TS payload, so no Child SA naming its self-chosen inner address exists, and its IKE SA stays established.
+// RFC requirement: RFC7296-2.19-6 positive -- a pool-bound peer whose IKE_AUTH carries no CP, or a CP of type CFG_REPLY in place of a CFG_REQUEST, is answered with FAILED_CP_REQUIRED and no SA, TS or CP payload, and is leased no address.
+// RFC requirement: RFC7296-2.19-5 positive -- the same pool-bound peer, which sent no CP or a CFG_REPLY-typed CP and so no CFG_REQUEST, is sent no Configuration payload at all.
+// RFC requirement: RFC7296-3.15.4-1 positive -- a pool-bound peer whose CFG_REQUEST meets an exhausted pool is answered with INTERNAL_ADDRESS_FAILURE and no SA, TS or CP payload, and the pool's held count is unchanged.
+// RFC requirement: RFC7296-4-6 negative -- a CP of type CFG_REPLY carrying INTERNAL_IP4_ADDRESS is not parsed as a CFG_REQUEST: the bound peer draws FAILED_CP_REQUIRED and is leased no address.
 func TestNoChildSAWithoutLeaseOnBoundPeer(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -351,6 +361,10 @@ func TestNoChildSAWithoutLeaseOnBoundPeer(t *testing.T) {
 
 // TestFamilyFidelity checks AC-15: an IPv6 request against an IPv4-only pool draws
 // INTERNAL_ADDRESS_FAILURE; a dual request gets the IPv4 address only.
+//
+// RFC requirement: RFC7296-4-7 positive -- an IPv4 and IPv6 request against an IPv4-only pool is answered with one INTERNAL_IP4_ADDRESS and no INTERNAL_IP6_ADDRESS.
+// RFC requirement: RFC7296-4-7 negative -- an IPv6-only request against an IPv4-only pool is answered with INTERNAL_ADDRESS_FAILURE and no Configuration payload, so no address of the other type.
+// RFC requirement: RFC7296-3.15.4-1 negative -- an IPv4 and IPv6 request against an IPv4-only pool, one family of which can be assigned, is answered with a CFG_REPLY and no INTERNAL_ADDRESS_FAILURE.
 func TestFamilyFidelity(t *testing.T) {
 	v4only := ipsec.VirtualIPPool{Name: "rw", Range: "10.10.0.0/29"}
 	ini, resp, ps := cpResponder(t, cpVIP(t, v4only), "ze", true)
@@ -358,10 +372,17 @@ func TestFamilyFidelity(t *testing.T) {
 	if !notifyIn(answer, wire.NotifyInternalAddressFailure) {
 		t.Fatal("IPv6 request against an IPv4-only pool: no INTERNAL_ADDRESS_FAILURE")
 	}
+	if cp, _, _ := replyOf(answer); cp != nil {
+		t.Fatalf("IPv6 request against an IPv4-only pool answered with %+v, want no CP", cp)
+	}
 
 	ini, resp, ps = cpResponder(t, cpVIP(t, v4only), "ze", true)
-	cp, _, _ := replyOf(cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{}),
-		wire.ConfigAttr{Type: wire.CPAttrInternalIP6Address})))
+	dual := cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{}),
+		wire.ConfigAttr{Type: wire.CPAttrInternalIP6Address}))
+	if notifyIn(dual, wire.NotifyInternalAddressFailure) {
+		t.Fatal("dual request with the IPv4 half assignable drew INTERNAL_ADDRESS_FAILURE")
+	}
+	cp, _, _ := replyOf(dual)
 	if cp == nil {
 		t.Fatal("dual request: no CFG_REPLY")
 	}
@@ -378,6 +399,9 @@ func TestFamilyFidelity(t *testing.T) {
 //
 // RFC 7296 Section 2.19: "The responder MUST NOT send a CFG_REPLY without having first
 // received a CP(CFG_REQUEST) from the initiator".
+//
+// RFC requirement: RFC7296-2.19-5 negative -- a peer bound to no pool that sends a CFG_REQUEST, a CFG_SET, a CFG_ACK, an empty CFG_REQUEST or two CFG_REQUESTs is answered with no Configuration payload, keeps its Child SA, and gets the remote selector it gets without any CP.
+// RFC requirement: RFC7296-2.19-6 negative -- the same peer, whose configuration requires no CP, is not refused for sending no usable CFG_REQUEST: every one of those responses carries the SA payload.
 func TestNoCPReplyWithoutRequest(t *testing.T) {
 	_, plainResp, _ := func() (*SA, *SA, *PeerSession) {
 		ini, resp, ps := cpResponder(t, nil, "ze", false)
@@ -411,6 +435,9 @@ func TestNoCPReplyWithoutRequest(t *testing.T) {
 // TestUnknownAttributesIgnored checks AC-13, AC-14 and AC-23: unknown types and the
 // obsolete INTERNAL_ADDRESS_EXPIRY are ignored, and an address request with the Reserved
 // bit set (cleared by the codec) is answered.
+//
+// RFC requirement: RFC7296-3.15.1-10 positive -- a pool-bound peer's CFG_REQUEST carrying the unassigned type 0x3abc beside INTERNAL_IP4_ADDRESS is answered with one INTERNAL_IP4_ADDRESS, and the reply does not echo type 0x3abc.
+// RFC requirement: RFC7296-1.7-3 positive -- the same CFG_REQUEST also carries the obsolete type 5, INTERNAL_ADDRESS_EXPIRY; it is answered with one INTERNAL_IP4_ADDRESS, and the reply does not echo type 5.
 func TestUnknownAttributesIgnored(t *testing.T) {
 	// internalAddressExpiry is type 5, which RFC 7296 Section 1.7 removed; the wire
 	// package carries no constant for it.
@@ -442,6 +469,8 @@ func TestUnknownAttributesIgnored(t *testing.T) {
 
 // TestSupportedAttributesDerived checks AC-24 and AC-29 (IKE_AUTH): SUPPORTED_ATTRIBUTES
 // lists exactly the cpHandlers types, and APPLICATION_VERSION is answered empty.
+//
+// RFC requirement: RFC7296-3.15.1-9 positive -- a zero-length SUPPORTED_ATTRIBUTES in a pool-bound peer's CFG_REQUEST is answered with one SUPPORTED_ATTRIBUTES attribute listing, two octets each and in order, exactly the types cpHandlers handles.
 func TestSupportedAttributesDerived(t *testing.T) {
 	ini, resp, ps := cpResponder(t, cpVIP(t, cpPool()), "ze", true)
 	cp, _, _ := replyOf(cpAuth(t, ini, resp, ps, cfgRequest(ip4Ask(netip.Addr{}),
@@ -460,6 +489,68 @@ func TestSupportedAttributesDerived(t *testing.T) {
 	ver := attrsOf(cp, wire.CPAttrApplicationVersion)
 	if len(ver) != 1 || len(ver[0]) != 0 {
 		t.Fatalf("APPLICATION_VERSION = %v, want one empty value", ver)
+	}
+}
+
+// TestSupportedAttributesOnlyForZeroLengthQuery checks the other side of AC-24: a
+// SUPPORTED_ATTRIBUTES that carries a value is not the zero-length query RFC 7296 Section
+// 3.15.1 defines, and a request that asks none gets none.
+//
+// Goal: the reply lists supported types only when asked the defined way. Method: two
+// bound peers, one asking with a two-octet value, one not asking; neither reply carries
+// SUPPORTED_ATTRIBUTES, and both carry the requested address.
+//
+// RFC requirement: RFC7296-3.15.1-9 negative -- a SUPPORTED_ATTRIBUTES carrying a value, which the MUST forbids in a request, is not read as the query: the reply carries one INTERNAL_IP4_ADDRESS and no SUPPORTED_ATTRIBUTES, and neither does the reply to a request that asks none.
+func TestSupportedAttributesOnlyForZeroLengthQuery(t *testing.T) {
+	for name, extra := range map[string][]wire.ConfigAttr{
+		"valued query": {{Type: wire.CPAttrSupportedAttributes, Value: []byte{0, 1}}},
+		"not asked":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ini, resp, ps := cpResponder(t, cpVIP(t, cpPool()), "ze", true)
+			cp, _, _ := replyOf(cpAuth(t, ini, resp, ps, cfgRequest(append([]wire.ConfigAttr{ip4Ask(netip.Addr{})}, extra...)...)))
+			if cp == nil || len(attrsOf(cp, wire.CPAttrInternalIP4Address)) != 1 {
+				t.Fatalf("reply %+v, want one INTERNAL_IP4_ADDRESS", cp)
+			}
+			if sup := attrsOf(cp, wire.CPAttrSupportedAttributes); len(sup) != 0 {
+				t.Fatalf("reply carries SUPPORTED_ATTRIBUTES %v, want none", sup)
+			}
+		})
+	}
+}
+
+// TestOnlyUnrecognizedAttributesIsNoRequest checks AC-13 and AC-23 from the refusal side:
+// a CFG_REQUEST whose only attribute is ignored asks no address, so a pool-bound peer
+// that sends it has sent no CFG_REQUEST Ze serves.
+//
+// Goal: an ignored attribute is never read as an address request. Method: a bound peer
+// sends a CFG_REQUEST holding only the unassigned type 0x3abc, then only type 5; each is
+// answered with FAILED_CP_REQUIRED, no CP, and no lease.
+//
+// RFC requirement: RFC7296-3.15.1-10 negative -- a pool-bound peer whose CFG_REQUEST holds only the unassigned type 0x3abc is answered with FAILED_CP_REQUIRED and no Configuration payload, and holds no lease: the ignored attribute is not read as an address request.
+// RFC requirement: RFC7296-1.7-3 negative -- the same for a CFG_REQUEST holding only type 5, INTERNAL_ADDRESS_EXPIRY: FAILED_CP_REQUIRED, no Configuration payload, no lease.
+func TestOnlyUnrecognizedAttributesIsNoRequest(t *testing.T) {
+	// internalAddressExpiry is type 5, which RFC 7296 Section 1.7 removed; the wire
+	// package carries no constant for it.
+	const internalAddressExpiry uint16 = 5
+	for name, typ := range map[string]uint16{
+		"unassigned type":         0x3abc,
+		"INTERNAL_ADDRESS_EXPIRY": internalAddressExpiry,
+	} {
+		t.Run(name, func(t *testing.T) {
+			vip := cpVIP(t, cpPool())
+			ini, resp, ps := cpResponder(t, vip, "ze", true)
+			answer := cpAuth(t, ini, resp, ps, cfgRequest(wire.ConfigAttr{Type: typ}))
+			if !notifyIn(answer, wire.NotifyFailedCPRequired) {
+				t.Fatal("a CFG_REQUEST holding only an ignored attribute drew no FAILED_CP_REQUIRED")
+			}
+			if cp, _, _ := replyOf(answer); cp != nil {
+				t.Fatalf("answered with %+v, want no CP", cp)
+			}
+			if got := vip.leases.Held("rw"); got != 0 {
+				t.Fatalf("the pool holds %d leases, want none", got)
+			}
+		})
 	}
 }
 

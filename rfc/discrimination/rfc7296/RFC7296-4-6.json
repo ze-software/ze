@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-4-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoChildSAWithoutLeaseOnBoundPeer",
+    "unit-sha": "96006af21af34c72",
+    "claim-sha": "4b247e153444812b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::decideCPRequest",
+    "producer-sha": "ba58ef39c05e57a4",
+    "break": "line 107: \"cp.CFGType != wire.CFGTypeRequest\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-4-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestResponderCFGRequestLeasesFromBoundPool",
+    "unit-sha": "b744899b6002ce1e",
+    "claim-sha": "f1d4d13fdc86d5b2",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::readIP4AddressRequest",
+    "producer-sha": "5f6bde93390938d5",
+    "break": "line 67: \"r.want4 = true\" -\u003e \"r.want4 = false\""
+  }
+]

@@ -337,3 +337,36 @@ which le's lab cross-compile inherits, so the shared tree was never edited. Logs
 image ID in this output, so none is quoted.
 
 Nothing is left for the interop scenarios.
+
+## Seventh agent, 2026-10-26: the RFC 7296 Configuration payload rows
+
+Eleven rows added to `rfc/short/rfc7296.md`, each quoting its section verbatim and above
+its section's high-water mark: `RFC7296-1.7-3`, `-2.19-5`, `-2.19-6`, `-2.19-7` (CP before
+SA), `-2.19-8` (CP in the SA-bearing message), `-3.15.1-8` (netmask), `-3.15.1-9`
+(SUPPORTED_ATTRIBUTES), `-3.15.1-10` (ignore unknown), `-3.15.4-1` (INTERNAL_ADDRESS_FAILURE,
+indicative prose, listed in `unsourced-ids`), `-4-6` (parse the CFG_REQUEST) and `-4-7`
+(an address of the requested type). The ten relocated sites of `rfc/extraction/rfc7296.json`
+are mapped to them, so exclusions fall by ten. The renumbering is recorded in
+`plan/release/fixes/spec-ipsec-remote-access.md`. The Meta `Support coverage` and
+`Enrolment reason` rows no longer say Ze builds no CP payload.
+
+Tags: 22, one positive and one negative per row, on `cp_test.go` (including two new tests,
+`TestSupportedAttributesOnlyForZeroLengthQuery` and `TestOnlyUnrecognizedAttributesIsNoRequest`)
+and `cp_eap_test.go`. `TestFamilyFidelity` gained two assertions: no CP on the refused IPv6
+request, and no INTERNAL_ADDRESS_FAILURE on the half-assignable dual request. Every tag has
+a record from `./le rfc record`: 19 mutants in one-entry hand-written gomu catalogs
+(`scratch/disc7/M*.json`, the selector map in `scratch/disc7/sel.json`), and 3 reverts
+(`assignVirtualIP`, `decideCPRequest` x2). Logs: `scratch/disc7/rec-*.log`.
+
+Re-taken, because committed CP work had staled them: `RFC7296-2.5-7` x2 (`ReadFrom`) and
+`RFC7296-2.21.2-3` x2 (`handleAuthRequest`).
+
+Left:
+
+| Item | Note |
+|------|------|
+| `TestZeSendsNoConfigurationRequest` error text "constructs no CP payload" | The edit hook refused it as an RFC-tagged test change. Proposed text: "a Configuration payload (CFG type %d, %d attributes) was built in a swept message; ze takes no IRAC role, and no swept message answers a CFG_REQUEST". It needs a `ze-test-judge` approval first, then the edit and a re-record of `RFC7296-2.19-1` positive (revert `decideCPRequest`). The other three tags on that unit hold no record |
+| `RFC7296-2.21.4-8` positive (`maintainSA`, mutant) | stale since a965d7c0d4. The mutant catalog is not in the tree; re-take it with `./le rfc discriminate stem rfc7296 report <gomu report>` |
+| `RFC7296-1.3.3-3` positive (`initiateChildRekey`) | stale only through another session's uncommitted `rekey.go` hunk; not touched |
+| Extraction re-map | done by the author of the rows. The page asks for no independent walker on a re-map that lowers the exclusion count; a reviewer can confirm it |
+| Erratum 5056 | `RFC7296-1.7-3` quotes the published "proposals" sentence. The erratum, which reads it as the attribute, is not stored under `rfc/errata/rfc7296/` |

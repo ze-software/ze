@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.19-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoCPReplyWithoutRequest",
+    "unit-sha": "ed7ead03c43a7aba",
+    "claim-sha": "9c514be84480cf47",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
+    "producer-sha": "9bad47de42e548c1",
+    "break": "line 166: \"name == \\\"\\\"\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-2.19-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoChildSAWithoutLeaseOnBoundPeer",
+    "unit-sha": "96006af21af34c72",
+    "claim-sha": "e720673a41f8f6b8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::notifyForRefusal",
+    "producer-sha": "9809a8d1d8654ea7",
+    "break": "line 233: \"wire.NotifyFailedCPRequired\" -\u003e \"wire.NotifyInternalAddressFailure\""
+  }
+]

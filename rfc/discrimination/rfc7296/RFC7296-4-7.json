@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-4-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestFamilyFidelity",
+    "unit-sha": "87aedbe02a08601e",
+    "claim-sha": "01ff775c3239c5d5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 285: \"Type: wire.CPAttrInternalIP4Address, Value: a[:]\" -\u003e \"Type: wire.CPAttrInternalIP6Address, Value: a[:]\""
+  },
+  {
+    "rid": "RFC7296-4-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestFamilyFidelity",
+    "unit-sha": "87aedbe02a08601e",
+    "claim-sha": "15ea6ba00b4c2b4c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
+    "producer-sha": "9bad47de42e548c1",
+    "break": "line 191: \"eap.FamilyIPv6, sa.cpRequest.want6, sa.cpRequest.req6\" -\u003e \"eap.FamilyIPv4, sa.cpRequest.want6, netip.Addr{}\""
+  }
+]

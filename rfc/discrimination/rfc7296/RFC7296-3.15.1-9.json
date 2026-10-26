@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.15.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestSupportedAttributesDerived",
+    "unit-sha": "16b349a8db5326f6",
+    "claim-sha": "441dbf4685f8b1c1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 307: \"grant.req.supported\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.15.1-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestSupportedAttributesOnlyForZeroLengthQuery",
+    "unit-sha": "f94cd155de096b21",
+    "claim-sha": "834daf61347a7bdb",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::readSupportedRequest",
+    "producer-sha": "79764598e84aab08",
+    "break": "line 85: \"len(value) == 0\" -\u003e \"true\""
+  }
+]

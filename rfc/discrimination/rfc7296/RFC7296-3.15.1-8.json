@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.15.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNetmaskOnlyBesideIPv4Address",
+    "unit-sha": "861b68cc78e5eaa0",
+    "claim-sha": "b14e7c001cd1853c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 286: \"grant.req.netmask\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-3.15.1-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNetmaskOnlyBesideIPv4Address",
+    "unit-sha": "861b68cc78e5eaa0",
+    "claim-sha": "1860b2417474c3cc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::buildCFGReply",
+    "producer-sha": "1deeabbddd83199b",
+    "break": "line 298: \"wire.ConfigAttr{Type: wire.CPAttrInternalIP6Address, Value: value})\" -\u003e \"wire.ConfigAttr{Type: wire.CPAttrInternalIP6Address, Value: value}, wire.ConfigAttr{Type: wire.CPAttrInternalIP4Netmask, Value: net.CIDRMask(grant.pool.Prefix4().Bits(), 32)})\""
+  }
+]

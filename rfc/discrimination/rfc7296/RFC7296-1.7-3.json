@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.7-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestOnlyUnrecognizedAttributesIsNoRequest",
+    "unit-sha": "30f486b6e478e49a",
+    "claim-sha": "8125d190bb0cf0e9",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::decideCPRequest",
+    "producer-sha": "ba58ef39c05e57a4",
+    "break": "line 119: \"!req.want4 \u0026\u0026 !req.want6\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7296-1.7-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestUnknownAttributesIgnored",
+    "unit-sha": "c224b540f49a8bf6",
+    "claim-sha": "6be1a8d54d6ee8eb",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cp.go::decideCPRequest",
+    "producer-sha": "ba58ef39c05e57a4",
+    "break": "body of decideCPRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

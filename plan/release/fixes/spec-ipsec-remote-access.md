@@ -172,6 +172,15 @@ conditional. Nine rows need code unconditionally, and `3.15.1-3` makes ten.
 | `RFC7296-4-3` | `4-3` | Reply with an address of the requested type | Same. Type fidelity is a real constraint, not a formality |
 | `RFC7296-1.7-1` | **`RFC7296-1.7-3`** | Ignore attribute type 5 | Forced renumber, see "Id allocation". The constant is not declared |
 
+**Landed 2026-10-26 (spec-ike-virtual-ip-assignment).** All ten rows are now in
+`rfc/short/rfc7296.md`, and their `rfc/extraction/rfc7296.json` sites are mapped rather
+than relocated. Every reserved id at or below its section's high-water mark took a higher
+ordinal: `2.19-2` is `RFC7296-2.19-7`, `2.19-3` is `RFC7296-2.19-8`, `3.15.1-1` is
+`RFC7296-3.15.1-8`, `3.15.1-3` is `RFC7296-3.15.1-9`, `3.15.1-4` is `RFC7296-3.15.1-10`,
+`4-2` is `RFC7296-4-6` and `4-3` is `RFC7296-4-7`. `RFC7296-2.19-5`, `RFC7296-2.19-6` and
+`RFC7296-1.7-3` kept their reserved ids. The Section 3.15.4 obligation is
+`RFC7296-3.15.4-1`. The column above is history; the ids here are the live ones.
+
 ### Verbatim obligations
 
 Quoted from `rfc/full/rfc7296.txt` and re-verified 2026-07-31. The quoted text is the

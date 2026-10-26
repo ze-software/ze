@@ -5,7 +5,7 @@
   "source-path": "rfc/full/rfc7296.txt",
   "source-sha": "a6f1a101b818977b",
   "signed-off": "2026-09-30",
-  "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread; site 2.13:2 re-walked by the spec-rfc-verdict-fix-ike-eap crypto author",
+  "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread; site 2.13:2 re-walked by the spec-rfc-verdict-fix-ike-eap crypto author; on 2026-10-26 the ten Configuration payload sites owner ruling D-1 had relocated were re-mapped to the returned rows by the spec-ike-virtual-ip-assignment RFC agent, so exclusions fall by ten",
   "sections": [
     {
       "id": "front",
@@ -118,7 +118,7 @@
       "id": "1.7",
       "sites": 7,
       "disposition": "walked",
-      "reason": "The change list against RFC 4306. Three sites carry obligations that live in Sections 2.5, 2.13 and 3.6, two are prose about the keywords themselves, one quotes the Section 1.3.2 change, and one states the configuration attribute type 5 rule that no row in rfc/short/rfc7296.md holds."
+      "reason": "The change list against RFC 4306. Three sites carry obligations that live in Sections 2.5, 2.13 and 3.6, two are prose about the keywords themselves, one quotes the Section 1.3.2 change, and one states the configuration attribute type 5 rule, mapped to RFC7296-1.7-3."
     },
     {
       "id": "1.8",
@@ -312,7 +312,7 @@
       "id": "2.19",
       "sites": 6,
       "disposition": "walked",
-      "reason": "Two of the six MUST-level sentences map to the two §2.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/immediate/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified."
+      "reason": "Six MUST-level sentences. Two bind the IRAC (RFC7296-2.19-1 and RFC7296-2.19-4). The four Configuration payload obligations of the IRAS, which owner ruling D-1 had moved to plan/release/fixes/spec-ipsec-remote-access.md, returned with the responder that discharges them and map to RFC7296-2.19-5 to RFC7296-2.19-8."
     },
     {
       "id": "2.20",
@@ -572,7 +572,7 @@
       "id": "3.15.1",
       "sites": 8,
       "disposition": "walked",
-      "reason": "Configuration Attribute format, the attribute-type table, the per-attribute entries and the CFG_REQUEST/CFG_REPLY and CFG_SET/CFG_ACK paragraphs. Eight sites. Three of them state obligations rfc/short/rfc7296.md carries no row for, recorded on those sites."
+      "reason": "Configuration Attribute format, the attribute-type table, the per-attribute entries and the CFG_REQUEST/CFG_REPLY and CFG_SET/CFG_ACK paragraphs. Eight sites, all mapped: the Reserved bit to RFC7296-2.5-7, the netmask rules to RFC7296-3.15.1-2 and RFC7296-3.15.1-8, SUPPORTED_ATTRIBUTES to RFC7296-3.15.1-9, unrecognized attributes to RFC7296-3.15.1-10, and the CFG_ACK paragraph to RFC7296-3.15.1-5 to RFC7296-3.15.1-7."
     },
     {
       "id": "3.15.2",
@@ -590,7 +590,10 @@
       "id": "3.15.4",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Address assignment failures. The section states in indicative prose that a responder which cannot assign an address responds with INTERNAL_ADDRESS_FAILURE, and sends it only when no address can be assigned. That obligation carries no capitalised keyword and rfc/short/rfc7296.md declares no row for it, so unsourced-ids cannot name it. It needs a checklist row."
+      "reason": "Address assignment failures. The section states in indicative prose that a responder which cannot assign an address during the processing of a Configuration payload responds with INTERNAL_ADDRESS_FAILURE. That sentence carries no capitalised keyword, so RFC7296-3.15.4-1 is listed unsourced. The rest is the partial-failure case and initiator retry behavior at MAY level.",
+      "unsourced-ids": [
+        "RFC7296-3.15.4-1"
+      ]
     },
     {
       "id": "3.16",
@@ -602,7 +605,7 @@
       "id": "4",
       "sites": 10,
       "disposition": "walked",
-      "reason": "Conformance requirements. Ten sites: the section opener, the two payload-handling rules, the minimal-implementation paragraph, the three Configuration payload conditionals and the configurable-authentication list. RFC7296-3.2-3 is listed unsourced because Section 4 states it in the same sentence as site 4:2, which is mapped to RFC7296-2.5-8.",
+      "reason": "Conformance requirements. Ten sites: the section opener, the two payload-handling rules, the minimal-implementation paragraph, the three Configuration payload conditionals (the IRAC one mapped to RFC7296-2.19-1, the two IRAS ones to RFC7296-4-6 and RFC7296-4-7) and the configurable-authentication list. RFC7296-3.2-3 is listed unsourced because Section 4 states it in the same sentence as site 4:2, which is mapped to RFC7296-2.5-8.",
       "unsourced-ids": [
         "RFC7296-3.2-3"
       ]
@@ -909,11 +912,9 @@
     {
       "id": "1.7:3",
       "quote": "Implementations that conform to this document MUST ignore proposals that have configuration attribute type 5, the old value for INTERNAL_ADDRESS_EXPIRY.",
-      "disposition": "excluded",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-1.7-3",
-      "reason": "The obligation, ignore proposals carrying configuration attribute type 5, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-1.7-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears."
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.7-3",
+      "reason": "The obligation to ignore configuration attribute type 5 returned from plan/release/fixes/spec-ipsec-remote-access.md with the IRAS responder (spec-ike-virtual-ip-assignment). Row RFC7296-1.7-3, the id that spec reserved, quotes this sentence. decideCPRequest (engine/cp.go) skips every type cpHandlers does not list, type 5 included."
     },
     {
       "id": "1.7:4",
@@ -1532,20 +1533,16 @@
     {
       "id": "2.19:2",
       "quote": "Initiator Responder ------------------------------------------------------------------- HDR, SK {IDi, [CERT,] [CERTREQ,] [IDr,] AUTH, CP(CFG_REQUEST), SAi2, TSi, TSr} --> <-- HDR, SK {IDr, [CERT,] AUTH, CP(CFG_REPLY), SAr2, TSi, TSr} In all cases, the CP payload MUST be inserted before the SA payload.",
-      "disposition": "excluded",
-      "reason": "The obligation, the CP payload's position in the responder's payload chain, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-2 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-2.19-2"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-7",
+      "reason": "The CP payload's position: before the SA payload. It returned with the IRAS responder (spec-ike-virtual-ip-assignment); the reserved RFC7296-2.19-2 sits below the section's high-water mark, so row RFC7296-2.19-7 quotes the sentence's obligation. The text that precedes it on the same site is the Section 2.19 exchange figure."
     },
     {
       "id": "2.19:3",
       "quote": "In variations of the protocol where there are multiple IKE_AUTH exchanges, the CP payloads MUST be inserted in the messages containing the SA payloads.",
-      "disposition": "excluded",
-      "reason": "The obligation, never send an unsolicited CFG_REPLY, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-2.19-3"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-8",
+      "reason": "With several IKE_AUTH exchanges (EAP), the CP goes in the message that carries the SA payload. It returned with the IRAS responder (spec-ike-virtual-ip-assignment); the reserved RFC7296-2.19-3 sits below the section's high-water mark, so row RFC7296-2.19-8 quotes the sentence."
     },
     {
       "id": "2.19:4",
@@ -1557,20 +1554,16 @@
     {
       "id": "2.19:5",
       "quote": "The responder MUST NOT send a CFG_REPLY without having first received a CP(CFG_REQUEST) from the initiator, because we do not want the IRAS to perform an unnecessary configuration lookup if the IRAC cannot process the REPLY.",
-      "disposition": "excluded",
-      "reason": "The obligation, emit FAILED_CP_REQUIRED when a required CP is absent, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-5 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-2.19-5"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-5",
+      "reason": "No CFG_REPLY without a received CFG_REQUEST. It returned with the IRAS responder (spec-ike-virtual-ip-assignment) under the id plan/release/fixes/spec-ipsec-remote-access.md reserved, RFC7296-2.19-5, which quotes the sentence."
     },
     {
       "id": "2.19:6",
       "quote": "In the case where the IRAS's configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error.",
-      "disposition": "excluded",
-      "reason": "The obligation, the SA state after a failed configuration exchange, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-6 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-2.19-6"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-6",
+      "reason": "A peer whose configuration requires CP and that sent no CFG_REQUEST draws FAILED_CP_REQUIRED and no Child SA. It returned with the IRAS responder (spec-ike-virtual-ip-assignment) under the reserved id RFC7296-2.19-6, which quotes the sentence."
     },
     {
       "id": "2.20:1",
@@ -2410,11 +2403,9 @@
     {
       "id": "3.15.1:2",
       "quote": "Only one netmask is allowed in the request and response messages (e.g., 255.255.255.0), and it MUST be used only with an INTERNAL_IP4_ADDRESS attribute.",
-      "disposition": "excluded",
-      "reason": "The obligation, at most one netmask, and only beside an INTERNAL_IP4_ADDRESS, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-1 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-3.15.1-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-8",
+      "reason": "At most one netmask, and only beside an INTERNAL_IP4_ADDRESS. It returned with the IRAS responder (spec-ike-virtual-ip-assignment); the reserved RFC7296-3.15.1-1 sits below the section's high-water mark, so row RFC7296-3.15.1-8 quotes the sentence."
     },
     {
       "id": "3.15.1:3",
@@ -2426,20 +2417,16 @@
     {
       "id": "3.15.1:4",
       "quote": "o SUPPORTED_ATTRIBUTES - When used within a Request, this attribute MUST be zero-length and specifies a query to the responder to reply back with all of the attributes that it supports.",
-      "disposition": "excluded",
-      "reason": "The obligation, a SUPPORTED_ATTRIBUTES request carries zero length, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-3.15.1-3"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-9",
+      "reason": "SUPPORTED_ATTRIBUTES in a request is a zero-length query the responder answers with the attributes it supports. It returned with the IRAS responder (spec-ike-virtual-ip-assignment); the reserved RFC7296-3.15.1-3 sits below the section's high-water mark, so row RFC7296-3.15.1-9 quotes the sentence."
     },
     {
       "id": "3.15.1:5",
       "quote": "Unrecognized or unsupported attributes MUST be ignored in both requests and responses.",
-      "disposition": "excluded",
-      "reason": "The obligation, ignore attributes the responder does not recognize, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-4 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-3.15.1-4"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-10",
+      "reason": "Unrecognized attributes are ignored in requests and responses. It returned with the IRAS responder (spec-ike-virtual-ip-assignment); the reserved RFC7296-3.15.1-4 sits below the section's high-water mark, so row RFC7296-3.15.1-10 quotes the sentence."
     },
     {
       "id": "3.15.1:6",
@@ -2542,20 +2529,16 @@
     {
       "id": "4:8",
       "quote": "If an implementation supports responding to such requests, it MUST parse the CP payload of type CFG_REQUEST in the first message in the IKE_AUTH exchange and recognize a field of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.",
-      "disposition": "excluded",
-      "reason": "The obligation, parse the CFG_REQUEST and recognize the address attribute, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-2 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-4-2"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-4-6",
+      "reason": "The responder parses the CFG_REQUEST of the first IKE_AUTH message and recognizes the address attribute. Ze now responds to such requests (spec-ike-virtual-ip-assignment), so the conditional binds; the reserved RFC7296-4-2 sits below the section's high-water mark, so row RFC7296-4-6 quotes the sentence."
     },
     {
       "id": "4:9",
       "quote": "If it supports leasing an address of the appropriate type, it MUST return a CP payload of type CFG_REPLY containing an address of the requested type.",
-      "disposition": "excluded",
-      "reason": "The obligation, return a CFG_REPLY carrying an address of the requested type, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-3 in plan/immediate/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
-      "excluded-kind": "relocated-to-spec",
-      "relocated-to": "plan/immediate/spec-ipsec-remote-access.md",
-      "reserved-id": "RFC7296-4-3"
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-4-7",
+      "reason": "A responder that leases addresses replies with an address of the requested type. Ze now does (spec-ike-virtual-ip-assignment); the reserved RFC7296-4-3 sits below the section's high-water mark, so row RFC7296-4-7 quotes the sentence."
     },
     {
       "id": "4:10",

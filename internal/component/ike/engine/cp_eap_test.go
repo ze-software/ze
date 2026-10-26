@@ -120,6 +120,10 @@ func carriesAUTH(inner []wire.PayloadEntry) bool {
 // the first IKE_AUTH and for one only in the final IKE_AUTH: exactly one responder message
 // carries a CP, it is the last one, it is a CFG_REPLY naming a pool address, it precedes
 // SAr2 in that message, and the installed remote selector is that address.
+//
+// RFC requirement: RFC7296-2.19-7 negative -- on the EAP path, where the CFG_REPLY is not in the first IKE_AUTH response, the final response that carries it still places it before the SA payload, for a request sent in the first and for one sent only in the final IKE_AUTH.
+// RFC requirement: RFC7296-2.19-8 positive -- with several IKE_AUTH exchanges (EAP), the CFG_REPLY is in the final response, the one that carries the SA payload, for a request sent in the first and for one sent only in the final IKE_AUTH.
+// RFC requirement: RFC7296-2.19-8 negative -- no EAP IKE_AUTH response before the final one carries a Configuration payload.
 func TestCFGReplyInEAPFinalResponse(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
