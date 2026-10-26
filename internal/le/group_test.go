@@ -213,7 +213,7 @@ func namespaceDirectories(t *testing.T) map[string]string {
 // registeringDirectories answers every directory under internal/le holding a
 // register.go, as a path relative to internal/le.
 //
-// It walks as many levels as a command has words (registeringDepth), because
+// It walks as many levels as a command has words (leroot.CommandWordsMax), because
 // each word of a name is one directory level. Every directory down to that
 // depth is read, a library package included: one that registers nothing
 // names nothing, and one that does is held to the naming rule.
@@ -238,7 +238,7 @@ func registeringDirectories(t *testing.T, tools string) []string {
 			if _, statErr := os.Stat(filepath.Join(tools, child, "register.go")); statErr == nil {
 				found = append(found, child)
 			}
-			if depth < registeringDepth {
+			if depth < leroot.CommandWordsMax {
 				walk(child, depth+1)
 			}
 		}
@@ -246,11 +246,6 @@ func registeringDirectories(t *testing.T, tools string) []string {
 	walk("", 1)
 	return found
 }
-
-// registeringDepth is the deepest command name le dispatches, in words: the
-// dispatcher's CommandWordsMax (internal/le/le/root/dispatch.go), which
-// TestNoRegisteredLeCommandExceedsTwoWords holds every registration to.
-const registeringDepth = 3
 
 // TestNoRegisteredLeCommandExceedsTwoWords holds the bound Dispatch enforces,
 // three words since D-P4-depth3 (the name predates it). A four-word command

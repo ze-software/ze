@@ -158,7 +158,7 @@ func registeringPackages(t *testing.T, dir string) []string {
 
 	// Each word of a command name is one directory level, so the scan reads
 	// every directory down to the deepest name le dispatches
-	// (registeringDepth): `setup docker kernel` registers from
+	// (leroot.CommandWordsMax): `setup docker kernel` registers from
 	// internal/le/setup/docker/kernel.
 	packages := make([]string, 0, len(commandsAtStart))
 	var walk func(relative string, depth int)
@@ -178,7 +178,7 @@ func registeringPackages(t *testing.T, dir string) []string {
 			if registers(filepath.Join(dir, child)) {
 				packages = append(packages, leImportPrefix+filepath.ToSlash(child))
 			}
-			if depth < registeringDepth {
+			if depth < leroot.CommandWordsMax {
 				walk(child, depth+1)
 			}
 		}

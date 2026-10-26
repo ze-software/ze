@@ -7,12 +7,8 @@ import (
 	"testing"
 
 	leretired "github.com/ze-software/ze/internal/le/le/retired"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
-
-// commandWordsMax is the dispatcher's bound: a command is at most three words
-// after `le` (TestDispatchBoundsTheLookupAtTwoWords in leroot pins it). A row
-// naming a longer new command names nothing a caller can run.
-const commandWordsMax = 3
 
 // retiredFound reports whether the row whose old form is old lists file:line.
 func retiredFound(report retiredReport, old, file string, line int) bool {
@@ -564,8 +560,10 @@ func TestRenameMapRowsAreDisjoint(t *testing.T) {
 			t.Errorf("row %+v names no retired command or no new command", row)
 			continue
 		}
-		if words := len(strings.Fields(row.Command)); words > commandWordsMax {
-			t.Errorf("row `le %s`: the new command `le %s` has %d words, the dispatcher reads %d", old, row.Command, words, commandWordsMax)
+		// A row naming a new command longer than the dispatcher's bound
+		// (leroot.CommandWordsMax) names nothing a caller can run.
+		if words := len(strings.Fields(row.Command)); words > leroot.CommandWordsMax {
+			t.Errorf("row `le %s`: the new command `le %s` has %d words, the dispatcher reads %d", old, row.Command, words, leroot.CommandWordsMax)
 		}
 		if seen[old] {
 			t.Errorf("two rows retire `le %s`", old)

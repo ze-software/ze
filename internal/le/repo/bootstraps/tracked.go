@@ -82,9 +82,11 @@ const (
 // would otherwise stall a post-commit check with no limit at all.
 const DefaultDeadline = 10 * time.Minute
 
-// usageTitle is the section of le's help page that lists no command above
-// them. dispatch.go prints only the commands le OWNS under the command
-// sections, so the binary's answer needs no filtering here.
+// usageTitle is the title of the usage block that opens le's root help page.
+// That block shows how to call le and names no command, so listsCommands
+// leaves it out of the sections whose rows it counts. dispatch.go prints only
+// the commands le OWNS under the command sections, so the binary's answer needs
+// no filtering here.
 const usageTitle = "Usage"
 
 // Broken is one finding: a package, and what is wrong with it.
