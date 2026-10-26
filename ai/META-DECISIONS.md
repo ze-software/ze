@@ -221,6 +221,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Never present your own unfinished work as a question: do it. An ask that
   remains carries the evidence needed to answer it (the identifier, the current
   value, what each answer changes); one that cannot is not ready to be asked.
+- When Thomas sets a goal that spans several phases or specs and says he is
+  away, the main session runs every phase and every spec to its end without
+  stopping at a phase boundary to report or to ask whether to continue. It
+  comes back only with a decision no RFC, agreed design or rule in this file
+  answers, and with the finished result.
 - A hook checks what a command, path or file is, never how a message is worded.
 - Run a formatter, codemod or rewrite tool only on the files you edited in this
   task, never on every dirty file, a directory glob or the whole tree.
