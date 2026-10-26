@@ -1,11 +1,19 @@
 # Learned: a virtual IP is runtime state, lands on the remote selector, and is answered only inside the proposal
 
-`spec-ike-virtual-ip-assignment` closed `RFC3948-5.1-1`. Two peers behind
-separate NATs that both chose the inner address 10.1.2.3 could each get a
-tunnel Child SA naming it, which is the hazard RFC 3948 Section 5.1 says
-implementors MUST prevent. Ze now leases each pool-bound responder peer a
-locally unique address and answers its CFG_REQUEST (the IRAS role of RFC 7296
-Section 2.19). It still never sends CFG_REQUEST (no IRAC role).
+`spec-ike-virtual-ip-assignment` met `RFC3948-5.1-1` for pool-bound peers
+only. Two peers behind separate NATs that both chose the inner address
+10.1.2.3 could each get a tunnel Child SA naming it, which is the hazard RFC
+3948 Section 5.1 says implementors MUST prevent. Ze now leases each pool-bound
+responder peer a locally unique address and answers its CFG_REQUEST (the IRAS
+role of RFC 7296 Section 2.19). It still never sends CFG_REQUEST (no IRAC
+role).
+
+A later independent audit (2026-10-26) found the hazard still open for a
+tunnel-mode peer bound to no pool: with no configured remote selector,
+`narrowSelectors` accepts any inner source the peer proposes, and the policy
+registry refuses only an identical tunnel selector, so two such peers both
+proposing 10.1.2.3/32 each install a policy. The row is `{partial}`, and
+`plan/release/fixes/spec-ike-unbound-peer-inner-address.md` owns the rest.
 
 ## What changed
 

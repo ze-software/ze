@@ -237,7 +237,16 @@ free. `show vpn ipsec sa` lists it under `virtual-ip`. Admission of clients from
 unconfigured sources and the `eap-user` list are not served yet, so an `eap-user`
 authenticates nobody; `plan/release/fixes/spec-ipsec-remote-access.md` owns that.
 
+Only a pool-bound peer is protected this way. A tunnel-mode peer bound to no pool
+keeps the inner source it proposes when its configuration names no remote traffic
+selector, and Ze does not refuse a tunnel selector that overlaps another peer's,
+so two such peers that both claim 10.1.2.3 each get a Child SA for it. Name each
+peer's remote prefixes in its configuration and keep them disjoint until
+`plan/release/fixes/spec-ike-unbound-peer-inner-address.md` closes this.
+
 <!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP, buildCFGReply, substituteVirtualIP -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors -->
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- claim -->
 <!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState.reload builds every pool -->
 
 Every EAP mode and X.509 needs a `ca-certificate`. The daemon refuses a remote

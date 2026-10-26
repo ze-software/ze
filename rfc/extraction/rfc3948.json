@@ -122,7 +122,7 @@
       "id": "5.1",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as a gap: ze is the security gateway of the diagram and assigns no inner address, so nothing it holds prevents the overlap."
+      "reason": "Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as partial: ze is the security gateway of the diagram, it prevents the overlap for a peer bound to a virtual-IP pool, and nothing it holds prevents it for a tunnel-mode peer bound to no pool."
     },
     {
       "id": "5.2",
@@ -256,7 +256,7 @@
       "quote": "Implementors MUST devise ways of preventing this from occurring.",
       "disposition": "mapped",
       "mapped-to": "RFC3948-5.1-1",
-      "reason": "Ze fills the role. The security gateway of the section's diagram is a tunnel-mode responder terminating remote peers, and ze is one: it terminates tunnel-mode Child SAs, it carries the remote-access config surface that names an address pool, and it builds a real allocator from that surface. The earlier excluded-kind of binds-another-role was wrong on the 2026-08-31 owner directive in ai/rules/rfc-compliance.md, which bans that kind for a role ze fills. The producer exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and has no non-test caller, and reloadPool (internal/component/ike/engine/apply.go) stores the pool in ikeEngineState.pool, which no code reads. An unreached producer emits nothing, so no layer performs the requirement and it is a gap rather than a met obligation. The non-conformance is carried by the {gap} on RFC3948-5.1-1 in rfc/short/rfc3948.md, and plan/immediate/spec-ike-virtual-ip-assignment.md is the work that closes it."
+      "reason": "Ze fills the role. The security gateway of the section's diagram is a tunnel-mode responder terminating remote peers, and ze is one: it terminates tunnel-mode Child SAs, it carries the remote-access config surface that names an address pool, and it leases inner addresses from that surface. The earlier excluded-kind of binds-another-role was wrong on the 2026-08-31 owner directive in ai/rules/rfc-compliance.md, which bans that kind for a role ze fills. For a peer bound to a virtual-IP pool the requirement is met: assignVirtualIP (internal/component/ike/engine/cp.go) leases each inner address from the engine-wide registry (eap.Registry, internal/core/eap/pool.go) to one peer at a time, and substituteVirtualIP narrows every Child SA the peer asks for to that lease. For a tunnel-mode peer bound to no pool it is not: narrowSelectors (internal/component/ike/engine/ts_narrow.go) reads an empty configured selector list as allow-everything, and claim (internal/component/ike/dataplane/policy_owner.go) refuses only an identical tunnel selector, so two such peers proposing one inner address both install. The non-conformance is carried by the partial annotation on RFC3948-5.1-1 in rfc/short/rfc3948.md, and plan/release/fixes/spec-ike-unbound-peer-inner-address.md is the work that closes it."
     },
     {
       "id": "5.2:1",
