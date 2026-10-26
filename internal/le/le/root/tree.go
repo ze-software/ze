@@ -29,6 +29,10 @@ func Tree() *command.Node {
 // treeFrom builds the tree over one command set, which a test can pin.
 func treeFrom(roots []registry.RootCommand) *command.Node {
 	root := &command.Node{Children: map[string]*command.Node{}}
+	// Every area's node exists before any action is added, so the guard below
+	// meets an area under its parent whichever order the set arrives in:
+	// Commands answers it sorted, which builds `x` before `x y`.
+	nodes := make(map[string]*command.Node, len(roots))
 	for _, area := range roots {
 		// A hidden command is absent from completion and the menu.
 		if Hidden(area.Name) {
@@ -37,6 +41,13 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 		node := nodeFor(root, strings.Fields(area.Name))
 		node.ShortHelp = area.Meta.ShortHelp
 		node.Description = area.Meta.Description
+		nodes[area.Name] = node
+	}
+	for _, area := range roots {
+		node, built := nodes[area.Name]
+		if !built {
+			continue
+		}
 		list, declared := ActionsOf(area.Name)
 		if !declared {
 			continue

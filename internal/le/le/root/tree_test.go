@@ -276,3 +276,36 @@ func nodeAt(root *command.Node, words []string) *command.Node {
 	}
 	return node
 }
+
+// VALIDATES: the tree refuses an action spelled like an area under its own
+// area in the order Tree meets them: Commands answers the areas sorted, so
+// `treecollide`, whose action is `sub`, is built before the area
+// `treecollide sub`.
+// PREVENTS: a guard that checks only the areas already inserted, which that
+// order slips past, so the area `treecollide sub` silently takes over the
+// action's node and completion offers the area's words where dispatch runs
+// the action.
+//
+// Method: only `treecollide` is registered, so no other test's Tree meets the
+// collision; the child area is named in the command set handed to treeFrom.
+func TestTreeRefusesAnActionSpelledLikeAnAreaInSortedOrder(t *testing.T) {
+	parent := leaction.New("treecollide", leaction.Action{Summary: "the colliding action", Verb: "sub",
+		Why: "the colliding action", Answer: func() (any, int) { return nil, 0 }})
+	meta := registry.Meta{Description: "A collision probe for this test.", ShortHelp: "a collision probe",
+		Mode: "offline", Section: registry.SectionTest}
+	Register(parent.Name(), GroupReport, parent.Answer, meta)
+	RegisterActions(parent.Name(), parent.Actions)
+
+	roots := []registry.RootCommand{{Name: "treecollide", Meta: meta}, {Name: "treecollide sub", Meta: meta}}
+	defer func() {
+		recovered := recover()
+		message, ok := recovered.(string)
+		if !ok {
+			t.Fatalf("treeFrom built a tree where the action `sub` of `treecollide` is also the area `treecollide sub` (recovered %v)", recovered)
+		}
+		if !strings.Contains(message, "an action of treecollide is spelled like an area under it: sub") {
+			t.Errorf("treeFrom panicked with %q, want the collision named", message)
+		}
+	}()
+	treeFrom(roots)
+}
