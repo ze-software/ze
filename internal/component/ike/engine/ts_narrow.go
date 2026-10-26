@@ -138,9 +138,20 @@ func narrowSelectors(proposedI, proposedR []tsSelector, policy, floor []tsPair) 
 
 // acceptablePairs returns the parts of one proposed combination the policy accepts and
 // the dataplane can program exactly. An EMPTY policy accepts the combination whole. A
-// combination whose two protocols are disjoint matches no packet, so it yields nothing.
+// combination whose two protocols are disjoint, or that pairs an IPv4 selector with an
+// IPv6 one, matches no packet, so it yields nothing.
 func acceptablePairs(proposed tsPair, policy []tsPair) []tsPair {
 	if _, ok := intersectProto(proposed.I.Proto, proposed.R.Proto); !ok {
+		return nil
+	}
+	// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one
+	// of the individual selectors in TSi, and at least one of the individual selectors in
+	// TSr." A packet carries one address family, so an IPv4 TSi beside an IPv6 TSr
+	// matches no packet and no part of it can be accepted. When every combination is of
+	// that kind, narrowSelectors answers not-ok, and RFC 7296 Section 2.9 says what
+	// follows: "If the responder's policy does not allow it to accept any part of the
+	// proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE Notify message."
+	if !sameFamily(proposed.I.Net, proposed.R.Net) {
 		return nil
 	}
 	if len(policy) == 0 {
@@ -224,6 +235,21 @@ func pairsText(pairs []tsPair) string {
 		}
 		text.Str(p.I.Net.String()).Str(" <-> ").Str(p.R.Net.String())
 	}
+	return string(text.Bytes())
+}
+
+// selectorsText renders the prefixes of one TS payload for an error message, as
+// "{A, B}".
+func selectorsText(sels []tsSelector) string {
+	var text textbuf.Buffer
+	text.Str("{")
+	for i, s := range sels {
+		if i > 0 {
+			text.Str(", ")
+		}
+		text.Str(s.Net.String())
+	}
+	text.Str("}")
 	return string(text.Bytes())
 }
 
@@ -624,9 +650,23 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// B-C as well, and RFC 7296 Section 2.9 lets the answer only narrow the policy.
 	// Section 2.9 also licenses the cut: "When narrowing is done, there may be several
 	// subsets that are acceptable but their union is not. In this case, the responder
-	// arbitrarily chooses one of them". closedSubset keeps the first pair, so the
-	// initiator's first choices still lead the answer.
+	// arbitrarily chooses one of them". closedSubset keeps the first pair, because
+	// acceptablePairs answers only pairs whose protocols meet and whose families match,
+	// and each such pair is its own combination. So the initiator's first choices still
+	// lead the answer.
 	narrowed = closedSubset(narrowed, answerPairsMax)
+
+	// closedSubset answers nothing only for a first pair that is not its own combination:
+	// one of disjoint protocols, or of an IPv4 selector beside an IPv6 one, both of which
+	// acceptablePairs already refuses. The check stays here so that a later producer of
+	// such a pair is answered with TS_UNACCEPTABLE (RFC 7296 Section 2.9) instead of
+	// reading an empty answer below.
+	if len(narrowed) == 0 {
+		return fmt.Errorf("%w: no proposed TSi selector in %s shares a protocol and an address family "+
+			"with a proposed TSr selector in %s, so no packet can match the proposal; the peer must "+
+			"propose a TSi and a TSr of one address family and of protocols that meet",
+			errTSUnacceptable, selectorsText(proposedI), selectorsText(proposedR))
+	}
 
 	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
 	// than the original" (rfc/full/rfc7296.txt:2539-2540), and "The responder MUST NOT
@@ -878,8 +918,10 @@ func answerPairs(iSels, rSels []tsSelector) ([]tsPair, error) {
 		pairs = append(pairs, pair)
 	}
 	if len(pairs) == 0 {
-		return nil, fmt.Errorf("%w: no answered TSi selector shares a protocol with any answered TSr selector",
-			errTSUnusable)
+		return nil, fmt.Errorf("%w: no answered TSi selector in %s shares a protocol and an address family "+
+			"with any answered TSr selector in %s, so the answer matches no packet; the responder must answer "+
+			"a TSi and a TSr of one family and of protocols that meet",
+			errTSUnusable, selectorsText(iSels), selectorsText(rSels))
 	}
 	return pairs, nil
 }
@@ -1105,8 +1147,11 @@ func missingCombination(pairs []tsPair) (tsPair, bool) {
 }
 
 // closedSubset picks, from an acceptable answer, a subset that is every combination of
-// its own selectors and holds at most limit pairs. The first pair is always kept; each
-// later pair joins when every combination its selectors add is itself acceptable.
+// its own selectors and holds at most limit pairs. The first pair is kept when it is its
+// own combination, which crossPairs answers for a pair whose protocols meet and whose
+// families match; a first pair of an IPv4 and an IPv6 selector is not, and the answer is
+// then empty unless a later pair joins. Each later pair joins when every combination its
+// selectors add is itself acceptable.
 //
 // RFC 7296 Section 2.9: "When narrowing is done, there may be several subsets that are
 // acceptable but their union is not. In this case, the responder arbitrarily chooses one

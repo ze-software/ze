@@ -125,7 +125,11 @@ its entries (`sameFamily`). A payload pair can therefore
 state only a selector set that is every combination of its own entries, and
 `pairsToWire` refuses any other set rather than offer or answer combinations the set
 does not hold. Three places follow from it. The responder walks every combination of
-the proposal against policy, and `closedSubset` then keeps, first choice first, the
+the proposal against policy, and `acceptablePairs` refuses a combination of disjoint
+protocols or of an IPv4 and an IPv6 selector, even from a peer with no configured
+`traffic-selector`, whose policy otherwise accepts the proposal whole. A proposal that
+holds only such combinations, such as TSi {10.0.0.0/8} with TSr {2001:db8::/32}, is
+answered TS_UNACCEPTABLE (RFC 7296 Section 2.9). `closedSubset` then keeps, first choice first, the
 largest set of acceptable pairs whose every combination is acceptable and that installs
 at most `answerPairsMax` policies: a policy of (A, C) and (B, D) answers the proposal
 TSi {A, B}, TSr {C, D} with A-C alone, because answering both would hand the peer A-D
