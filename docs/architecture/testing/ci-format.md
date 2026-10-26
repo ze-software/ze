@@ -2045,13 +2045,18 @@ ze `go.mod` (`sessionpath.IsRepoRoot`). The runner never starts a fixture
 there, so the refusal is written for a person who typed
 `./le test fixture <name>` at the root: plain text, not a `ZE-OBSERVER-FAIL`
 line, ending with the command that runs each `.ci` test whose step starts the
-fixture, such as `./le test ui ze-help-ai-unchanged`. It finds those tests in
-the `test/<suite>/` directories of the functional suite table and builds each
-command from that suite's own words, with `--all` replaced by the file's stem.
-When no `.ci` test starts the fixture, it prints the `exec=` step to add
-instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
+fixture, such as `./le test ui ze-help-ai-unchanged`. It reads every
+`test/<dir>/*.ci`, skips `#` comment lines, and asks the one resolver of which
+runner walks a directory (`testfunctional.CIRunnerWords`): the functional suite
+table, then the `le test bgp` directories, then a registered `le test <dir>`
+command. A suite's name is not always its directory (suite `installer` runs
+`test/install/` through `./le test install`), and `test/pppoe/` has a runner
+but no suite row, so the suite table alone misses both. Each command is that
+runner's words before `--all`, then the file's stem. When no `.ci` test starts
+the fixture, it prints the `exec=` step to add instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
 runner exports; it never reads the working directory for one.
-<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, suiteTestCommand -->
+<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, startsFixture -->
+<!-- source: internal/le/test/functional/cirunner.go -- CIRunnerWords, Suite.OneTestWords -->
 <!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunRefusalInTheCheckoutRootNamesTheStepWhenNoTestStartsTheFixture, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
 
 An observer assertion is therefore worth only what its wait is worth: a value

@@ -175,39 +175,63 @@ func refuseRepoRoot(fixture string) error {
 const fixtureStep = "le test fixture "
 
 // fixtureTestCommands answers the command that runs each .ci test whose exec=
-// step starts fixture, one test per command, in suite-table order.
+// step starts fixture, one test per command, in directory then file order.
 //
-// The suite table (functional.Suites) is the one declaration of which runner
-// walks which test/<suite>/ directory, and a runner selects one test by its
-// file stem (indexRecordSelector, internal/test/runner/selection.go), so each
-// command is that suite's own words with the select-every-test flag replaced
-// by the stem.
+// It walks every test/<dir>/*.ci and asks the one resolver of which runner
+// walks a directory (testfunctional.CIRunnerWords), which reads each runner's
+// own declaration, so a directory whose runner is not a suite-table row
+// (test/pppoe/) or whose suite has another name (test/install/) is still
+// offered. A directory no runner walks offers no command, because nothing
+// could run its tests.
 func fixtureTestCommands(root, fixture string) ([]string, error) {
+	files, err := filepath.Glob(filepath.Join(root, "test", "*", "*.ci"))
+	if err != nil {
+		return nil, fmt.Errorf("list the .ci files under test/: %w", err)
+	}
 	var commands []string
-	for _, suite := range testfunctional.Suites {
-		files, err := filepath.Glob(filepath.Join(root, "test", suite.Name, "*.ci"))
+	for _, file := range files {
+		content, err := os.ReadFile(file) //nolint:gosec // the path is a .ci file under this checkout's test/
 		if err != nil {
-			return nil, fmt.Errorf("list the .ci files of suite %s: %w", suite.Name, err)
+			return nil, fmt.Errorf("read %s: %w", file, err)
 		}
-		for _, file := range files {
-			content, err := os.ReadFile(file) //nolint:gosec // the path is a .ci file of this checkout's own suite
-			if err != nil {
-				return nil, fmt.Errorf("read %s: %w", file, err)
-			}
-			if !startsFixture(string(content), fixture) {
-				continue
-			}
-			commands = append(commands, suiteTestCommand(suite, strings.TrimSuffix(filepath.Base(file), ".ci")))
+		if !startsFixture(string(content), fixture) {
+			continue
 		}
+		words, held := testfunctional.CIRunnerWords(filepath.Base(filepath.Dir(file)))
+		if !held {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Str("./le test")
+		for _, word := range words {
+			tb.Byte(' ').Str(word)
+		}
+		commands = append(commands, tb.Byte(' ').Str(strings.TrimSuffix(filepath.Base(file), ".ci")).String())
 	}
 	return commands, nil
 }
 
 // startsFixture answers whether a .ci file's content holds a step that starts
 // fixture by its whole name, so `plugin/a` does not match a step for `plugin/ab`.
+// A `#` comment line is not a step, so a test that only mentions the fixture
+// in a comment is not offered.
 func startsFixture(content, fixture string) bool {
 	step := fixtureStep + fixture
-	for rest := content; ; {
+	for line := range strings.Lines(content) {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if lineStartsFixture(line, step) {
+			return true
+		}
+	}
+	return false
+}
+
+// lineStartsFixture answers whether one line holds step followed by the end of
+// the fixture name.
+func lineStartsFixture(line, step string) bool {
+	for rest := line; ; {
 		index := strings.Index(rest, step)
 		if index < 0 {
 			return false
@@ -223,21 +247,6 @@ func startsFixture(content, fixture string) bool {
 func fixtureNameByte(b byte) bool {
 	return b == '-' || b == '_' || b == '/' || b == '.' ||
 		('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9')
-}
-
-// suiteTestCommand answers the command line that runs the one test named stem
-// of suite. The words after the select-every-test flag set the suite's
-// concurrency (`-p 8`), which one test does not need, so they are dropped.
-func suiteTestCommand(suite testfunctional.Suite, stem string) string {
-	var tb textbuf.Buffer
-	tb.Str("./le test")
-	for _, arg := range suite.Args {
-		if arg == testfunctional.AllTests {
-			break
-		}
-		tb.Byte(' ').Str(arg)
-	}
-	return tb.Byte(' ').Str(stem).String()
 }
 
 // ObserverScenario runs after all daemon plugins are ready.

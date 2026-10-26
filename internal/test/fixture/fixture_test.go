@@ -9,6 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	// The harness package registers `le test install`, the runner of
+	// test/install/, which no suite-table row is named after.
+	_ "github.com/ze-software/ze/internal/le/test/install"
 )
 
 // readOneReport runs body with os.Stderr replaced, and answers what body wrote
@@ -147,6 +151,11 @@ func TestRunRefusesADriverStartedInTheCheckoutRoot(t *testing.T) {
 	name := "fixture-test-checkout-root"
 	writeCheckoutCI(t, checkout, "ui", "checkout-root-probe", "cmd=foreground:seq=1:exec=le test fixture "+name+"\n")
 	writeCheckoutCI(t, checkout, "ui", "decoy", "cmd=foreground:seq=1:exec=le test fixture "+name+"-other\n")
+	// test/install/ is run by `le test install`, whose suite row is named
+	// installer, so a resolver that walks only suite names misses it.
+	writeCheckoutCI(t, checkout, "install", "x", "cmd=foreground:seq=1:exec=le test fixture "+name+"\n")
+	// A comment that mentions the step starts nothing.
+	writeCheckoutCI(t, checkout, "ui", "comment-only", "# run by hand: le test fixture "+name+"\n")
 	ran := false
 	Register(name, func(context.Context, []string) error {
 		ran = true
@@ -177,6 +186,12 @@ func TestRunRefusesADriverStartedInTheCheckoutRoot(t *testing.T) {
 	}
 	if strings.Contains(report, "decoy") {
 		t.Fatalf("the refusal offers a .ci test that starts another fixture: %q", report)
+	}
+	if !strings.Contains(report, "\n  ./le test install x\n") {
+		t.Fatalf("the refusal does not print the command that runs test/install/x.ci, which starts %s: %q", name, report)
+	}
+	if strings.Contains(report, "comment-only") {
+		t.Fatalf("the refusal offers a .ci test that only mentions %s in a comment: %q", name, report)
 	}
 }
 

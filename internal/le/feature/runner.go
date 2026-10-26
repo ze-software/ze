@@ -15,7 +15,6 @@ import (
 	"path"
 	"strings"
 
-	leroot "github.com/ze-software/ze/internal/le/le/root"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	testcli "github.com/ze-software/ze/internal/test/cli"
 )
@@ -74,39 +73,20 @@ func editorRunnerOf(rel, dir string) (testRunner, string) {
 	if !held {
 		return testRunner{}, "'" + rel + "': no functional suite named '" + dir + "' runs the editor runner"
 	}
-	return testRunner{words: suiteWords(suite), selector: rel}, ""
+	return testRunner{words: suite.OneTestWords(), selector: rel}, ""
 }
 
-// ciRunnerOf answers the .ci runner that walks test/<dir>/, asking each .ci
-// runner's own declaration in turn. A .ci runner selects a file by its stem
-// and walks one directory level only.
+// ciRunnerOf answers the .ci runner that walks test/<dir>/, from the one
+// resolver every caller shares (testfunctional.CIRunnerWords). A .ci runner
+// selects a file by its stem and walks one directory level only.
 func ciRunnerOf(rel, dir string, depth int) (testRunner, string) {
 	if depth != 3 {
 		return testRunner{}, "'" + rel + "' is not test/<dir>/<name>" + ciSuffix + ", which is where the .ci runners look"
 	}
-	stem := strings.TrimSuffix(path.Base(rel), ciSuffix)
-	if suite, held := testfunctional.SuiteNamed(dir); held {
-		return testRunner{words: suiteWords(suite), selector: stem}, ""
+	words, held := testfunctional.CIRunnerWords(dir)
+	if !held {
+		return testRunner{}, "'" + rel + "': no functional suite, `le test bgp` directory or `le test " + dir +
+			"` command runs test/" + dir + "/"
 	}
-	if testcli.BgpRunnerDir(dir) {
-		return testRunner{words: []string{"bgp", dir}, selector: stem}, ""
-	}
-	if leroot.LookupCommand(testTreeDir+" "+dir) != nil {
-		return testRunner{words: []string{dir}, selector: stem}, ""
-	}
-	return testRunner{}, "'" + rel + "': no functional suite, `le test bgp` directory or `le test " + dir +
-		"` command runs test/" + dir + "/"
-}
-
-// suiteWords answers a functional suite's words without the --all flag,
-// so the selector picks one file.
-func suiteWords(suite testfunctional.Suite) []string {
-	words := make([]string, 0, len(suite.Args))
-	for _, arg := range suite.Args {
-		if arg == testfunctional.AllTests {
-			continue
-		}
-		words = append(words, arg)
-	}
-	return words
+	return testRunner{words: words, selector: strings.TrimSuffix(path.Base(rel), ciSuffix)}, ""
 }
