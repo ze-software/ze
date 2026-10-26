@@ -126,4 +126,4 @@ these contracts. It is not a refactor.
 | `./le arch fs-persistence check` | No raw runtime-state file writes |
 | `./le arch enumeration check` | No literal copy of what a registry holds |
 | `./le job run label core command go test -race ./internal/core/<pkg>/` | The scoped package test (`ai/rules/commands.md`) |
-| `./le doc check verify` | Source anchors in any page you edited |
+| `./le doc check all` | Source anchors in any page you edited |

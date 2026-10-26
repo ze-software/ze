@@ -19,7 +19,7 @@ const testPluginPackages = "github.com/ze-software/ze/internal/test/plugins/"
 
 // VALIDATES: importing the fixture package registers no test-only plugin.
 // PREVENTS: a test plugin landing in the le binary's registry, which links this
-// package through internal/le/test/fixture, so `./le doc check verify` reports
+// package through internal/le/test/fixture, so `./le doc check all` reports
 // it as a shipped plugin missing from docs/DESIGN.md.
 // TestFixtureRegistersNoTestPlugin walks every registration this package's
 // imports produced and names the package of each handler, so a fixture that

@@ -43,7 +43,7 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"go staticcheck/check/part/1/of/6":        "go-staticcheck-check-part-1-of-6.log",
 		"verify deps/unit-cached":                 "verify-deps-unit-cached.log",
 		"doc wiring":                              "doc-wiring.log",
-		"doc check/verify":                        "doc-check-verify.log",
+		"doc check/all":                        "doc-check-all.log",
 		"repo compiles/check":                     "repo-compiles-check.log",
 		"repo/tree-check":                         "repo-tree-check.log",
 		"arch tier/check":                         "arch-tier-check.log",

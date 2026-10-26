@@ -119,4 +119,4 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
 | `./le doc yang-contract command-contract` | Every YANG command has a handler |
 | `./le mock plugin-external <name>` | Runs a registered engine through real TLS connect-back (`docs/architecture/testing/ci-format.md`) |
 | `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/...` | The scoped package tests |
-| `./le doc check verify` | Source anchors in any page you edited |
+| `./le doc check all` | Source anchors in any page you edited |

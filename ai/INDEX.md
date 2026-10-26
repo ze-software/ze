@@ -143,7 +143,7 @@ Ask the question from Bash instead
 4. Read the actual source before any factual claim
 5. Add <!-- source: path -- symbol --> anchors
 6. Run ./le doc ste review-changed to read your own prose back
-7. Run ./le doc check verify after editing docs/
+7. Run ./le doc check all after editing docs/
 ```
 
 ### Working with IPsec / IKE
@@ -255,15 +255,15 @@ Reach for one of these before inventing a new mechanism.
 | Need | Existing surface |
 |------|------------------|
 | Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
-| Documentation drift and YANG command contracts | `./le doc check verify` |
+| Documentation drift and YANG command contracts | `./le doc check all` |
 | Source-to-document reverse index | `./le doc index update`; read `ai/CODE-TO-DOCS.md` |
-| Which tests enforce an RFC MUST, and what the backlog is | `./le rfc update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
+| Which tests enforce an RFC MUST, and what the backlog is | `./le rfc update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check all`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
 | Which RFC gap to close next, and what a release profile still owes | `./le rfc next` judges every release profile (`Release: yes` in `rfc/profiles/<name>.md`) at once, `./le rfc next profile <name>` one profile; `./le rfc tree profile <name>` prints that profile's closure roots to leaves with both figures and its rollup. How the closure and the order are derived: `docs/contributing/rfc-conformance-gates.md` ("The priority tree") |
 | What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le repo package-map update` writes it on demand |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
 | Which problems recur | `./le spec journal report`; read `plan/journal/`, one file per class, where the recurrence is the rows dated after the class's `Captured:` line, every row when it has none |
 | Whether every path a tracked file names still resolves | `./le doc check links`. It is its own stage of Thomas's release check, `./le verify current`, and `sweepTracked` in `internal/le/doc/check/links.go` sweeps every tracked file, not only the instruction corpus. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. The record trees are excluded, because their paths are facts about a past moment rather than claims about the tree today: `citation.Excluded` in `internal/le/doc/citation/policed.go` names them, and `citation.Policed` gives the whole answer, keeping a `citation.CorpusGlobs` file under a record tree policed |
-| Whether every symbol a `docs/` source anchor names is declared where the anchor points | `./le doc check verify` (`checkAnchors` in `internal/le/doc/index/codetodocs.go`) |
+| Whether every symbol a `docs/` source anchor names is declared where the anchor points | `./le doc check all` (`checkAnchors` in `internal/le/doc/index/codetodocs.go`) |
 | How data flows through a subsystem | read `ai/digests/<subsystem>.md`; `ai/digests/README.md` lists them and `./le ai digest` validates their anchors |
 | Plugin, command, YANG, and test inventory | `./le repo inventory` |
 | Command inventory | `./le cli list` |

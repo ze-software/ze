@@ -16,7 +16,7 @@ import (
 func TestDocumentActionsCoverNativeOperations(t *testing.T) {
 	want := []leaction.Row{
 		{Verb: "links", Why: actions[0].Why},
-		{Verb: "verify", Why: actions[1].Why},
+		{Verb: "all", Why: actions[1].Why},
 		{Verb: "templ-output", Why: actions[2].Why},
 		{Verb: "retired-commands", Why: actions[3].Why},
 	}

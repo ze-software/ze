@@ -371,7 +371,7 @@ const (
 	actionDigest                  = "digest"
 	actionInventory               = "inventory"
 	actionCommandList             = "command list"
-	actionDocCheckVerify          = "doc check/verify"
+	actionDocCheckVerify          = "doc check/all"
 	actionDocsToCodeIndexCheck    = "docs-to-code/index-check"
 	actionDocvalidCommandContract = "docvalid/command-contract"
 	actionPluginImportsCheck      = "plugin imports/check"

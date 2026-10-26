@@ -97,7 +97,7 @@ func TestRunGoActionPutsTheReportsPathsIntoTheGroup(t *testing.T) {
 		return pathBearingPayload{paths: []string{"docs/alpha.md", "docs/beta.md"}}, 1
 	}}
 
-	result := g.runGoAction("doc check/verify", failing)
+	result := g.runGoAction("doc check/all", failing)
 
 	if !result.Failed {
 		t.Fatal("the delegated action returned a non-zero code, so the check must fail")

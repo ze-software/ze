@@ -129,7 +129,7 @@ A leaf rename breaks every saved config and every script that writes it.
 | `./le yang glue check` | Generated `embed.go` and `register.go` match the `.yang` files |
 | `./le doc yang-contract command-contract` | YANG command declarations against handlers |
 | `./le job run label config command go test -race ./internal/component/config/...` | The scoped package test, including `TestEveryValidatorSectionIsWalkedOrExcused` |
-| `./le doc check verify` | Source anchors in any page you edited |
+| `./le doc check all` | Source anchors in any page you edited |
 
 `test/plugin/config-validate-agrees-with-boot.ci` is the functional proof that
 offline validation and boot agree.

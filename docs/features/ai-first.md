@@ -94,7 +94,7 @@ page for verification and usage.
 <!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 
 Agents should use the existing inventory and verification surfaces:
-`./le repo inventory`, `./le cli list`, `./le doc check verify`,
+`./le repo inventory`, `./le cli list`, `./le doc check all`,
 `./le doc index update`, and `./le doc wiring`.
 
 Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted

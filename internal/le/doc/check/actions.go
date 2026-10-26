@@ -3,7 +3,7 @@
 // Detail: register.go -- root registration and answer shape.
 //
 // Package doccheck owns the four documentation actions that the verifier runs
-// directly. The links action owns its scan. Verify and templ-output call the Go
+// directly. The links action owns its scan. All and templ-output call the Go
 // packages that already own those compositions. The dispatch, the listing, the
 // help page and the refusals live in internal/le/le/action.
 
@@ -18,29 +18,35 @@ import (
 
 const area = "doc check"
 
+// doesCheck is the vocabulary verb every named gate of this area performs.
+const doesCheck = "check"
+
 // actions declares the whole command surface. No action takes a value: each
 // judges the checkout, so the table refuses any word after the verb.
 var actions = []leaction.Action{
 	{
 		Verb:    "links",
+		Does:    doesCheck,
 		Summary: "check instruction links and citations resolve",
 		Why:     "instruction links, tracked citations, suppression reasons, and Design references resolve",
 		Answer:  atRoot(runLinks),
 	},
 	{
-		Verb:    "verify",
+		Verb:    leaction.SharedName,
 		Summary: "run the complete ordered documentation gate",
 		Why:     "the complete ordered documentation gate passes",
 		Answer:  atRoot(docwiring.Verify),
 	},
 	{
 		Verb:    "templ-output",
+		Does:    doesCheck,
 		Summary: "check generated templ output matches its sources",
 		Why:     "generated templ output matches its sources",
 		Answer:  atRoot(docwiring.TemplOutput),
 	},
 	{
 		Verb:    "retired-commands",
+		Does:    doesCheck,
 		Summary: "refuse a tracked line naming a retired command form",
 		Why:     "no tracked line names a form the subject-first rename retired",
 		Answer:  atRoot(runRetiredCheck),

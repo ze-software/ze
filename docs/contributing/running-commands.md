@@ -1556,7 +1556,7 @@ recipe needs.
 
 ## Which native action owns the documentation gate
 
-`./le doc check verify` and `./le repo check generated` are separate actions.
+`./le doc check all` and `./le repo check generated` are separate actions.
 `internal/le/doc/wiring.Verify` owns the ordered documentation gate, including the
 `internal/le/doc/yangcontract` command and drift checks, the `internal/le/doc/check` links,
 and RFC freshness. `internal/le/repo` owns the generated repository artifacts.

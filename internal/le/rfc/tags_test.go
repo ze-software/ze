@@ -283,7 +283,7 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 	}{
 		{"one action", "run: ./le test integration interop\n", []string{"test integration/interop"}},
 		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
-		{"a chain", "run: ./le rfc check && ./le doc check verify\n", []string{"rfc/check", "doc check/verify"}},
+		{"a chain", "run: ./le rfc check && ./le doc check all\n", []string{"rfc/check", "doc check/all"}},
 		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"arch tier/check"}},
 		{"arguments do not change identity", "run: ./le verify current fast\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},

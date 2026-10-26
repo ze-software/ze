@@ -116,5 +116,5 @@ The daemon dispatcher they feed is
 | `./le cli catalog check` | The command catalog matches the live registries |
 | `./le doc yang-contract command-contract`, `usage-contract`, `help-shape` | Node and handler pairing, grammar stated in the model, one-sentence summaries |
 | `./le plugin declarations check` | A plugin's Stage 1 commands match its registration |
-| `./le doc check verify` | The documentation gate. Run it after you touch a `ze:command` declaration (`ai/rules/writing.md`) |
+| `./le doc check all` | The documentation gate. Run it after you touch a `ze:command` declaration (`ai/rules/writing.md`) |
 | `./le test functional ui`, `./le test functional editor` | The CLI, completion and editor suites |

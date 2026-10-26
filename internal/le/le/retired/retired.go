@@ -236,6 +236,8 @@ var renames = []Rename{
 	{Retired: "verify summary append", Command: "verify summary", Action: "record"},
 	// `validate` and `check` shared one meaning.
 	{Retired: "spec journal validate", Command: "spec journal", Action: "check"},
+	// `verify` there meant every check in order, which is the shared name `all`.
+	{Retired: "doc check verify", Command: "doc check", Action: "all"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

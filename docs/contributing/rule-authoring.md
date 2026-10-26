@@ -342,7 +342,7 @@ a render that has not run yet feeds them the previous text.
     ./le ai rules update index
     ./le ai rules check metadata
 
-`./le doc check verify` runs all of them, plus `./le ai rules check render`,
+`./le doc check all` runs all of them, plus `./le ai rules check render`,
 `./le ai rules check points-roundtrip` and `./le ai rules report gate-map`. Run it before you commit.
 
 The three freshness commands (`render-check`, `condensed-check` and

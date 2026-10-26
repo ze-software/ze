@@ -203,7 +203,7 @@ func fullStages() []Stage {
 		stage("repo compiles", "check"),
 		stage("go vet-platforms", "darwin", "freebsd", "openbsd"),
 		stage("doc wiring"),
-		stage("doc check", "verify"),
+		stage("doc check", "all"),
 		stage("doc check", "links"),
 		// Every caller of a name the subject-first rename retired is rewritten,
 		// so a line naming one again is a regression (AC-16 of

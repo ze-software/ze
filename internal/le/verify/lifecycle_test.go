@@ -691,7 +691,7 @@ func TestADefeatedRunIsUnjudgedRatherThanFailed(t *testing.T) {
 // The run prints one exit code, and before this the stage behind it was a line
 // inside a log of tens of thousands: a debt sweep printed
 // `full-part-5-of-6 exit=1` and the reader opened a 49K log to reach
-// `doc check/verify exit=1` (plan/journal/failing-gate-prints-no-cause.md).
+// `doc check/all exit=1` (plan/journal/failing-gate-prints-no-cause.md).
 func TestTheConsoleNamesTheStageThatEarnedTheExitCode(t *testing.T) {
 	repo := newFixtureRepo(t)
 

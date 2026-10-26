@@ -48,7 +48,7 @@ var usageMarkers = [...]string{"Usage:", "Syntax:", "Filters:"}
 // line the model renders, the sentence a description spells by hand, and the
 // word that opened it.
 //
-// The row and the report are exported because `./le doc check verify` runs this
+// The row and the report are exported because `./le doc check all` runs this
 // gate (internal/le/doc/wiring/docverify.go, beside Drift and Validate). They
 // were package-private while 80 descriptions still carried authored prose,
 // because a gate wired before the prose was gone turned every session's verify

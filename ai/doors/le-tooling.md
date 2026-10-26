@@ -124,4 +124,4 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 | `./le repo bootstraps`, `./le repo compiles` | le builds from what git holds. The tree compiles in every shipped flavor |
 | `./le go vet-platforms darwin` | The shipped tree still compiles on the owner's Mac |
 | `./le test weakened selftest` | The weakening detector refuses an unapproved weakening and accepts it once a `ze-test-judge` approval is recorded (`./le test weakened approve`) |
-| `./le doc check verify` | Pages and source anchors after a doc edit |
+| `./le doc check all` | Pages and source anchors after a doc edit |

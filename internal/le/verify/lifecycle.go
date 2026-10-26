@@ -399,7 +399,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// The CAUSE, on the console, beside the verdict. A run prints one exit code
 	// and the stage that earned it is a line inside a log of tens of thousands:
 	// the debt sweep of 2026-09-13 printed `full-part-5-of-6 exit=1` and the
-	// reader had to open a 49K log to reach `doc check/verify exit=1`
+	// reader had to open a 49K log to reach `doc check/all exit=1`
 	// (plan/journal/failing-gate-prints-no-cause.md). Every red stage is named,
 	// not the first one, because the population continues after a stage judges
 	// the tree and finds it wrong.
