@@ -463,3 +463,39 @@ field, `features/ipsec-eap-authentication.md`, spec A-1 validated, spec document
 Interop: `virtual-ip-assignment` and `virtual-ip-uniqueness` pass
 (`scratch/disc11/interop-*.log`). Scoped lint: the one finding in these files
 (`cp_close_test.go`, `WaitGroup.Go`) fixed; the rest are in the ESP session's files.
+
+## Twelfth agent (2026-10-26): review round 2, three findings fixed, two blocked on a judge
+
+Fixed and committed, the pool fix and then the docs commit carrying this section:
+
+* NOTE 3: `Registry.Release` (`internal/core/eap/pool.go`) remembers a released lease as
+  the owner's last address only when it is still the slot's own lease. Before, releasing a
+  lease a pool edit had moved off its slot wrote `last[slot]` and `lastBy[old]`, and the
+  stale `lastBy[old]` later made `grantLocked` delete the owner's real hint. Test
+  `TestReleaseOfMovedLeaseKeepsTheOwnersLastAddress` (`pool_test.go`) was red before the
+  fix ("owner a reconnected to 10.10.0.1, want its last address 10.10.0.50") and is green
+  after. Page: `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`.
+* NOTE 1: the `proposeLeasedChildTSPayloads` comment (`cp.go`) now names the reachable
+  case: a pool edit moved the range off a live lease outside the configured prefixes,
+  `answerNamesOnlyLeases` admits only that lease host, and the configured-policy ceiling
+  refuses it.
+* ISSUE 2: `docs/config-reference.md` lists the empty `virtual-ip-pool` name among the
+  commit refusals (by `hunks`: the BGP `delay-open` hunks at 113 and 131 are another
+  session's).
+
+Blocked, nothing landed: ISSUE 1 (selector and dual-stack cases) and NOTE 5 (assert the
+installed Child SA's outbound policies are the lease hosts) both change the RFC-tagged
+unit `engine.TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease`, and the edit hook refused the
+edit: an independent `ze-test-judge` must approve it first, then
+`./le rfc approve unit engine.TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease reason "<verdict>"`.
+The proposed file is `scratch/r12/proposed-rfc3948_virtual_ip_rekey_test.go.txt` (eleven
+cases, claims widened to the cases it adds). Laid on a HEAD export it passes all eleven
+subtests (`scratch/r12/proposed-run.sh`, log `scratch/job-unit-pkg-c95f0ca8.log`). After
+approval: copy it in by the Edit tool, re-take both `RFC3948-5.1-1` records on that unit
+(the claim text changed), run the scoped race test, commit. The test file in the working
+tree is byte-identical to HEAD.
+
+Evidence: race run of `ike/engine` and `core/eap` with every feature tag green
+(`scratch/job-unit-pkg-9bfa4e8a.log`); scoped lint of both packages finds only
+`esp_fixed_test.go` (the ESP session's); `./le test weakened check` flags none of these
+files; `./le rfc discriminate id RFC3948-5.1-1` reports no stale record.

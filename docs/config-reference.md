@@ -854,8 +854,9 @@ vpn {
 A `respond` peer whose `virtual-ip-pool` names a pool is leased one inner address
 per family from it in IKE_AUTH, answered in a CFG_REPLY with the pool's DNS
 servers, and its Child SAs are narrowed to that address. `range` takes /8 to /30,
-`range6` /48 to /126. Commit refuses overlapping pools, an unknown pool name, the
-leaf on a peer that is not `respond`, traffic selectors whose remote prefixes do not
+`range6` /48 to /126. Commit refuses overlapping pools, an unknown pool name, an
+empty `virtual-ip-pool` name, the leaf on a peer that is not `respond`, traffic
+selectors whose remote prefixes do not
 cover the pool, and a `domain` leaf, which Ze does not support. See [guide/ipsec.md](guide/ipsec.md).
 <!-- source: internal/component/ike/ipsec/config.go -- parseVirtualIPPool -->
 <!-- source: internal/component/ike/ipsec/validate.go -- validateVirtualIPPools, ValidateVirtualIPPoolBindings -->

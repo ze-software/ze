@@ -344,10 +344,14 @@ func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) 
 // therefore proposed as its lease host, inside each configured remote prefix that
 // contains it (leasedProposalPairs).
 //
-// When no pair survives, the IKE SA holds no lease or no configured remote prefix contains
-// it (commit refuses the second, ValidateVirtualIPPoolBindings), so no lease can be
-// proposed. The wildcard is sent with no recorded ceiling, and answerNamesOnlyLeases then
-// refuses every answer, because none can name a lease this SA holds.
+// When no pair survives, either the IKE SA holds no lease, or no configured remote prefix
+// contains its lease. Commit refuses a pool outside the configured prefixes
+// (ValidateVirtualIPPoolBindings), but a pool edit can move the range off a live lease, which
+// stays held until the SA closes, so the second case is reachable. The wildcard is sent with
+// no recorded ceiling. With no lease, answerNamesOnlyLeases refuses every answer. With a
+// lease outside the configured prefixes, answerNamesOnlyLeases admits only an answer naming
+// that lease host, and the configured-policy ceiling recordInitiatorSelectors falls back to
+// refuses it, because no configured prefix contains it. Every answer is therefore refused.
 func proposeLeasedChildTSPayloads(sa *SA, pairs []tsPair) (*wire.PayloadTS, *wire.PayloadTS) {
 	leased := leasedProposalPairs(sa.leaseGrant(), pairs)
 	tsi, tsr := pairsToWire(leased)
