@@ -617,6 +617,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | SSH, authentication, user, public-key | `internal/component/ssh/`, `ze-ssh-conf.yang` |
 | IPsec, IKE, IKEv2, SA, child SA | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | EAP, NAT-T, MOBIKE | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
+| virtual IP, CFG_REQUEST, CFG_REPLY, Configuration payload, remote-access pool, virtual-ip-pool | `internal/component/ike/engine/cp.go`, `internal/component/ike/engine/virtual_ip.go`, `internal/core/eap/pool.go`, `docs/architecture/ike/ipsec-14-responder.md`, `docs/guide/ipsec.md` |
 | XFRM, xfrm interface, VTI, netlink, go mod vendor | `ai/digests/ipsec-ike.md`, `internal/component/ike/`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (vendored netlink patch, recovery command, and owning gate), `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` |
 | standard library patch, crypto/tls patch, go build -overlay, GOROOT, TLS session_id | `docs/contributing/patching-the-standard-library.md` |
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |

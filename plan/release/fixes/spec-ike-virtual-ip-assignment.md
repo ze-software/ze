@@ -398,7 +398,7 @@ authority (RFC 3948 Section 5.1).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every IKE SA close path reaches `forgetKeys` exactly once | its doc comment and the call sites listed in Current Behavior | a lease leaks or double-releases | `TestLeaseReleasedOnEveryClosePath` drives delete, DPD death, peer stop, reload restart, superseded SA and rekey retirement; a double release returns `ErrNotAllocated` and fails the test | unvalidated |
+| A-1 | Every IKE SA close path reaches `forgetKeys` exactly once | its doc comment and the call sites listed in Current Behavior | a lease leaks or double-releases | `TestLeaseReleasedOnEveryClosePath` drives delete, DPD death, peer stop, reload restart, superseded SA and rekey retirement; a double release returns `ErrNotAllocated` and fails the test | validated: `TestLeaseReleasedOnEveryClosePath` (cp_test.go), plus `TestLeaseReleasedWhenRunEstablishedExits` (the owner loop's exit) and `TestLeaseReleasedOnResponderDeadBranch` (`runResponder`'s StateDead branch) in cp_close_test.go, the two close paths review round 1 found unexercised; each asserts no lease held and no `virtual-ip` left on the closed SA |
 | A-2 | The responder-side IKE rekey adopts its successor through a site that can move the lease | the `out.newSA` swap in `established.go`; `responder-ike-rekey` scenario exists | the lease is released at a responder rekey and the address re-issued | `TestIKERekeyKeepsLease` in both rekey directions | unvalidated |
 | A-3 | The interop lab can give strongSwan two source addresses translated by the NAT box | `nat.conf` takes one translation per line; secondary addresses are how the box itself works | `virtual-ip-uniqueness` cannot be written as designed | write the scenario first; if the strongSwan container cannot hold two addresses, extend `internal/le/interoplab/ipsec` to add declared secondary addresses (named in Files) | validated 2026-10-26: the container holds a second address (the checker adds 172.28.0.8/32 to strongSwan's eth0, as `mobikeMove` adds one); the lab limit was `natTranslationsMax = 2` in `nat.go`, raised to 3 so `nat.conf` maps Ze and both clients (commit `5fcf169117`) |
 | A-4 | strongSwan accepts the CFG_REPLY ahead of SAr2 with Ze's attribute set | strongSwan `process_i` reads CP from the last IKE_AUTH | G-3 fails | `virtual-ip-assignment` | unvalidated |
@@ -616,9 +616,9 @@ consumer, rebuild the Ze image, confirm RED, restore, confirm GREEN, record the 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md`; `features/<id>.md` level per `./le feature report` |
+| 1 | New user-facing feature? | Yes | `docs/features.md`; `features/<id>.md` level per `./le feature report`. Done: `features/ipsec-eap-authentication.md`, the declaration that carries the pool, states the binding, the unique lease, the lease-only Child SAs and the `virtual-ip` field; level unchanged |
 | 2 | Config syntax changed? | Yes | `docs/config-reference.md`, `docs/guide/ipsec.md` |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` (`virtual-ip` field) |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` (`virtual-ip` field). Done: the `show vpn ipsec` section names the field; `docs/guide/ipsec.md` and `ipsec-10-cli-diag.md` already did |
 | 4 | API/RPC added/changed? | No | no RPC |
 | 5 | Plugin added/changed? | N-A | IKE is a component |
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` |
@@ -725,6 +725,10 @@ what discharges it, and its closure marks that row fixed.
 - Address requests in INFORMATIONAL or CREATE_CHILD_SA are not served (strongSwan serves them
   in IKE_AUTH only); the Section 3.15.4 retry by INFORMATIONAL therefore gets no address.
 - No search-domain attribute (Q-1).
+- A childless IKE_AUTH (no SAi2) from a pool-bound peer is answered without a lease, because
+  `selectAuthChildSA` refuses the missing SAi2 before `assignVirtualIP` runs. It fails closed:
+  every later CREATE_CHILD_SA on that IKE SA draws TS_UNACCEPTABLE, since no Child SA may name
+  an inner address the peer was not leased. The peer must reconnect with a Child SA in IKE_AUTH.
 
 ## Open questions
 

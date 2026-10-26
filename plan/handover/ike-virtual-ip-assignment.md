@@ -405,3 +405,61 @@ Interop: see the commit body.
 Left: `./le rfc check` could not run: `go vet` hits an import cycle in
 `internal/component/bgp/reactor` (`delay_open_regression_test.go` -> `bgp/config` ->
 `bfd_strict_doctor.go`), another session's uncommitted work.
+
+## Ninth agent, 2026-10-26: review round 1 fixes written, nothing committed
+
+Wrote every round-1 fix in the working tree and stopped at its budget. BLOCKER 1: a Child
+SA request ze sends on a pool-bound peer's IKE SA proposed the configured remote prefix or
+the wildcard for the peer's side, so a wider answer passed the ceiling. Fixed by
+`proposeLeasedChildTSPayloads` (`rekey.go` -> `cp.go`: `leasedProposalPairs`,
+`wildcardLeasePairs`) and `answerNamesOnlyLeases`, called from `recordInitiatorSelectors`
+before the ceiling. ISSUE 2: `sa.virtualIP` guarded by the package `virtualIPMu`
+(`leaseGrant`, `setLeaseGrant`, `takeLeaseGrant`); the field stays a `*virtualIPGrant`
+because an RFC-tagged test reads it. ISSUE 3: `childRefusedFixResponderCPRequired` and
+`childRefusedFixResponderNoAddress` (`create_child.go`). ISSUE 4: `boundVirtualIPPool`,
+`Pool.Name`, `Pool.Capacity`, `Lease.Pool`, `Registry.Available` deleted;
+`TestPeerBindingSelectsNamedPool` rewritten through `handleAuthRequest`. ISSUE 5: two close
+paths tested (`cp_close_test.go`). ISSUE 6: `ValidateVirtualIPPoolBindings` refuses an empty
+pool name (`test/parse/ipsec-virtual-ip-pool-empty.ci`). Pool note: `Acquire` and `Release`
+across an edited range. Transport note: `transportSelectorsInPlay` is false for a
+pool-bound peer unless this node configured transport mode.
+
+## Tenth agent, 2026-10-26: stopped at the weakening check
+
+`./le test weakened check` flagged `TestPeerBindingSelectsNamedPool` (3 -> 2 table cases).
+It stopped there, so an independent `ze-test-judge` could rule before anything committed;
+the judge approved it (`tmp/commit-weakening-approved-99a74e76.md`, carried as the
+commit's `Weakening-approved:` trailer) and ruled the `eap` pool test changes equal or
+stronger.
+
+## Eleventh agent, 2026-10-26: round 1 committed
+
+Three commits, in order: `c8d3e41036` "ike: a rekey ze starts proposes only the peer's lease"
+(BLOCKER 1 with ISSUE 2, 4, 5 and the pool note, inseparable through `cp.go`), `1502b3034b` "ike: name
+the virtual IP refusals, refuse an empty pool name" (ISSUE 3, 6 and the transport note), and the docs commit carrying this section. The main thread ran the commit scripts; `./le repo compiles check` is OK after `1502b3034b`. Next: review round 2 over these three commits. `rekey.go`,
+`responder.go`, `ts_narrow.go` (first commit), the YANG file, `docs/guide/ipsec.md` and
+`ai/INDEX.md` went by `hunks`, because the ESP session's uncommitted hunks share them.
+Each commit set was laid on an export of HEAD without those hunks and passed `go vet`
+with and without the `integration` tag (`scratch/disc11/export.sh`, `vet-c1.log`,
+`vet-c2.log`).
+
+Records (`scratch/disc11/`, one-entry catalogs, logs `rec-*.log`, all red under the break):
+`RFC3948-5.1-1` positive (`rekey.go` guard -> `false`) and negative
+(`answerNamesOnlyLeases` first guard -> `true`) on
+`TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease`. Re-taken stale: `RFC3948-5.1-1`
+(`assignVirtualIP`, `substituteVirtualIP`), `RFC7296-2.19-5` (revert), `2.19-6`, `2.19-7`
+both polarities, `2.19-8`, `3.15.4-1`, `4-7` and `2.9-1` both polarities
+(`narrowChildSelectors`). `./le rfc discriminate id` then reports no stale record for any
+of them. `RFC7296-2.9-1` still lists four unproven tags in
+`rfc7296_child_rekey_initiator_answer_test.go` and `rfc7296_transport_test.go`, files this
+work did not change.
+
+Docs: `ipsec-7-ikev2-engine.md` (pool resolution is `assignVirtualIP` ->
+`virtualIPState.pool`), `ai/INDEX.md` keyword row, `command-reference.md` `virtual-ip`
+field, `features/ipsec-eap-authentication.md`, spec A-1 validated, spec documentation rows
+1 and 3, spec Known Limitations (a childless IKE_AUTH from a pool-bound peer fails closed).
+`./le doc wiring` names none of these files.
+
+Interop: `virtual-ip-assignment` and `virtual-ip-uniqueness` pass
+(`scratch/disc11/interop-*.log`). Scoped lint: the one finding in these files
+(`cp_close_test.go`, `WaitGroup.Go`) fixed; the rest are in the ESP session's files.

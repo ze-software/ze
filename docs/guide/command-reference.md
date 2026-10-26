@@ -1509,6 +1509,11 @@ Every other `show vpn ipsec` command reports what the IKE engine believes it
 installed. These three read the kernel back, so a kernel expiry, an external
 flush, or a policy a rekey stranded becomes visible.
 
+`show vpn ipsec sa` lists, under `virtual-ip`, the inner addresses an IKE SA
+leased its peer from a `remote-access` pool (RFC 7296 Section 2.19), and an
+empty list for a peer bound to no `virtual-ip-pool`.
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- virtualIPText -->
+
 `sa` lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
 encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
