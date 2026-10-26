@@ -64,7 +64,7 @@ type leStoreTrimResult struct {
 // le command twice. The first run spawns the detached trim, which leaves the
 // union under budget, oldest entries removed first, and writes the stamp. The
 // second run, inside the hour, spawns nothing: the stamp is not rewritten and
-// the trim log is untouched. Last, `le scratch store-trim` answers one row per
+// the trim log is untouched. Last, `le scratch trim` answers one row per
 // store in text and JSON.
 //
 // The real checkout and the real per-user cache are never named to the le it
@@ -387,24 +387,24 @@ func leStoreTrimAllocated(info os.FileInfo) (int64, error) {
 	return status.Blocks * leStoreTrimBlockBytes, nil
 }
 
-// leStoreTrimForeground runs `le scratch store-trim` in text and JSON and
+// leStoreTrimForeground runs `le scratch trim` in text and JSON and
 // checks it answers one row per store: every store the JSON names appears
 // exactly once in the text, no name repeats, and the checkout cache the
 // fixture seeded is a measured row under the budget.
 func leStoreTrimForeground(le func(args ...string) (leStoreTrimResult, error), checkoutCache string) error {
-	text, err := le("scratch", "store-trim")
+	text, err := le("scratch", "trim")
 	if err != nil {
 		return err
 	}
 	if text.exitCode != 0 {
-		return leStoreTrimFailf("`le scratch store-trim` exited %d:\n%s%s", text.exitCode, text.stdout, text.stderr)
+		return leStoreTrimFailf("`le scratch trim` exited %d:\n%s%s", text.exitCode, text.stdout, text.stderr)
 	}
-	answer, err := le("scratch", "store-trim", "|", "json")
+	answer, err := le("scratch", "trim", "|", "json")
 	if err != nil {
 		return err
 	}
 	if answer.exitCode != 0 {
-		return leStoreTrimFailf("`le scratch store-trim | json` exited %d:\n%s%s", answer.exitCode, answer.stdout, answer.stderr)
+		return leStoreTrimFailf("`le scratch trim | json` exited %d:\n%s%s", answer.exitCode, answer.stdout, answer.stderr)
 	}
 	var report struct {
 		Stores []struct {
@@ -416,10 +416,10 @@ func leStoreTrimForeground(le func(args ...string) (leStoreTrimResult, error), c
 		} `json:"stores"`
 	}
 	if err := json.Unmarshal([]byte(answer.stdout), &report); err != nil {
-		return leStoreTrimFailf("decode `le scratch store-trim | json`: %v\n%s", err, answer.stdout)
+		return leStoreTrimFailf("decode `le scratch trim | json`: %v\n%s", err, answer.stdout)
 	}
 	if len(report.Stores) == 0 {
-		return leStoreTrimFailf("`le scratch store-trim | json` answered no store")
+		return leStoreTrimFailf("`le scratch trim | json` answered no store")
 	}
 	lines := strings.Split(text.stdout, "\n")
 	names := make([]string, 0, len(report.Stores))

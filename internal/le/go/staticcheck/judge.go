@@ -127,7 +127,7 @@ const cacheKey = "STATICCHECK_CACHE"
 //
 // Staticcheck's trim keeps five days of entries, so the population is bounded
 // only by le: the store trim holds both matrix caches to
-// ze.le.store.staticcheck-cache-budget and `le scratch cache-clean` cleans
+// ze.le.store.staticcheck-cache-budget and `le scratch clean` cleans
 // them (internal/le/scratch, cleanTargets), each sparing entries younger than
 // three hours.
 func CacheDir(tree string) string {

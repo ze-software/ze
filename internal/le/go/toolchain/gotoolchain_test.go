@@ -428,7 +428,7 @@ func TestALanguageVersionGoDirectiveYieldsNoPin(t *testing.T) {
 // cache path that cannot ask BootstrapCache.
 //
 // VALIDATES: the `le` script and the Go declaration name the same directory.
-// PREVENTS: the drift that let `./le scratch cache-clean` walk past 1.3G. Four
+// PREVENTS: the drift that let `./le scratch clean` walk past 1.3G. Four
 // writers spelled tmp/go-cache themselves and the cleaner knew about none of
 // them (plan/journal/full-disk-false-red.md). The script's unusable-cache
 // fallback is now its only writer; the script runs before any Go binary
@@ -447,7 +447,7 @@ func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
 	// The script writes it as a shell assignment against its own $root.
 	want := "GOCACHE=$root/" + strings.TrimPrefix(BootstrapCache(""), string(filepath.Separator))
 	if !strings.Contains(string(script), want) {
-		t.Errorf("the le script does not assign %q, so the bootstrap cache it fills is not the one cache-clean empties", want)
+		t.Errorf("the le script does not assign %q, so the bootstrap cache it fills is not the one scratch clean empties", want)
 	}
 }
 

@@ -1,7 +1,7 @@
 // Package diskspace answers how much room a filesystem has left.
 //
 // One declaration, because the question has been asked in two places for two
-// reasons. `le scratch cache-clean` REPORTS the space a cache returned, and the
+// reasons. `le scratch clean` REPORTS the space a cache returned, and the
 // kernel build GUARDS on the space it is about to need
 // (internal/appliance/kernelbuilder). A second copy of statfs would be a second
 // answer to one question.

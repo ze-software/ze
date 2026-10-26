@@ -8,7 +8,7 @@ import (
 )
 
 // TestHoldersReadsAnEntryTheWayAdmissionWroteIt: Holders is the reader
-// cache-clean's full empty uses to see a le job or verify run, so it must read
+// scratch clean's full empty uses to see a le job or verify run, so it must read
 // what the admission writer actually writes. The entry is written by take, the
 // method `le job run` claims its slot with, and the test reads back the pid and
 // the label it was admitted under.

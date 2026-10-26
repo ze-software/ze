@@ -256,7 +256,7 @@ func ensureCacheLink() {
 	var text textbuf.Buffer
 	if err != nil {
 		text.Str("le: cannot link ").Str(root).Str("/cache to the per-user cache: ").Err(err).
-			Str(". Set HOME or XDG_CACHE_HOME, then run `./le scratch links-ensure`\n")
+			Str(". Set HOME or XDG_CACHE_HOME, then run `./le scratch ensure`\n")
 	}
 	if err == nil && result.Announce() {
 		text.Str(result.Line).Byte('\n')

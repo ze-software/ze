@@ -45,7 +45,7 @@ func TestTargetsMatchTheProducer(t *testing.T) {
 	}
 }
 
-// VALIDATES: ze-scratch-links-ensure creates both links and is idempotent.
+// VALIDATES: `le scratch ensure` creates both links and is idempotent.
 // PREVENTS: an ensure prerequisite deleting data or reporting drift after its own successful run.
 func TestEnsureCreatesBothLinksAndIsIdempotent(t *testing.T) {
 	manager := fixtureManager(t)
@@ -72,7 +72,7 @@ func TestEnsureCreatesBothLinksAndIsIdempotent(t *testing.T) {
 	assertLines(t, second, wantSecond)
 }
 
-// VALIDATES: links-ensure keeps its ordinary human-readable output unless quiet is named.
+// VALIDATES: scratch ensure keeps its ordinary human-readable output unless quiet is named.
 // PREVENTS: prerequisite silence becoming the default interactive behavior.
 func TestEnsureActionDefaultOutput(t *testing.T) {
 	manager := fixtureManager(t)
@@ -91,7 +91,7 @@ func TestEnsureActionDefaultOutput(t *testing.T) {
 	}
 }
 
-// VALIDATES: links-ensure quiet performs the same writes and returns a structured silent report.
+// VALIDATES: scratch ensure quiet performs the same writes and returns a structured silent report.
 // PREVENTS: clean prerequisites either becoming noisy or discarding their machine-readable answer.
 func TestEnsureActionQuietOutputAndStructure(t *testing.T) {
 	manager := fixtureManager(t)
@@ -145,7 +145,7 @@ func TestEnsureActionQuietErrorStillSpeaks(t *testing.T) {
 	}
 }
 
-// VALIDATES: `le scratch links-ensure quiet` dispatches against the checkout and environment fixture.
+// VALIDATES: `le scratch ensure quiet` dispatches against the checkout and environment fixture.
 // PREVENTS: clean routing a plausible spelling that never reaches the path-maintenance action.
 func TestEnsureActionFixturePaths(t *testing.T) {
 	// managerHere (actions.go) resolves ZE_REPO_ROOT through
@@ -168,7 +168,7 @@ func TestEnsureActionFixturePaths(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	answer, code := Answer([]string{"links-ensure", "quiet"})
+	answer, code := Answer([]string{"ensure", "quiet"})
 	report, ok := answer.(Report)
 	if code != 0 || !ok || !report.Quiet || report.Text() != "" {
 		t.Fatalf("quiet action = (%#v, %d), want silent structured report", answer, code)
@@ -455,7 +455,7 @@ func TestMoveEntryAcrossDevicesPreservesMetadata(t *testing.T) {
 // PREVENTS: help calling a writing action a check.
 func TestActionsPublishBothWrites(t *testing.T) {
 	list := Actions()
-	want := []string{"links-ensure", "cache-clean", "store-trim", "migrate"}
+	want := []string{"ensure", "clean", "trim", "migrate"}
 	if len(list.Actions) != len(want) {
 		t.Fatalf("actions = %#v", list.Actions)
 	}

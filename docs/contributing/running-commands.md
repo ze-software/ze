@@ -745,7 +745,7 @@ them back with `sudo chown -R $USER ~/.zt`.
 A test binary removes its own temp dirs when it ends, and the go command its
 `go-build*` work directory, so what stays under `~/.zt` is what a killed run
 left. The hourly store trim removes those on its `test-temp` row (see "When
-the disk is full"), and `./le scratch store-trim` does the same on demand: a
+the disk is full"), and `./le scratch trim` does the same on demand: a
 `go-build*` entry more than 2 hours old, and any other entry more than 6 hours
 old. A work directory's mtime moves each time a package build starts or ends,
 so 2 hours is safe while packages build; once a test binary runs, its work
@@ -772,7 +772,7 @@ the row stays green.
 `cache/go-cache/...: no such file or directory`, or `cache entry not found`, on
 files that are there, is a cache entry removed under a running build (owner,
 2026-08-31). Sessions share this checkout and they share the build caches. Both
-cleaners, the store trim and `./le scratch cache-clean` by default, remove only
+cleaners, the store trim and `./le scratch clean` by default, remove only
 entries older than 3h. An entry is safe for 2h after Go last looked it up: Go
 refreshes an entry's mtime when it uses one, but at most once an hour, and the
 floor is 3h. An entry a build last looked up more than 2h ago can be removed,
@@ -786,7 +786,7 @@ repopulates what it needs.
 The floor and the hourly refresh are both fixed: `cacheEntryAgeFloor` in le,
 `mtimeInterval` in Go's `cmd/go/internal/cache`. <!-- doc-links: ignore (Go toolchain source, outside this repository) -->
 
-The full empty, `./le scratch cache-clean all`, is the cause that does not
+The full empty, `./le scratch clean all`, is the cause that does not
 clear so easily: emptied mid-run, the staticcheck matrix lost its parts 2 and 3
 on 2026-10-21. It refuses while another session's build may be using the
 caches. It names each process: pid, command line, and the job label when the
@@ -862,8 +862,8 @@ through the old directory during the move can fail once, and never gets a wrong
 entry: an entry it wrote before the move is gone from the path it reads back,
 and it stops with `open .../cache/go-cache/<xx>/<id>-d: no such file or
 directory`. Run it again: it builds into the per-user cache. The stderr line
-the repair printed names the move, so that failure is attributable. `./le scratch links-ensure` and `./le scratch migrate` still link
-`tmp/`; for `cache/`, `links-ensure` makes the same repair, and `migrate` moves
+the repair printed names the move, so that failure is attributable. `./le scratch ensure` and `./le scratch migrate` still link
+`tmp/`; for `cache/`, `scratch ensure` makes the same repair, and `migrate` moves
 the entries into the target instead. Naming each cache path rather than the
 checkout is still what makes `df` answer correctly.
 <!-- source: internal/le/scratch/scratch.go -- EnsureCache, moveRealCacheAside, repairedResult, Announce -->
@@ -874,7 +874,7 @@ checkout is still what makes `df` answer correctly.
 
 The built kernels under the same per-user target, `~/.cache/ze/runtime-kernel/`
 and `~/.cache/ze/installer-kernel/`, are NOT a reclamation target, and no
-cleanup removes them: not `./le scratch cache-clean`, not the store trim, and
+cleanup removes them: not `./le scratch clean`, not the store trim, and
 not a hand `rm` while recovering a full disk. A cold kernel build takes about
 thirty minutes, the arm64 kernel is built on the Mac and the amd64 kernel on the
 Linux host, and neither host can rebuild the other's. The only thing that
@@ -883,7 +883,7 @@ entries of each architecture and never the entry the current tree resolves to
 (`evictKeepN`, `internal/appliance/cache.go`).
 The clean and the trim both take their targets from one list, and that list
 skips any target that lies within a kernel cache or holds one, whatever path it
-resolved to, so a `cache-clean` row for such a target reads as a skip that names
+resolved to, so a `scratch clean` row for such a target reads as a skip that names
 the kernel cache. `TestCleanTargetsNeverReachTheKernelCache` and
 `TestCleanTargetsSkipATargetHoldingTheKernelCache` (`internal/le/scratch`) fail
 when a clean or trim target reaches into either directory.
@@ -917,13 +917,13 @@ two rows the report and the trim tell apart; the row's path carries the stamp.
 Reach for the safe tools first, in this order, because other sessions are
 building against these caches while you read this:
 
-1. `./le scratch store-trim` trims the caches to their budgets now (see below).
-2. `./le scratch cache-clean` cleans every cache. By default it removes every
+1. `./le scratch trim` trims the caches to their budgets now (see below).
+2. `./le scratch clean` cleans every cache. By default it removes every
    cache entry older than 3h, the store trim's floor, and keeps the younger
    ones. It is safe while other sessions build: an entry is safe for 2h after Go
    last looked it up (Go refreshes an entry's mtime at most hourly; the floor is
    3h), and a build that later misses an older entry recompiles it.
-3. `./le scratch cache-clean all` empties every cache outright. Use it only when no
+3. `./le scratch clean all` empties every cache outright. Use it only when no
    build runs: it refuses, and exits 1, while it sees any `go`, `compile`,
    `link`, `vet`, `asm`, `cgo`, `cover`, `staticcheck`, `golangci-lint` or
    compiled test binary (`*.test`) process, or any process holding a slot in
@@ -940,7 +940,7 @@ building against these caches while you read this:
 The default prints one row for each cache, in this shape:
 
 ```
-$ ./le scratch cache-clean
+$ ./le scratch clean
 checkout    /path/to/checkout/cache/go-cache                 removed 81.3G (402118 entries), kept 7.7G younger than 3h0m0s, freed 81.2G, free 115.4G
 ambient     SKIP     /Users/thomas/.cache/ze/go-cache: the machine default is the checkout cache, which this run already cleaned
 bootstrap   SKIP     /path/to/checkout/tmp/go-cache: does not exist, so it holds nothing to trim
@@ -1021,7 +1021,7 @@ The clean costs recompilation, which makes the next run slow once, so le also
 bounds every cache but the ambient one by itself, a little at a time. Every le
 invocation reads `tmp/store-trim/stamp`. When the stamp is an hour old, one
 invocation takes `tmp/store-trim/stamp.lock`, rewrites the stamp and starts
-`le scratch store-trim background` as a detached child, so no command, hook
+`le scratch trim background` as a detached child, so no command, hook
 calls included, waits for the walk. The child trims:
 
 | Caches | Budget | Default |
@@ -1049,7 +1049,7 @@ other spelling, a bare number included, refuses that budget's caches by name and
 leaves them untouched, while the rest are trimmed. `ze.le.store.trim=off` stops
 le from starting a trim by itself, and the functional test runner gives every
 test child that setting (`docs/architecture/testing/runner-architecture.md`).
-`./le scratch store-trim` runs one in the
+`./le scratch trim` runs one in the
 foreground whenever asked, ignoring the stamp, and prints one line for each
 budget and one row for each cache (`| json` renders the same report). The
 background child writes that report to `tmp/store-trim/last.log`, which holds
@@ -1103,7 +1103,7 @@ and links its `cache/` to the per-user target, before any stage runs
 (`internal/le/verify`, `sharedCacheLink`, calling `EnsureCache` in
 `internal/le/scratch`). That target is the checkout's own cache only when the
 checkout's `cache/` is linked to it too; otherwise it is the second, shared
-cache that `cache-clean` reports on its `shared` row. `tmp/` is NOT linked with it: that one is per-checkout,
+cache that `scratch clean` reports on its `shared` row. `tmp/` is NOT linked with it: that one is per-checkout,
 and the worktree's own `tmp/verify` is where the run writes the stage logs it
 copies out afterwards.
 

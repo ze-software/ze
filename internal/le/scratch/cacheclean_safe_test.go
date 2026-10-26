@@ -226,7 +226,7 @@ func TestCleanCachesAllRefusesWhileABuildRuns(t *testing.T) {
 		t.Fatalf("users = %+v, want the one compile", report.Users)
 	}
 	text := report.Text()
-	for _, want := range []string{"REFUSE", "pid 4242", "compile", "cache-clean all", "./le scratch cache-clean`"} {
+	for _, want := range []string{"REFUSE", "pid 4242", "compile", "scratch clean all", "./le scratch clean`"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text = %q, want it to contain %q", text, want)
 		}
@@ -312,7 +312,7 @@ func TestShownCommandIsBounded(t *testing.T) {
 	}
 }
 
-// VALIDATES: `./le scratch cache-clean` with no keyword runs the safe default,
+// VALIDATES: `./le scratch clean` with no keyword runs the safe default,
 // and only the `all` keyword selects the full empty.
 // PREVENTS: the dispatch swapped, so the bare command empties every cache
 // under other sessions' builds. Method: the mode runCacheClean dispatches on is
@@ -417,8 +417,8 @@ func TestCacheCleanJSONKeysAreKebabCase(t *testing.T) {
 }
 
 // VALIDATES: a walk its time limit stops names the command the operator ran
-// and the fix, for cache-clean and for the store trim alike.
-// PREVENTS: a cache-clean run reporting "the trim" stopped, which names an
+// and the fix, for scratch clean and for the store trim alike.
+// PREVENTS: a scratch clean run reporting "the trim" stopped, which names an
 // operation the operator did not start and gives no next step.
 // Method: a context already canceled stops the walk at its first check.
 func TestWalkStoppedByItsLimitNamesTheCommandAndTheFix(t *testing.T) {

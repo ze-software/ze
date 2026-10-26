@@ -111,7 +111,7 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
   and refused a review recorded under another
   (`plan/journal/delegation-hands-the-callee-a-different-argv.md`, 2026-09-05).
 - **A wave of unrelated red is a full disk first** (`plan/journal/full-disk-false-red.md`,
-  and `./le scratch cache-clean`, `AGENTS.md`).
+  and `./le scratch clean`, `AGENTS.md`).
 
 ## Gates
 

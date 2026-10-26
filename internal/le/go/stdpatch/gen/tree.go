@@ -42,7 +42,7 @@ type builder struct {
 
 // StagingPrefix starts the name of every directory a build writes before its
 // rename, so nothing that judges finished trees mistakes one for a tree.
-// `le scratch cache-clean` reads it to remove the staging directories a killed
+// `le scratch clean` reads it to remove the staging directories a killed
 // build left behind.
 const StagingPrefix = "tmp-"
 
@@ -152,7 +152,7 @@ func dropDeadTree(dir string) error {
 // (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-10-21). Both name
 // the one real GOROOT, so either one dangling means no build can use the tree.
 // A tree with neither entry is not one this rule can judge, so it stays.
-// `le scratch cache-clean` reads it to drop such a tree at any key.
+// `le scratch clean` reads it to drop such a tree at any key.
 func DeadTree(tree string) bool {
 	for _, link := range []string{"VERSION", filepath.Join("src", "go.mod")} {
 		if danglingLink(filepath.Join(tree, link)) {

@@ -308,7 +308,7 @@ func TestStageBinaryTimeoutNamesTheBoundAndTheFix(t *testing.T) {
 		"context deadline exceeded",
 		"Why: a cold Go build cache",
 		"Fix: rerun the same command",
-		"./le scratch links-ensure",
+		"./le scratch ensure",
 	} {
 		if !strings.Contains(message, want) {
 			t.Errorf("the timeout refusal does not say %q:\n%s", want, message)

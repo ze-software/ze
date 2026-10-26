@@ -23,7 +23,7 @@ func CacheTarget(environ []string) (string, error) {
 // or resolving to one. The checkout's cache/go-cache therefore counts as the
 // per-user target it links to. A path that does not exist, or a link that
 // dangles, is linked nowhere, so it is not the other path unless spelled
-// alike: an absent cache/ leaves cache-clean cleaning the ambient row and
+// alike: an absent cache/ leaves scratch clean cleaning the ambient row and
 // `le setup` writing the GOCACHE setting.
 //
 // The error says a path could not be resolved for another reason (a

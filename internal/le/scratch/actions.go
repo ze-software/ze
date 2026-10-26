@@ -13,14 +13,14 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "links-ensure", Summary: "point tmp/ and cache/ at their out-of-tree targets", Why: "point the tmp/ and cache/ symlinks at their out-of-tree targets before any" +
+	leaction.Action{Verb: "ensure", Summary: "point tmp/ and cache/ at their out-of-tree targets", Why: "point the tmp/ and cache/ symlinks at their out-of-tree targets before any" +
 		" target writes scratch. This replaces the old tmp/go.mod nested-module" +
 		" sentinel: `go list ./...` skips a directory SYMLINK named tmp/ (verified)," +
 		" so no marker file is needed (plan/spec-relocate-scratch-and-cache.md)",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print nothing when the links are already right"}},
 		AnswerArgs: runEnsure},
-	leaction.Action{Verb: "cache-clean", Summary: "clean every build cache this checkout fills", Why: "clean EVERY build cache this checkout fills and report, for each, what it" +
+	leaction.Action{Verb: "clean", Summary: "clean every build cache this checkout fills", Why: "clean EVERY build cache this checkout fills and report, for each, what it" +
 		" removed, what it kept and the disk space left: the one Go cache at cache/go-cache, which every le" +
 		" action and every verify worktree writes through the cache/ link to ~/.cache/ze, the" +
 		" ambient Go cache a bare `go` command writes (a SKIP row when `go env GOCACHE` is that same" +
@@ -37,7 +37,7 @@ var actions = leaction.New(area,
 		" holds a slot; a build that starts while the empty runs is not seen. Both modes drop a patched GOROOT under cache/stdpatch whose toolchain links dangle," +
 		" and a staging directory a killed tree build left. Run it when unrelated packages fail to build," +
 		" when a linker says `no space left on device`, or when a whole suite goes red at once, after" +
-		" `./le scratch store-trim`. Read free space with `df -h` on the cache path, never with `stat -f`," +
+		" `./le scratch trim`. Read free space with `df -h` on the cache path, never with `stat -f`," +
 		" which is a format flag on macOS and prints the path back" +
 		" (plan/journal/full-disk-false-red.md)",
 		Writes:     true,
@@ -95,7 +95,7 @@ func runCacheClean(arguments leaction.Arguments) (any, int) {
 	return manager.CleanCaches(cleanModeOf(arguments))
 }
 
-// cleanModeOf answers the mode the cache-clean keywords select: the safe
+// cleanModeOf answers the mode the scratch clean keywords select: the safe
 // default with no keyword, and the full empty only for `all`.
 func cleanModeOf(arguments leaction.Arguments) cleanMode {
 	if arguments.Has(everythingMode) {

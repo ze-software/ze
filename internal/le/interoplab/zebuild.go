@@ -112,7 +112,7 @@ func StageBinaries(root string, noBuild bool, binaries ...LabBinary) PreflightCh
 // The toolchain comes from gotoolchain rather than from os.Environ, because
 // that is what puts GOCACHE inside the checkout and pins GOTOOLCHAIN to the one
 // go.mod names. An ambient environment resolves GOCACHE to the machine's
-// default, which nothing in this repository manages: `./le scratch cache-clean`
+// default, which nothing in this repository manages: `./le scratch clean`
 // does not clear it, the full-disk discipline does not measure it, and another
 // tool trimming it mid-build fails this cross-compile with a wave of "no such
 // file or directory" against Go's own standard library
@@ -193,7 +193,7 @@ func buildTimeoutMessage(binary LabBinary, err error, result ProcessResult) stri
 		Str(".\nWhy: a cold Go build cache (cache/go-cache), a QEMU guest compiling over its 9p ").
 		Str("workspace share, or other builds loading this machine make the compile this slow.").
 		Str("\nFix: rerun the same command; the build cache keeps every package this attempt ").
-		Str("compiled, so the next attempt starts warm. `./le scratch links-ensure` restores ").
+		Str("compiled, so the next attempt starts warm. `./le scratch ensure` restores ").
 		Str("the cache link if cache/go-cache is missing.").String()
 }
 

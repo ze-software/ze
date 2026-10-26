@@ -3,7 +3,7 @@
 How Ze changes one file of a Go standard-library package at build time,
 without a fork of the toolchain and without a copy of the package in the tree.
 
-**Status: built.** The generator (`internal/le/go/stdpatch/gen`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built, and so are the QEMU guest profiles, the two Dockerfiles, the CI steps and `./le scratch cache-clean` keeping the trees. Each route has run under the patched tree: a QEMU guest run, the CI runs qemu-nightly 39402173269, CodeQL 39576850399 and govulncheck 39407444997, and a `docker build -f docker/Dockerfile` on 2026-10-21. Every ze build compiles against the patched standard library, because the EAP-TLS authenticator references the marker constant. The design record is `plan/learned/032-ike-eap-rfc-defects.md` (spec-ike-eap-rfc-defects, D2).
+**Status: built.** The generator (`internal/le/go/stdpatch/gen`), the patch, `./le go stdpatch goroot`, le's activation at its root handler and the launcher's bootstrap route exist. The step 1a stamp refusal, the vendor stamps and their refusal in `./le setup install`, `./le go patch-stamps check` in both `./le verify` modes, the EAP-TLS marker reference and ticket suppression, and the ze-setup refusal are built, and so are the QEMU guest profiles, the two Dockerfiles, the CI steps and `./le scratch clean` keeping the trees. Each route has run under the patched tree: a QEMU guest run, the CI runs qemu-nightly 39402173269, CodeQL 39576850399 and govulncheck 39407444997, and a `docker build -f docker/Dockerfile` on 2026-10-21. Every ze build compiles against the patched standard library, because the EAP-TLS authenticator references the marker constant. The design record is `plan/learned/032-ike-eap-rfc-defects.md` (spec-ike-eap-rfc-defects, D2).
 
 ## Why Ze needs it
 
@@ -159,13 +159,13 @@ The generator does this, each time:
 <!-- source: internal/le/go/stdpatch/gen/tree.go -- dropDeadTree -->
 <!-- source: internal/le/doc/index/docstocode.go -- skipPaths -->
 
-`./le scratch cache-clean` reports the size of each tree and keeps every live
+`./le scratch clean` reports the size of each tree and keeps every live
 one, because a build in another session may be running under it. It drops only
 what no build can use: a tree at ANY key whose `VERSION` or `src/go.mod` link
 names nothing on this machine (`gen.DeadTree`), and a `tmp-*` staging directory
 more than three hours old, which a killed build left. A build judges only its
 own key, because it also runs in a QEMU guest where the host's links name
-nothing; cache-clean is an operator's command on the machine that owns the
+nothing; scratch clean is an operator's command on the machine that owns the
 cache, and the guest's tree directory is a tmpfs of its own.
 <!-- source: internal/le/scratch/cacheclean.go -- patchedTrees, judgePatchedTree, stagingIdleAge -->
 

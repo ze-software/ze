@@ -1,10 +1,10 @@
 # Test: the BUILT le binary trims its build stores at most once an hour, in a
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-#       detached child, and `le scratch store-trim` answers one row per store.
+#       detached child, and `le scratch trim` answers one row per store.
 #
 # VALIDATES: spec-le-bounds-its-build-stores AC-1, AC-2 and AC-16, and the
 #            Wiring Test rows for `run` (internal/le/register.go) and for
-#            `./le scratch store-trim`, against the artifact a developer runs.
+#            `./le scratch trim`, against the artifact a developer runs.
 #            The first cheap le command spawns the trim, which leaves the
 #            checkout and bootstrap Go caches under their one total, oldest
 #            entry first across both, removes a cache.stale-* copy repaired

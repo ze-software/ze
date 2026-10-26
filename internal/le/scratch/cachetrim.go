@@ -1,6 +1,6 @@
 // Design: docs/contributing/running-commands.md -- "When the disk is full", the store trim
-// Overview: storetrim.go -- the trigger, the report and the store-trim action
-// Related: cacheclean.go -- the store list the trim shares with cache-clean
+// Overview: storetrim.go -- the trigger, the report and the scratch trim action
+// Related: cacheclean.go -- the store list the trim shares with scratch clean
 //
 // This file trims the Go-format caches: the Go build caches as ONE union
 // against one total (owner decision D-1), and the golangci-lint cache against
@@ -69,7 +69,7 @@ type cachePass struct {
 
 // trimRun names the command a walk and a removal run under, and the time limit
 // that command sets, so the error a limit produces names the operation the
-// operator typed and the fix: the store trim and cache-clean share both.
+// operator typed and the fix: the store trim and scratch clean share both.
 type trimRun struct {
 	command string
 	limit   time.Duration
@@ -78,7 +78,7 @@ type trimRun struct {
 // The two commands that walk and remove cache entries.
 var (
 	storeTrimRun  = trimRun{command: "./le scratch " + storeTrimVerb, limit: storeTrimTimeout}
-	cacheCleanRun = trimRun{command: "./le scratch cache-clean", limit: cleanTimeout}
+	cacheCleanRun = trimRun{command: "./le scratch clean", limit: cleanTimeout}
 )
 
 // limitReached answers the error a run gives when its time limit stops it at

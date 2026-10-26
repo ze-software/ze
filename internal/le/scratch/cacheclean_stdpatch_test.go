@@ -10,7 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 )
 
-// VALIDATES: no cache-clean target lies within, or holds, a directory the
+// VALIDATES: no scratch clean target lies within, or holds, a directory the
 // patched GOROOT trees live in (D2 design step 4b).
 // PREVENTS: a clean emptying the GOROOT another session's build compiles in,
 // which fails that build with "no such file" errors that never name the cause.
@@ -127,7 +127,7 @@ func patchedKey(t *testing.T, dir, name string, versionLive, goModLive bool) str
 // is dropped, and a young one, which a build may be writing, is kept.
 // PREVENTS: the 2026-10-21 staticcheck reds. Homebrew removed go 1.27.2, the
 // tree's src/go.mod link dangled, goroot/src stopped being a module, and
-// `go list ./...` walked into it, while cache-clean printed KEEP for it
+// `go list ./...` walked into it, while scratch clean printed KEEP for it
 // (plan/journal/gate-verdict-depends-on-the-machine.md). Killed builds left
 // tmp-* staging directories nobody reaped.
 func TestPatchedTreesDropTheDeadAndKeepTheLive(t *testing.T) {

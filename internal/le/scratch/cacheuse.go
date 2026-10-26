@@ -1,8 +1,8 @@
 // Design: docs/contributing/running-commands.md -- "When the disk is full", the full empty and who it waits for
-// Overview: cacheclean.go -- the cache-clean action whose `all` keyword reads this
+// Overview: cacheclean.go -- the scratch clean action whose `all` keyword reads this
 //
 // This file answers which running processes may be using the build caches, so
-// `le scratch cache-clean all` can refuse to empty them underneath a build.
+// `le scratch clean all` can refuse to empty them underneath a build.
 // Emptying a cache a compile, a link, a vet or a lint is reading fails that
 // run with "cache entry not found" or "no such file", which names no cause and
 // reads as a code defect in another session (the staticcheck matrix,
@@ -56,7 +56,7 @@ const commandShownMax = 160
 // refused full empty, with the floor it keeps.
 func oldEntriesInstead(why string) string {
 	var text textbuf.Buffer
-	return text.Str("run `./le scratch cache-clean`, which removes only cache entries older than the ").
+	return text.Str("run `./le scratch clean`, which removes only cache entries older than the ").
 		Str(cacheEntryAgeFloor.String()).Str(" floor and ").Str(why).Byte('.').String()
 }
 
@@ -87,7 +87,7 @@ func (m *Manager) refuseFullEmpty(pass cleanPass) (string, []CacheUser) {
 		text.Str(" running processes may be reading")
 	}
 	text.Str(", and a build that loses one fails with `cache entry not found`.").
-		Str(" Wait for them to finish and run `./le scratch cache-clean all` again, or ").Str(oldEntriesInstead("is safe while builds run"))
+		Str(" Wait for them to finish and run `./le scratch clean all` again, or ").Str(oldEntriesInstead("is safe while builds run"))
 	return text.String(), users
 }
 

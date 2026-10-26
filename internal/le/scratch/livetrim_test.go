@@ -144,7 +144,7 @@ func TestTrimNamedLaunchers(t *testing.T) {
 
 	processes := []procscan.Process{
 		claudeCLI(now),
-		{PID: 2, Start: "r", Argv: []string{filepath.Join(gotoolchain.NamedLauncherDir(root, "running"), "le"), "scratch", "store-trim"}},
+		{PID: 2, Start: "r", Argv: []string{filepath.Join(gotoolchain.NamedLauncherDir(root, "running"), "le"), "scratch", "trim"}},
 		{PID: 3, Start: "ab", Argv: []string{"bin/le-ab/le", "go", "test"}},
 		{PID: 4, Start: "d", Argv: []string{"bin/le-Darwin-arm64/le", "go", "test"}},
 	}

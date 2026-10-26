@@ -224,6 +224,10 @@ var renames = []Rename{
 	{Retired: "test record-plugin", Command: "mock record-plugin"},
 	{Retired: "test text-plugin", Command: "mock text-plugin"},
 	{Retired: "test plugin-external", Command: "mock plugin-external"},
+	// Compound words: the verb of `scratch` is the whole action word.
+	{Retired: "scratch cache-clean", Command: "scratch", Action: "clean"},
+	{Retired: "scratch store-trim", Command: "scratch", Action: "trim"},
+	{Retired: "scratch links-ensure", Command: "scratch", Action: "ensure"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

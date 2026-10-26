@@ -273,7 +273,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-mutation-report", Area: "test mutation", Verb: "combine"},
 
 	// Scratch, sessions and the appliance artifacts.
-	{Target: "ze-scratch-links-ensure", Area: "scratch", Verb: "links-ensure"},
+	{Target: "ze-scratch-links-ensure", Area: "scratch", Verb: "ensure"},
 	{Target: "ze-scratch-migrate", Area: "scratch", Verb: "migrate"},
 	{Target: "ze-session-reap", Area: "session", Verb: "reap"},
 	{Target: "ze-host-build", Area: "build host-driver", Verb: "run"},
@@ -417,11 +417,11 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "clean",
-		Reason: "the subject is gone: the recipe called scripts/dev/session-scratch.sh and scripts/dev/ensure-links.py, both deleted. What it did beside them is `le session reap`, `le scratch links-ensure`, and `go clean -cache`",
+		Reason: "the subject is gone: the recipe called scripts/dev/session-scratch.sh and scripts/dev/ensure-links.py, both deleted. What it did beside them is `le session reap`, `le scratch ensure`, and `go clean -cache`",
 	},
 	{
 		Target: "clean-all",
-		Reason: "the subject is gone: the recipe emptied the in-tree tmp/ directory, which `le scratch links-ensure` and `le scratch migrate` now place outside the checkout, and then ran `go clean -cache`",
+		Reason: "the subject is gone: the recipe emptied the in-tree tmp/ directory, which `le scratch ensure` and `le scratch migrate` now place outside the checkout, and then ran `go clean -cache`",
 	},
 	{
 		Target: "ze-scratch-clean",

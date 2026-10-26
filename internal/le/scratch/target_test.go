@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestSameDirectory pins the one answer cache-clean's ambient row and
+// TestSameDirectory pins the one answer scratch clean's ambient row and
 // `le setup`'s GOCACHE row both rely on. Method: a real directory, a link to
 // it, a link that dangles and a path that does not exist, each pair judged,
 // and a path under a directory this user cannot search, which is an error.
@@ -57,7 +57,7 @@ func TestSameDirectory(t *testing.T) {
 // resolved (its parent cannot be searched) is neither the same directory nor
 // a different one, so SameDirectory answers an error rather than false.
 // VALIDATES: SameDirectory refuses to answer a sameness it could not judge.
-// PREVENTS: cache-clean cleaning, or setup rewriting, on a guess.
+// PREVENTS: scratch clean cleaning, or setup rewriting, on a guess.
 func TestSameDirectoryUnresolvableIsAnError(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root searches a directory with no permissions")

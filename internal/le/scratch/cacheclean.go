@@ -27,7 +27,7 @@
 // cache/go-cache, one golangci-lint cache, cache/golangci-lint-cache, and one
 // Staticcheck matrix cache, gostaticcheck.CacheDir, each a row of its own, and
 // no row names the per-user path a second time: before every run made the
-// link, a checkout that never ran `le scratch links-ensure` filled a private
+// link, a checkout that never ran `le scratch ensure` filled a private
 // cache/ beside the per-user one, and the per-user one was missed until
 // 2026-10-05, at 13G.
 //
@@ -48,7 +48,7 @@
 //
 // The last rows are the stale copies, one for each real cache/ directory the
 // link repair renamed aside to cache.stale-<stamp>-<pid> rather than delete
-// what a build might be reading. The store trim and cache-clean remove a copy
+// what a build might be reading. The store trim and scratch clean remove a copy
 // whole once the stamp in its name is older than the age floor.
 //
 // The cost of not having this action is recorded in
@@ -150,7 +150,7 @@ func (mode cleanMode) String() string {
 	case unspecifiedClean:
 		return "unspecified"
 	default:
-		panic("BUG: cache-clean has an unknown mode")
+		panic("BUG: scratch clean has an unknown mode")
 	}
 }
 
@@ -191,7 +191,7 @@ type CacheClean struct {
 	Contended string `json:"contended,omitempty"`
 }
 
-// CleanReport is the answer of one cache-clean run: its mode, one row for each
+// CleanReport is the answer of one scratch clean run: its mode, one row for each
 // cache, and one row for each patched GOROOT entry. A full empty that found a
 // process that may be using the caches carries that process list and the
 // refusal instead, and touched nothing.
@@ -270,7 +270,7 @@ func (r CleanReport) Text() string {
 		case tree.Error != "" && tree.Dropped != "":
 			line.Str("REFUSE   ").Str(tree.Path).Str(": ").Str(tree.Dropped).Str(", and removing it failed: ").Str(tree.Error).
 				Str(". No build can use it, so fix the permission the error names, or delete the directory by hand,").
-				Str(" then run `./le scratch cache-clean` again")
+				Str(" then run `./le scratch clean` again")
 		case tree.Error != "":
 			line.Str("KEEP     ").Str(tree.Path).Str(": its size is unknown: ").Str(tree.Error)
 		case tree.Dropped != "":
@@ -381,7 +381,7 @@ func (m *Manager) CleanCaches(mode cleanMode) (CleanReport, int) {
 	})
 }
 
-// cleanPass is what one cache-clean run reads besides the tree: the process
+// cleanPass is what one scratch clean run reads besides the tree: the process
 // scanner and the job registry a full empty is refused on, the pids that are
 // this run itself, and the clock, floor and remover the default mode uses. A
 // test replaces each one.
@@ -407,9 +407,9 @@ func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int)
 			return report, 1
 		}
 	case unspecifiedClean:
-		panic("BUG: cache-clean was asked to run with no mode")
+		panic("BUG: scratch clean was asked to run with no mode")
 	default:
-		panic("BUG: cache-clean has an unknown mode")
+		panic("BUG: scratch clean has an unknown mode")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cleanTimeout)
@@ -442,7 +442,7 @@ func (m *Manager) cleanCaches(mode cleanMode, pass cleanPass) (CleanReport, int)
 	return report, report.verdict()
 }
 
-// cacheKind is the layout of a cache, which decides how cache-clean empties
+// cacheKind is the layout of a cache, which decides how scratch clean empties
 // it. Both kinds hold Go's entry layout, 256 two-hex-digit subdirectories of
 // `-a` and `-d` entries, which the store trim walks the same way for either.
 type cacheKind uint8
@@ -490,7 +490,7 @@ const (
 // cleanTarget is one cache: how a person reads it in the report, where it
 // lives, its kind, the budget the store trim holds it to, why this run skips
 // it when it does, why it could not be judged at all when it could not, and
-// whether it lies within or holds a kernel cache, which neither cache-clean nor
+// whether it lies within or holds a kernel cache, which neither scratch clean nor
 // the store trim may touch.
 type cleanTarget struct {
 	name        string
@@ -534,7 +534,7 @@ func heldKernelCache(path, landed string) (string, bool) {
 }
 
 // cleanTargets answers every cache a checkout at root fills, in report order.
-// It is the one store list: cache-clean empties every row, and the store trim
+// It is the one store list: scratch clean empties every row, and the store trim
 // bounds the rows whose budget is not notTrimmed.
 //
 // It takes the ambient path rather than resolving it, so a caller that failed
@@ -877,7 +877,7 @@ func mebibytes(bytes int64) string {
 	return text.Float(float64(bytes)/bytesPerMiB, 1).Str("M").String()
 }
 
-// cleanStaleCopy is cache-clean's default mode for a stale cache copy: the
+// cleanStaleCopy is scratch clean's default mode for a stale cache copy: the
 // store trim's rule, so a copy past the age floor is removed whole and a
 // younger one is kept and reported as kept young. The free space is read on
 // the directory holding the copy, which outlives its removal.

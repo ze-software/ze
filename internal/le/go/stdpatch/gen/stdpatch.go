@@ -81,7 +81,7 @@ func Tree(root string) (string, error) {
 }
 
 // CacheDirs answers every directory a tree can live in, in the order CacheDir
-// tries them, without creating either. `le scratch cache-clean` reads it to
+// tries them, without creating either. `le scratch clean` reads it to
 // report the trees it keeps.
 func CacheDirs(root string) []string {
 	return []string{filepath.Join(root, "cache", "stdpatch"), filepath.Join(root, "tmp", "stdpatch")}

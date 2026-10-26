@@ -54,7 +54,7 @@ func TestCleanCachesUsesTheToolchainCachePath(t *testing.T) {
 
 // VALIDATES: a clean run empties the golangci-lint cache as well as the two Go
 // caches, and takes its path from the toolchain producer.
-// PREVENTS: the cache no `go clean` reaches growing unbounded while cache-clean
+// PREVENTS: the cache no `go clean` reaches growing unbounded while scratch clean
 // reports success. It held 9.5G on 2026-09-13, more than both Go caches
 // together, on a volume with 1G left (plan/journal/full-disk-false-red.md).
 func TestCacheTargetsCoverTheLintCache(t *testing.T) {
@@ -383,7 +383,7 @@ func TestAmbientSkippedWhenSameDirectory(t *testing.T) {
 // Method: a checkout under a directory whose name carries `[`, which glob
 // syntax reads as an unclosed class, holds two stale copies and a file with
 // the same prefix; both copies are listed in name order and the file is not.
-// PREVENTS: a checkout path built into a glob pattern panicking cache-clean
+// PREVENTS: a checkout path built into a glob pattern panicking scratch clean
 // and the store trim, or matching names that are not stale copies.
 func TestStaleCopiesListedUnderAGlobMetacharacterRoot(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "work[1", "ze")

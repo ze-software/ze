@@ -13,9 +13,9 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
-// VALIDATES: AC-14 of spec-appliance-ships-ze-kernel. No cache-clean or
+// VALIDATES: AC-14 of spec-appliance-ships-ze-kernel. No scratch clean or
 // store-trim target is a built-kernel cache namespace, sits inside one, or
-// contains one, so `./le scratch cache-clean` and disk-full recovery never
+// contains one, so `./le scratch clean` and disk-full recovery never
 // delete a kernel that takes about thirty minutes to rebuild.
 // Method: lay the checkout out as every le run leaves it, cache/ a link to the
 // per-user target with XDG_CACHE_HOME pointing both sides at one temporary
@@ -100,9 +100,9 @@ func TestCleanTargetsSkipATargetHoldingTheKernelCache(t *testing.T) {
 // kernel is left whole, however far over budget it is.
 //
 // VALIDATES: review round 1 NOTE 1 of spec-appliance-ships-ze-kernel, for the
-// trim: cleanTargets is the trim's list as well as cache-clean's.
+// trim: cleanTargets is the trim's list as well as scratch clean's.
 // PREVENTS: the hourly trim deleting a kernel cache that a checkout cache path
-// happens to hold, which cache-clean would have skipped.
+// happens to hold, which scratch clean would have skipped.
 // Method: point XDG_CACHE_HOME at the checkout Go cache, so the kernel cache
 // namespaces sit inside a target the trim bounds, seed one entry older than
 // the floor, and trim against a budget of zero.

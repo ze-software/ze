@@ -13,7 +13,7 @@
 //   - GOCACHE resides inside the checkout, not under TMPDIR. A cache under
 //     TMPDIR breaks the Unix-socket tests because socket paths exceed the kernel
 //     limit. The cache resides at cache/, which is symlinked out of tree by
-//     `./le scratch links-ensure`. Therefore, it survives a scratch wipe. A
+//     `./le scratch ensure`. Therefore, it survives a scratch wipe. A
 //     detached verify worktree gets that link too, from EnsureCache at
 //     extraction (internal/le/scratch, and internal/le/verify, sharedCacheLink),
 //     so a worktree run shares this cache instead of building a private one from

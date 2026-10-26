@@ -1,12 +1,12 @@
 // Design: docs/contributing/running-commands.md -- "When the disk is full", the store trim
 // Overview: scratch.go -- filesystem policy and implementation
-// Related: cacheclean.go -- the store list the trim shares with cache-clean
+// Related: cacheclean.go -- the store list the trim shares with scratch clean
 //
 // This file bounds the build stores le and its sessions fill. Every le
 // invocation runs storeTrimBeforeDispatch, the hook register.go gives le's
 // root handler, and it asks startStoreTrimWhenDue whether a trim is due, which
 // costs one read of a ten-byte stamp file; at most once an hour one invocation wins a
-// lock, writes the stamp and starts `le scratch store-trim background` as a
+// lock, writes the stamp and starts `le scratch trim background` as a
 // detached child, so no caller waits for a walk of a cache that can hold tens
 // of gigabytes. The child is a process rather than a goroutine because the
 // invoking le is usually a hook call that exits in milliseconds and would take
@@ -248,7 +248,7 @@ type trimSpawn func(root string) error
 // is written to tmp/store-trim/last.log.
 //
 // program is `le` or `ze le`; the words after its first are what the trim
-// child's argv needs before `scratch store-trim background`: none for the le
+// child's argv needs before `scratch trim background`: none for the le
 // binary, and the root handler's own name for a ze binary carrying le.
 func storeTrimBeforeDispatch(program string) {
 	leading := strings.Fields(program)
@@ -412,7 +412,7 @@ func appendTrimLog(root string, now time.Time, message string) {
 }
 
 // detachedTrim answers the spawn the store-trim hook uses: it starts this same
-// executable as `<leading...> scratch store-trim background` in its own
+// executable as `<leading...> scratch trim background` in its own
 // session, with stdin from the null device and stdout and stderr into
 // tmp/store-trim/last.log, and does not wait. leading is empty for the le
 // binary and `le` for a ze binary carrying le, whose argv names the root
@@ -458,7 +458,7 @@ func detachedTrim(leading []string) trimSpawn {
 
 // The words of the action, shared by its registration and the spawn.
 const (
-	storeTrimVerb     = "store-trim"
+	storeTrimVerb     = "trim"
 	backgroundKeyword = "background"
 )
 
@@ -583,7 +583,7 @@ func (r trimReport) Text() string {
 	return text.String()
 }
 
-// runStoreTrim is `le scratch store-trim`: the trim in the foreground, which
+// runStoreTrim is `le scratch trim`: the trim in the foreground, which
 // ignores the hourly stamp. With `background` it is the detached child the
 // trigger starts, whose stdout is last.log: it refuses to run beside a
 // previous child still holding run.lock, and opens its output with a header.
@@ -653,7 +653,7 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 	defer cancel()
 
 	// The ambient cache is not le's to trim (owner decision D-6), so its row is
-	// a skip either way; its path is still resolved, with the one `go env` run cache-clean
+	// a skip either way; its path is still resolved, with the one `go env` run scratch clean
 	// makes, so the row names the cache it leaves alone, or says why it cannot.
 	ambient, ambientErr := ambientGoCache(ctx)
 	targets := cleanTargets(root, ambient)

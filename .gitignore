@@ -6,7 +6,7 @@
 /ze-*
 /functional
 # cache/ and tmp/ become checkout-specific symlinks through
-# `./le scratch links-ensure`; Go skips those directory symlinks.
+# `./le scratch ensure`; Go skips those directory symlinks.
 # See plan/spec-relocate-scratch-and-cache.md.
 /cache
 tmp/*
