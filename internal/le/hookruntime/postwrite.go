@@ -103,7 +103,7 @@ func postFormatGo(ctx context) *verdict {
 	output, runErr := postLintCommand(timeout, binary, module, relative).CombinedOutput()
 	expired := timeout.Err() != nil
 	cancel()
-	return postLintVerdict(pkg, string(output), runErr, expired)
+	return postLintVerdict(pkg, filepath.ToSlash(relative), string(output), runErr, expired)
 }
 
 // postLintBudget is how long the post-edit lint may take, the wait for
@@ -121,7 +121,14 @@ const lintIssuesFound = 1
 // own timeout or failed before analysis is said as a run that did NOT happen.
 // Before this distinction a killed run printed nothing and read as clean, so
 // the author was told nothing about a package no linter had looked at.
-func postLintVerdict(pkg, output string, runErr error, expired bool) *verdict {
+//
+// The run covers the whole package, but only the edited file's issues block.
+// --new-from-rev=HEAD reports every uncommitted change in the package, and in
+// this shared checkout most of those are another session's: blocking on them
+// handed one agent another agent's work, in its context, on every edit. A
+// package that does not build blocks whichever file broke it, because an edit
+// here can break a sibling file, and a broken package build is everyone's.
+func postLintVerdict(pkg, file, output string, runErr error, expired bool) *verdict {
 	if expired {
 		return lintNotRun(pkg, "it ran past "+postLintBudget.String()+", most often waiting behind another session's lint", output, "")
 	}
@@ -135,18 +142,56 @@ func postLintVerdict(pkg, output string, runErr error, expired bool) *verdict {
 	if exitErr.ExitCode() != lintIssuesFound {
 		return lintNotRun(pkg, "golangci-lint stopped with "+exitErr.String(), output, "")
 	}
-	lines := make([]string, 0, 3)
-	issues := 0
-	for line := range strings.SplitSeq(output, "\n") {
-		if strings.Contains(line, ":") {
-			issues++
+	if lintTypecheckRE.MatchString(output) {
+		// A compile failure is one multi-line issue whose first line names
+		// whichever file golangci-lint loaded first, so it cannot be judged
+		// by file. The package does not build, which blocks every author.
+		lines := make([]string, 0, 4)
+		lines = append(lines, yellow+"⚠ lint: "+pkg+" does not build"+reset)
+		for line := range strings.SplitSeq(output, "\n") {
+			if lintIssueRE.MatchString(line) && len(lines) < 4 {
+				lines = append(lines, "  "+dim+line+reset)
+			}
 		}
-		if line != "" && len(lines) < 3 {
-			lines = append(lines, "  "+dim+line+reset)
-		}
+		return &verdict{2, strings.Join(lines, "\n")}
 	}
-	return &verdict{2, yellow + "⚠ lint: " + strconv.Itoa(issues) + " issues" + reset + "\n" + strings.Join(lines, "\n")}
+	headers := lintIssueRE.FindAllStringSubmatch(output, -1)
+	if len(headers) == 0 {
+		// Exit 1 with no issue line this parser recognizes: the output format
+		// moved under it. Blocking with the raw text is the answer that cannot
+		// pass a package nobody judged.
+		return lintNotRun(pkg, "its issues could not be read from the output", output, "")
+	}
+	owned := make([]string, 0, len(headers))
+	foreign := 0
+	for _, header := range headers {
+		if header[1] == file {
+			owned = append(owned, header[0])
+			continue
+		}
+		foreign++
+	}
+	if len(owned) == 0 {
+		// Code 0 reaches the person watching, never the agent's context.
+		return &verdict{0, dim + "lint: " + file + " is clean; " + strconv.Itoa(foreign) + " issue(s) in other changed files of " + pkg + reset}
+	}
+	lines := make([]string, 0, 4)
+	lines = append(lines, yellow+"⚠ lint: "+strconv.Itoa(len(owned))+" issue(s) in "+file+reset)
+	for _, header := range owned[:min(3, len(owned))] {
+		lines = append(lines, "  "+dim+header+reset)
+	}
+	return &verdict{2, strings.Join(lines, "\n")}
 }
+
+// lintIssueRE matches the first line of one golangci-lint text-format issue,
+// `path.go:line:col: message (linter)`, capturing the path. The source excerpt
+// and caret lines that follow it, and the closing per-linter summary, never
+// match, so each issue is counted once.
+var lintIssueRE = regexp.MustCompile(`(?m)^([^\s:]+\.go):\d+(?::\d+)?: .*$`)
+
+// lintTypecheckRE matches the closing summary's typecheck row, `* typecheck: N`,
+// the one place a compile failure names its linter on a line of its own.
+var lintTypecheckRE = regexp.MustCompile(`(?m)^\* typecheck: \d+`)
 
 // lintNotRun is the verdict for a lint run that did not complete. It blocks
 // (code 2) because only a blocking post-tool verdict reaches the agent, and an

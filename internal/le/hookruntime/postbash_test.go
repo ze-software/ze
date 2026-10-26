@@ -33,7 +33,7 @@ func gitFixture(t *testing.T) string {
 
 func probeBash(t *testing.T, root string) (int, string) {
 	t.Helper()
-	code, message, found := Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": "sed -i s/a/b/ x.go"}}, root)
+	code, message, found := Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": "sed -i s/a/b/ pkg/*.go"}}, root)
 	if !found {
 		t.Fatal("postBashGofmt is not registered in nativeHookActions")
 	}
@@ -94,5 +94,27 @@ func TestPostBashGofmtSaysWhenItCouldNotListTheTree(t *testing.T) {
 	code, message := probeBash(t, root)
 	if code != 2 || !strings.Contains(message, "did NOT check") {
 		t.Errorf("an unlistable tree was not reported as unchecked (code %d):\n%s", code, message)
+	}
+}
+
+// VALIDATES: an unformatted file the command does not name is said at code 0,
+// and one it names through a parent directory blocks.
+// PREVENTS: every session blocked after every command, with another session's
+// unformatted file in its context, because the file changed inside the window.
+func TestPostBashGofmtBlocksOnlyAFileTheCommandNames(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "other/theirs.go", unformattedGo)
+
+	code, message, _ := Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": "sed -i s/a/b/ pkg/x.go"}}, root)
+	if code != 0 {
+		t.Fatalf("a file the command does not name blocked (code %d):\n%s", code, message)
+	}
+	if !strings.Contains(message, "1 unformatted Go file(s)") || strings.Contains(message, "theirs.go") {
+		t.Errorf("the unnamed file is not counted, or is named into the agent's view:\n%s", message)
+	}
+
+	code, message, _ = Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": "gopls rename ./other/ x y"}}, root)
+	if code != 2 || !strings.Contains(message, "other/theirs.go") {
+		t.Errorf("a file under a directory the command names did not block (code %d):\n%s", code, message)
 	}
 }

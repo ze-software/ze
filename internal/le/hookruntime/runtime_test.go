@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -550,5 +551,21 @@ func TestValidateSpecRefusesUnknownRFCGap(t *testing.T) {
 		if !strings.Contains(got[index], "names "+item+", which is neither") || !strings.Contains(got[index], "ls rfc/short/") {
 			t.Errorf("refusal %d does not name %s and its fix: %q", index, item, got[index])
 		}
+	}
+}
+
+// VALIDATES: a run that blocks prints its blocking and code-1 messages and
+// drops its code-0 hints; a run that does not block prints every message.
+// PREVENTS: advisory hints (a numeric-validation guess, the derived-artifact
+// housekeeping line) riding into the agent's context on every blocked edit.
+func TestShownVerdictsDropsHintsFromABlockingRun(t *testing.T) {
+	results := []verdict{{2, "blocked"}, {1, "warning"}, {0, "hint"}}
+	worst, messages := shownVerdicts(results)
+	if worst != 2 || !slices.Equal(messages, []string{"blocked", "warning"}) {
+		t.Errorf("blocking run: worst %d, messages %q", worst, messages)
+	}
+	worst, messages = shownVerdicts(results[1:])
+	if worst != 1 || !slices.Equal(messages, []string{"warning", "hint"}) {
+		t.Errorf("non-blocking run: worst %d, messages %q", worst, messages)
 	}
 }

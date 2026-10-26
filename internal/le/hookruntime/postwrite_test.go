@@ -316,21 +316,23 @@ func exitWith(t *testing.T, code int) error {
 // session's lint printed nothing, and the empty output read as a clean package.
 func TestPostLintVerdictTellsANotRunFromAPass(t *testing.T) {
 	const pkg = "./internal/le/x/..."
-	if result := postLintVerdict(pkg, "0 issues.\n", nil, false); result != nil {
+	const file = "internal/le/x/x.go"
+	if result := postLintVerdict(pkg, file, "0 issues.\n", nil, false); result != nil {
 		t.Errorf("a clean run was reported: %q", result.message)
 	}
 
-	issues := postLintVerdict(pkg, "x.go:1:1: unused (unused)\n", exitWith(t, lintIssuesFound), false)
-	if issues == nil || issues.code != 2 || !strings.Contains(issues.message, "lint: 1 issues") {
+	issues := postLintVerdict(pkg, file, file+":1:1: unused (unused)\n", exitWith(t, lintIssuesFound), false)
+	if issues == nil || issues.code != 2 || !strings.Contains(issues.message, "lint: 1 issue(s) in "+file) {
 		t.Errorf("exit 1 was not reported as issues: %+v", issues)
 	}
 
 	notRun := map[string]*verdict{
-		"killed at the budget":  postLintVerdict(pkg, "", exitWith(t, 1), true),
-		"golangci-lint failure": postLintVerdict(pkg, "typecheck failed\n", exitWith(t, 3), false),
-		"its own timeout":       postLintVerdict(pkg, "", exitWith(t, 4), false),
-		"a binary that is gone": postLintVerdict(pkg, "", exec.ErrNotFound, false),
-		"an error it logged":    postLintVerdict(pkg, "", exitWith(t, 7), false),
+		"killed at the budget":  postLintVerdict(pkg, file, "", exitWith(t, 1), true),
+		"golangci-lint failure": postLintVerdict(pkg, file, "typecheck failed\n", exitWith(t, 3), false),
+		"its own timeout":       postLintVerdict(pkg, file, "", exitWith(t, 4), false),
+		"a binary that is gone": postLintVerdict(pkg, file, "", exec.ErrNotFound, false),
+		"an error it logged":    postLintVerdict(pkg, file, "", exitWith(t, 7), false),
+		"an unreadable exit 1":  postLintVerdict(pkg, file, "something new\n", exitWith(t, lintIssuesFound), false),
 	}
 	for name, result := range notRun {
 		if result == nil || result.code != 2 || !strings.Contains(result.message, "lint did NOT run on "+pkg) {
@@ -340,5 +342,46 @@ func TestPostLintVerdictTellsANotRunFromAPass(t *testing.T) {
 		if !strings.Contains(result.message, "./le go lint run scope") {
 			t.Errorf("%s: the message names no command that reruns it: %q", name, result.message)
 		}
+	}
+}
+
+// VALIDATES: an issue in another file of the edited package does not block the
+// edit, an issue in the edited file does and names only that file's issues,
+// and a package that does not build blocks whichever file the failure names.
+// PREVENTS: one session blocked, and its context filled, by another session's
+// uncommitted lint issues on every edit to a shared package. The fixture is
+// golangci-lint 2.14's text format as captured from a real run: an issue line,
+// its source excerpt and caret, then the per-linter summary.
+func TestPostLintVerdictJudgesOnlyTheEditedFile(t *testing.T) {
+	const pkg = "./internal/le/x/..."
+	const file = "internal/le/x/x.go"
+	foreign := "internal/le/x/y_test.go:89:5: deferInLoop: Possible resource leak (gocritic)\n" +
+		"\t\t\t\tdefer first.Clear()\n\t\t\t\t^\n" +
+		"internal/le/x/z.go:3:1: exported: comment missing (revive)\n" +
+		"2 issues:\n* gocritic: 1\n* revive: 1\n"
+
+	other := postLintVerdict(pkg, file, foreign, exitWith(t, lintIssuesFound), false)
+	if other == nil || other.code != 0 {
+		t.Fatalf("issues in other files blocked the edit: %+v", other)
+	}
+	if !strings.Contains(other.message, "2 issue(s) in other changed files") {
+		t.Errorf("the foreign count is wrong or missing: %q", other.message)
+	}
+
+	mine := postLintVerdict(pkg, file, file+":7:2: ineffassign: x assigned and not used (ineffassign)\n\tx := 1\n\t^\n"+foreign, exitWith(t, lintIssuesFound), false)
+	if mine == nil || mine.code != 2 || !strings.Contains(mine.message, "1 issue(s) in "+file) {
+		t.Fatalf("an issue in the edited file did not block: %+v", mine)
+	}
+	if strings.Contains(mine.message, "y_test.go") || strings.Contains(mine.message, "z.go") {
+		t.Errorf("the blocking message carries another file's issues: %q", mine.message)
+	}
+
+	broken := "internal/le/x/a.go:1: : # github.com/ze-software/ze/internal/le/x\n" +
+		"internal/le/x/b_test.go:319:56: not enough arguments in call to f\n" +
+		"\thave (string)\n\twant (string, string) (typecheck)\n" +
+		"1 issues:\n* typecheck: 1\n"
+	build := postLintVerdict(pkg, file, broken, exitWith(t, lintIssuesFound), false)
+	if build == nil || build.code != 2 || !strings.Contains(build.message, pkg+" does not build") {
+		t.Errorf("a package that does not build was not blocked: %+v", build)
 	}
 }

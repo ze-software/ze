@@ -398,6 +398,25 @@ stops `git diff` writing the refresh back. The patch the linter reads is the
 same either way. le's other `git status` queries under a deadline carry the
 first setting through `gitenv.ReadOnly`.
 
+### Post-tool hooks block only on the author's own files
+
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames -->
+<!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
+
+A post-tool hook's blocking text enters the agent's context, and every later
+turn re-reads it. Several sessions share this checkout, so a check that judged
+every uncommitted file blocked each session on the others' work. Each check
+therefore blocks only on what the tool call itself touched:
+
+| Check | Blocks on | Said at code 0, to the person only |
+|-------|-----------|------------------------------------|
+| Post-edit lint | An issue in the edited file, or a package that does not build (`* typecheck: N` in the summary) | The count of issues in other changed files of the package |
+| Post-command gofmt | An unformatted Go file the command names, by path or by a directory holding it | The count of unformatted files it does not name |
+
+When any check blocks, the hook drops the code-0 hints from what it prints,
+because a hint carries nothing for the agent to act on.
+
 ### The slot a lint holds
 
 <!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->

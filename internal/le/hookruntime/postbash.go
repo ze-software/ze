@@ -35,6 +35,12 @@ const postBashBudget = 5 * time.Second
 // misformatted line survived a rename batch until a scoped lint found it. It
 // reports and never rewrites: the window cannot tell this session's write from
 // another's, and another session's file is not this one's to change.
+//
+// Only a file the command names, by its path or by a directory holding it,
+// blocks. The window alone blocked every session for whichever file another
+// session left unformatted, and put that file in each one's context after
+// every command. A file the command does not name is said at code 0, which
+// the person watching sees and the agent does not.
 func postBashGofmt(ctx context) *verdict {
 	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), postBashBudget)
 	defer cancel()
@@ -55,27 +61,51 @@ func postBashGofmt(ctx context) *verdict {
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()
-	unformatted := strings.Fields(string(output))
-	lines := make([]string, 0, len(unformatted)+4)
-	if len(unformatted) != 0 {
-		lines = append(lines, yellow+"⚠ gofmt: "+strconv.Itoa(len(unformatted))+" Go file(s) changed in the last "+postBashWindow.String()+" are not formatted"+reset)
-		for _, path := range unformatted {
+	named := make([]string, 0, 4)
+	unnamed := 0
+	for _, path := range strings.Fields(string(output)) {
+		if commandNames(stringInput(ctx.input, "command"), path) {
+			named = append(named, path)
+			continue
+		}
+		unnamed++
+	}
+	lines := make([]string, 0, len(named)+4)
+	if len(named) != 0 {
+		lines = append(lines, yellow+"⚠ gofmt: "+strconv.Itoa(len(named))+" Go file(s) this command names are not formatted"+reset)
+		for _, path := range named {
 			lines = append(lines, "  "+path)
 		}
-		lines = append(lines, "  Fix a file this session wrote: gofmt -w <path>. A file another session is editing is theirs: leave it.")
+		lines = append(lines, "  Fix: gofmt -w <path>")
 	}
 	if err != nil {
 		lines = append(lines, yellow+"⚠ gofmt could not read every changed file, so those were NOT checked: "+err.Error()+reset)
 		for line := range strings.SplitSeq(stderr.String(), "\n") {
-			if line != "" && len(lines) < len(unformatted)+6 {
+			if line != "" && len(lines) < len(named)+6 {
 				lines = append(lines, "  "+dim+line+reset)
 			}
 		}
 	}
-	if len(lines) == 0 {
-		return nil
+	if len(lines) != 0 {
+		return &verdict{2, strings.Join(lines, "\n")}
 	}
-	return &verdict{2, strings.Join(lines, "\n")}
+	if unnamed != 0 {
+		return &verdict{0, dim + "gofmt: " + strconv.Itoa(unnamed) + " unformatted Go file(s) changed in the last " + postBashWindow.String() + " that this command does not name" + reset}
+	}
+	return nil
+}
+
+// commandNames answers whether a shell command names path, a slash path
+// relative to the checkout, either whole or through one of its parent
+// directories. A command that writes a file names it or a directory holding
+// it; `./` and a trailing slash are spelling, so the bare form is searched.
+func commandNames(command, path string) bool {
+	for dir := path; dir != "." && dir != "/" && dir != ""; dir = filepath.ToSlash(filepath.Dir(dir)) {
+		if strings.Contains(command, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 // gofmtNotRun is the verdict for a format check that could not judge the tree.

@@ -254,16 +254,7 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 		}
 	}
 
-	worst := 0
-	messages := make([]string, 0, len(results))
-	for _, result := range results {
-		if result.message != "" {
-			messages = append(messages, result.message)
-		}
-		if result.code > worst {
-			worst = result.code
-		}
-	}
+	worst, messages := shownVerdicts(results)
 	if len(messages) != 0 {
 		fmt.Fprintln(errOut, strings.Join(messages, "\n")) //nolint:errcheck // hook protocol
 	}
@@ -273,6 +264,28 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 		}
 	}
 	return worst
+}
+
+// shownVerdicts answers the hook's exit code, the worst verdict, and the
+// messages it prints. A blocking verdict's text enters the agent's context,
+// where every later turn re-reads it. A code-0 hint carries nothing to act on,
+// so it is printed only on a run that does not block, where the person sees it
+// and the agent does not.
+func shownVerdicts(results []verdict) (worst int, messages []string) {
+	for _, result := range results {
+		worst = max(worst, result.code)
+	}
+	messages = make([]string, 0, len(results))
+	for _, result := range results {
+		if result.message == "" {
+			continue
+		}
+		if worst >= 2 && result.code == 0 {
+			continue
+		}
+		messages = append(messages, result.message)
+	}
+	return worst, messages
 }
 
 func stringInput(input map[string]any, key string) string {
