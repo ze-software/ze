@@ -399,10 +399,10 @@ authority (RFC 3948 Section 5.1).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every IKE SA close path reaches `forgetKeys` exactly once | its doc comment and the call sites listed in Current Behavior | a lease leaks or double-releases | `TestLeaseReleasedOnEveryClosePath` drives delete, DPD death, peer stop, reload restart, superseded SA and rekey retirement; a double release returns `ErrNotAllocated` and fails the test | validated: `TestLeaseReleasedOnEveryClosePath` (cp_test.go), plus `TestLeaseReleasedWhenRunEstablishedExits` (the owner loop's exit) and `TestLeaseReleasedOnResponderDeadBranch` (`runResponder`'s StateDead branch) in cp_close_test.go, the two close paths review round 1 found unexercised; each asserts no lease held and no `virtual-ip` left on the closed SA |
-| A-2 | The responder-side IKE rekey adopts its successor through a site that can move the lease | the `out.newSA` swap in `established.go`; `responder-ike-rekey` scenario exists | the lease is released at a responder rekey and the address re-issued | `TestIKERekeyKeepsLease` in both rekey directions | unvalidated |
+| A-2 | The responder-side IKE rekey adopts its successor through a site that can move the lease | the `out.newSA` swap in `established.go`; `responder-ike-rekey` scenario exists | the lease is released at a responder rekey and the address re-issued | `TestIKERekeyKeepsLease` in both rekey directions | validated 2026-10-26: `TestIKERekeyKeepsLease` (cp_test.go) subtests "Ze initiating" and "Ze responding" pass; each asserts the successor holds the lease, the held count is unchanged, and the count returns to 0 only when the successor closes |
 | A-3 | The interop lab can give strongSwan two source addresses translated by the NAT box | `nat.conf` takes one translation per line; secondary addresses are how the box itself works | `virtual-ip-uniqueness` cannot be written as designed | write the scenario first; if the strongSwan container cannot hold two addresses, extend `internal/le/interoplab/ipsec` to add declared secondary addresses (named in Files) | validated 2026-10-26: the container holds a second address (the checker adds 172.28.0.8/32 to strongSwan's eth0, as `mobikeMove` adds one); the lab limit was `natTranslationsMax = 2` in `nat.go`, raised to 3 so `nat.conf` maps Ze and both clients (commit `5fcf169117`) |
-| A-4 | strongSwan accepts the CFG_REPLY ahead of SAr2 with Ze's attribute set | strongSwan `process_i` reads CP from the last IKE_AUTH | G-3 fails | `virtual-ip-assignment` | unvalidated |
-| A-5 | A `respond` peer is how configured clients reach Ze | `responder-psk`, `responder-eap-mschapv2` | the `connection-type` refusal blocks a real use | the two scenarios use `respond` | unvalidated |
+| A-4 | strongSwan accepts the CFG_REPLY ahead of SAr2 with Ze's attribute set | strongSwan `process_i` reads CP from the last IKE_AUTH | G-3 fails | `virtual-ip-assignment` | validated 2026-10-26: `virtual-ip-assignment` passes (`scratch/vip-assign-green1.log`); its checker requires charon to report an address inside 10.10.0.0/24, which only Ze's CFG_REPLY supplies, and `selectAuthChildSA` places that payload ahead of SAr2 (`RFC7296-2.19-7` records) |
+| A-5 | A `respond` peer is how configured clients reach Ze | `responder-psk`, `responder-eap-mschapv2` | the `connection-type` refusal blocks a real use | the two scenarios use `respond` | validated 2026-10-26: both scenario `ze.conf` files bind the pool on `connection-type respond` peers (`virtual-ip-assignment/ze.conf:55-56`, `virtual-ip-uniqueness/ze.conf:42-44,65-67`) and both scenarios pass |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -799,3 +799,199 @@ non-participation (Ze takes no IRAC role).
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** remove the spec only
+
+## Implementation Summary
+
+### What Was Implemented
+- Codec bounds (`PayloadCP.ReadFrom`, `ike/wire/payload_cp.go`): 1-3 octet remnant and more than 64 attributes refused; constants 5, 13, 14, 15 (4d4c6cb473).
+- Selector family hygiene found on the way: no IPv4/IPv6 pair, a mixed-family proposal refused (ebae55f243, ea3bab5f48).
+- Named pools, `virtual-ip-pool` peer leaf, `dns` leaf-list, the lease registry `eap.Registry` (`internal/core/eap/pool.go`) and the commit refusals of AC-31 (`(*IPsecConfig).ValidateVirtualIPPoolBindings`, `selectorsCoverPool`, `ike/ipsec/validate.go`) (14d83a90bd, 0c1933069a).
+- The IRAS consumer `ike/engine/cp.go`: `assignVirtualIP` (lease, CFG_REPLY ahead of SAr2, both flows), FAILED_CP_REQUIRED and INTERNAL_ADDRESS_FAILURE refusals, `substituteVirtualIP` (lease answered only inside the proposed TSi), release in `forgetKeys`, move at the IKE rekey, `proposeLeasedChildTSPayloads` and `answerNamesOnlyLeases` for Child SAs Ze starts (a965d7c0d4, a27d664f70, a8797fd0c2, c8d3e41036, 1502b3034b, 01ac5d0e88, e6d190da7a, fc6b8b4c55).
+- Visibility: `virtual-ip` in `show vpn ipsec sa` (`ike/cmd`), doctor check `doctor_virtual_ip.go`, metrics.
+- RFC rows: `RFC3948-5.1-1` met; RFC 7296 Configuration-payload rows tagged and proven; audit rejudged (bb8d0d896c, 5c2cb2199f, 3c3777f52f, 469838479d, 961c2c2565).
+- Interop `virtual-ip-assignment` and `virtual-ip-uniqueness`, lab NAT limit raised to 3 translations (5fcf169117, 4908d7d1c1).
+
+### Bugs Found/Fixed
+- Narrowing paired IPv4 with IPv6 selectors (ebae55f243, with the narrowing tests it added); a mixed-family proposal indexed an empty result (ea3bab5f48).
+- The lease replaced the proposal instead of narrowing it (audit 469838479d); fixed by a8797fd0c2, `TestRFC7296VirtualIPAnsweredOnlyInsideTheProposal`.
+- A Child SA Ze started on a leased IKE SA proposed the configured prefix (review round 1 BLOCKER); fixed by c8d3e41036, `TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease`.
+- Releasing a lease a pool edit had moved wrote a stale last-address hint (round 2 NOTE 3); fixed by 01ac5d0e88, `TestReleaseOfMovedLeaseKeepsTheOwnersLastAddress`.
+
+### Documentation Updates
+- `docs/architecture/ike/ipsec-3-data-model.md`, `ipsec-7-ikev2-engine.md`, `ipsec-9-ikev2-eap-nat.md`, `ipsec-10-cli-diag.md`, `ipsec-14-responder.md`, `rfcgate-1b-rfc7296-pilot.md`, `docs/guide/ipsec.md`, `docs/config-reference.md`, `docs/guide/command-reference.md`, `docs/architecture/testing/interop.md`, `features/ipsec-eap-authentication.md`, `ai/INDEX.md` (2c1f959a0e, dc1c152ba9, f2dbc4a67c and the code commits).
+- `rfc/short/rfc3948.md`, `rfc/short/rfc7296.md`, `rfc/extraction/*.json`, generated `docs/features/rfc-status.md` (bb8d0d896c, 5c2cb2199f, 3c3777f52f).
+- Closure: `plan/release/fixes/spec-ipsec-remote-access.md` citations of this spec restated as the bare stem.
+
+### Deviations from Plan
+- Test names: `TestRequestedAddressHonoured` is `TestRequestedAddressHonored` (misspell lint). `TestCFGReplyPrecedesSAPayload` is asserted inside `TestResponderCFGRequestLeasesFromBoundPool` (direct) and `TestCFGReplyInEAPFinalResponse` (EAP). `TestPoolExhaustionRefusesWithInternalAddressFailure` is the `exhausted` case of `TestNoChildSAWithoutLeaseOnBoundPeer`. `TestReservedBitAttributeRecognized` is `wire.TestConfigAttributeReservedBitIgnoredOnReceipt`. `TestUnboundPeerUnchanged` is `TestNoCPReplyWithoutRequest`. `TestShowSAReportsVirtualIP` lives in `ike/cmd/show_ipsec_virtual_ip_test.go`; the doctor test in `doctor_virtual_ip_test.go`.
+- The functional surface is seven `test/parse/ipsec-virtual-ip-pool-*.ci` files (config, domain, empty, initiate, overlap, selector-coverage, unknown), not one `test/ipsec/ipsec-virtual-ip-pool-config.ci`.
+- AC-5 and AC-7b changed by the 2026-10-26 decision recorded under AC-5: the lease is answered only inside the proposal; a proposal not containing it draws TS_UNACCEPTABLE.
+- The interop red was taken through a build overlay that no-ops `substituteVirtualIP`, so no shared-tree file was reverted.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | the first consumer replaced any proposed TSi with the lease | RFC 7296 Section 2.9 lets the responder answer only a subset of the proposal | RFC audit (469838479d) rated `RFC7296-2.9-1` weak | a8797fd0c2; Design insight in `plan/learned/035-ike-virtual-ip-assignment.md` |
+| approach | the Ze-initiated Child SA path was left out of the lease substitution | every Child SA of a leased IKE SA must name the lease, whoever starts it | review round 1 BLOCKER | c8d3e41036 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 Conformance (`RFC3948-5.1-1`) | Done | `ike/engine/cp.go` `assignVirtualIP`, `substituteVirtualIP`; `eap.Registry` | three verified records (`./le rfc discriminate id RFC3948-5.1-1`: nothing stale or unproven) |
+| G-2 Reachability | Done | `responder.go` `selectAuthChildSA` -> `assignVirtualIP` | `TestResponderCFGRequestLeasesFromBoundPool`, `TestCFGReplyInEAPFinalResponse` |
+| G-3 Interoperability | Done | `test/interop-ipsec/scenarios/virtual-ip-assignment/` | green and red recorded |
+| G-4 Honest configuration | Done | `ValidateVirtualIPPoolBindings`; YANG | seven `test/parse/ipsec-virtual-ip-pool-*.ci` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestResponderCFGRequestLeasesFromBoundPool` | |
+| AC-2 | Done | `TestNetmaskOnlyBesideIPv4Address` | |
+| AC-3 | Done | `TestDNSAttributesSplitByFamily` | |
+| AC-4 | Done | `TestResponderCFGRequestLeasesFromBoundPool`, `TestCFGReplyInEAPFinalResponse` (`RFC7296-2.19-7` both polarities) | Changed: no separate test name |
+| AC-5 | Done | `TestRemoteSelectorIsLease`, `TestRFC7296VirtualIPAnsweredOnlyInsideTheProposal` | |
+| AC-6 | Done | `TestCFGReplyInEAPFinalResponse` | |
+| AC-7 | Done | `TestTwoPeersSameRequestedAddressDistinctLeases`; interop `virtual-ip-uniqueness` | |
+| AC-7b | Done | `TestCreateChildUsesLease`, `TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease` | |
+| AC-8 | Done | `TestRequestedAddressHonored` | |
+| AC-9 | Done | `TestNoChildSAWithoutLeaseOnBoundPeer` case `exhausted` | |
+| AC-10 | Done | `TestLeaseReleasedOnEveryClosePath`, `cp_close_test.go` | |
+| AC-11 | Done | `TestLeaseReleasedOnEveryClosePath` (3 cycles, same address back) | |
+| AC-12 | Done | `TestNoCPReplyWithoutRequest` | |
+| AC-13 | Done | `TestUnknownAttributesIgnored`, `TestOnlyUnrecognizedAttributesIsNoRequest` | |
+| AC-14 | Done | `wire.TestConfigAttributeReservedBitIgnoredOnReceipt` | |
+| AC-15 | Done | `TestFamilyFidelity` | |
+| AC-16 | Changed | `TestNoCPReplyWithoutRequest` (unbound peer: no CP, its usual selectors) | byte identity against HEAD is not asserted; every new branch is keyed on `VirtualIPPoolName() != ""` |
+| AC-17 | Done | `TestRegistryConcurrentNoDuplicate` under `-race` | |
+| AC-18 | Done | `TestIPv6LongPrefixInRange` | |
+| AC-19 | Done | `TestCPReadFromBounds` | |
+| AC-20 | Done | `TestNewPoolRefusesUnrepresentable` | |
+| AC-21 | Done | `TestNoChildSAWithoutLeaseOnBoundPeer` cases `no request`, `reply type` | |
+| AC-22 | Done | `TestCFGReplyInEAPFinalResponse`, `TestResponderCFGRequestLeasesFromBoundPool` | |
+| AC-23 | Done | `TestUnknownAttributesIgnored` | |
+| AC-24 | Done | `TestSupportedAttributesDerived`, `TestSupportedAttributesOnlyForZeroLengthQuery` | |
+| AC-25 | Done | `TestOwnerGetsLastAddress`, `TestLeaseReleasedOnEveryClosePath` | |
+| AC-26 | Done | `TestParallelReinitSharesLease` | |
+| AC-27 | Done | `TestRotatingCursor` | |
+| AC-28 | Done | `TestDoctorVirtualIPPoolUtilization` | |
+| AC-29 | Done | `TestSupportedAttributesDerived`; `TestRFC7296InformationalVersionRequestDrawsNoCP`, `...ReflectsNoVersionString` | |
+| AC-30 | Done | `TestPoolEditKeepsLiveLease`, `TestReleaseOfMovedLeaseKeepsTheOwnersLastAddress` | |
+| AC-31 | Done | `TestVirtualIPPoolCommitRefusals`; seven `test/parse/ipsec-virtual-ip-pool-*.ci` | |
+| AC-32 | Done | `TestIKERekeyKeepsLease` (both directions) | |
+| AC-33 | Done | `TestShowSAReportsVirtualIP`; `virtual-ip-assignment` checker reads `show vpn ipsec sa \| json` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit row of the TDD plan | Done | `ike/engine/cp_test.go`, `cp_eap_test.go`, `cp_close_test.go`, `apply_test.go`, `doctor_virtual_ip_test.go`, `ike/cmd/show_ipsec_virtual_ip_test.go`, `ike/ipsec/config_test.go`, `ike/wire/payload_cp_test.go`, `core/eap/pool_test.go` | renamed or merged rows listed in Deviations |
+| `ipsec-virtual-ip-pool-config` | Changed | `test/parse/ipsec-virtual-ip-pool-*.ci` (7) | one file per refusal |
+| interop `virtual-ip-assignment`, `virtual-ip-uniqueness` | Done | `test/interop-ipsec/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify, engine and ipsec | Done | as listed in What Was Implemented |
+| `internal/le/interoplab/ipsec/` | Done | `natTranslationsMax` 2 -> 3 (`nat.go`, 5fcf169117) |
+| `cp.go`, `cp_test.go`, `cp_eap_test.go` | Done | `cp_lease_test.go` was not created: lease tests live in `cp_test.go` and `cp_close_test.go` |
+
+### Audit Summary
+- **Total items:** 33 AC + 4 goals
+- **Done:** 32 AC + 4 goals
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-16 assertion form; test names and `.ci` layout (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 Conformance | interop + tagged units | `virtual-ip-uniqueness: pass`; red with `substituteVirtualIP` no-op: the second client's Child SA failed because the inner policy 10.1.2.0/24 was already installed for `swan-a` (`scratch/vip-unique-red.log`); `RFC3948-5.1-1` records on `TestTwoPeersSameRequestedAddressDistinctLeases` and `TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease` verified |
+| G-2 Reachability | unit through `handleAuthRequest` | `TestResponderCFGRequestLeasesFromBoundPool`, `TestCFGReplyInEAPFinalResponse` pass (closure run, `scratch/job-vip-close-engine-v-656c0ac2.log`) |
+| G-3 Interoperability | interop | `virtual-ip-assignment: pass` (`scratch/vip-assign-green1.log`, `virtual-ip-assignment-green2.log`); red: `ts-remote 10.10.0.0/24, want the lease 10.10.0.1/32` (`scratch/vip-assign-red.log`) |
+| G-4 Honest configuration | functional | seven `test/parse/ipsec-virtual-ip-pool-*.ci` green (14d83a90bd, 1502b3034b bodies); `TestVirtualIPPoolCommitRefusals` pass |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none: every AC is done; road-warrior admission was never in scope (What this spec does NOT cover) | - | `plan/release/fixes/spec-ipsec-remote-access.md` (admission, by design) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ike-virtual-ip-assignment-f3ae7c00-09af-4420-914f-39f2f7169980.md` (5 files: the closure's spec, learned, journal and two citing-spec edits; the code landed in the implementation commits listed above, each reviewed in its round) |
+| `./le spec review check` | run at closure over the same five files, before `./le commit create` (result in the closure report) |
+| Rounds | 4 |
+| Reviewer lenses used | independent `ze-review` per round over the full diff: logic and wiring of `cp.go`, selector narrowing and rekey paths, lease lifetime and close paths, concurrency of `sa.virtualIP`, commit refusals, docs; style pass over the changed Go. Test-judge approvals for each changed tagged or weakened test, carried in commit trailers and bodies (14d83a90bd, c8d3e41036, e6d190da7a, fc6b8b4c55) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1-1 | BLOCKER | a Child SA Ze sent on a pool-bound peer's IKE SA proposed the configured remote prefix or the wildcard, so a wider answer passed the ceiling | `rekey.go` `proposeChildTSPayloads` | c8d3e41036: `proposeLeasedChildTSPayloads`, `answerNamesOnlyLeases` |
+| R1-2 | ISSUE | `sa.virtualIP` read and written without a guard | `cp.go` | c8d3e41036: `virtualIPMu`, `leaseGrant`, `setLeaseGrant`, `takeLeaseGrant` |
+| R1-3 | ISSUE | a Child SA refused with FAILED_CP_REQUIRED or INTERNAL_ADDRESS_FAILURE logged the generic refusal fix | `create_child.go` `childRefusedResponderFix` | 1502b3034b: `childRefusedFixResponderCPRequired`, `childRefusedFixResponderNoAddress`, `TestChildRefusedFixNamesVirtualIPCauses` |
+| R1-4 | ISSUE | exported symbols with no non-test caller | `core/eap/pool.go`, engine | c8d3e41036: `boundVirtualIPPool`, `Pool.Name`, `Pool.Capacity`, `Lease.Pool`, `Registry.Available` deleted; `TestPeerBindingSelectsNamedPool` rewritten through `handleAuthRequest` because its helper was gone |
+| R1-5 | ISSUE | two close paths unexercised | `established.go` `runEstablished` exit, `fsm.go` `runResponder` StateDead branch | c8d3e41036: `cp_close_test.go` |
+| R1-6 | ISSUE | an empty `virtual-ip-pool` name was accepted | `ipsec/validate.go` | 1502b3034b: refusal, `test/parse/ipsec-virtual-ip-pool-empty.ci` |
+
+Round 1 is numbered in the commit bodies of c8d3e41036 and 1502b3034b as BLOCKER 1 and ISSUE 2 to 6, with a pool note and a transport note (both NOTEs, fixed in the same commits).
+| R2-1 | ISSUE | the rekey lease test lacked the configured-selector and dual-stack cases | `rfc3948_virtual_ip_rekey_test.go` | e6d190da7a (judge-approved), both `RFC3948-5.1-1` records re-taken |
+| R2-2 | ISSUE | `docs/config-reference.md` omitted the empty-name refusal | `docs/config-reference.md` | f2dbc4a67c |
+| R3-1 | ISSUE | the `RFC3948-5.1-1` negative claim said "wider than the proposal" where the refusal is `answerNamesOnlyLeases` (wider than the lease host) | `rfc3948_virtual_ip_rekey_test.go` | fc6b8b4c55, records re-taken |
+
+Round 4: 0 BLOCKER, 0 ISSUE. Its NOTE (a record's `unit-sha` does not cover the fixtures a unit calls) is the journal row `plan/journal/check-cannot-see-the-change-it-looks-for.md` 2026-10-26, owned by `plan/post-release/engineering/spec-gates-share-one-semantic-population.md`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/cp.go`, `cp_test.go`, `cp_eap_test.go`, `cp_close_test.go` | yes | `ls` at closure |
+| `test/parse/ipsec-virtual-ip-pool-{config,domain,empty,initiate,overlap,selector-coverage,unknown}.ci` | yes | `ls test/parse/ipsec-virtual-ip*` lists the seven |
+| `test/interop-ipsec/scenarios/virtual-ip-assignment/{swanctl,ze}.conf`, `virtual-ip-uniqueness/{nat,swanctl,ze}.conf` | yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-33 (engine) | the engine tests in the AC table pass | closure run `go test -count=1 -v -run '<CP, lease, virtual-IP set>' ./internal/component/ike/engine/`: 37 PASS, 0 FAIL (`scratch/job-vip-close-engine-v-656c0ac2.log`) |
+| AC-8, 17, 18, 19, 20, 25, 27, 31, 33 | pool, wire, config, show tests pass | closure run `go test -count=1` over `core/eap`, `ike/wire`, `ike/ipsec`, `ike/cmd`: all `ok` (`scratch/job-vip-close-pkgs-e191f81f.log`) |
+| RFC records | no stale or unproven record for the ids this spec tags | `./le rfc discriminate id RFC3948-5.1-1` and `RFC7296-2.19-7`: stale empty, unproven empty |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| operator config `virtual-ip-pool` | `test/parse/ipsec-virtual-ip-pool-config.ci` | green (14d83a90bd body: 11/11 parse tests) |
+| strongSwan client asking for a virtual IP | interop `virtual-ip-assignment` (no `.ci`: ze never sends CFG_REQUEST) | `virtual-ip-assignment: pass` |
+| IKE_AUTH CP, direct and EAP | unit through `handleAuthRequest` | `TestResponderCFGRequestLeasesFromBoundPool`, `TestCFGReplyInEAPFinalResponse` pass |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestLeaseReleasedOnEveryClosePath`, `TestLeaseReleasedWhenRunEstablishedExits`, `TestLeaseReleasedOnResponderDeadBranch` pass |
+| A-2 | confirmed | `TestIKERekeyKeepsLease` both subtests pass |
+| A-3 | confirmed | second address added by the checker; `natTranslationsMax` raised to 3 (5fcf169117) |
+| A-4 | confirmed | `virtual-ip-assignment: pass` |
+| A-5 | confirmed | both scenarios bind the pool on `connection-type respond` peers and pass |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC 7296 row no longer says Ze builds no CP | `docs/features/rfc-status.md` line 220: "IRAS role only ... It takes no IRAC role" | yes |
+| RFC 3948 row: Section 5.1 met | `rfc/short/rfc3948.md` Support remaining names `eap.Registry` | yes |
+| interop scenarios documented | `docs/architecture/testing/interop.md` lines 1738-1759 | yes |
+| `virtual-ip` SA field | `docs/guide/command-reference.md`, `ipsec-10-cli-diag.md` (dc1c152ba9) | yes |
+
+### Gates not run at closure
+| Gate | Result | Cause and substitute evidence |
+|------|--------|-------------------------------|
+| `./le rfc check` | not run | `go vet` hits an import cycle from another session's untracked `internal/component/bgp/reactor/delay_open_regression_test.go` (`bgp/config` -> `bfd_strict_doctor.go`); substitute: `./le rfc discriminate id` per id (nothing stale for this spec's ids), `./le rfc update` clean in the implementation commits |
+| `./le verify changed` | owed to the main thread | scoped verify after the closing commits (`/ze-close` step 6f) |
+| `./le repo compiles check` | OK after fc6b8b4c55 | reported by the implementation session |
+
+## Core Insight
+
+The client's inner address is runtime state of the gateway, not configuration: it belongs to a registry that outlives every pool edit, lands on the remote selector, and is answered only inside what the peer proposed.

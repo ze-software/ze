@@ -5,7 +5,7 @@
 | Status | design |
 | Priority | P0 |
 | Release reason | Implement the owner-selected repair for ignored remote-access authentication and pool configuration. |
-| Depends | `plan/release/fixes/spec-ike-virtual-ip-assignment.md` (owns all Configuration-payload work since 2026-10-26; was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
+| Depends | - (was `spec-ike-virtual-ip-assignment`, the owner of all Configuration-payload work since 2026-10-26, closed 2026-10-26: `plan/learned/035-ike-virtual-ip-assignment.md`; before it `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
 | Phase | - |
 | Updated | 2026-07-31 |
 
@@ -73,7 +73,7 @@ So the missing pieces are admission, per-user credentials, and address assignmen
 ### Configuration-payload ownership pause
 
 The 2026-07-31 split below remains the recorded implementation ownership until
-Thomas answers OI-1 in `plan/release/fixes/spec-ike-virtual-ip-assignment.md`.
+Thomas answers OI-1 in `spec-ike-virtual-ip-assignment` (closed 2026-10-26).
 That sibling is the proposed address-assignment slice for configured responder
 peers; it is not a second CP implementation to schedule beside this one.
 Admission from unconfigured sources, per-user credentials, and `remote-access`
@@ -90,7 +90,7 @@ dropped by consolidation, and address assignment alone does not deliver
 road-warrior admission.
 
 **Ownership decided 2026-10-26 (design pass of the sibling).** The sibling
-`plan/release/fixes/spec-ike-virtual-ip-assignment.md` is now the SINGLE owner of
+`spec-ike-virtual-ip-assignment` (closed 2026-10-26, `plan/learned/035-ike-virtual-ip-assignment.md`) became the SINGLE owner of
 the Configuration-payload work: codec hardening, the lease registry and pool
 selection, CP receive sites, reply ordering, both refusal notifications, selector
 substitution, lease lifetime, optional attributes, visibility and the tagged and

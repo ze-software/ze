@@ -316,6 +316,7 @@ with the reason, instead of being matched or missed by a pattern.
 | gate-excludes-part-of-its-population | 2026-09-25 | the pretool-bash guard on shell writes to governed trees, `$(cat list.txt)` |
 | gate-excludes-part-of-its-population | 2026-10-08 | `localCommandRegistryFiles` (`internal/le/doc/yangcontract/contract.go`) |
 | gate-excludes-part-of-its-population | 2026-10-13 | `governedWrite` (`internal/le/hookruntime/bash.go`), interpreter running a script |
+| check-cannot-see-the-change-it-looks-for | 2026-10-26 | discrimination record `unit-sha`, `behaviorSHA` (`internal/le/rfc/discriminate.go`) |
 | check-cannot-see-the-change-it-looks-for | 2026-10-17 | RFC gate `behaviorBytes` comment stripping (`internal/le/rfc/tags.go`) |
 | check-cannot-see-the-change-it-looks-for | 2026-10-04 | `changedRFCUnits` (`internal/le/commit/rfcchange.go`) |
 | check-cannot-see-the-change-it-looks-for | 2026-09-05 | `./le verify reds file <path>`, `latestRun` (`internal/le/verify/reds.go`) |
