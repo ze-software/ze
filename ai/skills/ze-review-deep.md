@@ -556,8 +556,8 @@ they touched. Re-reading the whole diff every round never stops, because a
 diff of any size always yields something new, and the deep review is where that
 bites hardest. A finding outside the round's scope is still fixed when the goal
 depends on it, when you are unsure whether it does, or when it is one of the
-eight always-in-scope classes: `ai/rules/planning.md`, "Work Phases and
-the Review Loop", governs, and it is the only place those tests are written.
+eight always-in-scope classes: `ai/rules/planning.md`, "Bounding the
+loop", governs, and it is the only place those tests are written.
 
 ## Rules
 
@@ -568,4 +568,4 @@ the Review Loop", governs, and it is the only place those tests are written.
 - Each agent runs in the background -- launch all selected agents simultaneously.
 - If an agent finds nothing, that's fine -- report "clean" for that category.
 - If an agent times out, report "timed out" -- do not block the review.
-- False positive filter: discard linter-catchable issues and intentional changes clearly visible in the diff. Discard a finding on unmodified lines ONLY when the goal does not depend on it, and it is not one of the eight always-in-scope classes (`ai/rules/planning.md`, "Bounding the loop"). Those classes are never NOTEs. An unqualified unmodified-lines filter deletes exactly what they are. An absence sits on no changed line, so it would discard this skill's own "what DOESN'T exist" lens in full.
+- False positive filter: discard linter-catchable issues and intentional changes clearly visible in the diff. Discard a finding on unmodified lines ONLY when the goal does not depend on it, and it is not one of the eight always-in-scope classes (`ai/rules/planning.md`, "Work Phases and the Review Loop"). Those classes are never NOTEs. An unqualified unmodified-lines filter deletes exactly what they are. An absence sits on no changed line, so it would discard this skill's own "what DOESN'T exist" lens in full.

@@ -5,8 +5,8 @@ description: Implement Spec
 
 # Implement Spec
 
-Build the selected spec: wiring first, then feature phases, then one self-check
-pass of your own diff. **Closure is a separate skill** -- when this one ends,
+Build the selected spec: wiring first, then feature phases, with review loops
+until the diff is clean. **Closure is a separate skill** -- when this one ends,
 run `/ze-close`.
 
 See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closure commits), `/ze-audit` (check what exists first), `/ze-review` (the adversarial pass), `/ze-verify` (run tests)
@@ -248,12 +248,7 @@ Thomas's to start").
    `./le verify worktree`, `./le test unit all` or `./le test functional gating`:
    the full verification is Thomas's release check, and an agent gives him
    the exact command when one is owed.
-7. **Self-check (ONE pass, authoring, not the independent review):** this
-   context wrote the code, so what it does here is authoring and never counts
-   as a review round (`ai/rules/planning.md`, "Work Phases and the Review
-   Loop"). Make one pass, fix what it finds, and hand to `/ze-close`, whose
-   independent review loop owns the rounds. Use the spec's
-   **Critical Review Checklist** table. For each row:
+7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests, Style)
@@ -268,21 +263,15 @@ Thomas's to start").
    - **Prometheus counters:** If the feature has observable state (connections, errors, rates, gauges), verify counters are defined, registered in telemetry, and listed in the spec's Integration Checklist.
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
-8. **Fix every issue found** by the self-check. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
+8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
 9. **Re-run verification:** rerun only the tests that failed, each alone, until
    every one passes (`ai/rules/pre-release.md`). Then run step 6's targeted set
    once over what the fixes touched, under the same split as step 6: the scoped
    package test in a phase agent, the group and the suite from the main
    thread, and `./le verify changed` over the commit.
-10. **No second pass.** The self-check runs once; do not loop steps 7-9. A
-    re-read by the context that wrote the fixes is still authoring, and the
-    fixes are reviewed by `/ze-close`'s independent loop, which is bounded:
-    round 1 the whole diff, round N+1 only round N's fixes and the call sites
-    they touched, five rounds (`ai/rules/planning.md`, "Work Phases and the
-    Review Loop"). A test step 9 still finds red is implementation work, fixed
-    under the Rules below before you hand off.
+10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Work Phases and the Review Loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
-    the self-check's findings are fixed, every target is green, AND you have read the whole
+    steps 7-9 find nothing, every target is green, AND you have read the whole
     diff yourself, every phase agent's hunks included. Read it here, before the
     report: `/ze-close` runs the Review Gate. A report that calls the work green
     before anybody has read it makes that gate establish what you already
@@ -328,7 +317,7 @@ Thomas's to start").
 - **No deferred work.** Every item in the spec must be implemented fully before reporting completion. No TODOs, no stubs, no placeholder implementations, no "left as future work" notes, no comments like "// TODO: handle X later". If an item turns out to be blocked, ambiguous, or harder than expected, stop and raise it with the user to re-negotiate scope. Never silently skip or defer.
 - **Keep the agreed capability boundary.** A design's future work does not become current scope merely because it belongs to the same problem. Complete the agreed acceptance criteria. Ask before adding absent features or changing those criteria.
 - Do NOT skip the audit step -- re-implementing existing code wastes time
-- If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance.
+- If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed. (`/ze-close` makes the same check for the Deliverables, Security Review, and Documentation Update checklists it consumes.)
 - If the spec has a **Risks & Assumptions** section containing only template placeholder rows, STOP and ask the user to complete it (or confirm there are genuinely none). Specs created before the section existed are exempt -- do not retrofit without user request.
 - Before handing off, re-read the spec and confirm each item is actually implemented in the code
