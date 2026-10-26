@@ -40,17 +40,14 @@ const (
 	CPAttrInternalIP4Netmask uint16 = 2
 	CPAttrInternalIP4DNS     uint16 = 3
 	CPAttrInternalIP4NBNS    uint16 = 4
-	// CPAttrInternalAddressExpiry (5) is obsolete: RFC 7296 Section 1.7 removed it, and a
-	// receiver ignores it like any unrecognized attribute.
-	CPAttrInternalAddressExpiry uint16 = 5
-	CPAttrInternalIP4DHCP       uint16 = 6
-	CPAttrApplicationVersion    uint16 = 7
-	CPAttrInternalIP6Address    uint16 = 8
-	CPAttrInternalIP6DNS        uint16 = 10
-	CPAttrInternalIP6DHCP       uint16 = 12
-	CPAttrInternalIP4Subnet     uint16 = 13
-	CPAttrSupportedAttributes   uint16 = 14
-	CPAttrInternalIP6Subnet     uint16 = 15
+	// Type 5, INTERNAL_ADDRESS_EXPIRY, is obsolete: RFC 7296 Section 1.7 removed it, and
+	// a receiver ignores it like any unrecognized attribute, so it has no constant.
+	CPAttrInternalIP4DHCP     uint16 = 6
+	CPAttrApplicationVersion  uint16 = 7
+	CPAttrInternalIP6Address  uint16 = 8
+	CPAttrInternalIP6DNS      uint16 = 10
+	CPAttrInternalIP6DHCP     uint16 = 12
+	CPAttrSupportedAttributes uint16 = 14
 )
 
 // ConfigAttr is a single configuration attribute.

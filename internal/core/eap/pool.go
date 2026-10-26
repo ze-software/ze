@@ -480,8 +480,10 @@ func (r *Registry) HeldIn(pool *Pool, family Family) (held, capacity uint64, ok 
 	return held, capacity, true
 }
 
-// IsHeld reports whether addr is leased to anyone.
-func (r *Registry) IsHeld(addr netip.Addr) bool {
+// IsHeldForTest reports whether addr is leased to anyone. Production code reads the
+// registry through Acquire, Release and HeldIn; this lookup exists for the tests of
+// eap and of the IKE engine, which assert that one address is or is no longer held.
+func (r *Registry) IsHeldForTest(addr netip.Addr) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.byAddr[addr] != nil

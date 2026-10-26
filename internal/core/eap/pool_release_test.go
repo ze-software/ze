@@ -46,7 +46,7 @@ func TestPoolV6ReleaseRejectsAliasedAddress(t *testing.T) {
 		t.Fatalf("releasing an address the registry never leased returned %v; it freed "+
 			"another client's lease", err)
 	}
-	if !r.IsHeld(leased.Addr()) {
+	if !r.IsHeldForTest(leased.Addr()) {
 		t.Fatal("the rejected release of the alias freed the genuine lease")
 	}
 
@@ -57,10 +57,10 @@ func TestPoolV6ReleaseRejectsAliasedAddress(t *testing.T) {
 	if other.Addr() != alias {
 		t.Fatalf("the free in-prefix alias %s was not leased as requested, got %s", alias, other.Addr())
 	}
-	if !r.IsHeld(alias) {
+	if !r.IsHeldForTest(alias) {
 		t.Fatalf("the alias %s is not held after it was leased", alias)
 	}
-	if !r.IsHeld(leased.Addr()) {
+	if !r.IsHeldForTest(leased.Addr()) {
 		t.Fatalf("leasing the alias freed the original %s", leased.Addr())
 	}
 	if other.Addr() == leased.Addr() {
@@ -69,7 +69,7 @@ func TestPoolV6ReleaseRejectsAliasedAddress(t *testing.T) {
 	if err := r.Release(other); err != nil {
 		t.Fatalf("release the alias lease: %v", err)
 	}
-	if !r.IsHeld(leased.Addr()) {
+	if !r.IsHeldForTest(leased.Addr()) {
 		t.Fatal("releasing the alias freed another client's lease")
 	}
 

@@ -223,7 +223,7 @@ func TestVirtualIPPoolV6LeasesStayInsidePrefix(t *testing.T) {
 			if err := r.Release(l); err != nil {
 				t.Errorf("Release(%s) from pool %s: %v", l.Addr(), cidr, err)
 			}
-			if r.IsHeld(l.Addr()) {
+			if r.IsHeldForTest(l.Addr()) {
 				t.Errorf("%s is still held after its release from pool %s", l.Addr(), cidr)
 			}
 		})
@@ -261,7 +261,7 @@ func TestVirtualIPPoolV6ReleaseRejectsForeignAddress(t *testing.T) {
 	if err := r.Release(forged); !errors.Is(err, ErrNotAllocated) {
 		t.Fatalf("Release(%s): got %v, want ErrNotAllocated", foreign, err)
 	}
-	if !r.IsHeld(leased.Addr()) {
+	if !r.IsHeldForTest(leased.Addr()) {
 		t.Fatalf("the refused foreign release freed the lease %s", leased.Addr())
 	}
 
@@ -384,7 +384,7 @@ func TestOwnerGetsLastAddress(t *testing.T) {
 	if err := r.Release(again); err != nil {
 		t.Fatal(err)
 	}
-	if !r.IsHeld(first.Addr()) {
+	if !r.IsHeldForTest(first.Addr()) {
 		t.Fatal("the lease was freed while a holder remained")
 	}
 

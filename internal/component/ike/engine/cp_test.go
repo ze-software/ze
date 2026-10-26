@@ -182,7 +182,7 @@ func TestResponderCFGRequestLeasesFromBoundPool(t *testing.T) {
 	if !netip.MustParsePrefix("10.10.0.0/29").Contains(got) {
 		t.Fatalf("leased %v, want inside 10.10.0.0/29", got)
 	}
-	if !vip.leases.IsHeld(got) {
+	if !vip.leases.IsHeldForTest(got) {
 		t.Fatalf("the registry does not hold %v", got)
 	}
 	if saAt < 0 {
@@ -412,9 +412,12 @@ func TestNoCPReplyWithoutRequest(t *testing.T) {
 // obsolete INTERNAL_ADDRESS_EXPIRY are ignored, and an address request with the Reserved
 // bit set (cleared by the codec) is answered.
 func TestUnknownAttributesIgnored(t *testing.T) {
+	// internalAddressExpiry is type 5, which RFC 7296 Section 1.7 removed; the wire
+	// package carries no constant for it.
+	const internalAddressExpiry uint16 = 5
 	req := cfgRequest(
 		wire.ConfigAttr{Type: 0x3abc, Value: []byte{1, 2}},
-		wire.ConfigAttr{Type: wire.CPAttrInternalAddressExpiry},
+		wire.ConfigAttr{Type: internalAddressExpiry},
 		ip4Ask(netip.Addr{}),
 	)
 	buf := make([]byte, req.Len())
@@ -431,7 +434,7 @@ func TestUnknownAttributesIgnored(t *testing.T) {
 		t.Fatalf("reply %+v, want one INTERNAL_IP4_ADDRESS", cp)
 	}
 	for _, a := range cp.Attrs {
-		if a.Type == 0x3abc || a.Type == wire.CPAttrInternalAddressExpiry {
+		if a.Type == 0x3abc || a.Type == internalAddressExpiry {
 			t.Fatalf("reply echoes ignored type %d", a.Type)
 		}
 	}
@@ -502,7 +505,7 @@ func TestParallelReinitSharesLease(t *testing.T) {
 		t.Fatalf("held %d, want 1", n)
 	}
 	resp1.forgetKeys()
-	if !vip.leases.IsHeld(resp2.VirtualIPs()[0]) {
+	if !vip.leases.IsHeldForTest(resp2.VirtualIPs()[0]) {
 		t.Fatal("closing the superseded SA freed the live SA's address")
 	}
 }
@@ -545,7 +548,7 @@ func TestIKERekeyKeepsLease(t *testing.T) {
 		if retired.VirtualIPs() != nil {
 			t.Fatal("the retired SA still holds the lease after the swap")
 		}
-		if !vip.leases.IsHeld(lease) {
+		if !vip.leases.IsHeldForTest(lease) {
 			t.Fatal("the retired SA's close released the lease its successor holds")
 		}
 		if n := vip.leases.Held("rw"); n != 1 {

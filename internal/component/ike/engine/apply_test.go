@@ -342,7 +342,7 @@ func TestPoolEditKeepsLiveLease(t *testing.T) {
 			t.Fatalf("the live address %s was handed to a second peer after the pool edit", live.Addr())
 		}
 	}
-	if !vip.leases.IsHeld(live.Addr()) {
+	if !vip.leases.IsHeldForTest(live.Addr()) {
 		t.Fatal("the pool edit dropped the live lease")
 	}
 	if err := vip.leases.Release(live); err != nil {
