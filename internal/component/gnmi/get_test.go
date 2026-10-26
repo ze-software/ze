@@ -104,7 +104,7 @@ func TestGetEmptyPath(t *testing.T) {
 // the two it can use instead.
 // gNMI specification Section 3.3.1: "If the target does not support the
 // specified encoding, the target MUST return an error of `Unimplemented`."
-// Method: one request per Encoding value Ze cannot serialise.
+// Method: one request per Encoding value Ze cannot serialize.
 func TestGetRefusesUnadvertisedEncoding(t *testing.T) {
 	tree := zeconfig.NewTree()
 	bgp := zeconfig.NewTree()
@@ -129,7 +129,7 @@ func TestGetRefusesUnadvertisedEncoding(t *testing.T) {
 
 // TestGetAnswersEachJSONEncoding checks that Get answers a container in the
 // JSON member the request asked for, JSON when the request leaves the field
-// unset, over the same serialisation.
+// unset, over the same serialization.
 // gNMI specification Section 3.3.1: "If the encoding is not specified, JSON MUST
 // be used."
 // Method: one Get per encoding over the bgp container; JSON and an unset field
@@ -164,7 +164,7 @@ func TestGetAnswersEachJSONEncoding(t *testing.T) {
 			t.Fatalf("%s answered %v, want a JsonVal", name, val)
 		}
 		if string(val.GetJsonVal()) != string(ietf.GetJsonIetfVal()) {
-			t.Errorf("%s answered %s, JSON_IETF %s: the serialisation differs", name, val.GetJsonVal(), ietf.GetJsonIetfVal())
+			t.Errorf("%s answered %s, JSON_IETF %s: the serialization differs", name, val.GetJsonVal(), ietf.GetJsonIetfVal())
 		}
 	}
 }

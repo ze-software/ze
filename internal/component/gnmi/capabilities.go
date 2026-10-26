@@ -56,7 +56,7 @@ func (s *Server) loadModels() {
 }
 
 // answerEncoding is the JSON encoding a request asked Ze to answer in. Ze
-// serialises config one way, and the payload is valid JSON, so it serves both
+// serializes config one way, and the payload is valid JSON, so it serves both
 // JSON encodings from the same bytes and only the TypedValue member differs.
 //
 // gNMI specification Section 2.3.1: "Data specified with a type of JSON MUST be
@@ -79,7 +79,7 @@ const (
 var supportedEncodings = []gpb.Encoding{gpb.Encoding_JSON, gpb.Encoding_JSON_IETF}
 
 // answerEncodingFor answers the encoding a Get or Subscribe asked for, and an
-// Unimplemented status naming it for any encoding Ze cannot serialise. JSON is
+// Unimplemented status naming it for any encoding Ze cannot serialize. JSON is
 // the proto3 zero, so a request that leaves the field unset is answered in
 // JSON, which is what gnmic sends by default.
 //
@@ -104,11 +104,11 @@ func answerEncodingFor(requested gpb.Encoding) (answerEncoding, error) {
 // unsupportedEncoding is the refusal answerEncodingFor gives for requested.
 func unsupportedEncoding(requested gpb.Encoding) error {
 	return status.Errorf(codes.Unimplemented,
-		"encoding %s is not supported: Ze serialises config as JSON only, so set the request encoding to JSON or JSON_IETF (gnmic --encoding json_ietf)",
+		"encoding %s is not supported: Ze serializes config as JSON only, so set the request encoding to JSON or JSON_IETF (gnmic --encoding json_ietf)",
 		requested)
 }
 
-// typedValue wraps data, a JSON serialisation of config, in the TypedValue
+// typedValue wraps data, a JSON serialization of config, in the TypedValue
 // member of the encoding the request asked for.
 func (e answerEncoding) typedValue(data []byte) *gpb.TypedValue {
 	switch e {

@@ -99,6 +99,13 @@ linters:
         linters:
           - misspell
         text: "`prefered`"
+      # The gNMI specification Section 2.3.1 spells "serialise", and the quote
+      # above the code it governs is kept verbatim. Ze's own prose in these
+      # files uses the US spelling.
+      - path: "internal/component/gnmi/(capabilities|subscribe_test)\\.go"
+        linters:
+          - misspell
+        text: "`serialise`"
       # The website's home page names the plugin page "Plugin catalogue", as
       # its header does: published site wording is the owner's, not a lint fix.
       - path: "internal/le/site/homebody\\.go"
