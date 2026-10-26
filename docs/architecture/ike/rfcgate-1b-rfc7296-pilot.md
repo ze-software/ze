@@ -135,6 +135,23 @@ substitution is the identity.
 <!-- source: internal/component/ike/engine/ts_nat_substitute.go -- substituteResponderSelectors, substituteInitiatorSelectors, observedLocalAddress, observedRemoteAddress -->
 <!-- source: internal/component/ike/engine/sa.go -- BehindNAT, PeerBehindNAT, OriginalTSiAddr, OriginalTSrAddr -->
 
+**A leased virtual IP replaces the peer's proposed TSi, after the NAT
+substitution and before the policy match.** For a responder SA that holds a
+lease from a remote-access pool, `substituteVirtualIP` swaps the proposed
+initiator selectors for the leased host addresses, inside
+`narrowChildSelectors`, so every caller of that entry point gets it: the direct
+and EAP IKE_AUTH, the childless path and CREATE_CHILD_SA. The SPD match then
+judges the lease, and the narrowed TSi names it, whatever inner address the peer
+proposed. Two peers that propose the same address therefore get two distinct
+remote selectors, which is the duplicate inner address RFC 3948 Section 5.1
+warns of. A proposed selector of a family the lease does not cover is dropped.
+A pool-bound SA that holds no lease, or whose lease matches no proposed family,
+is refused with TS_UNACCEPTABLE rather than narrowed to the proposal. The
+selectors of a peer bound to no pool pass through unchanged.
+
+<!-- source: internal/component/ike/engine/cp.go -- substituteVirtualIP -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors -->
+
 ## Traps this code exists to avoid
 
 **Ze ships fail-closed on EAP-TLS over TLS 1.2 without RFC 7627.** A build-wide

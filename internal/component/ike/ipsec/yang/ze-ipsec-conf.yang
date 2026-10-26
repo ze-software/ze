@@ -596,11 +596,11 @@ module ze-ipsec-conf {
 
             container remote-access {
                 presence "Serve road warrior clients; the IKE group, the ESP group and the authentication mode are then required.";
-                description "Every pool is validated and built at each apply, and a site-to-site respond
-                    peer's virtual-ip-pool leaf binds it to one pool. Ze does not yet answer a
-                    CFG_REQUEST (RFC 7296 Section 2.19), so no peer is assigned an address from a pool.
-                    Admission of road warriors from unconfigured sources and the eap-user list are not
-                    served yet either, so an eap-user authenticates nobody.";
+                description "Every pool is built at each apply and serves the site-to-site respond peers
+                    whose virtual-ip-pool leaf names it: Ze answers their CFG_REQUEST with a lease
+                    (RFC 7296 Section 2.19). Admission of road warriors from unconfigured sources and the
+                    eap-user list are not served yet, so an eap-user authenticates nobody; configure a
+                    client as a respond peer with an EAP mode until that service exists.";
                 ze:help "Remote access VPN for road warrior clients (EAP).";
 
                 leaf ike-group {
@@ -686,8 +686,7 @@ module ze-ipsec-conf {
                     key "name";
                     description "Virtual IP pool for client address assignment (IKEv2 Configuration Payload,
                         RFC 7296 Section 2.19). Commit refuses two pools whose ranges overlap, because both
-                        could then lease one inner address to two peers (RFC 3948 Section 5.1). Ze does
-                        not yet assign addresses from a pool to peers.";
+                        could then lease one inner address to two peers (RFC 3948 Section 5.1).";
                     ze:help "Virtual IP pool for client address assignment.";
 
                     leaf name {
@@ -702,17 +701,19 @@ module ze-ipsec-conf {
                     leaf range {
                         type string;
                         description "Commit refuses a value that is not a CIDR prefix, and a prefix length
-                            outside /8 to /30. The pool's addresses are the prefix without the network
-                            address and the broadcast address, so a /30 holds two clients. An empty leaf
-                            gives the pool no IPv4 address. No address is sent to a client yet.";
+                            outside /8 to /30. The pool leases the addresses of the prefix without the
+                            network address and the broadcast address, so a /30 carries two clients. An
+                            empty leaf leases no IPv4 address. A client is sent its lease as
+                            INTERNAL_IP4_ADDRESS, with this prefix's mask as INTERNAL_IP4_NETMASK when it
+                            asks for one.";
                         ze:help "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.";
                     }
 
                     leaf range6 {
                         type string;
                         description "Commit refuses a value that is not a CIDR prefix, and a prefix length
-                            outside /48 to /126. An empty leaf gives the pool no IPv6 address. No address
-                            is sent to a client yet.";
+                            outside /48 to /126. An empty leaf leases no IPv6 address. A client is sent its
+                            lease as INTERNAL_IP6_ADDRESS with this prefix length.";
                         ze:help "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.";
                     }
 
@@ -720,7 +721,9 @@ module ze-ipsec-conf {
                         type string;
                         ordered-by user;
                         description "Each entry is one server address, IPv4 or IPv6, and commit refuses a value
-                            that is not an address. Ze does not yet send these servers to a client.";
+                            that is not an address. A client leased an address of one family is sent the
+                            servers of that family, as INTERNAL_IP4_DNS or INTERNAL_IP6_DNS (RFC 7296
+                            Section 3.15.1), whether or not it asked for them.";
                         ze:help "DNS server pushed to clients via IKEv2 Configuration Payload.";
                     }
 
@@ -816,11 +819,15 @@ module ze-ipsec-conf {
                     leaf virtual-ip-pool {
                         type string;
                         description "Names a pool declared under vpn ipsec remote-access pool, and commit refuses
-                            a name no pool carries. Commit also refuses the leaf unless connection-type is
-                            respond, and, when the peer has traffic selectors, unless a remote prefix covers
-                            the pool's ranges. Ze does not yet answer the peer's CFG_REQUEST: no address is
-                            assigned from the pool and the peer's traffic selectors are not narrowed to one.";
-                        ze:help "Remote-access pool bound to this respond peer.";
+                            a name no pool carries. The peer MUST then use connection-type respond and MUST
+                            send a CFG_REQUEST in IKE_AUTH: Ze leases it an inner address no other peer
+                            holds, answers with a CFG_REPLY, and narrows the peer's inner traffic selector
+                            to that address (RFC 7296 Section 2.19, RFC 3948 Section 5.1). A request Ze
+                            cannot serve refuses the Child SA with FAILED_CP_REQUIRED or
+                            INTERNAL_ADDRESS_FAILURE and keeps the IKE SA. When the peer has traffic
+                            selectors, a remote prefix must cover the pool's ranges. A bound peer declines
+                            transport mode.";
+                        ze:help "Remote-access pool this respond peer leases its inner address from.";
                     }
 
                     leaf connection-type {

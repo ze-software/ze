@@ -836,6 +836,31 @@ vpn {
 Native IKEv2 engine with XFRM dataplane. See [guide/configuration.md](guide/configuration.md) for the full reference.
 <!-- source: internal/component/ike/ipsec/config.go -- IPsec config parser -->
 
+#### Virtual IP pools
+
+```
+vpn {
+    ipsec {
+        remote-access {
+            pool <name> { range <ipv4-cidr>; range6 <ipv6-cidr>; dns <address>; }
+        }
+        site-to-site {
+            peer <name> { connection-type respond; virtual-ip-pool <name>; }
+        }
+    }
+}
+```
+
+A `respond` peer whose `virtual-ip-pool` names a pool is leased one inner address
+per family from it in IKE_AUTH, answered in a CFG_REPLY with the pool's DNS
+servers, and its Child SAs are narrowed to that address. `range` takes /8 to /30,
+`range6` /48 to /126. Commit refuses overlapping pools, an unknown pool name, the
+leaf on a peer that is not `respond`, traffic selectors whose remote prefixes do not
+cover the pool, and a `domain` leaf, which Ze does not support. See [guide/ipsec.md](guide/ipsec.md).
+<!-- source: internal/component/ike/ipsec/config.go -- parseVirtualIPPool -->
+<!-- source: internal/component/ike/ipsec/validate.go -- validateVirtualIPPools, ValidateVirtualIPPoolBindings -->
+<!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP, buildCFGReply -->
+
 ### XFRM Interfaces
 
 ```

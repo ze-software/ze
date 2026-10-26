@@ -244,6 +244,39 @@ the slot being occupied, never on which cycle filled it.
 <!-- source: internal/component/ike/engine/reconcile.go -- setPendingIKESwap -->
 <!-- source: internal/component/ike/engine/established.go -- runEstablished teardown defer -->
 
+**A pool-bound peer's inner address is granted after authentication, and every
+Child SA of that IKE SA names it.** A `respond` peer whose `virtual-ip-pool` leaf
+names a pool must send a CFG_REQUEST in IKE_AUTH (RFC 7296 Section 2.19).
+`decideCPRequest` reads the one CP payload of type Request through a handler
+table, so an unknown attribute type is ignored and SUPPORTED_ATTRIBUTES lists
+exactly the table's types. `assignVirtualIP` leases from the engine-wide registry
+after AUTH verifies: a request with no address attribute refuses the Child half
+with FAILED_CP_REQUIRED, and a pool that cannot serve the family with
+INTERNAL_ADDRESS_FAILURE (Section 3.15.4). Both keep the IKE SA. The CFG_REPLY
+carries the address, the netmask only beside an IPv4 address, the pool's DNS
+servers of each leased family, and an empty APPLICATION_VERSION when asked. It
+goes before SAr2 (Section 2.19), in the final IKE_AUTH of an EAP exchange and in
+the childless response too.
+
+`substituteVirtualIP` replaces the peer's proposed inner selector with the lease
+in `narrowChildSelectors`, before the policy match, so the SPD lookup judges the
+leased address and two peers proposing the same address get two distinct
+selectors (RFC 3948 Section 5.1). A CREATE_CHILD_SA of the same IKE SA narrows
+the same way. A bound peer declines transport mode.
+
+The lease lives as long as the IKE SA or its rekeyed successors (Section
+3.15.1). `forgetKeys` releases it, and `adoptRekeyedIKESA`, the one swap site
+of both rekey directions, moves it to the successor before the retired SA
+forgets its keys, so a rekey neither releases nor re-acquires. A peer that does
+not reach this code, an unbound one, gets no CP in its response, as before. An
+INFORMATIONAL CFG_REQUEST also gets no CP: Section 2.20 allows "no CP payload"
+as the decline of a version request.
+
+<!-- source: internal/component/ike/engine/cp.go -- decideCPRequest, cpHandlers, assignVirtualIP, buildCFGReply, substituteVirtualIP, moveVirtualIP -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors -->
+<!-- source: internal/component/ike/engine/established.go -- adoptRekeyedIKESA -->
+<!-- source: internal/component/ike/engine/transport_mode.go -- decideResponderTransportMode -->
+
 ## Traps this code exists to avoid
 
 **A new responder role needs a half-open timeout.** A peer that sends

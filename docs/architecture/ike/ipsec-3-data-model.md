@@ -69,6 +69,22 @@ nobody listed it.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, AuthConfig.Equal -->
 
+**A remote-access pool is a named value, and a peer binds to it by name.**
+`RemoteAccessConfig.Pools` maps each `remote-access pool` name to a
+`VirtualIPPool` (its `range`, `range6` and `dns`). A `site-to-site` peer's
+`virtual-ip-pool` leaf is `SiteToSitePeer.VirtualIP`, a `*VirtualIPBinding`
+read through `VirtualIPPoolName`, nil for an unbound peer. It is a pointer
+because `SiteToSitePeer` sits at gocritic's hugeParam edge
+(`types_size_test.go`), and a 16-byte string did not fit. Commit refuses
+overlapping pools, because both could lease one inner address to two peers
+(RFC 3948 Section 5.1), an unknown pool name, the leaf on a peer whose
+`connection-type` is not `respond`, traffic selectors whose remote prefixes do
+not cover the pool, and a `domain` leaf, which Ze does not support. The engine builds the pools into one lease registry at
+each apply, and its responder leases from them (`ipsec-14-responder.md`).
+
+<!-- source: internal/component/ike/ipsec/types.go -- VirtualIPBinding, VirtualIPPoolName, VirtualIPPool, RemoteAccessConfig -->
+<!-- source: internal/component/ike/ipsec/validate.go -- validateVirtualIPPools, validateVirtualIPPool, ValidateVirtualIPPoolBindings -->
+
 ## Traps this code exists to avoid
 
 The linters in this repository push back on four shapes in this package. Each

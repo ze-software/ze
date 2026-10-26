@@ -138,6 +138,31 @@ See
 
 <!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges, setGaugeSeries -->
 
+**`show vpn ipsec sa` lists a leased inner address under `virtual-ip`.** The key
+is a list of address strings, one per family the IKE SA leased from its peer's
+`virtual-ip-pool` (RFC 7296 Section 2.19), and it reads as an empty list, never
+null, on an SA that holds no lease: holding none is a fact the engine knows.
+`| json` carries the same list.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap, virtualIPText -->
+<!-- source: internal/component/ike/engine/cp.go -- VirtualIPs -->
+
+**Virtual-IP pool utilization is runtime state, read from the running engine.**
+A full remote-access pool refuses the next client with INTERNAL_ADDRESS_FAILURE
+(RFC 7296 Section 3.15.4), and nothing on the operator's side says so until a
+client complains. Two readers report it. The gauge
+`ze_ipsec_virtual_ip_leases{pool}` is the count of leases live IKE SAs hold in
+each pool, and a pool the configuration no longer carries loses its series. The
+doctor check `ipsec-virtual-ip-pool` (code `doctor-ipsec-virtual-ip-pool`) warns
+for each family of a pool at or above 90% held, naming the pool, the counts, and
+the fix: widen `range` or `range6`, or bind some peers to another pool. Both read
+the running SA table, as `ipsec-udp-encap` reads its socket state, because the
+config tree holds no lease. With no engine running each reports nothing.
+
+<!-- source: internal/component/ike/engine/doctor_virtual_ip.go -- virtualIPPoolUsage, checkIPsecVirtualIPPool -->
+<!-- source: internal/component/ike/engine/metrics.go -- publishVirtualIPGauges -->
+<!-- source: internal/core/eap/pool.go -- Registry.HeldIn -->
+
 ## Traps this code exists to avoid
 
 **Importing the engine from a show handler registers the plugin everywhere.**

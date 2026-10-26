@@ -137,7 +137,7 @@ come up.
 | MOBIKE, RFC 4555 | Tunnel-mode endpoint movement as initiator or responder, with authenticated return-routability checks; requires the Linux atomic XFRM state-migration API |
 | Denial-of-service | COOKIE challenge before a half-open slot is committed, and the INVALID_KE_PAYLOAD group retry |
 | Dataplane read-back | `show vpn ipsec dataplane` reads the kernel SAD and SPD, and a drift check compares them against the engine |
-| Virtual IP pool | Not wired. The `remote-access` container parses and no session reads it |
+| Virtual IP pool | A `respond` peer with `virtual-ip-pool` is leased a unique inner address from the named `remote-access pool` in IKE_AUTH (RFC 7296 Section 2.19), and its Child SAs name that address |
 
 ## MOBIKE endpoint movement
 
@@ -220,11 +220,20 @@ vpn {
 
 For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }`, `eap-tls` or `eap-md5`, then reference a device `certificate` and `ca-certificate` from the PKI store. Configure the client as a `site-to-site` peer. Read the EAP MD5-Challenge section below before you select `eap-md5`.
 
-The `remote-access` container is not wired yet. It parses, and no session reads
-it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
-`plan/release/fixes/spec-ipsec-remote-access.md` owns the work.
+A `remote-access pool` serves the `site-to-site` peers whose `virtual-ip-pool` leaf
+names it. Such a peer must use `connection-type respond` and send a CFG_REQUEST in
+IKE_AUTH: Ze leases it an inner address no other live peer holds (RFC 3948 Section
+5.1), answers with a CFG_REPLY carrying the address and the pool's DNS servers, and
+narrows every Child SA of that IKE SA to the address. A bound peer that asks for no
+address is refused its Child SA with FAILED_CP_REQUIRED, and one Ze cannot serve
+with INTERNAL_ADDRESS_FAILURE; both keep the IKE SA. The address returns to the
+pool when the IKE SA ends, and the same peer gets it back on reconnect while it is
+free. `show vpn ipsec sa` lists it under `virtual-ip`. Admission of clients from
+unconfigured sources and the `eap-user` list are not served yet, so an `eap-user`
+authenticates nobody; `plan/release/fixes/spec-ipsec-remote-access.md` owns that.
 
-<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState.reload builds every pool; no responder code acquires a lease yet -->
+<!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP, buildCFGReply, substituteVirtualIP -->
+<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState.reload builds every pool -->
 
 Every EAP mode and X.509 needs a `ca-certificate`. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
@@ -1426,6 +1435,14 @@ SAs under each interface ID used by an installed Child SA.
 identity. Kernel expiry or an external flush can produce drift while
 `ze_ipsec_tunnel_up` still reports a successful install.
 <!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges -->
+
+`ze_ipsec_virtual_ip_leases{pool}` counts the virtual IP addresses live IKE SAs
+hold in each `remote-access pool`. `ze doctor` warns under `ipsec-virtual-ip-pool`
+when one family of a pool is at least 90% held, because a full pool refuses the
+next client with INTERNAL_ADDRESS_FAILURE; widen `range` or `range6`, or bind some
+peers to another pool.
+<!-- source: internal/component/ike/engine/metrics.go -- publishVirtualIPGauges -->
+<!-- source: internal/component/ike/engine/doctor_virtual_ip.go -- checkIPsecVirtualIPPool -->
 
 A failed or changing dataplane observation removes both gauge families'
 previous series. Absent series mean the observation is unknown, not that the
