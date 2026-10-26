@@ -120,6 +120,7 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 	// (peer_close.go).
 	leave.notified = p.notificationExchanged.Load()
 	leave.closed = sessionCloseFor(leave.notified, event, closeCause(session))
+	leave.closed.generation = p.forwardGeneration.Load()
 	if leave.notified {
 		leave.closed.notification = p.closingNotification()
 	}
@@ -254,7 +255,7 @@ func (p *Peer) endNegotiatedSession(session *Session) {
 	if reactor.eventDispatcher == nil {
 		return
 	}
-	closed := sessionClose{reason: rpc.ReasonTCPFailure}
+	closed := sessionClose{reason: rpc.ReasonTCPFailure, generation: p.forwardGeneration.Load()}
 	if closeCause(session) != nil {
 		closed.reason = rpc.ReasonLocalClose
 	}

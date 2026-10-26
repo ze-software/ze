@@ -530,6 +530,11 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)
 		buf = append(buf, '"')
 	}
+	if peer.SessionGeneration != 0 {
+		buf = append(buf, `,"session-generation":"`...)
+		buf = strconv.AppendUint(buf, peer.SessionGeneration, 10)
+		buf = append(buf, '"')
+	}
 	buf = appendUnheldRolesJSON(buf, unheldRoles)
 	buf = append(buf, `}}`...)
 	buf = append(buf, '\n')

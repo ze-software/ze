@@ -203,13 +203,30 @@ also delivers the DOWN, so every earlier forward of the source was issued
 before the DOWN is handled. Both apply the same retention filter first: a
 family `bgp-gr` still retains for the source (GR or LLGR) is left out of the
 batches, because the RIB owns those routes and their eventual purge. No received-message cut
-travels with them: the reactor's writer owes a key only where the departed
-source owns it through a session that is no longer current, so a reconnected
-session's newer route is never taken for the old one. The
+travels with them. Each departure names instead the session whose end it
+answers: the `session-generation` of the down (`docs/architecture/api/json-format.md`,
+"State Events") travels as `recovery-generation` meta beside `recovery-source`,
+a decimal string, and `bgptypes.NLRIBatch.RecoveryGeneration` carries it into
+the reactor. The engine refuses a departure with `recovery-source` and no
+`recovery-generation`, or with an unparsable or zero one, rather than reading
+it as any session. A departure still waiting when the same source goes down
+again merges with the newer one, and each route keeps the generation of the
+down that queued it last, so the merged command groups routes by generation
+and sends each group under its own bound. The reactor's writer owes a key only
+where the departed source owns it through a session that is no longer current
+and that is the named session or an older one (the departure bound), so
+neither a reconnected session's newer route nor one a newer session wrote and
+then lost under graceful restart is taken for the old one: RFC 4724 Section 4.2
+says the speaker MUST retain the routes of a peer that restarts. The
 reactor asks the RIB about one destination at a time, and each requested key
 carries its own excluded-source set: a departure puts the departed source in
 it, and an empty set excludes nobody, so the withdrawing source's other
-received paths stay electable. There is no mode field; the two triggers differ
+received paths stay electable. An exclusion is bounded too
+(`adjOutExclusion`): a source that announced the key again after the
+departure owed it is lifted from the set when that announcing session is
+still current, or newer than the bound, so a source that re-announced the key
+and then restarted under graceful restart stays electable and its retained
+route is not skipped (`adjOutOwed.electableExcluded`). There is no mode field; the two triggers differ
 only in data. The RIB skips every candidate of an excluded source, the
 destination's own candidates and those of down peers, without deleting any
 received state from a possibly reconnected session. Election needs no sent
@@ -237,12 +254,15 @@ including zero, and including one its reconnected session advertised, because
 the RIB holds no session generation. The writer withdraws only an identifier
 whose owner is no longer current: the session that wrote it has ended, or a
 reload has since unbound processes from that still-running session
-(`Peer.forwardRevocation`). The reconnected session's path stays. The external
+(`Peer.forwardRevocation`). The reconnected session's path stays, and so does
+an identifier written by a session newer than the record's departure bound
+that has since ended too: graceful restart retains it, and only that
+session's own departure withdraws it (`adjOutWrite.recoverySpares`). The external
 command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
 `<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
 bgp-rr reaches this path with one departure command per family and command
-form, carrying `recovery-source` meta and naming each route with its own `del`
+form, carrying `recovery-source` and `recovery-generation` meta and naming each route with its own `del`
 keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
@@ -250,7 +270,9 @@ keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture, sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture -->
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer -->
-<!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow, recoverySpares -->
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutExclusion, electableExcluded, announcerLifts, spares -->
+<!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
 write: B's retained stale path is elected for C, then B's End-of-RIB purges it.
@@ -349,7 +371,15 @@ newer revision. A survivor whose live source accepted more UPDATEs
 since the round's cut is still written: an UPDATE of the key itself reaches the
 destination's writer as a mover or as a later write, so a busy source never
 postpones the decision. A survivor whose source session changed owes only its own key again,
-with that source excluded. Siblings do not invalidate one another, and
+with that source excluded. A survivor whose source has no Established session
+to send it from (a source graceful restart holds, or one going away) cannot be
+written. Where the destination already holds that source's path, whatever its
+revision, the key is held and nothing is written: the newer revision waits for
+the source's next session to announce it, and the source's own departure or
+the RIB's stale purge withdraws the path if the source does not return. An
+ADD-PATH key, owed per prefix, never holds this way. Otherwise the key is
+owed again with the source excluded over every session known so far
+(`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release
 answers one completion after releasing all child resources, including
 cancellation and pool shutdown, and a canceled or unrun admission leaves its
@@ -383,8 +413,9 @@ DOWN operation on their departure workers under the plugin lifecycle context,
 and stop and join those workers at shutdown, without an unrelated
 60-second command expiry. Unrelated output never cancels a
 required repair, and a newer target owner is protected at owe time: a
-departure owes nothing where another source, or the source's current session,
-owns the key, unless a reload unbound processes from that session after it
+departure owes nothing where another source, the source's current session,
+or a session of the source newer than the one the departure names owns the
+key, unless a reload unbound processes from that session after it
 wrote the key. A hard projection, lookup or writer failure retires the
 affected destination session through the existing AutomaticStop/Cease path
 rather than leaving known-invalid advertisements installed. An admission that
@@ -398,7 +429,7 @@ Replacement UPDATEs pass ordinary egress policy and reflection rules; a
 policy-denied replacement withdraws the obsolete advertised identity.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoveryCandidate, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, departedOwner, drainRecoverySources, recoveryAdmission.admit, settle -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, departedOwner, unsendableSurvivor, heldSurvivor, drainRecoverySources, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/plugin/process/delivery.go -- DrainEventsApplied -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites, releaseItem -->
 <!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker.run -->

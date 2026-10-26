@@ -121,6 +121,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.EventType = rpc.EventKindState
 	se.State = state
 	se.InitialReplay = peer.InitialReplay
+	se.SessionGeneration = peer.SessionGeneration
 	se.Reason = reason
 	se.FSMEvent = peer.CloseFSMEvent
 	return se

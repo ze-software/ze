@@ -20,7 +20,7 @@ All parsed text events start with `peer <address> remote as <asn>`. State events
 
 | Shape | Layout | Used by |
 |-------|--------|---------|
-| State | `peer <address> remote as <asn> state <state> [reason <reason>] [initial-replay <receipt>]` | State change events |
+| State | `peer <address> remote as <asn> state <state> [reason <reason>] [initial-replay <receipt>] [session-generation <n>]` | State change events |
 | Message | `peer <address> remote as <asn> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
 <!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
 <!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
@@ -44,6 +44,19 @@ its work finishes. Readers that do not report readiness read the value after
 `state`; the state is not necessarily the last token. The suffix is omitted
 when no Session receipt exists.
 
+`session-generation` appears on a down only. It is the nonzero decimal forward
+generation of the session the down ended, captured when that session closed,
+so a down read after a reconnect still names the old session. A forwarding
+plugin (`bgp-rs`, `bgp-rr`) stamps the departure it sends for that down with
+the same value as `recovery-generation` route metadata, and the engine owes
+only routes written by that session or an older one of the source
+(`docs/architecture/plugin/rib-storage-design.md`, "Source-DOWN replacement and sent ordering").
+The engine refuses a departure that names no generation rather than reading
+it as any session.
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionClose -->
+<!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText -->
+
 This is Ze's native IPC format, not the ExaBGP script protocol. The ExaBGP
 bridge consumes Ze JSON events and uses its own compatibility encoder to write
 `neighbor <address> up` or `neighbor <address> down - <reason>`; it does not
@@ -53,7 +66,7 @@ forward this bookkeeping suffix.
 
 ```
 <message>       ::= <state-event> | <message-event>
-<state-event>   ::= "peer" <address> "remote" "as" <remote-as> "state" <state-value> [<reason>] [<initial-replay>] LF
+<state-event>   ::= "peer" <address> "remote" "as" <remote-as> "state" <state-value> [<reason>] [<initial-replay>] [<session-generation>] LF
 <message-event> ::= "peer" <address> "remote" "as" <remote-as> <direction> <type> <msgid> <body> LF
 
 <direction>     ::= "received" | "sent"
@@ -61,6 +74,7 @@ forward this bookkeeping suffix.
 <state-value>   ::= "up" | "down"
 <reason>        ::= "reason" <token>
 <initial-replay> ::= "initial-replay" <uint64-decimal>
+<session-generation> ::= "session-generation" <uint64-decimal>
 
 <update-body>   ::= <attribute>* <nlri-section>* | <empty>
 <nlri-section>  ::= ["next" <address>] "nlri" <family> [<path-info>] <action> <nlri-token>+
@@ -210,7 +224,7 @@ peer 10.0.0.1 remote as 65001 state up initial-replay 42
 
 peer 10.0.0.1 remote as 65001 state down
 
-peer 10.0.0.1 remote as 65001 state down reason tcp-failure
+peer 10.0.0.1 remote as 65001 state down reason tcp-failure session-generation 3
 
 peer 10.0.0.1 remote as 65001 received update 1 origin igp path 65001,65002 pref 100 next 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
 

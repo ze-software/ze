@@ -133,6 +133,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 
 			batch := adjOutBatch(prefix.String(), "10.0.0.1")
 			batch.RecoverySource = a.peer.Settings().Address
+			batch.RecoveryGeneration = a.peer.forwardGeneration.Load()
 			lowLiveDepart(t, a)
 			session := destination.peer.currentSession()
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)

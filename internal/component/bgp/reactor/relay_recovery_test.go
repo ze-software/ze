@@ -69,9 +69,11 @@ func recoveryOwnerStart(t *testing.T, r *Reactor, destination *Peer) {
 }
 
 // recoveryDepartureBatch is bgp-rs's departure command for source over the
-// IPv4 prefixes.
+// IPv4 prefixes, covering every session of the source so far: its callers
+// test the decision, not which session a departure answers.
 func recoveryDepartureBatch(source netip.Addr, prefixes ...string) bgptypes.NLRIBatch {
-	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source}
+	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
+		RecoveryGeneration: adjOutEverySession}
 	for _, prefix := range prefixes {
 		batch.NLRIs = append(batch.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false))
 	}
@@ -451,7 +453,7 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 	require.Len(t, parsed.Groups, 1)
 	r := source.peer.reactor
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-		RecoverySource: source.peer.Settings().Address}
+		RecoverySource: source.peer.Settings().Address, RecoveryGeneration: source.peer.forwardGeneration.Load()}
 	api := &reactorAPIAdapter{r: r}
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -502,7 +504,7 @@ func TestRecoveryHardFailureRetiresDestination(t *testing.T) {
 	defer cancel()
 	err = (&reactorAPIAdapter{r: source.peer.reactor}).recoverNLRIBatch(ctx,
 		bgptypes.NLRIBatch{Family: family.IPv4Unicast, NLRIs: parsed.Groups[0].Withdraw,
-			RecoverySource: source.peer.Settings().Address},
+			RecoverySource: source.peer.Settings().Address, RecoveryGeneration: source.peer.forwardGeneration.Load()},
 		[]*Peer{destination.peer}, plugin.OperatorSender())
 	require.NoError(t, err, "the owed keys complete with the retired session")
 	lowEventually(t, func() bool {

@@ -141,7 +141,7 @@ func (rs *routeServer) handleState(event *Event) {
 	logger().Debug("peer state applied", "peer", peerAddr, "state", state)
 
 	if state == "down" {
-		rs.handleStateDown(peerAddr)
+		rs.handleStateDown(peerAddr, event.SessionGeneration)
 	}
 }
 
@@ -153,9 +153,11 @@ const withdrawalBatchSize = 500
 
 // handleStateDown processes peer session teardown.
 // Reconciles sent ownership asynchronously on the plugin's departure workers
-// (enqueueDeparture), never on the event delivery goroutine.
+// (enqueueDeparture), never on the event delivery goroutine. Every entry is
+// stamped with generation, the down's session-generation, which the engine
+// bounds the departure by.
 // Batches native/text identities by family; the RIB elects any replacement.
-func (rs *routeServer) handleStateDown(peerAddr string) {
+func (rs *routeServer) handleStateDown(peerAddr string, generation uint64) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
 	// updates for this peer can occur.
@@ -181,7 +183,11 @@ func (rs *routeServer) handleStateDown(peerAddr string) {
 		}
 		if keep {
 			delete(entries, wk)
+			continue
 		}
+		entry := entries[wk]
+		entry.generation = generation
+		entries[wk] = entry
 	}
 
 	if len(entries) == 0 {
@@ -250,6 +256,9 @@ type withdrawalGroup struct {
 	fam      string
 	wireForm bool
 	addPath  bool
+	// generation is the departed session the group's entries belong to: a
+	// merged departure sends each session's entries under its own bound.
+	generation uint64
 }
 
 // sendBatchedWithdrawals groups withdrawal entries by family and command form
@@ -281,18 +290,21 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	for wk, entry := range entries {
 		// CIDR and native VPN identities retain the latest announcement's hex.
 		if entry.wire != "" {
-			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath}
+			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath,
+				generation: entry.generation}
 			byGroup[g] = append(byGroup[g], entry.wire)
 			continue
 		}
 		// An ADD-PATH unicast route has no text spelling that keeps its Path
 		// Identifier in a batch, so it goes out as its native NLRI.
 		if wk.nlriStr == "" && wk.addPath {
-			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: true}
+			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: true,
+				generation: entry.generation}
 			byGroup[g] = append(byGroup[g], addPathUnicastHex(wk.pathID, wk.prefix))
 			continue
 		}
-		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath}
+		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath,
+			generation: entry.generation}
 		if wk.nlriStr == "" {
 			byGroup[g] = append(byGroup[g], tb.Reset().Str("prefix ").Prefix(wk.prefix).String())
 		} else {
@@ -341,7 +353,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 			command := buf.String()
 			// The engine chooses replacement or withdrawal from the selecting
 			// RIB, then queues it behind this destination's prior forwards.
-			rs.recoverRouteSel(excludeSel, command, peerAddr)
+			rs.recoverRouteSel(excludeSel, command, peerAddr, g.generation)
 		}
 	}
 }

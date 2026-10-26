@@ -173,7 +173,7 @@ func TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 					rrApplyVPN(t, rr, fam, addPath, 14, route)
 				}
 				rrApplyVPN(t, rr, fam, addPath, 15, rrVPNRoute(fam, addPath, 0, 1, 10, 0x800000))
-				rr.handleStateDown("192.0.2.1")
+				rr.handleStateDown("192.0.2.1", 7)
 				var command string
 				select {
 				case command = <-commands:

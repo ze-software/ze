@@ -260,7 +260,8 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 
 // appendStateChangeText appends a peer state change text line to buf,
 // terminated by '\n'.
-// Format: peer <ip> remote as <asn> state <state> [reason <reason>] [initial-replay <receipt>].
+// Format: peer <ip> remote as <asn> state <state> [reason <reason>] [initial-replay <receipt>]
+// [session-generation <n>].
 func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
@@ -276,6 +277,10 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	if peer.InitialReplay != 0 {
 		buf = append(buf, " initial-replay "...)
 		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)
+	}
+	if peer.SessionGeneration != 0 {
+		buf = append(buf, " session-generation "...)
+		buf = strconv.AppendUint(buf, peer.SessionGeneration, 10)
 	}
 	buf = append(buf, '\n')
 	return buf

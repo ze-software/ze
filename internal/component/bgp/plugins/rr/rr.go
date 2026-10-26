@@ -293,13 +293,18 @@ func (rr *routeReflector) updateRouteWithMeta(peerSelector, command string, meta
 // its own Path Identifier to be associated with the re-advertised route." The
 // command names the source's identifiers, so only the engine, which minted the
 // destination's, can withdraw the path that destination holds.
-func (rr *routeReflector) recoverRouteSel(sel *selector.Selector, command, source string) {
+//
+// recovery-generation names the session whose end the departure answers, so
+// the engine owes only routes that session or an older one of the source
+// wrote, never a newer session's route graceful restart retains.
+func (rr *routeReflector) recoverRouteSel(sel *selector.Selector, command, source string, generation uint64) {
 	ctx := rr.downCtx
 	if ctx == nil {
 		// Struct-literal unit owners have no running plugin lifecycle.
 		ctx = context.Background()
 	}
-	meta := map[string]any{"recovery-source": source}
+	meta := map[string]any{"recovery-source": source,
+		"recovery-generation": strconv.FormatUint(generation, 10)}
 	_, _, err := rr.plugin.UpdateRouteSelWithMeta(ctx, sel, command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rr.stopping.Load() {
@@ -355,7 +360,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 		go rr.replayForPeer(se.PeerAddress, gen, se.InitialReplay)
 	case rpc.SessionStateDown:
 		rr.mu.Unlock()
-		rr.handleStateDown(se.PeerAddress)
+		rr.handleStateDown(se.PeerAddress, se.SessionGeneration)
 	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
 		rr.mu.Unlock()
 	default:
@@ -365,7 +370,8 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 }
 
 // handleStateDown hands every route the downed source peer still announces to
-// the engine as a source-DOWN recovery (recoverRouteSel), except the routes of
+// the engine as a source-DOWN recovery (recoverRouteSel), stamped with the
+// peer-down's session generation, except the routes of
 // a family bgp-gr retains for the source (GR or LLGR). Routes are batched by
 // family, wire form and ADD-PATH to minimize RPCs. The engine, not this plugin,
 // names what each destination is sent: the best surviving route, or the
@@ -380,7 +386,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 // race within the structured path. The withdrawalMu guards against the
 // (theoretical) case of text and structured paths processing the same peer
 // concurrently.
-func (rr *routeReflector) handleStateDown(peerAddr string) {
+func (rr *routeReflector) handleStateDown(peerAddr string, generation uint64) {
 	rr.withdrawalMu.Lock()
 	entries := rr.withdrawals[peerAddr]
 	delete(rr.withdrawals, peerAddr)
@@ -407,7 +413,10 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		}
 		if keep {
 			delete(entries, key)
+			continue
 		}
+		info.Generation = generation
+		entries[key] = info
 	}
 
 	if len(entries) == 0 {
@@ -484,6 +493,9 @@ type withdrawalGroup struct {
 	family   family.Family
 	wireForm bool
 	addPath  bool
+	// generation is the departed session the group's routes belong to: a
+	// merged departure sends each session's routes under its own bound.
+	generation uint64
 }
 
 // sendPeerDown runs one departure on a departure worker. It sends the
@@ -493,7 +505,8 @@ type withdrawalGroup struct {
 func (rr *routeReflector) sendPeerDown(source netip.Addr, entries map[string]withdrawalInfo) {
 	byGroup := make(map[withdrawalGroup][]string)
 	for _, info := range entries {
-		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath}
+		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath,
+			generation: info.Generation}
 		byGroup[group] = append(byGroup[group], info.Prefix)
 	}
 
@@ -507,7 +520,7 @@ func (rr *routeReflector) sendPeerDown(source netip.Addr, entries map[string]wit
 		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 			end := min(i+withdrawalBatchSize, len(prefixes))
 			if !group.wireForm {
-				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), prefixes[i:end]), recoverySource)
+				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), prefixes[i:end]), recoverySource, group.generation)
 				continue
 			}
 			// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
@@ -524,7 +537,7 @@ func (rr *routeReflector) sendPeerDown(source netip.Addr, entries map[string]wit
 			for _, prefix := range prefixes[i:end] {
 				command.Str(" del ").Str(prefix)
 			}
-			rr.recoverRouteSel(excludeSel, command.String(), recoverySource)
+			rr.recoverRouteSel(excludeSel, command.String(), recoverySource, group.generation)
 		}
 	}
 }
@@ -615,15 +628,16 @@ func (rr *routeReflector) dispatchText(text string) {
 		if len(fields) >= 7 {
 			peerAddr := fields[1]
 			state := fields[6]
-			var initialReplay uint64
+			var initialReplay, sessionGeneration uint64
 			attached := false
 			for i := 7; i < len(fields); i++ {
 				if fields[i] == "reason" && i+1 < len(fields) && fields[i+1] == rpc.ReasonAttached {
 					attached = true
 				}
-				if fields[i] != "initial-replay" {
+				if fields[i] != "initial-replay" && fields[i] != "session-generation" {
 					continue
 				}
+				keyword := fields[i]
 				i++
 				if i == len(fields) {
 					return
@@ -631,6 +645,10 @@ func (rr *routeReflector) dispatchText(text string) {
 				token, err := strconv.ParseUint(fields[i], 10, 64)
 				if err != nil {
 					return
+				}
+				if keyword == "session-generation" {
+					sessionGeneration = token
+					continue
 				}
 				initialReplay = token
 			}
@@ -654,7 +672,7 @@ func (rr *routeReflector) dispatchText(text string) {
 				go rr.replayForPeer(peerAddr, gen, initialReplay)
 			case "down":
 				rr.mu.Unlock()
-				rr.handleStateDown(peerAddr)
+				rr.handleStateDown(peerAddr, sessionGeneration)
 			default: // other states (e.g. "connected")
 				rr.mu.Unlock()
 			}

@@ -87,7 +87,7 @@ func TestHandleStateDown_BatchesByFamily(t *testing.T) {
 	routes["ipv6/unicast|2001:db8:1::/48"] = withdrawalInfo{Family: family.IPv6Unicast, Prefix: "prefix 2001:db8:1::/48"}
 	rr.withdrawals[source] = routes
 
-	rr.handleStateDown(source)
+	rr.handleStateDown(source, 7)
 	rr.stopDepartures()
 	close(requests)
 

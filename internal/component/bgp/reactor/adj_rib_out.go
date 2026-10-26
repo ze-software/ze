@@ -6,8 +6,8 @@ package reactor
 
 import (
 	"bytes"
+	"math"
 	"net/netip"
-	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -103,6 +103,25 @@ type adjOutAnnouncer struct {
 	generation uint64
 }
 
+// adjOutExclusion is one source a record's election skips, bounded by the
+// newest forward generation (Peer.forwardGeneration) of that source's sessions
+// the exclusion covers: a departure's ended session, or a chosen survivor's
+// session that ended before its write. A later session of the source is not
+// excluded, so its route, graceful-restart retained or live, stays electable.
+// departed is the newest session a DEPARTURE covers, zero when none did: only
+// a departure says a path is gone, so only it lets a write withdraw one. A
+// survivor that could not be written says only that it cannot be sent.
+type adjOutExclusion struct {
+	source     netip.Addr
+	generation uint64
+	departed   uint64
+}
+
+// adjOutEverySession bounds an exclusion that covers every session of its
+// source known so far: a survivor whose source has no Established session to
+// relay from. Only a current announcer lifts it.
+const adjOutEverySession = math.MaxUint64
+
 // adjOutOwed is one key whose decision belongs to the destination's recovery
 // worker. It names the destination session it was owed to, and carries a copy
 // of the destination-framed NLRI, because the writer's bytes are pooled. A key
@@ -113,10 +132,11 @@ type adjOutOwed struct {
 	session *Session
 	family  family.Family
 	nlri    []byte
-	// excluded names the sources whose every candidate the election skips: a
-	// departed source, and a chosen survivor whose session ended before its
-	// write. An owner withdrawal or a lifecycle removal excludes nobody.
-	excluded []netip.Addr
+	// excluded names the sources whose candidates the election skips, each
+	// up to its session bound: a departed source, and a chosen survivor whose
+	// session ended before its write. An owner withdrawal or a lifecycle
+	// removal excludes nobody. Bounded by the configured sources.
+	excluded []adjOutExclusion
 	// epoch moves whenever the question asked of the RIB changes (a source
 	// is excluded), so an admission answering an older question leaves the
 	// key owed for the next round instead of writing a stale answer.
@@ -133,10 +153,11 @@ type adjOutOwed struct {
 	announced bool
 	// announcers are the source sessions that announced the key while it was
 	// owed. Unlike movers it is not cleared at snapshot and dies with the
-	// record: a round subtracts every still-current announcer from excluded,
-	// so a reconnected source's new route stays electable whichever of its
-	// departure and its re-announcement reached the writer first. Bounded by
-	// the configured sources.
+	// record: a round subtracts from excluded every source whose announcer is
+	// still current or newer than the exclusion's bound, so a reconnected
+	// source's new route stays electable whichever of its departure and its
+	// re-announcement reached the writer first, and after that new session
+	// ended under graceful restart. Bounded by the configured sources.
 	announcers []adjOutAnnouncer
 	// done is closed when the record leaves the owed set, whatever removed
 	// it: a decision, an originated announcement, or a table reset. A
@@ -161,14 +182,51 @@ func (a *adjRIBOut) owe(key adjOutKey, session *Session, fam family.Family, raw 
 	return record
 }
 
-// exclude adds source to the record's excluded set and moves the epoch, so a
-// round that asked without it never settles the key.
-func (o *adjOutOwed) exclude(source netip.Addr) {
+// exclude merges exclusion into the record's excluded set, raising each bound
+// of an existing exclusion of the source and never lowering one, and moves
+// the epoch, so a round that asked without it never settles the key. An older
+// session's departure merged later therefore never narrows what a newer one
+// covers.
+func (o *adjOutOwed) exclude(exclusion adjOutExclusion) {
 	o.epoch++
-	if slices.Contains(o.excluded, source) {
+	for i := range o.excluded {
+		existing := &o.excluded[i]
+		if existing.source != exclusion.source {
+			continue
+		}
+		existing.generation = max(existing.generation, exclusion.generation)
+		existing.departed = max(existing.departed, exclusion.departed)
 		return
 	}
-	o.excluded = append(o.excluded, source)
+	o.excluded = append(o.excluded, exclusion)
+}
+
+// exclusionOf returns the record's exclusion of source, and whether it has one.
+func (o *adjOutOwed) exclusionOf(source netip.Addr) (adjOutExclusion, bool) {
+	for _, exclusion := range o.excluded {
+		if exclusion.source == source {
+			return exclusion, true
+		}
+	}
+	return adjOutExclusion{}, false
+}
+
+// spares reports whether owner's path is newer than every departure the
+// record's exclusion of owner's source carries: written by a session no
+// departure covers, live or retained by graceful restart. A recovery write
+// withdraws nothing such a path holds. RFC 4724 Section 4.2: "it MUST
+// retain the routes received from the peer for all the address families that
+// were previously received in the Graceful Restart Capability and MUST mark
+// them as stale routing information." MUST be called with adjRIBOut.mu held.
+func (o *adjOutOwed) spares(owner adjOutPath) bool {
+	if owner.source == nil {
+		return false
+	}
+	exclusion, excluded := o.exclusionOf(owner.source.Settings().Address)
+	if !excluded {
+		return false
+	}
+	return owner.generation > exclusion.departed
 }
 
 // noteAnnouncer records a source-bound announcement of the key by owner: an
@@ -187,38 +245,43 @@ func (o *adjOutOwed) noteAnnouncer(owner adjOutPath, mover bool) {
 		}
 	}
 	o.announcers = append(o.announcers, adjOutAnnouncer{source: owner.source, generation: owner.generation})
-	if slices.Contains(o.excluded, owner.source.Settings().Address) {
+	if _, excluded := o.exclusionOf(owner.source.Settings().Address); excluded {
 		o.epoch++
 	}
 }
 
 // electableExcluded returns the excluded sources a round asks the RIB to
-// skip: excluded minus every source whose announcing session is still
-// current. A current session's route for the key is a valid candidate, and
-// the RIB already released or replaced the departed session's paths unless
-// GR retained them. RFC 4724 Section 4.2: "the Receiving Speaker MUST NOT
-// differentiate between stale and other routing information during
-// forwarding." The result is a fresh slice the caller may append to. MUST
-// be called with adjRIBOut.mu held.
+// skip: excluded minus every source with an announcer that is still current
+// or newer than the exclusion's bound. A current session's route for the
+// key is a valid candidate, a newer session's route that graceful restart
+// retained is one too, and the RIB already released or replaced the departed
+// session's paths unless GR retained them. The result is a fresh slice the
+// caller may append to. MUST be called with adjRIBOut.mu held.
 func (o *adjOutOwed) electableExcluded() []netip.Addr {
 	excluded := make([]netip.Addr, 0, len(o.excluded))
-	for _, addr := range o.excluded {
-		if o.announcerCurrent(addr) {
+	for _, exclusion := range o.excluded {
+		if o.announcerLifts(exclusion) {
 			continue
 		}
-		excluded = append(excluded, addr)
+		excluded = append(excluded, exclusion.source)
 	}
 	return excluded
 }
 
-// announcerCurrent reports whether addr names a current announcer.
-func (o *adjOutOwed) announcerCurrent(addr netip.Addr) bool {
+// announcerLifts reports whether an announcer of the exclusion's source lifts
+// it: its session is current, or newer than the exclusion's bound.
+func (o *adjOutOwed) announcerLifts(exclusion adjOutExclusion) bool {
 	for i := range o.announcers {
 		announcer := &o.announcers[i]
-		if announcer.source.Settings().Address != addr {
+		if announcer.source.Settings().Address != exclusion.source {
 			continue
 		}
-		return forwardSourceCurrent(announcer.source, announcer.generation)
+		if forwardSourceCurrent(announcer.source, announcer.generation) {
+			return true
+		}
+		// RFC 4724 Section 4.2: "The router MUST NOT differentiate between
+		// stale and other routing information during forwarding."
+		return announcer.generation > exclusion.generation
 	}
 	return false
 }

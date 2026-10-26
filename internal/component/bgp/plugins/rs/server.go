@@ -177,6 +177,11 @@ type withdrawalKey struct {
 type withdrawalEntry struct {
 	wire    string
 	addPath bool
+	// generation is the session-generation of the peer-down whose departure
+	// carries this entry, set by handleStateDown. A merged departure keeps
+	// each entry's own, so an older session's route never borrows a newer
+	// bound (enqueueDeparture).
+	generation uint64
 }
 
 // routeServer implements a BGP Route Server API plugin.
@@ -569,7 +574,10 @@ func (rs *routeServer) updateRouteWithMeta(peerSelector, command string, meta ma
 
 // recoverRouteSel sends a source-owned DOWN request through the normal UPDATE
 // grammar. The engine MUST reconcile against the RIB before admitting output.
-func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source string) {
+// recovery-generation names the session whose end the departure answers, so
+// the engine owes only routes that session or an older one of the source
+// wrote, never a newer session's route graceful restart retains.
+func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source string, generation uint64) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(sel.String(), command)
 	}
@@ -578,7 +586,8 @@ func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source s
 		// Struct-literal unit owners have no running plugin lifecycle.
 		ctx = context.Background()
 	}
-	meta := map[string]any{"recovery-source": source}
+	meta := map[string]any{"recovery-source": source,
+		"recovery-generation": strconv.FormatUint(generation, 10)}
 	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {
@@ -805,6 +814,8 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 		State:         se.State.String(),
 		Reason:        se.Reason,
 		InitialReplay: se.InitialReplay,
+		// The session the down ended, which its departure names.
+		SessionGeneration: se.SessionGeneration,
 	}
 	// A state event of a dynamic peer whose OPEN is not yet negotiated names
 	// no AS, and the event then carries none rather than AS 0.

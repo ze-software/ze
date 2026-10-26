@@ -167,6 +167,19 @@ func (w *adjOutWrite) key(fam family.Family, raw []byte, withdraw bool) (adjOutK
 	return key, err
 }
 
+// recoverySpares reports whether the owed record of an ADD-PATH identifier's
+// prefix spares owner's path (adjOutOwed.spares): a recovery is owed per
+// prefix, identifier zero (oweDeparture). With no record nothing is spared.
+func (w *adjOutWrite) recoverySpares(key adjOutKey, owner adjOutPath) bool {
+	prefix := key
+	prefix.path.received = 0
+	record := w.table.owed[prefix]
+	if record == nil {
+		return false
+	}
+	return record.spares(owner)
+}
+
 func adjOutSameOwner(a, b adjOutPath) bool {
 	return a.source == b.source && a.received == b.received && a.addPath == b.addPath
 }
@@ -304,6 +317,12 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				// the departed source's ended session or revoked binding
 				// owns it: the reconnected session's newer path, or an
 				// originated one, is never withdrawn for an old DOWN.
+				return false, nil
+			}
+			if key.addPath && w.recoverySpares(key, entry.owner) {
+				// RFC 4724 Section 4.2: nor is a newer session's path
+				// that ended under graceful restart, which no departure
+				// the record carries covers.
 				return false, nil
 			}
 			owner = entry.owner

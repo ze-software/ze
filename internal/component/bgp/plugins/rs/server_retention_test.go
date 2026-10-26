@@ -177,7 +177,7 @@ func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
 			rs.withdrawals["192.0.2.1"] = map[withdrawalKey]withdrawalEntry{
 				{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("192.0.2.0/24")}: {},
 			}
-			rs.handleStateDown("192.0.2.1")
+			rs.handleStateDown("192.0.2.1", 7)
 			var call context.Context
 			select {
 			case call = <-entered:

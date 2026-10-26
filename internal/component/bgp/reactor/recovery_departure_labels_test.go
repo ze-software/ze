@@ -127,7 +127,10 @@ func TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility(t *testing.T
 				require.NoError(t, err)
 				require.Len(t, parsed.Groups, 1)
 				batch := bgptypes.NLRIBatch{Family: fam, NLRIs: parsed.Groups[0].Withdraw,
-					RecoverySource: failed.Settings().Address}
+					// Every session so far: this test is about the label
+					// framing, not which session the departure answers.
+					RecoverySource:     failed.Settings().Address,
+					RecoveryGeneration: adjOutEverySession}
 				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 				defer cancel()
 				require.NoError(t, (&reactorAPIAdapter{r: r}).recoverNLRIBatch(ctx, batch,

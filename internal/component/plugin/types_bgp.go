@@ -155,6 +155,12 @@ type PeerInfo struct {
 	// InitialReplay identifies the exact session whose peer-up replay is owed.
 	// Zero is not a replay receipt.
 	InitialReplay uint64
+	// SessionGeneration is, on a session-down state change only, the forward
+	// generation of the session the down ended (reactor Peer.forwardGeneration),
+	// captured when it ended. Every event format carries it as
+	// session-generation, and a forwarding plugin's departure echoes it as
+	// recovery-generation. Zero on every other state change.
+	SessionGeneration uint64
 	// CloseFSMEvent is, on a session-down state change only, the RFC 4271
 	// Section 8.1 number of the FSM event that closed the session. Zero is
 	// the value RFC 7854 Section 4.9 itself gives "no relevant Event code",

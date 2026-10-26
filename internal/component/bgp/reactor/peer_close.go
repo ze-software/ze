@@ -26,6 +26,12 @@ type sessionClose struct {
 	// notification is the NOTIFICATION that closed the session, set only when
 	// reason is rpc.ReasonNotification (Peer.closingNotification).
 	notification plugin.CloseNotification
+	// generation is the peer's forward generation when the session ended,
+	// read by the goroutine ending it before the next session can reach
+	// Established, so it is at least the generation every path the session
+	// wrote carries and below every later session's. Plugins receive it as
+	// session-generation (plugin.PeerInfo.SessionGeneration).
+	generation uint64
 }
 
 // closeCause returns the first close reason recorded on session

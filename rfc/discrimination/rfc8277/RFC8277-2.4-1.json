@@ -146,12 +146,12 @@
     "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes",
-    "unit-sha": "b09a43686c5320a6",
+    "unit-sha": "8c4a4c6b09625a25",
     "claim-sha": "44f45fdef859a965",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/rr.go::handleStateDown",
-    "producer-sha": "0fa1100ffeff0983",
-    "break": "body of handleStateDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fe81bb1989f16f94",
+    "break": "body of handleStateDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
@@ -205,8 +205,8 @@
     "claim-sha": "f5b38d892265bda0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals",
-    "producer-sha": "b3ffd09f62c13f8c",
-    "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "27ebac2d7c736cf2",
+    "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",

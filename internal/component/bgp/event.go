@@ -359,6 +359,10 @@ type Event struct {
 	// State event field.
 	State         string `json:"state,omitempty"`
 	InitialReplay uint64 `json:"initial-replay,string,omitempty"`
+	// SessionGeneration names, on a down state event, the session the down
+	// ended (reactor Peer.forwardGeneration); a departure echoes it as
+	// recovery-generation. Zero on every other event.
+	SessionGeneration uint64 `json:"session-generation,string,omitempty"`
 	// Reason qualifies a state event: why a session went down, or
 	// rpc.ReasonAttached on an up that attached this process to a session
 	// already up.

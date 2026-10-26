@@ -509,6 +509,9 @@ func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 		return
 	}
 	info := establishedPeerInfo(p)
+	// The departure this down provokes covers the session that stays up,
+	// whose paths the revocation above made no longer current.
+	info.SessionGeneration = p.forwardGeneration.Load()
 	sink.OnPeerUnbound(&info, rpc.SessionStateDown, rpc.ReasonPeerRemoved, names)
 }
 

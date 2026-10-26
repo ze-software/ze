@@ -307,6 +307,13 @@ type NLRIBatch struct {
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.
 	RecoverySource netip.Addr
+	// RecoveryGeneration is the forward generation (reactor Peer.forwardGeneration)
+	// of the source session whose end the departure answers, as the peer-down
+	// event carried it (session-generation). The writer owes only keys the
+	// source owns through that session or an older one, so a departure queued
+	// behind a reconnect never owes a newer session's route, which graceful
+	// restart may retain. Set exactly when RecoverySource is; never zero there.
+	RecoveryGeneration uint64
 	// RestoreConfigured gives back a configured route: a withdrawn NLRI that
 	// the peer's static config also announces is not withdrawn, the configured
 	// route is sent in its place. It is ExaBGP's withdraw_owner, which the

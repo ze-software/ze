@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"context"
 	"net/netip"
-	"slices"
 	"testing"
 	"time"
 
@@ -46,17 +45,29 @@ func (rail *owedRail) record(t *testing.T) owedFenceRecord {
 	require.Len(t, table.owed, 1)
 	for _, record := range table.owed {
 		return owedFenceRecord{record: record, epoch: record.epoch,
-			excluded: append([]netip.Addr(nil), record.excluded...)}
+			excluded: exclusionSources(record.excluded)}
 	}
 	return owedFenceRecord{}
+}
+
+// exclusionSources returns the sources of a record's exclusions, in order.
+func exclusionSources(excluded []adjOutExclusion) []netip.Addr {
+	sources := make([]netip.Addr, 0, len(excluded))
+	for _, exclusion := range excluded {
+		sources = append(sources, exclusion.source)
+	}
+	return sources
 }
 
 // departure runs the departure command for the rail's source over prefix, as
 // bgp-rs's DOWN handling does, and reports its result on the channel.
 func (rail *owedRail) departure(t *testing.T, source netip.Addr, prefix string) chan error {
 	t.Helper()
+	// Every session so far: this rail tests the record's merge and fences,
+	// not which session a departure answers.
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
-		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false)}}
+		RecoveryGeneration: adjOutEverySession,
+		NLRIs:              []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false)}}
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	go func() {
@@ -298,7 +309,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.Same(t, record, recoveryOwedRecord(destination, key), "the key stays owed")
 		table := &destination.adjOut
 		table.mu.Lock()
-		excluded, moved := slices.Clone(record.excluded), record.epoch != epoch
+		excluded, moved := exclusionSources(record.excluded), record.epoch != epoch
 		table.mu.Unlock()
 		require.Equal(t, []netip.Addr{source.Settings().Address}, excluded)
 		require.True(t, moved, "the re-owe moves the epoch")
@@ -334,7 +345,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.Nil(t, recoveryOwedRecord(destination, key), "the key is decided by this round")
 		table := &destination.adjOut
 		table.mu.Lock()
-		excluded := slices.Clone(record.excluded)
+		excluded := exclusionSources(record.excluded)
 		table.mu.Unlock()
 		require.Empty(t, excluded, "a live source is never excluded")
 	})

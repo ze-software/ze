@@ -14,7 +14,7 @@ Every formatter below writes the uniform header `peer <addr> remote as <asn>`. `
 
 | Message Type | Formatter | Parser | Tests |
 |-------------|-----------|--------|-------|
-| State (up/down) | `appendStateChangeText` | `parseTextState` | `TestFormatStateChange` |
+| State (up/down), with the `reason`, `initial-replay` and `session-generation` suffixes | `appendStateChangeText` | `parseTextState` | `TestFormatStateChange`, `TestTextStateCarriesExactInitialReplay`, `TestStateDownCarriesSessionGeneration`, `TestParseTextStateSessionGeneration` |
 | UPDATE announce | `appendFilterResultText` | `parseTextNLRIOps` | `TestFormatMessageText` |
 | UPDATE withdraw | `appendFilterResultText` | `parseTextNLRIOps` | `TestFormatMessageText` |
 | UPDATE empty | `appendFilterResultText` | handled as header-only UPDATE | `TestFormatMessageText` |
@@ -29,6 +29,8 @@ Every formatter below writes the uniform header `peer <addr> remote as <asn>`. `
 <!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, parseTextOpen, parseTextState, parseTextRefresh -->
 <!-- source: internal/component/bgp/format/text_test.go -- TestFormatStateChange, TestFormatMessageText, TestFormatOpenWithDirection, TestFormatKeepaliveWithDirection, TestFormatNotificationWithDirection -->
+<!-- source: internal/component/bgp/format/text_session_generation_test.go -- TestStateDownCarriesSessionGeneration -->
+<!-- source: internal/component/bgp/plugins/rs/server_text_session_generation_test.go -- TestParseTextStateSessionGeneration -->
 
 ## Attribute Coverage
 

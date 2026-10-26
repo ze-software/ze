@@ -224,8 +224,11 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	})
 	completed := make(chan error, 1)
 	go func() {
+		// recovery-generation is the largest generation, covering every
+		// session of the source: this test is about delivery, not about which
+		// session the departure answers.
 		_, _, err := api.UpdateRouteWithMeta(ctx, "127.0.0.1", "update hex nlri ipv4/unicast del 18cb0072",
-			map[string]any{"recovery-source": "127.0.0.2"})
+			map[string]any{"recovery-source": "127.0.0.2", "recovery-generation": "18446744073709551615"})
 		completed <- err
 	}()
 	joined := false

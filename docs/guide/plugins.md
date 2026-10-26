@@ -428,9 +428,11 @@ that replays routes toward a peer when it comes up must skip that replay on an
 plugin through the ROUTE-REFRESH Ze sends after the up.
 
 A reload that detaches a plugin sends it a `state down` for that peer alone,
-and the session stays up for every other plugin. The plugin drops what it holds
+and the session stays up for every other plugin. The down names the
+still-running session as its `session-generation`, as a real down names the
+session it ended. The plugin drops what it holds
 for the peer. When that plugin is `bgp-rs`, the other peers lose the routes it
-forwarded from that peer: each is replaced by the best remaining route or
+forwarded from that peer, every one that session wrote included: each is replaced by the best remaining route or
 withdrawn, although the peer's session never went down. A plugin whose grant
 changed receives a down, then an `attached` up.
 

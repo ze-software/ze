@@ -92,7 +92,7 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rr, requests := newPeerDownReflector(t)
 			tt.announce(t, rr)
-			rr.handleStateDown(source)
+			rr.handleStateDown(source, 7)
 			var got peerDownRequest
 			select {
 			case got = <-requests:
@@ -108,6 +108,9 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 			}
 			if got.meta["recovery-source"] != source {
 				t.Fatalf("peer-down meta = %v, want recovery-source %s: a plain withdrawal names the source's Path Identifiers to every destination", got.meta, source)
+			}
+			if got.meta["recovery-generation"] != "7" {
+				t.Fatalf("peer-down meta = %v, want recovery-generation 7: the departure names the session its down ended", got.meta)
 			}
 			select {
 			case extra := <-requests:
@@ -167,7 +170,7 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 			origin := []byte{0x40, 1, 1, 0}
 			rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
 			rrApplyVPN(t, rr, vpn.IPv4VPN, true, 14, append(append([]byte{}, vpn11...), vpn12...))
-			rr.handleStateDown(source)
+			rr.handleStateDown(source, 7)
 
 			// Read before the departure worker is stopped: retention belongs
 			// to the DOWN event, not to its asynchronous requests.

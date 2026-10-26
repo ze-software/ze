@@ -58,7 +58,7 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 		}
 	}
 
-	rr.handleStateDown(addresses[0])
+	rr.handleStateDown(addresses[0], 7)
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
@@ -68,7 +68,7 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	returned := make(chan struct{})
 	go func() {
 		for _, address := range addresses[1:] {
-			rr.handleStateDown(address)
+			rr.handleStateDown(address, 7)
 		}
 		close(returned)
 	}()

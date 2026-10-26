@@ -176,10 +176,24 @@ For `"down"` events, a `reason` field is included:
     "message": {"type": "state"},
     "peer": {"local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "state": "down",
-    "reason": "hold timer expired"
+    "reason": "hold timer expired",
+    "session-generation": "3"
   }
 }
 ```
+
+A down also carries `session-generation`: the forward generation of the
+session the down ended, a nonzero uint64 encoded as a decimal string and
+captured when that session closed, so a down read after a reconnect still
+names the old session. A forwarding plugin stamps the departure it sends for
+the down with the same value as `recovery-generation` route metadata, and the
+engine owes only routes that session or an older one of the source wrote
+(`docs/architecture/plugin/rib-storage-design.md`, "Source-DOWN replacement and sent ordering").
+Native text events carry it as a ` session-generation <n>` suffix, and the
+structured (DirectBridge) form as `StructuredEvent.SessionGeneration`. An up
+carries none.
+<!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
+<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 
 When the reason is `notification`, the down also names the NOTIFICATION that
 closed the session: which way it went (`sent` or `received`) and its code and

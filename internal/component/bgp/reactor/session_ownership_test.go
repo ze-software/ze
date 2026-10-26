@@ -388,7 +388,8 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		table.mu.Unlock()
 		require.True(t, key.addPath, "the first write installed the path at an ADD-PATH key")
 		table.mu.Lock()
-		table.owe(key, rail.destination.currentSession(), family.IPv4Unicast, prefix).exclude(other.Settings().Address)
+		table.owe(key, rail.destination.currentSession(), family.IPv4Unicast, prefix).exclude(adjOutExclusion{source: other.Settings().Address,
+			generation: adjOutEverySession, departed: adjOutEverySession})
 		table.mu.Unlock()
 
 		// The path changes (another ORIGIN): its announcement meets the

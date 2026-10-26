@@ -29,6 +29,11 @@ type withdrawalInfo struct {
 	Prefix   string // Text NLRI, or native hex when WireForm is true.
 	WireForm bool
 	AddPath  bool // Native hex carries a Path Identifier, including zero.
+	// Generation is the session-generation of the peer-down whose departure
+	// carries this route, set by handleStateDown. A merged departure keeps
+	// each route's own, so an older session's route never borrows a newer
+	// bound (enqueueDeparture).
+	Generation uint64
 }
 
 // updateWithdrawalMapWire updates the withdrawal map from raw wire UPDATE data.

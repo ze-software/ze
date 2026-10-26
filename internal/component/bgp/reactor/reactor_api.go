@@ -128,6 +128,9 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// names the close (`notification sent (6,4)`) needs no NOTIFICATION
 		// event of its own.
 		CloseNotification: closed.notification,
+		// The ended session, which a forwarding plugin's departure names so
+		// the engine owes none of a newer session's routes.
+		SessionGeneration: closed.generation,
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, closed.reason)
 }

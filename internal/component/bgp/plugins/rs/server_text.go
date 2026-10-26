@@ -27,16 +27,19 @@ var (
 // Event represents a parsed BGP event (from text format).
 // Fields are extracted by parseTextState, parseTextOpen, parseTextRefresh.
 type Event struct {
-	Type          string      // Event type: "update", "state", "open", "refresh"
-	MsgID         uint64      // Message ID (for cache-forward)
-	PeerAddr      string      // Peer address
-	PeerASN       uint32      // Peer ASN
-	State         string      // State for state events ("up", "down", "connected")
-	Reason        string      // State reason: why a session went down, or rpc.ReasonAttached on an attached up
-	InitialReplay uint64      // Captured peer-up session receipt; zero grants no readiness.
-	Open          *OpenInfo   // OPEN: decoded open data
-	AFI           family.AFI  // Refresh: AFI
-	SAFI          family.SAFI // Refresh: SAFI
+	Type          string // Event type: "update", "state", "open", "refresh"
+	MsgID         uint64 // Message ID (for cache-forward)
+	PeerAddr      string // Peer address
+	PeerASN       uint32 // Peer ASN
+	State         string // State for state events ("up", "down", "connected")
+	Reason        string // State reason: why a session went down, or rpc.ReasonAttached on an attached up
+	InitialReplay uint64 // Captured peer-up session receipt; zero grants no readiness.
+	// SessionGeneration is, on a down, the session the down ended; the
+	// departure names it as recovery-generation. Zero on every other event.
+	SessionGeneration uint64
+	Open              *OpenInfo   // OPEN: decoded open data
+	AFI               family.AFI  // Refresh: AFI
+	SAFI              family.SAFI // Refresh: SAFI
 }
 
 // FamilyOperation represents a single add or del operation for a family.
@@ -380,7 +383,8 @@ func parseTextOpen(text string) *Event {
 }
 
 // parseTextState extracts state event data from text format.
-// Format: "peer <addr> remote as <n> state <state> [reason <reason>] [initial-replay <receipt>]".
+// Format: "peer <addr> remote as <n> state <state> [reason <reason>] [initial-replay <receipt>]
+// [session-generation <n>]".
 func parseTextState(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
@@ -430,6 +434,17 @@ func parseTextState(text string) *Event {
 				return nil
 			}
 			event.InitialReplay = token
+		case "session-generation":
+			value, ok := s.Next()
+			// refuse-by-default: guards parseTextState -- nil is the parser's refusal of a down whose generation it cannot read, never a departure with a guessed one
+			if !ok {
+				return nil
+			}
+			generation, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return nil
+			}
+			event.SessionGeneration = generation
 		}
 	}
 

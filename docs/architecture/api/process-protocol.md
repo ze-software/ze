@@ -1278,12 +1278,15 @@ such method, so it prints the struct, and `go vet` reports it.
 
 For UPDATE events, `RawMessage` carries `AttrsWire` and `WireUpdate` with lazy accessors.
 For state events, `StructuredEvent.State` and `StructuredEvent.Reason` carry the data
-directly. For other wire messages (OPEN, NOTIFICATION, REFRESH), `RawMessage.RawBytes`
+directly. A down also carries `StructuredEvent.SessionGeneration`, the forward
+generation of the session the down ended, which is the `session-generation`
+member of the JSON and text forms (`json-format.md`, "State Events"); it is
+zero on every other event. For other wire messages (OPEN, NOTIFICATION, REFRESH), `RawMessage.RawBytes`
 contains the raw wire bytes.
 
 `StructuredEvent` instances are pooled via `GetStructuredEvent`/`PutStructuredEvent`
 to eliminate per-event heap allocations on the hot path.
-<!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
+<!-- source: internal/component/bgp/server/events.go -- getStructuredEvent, getStructuredStateEvent -->
 
 Plugins that register both `OnStructuredEvent` and `OnEvent` receive structured events
 via the former and text events via the latter. The delivery pipeline (`deliverMixedBatch`)

@@ -1051,8 +1051,13 @@ type StructuredEvent struct {
 	MessageID     uint64           // Unique message ID (0 for non-message events)
 	State         SessionState     // For state events: SessionStateUp, SessionStateDown
 	InitialReplay uint64           // Exact peer-up replay session receipt; zero when absent.
-	SourceID      uint32           // Registry identity for body-common forwarded source.
-	Reason        string           // For state events: close reason
+	// SessionGeneration is, for a down state event, the forward generation of
+	// the session the down ended. A forwarding plugin's departure for that
+	// down names it as recovery-generation meta, so the engine owes only
+	// routes that session or an older one wrote. Zero on every other event.
+	SessionGeneration uint64
+	SourceID          uint32 // Registry identity for body-common forwarded source.
+	Reason            string // For state events: close reason
 	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
 	// of the FSM event that closed the session; zero means no relevant event,
 	// the meaning RFC 7854 Section 4.9 gives two zero octets.
@@ -1096,6 +1101,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.MessageID = 0
 	se.State = SessionStateUnspecified
 	se.InitialReplay = 0
+	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.Reason = ""
 	se.FSMEvent = 0

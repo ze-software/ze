@@ -641,7 +641,11 @@ rail, as a mover before the admission or as a write after it, so traffic on
 other keys never postpones the decision, and a busy survivor cannot hold a
 replacement back. A key whose survivor's source session ended or
 restarted since the round's receipt, or whose received publication failed, at
-reconstruction or at the final writer, is owed again with that source excluded. Every other key is written: the first
+reconstruction or at the final writer, is owed again with that source excluded.
+A survivor whose source has no Established session to send it from is held
+where the destination already has that source's path, any revision, and owed
+again with the source excluded over every session otherwise (ADD-PATH keys are
+never held). Every other key is written: the first
 survivor, in election order, that the destination's export policy permits, as
 the new owner (a denied candidate is stepped past, never written), or the
 withdrawal when no candidate survives or every one is denied. A
@@ -664,7 +668,13 @@ admission the worker cannot decide resets the destination session. Every
 teardown path seals the session, and sealing stops the worker without
 waiting. `Peer.runOnce`'s deferred cleanup, after the down has been announced,
 joins it. Every write that installs an owner also records the owner's source
-session generation, which ownership equality ignores.
+session generation, which ownership equality ignores. A departure names the
+generation of the session whose end it answers, and owes a key only where the
+departed source's owner is that session or an older one; the record's
+exclusion of the source keeps that bound (`exclude` merges two by their
+maximum). So a newer session's route, live or retained by graceful restart, is
+neither owed nor withdrawn by an older departure, and a source announcing the
+key from such a session is lifted from the round's excluded set.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, stageMover, applyStaged -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle, admitRecovery -->

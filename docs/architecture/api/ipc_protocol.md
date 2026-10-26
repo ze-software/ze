@@ -201,7 +201,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `nlri` | object | For UPDATE | `{"<family>": [operations...]}` |
 | `raw` | object | If format=full | Wire bytes (see Raw Format below) |
 
-**State events:** Use simple `"state": "up"` string at bgp level (no container). Down events include `"reason": "..."` field. An up carries `"reason": "attached"` when a reload attached the process to a session that was already up: it is sent to that process alone and carries no `initial-replay` token, and a plugin MUST NOT run its peer-up replay toward the peer for it.
+**State events:** Use simple `"state": "up"` string at bgp level (no container). Down events include `"reason": "..."` field and `"session-generation": "<n>"`, the decimal forward generation of the session the down ended, which a forwarding plugin echoes as `recovery-generation` meta on its departure. An up carries `"reason": "attached"` when a reload attached the process to a session that was already up: it is sent to that process alone and carries no `initial-replay` token, and a plugin MUST NOT run its peer-up replay toward the peer for it.
 <!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 **RIB event payload (`rib` key):**

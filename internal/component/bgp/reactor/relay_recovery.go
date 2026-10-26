@@ -101,8 +101,8 @@ type recoveryAdmitKey struct {
 	// message ID; a withdrawal decision has none (source nil).
 	candidate adjOutPath
 	outcome   recoveryKeyOutcome
-	// gone is the source a re-owe excludes, for recoveryKeyReowed only.
-	gone netip.Addr
+	// gone is the exclusion a re-owe adds, for recoveryKeyReowed only.
+	gone adjOutExclusion
 }
 
 // mark assigns key k to every item staged since the previous mark.
@@ -244,7 +244,8 @@ func (admission *recoveryAdmission) reowe(j int) {
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = admission.items[j].receivedPeer.Settings().Address
+	key.gone = adjOutExclusion{source: admission.items[j].receivedPeer.Settings().Address,
+		generation: admission.items[j].receivedGeneration}
 }
 
 // settle applies every key's outcome once the admission's writes are flushed,
@@ -390,9 +391,10 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 }
 
 // oweDeparture owes, at one destination, each key of the batch whose adj-out
-// entry the departed source owns through a session that is no longer current.
-// Where another source owns the key, where the source's reconnected session
-// owns it, or where no entry exists, nothing is owed: an old DOWN never
+// entry the departed source owns through the departed session
+// (batch.RecoveryGeneration) or an older one, no longer current. Where
+// another source owns the key, where a newer session of the source owns it,
+// live or ended, or where no entry exists, nothing is owed: an old DOWN never
 // overwrites a newer route. Each owe merges into an existing record and adds
 // the departed source to its excluded set. At an ADD-PATH destination the key
 // is owed per prefix (identifier zero), and the admission's writer tests each
@@ -407,6 +409,11 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 	if table.session != session {
 		return nil, nil
 	}
+	if batch.RecoveryGeneration == 0 {
+		return nil, fmt.Errorf("departure of %s names no session generation", batch.RecoverySource)
+	}
+	departed := adjOutExclusion{source: batch.RecoverySource,
+		generation: batch.RecoveryGeneration, departed: batch.RecoveryGeneration}
 	var owed []*adjOutOwed
 	for _, route := range batch.NLRIs {
 		raw := make([]byte, nlri.LenWithContext(route, false))
@@ -417,7 +424,8 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 		}
 		// An ADD-PATH destination's identifiers are the RIB's to name; the
 		// writer refuses each one a current session owns.
-		if !addPath && !departedOwner(table.routes[key], batch.RecoverySource) {
+		// RFC 4724 Section 4.2
+		if !addPath && !departedOwner(table.routes[key], departed) {
 			continue
 		}
 		raw, err := departureOweFraming(batch.Family, raw)
@@ -425,7 +433,7 @@ func oweDeparture(destination *Peer, session *Session, batch *bgptypes.NLRIBatch
 			return nil, err
 		}
 		record := table.owe(key, session, batch.Family, raw)
-		record.exclude(batch.RecoverySource)
+		record.exclude(departed)
 		owed = append(owed, record)
 	}
 	return owed, nil
@@ -460,18 +468,29 @@ func departureOweFraming(fam family.Family, raw []byte) ([]byte, error) {
 	return raw, nil
 }
 
-// departedOwner reports whether entry is owned by source through a session
-// that is no longer current, or through a binding a targeted down revoked on
-// a session that stays up. The generation and the epoch are read under the
-// table mutex every write takes, so the test is exact.
-func departedOwner(entry *adjRIBOutRoute, source netip.Addr) bool {
+// departedOwner reports whether entry is owned by the departure's source
+// through the departed session or an older one, where that session is no
+// longer current or a targeted down revoked its binding on a session that
+// stays up. A path a newer session wrote is not the departure's to owe: a
+// departure queued behind a reconnect would otherwise owe the new session's
+// route after that session ended too, which graceful restart retains. The
+// generation and the epoch are read under the table mutex every write takes,
+// so the test is exact.
+// RFC 4724 Section 4.2: "it MUST retain the routes received from the peer
+// for all the address families that were previously received in the
+// Graceful Restart Capability and MUST mark them as stale routing
+// information."
+func departedOwner(entry *adjRIBOutRoute, departure adjOutExclusion) bool {
 	if entry == nil {
 		return false
 	}
 	if entry.owner.source == nil {
 		return false
 	}
-	if entry.owner.source.Settings().Address != source {
+	if entry.owner.source.Settings().Address != departure.source {
+		return false
+	}
+	if entry.owner.generation > departure.departed {
 		return false
 	}
 	return !adjOutOwnerCurrent(entry.owner)
@@ -653,11 +672,11 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			continue
 		}
 		if errors.Is(err, errRelayNoSource) {
-			key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+			admission.unsendableSurvivor(key, survivor)
 			return nil
 		}
 		if errors.Is(err, errForwardNoSource) {
-			key.outcome, key.gone = recoveryKeyReowed, survivor.Source
+			admission.unsendableSurvivor(key, survivor)
 			return nil
 		}
 		if err != nil {
@@ -685,6 +704,57 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 	// message (see 9.2)." Here no candidate may be sent.
 	withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(admission.nlri), Withdraw: true}
 	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission)
+}
+
+// unsendableSurvivor decides key k when its elected survivor's source has no
+// Established session to send it from: a source graceful restart holds, or
+// one going away. Where the destination already holds that source's path,
+// the key is held (admit, adjOutHolds) and nothing is written: the newer
+// revision cannot be sent until the source's next session announces it, and
+// keeping the source's path is what retention asks, while the source's own
+// departure or the RIB's stale purge withdraws it if the source does not
+// return. Otherwise the key is re-owed with the source excluded over every
+// session known so far, so the next round elects without it.
+// RFC 4724 Section 4.2: "The router MUST NOT differentiate between stale and
+// other routing information during forwarding."
+func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, survivor *ribevents.RecoveryRoute) {
+	if held, holds := admission.heldSurvivor(key.key, survivor); holds {
+		key.candidate = held
+		return
+	}
+	key.outcome = recoveryKeyReowed
+	key.gone = adjOutExclusion{source: survivor.Source, generation: adjOutEverySession}
+}
+
+// heldSurvivor returns the destination's path for key when it is survivor's
+// path, whatever its revision: the same source and received path identity
+// (adjOutSameOwner). An ADD-PATH key is owed per prefix and names no
+// identifier, so it answers false there.
+func (admission *recoveryAdmission) heldSurvivor(key adjOutKey, survivor *ribevents.RecoveryRoute) (adjOutPath, bool) {
+	if key.addPath {
+		return adjOutPath{}, false
+	}
+	table := &admission.peer.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	entry := table.routes[key]
+	if entry == nil {
+		return adjOutPath{}, false
+	}
+	owner := entry.owner
+	if owner.source == nil {
+		return adjOutPath{}, false
+	}
+	if owner.source.Settings().Address != survivor.Source {
+		return adjOutPath{}, false
+	}
+	if owner.received != survivor.PathID {
+		return adjOutPath{}, false
+	}
+	if owner.addPath != survivor.AddPath {
+		return adjOutPath{}, false
+	}
+	return owner, true
 }
 
 // recoveryStagedAnnouncement reports whether a candidate's staged sections
