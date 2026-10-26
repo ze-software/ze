@@ -40,16 +40,20 @@ const frozenArea = "ai hooks"
 // vocabularyFindings judges every registered action against the vocabulary
 // and answers one key per finding: "<rule> <area> <word>", or
 // "unused-verb <verb>". The keys are sorted, so a failure lists them stably.
+// It fails the test when it judged no action: an empty registry breaks no
+// rule, so a rule test reading no finding over it would prove nothing.
 func vocabularyFindings(t *testing.T) []string {
 	t.Helper()
 	findings := map[string]bool{}
 	used := map[string]bool{}
+	judged := 0
 	for _, command := range leroot.Commands() {
 		list, tabled := leroot.ActionsOf(command.Name)
 		if !tabled {
 			continue
 		}
 		for _, row := range list.Actions {
+			judged++
 			key := command.Name + " " + row.Verb
 			for _, rule := range judgeAction(command.Name, row) {
 				findings[rule+" "+key] = true
@@ -61,6 +65,9 @@ func vocabularyFindings(t *testing.T) []string {
 				used[row.Does] = true
 			}
 		}
+	}
+	if judged == 0 {
+		t.Fatal("no registered action was judged, so no vocabulary rule was checked")
 	}
 	for _, verb := range leaction.Vocabulary() {
 		if !used[verb.Word] {
