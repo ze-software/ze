@@ -276,3 +276,25 @@ AC-29 INFORMATIONAL was parked on two RFC-tagged tests. The supervisor decided i
 Section 2.20 permits "either return an empty string or no CP payload", and Ze keeps the no-CP
 answer in INFORMATIONAL (spec AC-29 `-> Decision:`). The parked `scratch/ac29-*` files were
 deleted.
+
+## Fifth agent, 2026-10-26: everything committed, RFC evidence left
+
+| Commit | What landed |
+|--------|-------------|
+| `4d4c6cb473` | the Configuration payload decoder is bounded (attribute count, trailing remnant) |
+| `ebae55f243` | traffic selectors never pair IPv4 with IPv6 |
+| `14d83a90bd` | named virtual-IP pools, the lease registry and the peer binding |
+| `0c1933069a` | the virtual-IP YANG says no address is assigned yet |
+| `ea3bab5f48` | a mixed-family proposal is refused, never indexed empty |
+| `a965d7c0d4` | the CP consumer: lease on CFG_REQUEST, CFG_REPLY, refusals, rekey keeps the lease, doctor, gauge, show (22 files; `responder.go` by hunks, the esp-fixed `lookupESPIntegrity` hunk left out) |
+| `a27d664f70` | no exported symbol of the CP work without a caller (unused CP attribute constants deleted, `eap.Registry.IsHeld` renamed `IsHeldForTest`) |
+| `2c1f959a0e` | docs: the YANG wording restored, the guide, the config reference and the IPsec architecture pages |
+
+Left:
+
+| Item | Owner |
+|------|-------|
+| `RFC3948-5.1-1` row from `{gap}` to met, its two tags on `cp_test.go` proven by records, and `Support remaining` rewritten | sixth agent |
+| Re-record every discrimination record the CP work staled (`RFC7296-2.20-1`, `RFC4301-4.4.2-2`, `RFC7296-2.9-1`, `RFC4303-2.1-1`, `RFC3948-2.1-1`) | sixth agent |
+| Audit rejudges for `RFC4301-4.4.2-2`, `RFC7296-2.9-1`, `RFC7296-2.9-2` (independent judge) | supervisor |
+| Interop scenarios `virtual-ip-assignment` and `virtual-ip-uniqueness`, with their discrimination walks | separate agent |
