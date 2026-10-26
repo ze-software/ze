@@ -4,6 +4,39 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-26: every phase implemented, status `verification`, the verify session closes
+
+Implementation is complete: Phases 3a, 4, 5, 6 and the 2b second half landed,
+with independent review rounds 1 to 5 and the independent audit re-judge. The
+spec's Design Insights (last three entries) hold every commit, red, found
+defect and decision. Status is `verification` (Handoff `verify`).
+
+The verify session owes, in order:
+- Review ee992f6425 (recovery admission takes its own snapshot) and 8ad62e730f
+  (Phase 2b second half: a publication-failure close forbids GR retention).
+  No implementation round covered them; this session used its five rounds.
+- The independent re-judge of RFC4271-8.2.2-20 if it is still STALE
+  (`peer_run.go::runOnce` changed in 8ad62e730f; an auditor was on it at
+  hand-off, check `rfc/audit/rfc4271/RFC4271-8.2.2-20.json` against HEAD).
+- Closure per `/ze-close`: Goal Validation table (evidence is in Design
+  Insights), Review Gate, `./le spec review record`.
+- Thomas's release check, `./le verify worktree`, which agents never run.
+
+Open with Thomas (2026-10-26):
+- The close reason is spelled `adj-rib-in-invalid`, not his Q-6 "adj-rib-in
+  invalid" (text events read one token after `reason`; the premise of the
+  space went with D1). One constant if he keeps the space, plus the text event
+  format.
+- Two untracked duplicates, `internal/component/bgp/reactor/rs_announcement_election_test.go`
+  and `rs_withdrawal_replacement_test.go`, byte-identical to their committed
+  `rfc7947_*` renames (ea4394c1fb), break the reactor test build;
+  `tmp/delete-34bb573e.sh` removes them after a `cmp`. Machine-local.
+
+Journal rows found here and owned elsewhere (spec-bgp-one-off-defects): the
+OPEN peer-AS guard reads ASN4 under `asn4 disable`; the linklocal multihop
+interop checker's `File exists`; the FRR oracle zebra refusal on the Alpine
+guest. The GR spec's D1 row still reads Open although 4ef90497c6 landed it.
+
 ## STATE 2026-10-25: reactor green, most of 3a landed, the rest listed here
 
 The spec now lives at `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md`.
