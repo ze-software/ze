@@ -350,6 +350,59 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 			"an ADD-PATH destination receives every path, never an election")
 		require.Empty(t, rail.owed())
 	})
+	t.Run("add-path-departure-record-not-a-candidate", func(t *testing.T) {
+		// A departure owes an ADD-PATH destination's prefix under identifier
+		// zero (oweDeparture), and zero is also a path identifier a
+		// forwarded path can be bound to (RFC 7911 Section 2). The path's
+		// announcement meets that record and is still written: at an
+		// ADD-PATH destination no announcement is an election candidate.
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		encoding := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
+		ctxID, err := bgpctx.Registry.Register(encoding)
+		require.NoError(t, err)
+		rail.destination.sendCtx.Store(encoding)
+		rail.destination.sendCtxID = ctxID
+		rail.destination.session.setSendCtxID(ctxID)
+		rail.source.recvCtxID = ctxID
+		// The path's identifier comes from the process-wide table
+		// (fwdPathIDs), so the test does not predict it: the first write
+		// installs the path, and the record goes at the key it was installed
+		// under, wherever the table bound it (zero for the process's first
+		// forwarded path). A production departure record follows a write the
+		// same way: oweDeparture owes only a key a write installed.
+		prefix := []byte{24, 100, 64, 255}
+		raw := append([]byte{0, 0, 0, 0}, prefix...)
+		first := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+			authority: adjOutForwarded, sourceMessageID: 10}
+		adjOutTestSend(t, rail.destination, rail.source, &first, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
+		table := &rail.destination.adjOut
+		var key adjOutKey
+		table.mu.Lock()
+		for installed := range table.routes {
+			if installed.addPath {
+				key = installed
+			}
+		}
+		table.mu.Unlock()
+		require.True(t, key.addPath, "the first write installed the path at an ADD-PATH key")
+		table.mu.Lock()
+		table.owe(key, rail.destination.currentSession(), family.IPv4Unicast, prefix).exclude(other.Settings().Address)
+		table.mu.Unlock()
+
+		// The path changes (another ORIGIN): its announcement meets the
+		// record at its own key.
+		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+			authority: adjOutForwarded, sourceMessageID: 11}
+		adjOutTestSend(t, rail.destination, rail.source, &item, ownershipRailBody(family.IPv4Unicast, false, raw, 1))
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
+			"the changed path is written over the departure's record")
+		table.mu.Lock()
+		_, held := table.routes[key]
+		table.mu.Unlock()
+		require.True(t, held, "the path is still installed at the record's key")
+	})
 	t.Run("staged-once-over-two-filter-passes", func(t *testing.T) {
 		rail := newOwedRail(t)
 		other := adjOutTestOtherSource(rail.r, rail.source)

@@ -50,6 +50,17 @@ func lowLiveReconnect(t *testing.T, departed *lowLivePeer, identifier uint32) *l
 	return v
 }
 
+// lowLiveConnect brings p up on its first session through lowLiveReconnect,
+// whose steps are the same for a first connection: p is Active with a
+// Session, the test hands it a transport, and the remote sends its OPEN
+// (four-octet AS and IPv4 unicast) and its KEEPALIVE. It returns the remote end
+// once p finished its initial sync. A failure there reads "departed source"
+// and "reconnect" although p never had a session.
+func lowLiveConnect(t *testing.T, p *Peer, identifier uint32) *lowLivePeer {
+	t.Helper()
+	return lowLiveReconnect(t, &lowLivePeer{peer: p}, identifier)
+}
+
 // adjOutOwedAnnouncedBy reports whether the destination's owed record for
 // prefix names source among its announcers.
 func adjOutOwedAnnouncedBy(t *testing.T, destination *Peer, prefix netip.Prefix, source *Peer) bool {

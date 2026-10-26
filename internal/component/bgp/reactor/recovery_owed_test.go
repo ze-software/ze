@@ -318,6 +318,39 @@ func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
 			lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decided P")
 		})
 	}
+	t.Run("churn-stream", func(t *testing.T) {
+		// AC-22 (e), round 11, N-4: A's withdrawal is owed, and B
+		// re-announces P with no pause, one mover reaching C's writer inside
+		// every held round. Each admission writes the revision the RIB
+		// elected and is RE-OWED by the mover, so no admission ends without
+		// a re-owe and none is LEFT OWED without a write; once B stops, C
+		// holds B's last revision.
+		const churn = 1000
+		rail := newOwedRail(t)
+		other := adjOutTestOtherSource(rail.r, rail.source)
+		attachRecoveryOwner(t, rail.r, rail.source, other)
+		adjOutTestForward(t, rail.destination, rail.source, p, 11)
+		adjOutTestForward(t, rail.destination, other, p, 21)
+		rail.forward(t, true, p) // A's withdrawal merges into the owed record.
+		rail.request(t)
+		message := uint64(21)
+		for i := range churn {
+			answered := message
+			message = 100 + uint64(i)
+			adjOutTestForward(t, rail.destination, other, p, message) // B's mover.
+			rail.release <- owedSurvivorMessage(other.Settings().Address, p, answered)
+			// RE-OWED: the next round starts with no further UPDATE.
+			require.Equal(t, p, rail.request(t).Keys[0].NLRI, "admission %d was re-owed", i)
+		}
+		rail.release <- owedSurvivorMessage(other.Settings().Address, p, message)
+		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round after the churn decided P")
+		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), churn+2,
+			"A's route, then one write per admission: no admission retried without a decision")
+		entry, held := adjOutTestEntry(rail.destination)
+		require.True(t, held)
+		require.Equal(t, other, entry.owner.source, "C holds B's route")
+		require.Equal(t, message, entry.owner.message, "C holds B's last revision")
+	})
 }
 
 // TestOwnerWithdrawalOwedWhileCandidateInFlight proves round 12, I-1 at C's

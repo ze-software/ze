@@ -58,6 +58,37 @@ func newBorrowedPluginServer(t *testing.T, r *Reactor, names ...string) *plugins
 	return srv
 }
 
+// newBorrowedPluginServerOver is newBorrowedPluginServer with the reactor
+// reached through api, so a test can stand between the plugins and the
+// reactor (a wrapper embedding *reactorAPIAdapter). It repeats
+// newBorrowedPluginServer's steps rather than serving as its body, so each
+// constructor states its own startup checks.
+func newBorrowedPluginServerOver(t *testing.T, api plugin.ReactorLifecycle, names ...string) *pluginserver.Server {
+	t.Helper()
+	configs := make([]plugin.PluginConfig, 0, len(names))
+	for _, name := range names {
+		configs = append(configs, plugin.PluginConfig{Name: name, Internal: true, Encoder: "json"})
+	}
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: configs}, api)
+	require.NoError(t, err)
+	if len(configs) > 0 {
+		// The hub spawns plugin processes through a PluginManager and hands it to
+		// the server (cmd/ze/hub/main.go, apiServer.SetProcessSpawner(pm)).
+		mgr := pluginmgr.NewManager()
+		require.NoError(t, mgr.StartAll(context.Background(), nil, nil))
+		srv.SetProcessSpawner(mgr)
+	}
+	require.NoError(t, srv.StartWithContext(context.Background()))
+	t.Cleanup(srv.Stop)
+	for _, name := range names {
+		require.Eventually(t, func() bool {
+			pm := srv.ProcessManager()
+			return pm != nil && pm.GetProcess(name) != nil
+		}, 5*time.Second, 10*time.Millisecond, "plugin %s never spawned in the hub's server", name)
+	}
+	return srv
+}
+
 // startBorrowedPeers starts a borrow-mode reactor's peers once the borrowed
 // server has finished plugin startup, which is when the daemon starts them: the
 // bgp plugin registers StartPeers as the coordinator's post-startup callback
