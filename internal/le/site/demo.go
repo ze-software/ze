@@ -80,6 +80,12 @@ const (
 // that shows none. The first page that carries a marker loads the two
 // manifests, and a load that fails fails every page after it the same way,
 // because the answer cannot change inside one build.
+//
+// A demonstration the source manifest lists and no render has recorded is not
+// refused: its page is published with a notice where the player would be, and
+// one warning line goes to warn naming the demo and the command that records
+// it. A broken or not yet recorded demo is acceptable, so it never stops a site
+// build; media that disagrees with its manifest is still refused.
 type demoCatalog struct {
 	paths  Paths
 	loaded bool
@@ -87,6 +93,9 @@ type demoCatalog struct {
 	built  map[string]siteterminaldemo.ArtifactEntry
 	page   string
 	err    error
+	// warn receives the warning for each unrecorded demo, once per demo.
+	warn   io.Writer
+	warned map[string]bool
 }
 
 // errDemoMediaAbsent says this checkout holds no rendered demonstrations at
@@ -100,7 +109,20 @@ var errDemoMediaAbsent = errors.New("this checkout holds no rendered terminal de
 
 // newDemoCatalog answers a catalog that has read nothing yet.
 func newDemoCatalog(paths Paths) *demoCatalog {
-	return &demoCatalog{paths: paths}
+	return &demoCatalog{paths: paths, warn: os.Stderr, warned: map[string]bool{}}
+}
+
+// warnUnrecorded writes the warning for one demo with no recording, once per
+// build however many pages embed it.
+func (catalog *demoCatalog) warnUnrecorded(id, page string) error {
+	if catalog.warned[id] {
+		return nil
+	}
+	catalog.warned[id] = true
+	_, err := io.WriteString(catalog.warn, "warning: terminal demo "+id+" on "+page+
+		" has no recording in "+catalog.assetRoot()+", so the page is published without it; record it with "+
+		"`./le site terminal-demo render name "+id+"`\n")
+	return err
 }
 
 // assetRoot is where a render writes the media this build publishes: the
@@ -161,7 +183,8 @@ func (catalog *demoCatalog) load() error {
 // docRel names the page inside docs/, and is empty for a page the manifest
 // does not name. When it is set, a demonstration may appear only on its own
 // page or on the gallery, so a marker copied to a second page is refused
-// rather than published twice.
+// rather than published twice. A demonstration with no recording publishes
+// the unrecorded notice and warns, rather than stopping the page.
 func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, string, string, error) {
 	inBody := demoMarker.FindAllStringSubmatch(body, -1)
 	inMirror := demoMarker.FindAllStringSubmatch(mirror, -1)
@@ -191,7 +214,12 @@ func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, s
 		}
 		entry, generated := catalog.built[id]
 		if !generated {
-			return "", "", "", fmt.Errorf("terminal demo %s has no generated artifacts", id)
+			if err := catalog.warnUnrecorded(id, demo.Page); err != nil {
+				return "", "", "", err
+			}
+			bodyByID[id] = renderUnrecordedDemoHTML(id, &demo)
+			mirrorByID[id] = renderUnrecordedDemoMarkdown(&demo)
+			continue
 		}
 		assets, err := catalog.verifyAssets(id, demo.Kind, entry)
 		if err != nil {
@@ -646,4 +674,32 @@ func renderDemoMarkdown(render *demoRender) string {
 		"Recorded with Ze " + demoRelease(entry) + " " + render.PlatformSentence + " using " + demo.Engine +
 		". Duration: " + duration + ".\n\n" +
 		"```console\n" + transcript + "\n```\n"
+}
+
+// unrecordedNotice is what a page says where the player of a demonstration no
+// render has recorded yet would be.
+const unrecordedNotice = "Recording not yet available. This demonstration has not been recorded for the published site yet."
+
+// renderUnrecordedDemoHTML answers the figure a demonstration with no
+// recording publishes as: its title and description, and the notice in the
+// frame the player would fill. It links no media, because none exists.
+func renderUnrecordedDemoHTML(id string, demo *siteterminaldemo.Demo) string {
+	return `<figure class="terminal-demo" data-terminal-demo="` + html.EscapeString(id) + `">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">` + html.EscapeString("Ze "+strings.ToLower(demo.Kind)+" lab") + `</span>
+      <h3>` + html.EscapeString(demo.Title) + `</h3>
+      <p>` + html.EscapeString(demo.Description) + `</p>
+    </div>
+  </div>
+  <div class="terminal-demo__frame">
+    <p class="terminal-demo__unrecorded">` + unrecordedNotice + `</p>
+  </div>
+</figure>`
+}
+
+// renderUnrecordedDemoMarkdown answers the section a page's Markdown mirror
+// shows for a demonstration with no recording.
+func renderUnrecordedDemoMarkdown(demo *siteterminaldemo.Demo) string {
+	return "### Demo: " + demo.Title + "\n\n" + demo.Description + "\n\n" + unrecordedNotice + "\n"
 }

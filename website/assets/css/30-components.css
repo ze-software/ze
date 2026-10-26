@@ -860,7 +860,8 @@
         background: #1d1133;
     }
 
-    .terminal-demo__noscript {
+    .terminal-demo__noscript,
+    .terminal-demo__unrecorded {
         margin: 0;
         padding: var(--space-4) var(--space-5);
         color: #e6d9f2;

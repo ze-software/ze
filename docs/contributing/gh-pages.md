@@ -9,6 +9,14 @@ old source-only files there. It reuses matching demo artifacts. Run
 its tape, and publishes it beside the artifacts it did not record. The ids are in
 `demos/terminal/manifest.json`.
 
+A demo the manifest lists that has no recording does not stop the build. Its
+page is published with "Recording not yet available." where the player would
+be, the Markdown mirror says the same, and the build prints one warning line
+naming the demo, its page and the `render name <demo-id>` command that records
+it. `./le site check` judges that page like any other. Media that no longer
+matches its artifact manifest is still refused.
+<!-- source: internal/le/site/demo.go -- (*demoCatalog).expand, (*demoCatalog).warnUnrecorded, renderUnrecordedDemoHTML -->
+
 A recording lives in the ARTIFACT tree, at `../gh-pages/assets/demos`. A render
 writes it there, and a build reads it from there for the `?v=` digest it stamps
 into every page that replays a demo. So one directory answers what the site

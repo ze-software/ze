@@ -205,6 +205,75 @@ func TestATerminalDemoIsRefusedRatherThanPublishedWrong(t *testing.T) {
 	})
 }
 
+// TestADemoWithNoRecordingPublishesItsPageWithoutIt covers a demonstration the
+// source manifest lists and no render has recorded yet. The page is published
+// with a notice where the player would be, the mirror says the same, no player
+// is linked, and the build warns once, naming the demo and the command that
+// records it.
+// VALIDATES: an unrecorded demo degrades to a notice plus one warning line.
+// PREVENTS: `./le site build` stopping on a demo nobody has recorded yet.
+// METHOD: the fixture's manifest gains a second demo with no artifact entry,
+// and that demo's marker is expanded twice on its own page.
+func TestADemoWithNoRecordingPublishesItsPageWithoutIt(t *testing.T) {
+	paths := demoFixture(t)
+	writeDemoJSON(t, filepath.Join(paths.Repository, "demos", "terminal", "manifest.json"), map[string]any{
+		"schema":       2,
+		"renderer":     map[string]any{"name": "ze-demo", "version": "3", "image": "img", "platform": "linux/native"},
+		"gallery-page": "guide/terminal-demonstrations.md",
+		"demos": []any{
+			map[string]any{
+				"id": "launcher", "title": "Start Ze", "description": "Bring a session up.",
+				"page": "guide/quickstart.md", "anchor": "start", "platform": "portable",
+				"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
+			},
+			map[string]any{
+				"id": "tunnel", "title": "Bring a tunnel up", "description": "Negotiate an IPsec tunnel.",
+				"page": "guide/ipsec.md", "anchor": "tunnel", "platform": "linux",
+				"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
+			},
+		},
+	})
+	catalog := newDemoCatalog(paths)
+	var warnings strings.Builder
+	catalog.warn = &warnings
+	marker := "<!-- terminal-demo: tunnel -->"
+	body, mirror, head, err := catalog.expand(
+		"<p>Before.</p>\n"+marker+"\n<p>After.</p>", "Before.\n\n"+marker+"\n\nAfter.", "../../", "guide/ipsec.md")
+	if err != nil {
+		t.Fatalf("a demo with no recording must not stop the page: %v", err)
+	}
+	for _, part := range []string{
+		`<figure class="terminal-demo" data-terminal-demo="tunnel">`,
+		"<h3>Bring a tunnel up</h3>",
+		`<p class="terminal-demo__unrecorded">Recording not yet available.`,
+		"<p>Before.</p>",
+		"<p>After.</p>",
+	} {
+		if !strings.Contains(body, part) {
+			t.Errorf("the published page must carry %s:\n%s", part, body)
+		}
+	}
+	if strings.Contains(body, "data-terminal-demo-player") || strings.Contains(body, "assets/demos/") {
+		t.Errorf("a demo with no recording must not mount a player or link media:\n%s", body)
+	}
+	if !strings.Contains(mirror, "### Demo: Bring a tunnel up") || !strings.Contains(mirror, "Recording not yet available.") {
+		t.Errorf("the Markdown mirror must say the recording is not available:\n%s", mirror)
+	}
+	if head != "" {
+		t.Errorf("a page with no recording must not link the player: %q", head)
+	}
+
+	if _, _, _, err := catalog.expand(marker, marker, "../../", "guide/ipsec.md"); err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	want := "warning: terminal demo tunnel on guide/ipsec.md has no recording in " +
+		catalog.assetRoot() + ", so the page is published without it; record it with " +
+		"`./le site terminal-demo render name tunnel`\n"
+	if warnings.String() != want {
+		t.Errorf("the build must warn once, naming the demo and the command:\n got %q\nwant %q", warnings.String(), want)
+	}
+}
+
 // TestARunningTimeReadsAsAPhrase covers the duration a caption shows, which is
 // read from the recording rather than restated in the catalog.
 func TestARunningTimeReadsAsAPhrase(t *testing.T) {
