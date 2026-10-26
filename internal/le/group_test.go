@@ -253,8 +253,8 @@ func registeringDirectories(t *testing.T, tools string) []string {
 // be unreachable from argv while looking registered.
 func TestNoRegisteredLeCommandExceedsTwoWords(t *testing.T) {
 	for _, tool := range commandsAtStart {
-		if words := len(strings.Fields(tool.Name)); words > 3 {
-			t.Errorf("command %q is %d words; dispatch offers the matcher three", tool.Name, words)
+		if words := len(strings.Fields(tool.Name)); words > leroot.CommandWordsMax {
+			t.Errorf("command %q is %d words; dispatch offers the matcher %d", tool.Name, words, leroot.CommandWordsMax)
 		}
 	}
 }
