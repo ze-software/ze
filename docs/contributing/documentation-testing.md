@@ -488,7 +488,7 @@ packages that no longer exist.
    trigger it during pre-commit verification.
 5. Add its producer and exact command to this page and `ai/INDEX.md`.
 6. If agent rules need the command, edit the canonical rule point and render the
-   rule corpus through `./le ai rules render-update`.
+   rule corpus through `./le ai rules update render`.
 
 Repository tooling is compiled Go under `internal/le`; package-owned fixtures
 belong in that package's `testdata/` directory.

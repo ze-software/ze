@@ -9,7 +9,7 @@ them.
 A `Write` or an `Edit` TOOL call on a file that feeds one removes it. A Bash
 command that names one, or names a directory holding one, rebuilds it before
 that command runs, so a grep reads the current code. A write that reaches the
-file another way (`sed -i`, a heredoc, `git rebase`, `./le repo generate`)
+file another way (`sed -i`, a heredoc, `git rebase`, `./le repo update`)
 moves an input with no hook in the path and leaves the index PRESENT and stale.
 Nothing rebuilds one that is present: a session start builds only what the tree
 does not hold, and so does the read hook. It stays stale until the next `Write`
@@ -633,7 +633,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | labtest, package test server container, real server in a unit test, stayrtr container, docker build tag, docker-peers, ZE_REQUIRE_DOCKER | `docs/architecture/testing/interop.md` (A package test's own server container (labtest)), `internal/le/interoplab/labtest/labtest.go`, `docs/architecture/testing/qemu-integration.md` (The docker population), `./le test integration docker-peers` |
 | lab cleanup, leftover containers, orphan lab resources, killed lab run, lab owner labels, ze.lab.run, ze.lab.pid | `docs/architecture/testing/interop.md`, `./le test integration cleanup dry`, `./le test integration cleanup`, `internal/le/interoplab/orphans.go` |
 | live RPKI, live-rpki, real RTR cache, Cloudflare RPKI data | `docs/functional-tests.md` (Live RPKI), `internal/component/bgp/plugins/rpki/rpki_live_test.go`, `./le test integration live-rpki` |
-| netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le test netlab render-check`, `docker/Dockerfile.lab` |
+| netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le test netlab check`, `docker/Dockerfile.lab` |
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
 | changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le repo changed scope`, `internal/le/repo/changed.Answer`, `internal/le/go/staticcheck.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |

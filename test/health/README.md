@@ -26,7 +26,7 @@ The volume counters are published, not gated. Byte-comparing the whole report
 charged a regenerate-and-commit to roughly 60% of commits, because every added
 test moves a denominator, and a check that fires that often for cosmetic reasons
 gets routed around instead of read. The counters are refreshed by
-`./le repo generate` and may lag the tree by a few tests; the page says so.
+`./le repo update` and may lag the tree by a few tests; the page says so.
 
 **The ratchets do not depend on any of this.** `./le test sensitivity check`
 enforces them from the tree itself, reading only `sensitivity-baseline.json`, at
@@ -93,7 +93,7 @@ func TestCloseWithNoBundle(t *testing.T) { ... }
 | Command | Does |
 |---------|------|
 | `./le test health update` | Regenerate the page, `latest.json`, and the baseline |
-| `./le test health check` | Fail if the committed page is stale (runs inside `./le repo generated-check`) |
+| `./le test health check` | Fail if the committed page is stale (runs inside `./le repo check generated`) |
 | `./le test health record` | Append one KPI sample, then regenerate the page |
 | `./le test sensitivity check` | Enforce the ratchets (runs inside `./le verify current`) |
 | `./le test sensitivity check` | Human-readable list of every inert and orphaned test |

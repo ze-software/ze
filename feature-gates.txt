@@ -27,7 +27,7 @@
 # their daemon tags through the same Go parser.
 #
 # To add a feature gate, add each package that must disappear below, create its
-# gated registration or seam, then run `./le repo generate`, which rewrites the
+# gated registration or seam, then run `./le repo update`, which rewrites the
 # derived tag lists, the composition root and the gated-plugin table. The full
 # procedure is in docs/architecture/plugin/feature-gates.md.
 #

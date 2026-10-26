@@ -19,8 +19,8 @@
 |------------------|-----------|--------------|
 | `ai/INSTRUCTIONS.md` | `AGENTS.md`, which every agent reads (the sync removes a root `CLAUDE.md`, because Claude Code ignores `AGENTS.md` while one exists) | `./le ai sync update` |
 | `ai/skills/*.md` | the per-tool `SKILL.md` mirrors | `./le ai sync update` |
-| `ai/rules/points/<rule>/` | `ai/rules/<rule>.md` | `./le ai rules render-update` |
-| A rule's points or manifest | `TRIGGERS.md`, `CORE.md`, `INDEX.md` | `./le ai rules render-update`, then `condensed-update` and `index-update` |
+| `ai/rules/points/<rule>/` | `ai/rules/<rule>.md` | `./le ai rules update render` |
+| A rule's points or manifest | `TRIGGERS.md`, `CORE.md`, `INDEX.md` | `./le ai rules update render`, then `update condensed` and `update index` |
 
 **Before editing any file listed in the "Generates" column above, stop. You MUST find its canonical source in the left column and edit that instead.**
 

@@ -118,7 +118,7 @@ that always reads a current index.
 **Which writes invalidate, and which do not.** The removal is keyed to the
 `Write` and `Edit` TOOLS. A write that reaches the file some other way moves an
 input with no hook in the path: `sed -i`, a shell heredoc, `git rebase`, `git
-stash pop`, `git checkout`, and `./le repo generate`. Each of those leaves
+stash pop`, `git checkout`, and `./le repo update`. Each of those leaves
 the index PRESENT and stale, and neither the read hook nor a session start
 rebuilds one that is present, so it stays stale until the next `Write` or `Edit`
 to one of its inputs. Run the writer yourself after a bulk rewrite:

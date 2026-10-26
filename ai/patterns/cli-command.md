@@ -546,7 +546,7 @@ there. `le completion words` answers from the same tables
 [ ] Owner package: register.go in internal/component/<owner>/cli (NOT cmd/ze) -- owner is cmd/ze-free
 [ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
 [ ] register.go: command.MustRegisterLocal(<path>, handler) for every `show X` shortcut
-[ ] Owner init() linked: run `./le repo generate`, which writes the blank import into internal/component/plugin/all
+[ ] Owner init() linked: run `./le repo update`, which writes the blank import into internal/component/plugin/all
 [ ] If storage-dependent: open the store in the command (storage.OpenReadOnly for a read, resolve.StorageFor for a write) and close it there; never from init()
 [ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)
 [ ] If online: YANG tree with ze:command extension

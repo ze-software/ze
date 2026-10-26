@@ -42,7 +42,7 @@ cp -R contrib/netlab/ze   <netlab>/netsim/daemons/ze
 ```
 
 Or leave the netlab install alone and let a topology carry them, which is what
-`./le test netlab render-check` does. netlab reads a `topology-defaults.yml` beside the
+`./le test netlab check` does. netlab reads a `topology-defaults.yml` beside the
 topology and a `templates/ze/` directory beside it.
 <!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
 <!-- source: internal/le/test/netlab/actions.go -- Answer -->
@@ -116,7 +116,7 @@ not validated against netlab's own integration tests.
 
 | Statement | Evidence |
 |-----------|----------|
-| netlab accepts the daemon definition and finds a template for each module | `netlab create` exits 0 on the reference topology, in `./le test netlab render-check` |
+| netlab accepts the daemon definition and finds a template for each module | `netlab create` exits 0 on the reference topology, in `./le test netlab check` |
 | The render is valid ze configuration | `ze config validate` exits 0 on each file under `contrib/netlab/golden/` |
 | A daemon runs one of those renders and answers the show command with JSON | `test/plugin/netlab-lab-profile.ci` |
 | Routes reach the FIB of a running lab, and a `ping` validation passes | Not run |
@@ -131,13 +131,13 @@ links.
 ## Keeping the templates from drifting
 
 ```bash
-./le test netlab render-check
+./le test netlab check
 ```
 
 It renders the templates with a real netlab, compares the result with
 `contrib/netlab/golden/`, and runs `ze config validate` on each golden file. A
 missing netlab is an error exit, never a skip. Use
-`./le test netlab render-update` to rewrite the golden files.
+`./le test netlab update` to rewrite the golden files.
 `test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it
 starts a daemon from a golden file and parses the show command output.
 <!-- source: internal/le/test/netlab/actions.go -- Actions -->

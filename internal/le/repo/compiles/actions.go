@@ -31,6 +31,7 @@ var actions = leaction.New(area,
 		// exists so a reader can see WHICH flavors a run compiles without
 		// waiting for six builds.
 		Verb:    "matrix",
+		Does:    "list",
 		Summary: "list the build flavors the compile check judges",
 		Why:     "the build flavors this gate compiles, with the tags and the anchor file each one exists to select",
 		Answer:  runMatrix,

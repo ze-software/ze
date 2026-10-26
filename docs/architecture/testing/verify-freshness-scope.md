@@ -273,7 +273,7 @@ Which gates the file list can rule out follows from what each one declares:
 | `./le go lint run`, `./le repo changed scope` | the `.go` file each finding sits in | a drop when none of them is in the file list |
 | `ze-evidence-vet` | the package pattern of each red | a drop when the list holds no file under it |
 | `./le doc wiring` | the files each sub-check is about, one declared group per failure (`declareFailureGroup`, `internal/le/doc/wiring/groups.go`) | a drop, except for the ci-sleep ratchet and a delegated target, which name no file |
-| Every other stage, `./le repo generated-check` and `./le doc check links` among them | the stage's own name, through the `generic` fallback group in `writeRunArtifacts` (`internal/le/verify/engine/artifacts.go`) | a charge, always |
+| Every other stage, `./le repo check generated` and `./le doc check links` among them | the stage's own name, through the `generic` fallback group in `writeRunArtifacts` (`internal/le/verify/engine/artifacts.go`) | a charge, always |
 
 The declared-group protocol is available to EVERY stage, not only `./le doc wiring`: a stage that emits its own groups is read back by `declaredGroups` (`internal/le/verify/engine/artifacts.go`), and the generic fallback applies only when it emits none. Attribution also answers a NARROWER question than the ledger asks: it says the files this commit carries cannot have caused the red. It never says the red is somebody else's work rather than the author's from an earlier session.
 

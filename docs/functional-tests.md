@@ -813,14 +813,14 @@ software emulation. The guest, its packages and the macOS status are in
 harness in the guest".
 <!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
 
-### netlab template render check (`./le test netlab render-check`, out of Thomas's release check)
+### netlab template render check (`./le test netlab check`, out of Thomas's release check)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
 render under `contrib/netlab/golden/`. The check builds a scratch lab from that mirror
 and runs `netlab create`. It then compares each rendered node configuration against its
 golden file, and runs `ze config validate` on each golden. It never writes to the
-golden file. `./le test netlab render-update` rewrites the golden files.
+golden file. `./le test netlab update` rewrites the golden files.
 
 It is out of Thomas's release check, `./le verify current`, because it needs netlab installed, and that check must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a

@@ -94,7 +94,10 @@ func TestRetiredSpellingNamesItsSuccessor(t *testing.T) {
 			// A forwarding area's words belong to the program it runs (`test
 			// wire isis`), so only a table's own verb can be checked here.
 			if list, tabled := leroot.ActionsOf(row.Command); row.Action != "" && tabled && list.PassesTo == "" {
-				if !slices.ContainsFunc(list.Actions, func(action leaction.Row) bool { return action.Verb == row.Action }) {
+				// A successor that takes a positional value spells it after the
+				// verb (`check generated`), so the verb is the first word.
+				verb := strings.Fields(row.Action)[0]
+				if !slices.ContainsFunc(list.Actions, func(action leaction.Row) bool { return action.Verb == verb }) {
 					t.Errorf("the successor `le %s %s` names an action `le %s` does not hold", row.Command, row.Action, row.Command)
 				}
 			}

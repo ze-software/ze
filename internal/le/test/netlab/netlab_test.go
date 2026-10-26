@@ -230,8 +230,8 @@ func TestGoldenDriftFailsAndStillValidatesTheGolden(t *testing.T) {
 	for _, want := range []string{
 		"FAIL: contrib/netlab/golden/r1.conf does not match the render\n",
 		"--- golden/r1.conf\n+++ rendered/r1\n@@ -1 +1 @@\n-router-id: 192.0.2.1\n+router-id: 198.51.100.8\n",
-		"./le test netlab render-check FAILED (1 problem(s))",
-		"run `./le test netlab render-update` and review the diff",
+		"./le test netlab check FAILED (1 problem(s))",
+		"run `./le test netlab update` and review the diff",
 	} {
 		if !strings.Contains(report.errorText(), want) {
 			t.Errorf("drift report does not contain %q:\n%s", want, report.errorText())
@@ -260,7 +260,7 @@ func TestGoldenValidationFailureFailsTheCheck(t *testing.T) {
 	for _, want := range []string{
 		"is not valid ze configuration",
 		"validator stdout\nvalidator stderr\n",
-		"./le test netlab render-check FAILED (1 problem(s))",
+		"./le test netlab check FAILED (1 problem(s))",
 	} {
 		if !strings.Contains(report.errorText(), want) {
 			t.Errorf("validation report does not contain %q:\n%s", want, report.errorText())
@@ -307,7 +307,7 @@ func TestAllCleanRunsTheCompleteNativeWorkflow(t *testing.T) {
 	wantText := fmt.Sprintf("netlab: %s\n", fixture.netlab) +
 		"ok: contrib/netlab/golden/r1.conf matches the render\n" +
 		"ok: contrib/netlab/golden/r1.conf validates\n" +
-		"\n./le test netlab render-check OK (1 node(s))\n"
+		"\n./le test netlab check OK (1 node(s))\n"
 	if report.Text() != wantText {
 		t.Errorf("clean output mismatch:\ngot:\n%s\nwant:\n%s", report.Text(), wantText)
 	}
@@ -394,28 +394,28 @@ func TestRenderActionsAreNativeAndZeroArgument(t *testing.T) {
 		t.Fatalf("action table has %d rows, want 2", len(list.Actions))
 	}
 	check, update := list.Actions[0], list.Actions[1]
-	if check.Verb != "render-check" || check.Writes {
+	if check.Verb != "check" || check.Writes {
 		t.Errorf("native check action row = %#v", check)
 	}
-	if update.Verb != "render-update" || !update.Writes {
+	if update.Verb != "update" || !update.Writes {
 		t.Errorf("native update action row = %#v", update)
 	}
-	if command.Subs() != "render-check | render-update (writes)" {
+	if command.Subs() != "check | update (writes)" {
 		t.Errorf("action grammar hint = %q", command.Subs())
 	}
 
-	payload, code := command.Answer([]string{"render-check"})
+	payload, code := command.Answer([]string{"check"})
 	if code != 7 || checkCalls != 1 || updateCalls != 0 || payload == nil {
 		t.Errorf("check answered code=%d check=%d update=%d payload=%#v",
 			code, checkCalls, updateCalls, payload)
 	}
-	payload, code = command.Answer([]string{"render-update"})
+	payload, code = command.Answer([]string{"update"})
 	report, ok := payload.(*Report)
 	if code != 8 || checkCalls != 1 || updateCalls != 1 || !ok || !report.Updated {
 		t.Errorf("update answered code=%d check=%d update=%d payload=%#v",
 			code, checkCalls, updateCalls, payload)
 	}
-	payload, code = command.Answer([]string{"render-update", "extra"})
+	payload, code = command.Answer([]string{"update", "extra"})
 	if code != 2 || payload != nil || updateCalls != 1 {
 		t.Errorf("update argument refusal answered code=%d calls=%d payload=%#v",
 			code, updateCalls, payload)
@@ -439,7 +439,7 @@ func TestReportIsStructuredAndPreservesStreams(t *testing.T) {
 			t.Errorf("structured report omitted %s: %s", key, raw)
 		}
 	}
-	if strings.Contains(string(raw), "./le test netlab render-check OK") {
+	if strings.Contains(string(raw), "./le test netlab check OK") {
 		t.Errorf("structured report embedded rendered prose: %s", raw)
 	}
 }

@@ -63,7 +63,7 @@ so both upgrade actions remain offline and deterministic.
 
 ```bash
 ./le web vendor sync           # copy from third_party/web/ to every consumer
-./le repo generate       # runs the same sync, with the other generators
+./le repo update       # runs the same sync, with the other generators
 ./le web vendor check          # gate: each consumer copy matches its source
 ./le web vendor update-report  # ask the npm registry for newer versions
 ./le web htmx check        # gate: no unexplained htmx 4 upgrade issue
@@ -75,7 +75,7 @@ reads them at compile time, and `./le repo compiles check` compiles what git
 holds, so a build that runs no generator must find them.
 
 `./le web vendor check` is a stage of `./le verify current` and a
-prerequisite of `./le repo generated-check`. It exits non-zero when a copy
+prerequisite of `./le repo check generated`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.
 
 `./le web vendor update-report` reads EVERY npm dist-tag and answers the newest

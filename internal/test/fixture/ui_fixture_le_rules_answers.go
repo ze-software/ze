@@ -86,9 +86,9 @@ func leRulesAnswers(ctx context.Context) error {
 		args    []string
 		markers []string
 	}{
-		{"rules lint", []string{areaAIRules, wordLint}, []string{"rule point(s) state an RFC 2119 level"}},
-		{"rules render-check", []string{areaAIRules, "render-check"}, []string{"rules are fresh"}},
-		{"rules points-roundtrip-check", []string{areaAIRules, "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
+		{"rules check metadata", []string{areaAIRules, actionCheck, rulesTargetMetadata}, []string{"rule point(s) state an RFC 2119 level"}},
+		{"rules check render", []string{areaAIRules, actionCheck, rulesTargetRender}, []string{"rules are fresh"}},
+		{"rules check points-roundtrip", []string{areaAIRules, actionCheck, "points-roundtrip"}, []string{"round-trip byte-identical"}},
 		{"rules gate-map-report", []string{areaAIRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
 	}
 	for _, gate := range readOnly {
@@ -124,11 +124,11 @@ func leRulesAnswers(ctx context.Context) error {
 		"ai/rules/points/aaa/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST do the NEW thing.**\n",
 	}
 
-	updatedTree := filepath.Join(work, "render-update")
+	updatedTree := filepath.Join(work, "update-render")
 	if err := writeFixture(updatedTree, fixtureFiles); err != nil {
 		return err
 	}
-	updated, err := le(updatedTree, areaAIRules, "render-update")
+	updated, err := le(updatedTree, areaAIRules, actionUpdate, rulesTargetRender)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := writeFixture(staleTree, fixtureFiles); err != nil {
 		return err
 	}
-	stale, err := le(staleTree, areaAIRules, "render-check")
+	stale, err := le(staleTree, areaAIRules, actionCheck, rulesTargetRender)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return err
 	}
 
-	lint, err := jsonAnswer(le, root, wordLint)
+	lint, err := jsonAnswer(le, root, rulesCheckMetadata)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if count, isList := listLength(lint["empty"]); !isList || count > 0 {
 		return uiLeRulesAnswersFailf("the lint read an empty or invalid population: %v", lint["empty"])
 	}
-	if err := requireRenderings(le, root, wordLint); err != nil {
+	if err := requireRenderings(le, root, rulesCheckMetadata); err != nil {
 		return err
 	}
 
@@ -265,7 +265,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return uiLeRulesAnswersFailf("`le ai rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{wordLint, "render-check", "render-update", "points-roundtrip-check", "gate-map-report", wordWrites, fieldChecks} {
+	for _, word := range []string{actionCheck, actionUpdate, "gate-map-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
@@ -279,11 +279,11 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("an unknown action answered %d rather than 2", unknown.code)
 	}
 
-	refused, err := le(root, areaAIRules, wordLint, "ai/rules")
+	refused, err := le(root, areaAIRules, actionCheck, rulesTargetMetadata, "ai/rules")
 	if err != nil {
 		return err
 	}
-	if refused.code != 2 || !strings.Contains(refused.stderr, "takes no arguments") {
+	if refused.code != 2 || !strings.Contains(refused.stderr, "takes no argument keyword") {
 		return uiLeRulesAnswersFailf("a path argument answered %d without the required refusal: %q", refused.code, refused.stderr)
 	}
 
@@ -303,13 +303,13 @@ func leRulesAnswers(ctx context.Context) error {
 		markers []string
 		absent  []string
 	}{
-		{"rules index-check", actionIndexCheck, []string{"rules, ai/rules/INDEX.md up to date"}, nil},
-		{"rules condensed-check", actionCondensedCheck, []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
+		{"rules check index", rulesCheckIndex, []string{"rules, ai/rules/INDEX.md up to date"}, nil},
+		{"rules check condensed", rulesCheckCondensed, []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
 		{"rules payload-report", actionPayloadReport, nil, []string{"ai/rules/CORE.md: 0 chars"}},
 		{"rules router-report", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
 	}
 	for _, gate := range digestGates {
-		answer, err := le(root, areaAIRules, gate.verb)
+		answer, err := le(root, append([]string{areaAIRules}, strings.Fields(gate.verb)...)...)
 		if err != nil {
 			return err
 		}
@@ -355,7 +355,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), []byte("stale index\n"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: make INDEX.md stale: %w", err)
 	}
-	indexUpdate, err := le(corpusTree, areaAIRules, "index-update")
+	indexUpdate, err := le(corpusTree, areaAIRules, actionUpdate, "index")
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func leRulesAnswers(ctx context.Context) error {
 			return fmt.Errorf("FAIL: make %s stale: %w", name, err)
 		}
 	}
-	condensedUpdate, err := le(corpusTree, areaAIRules, "condensed-update")
+	condensedUpdate, err := le(corpusTree, areaAIRules, actionUpdate, "condensed")
 	if err != nil {
 		return err
 	}
@@ -406,8 +406,8 @@ func leRulesAnswers(ctx context.Context) error {
 		verb string
 		keys []string
 	}{
-		{actionIndexCheck, []string{fieldFile, areaRules, fieldWritten, statusStale, "missing", fieldRows}},
-		{actionCondensedCheck, []string{fieldWritten, "empty-corpus", "artifacts"}},
+		{rulesCheckIndex, []string{fieldFile, areaRules, fieldWritten, statusStale, "missing", fieldRows}},
+		{rulesCheckCondensed, []string{fieldWritten, "empty-corpus", "artifacts"}},
 		{actionPayloadReport, []string{"parts", "chars", "tokens", "budget", "met", "headroom-percent", "missing"}},
 		{actionRouterReport, []string{"tasks", "corpus-size", "rules-total", "core", "routed", "blocking-routed", "surfaced-any", "missed-blocking", "unroutable-terms"}},
 	}
@@ -453,7 +453,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, word := range []string{actionIndexCheck, actionIndexUpdate, actionCondensedCheck, "condensed-update", actionPayloadReport, actionRouterReport} {
+	for _, word := range []string{actionCheck, actionUpdate, actionPayloadReport, actionRouterReport} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
@@ -493,7 +493,7 @@ func uiLeRulesAnswersExecute(ctx context.Context, dir string, env []string, prog
 }
 
 func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error), tree, verb string) (map[string]any, error) {
-	answer, err := le(tree, areaAIRules, verb, "|", "json")
+	answer, err := le(tree, append(append([]string{areaAIRules}, strings.Fields(verb)...), "|", "json")...)
 	if err != nil {
 		return nil, err
 	}
@@ -518,7 +518,7 @@ func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error
 
 func requireRenderings(le func(string, ...string) (uiLeRulesAnswersCommandResult, error), tree, verb string) error {
 	for _, operator := range []string{renderYAML, renderTable} {
-		answer, err := le(tree, areaAIRules, verb, "|", operator)
+		answer, err := le(tree, append(append([]string{areaAIRules}, strings.Fields(verb)...), "|", operator)...)
 		if err != nil {
 			return err
 		}
@@ -673,3 +673,13 @@ func copyTree(source, destination string) error {
 func uiLeRulesAnswersFailf(format string, args ...any) error {
 	return fmt.Errorf("FAIL: "+format, args...)
 }
+
+// The rule artifacts `le ai rules check` and `le ai rules update` take as
+// their target, and the two-word lines a gate table names one of them by.
+const (
+	rulesTargetMetadata = "metadata"
+	rulesTargetRender   = "render"
+	rulesCheckCondensed = "check condensed"
+	rulesCheckIndex     = "check index"
+	rulesCheckMetadata  = "check metadata"
+)

@@ -74,7 +74,7 @@ registrations. Missing the plugin registry entry means `--nlri decode` and
       InProcessNLRIDecoder: DecodeNLRIHex
       RunEngine:            func(net.Conn) int { return 0 }  // codec-only plugin
       CLIHandler:           func([]string) int { return 0 }   // codec-only plugin
-[ ] Run ./le repo generate (updates internal/component/plugin/all/all.go)
+[ ] Run ./le repo update (updates internal/component/plugin/all/all.go)
 ```
 
 ### 4. Capability (if the feature introduces one)

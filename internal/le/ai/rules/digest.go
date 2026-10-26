@@ -220,7 +220,7 @@ func parseRule(raw []string) (title string, meta []MetaPair, body []string) {
 // because its marker is not a single hash followed by whitespace.
 //
 // A whitespace-only heading answers false instead of Python's empty title. That
-// shape never reaches a generator. ./le ai rules lint first requires the initial
+// shape never reaches a generator. ./le ai rules check metadata first requires the initial
 // nonblank line to contain `# ` and a nonspace character (lint.go, lintH1).
 func headingOne(line string) (string, bool) {
 	if !strings.HasPrefix(line, "#") {

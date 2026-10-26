@@ -10,7 +10,7 @@
 // point. Other refusals cover a nested directory, a `##` heading that no manifest
 // section names, and a slug that is not a bare path component. Partial rendering
 // is invalid.
-// `./le ai rules condensed-update` uses WRITE mode, so partial output would delete
+// `./le ai rules update condensed` uses WRITE mode, so partial output would delete
 // an instruction while every gate stayed green.
 
 package airules
@@ -265,7 +265,7 @@ func drift(stem, want, have string) string {
 
 // RenderReport is what the two render actions answer.
 //
-// Written distinguishes a fresh-tree `render-check` from a `render-update` that
+// Written distinguishes a fresh-tree `check render` from an `update render` that
 // just made the tree fresh.
 type RenderReport struct {
 	Rules    int      `json:"rules"`
@@ -284,7 +284,7 @@ func (r RenderReport) Text() string {
 			tb.Str("rules-points: ").Str(line).Byte('\n')
 		}
 		return tb.Str("rules-points: ").Int(int64(len(r.Failures))).
-			Str(" rule(s) are stale; run `./le ai rules render-update`\n").String()
+			Str(" rule(s) are stale; run `./le ai rules update render`\n").String()
 	}
 	verb := "are fresh"
 	if r.Written {

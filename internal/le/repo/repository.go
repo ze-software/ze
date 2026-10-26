@@ -12,7 +12,7 @@
 //
 // The two gates select between those scopes. `le repo check` gets the
 // changed set from git and judges a developer's tree. `le repo
-// tree-check` declares an EMPTY changed set and runs inside the pre-commit gate.
+// check tree` declares an EMPTY changed set and runs inside the pre-commit gate.
 // Changed-file checks require complete files, but several sessions share this
 // checkout. Verify CAN otherwise fail work from another session.
 //

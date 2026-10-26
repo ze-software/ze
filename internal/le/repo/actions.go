@@ -20,15 +20,41 @@ const area = "repo"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: verbCheck, Summary: "run all six repository checks over your tree", Why: "all six repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage, spec AC completeness and the 32-bit parse allowlist",
-		Answer: runCheck},
-	leaction.Action{Verb: "tree-check", Summary: "run the four tree-wide repository checks", Why: "the four tree-wide checks without the two changed-file checks",
-		Answer: runTreeCheck},
-	leaction.Action{Verb: "generate", Summary: "refresh every generated repository artifact", Why: "refresh every deterministic repository artifact from its canonical Go source",
+	leaction.Action{Verb: verbCheck, Summary: "run all six repository checks over your tree", Why: "all six repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage, spec AC completeness and the 32-bit parse allowlist." +
+		" `tree` runs the four tree-wide checks without the two changed-file checks; `generated` checks every deterministic repository artifact without writing",
+		Parameters: []leaction.Parameter{{
+			Kind: leaction.KindEnum, Value: checkSelection, Requirement: leaction.Optional,
+			Help:   "run one selection instead of all six repository checks",
+			Values: []string{checkTree, checkGenerated},
+			ValueHelp: map[string]string{
+				checkTree:      "the four tree-wide checks, without the changed-file checks",
+				checkGenerated: "every generated artifact, checked without writing",
+			},
+		}},
+		AnswerArgs: runCheckSelection},
+	leaction.Action{Verb: verbUpdate, Summary: "refresh every generated repository artifact", Why: "refresh every deterministic repository artifact from its canonical Go source",
 		Writes: true, Answer: runGenerate},
-	leaction.Action{Verb: "generated-check", Summary: "check every generated artifact without writing", Why: "verify every deterministic repository artifact without writing",
-		Answer: runGeneratedCheck},
 )
+
+// The selections `repo check` takes in its first slot. Bare, it runs all six.
+const (
+	checkSelection = "selection"
+	checkTree      = "tree"
+	checkGenerated = "generated"
+)
+
+// runCheckSelection is the `le repo check [tree|generated]` action.
+func runCheckSelection(args leaction.Arguments) (any, int) {
+	switch args.One(checkSelection) {
+	case "":
+		return runCheck()
+	case checkTree:
+		return runTreeCheck()
+	case checkGenerated:
+		return runGeneratedCheck()
+	}
+	panic("BUG: repo: a declared check selection has no answer: " + args.One(checkSelection))
+}
 
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
@@ -61,7 +87,7 @@ func runCheck() (any, int) {
 	return answer(ctx, tree, changed)
 }
 
-// runTreeCheck is the `le repo tree-check` action: the changed set is
+// runTreeCheck is the `le repo check tree` action: the changed set is
 // DECLARED empty, which runs the three tree-wide checks and neither
 // changed-file check.
 func runTreeCheck() (any, int) {

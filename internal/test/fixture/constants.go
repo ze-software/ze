@@ -274,8 +274,6 @@ const (
 const (
 	actionAccept                  = "accept" // The policy decision recorded for a route.
 	actionCheck                   = "check"
-	actionCondensedCheck          = "condensed-check"
-	actionIndexCheck              = "index-check"
 	actionIndexUpdate             = "index-update"
 	actionL2TPTest                = "l2tp-test"
 	actionPayloadReport           = "payload-report"
@@ -286,7 +284,6 @@ const (
 	actionRun                     = "run"
 	actionSelftest                = "selftest"
 	actionStart                   = "start"
-	actionTreeCheck               = "tree-check"
 	actionUpdate                  = "update" // The le action verb.
 	actionWrite                   = "write"
 	actionVPPHugepagesTest        = "vpp-hugepages-test"

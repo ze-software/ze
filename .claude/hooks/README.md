@@ -216,7 +216,7 @@ that no non-test file under `internal/` or `cmd/` names.
 ## Tree checks (`./le repo`)
 
 <!-- source: internal/le/repository/repository.go -- Run -->
-`./le repo tree-check` declares an empty changed set and runs the three
+`./le repo check tree` declares an empty changed set and runs the three
 tree-wide checks. `./le repo check` runs all five over the current tree.
 
 | Check | Scope | What it reports |

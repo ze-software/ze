@@ -229,7 +229,7 @@ func fullStages() []Stage {
 		// so a line naming one again is a regression (AC-16 of
 		// spec-le-subject-first-command-tree).
 		stage("doc check", "retired-commands"),
-		stage("repo", "tree-check"),
+		stage("repo", "check", "tree"),
 		stage("plugin imports", "check"),
 		// The gated-plugin table is generated from the same manifest and the
 		// registrations, so a gate added without regenerating it reddens here.
@@ -266,10 +266,10 @@ func fullStages() []Stage {
 		stage("web vendor", "check"),
 		stage("web assets", "check"),
 		stage("doc index", "check"),
-		stage("ai rules", "render-check"),
-		stage("ai rules", "index-check"),
-		stage("ai rules", "condensed-check"),
-		stage("ai rules", "lint"),
+		stage("ai rules", "check", "render"),
+		stage("ai rules", "check", "index"),
+		stage("ai rules", "check", "condensed"),
+		stage("ai rules", "check", "metadata"),
 		stage("repo arch-map", "check"),
 		stage("test health", "check"),
 		stage("site facts", "check"),

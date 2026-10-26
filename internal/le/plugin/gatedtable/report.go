@@ -37,7 +37,7 @@ func (r CheckReport) Text() string {
 	if r.Reason != "" {
 		return tb.Str("./le plugin gated-table check: ").Str(r.File).Byte(' ').Str(r.Reason).
 			Str(": a build without a plugin would name the wrong build tag for it, or none.\n").
-			Str("Fix: ./le plugin gated-table update (or ./le repo generate)\n").String()
+			Str("Fix: ./le plugin gated-table update (or ./le repo update)\n").String()
 	}
 
 	return tb.Str(r.File).Str(" is current (").Int(int64(len(r.Rows))).Str(" gated plugins)\n").String()

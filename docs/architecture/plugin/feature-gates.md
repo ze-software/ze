@@ -92,7 +92,7 @@ feature is gated after. The registry work is the easy half.
    `register_<x>.go`, or an `*_infra.go` seam plus gated registration. Each one
    carries `//go:build ze_<x>`. A feature-only helper lives inside a gated file,
    or a no-feature build flags it U1000-unused.
-5. **Run `./le repo generate`.** It emits `all_ze_<x>.go`, regenerates
+5. **Run `./le repo update`.** It emits `all_ze_<x>.go`, regenerates
    the derived tag lists from the manifest, and gives each plugin the gate now
    covers its row in the gated-plugin table (see "Naming a plugin the build
    left out"). Then run `./le verify worktree`.
@@ -150,7 +150,7 @@ ze_ospf  internal/plugins/ospf/transport
 ze_ospf  internal/plugins/ospf/v3/transport
 ```
 
-The plugin's `.go` files are not source-tagged. `./le repo generate` moves
+The plugin's `.go` files are not source-tagged. `./le repo update` moves
 their blank imports into `all_<tag>.go`, and dead-code elimination drops the
 unreferenced packages when the tag is off.
 
@@ -281,7 +281,7 @@ ungated plugin, which `registry.Lookup` finds, or a name no build of this tree
 registers, such as an external plugin or a typo. A caller tells those two apart
 with `Lookup` and never prints a tag for either.
 
-`./le plugin gated-table update` generates the table, and `./le repo generate`
+`./le plugin gated-table update` generates the table, and `./le repo update`
 runs it after `./le plugin imports update`. It joins two facts that are each
 declared once. The name and the package come from the registrations
 (`repoinventory.Plugins`), which le can see in full because it is built with
@@ -293,7 +293,7 @@ what actually links a plugin. No row is written by hand.
 `./le plugin gated-table check` refuses a table that disagrees with the
 manifest or the registrations: a gate added without regenerating, a plugin
 moved under a gate, a new gated plugin. It is a stage of `./le verify current`
-and of `./le repo generated-check`. The table comes from the registrations
+and of `./le repo check generated`. The table comes from the registrations
 compiled into the running le, so a plugin added in the same run that rewrites
 the composition root reaches the table on the next run, once le has been
 rebuilt with it. `TestGatedPluginTableMatchesManifest` closes that gap from

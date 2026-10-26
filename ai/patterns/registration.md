@@ -16,9 +16,9 @@ Every module (plugin, schema, env var, command, validator) follows this model.
 The core never imports a specific plugin. Plugins never import each other.
 Communication is through text commands (`DispatchCommand`) and registries.
 
-`./le repo generate` auto-generates `internal/component/plugin/all/all.go` by scanning
+`./le repo update` auto-generates `internal/component/plugin/all/all.go` by scanning
 the filesystem for `register.go` files. Adding/removing a plugin = add/remove files
-+ run `./le repo generate`.
++ run `./le repo update`.
 
 ## All Registration Mechanisms
 
@@ -131,7 +131,7 @@ into the registry.
 generated composition root `internal/component/plugin/all` writes that import.
 `internal/le/plugin/imports` discovers a command owner by its `command/registry`
 registrar call, so a new `internal/component/<x>/cli` is linked by
-`./le repo generate` and by nothing else. `./le plugin imports check`
+`./le repo update` and by nothing else. `./le plugin imports check`
 reports an owner no blank import reaches.
 
 `cmd/ze/ze_core_dispatch.go` still hand-imports five packages, each with its
@@ -380,7 +380,7 @@ All registration is complete before any concurrent access. Registries are read-o
 ### New plugin
 See `ai/patterns/plugin.md`. Touch: plugin registry, YANG module registry (if schema),
 attribute name registry (if new attr), attr mod handler (if modifying attrs).
-Run `./le repo generate`.
+Run `./le repo update`.
 
 ### New config option
 See `ai/patterns/config-option.md`. Touch: YANG module (leaf definition),
@@ -395,7 +395,7 @@ Touch: env var registry (`env.MustRegister()`), YANG module (leaf under environm
 See `ai/rules/config.md`: every YANG environment leaf = matching env var.
 
 ### New YANG module
-Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `./le repo generate`.
+Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `./le repo update`.
 
 ### New attribute code
 Touch: attribute name registry, optionally attr mod handler registry.
@@ -442,5 +442,5 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
-| All blank imports auto-generated | `./le repo generate` + `internal/le/plugin/imports/pluginimports.go` |
+| All blank imports auto-generated | `./le repo update` + `internal/le/plugin/imports/pluginimports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

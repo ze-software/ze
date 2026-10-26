@@ -8,7 +8,7 @@
 
 Every feature in Ze passes two folder tests:
 
-**Copy test:** copy a plugin folder into the project, run codegen (`./le repo generate`),
+**Copy test:** copy a plugin folder into the project, run codegen (`./le repo update`),
 and the plugin's commands, YANG schema, and handlers are live. No manual wiring.
 
 **Delete test:** delete a plugin folder, run codegen, and every one of its features
@@ -111,7 +111,7 @@ checks the same property over the registered set.
 This means adding a YANG command schema to a plugin is:
 
 1. Write `ze-<name>-cmd.yang` in the plugin's `yang/` folder
-2. Run `./le repo generate`
+2. Run `./le repo update`
 3. Done: the codegen produces `embed.go`, `register.go`, and updates `all.go`
 
 ### How Codegen Enables the Folder Test

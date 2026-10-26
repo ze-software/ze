@@ -722,7 +722,7 @@ func TestTheDigestWritesBothArtifactsAndTheCheckThenPasses(t *testing.T) {
 	if !stale.Failed() {
 		t.Fatalf("an absent artifact did not read as stale: %+v", stale.Artifacts)
 	}
-	if !strings.Contains(stale.Text(), "./le ai rules condensed-update") {
+	if !strings.Contains(stale.Text(), "./le ai rules update condensed") {
 		t.Errorf("the page does not name the fix: %q", stale.Text())
 	}
 

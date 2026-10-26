@@ -16,7 +16,7 @@ The feature is two things that share collectors but not enforcement.
 | | Ratchets | Report |
 |---|---|---|
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
-| Enforced by | `./le test sensitivity check`, stage 10 of `./le verify current` | `./le test health check`, inside `./le repo generated-check` |
+| Enforced by | `./le test sensitivity check`, stage 10 of `./le verify current` | `./le test health check`, inside `./le repo check generated` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/test/sensitivity.Answer` | `internal/le/test/health.Answer` |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
@@ -244,7 +244,7 @@ gated. Byte-comparing the whole report charged a regenerate-and-commit to ~60%
 of commits, because every added test moves a denominator, and a check that fires
 that often for cosmetic reasons gets routed around rather than read: the
 "advisory gate permanently red" failure the report is built to expose. The
-counters are refreshed by `./le repo generate` and the page discloses that they may
+counters are refreshed by `./le repo update` and the page discloses that they may
 lag.
 <!-- source: internal/le/test/health/actions.go -- Answer -->
 

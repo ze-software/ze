@@ -513,7 +513,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-generated-files-reconcile",
-		Reason: "Make itself: it ran the generated-files update and then re-checked the same paths. Both halves are `le repo generate` and `le repo generated-check`, each judged on its own row",
+		Reason: "Make itself: it ran the generated-files update and then re-checked the same paths. Both halves are `le repo update` and `le repo check generated`, each judged on its own row",
 	},
 	{
 		Target: "ze-gokrazy-build",

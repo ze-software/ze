@@ -142,7 +142,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 		dropped                       string
 	}{
 		{
-			name: "trigger rows", update: "condensed-update", check: "condensed-check", artifact: "TRIGGERS.md",
+			name: "trigger rows", update: "update condensed", check: "check condensed", artifact: "TRIGGERS.md",
 			kept: []string{
 				"| `ai/rules/completion.md` | blocking | before claiming any gokrazy qdisc work done |",
 				"| `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting a file holding uncommitted work |",
@@ -151,7 +151,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			},
 		},
 		{
-			name: "core directives", update: "condensed-update", check: "condensed-check", artifact: "CORE.md",
+			name: "core directives", update: "update condensed", check: "check condensed", artifact: "CORE.md",
 			kept: []string{
 				"## Never Destroy Work\n`ai/rules/never-destroy-work.md`",
 				"- MUST ask first.",
@@ -161,7 +161,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			dropped: "- MUST finish it.",
 		},
 		{
-			name: "index rows", update: "index-update", check: "index-check", artifact: "INDEX.md",
+			name: "index rows", update: "update index", check: "check index", artifact: "INDEX.md",
 			kept: []string{
 				"| Completion | before claiming any gokrazy qdisc work done | blocking | `ai/rules/completion.md` |",
 				"| Never Destroy Work | before deleting a file holding uncommitted work | blocking | `ai/rules/never-destroy-work.md` |",
@@ -177,7 +177,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			t.Setenv("ZE_REPO_ROOT", root)
 			env.ResetCache()
 			t.Cleanup(env.ResetCache)
-			if answer, code := Answer([]string{tc.update}); code != 0 {
+			if answer, code := Answer(strings.Fields(tc.update)); code != 0 {
 				t.Fatalf("%s = %d, %+v", tc.update, code, answer)
 			}
 			path := filepath.Join(root, "ai", "rules", tc.artifact)
@@ -193,7 +193,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			if tc.dropped != "" && strings.Contains(string(body), tc.dropped) {
 				t.Errorf("%s loaded a routed directive: %s", tc.artifact, body)
 			}
-			if answer, code := Answer([]string{tc.check}); code != 0 {
+			if answer, code := Answer(strings.Fields(tc.check)); code != 0 {
 				t.Fatalf("fresh %s = %d, %+v", tc.check, code, answer)
 			}
 			// Both words have eight bytes. A size-only freshness check is not
@@ -205,7 +205,7 @@ func TestNativeArtifactCommandsPreserveRoutingAndCheckWithoutWriting(t *testing.
 			if err := os.WriteFile(path, []byte(stale), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if answer, code := Answer([]string{tc.check}); code != 1 {
+			if answer, code := Answer(strings.Fields(tc.check)); code != 1 {
 				t.Errorf("stale %s = %d, %+v; want 1", tc.check, code, answer)
 			}
 			after, err := os.ReadFile(path)
@@ -228,8 +228,8 @@ func TestNativeRenderCommandPreservesPointBodiesAndCheckWithoutWriting(t *testin
 	t.Setenv("ZE_REPO_ROOT", root)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
-	if answer, code := Answer([]string{"render-update"}); code != 0 {
-		t.Fatalf("render-update = %d, %+v", code, answer)
+	if answer, code := Answer([]string{"update", "render"}); code != 0 {
+		t.Fatalf("update render = %d, %+v", code, answer)
 	}
 	path := filepath.Join(root, "ai", "rules", "sample.md")
 	body, err := os.ReadFile(path)
@@ -239,22 +239,22 @@ func TestNativeRenderCommandPreservesPointBodiesAndCheckWithoutWriting(t *testin
 	if string(body) != want {
 		t.Fatalf("rendered rule = %q, want %q", body, want)
 	}
-	if answer, code := Answer([]string{"render-check"}); code != 0 {
-		t.Fatalf("fresh render-check = %d, %+v", code, answer)
+	if answer, code := Answer([]string{"check", "render"}); code != 0 {
+		t.Fatalf("fresh check render = %d, %+v", code, answer)
 	}
 	stale := strings.Replace(want, "MUST x", "MUST y", 1)
 	if err := os.WriteFile(path, []byte(stale), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if answer, code := Answer([]string{"render-check"}); code != 1 {
-		t.Errorf("stale render-check = %d, %+v; want 1", code, answer)
+	if answer, code := Answer([]string{"check", "render"}); code != 1 {
+		t.Errorf("stale check render = %d, %+v; want 1", code, answer)
 	}
 	after, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(after) != stale {
-		t.Errorf("render-check rewrote the rejected rule: %q", after)
+		t.Errorf("check render rewrote the rejected rule: %q", after)
 	}
 }
 
@@ -270,18 +270,18 @@ func TestNativeRenderCommandRefusesToOverwriteDigestArtifacts(t *testing.T) {
 			t.Setenv("ZE_REPO_ROOT", root)
 			env.ResetCache()
 			t.Cleanup(env.ResetCache)
-			answer, code := Answer([]string{"render-update"})
+			answer, code := Answer([]string{"update", "render"})
 			report, ok := answer.(RenderReport)
 			if code != 1 || !ok || len(report.Failures) != 1 ||
 				!strings.Contains(report.Failures[0], "a point directory may not be named for a generated artifact") {
-				t.Fatalf("render-update = %d, %+v; want artifact ownership refusal", code, answer)
+				t.Fatalf("update render = %d, %+v; want artifact ownership refusal", code, answer)
 			}
 			body, err := os.ReadFile(filepath.Join(root, "ai", "rules", name+".md"))
 			if err != nil {
 				t.Fatal(err)
 			}
 			if string(body) != saved {
-				t.Errorf("render-update overwrote %s.md: %q", name, body)
+				t.Errorf("update render overwrote %s.md: %q", name, body)
 			}
 		})
 	}

@@ -7,18 +7,18 @@
 // Detail: artifacts.go -- the two digest artifacts and the payload they cost
 // Detail: router.go -- the routing measurement
 //
-// actions.go ports the retired rules area. `le ai rules lint` now selects one
-// action from the table below, while retired gate metadata remains only for the
-// migration census.
+// actions.go ports the retired rules area. `le ai rules check metadata` now
+// selects one action and target from the table below, while retired gate
+// metadata remains only for the migration census.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/le/action. What stays here is the TABLE, because the table is the only
 // part of an area that is about the rule corpus.
 //
-// The table contains the eleven `ze-rules-*` gates and one hook-facing action.
-// Five gates came from rules_lint.py and rules_points.py. Six came from
-// rules_index.py, rules_condensed.py, and rules_router.py. Transcript coverage
-// declares its native verb directly.
+// The table carries the eleven `ze-rules-*` gates and one hook-facing action.
+// The five gates that judge an artifact against its source are the targets of
+// `check`, and the three generators are the targets of `update`; the reports
+// keep their own actions. Transcript coverage declares its native verb directly.
 
 package airules
 
@@ -32,36 +32,79 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The targets of the check and update actions. Each is the positional value of
+// its action, so one verb carries every artifact the area judges or writes.
+const (
+	targetCondensed       = "condensed"
+	targetIndex           = "index"
+	targetMetadata        = "metadata"
+	targetPointsRoundtrip = "points-roundtrip"
+	targetRender          = "render"
+	targetValue           = "target"
+)
+
+// checkTargets answers each check target's gate. None of them writes.
+var checkTargets = map[string]func() (any, int){
+	targetCondensed:       func() (any, int) { return condensedAnswer(true) },
+	targetIndex:           func() (any, int) { return indexAnswer(true) },
+	targetMetadata:        lintAnswer,
+	targetPointsRoundtrip: roundTripAnswer,
+	targetRender:          func() (any, int) { return renderAnswer(true) },
+}
+
+// updateTargets answers each update target's generator.
+var updateTargets = map[string]func() (any, int){
+	targetCondensed: func() (any, int) { return condensedAnswer(false) },
+	targetIndex:     func() (any, int) { return indexAnswer(false) },
+	targetRender:    func() (any, int) { return renderAnswer(false) },
+}
+
+// checkParameters is the grammar of `ai rules check <target>`.
+var checkParameters = []leaction.Parameter{{
+	Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
+	Help:   "the rule artifact to check",
+	Values: []string{targetCondensed, targetIndex, targetMetadata, targetPointsRoundtrip, targetRender},
+	ValueHelp: map[string]string{
+		targetCondensed:       "TRIGGERS.md and CORE.md match the rules they derive from",
+		targetIndex:           "INDEX.md names every rule and its trigger",
+		targetMetadata:        "every rule carries its When and Severity block",
+		targetPointsRoundtrip: "every rule splits back into its points byte for byte",
+		targetRender:          "the rendered rules agree with their points",
+	},
+}}
+
+// updateParameters is the grammar of `ai rules update <target>`.
+var updateParameters = []leaction.Parameter{{
+	Kind: leaction.KindEnum, Value: targetValue, Requirement: leaction.Required,
+	Help:   "the rule artifact to regenerate",
+	Values: []string{targetCondensed, targetIndex, targetRender},
+	ValueHelp: map[string]string{
+		targetCondensed: "regenerate the trigger index and the always-on core",
+		targetIndex:     "regenerate ai/rules/INDEX.md from each rule's heading",
+		targetRender:    "render the rule points into ai/rules/*.md",
+	},
+}}
+
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "lint", Summary: "check every rule carries its When and Severity block", Why: "every rule carries the **When:** / **Severity:** metadata block " +
-		"(ai/rules/rule-format.md), so tooling parses triggers rather than guessing them",
-		Answer: lintAnswer},
-	leaction.Action{Verb: "render-check", Summary: "check the rendered rules agree with their points", Why: "the rendered ai/rules/*.md agree with ai/rules/points/",
-		Answer: func() (any, int) { return renderAnswer(true) }},
-	leaction.Action{Verb: "render-update", Summary: "render the rule points into ai/rules/*.md", Why: "render ai/rules/points/ into ai/rules/*.md",
-		Writes: true,
-		Answer: func() (any, int) { return renderAnswer(false) }},
-	leaction.Action{Verb: "points-roundtrip-check", Summary: "check every rule splits back into its points exactly", Why: "every rendered rule can be split back into points byte-identically; " +
-		"a lossy split is silent instruction loss",
-		Answer: roundTripAnswer},
+	leaction.Action{Verb: "check", Summary: "check one rule artifact against its source", Why: "the named rule artifact agrees with the source it derives from: " +
+		"the trigger index and core (condensed; a stale trigger index routes a session to a rule that moved), " +
+		"the rule index (index), the **When:** / **Severity:** block every rule carries (metadata, " +
+		"ai/rules/rule-format.md, so tooling parses triggers rather than guessing them), the byte-identical " +
+		"split back into points (points-roundtrip; a lossy split is silent instruction loss), or the rendered " +
+		"ai/rules/*.md against ai/rules/points/ (render)",
+		Parameters: checkParameters,
+		AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(checkTargets, args) }},
+	leaction.Action{Verb: "update", Summary: "regenerate one rule artifact from its source", Why: "regenerate the named rule artifact: the trigger index and the " +
+		"always-on core from one parse of ai/rules/ (condensed), ai/rules/INDEX.md from each rule's own heading " +
+		"and trigger (index), or ai/rules/*.md from ai/rules/points/ (render)",
+		Writes: true, Parameters: updateParameters,
+		AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(updateTargets, args) }},
 	leaction.Action{Verb: "gate-map-report", Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "index-check", Summary: "check INDEX.md names every rule and its trigger", Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
-		"tell which rule covers a topic without opening all of them",
-		Answer: func() (any, int) { return indexAnswer(true) }},
-	leaction.Action{Verb: "index-update", Summary: "regenerate ai/rules/INDEX.md", Why: "regenerate ai/rules/INDEX.md from each rule's own heading and trigger",
-		Writes: true,
-		Answer: func() (any, int) { return indexAnswer(false) }},
-	leaction.Action{Verb: "condensed-check", Summary: "check TRIGGERS.md and CORE.md match the rules", Why: "ai/rules/TRIGGERS.md and ai/rules/CORE.md agree with the rules they are " +
-		"derived from; a stale trigger index routes a session to a rule that moved",
-		Answer: func() (any, int) { return condensedAnswer(true) }},
-	leaction.Action{Verb: "condensed-update", Summary: "regenerate the trigger index and the always-on core", Why: "regenerate the trigger index and the always-on core from one parse of ai/rules/",
-		Writes: true,
-		Answer: func() (any, int) { return condensedAnswer(false) }},
 	leaction.Action{Verb: "payload-report", Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
 		"token budget. A MEASUREMENT, except that a payload file which is not there " +
 		"fails: an absent file is not a smaller one",
@@ -96,6 +139,17 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le ai rules` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
+
+// targetAnswer runs the answer of the target the invocation named. The parser
+// refuses a missing or undeclared target before this runs, so a miss here is a
+// table that declares a value no answer serves.
+func targetAnswer(targets map[string]func() (any, int), args leaction.Arguments) (any, int) {
+	answer, known := targets[args.One(targetValue)]
+	if !known {
+		panic("BUG: airules: a declared target has no answer: " + args.One(targetValue))
+	}
+	return answer()
+}
 
 // lintAnswer runs the format linter over this checkout.
 //

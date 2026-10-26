@@ -3,6 +3,8 @@
 package repo
 
 import (
+	"strings"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
@@ -61,9 +63,9 @@ var generationActions = []generationAction{
 	{area: "feature-tags", verb: verbUpdate, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbUpdate, answer: webassets.Answer},
 	{area: "web vendor", verb: "sync", answer: webvendor.Answer},
-	{area: areaRules, verb: "render-update", answer: airules.Answer},
-	{area: areaRules, verb: "condensed-update", answer: airules.Answer},
-	{area: areaRules, verb: verbIndexUpdate, answer: airules.Answer},
+	{area: areaRules, verb: "update render", answer: airules.Answer},
+	{area: areaRules, verb: "update condensed", answer: airules.Answer},
+	{area: areaRules, verb: "update index", answer: airules.Answer},
 	{area: "rfc", verb: verbIndexUpdate, answer: rfc.Answer},
 	{area: "arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
 	{area: "discovery-index", verb: verbUpdate, answer: repopackagemap.Answer},
@@ -80,11 +82,11 @@ var generationChecks = []generationAction{
 	{area: "feature-tags", verb: verbCheck, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbCheck, answer: webassets.Answer},
 	{area: "web vendor", verb: verbCheck, answer: webvendor.Answer},
-	{area: areaRules, verb: "lint", answer: airules.Answer},
-	{area: areaRules, verb: "render-check", answer: airules.Answer},
-	{area: areaRules, verb: "points-roundtrip-check", answer: airules.Answer},
-	{area: areaRules, verb: "condensed-check", answer: airules.Answer},
-	{area: areaRules, verb: "index-check", answer: airules.Answer},
+	{area: areaRules, verb: "check metadata", answer: airules.Answer},
+	{area: areaRules, verb: "check render", answer: airules.Answer},
+	{area: areaRules, verb: "check points-roundtrip", answer: airules.Answer},
+	{area: areaRules, verb: "check condensed", answer: airules.Answer},
+	{area: areaRules, verb: "check index", answer: airules.Answer},
 	{area: "rfc", verb: verbCheck, answer: rfc.Answer},
 	{area: "arch-map", verb: verbCheck, answer: repoarchmap.Answer},
 	{area: areaDocIndex, verb: verbCheck, answer: docindex.Answer},
@@ -105,7 +107,7 @@ func runGeneration(mode string, actions []generationAction) (any, int) {
 	report := generationReport{Mode: mode, Steps: make([]GenerationStep, 0, len(actions))}
 	code := 0
 	for _, action := range actions {
-		_, actionCode := action.answer([]string{action.verb})
+		_, actionCode := action.answer(strings.Fields(action.verb))
 		report.Steps = append(report.Steps, GenerationStep{Area: action.area, Verb: action.verb, Code: actionCode})
 		if actionCode != 0 {
 			code = 1

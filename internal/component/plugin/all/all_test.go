@@ -176,7 +176,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 // It calls pluginimports.Check, which is the producer `./le plugin imports
 // check` answers from (internal/le/plugin/imports/actions.go), so this test and
 // the gate cannot disagree about what "current" means. The uncached backstop is
-// `./le repo generated-check`, whose first step is that same action
+// `./le repo check generated`, whose first step is that same action
 // (generationChecks, internal/le/repo/generate.go).
 //
 // Reading the tree in-process is what keeps the test honest about its own

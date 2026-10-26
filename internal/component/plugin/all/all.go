@@ -4,7 +4,7 @@
 // triggering their init() registration.
 //
 // To add a plugin, create internal/component/bgp/plugins/<name>/register.go with an init()
-// that calls registry.Register(). Then run: ./le repo generate
+// that calls registry.Register(). Then run: ./le repo update
 package all
 
 import (

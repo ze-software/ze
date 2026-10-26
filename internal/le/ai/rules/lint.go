@@ -157,7 +157,7 @@ type LintProblems struct {
 	Problems []string `json:"problems"`
 }
 
-// LintReport is what `le ai rules lint` answers.
+// LintReport is what `le ai rules check metadata` answers.
 //
 // The report keeps both passes separate because they run separately. A
 // rule-format violation stops the run before its RFC 2119 pass reads anything.

@@ -1,7 +1,7 @@
 # 32-bit text-to-integer parses in product Go, one line per file: `count path`.
 #
 # The gate is `checkNumberParseSites` in numberparse.go, run by
-# `./le repo check` and `./le repo tree-check`. Three things are an
+# `./le repo check` and `./le repo check tree`. Three things are an
 # ISSUE: a file that parses a 32-bit integer and is not named here, a file whose
 # count differs from its line, and a line whose file parses none. The count is
 # EXACT, so deleting a justified parse leaves no free slot behind it.

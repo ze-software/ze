@@ -379,7 +379,7 @@ state; a tracked route and a health-check script are not implemented.
   multicast joins.
 - `go test -update` on the plugin-name golden without the feature build tags
   deletes other plugins' methods from the snapshot. Regenerate with
-  `./le repo generate`, which supplies the feature tags.
+  `./le repo update`, which supplies the feature tags.
 
 ## Interop evidence
 

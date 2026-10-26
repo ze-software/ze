@@ -13,9 +13,9 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 |------|-------|---------------|
 | `ai/rules/points/<rule>/manifest.md` | The title, the metadata block, the sections and the reading order | You |
 | `ai/rules/points/<rule>/<section>/<slug>.md` | One point: a frontmatter header, then the body verbatim | You |
-| `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le ai rules render-update` |
-| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le ai rules condensed-update` |
-| `ai/rules/INDEX.md` | The dispatch index | `./le ai rules index-update` |
+| `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le ai rules update render` |
+| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le ai rules update condensed` |
+| `ai/rules/INDEX.md` | The dispatch index | `./le ai rules update index` |
 
 An Edit to any generated file is refused by `writeRenderedRule` in
 `internal/le/hookruntime/writeedit.go`. The refusal names the point directory.
@@ -28,7 +28,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 | Task | Steps |
 |------|-------|
-| Change one instruction | Edit the point file. Run `./le ai rules render-update` |
+| Change one instruction | Edit the point file. Run `./le ai rules update render` |
 | Add an instruction | Pick a slug no file in that SECTION uses, write the point, add the slug under that section in the manifest, render |
 | Add a section | Add its line to the manifest, create the directory, and put at least one point in it. An empty section is refused |
 | Remove an instruction | Delete the point file AND its manifest line. Either one alone is a hard error |
@@ -37,7 +37,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 A point body is copied through verbatim. The renderer joins bodies with one
 blank line and rewrites nothing inside one. That is what lets
-`./le ai rules points-roundtrip-check` prove no byte was lost.
+`./le ai rules check points-roundtrip` prove no byte was lost.
 
 ## Pick a slug that is free
 
@@ -142,12 +142,12 @@ A block that states no obligation is `kind: note` or `kind: table`, never
 lookup gains a word and no obligation from being made to say MUST.
 
 Two gates enforce this. `writePointLanguage` in
-`internal/le/hookruntime/writeedit.go` refuses the write, and `./le ai rules lint`
+`internal/le/hookruntime/writeedit.go` refuses the write, and `./le ai rules check metadata`
 refuses the finished tree. A Write carries the whole point, so a missing keyword
 is refused there; an Edit carries a fragment, so only the lowercase modal it
 introduces is decidable at write time. Run the pass alone with:
 
-    ./le ai rules lint
+    ./le ai rules check metadata
 
 ## The rule header
 
@@ -334,16 +334,16 @@ table.
 
 ## The order the generators run in
 
-`./le ai rules condensed-update` and `./le ai rules index-update` parse the RENDERED rules, so
+`./le ai rules update condensed` and `./le ai rules update index` parse the RENDERED rules, so
 a render that has not run yet feeds them the previous text.
 
-    ./le ai rules render-update
-    ./le ai rules condensed-update
-    ./le ai rules index-update
-    ./le ai rules lint
+    ./le ai rules update render
+    ./le ai rules update condensed
+    ./le ai rules update index
+    ./le ai rules check metadata
 
-`./le doc check verify` runs all of them, plus `./le ai rules render-check`,
-`./le ai rules points-roundtrip-check` and `./le ai rules gate-map-report`. Run it before you commit.
+`./le doc check verify` runs all of them, plus `./le ai rules check render`,
+`./le ai rules check points-roundtrip` and `./le ai rules gate-map-report`. Run it before you commit.
 
 The three freshness commands (`render-check`, `condensed-check` and
 `index-check`) compare content, not file size. They exit nonzero for drift and

@@ -167,14 +167,14 @@ func (c *Checker) Run(update bool) (report *Report, code int) {
 	report.Problems = problems
 
 	if problems != 0 {
-		fmt.Fprintf(&report.stderr, "\n./le test netlab render-check FAILED (%d problem(s))\n", problems)
+		fmt.Fprintf(&report.stderr, "\n./le test netlab check FAILED (%d problem(s))\n", problems)
 		if !update {
-			report.stderr.WriteString("If the render is right and the golden is stale, run `./le test netlab render-update` and review the diff.\n")
+			report.stderr.WriteString("If the render is right and the golden is stale, run `./le test netlab update` and review the diff.\n")
 		}
 		return report, 1
 	}
 	report.Clean = true
-	fmt.Fprintf(&report.stdout, "\n./le test netlab render-check OK (%d node(s))\n", len(rendered))
+	fmt.Fprintf(&report.stdout, "\n./le test netlab check OK (%d node(s))\n", len(rendered))
 	return report, 0
 }
 
@@ -401,7 +401,7 @@ func (c *Checker) fail(report *Report, message string, hints ...string) (*Report
 			"This check renders the contrib/netlab templates with a real netlab;",
 			"it cannot verify them without one, and it will not pass silently.",
 			"Install networklab from https://netlab.tools/install/",
-			"Or point at an existing install: NETLAB=/path/to/netlab ./le test netlab render-check",
+			"Or point at an existing install: NETLAB=/path/to/netlab ./le test netlab check",
 		}
 	}
 	for _, hint := range hints {

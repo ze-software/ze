@@ -677,7 +677,7 @@ func TestAnEmptyChangedSetRunsNeitherChangedFileCheck(t *testing.T) {
 // PREVENTS: losing a repository action during routing changes.
 func TestTheAreaPublishesNativeActions(t *testing.T) {
 	list := Actions()
-	want := []string{"check", "tree-check", "generate", "generated-check"}
+	want := []string{"check", "update"}
 	if len(list.Actions) != len(want) {
 		t.Fatalf("actions %+v", list.Actions)
 	}
@@ -687,7 +687,7 @@ func TestTheAreaPublishesNativeActions(t *testing.T) {
 		}
 	}
 	for _, row := range list.Actions {
-		if row.Writes != (row.Verb == "generate") {
+		if row.Writes != (row.Verb == "update") {
 			t.Errorf("%s writes=%v", row.Verb, row.Writes)
 		}
 	}

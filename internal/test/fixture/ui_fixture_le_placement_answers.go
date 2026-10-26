@@ -77,7 +77,7 @@ func lePlacementAnswers(ctx context.Context) error {
 	if _, err := leExpectSuccessfulPage(command, "./le ai digest", areaDigest); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "./le repo tree-check", "repo", "tree-check"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le repo check tree", "repo", actionCheck, "tree"); err != nil {
 		return err
 	}
 	if _, err := leExpectSuccessfulPage(command, "./le repo check", "repo", "check"); err != nil {
@@ -114,12 +114,12 @@ func lePlacementAnswers(ctx context.Context) error {
 	}{
 		{[]string{areaDigest, "|", renderJSON}, `"anchors"`},
 		{[]string{areaDigest, "|", renderYAML}, "digests:"},
-		{[]string{areaRepository, actionTreeCheck, "|", renderJSON}, `"findings"`},
-		{[]string{areaRepository, actionTreeCheck, "|", renderYAML}, "issues:"},
+		{[]string{areaRepository, actionCheck, "tree", "|", renderJSON}, `"findings"`},
+		{[]string{areaRepository, actionCheck, "tree", "|", renderYAML}, "issues:"},
 		{[]string{areaTier, actionCheck, "|", renderJSON}, `"checks"`},
 		{[]string{areaTier, actionReport, "|", renderJSON}, `"module"`},
 		{[]string{areaTier, "|", renderTable}, "write-baseline"},
-		{[]string{areaRepository, "|", renderTable}, actionTreeCheck},
+		{[]string{areaRepository, "|", renderTable}, actionUpdate},
 	}
 	for _, render := range renders {
 		got, err := command(render.args...)
