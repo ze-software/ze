@@ -16,36 +16,44 @@ import (
 // area is the name this command is typed as.
 const area = "doc yang-contract"
 
+// doesCheck is the vocabulary verb each named contract performs: it judges
+// the tree and changes nothing.
+const doesCheck = "check"
+
 // actions declares the whole command surface. No action takes a value of its
 // own: the tree is the checkout and the rendering is a pipe operator, so the
 // table refuses any word after the verb.
 var actions = []leaction.Action{
 	{
 		Verb:    "command-contract",
+		Does:    doesCheck,
 		Summary: "check every YANG command node has a handler",
 		Why:     "every YANG command node has a handler, and every handler a node",
 		Answer:  runContract,
 	},
 	{
 		Verb:    "doc-drift",
+		Does:    doesCheck,
 		Summary: "check documentation claims agree with the registry",
 		Why:     "the documentation claims agree with the registry, the tree and the operator catalog",
 		Answer:  runDrift,
 	},
 	{
 		Verb:    "usage-contract",
+		Does:    doesCheck,
 		Summary: "check commands state their grammar in the model",
 		Why:     "every command states its argument grammar in the model, and no description spells one in prose",
 		Answer:  runUsage,
 	},
 	{
 		Verb:    "help-shape",
+		Does:    doesCheck,
 		Summary: "check every command node declares a summary",
 		Why:     "every command node declares a one-sentence summary, and the tree reports how much of it is written",
 		Answer:  runHelpShape,
 	},
 	{
-		Verb:    "pipe-operators-update",
+		Verb:    "update",
 		Summary: "regenerate the published pipe operator table",
 		Why:     "regenerate the published pipe operator table from the operator catalog",
 		Writes:  true,

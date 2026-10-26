@@ -158,7 +158,7 @@ func (r CheckReport) Diagnosis() string {
 	return tb.String()
 }
 
-// baselineReport is what `le arch tier write-baseline` answers.
+// baselineReport is what `le arch tier update` answers.
 type baselineReport struct {
 	// File is the baseline that was written.
 	File string `json:"file"`

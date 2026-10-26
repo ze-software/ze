@@ -604,7 +604,7 @@ func TestTheReportPageGroupsAndOrdersTheScriptsWay(t *testing.T) {
 }
 
 // VALIDATES: the area publishes all four native actions, and only
-// write-baseline writes.
+// update writes.
 // PREVENTS: an action leaving the command surface or the listing calling a
 // check a write.
 func TestTheAreaPublishesFourNativeActions(t *testing.T) {
@@ -617,11 +617,11 @@ func TestTheAreaPublishesFourNativeActions(t *testing.T) {
 			writes = append(writes, row.Verb)
 		}
 	}
-	if !slices.Equal(verbs, []string{"check", "selftest", "report", "write-baseline"}) {
+	if !slices.Equal(verbs, []string{"check", "selftest", "report", "update"}) {
 		t.Fatalf("verbs %q", verbs)
 	}
-	if !slices.Equal(writes, []string{"write-baseline"}) {
-		t.Fatalf("the actions that write are %q, and only write-baseline does", writes)
+	if !slices.Equal(writes, []string{"update"}) {
+		t.Fatalf("the actions that write are %q, and only update does", writes)
 	}
 }
 

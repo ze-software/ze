@@ -32,7 +32,7 @@ type PackageHistory struct {
 	Score   float64 `json:"score"`
 }
 
-// historyReport is the structured answer from `le test mutation record-history`.
+// historyReport is the structured answer from `le test mutation record`.
 type historyReport struct {
 	History    string           `json:"history"`
 	Recorded   int              `json:"recorded"`

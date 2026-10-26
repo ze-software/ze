@@ -22,7 +22,7 @@ func TestActionTableDeclaresEveryNativeVerb(t *testing.T) {
 		"doc-drift":             true,
 		"usage-contract":        true,
 		"help-shape":            true,
-		"pipe-operators-update": true,
+		"update": true,
 	}
 	if len(actions) != len(want) {
 		t.Fatalf("the table holds %d actions", len(actions))
@@ -47,7 +47,7 @@ func TestOnlyTheGeneratorIsMarkedAsWriting(t *testing.T) {
 			writers = append(writers, row.Verb)
 		}
 	}
-	if len(writers) != 1 || writers[0] != "pipe-operators-update" {
+	if len(writers) != 1 || writers[0] != "update" {
 		t.Fatalf("the writing actions are %v", writers)
 	}
 }
@@ -74,7 +74,7 @@ func TestBareCommandAnswersTheListing(t *testing.T) {
 		}
 	}
 	for line := range strings.SplitSeq(text, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "pipe-operators-update ") && !strings.Contains(line, "writes") {
+		if strings.HasPrefix(strings.TrimSpace(line), "update ") && !strings.Contains(line, "writes") {
 			t.Errorf("the generator is not marked as writing: %q", line)
 		}
 	}
@@ -172,7 +172,7 @@ func TestEachActionAnswersItsOwnVerdict(t *testing.T) {
 		writeDoc(t, root, pipeOperatorReferencePath, "# stale\n")
 		pointAtFixture(t, root)
 
-		payload, code := Answer([]string{"pipe-operators-update"})
+		payload, code := Answer([]string{"update"})
 		if code != 0 {
 			t.Fatalf("the generator answered %d", code)
 		}

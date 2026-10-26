@@ -23,7 +23,7 @@ var actions = leaction.New(area,
 		Answer:  combineAnswer,
 	},
 	leaction.Action{
-		Verb:    "record-history",
+		Verb:    "record",
 		Summary: "append mutation scores to the history",
 		Why:     "append the report's package scores to test/mutation/history.ndjson",
 		Writes:  true,

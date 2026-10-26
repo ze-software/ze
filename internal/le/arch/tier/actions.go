@@ -5,7 +5,7 @@
 // actions.go ports the Python area. internal/le/le/action owns dispatch, listing,
 // help, and refusals. This file keeps the TABLE and the four checkout actions.
 //
-// Check, report, and write-baseline are explicit native actions. `| json`
+// Check, report, and update are explicit native actions. `| json`
 // renders the payload's complete sets, while filters replace the retired
 // candidates-only rendering. Optional AREA arguments are absent because no
 // native action, hook, or documented procedure uses them.
@@ -39,7 +39,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		// The script's --write-baseline. ai/rules/architecture.md names it as
 		// the way to regenerate the baseline after a move.
-		Verb:    "write-baseline",
+		Verb:    "update",
 		Summary: "regenerate the tier migration baseline",
 		Why:     "regenerate the migration baseline from the engines currently in the wrong tier, which is what you run after moving one",
 		Writes:  true,
@@ -97,7 +97,7 @@ func runReport() (any, int) {
 	return report, 0
 }
 
-// runWriteBaseline is the `le arch tier write-baseline` action.
+// runWriteBaseline is the `le arch tier update` action: it rewrites the baseline.
 func runWriteBaseline() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {

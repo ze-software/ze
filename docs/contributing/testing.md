@@ -214,7 +214,7 @@ suite against each mutation, and reports which mutations survived.
 
 gomu uses overlay-based execution, so it never modifies source files on disk.
 It is a Go tool recorded in `tools.go`. The native `./le test mutation combine`
-command combines completed reports, and `./le test mutation record-history` appends
+command combines completed reports, and `./le test mutation record` appends
 their per-package scores to the committed history.
 
 Mutation testing is advisory. It never gates Thomas's release check, `./le verify current`, or CI. A surviving mutant

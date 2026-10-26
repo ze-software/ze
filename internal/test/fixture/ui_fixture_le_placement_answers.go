@@ -118,7 +118,7 @@ func lePlacementAnswers(ctx context.Context) error {
 		{[]string{areaRepository, actionCheck, "tree", "|", renderYAML}, "issues:"},
 		{[]string{areaTier, actionCheck, "|", renderJSON}, `"checks"`},
 		{[]string{areaTier, actionReport, "|", renderJSON}, `"module"`},
-		{[]string{areaTier, "|", renderTable}, "write-baseline"},
+		{[]string{areaTier, "|", renderTable}, "update"},
 		{[]string{areaRepository, "|", renderTable}, actionUpdate},
 	}
 	for _, render := range renders {

@@ -251,7 +251,7 @@ lag.
 ### The KPI series
 
 `./le test health record` appends one row to `test/health/history.ndjson`.
-`./le test mutation record-history` maintains the per-package mutation series. Both
+`./le test mutation record` maintains the per-package mutation series. Both
 skip an identical sample at the same commit, so trends do not overstate the
 number of runs.
 

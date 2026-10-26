@@ -597,7 +597,7 @@ func (c *checker) checkPipeOperatorReference() []Issue {
 		return []Issue{{
 			File:    pipeOperatorReferencePath,
 			Message: "the generated pipe operator reference is missing",
-			Detail:  "run `./le doc yang-contract pipe-operators-update`",
+			Detail:  "run `./le doc yang-contract update`",
 		}}
 	}
 	if string(published) == command.RenderOperatorReference() {
@@ -607,7 +607,7 @@ func (c *checker) checkPipeOperatorReference() []Issue {
 		File:    pipeOperatorReferencePath,
 		Message: "the published pipe operator table and the operator catalog disagree",
 		Detail: "the catalog in internal/component/command/pipe_catalog.go is the source; " +
-			"run `./le doc yang-contract pipe-operators-update`",
+			"run `./le doc yang-contract update`",
 	}}
 }
 

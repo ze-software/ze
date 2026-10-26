@@ -237,14 +237,14 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return fmt.Errorf("doc yang-contract listing exited %d: %s", listing.code, listing.stderr)
 	}
-	for _, wanted := range []string{"command-contract", "doc-drift", "pipe-operators-update", wordWrites, fieldChecks} {
+	for _, wanted := range []string{"command-contract", "doc-drift", "update", wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(wanted)) {
 			return fmt.Errorf("doc yang-contract listing does not contain %q:\n%s", wanted, listing.stdout)
 		}
 	}
 	foundWriter := false
 	for line := range strings.SplitSeq(string(listing.stdout), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "pipe-operators-update ") {
+		if strings.HasPrefix(strings.TrimSpace(line), "update ") {
 			foundWriter = true
 			if !strings.Contains(line, "writes") {
 				return fmt.Errorf("generator is not marked as writing: %q", line)
@@ -252,7 +252,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		}
 	}
 	if !foundWriter {
-		return fmt.Errorf("doc yang-contract listing has no action row for pipe-operators-update")
+		return fmt.Errorf("doc yang-contract listing has no action row for update")
 	}
 
 	// Drive the writer over two isolated roots. Both begin stale, both must be
@@ -276,7 +276,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 
 	writes := make([]uiLeDocvalidAnswersCommandResult, 0, len(trees))
 	for _, tree := range trees {
-		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "doc", "yang-contract", "pipe-operators-update")
+		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "doc", "yang-contract", "update")
 		if err != nil {
 			return err
 		}

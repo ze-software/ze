@@ -24,7 +24,7 @@
 //	6. nothing above, so it answers a question        GroupReport
 //
 // Rung 1 is about the command's PURPOSE, not about whether some verb writes.
-// A gate's repair verb and its ratchet baseline write too. `tier write-baseline`
+// A gate's repair verb and its ratchet baseline write too. `tier update`
 // records what the tree currently is, and `rfc reseal` re-pins an audit. Those
 // files serve a verdict rather than being the point of the command, so both
 // areas are gates.

@@ -64,7 +64,7 @@ var migratedRefusalsBatchA = []migratedRefusal{
 	{"doc yang-contract", []string{"doc-drift", probeWord}, 2},
 	{"doc yang-contract", []string{"usage-contract", probeWord}, 2},
 	{"doc yang-contract", []string{"help-shape", probeWord}, 2},
-	{"doc yang-contract", []string{"pipe-operators-update", probeWord}, 2},
+	{"doc yang-contract", []string{"update", probeWord}, 2},
 }
 
 // TestMigratedAreaKeepsItsExitCodes holds every refusal of a migrated area to

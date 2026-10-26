@@ -108,7 +108,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-command-contract-check", Area: "doc yang-contract", Verb: "command-contract"},
 	{Target: "ze-command-contract-check-json", Area: "doc yang-contract", Verb: "command-contract", Note: "JSON is the `| json` operator on the same action"},
 	{Target: "ze-doc-drift-check", Area: "doc yang-contract", Verb: "doc-drift"},
-	{Target: "ze-docs-pipe-operators-update", Area: "doc yang-contract", Verb: "pipe-operators-update"},
+	{Target: "ze-docs-pipe-operators-update", Area: "doc yang-contract", Verb: "update"},
 	{Target: "ze-doc-links-check", Area: "doc check", Verb: "links"},
 	{Target: "ze-doc-verify", Area: "doc check", Verb: "verify"},
 	{Target: "ze-templ-output-check", Area: "doc check", Verb: "templ-output"},
@@ -557,7 +557,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-mutation-test",
-		Reason: "a wrapper: the recipe was `gomu run --output json --incremental=false` and added nothing. The gomu program is the producer, and the two steps after it are `le test mutation record-history` and `le test health record`",
+		Reason: "a wrapper: the recipe was `gomu run --output json --incremental=false` and added nothing. The gomu program is the producer, and the two steps after it are `le test mutation record` and `le test health record`",
 	},
 	{
 		Target: "ze-mutation-test-changed",

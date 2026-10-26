@@ -62,7 +62,7 @@ gomu is the mutation-testing tool Ze uses to test the tests. It changes Go code 
 go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false ./internal/core/textbuf/
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false
-./le test mutation record-history report mutation-report.json
+./le test mutation record report mutation-report.json
 ```
 
 This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.
