@@ -321,3 +321,19 @@ Left:
 | `TestZeSendsNoConfigurationRequest` error text "constructs no CP payload" | a string in an RFC-tagged unit; changing it needs a `ze-test-judge` approval |
 | Audit rejudges `RFC4301-4.4.2-2` (in the working tree, uncommitted), `RFC7296-2.9-1`, `RFC7296-2.9-2` | supervisor |
 | Interop scenarios | `5fcf169117` landed them; their discrimination walks belong to that agent |
+
+## Interop agent, 2026-10-26: both scenarios green, both reds recorded
+
+| Commit | What landed |
+|--------|-------------|
+| `5fcf169117` | `virtual-ip-assignment`, `virtual-ip-uniqueness`, their checkers (`internal/le/interoplab/ipsec/virtualip.go`, predicate tests in `virtualip_test.go`), `natTranslationsMax` 2 to 3 (A-3), the interop.md section |
+| this section's commit | the measured red and green in interop.md, the spec's Goal Validation G-1 and G-3, the Interop Tests status, A-3 validated |
+
+The red build replaced `cp.go` through `GOFLAGS=-overlay=<scratch>/vip-red/overlay.json`,
+which le's lab cross-compile inherits, so the shared tree was never edited. Logs, all under
+`tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch/`: `vip-assign-green1.log`,
+`vip-unique-green1.log`, `vip-assign-red.log`, `vip-unique-red.log`,
+`virtual-ip-assignment-green2.log`, `virtual-ip-uniqueness-green2.log`. The lab prints no
+image ID in this output, so none is quoted.
+
+Nothing is left for the interop scenarios.

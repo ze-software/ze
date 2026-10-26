@@ -1747,10 +1747,15 @@ usual rows, so it has three translations, which is the most `readNATConfig` acce
 (`natTranslationsMax`). Ze sees the clients at 172.28.0.7 and 172.28.0.9, one
 respond peer each, both bound to one pool.
 
-Each scenario must go red when the lease substitution is removed
-(`substituteVirtualIP`, `internal/component/ike/engine/cp.go`). A client then still
-receives a lease, but Ze's Child SA names the configured pool prefix as its remote
-selector, so the selector and policy assertions are the ones built to fail.
+Both scenarios went red on 2026-10-26 with the lease substitution removed
+(`substituteVirtualIP` in `internal/component/ike/engine/cp.go` returning its input,
+applied through a `GOFLAGS=-overlay=` build so the shared tree stayed untouched),
+and green again without it. In `virtual-ip-assignment` strongSwan still
+established, held 10.10.0.1 and narrowed its own side to it, so every client-side
+read passed. The failure was Ze's `ts-remote`, which named 10.10.0.0/24 where the
+lease /32 was wanted. In `virtual-ip-uniqueness` the second client never got a
+Child SA, because Ze could not install a second policy for 10.1.2.0/24 while
+`swan-a` held one. That refusal is the Section 5.1 hazard itself.
 <!-- source: internal/le/interoplab/ipsec/virtualip.go -- checkVirtualIPAssignment, checkVirtualIPUniqueness, requireZeLease, requireLeasePolicies, requireReturnTraffic -->
 <!-- source: internal/le/interoplab/ipsec/nat.go -- natTranslationsMax -->
 
