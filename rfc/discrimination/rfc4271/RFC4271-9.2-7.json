@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.2-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerLastSourceWithdrawalIsSent",
+    "unit-sha": "3207d0f6fbda06ac",
+    "claim-sha": "83be641777f40719",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/relay_recovery.go::queueRecoveryWithdrawal",
+    "producer-sha": "63fdaa4997ce3258",
+    "break": "body of queueRecoveryWithdrawal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.2-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerOwnerWithdrawalSendsReplacement",
+    "unit-sha": "6683cc7ef993cc44",
+    "claim-sha": "0b9127ab1e2e4351",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_ownership.go::owesWithdrawal",
+    "producer-sha": "a9abc4c916a60492",
+    "break": "line 422: \"entry == nil\" -\u003e \"true\""
+  }
+]

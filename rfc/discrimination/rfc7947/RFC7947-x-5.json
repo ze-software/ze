@@ -1,13 +1,24 @@
 [
   {
     "rid": "RFC7947-x-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace",
+    "unit-sha": "45ea1c8404027496",
+    "claim-sha": "4d6b9268883e981f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
+    "producer-sha": "13cf02a605ddca00",
+    "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC7947-x-5",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute",
     "unit-sha": "bf49bf2322aa50a4",
     "claim-sha": "33b938afada35ab5",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
     "producer-sha": "13cf02a605ddca00",
-    "break": "body of oweAnnouncement replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
   }
 ]

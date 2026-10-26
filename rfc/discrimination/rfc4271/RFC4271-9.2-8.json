@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-9.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn",
+    "unit-sha": "25374d91e645d84d",
+    "claim-sha": "cf78ed067f8798a4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
+    "producer-sha": "13cf02a605ddca00",
+    "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+  }
+]
