@@ -6,6 +6,19 @@
 
 The owner rule behind it is in `ai/META-DECISIONS.md`, Goal and scope ("RFC work is ordered by use-case profile and by the RFC dependency tree"). Every design decision is in the spec's "Agreed shape", "Research gate decisions" and "Key Design Decisions" tables; do not reopen them.
 
+## Phase 5 status (2026-10-26)
+
+Landed (one commit, subject "spec status: RFC gaps Meta field"): `rfcGaps` and `rfcGapsWarn` (`internal/le/spec/status/specstatus.go`) split the `RFC gaps` cell, answer `[]` for `-` or an absent row, and warn on an empty or repeated item; `Spec.RFCGaps` (`report.go`) and `roadmap.Item.RFCGaps` (`roadmap.go`) carry it as `rfc-gaps`. Test `TestParseReadsTheRFCGapsField`; `TestInventoryIsStructuredDataWithKebabCaseKeys` now pins `rfc-gaps` among the record keys. Template row `| RFC gaps | - |` (`plan/templates/TEMPLATE.md`), `docs/contributing/spec-workflow.md` (metadata row and the paragraph after `Vocabulary`), `plan/README.md`, the `ai/INDEX.md` keyword. Backfilled: this spec (`-`) and `spec-ike-virtual-ip-assignment.md` (`RFC3948-5.1-1`). No other spec is backfilled: the spec does not ask for it, and an absent row declares none.
+
+Left, and blocked on `internal/le/rfc` (Phase 3's package, not edited here):
+
+| Item | Needs |
+|------|-------|
+| AC-16 refusal: an unknown requirement id or stem | An exported id-to-stem index of `rfc/short/` that reads the summaries without the `ScanTree` tag scan `rfc.Collect` runs. The id shape alone cannot name the stem (`SFLOW-V5-x-1` belongs to `sflow-v5`), so the lookup is the corpus's, never a second rule in `internal/le/spec` |
+| AC-16 Profiles cell, `TestRoadmapProfilesColumnFromRFCGaps` | The exported profile closure Phase 3 writes (roots plus builds-on and updates reach). The roadmap reads only the objects of one committed revision (`roadmap.Collect`, `readBlobs`), while `rfc.LoadProfiles` and `graph.Load` read a directory: the closure needs an entry that a revision's `rfc/` tree can feed (texts through `graph.Parse` and `graph.Build`, profiles through a byte-level parser), or the decision that the roadmap reads the RFC corpus of the working tree |
+| Where the refusal lands | `parseMetadata` can only warn. "Refused by the spec parser" is either the spec validation hook (`validateSpecText`, `internal/le/hookruntime/lifecycle.go`, which already refuses an undeclared Status) or a roadmap diagnostic; the continuation picks after the index exists |
+| `internal/le/site/roadmap.go` | Renders `roadmap.Markdown`, so the column reaches the site when `Markdown` gains it; no separate edit expected |
+
 ## Phase 2 done (2026-10-26)
 
 Phase 2 landed as ONE commit (subject "rfc graph: dependency graph from the RFC texts, header-checked Meta links"): `internal/le/rfc/graph/` (`Parse`: header `Updates:`/`Obsoletes:` lines with continuations and the front-matter prose form, normative references at column-0 headings, combined References fallback, indented headings of RFC 791/905/1071; `Build`: in-corpus edges, RFC 2119/8174 and self-edges dropped, builds-on redirected to the obsoleting successor; Tarjan components and levels), `rfc/graph.tsv` written by `IndexUpdate` and registered DERIVED (gitignored, like the ledger family since `8ae7424594`), `checkHeaderLinks` (`check_headerlinks.go`), `checkUpdatedBy` reading the updater's header from the graph, and the 24 Meta corrections plus two false `Updated by` links (rfc2784, rfc7011). Tests: `TestNormativeReferenceParse`, `TestHeaderLinksParse`, `TestRFCNumberBounds`, `TestEveryCorpusTextYieldsReferences`, `TestGraphRedirectsObsoleted`, `TestGraphCycleSharesLevel`, `TestIndexUpdateWritesGraph`, `TestCheckRefusesMetaLinkHeaderMismatch`, `TestCheckReportsMetaLinkHeaderMismatch`, `TestCorpusMetaLinksMatchHeaders`; the decisions are in the spec's Design Insights (Phase 2 bullets).

@@ -13,6 +13,7 @@
 | Scope | protocol \| cli \| plugin \| config \| tooling \| docs |
 | Priority | P0 \| P1 \| P2 \| P3 |
 | Release reason | <why this work belongs in its release category> |
+| RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | - |

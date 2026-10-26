@@ -33,6 +33,11 @@ type Spec struct {
 	Set           string `json:"set"`
 	Updated       string `json:"updated"`
 	GitModified   string `json:"git-modified"`
+	// RFCGaps is what the `RFC gaps` Meta cell names: the requirement ids
+	// (RFC2661-5.4-1) and summary stems (rfc7947) of the RFC gaps the spec
+	// closes, in written order. Empty when the cell is `-` or the row is
+	// absent, which both declare that the spec closes no RFC gap.
+	RFCGaps []string `json:"rfc-gaps"`
 	// Bucket is the work queue declared by specpath.Categories, from its directory.
 	Bucket string `json:"bucket"`
 	// Category is the committed-backlog / idea-capture / other split, from the

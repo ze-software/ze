@@ -16,6 +16,7 @@ validates it on every write.
 | Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `verification`, `blocked`, `deferred`, `done` |
 | Priority | Ordering within the release queue | `P0` security, data loss or fail-open; `P1` routing, configuration or lifecycle correctness; `P2` release proof/delivery or a release-independent proposal; `P3` post-release work |
 | Release reason | Why this work belongs in its release category | A concise rationale based on remaining work and evidence |
+| RFC gaps | The RFC gaps the spec closes | A comma list of requirement ids (`RFC3948-5.1-1`) and RFC summary stems (`rfc7947`), or `-` for none. An absent row also declares none |
 | Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
 | Depends | Blocking prerequisite | A spec filename, or `-` |
 | Phase | Multi-phase progress | `N/M`, or `-` for single-phase |
@@ -35,6 +36,14 @@ validates it on every write.
 <!-- source: internal/le/spec/status/specstatus.go -- Vocabulary, Declared -->
 The Status values are declared once, in `Vocabulary`. The validation hook and
 the release roadmap both read it.
+
+<!-- source: internal/le/spec/status/specstatus.go -- rfcGaps -->
+The `RFC gaps` cell is split into its items as written. An empty or repeated
+item is reported as a warning that names the spec and the edit that fixes it,
+and is left out of the list. The parser reads one spec and never the RFC
+corpus, so it does not judge whether an item names a requirement or a stem
+that `rfc/short/` holds. `./le spec status` and the roadmap snapshot carry the
+list as `rfc-gaps`.
 
 | Event | Status change | Phase | Updated |
 |-------|--------------|-------|---------|

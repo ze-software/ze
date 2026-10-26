@@ -202,7 +202,7 @@ func TestInventoryIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	if len(records) != 1 {
 		t.Fatalf("the payload holds %d records, want 1", len(records))
 	}
-	want := []string{"name", "title", "path", "status", "priority", "release-reason", "depends", "phase", "set", "updated", "git-modified", "bucket", "category", "stale"}
+	want := []string{"name", "title", "path", "status", "priority", "release-reason", "depends", "phase", "set", "updated", "git-modified", "rfc-gaps", "bucket", "category", "stale"}
 	if len(records[0]) != len(want) {
 		t.Errorf("the record carries %d keys, want %d: %v", len(records[0]), len(want), records[0])
 	}

@@ -6,6 +6,7 @@
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Prevent conflicting peer inner addresses (RFC 3948 Section 5.1 MUST) and make the accepted remote-access pool effective. |
+| RFC gaps | RFC3948-5.1-1 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |

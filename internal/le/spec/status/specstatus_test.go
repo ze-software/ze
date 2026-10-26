@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -582,5 +583,49 @@ func TestCurrentTemplateNamedSpecCannotDisappear(t *testing.T) {
 	}
 	if total(t, phrases) != 2 {
 		t.Fatalf("summary omitted current template-named work: %v", phrases)
+	}
+}
+
+// TestParseReadsTheRFCGapsField proves the `RFC gaps` Meta cell becomes the
+// list of requirement ids and stems a spec closes, in its written order, and
+// that `-` and an absent row both declare none. Method: parse one fixture per
+// cell shape and compare the list; an empty item between commas is refused
+// through warn rather than dropped in silence.
+func TestParseReadsTheRFCGapsField(t *testing.T) {
+	withGaps := func(cell string) []byte {
+		body := templateShapedSpec("ready", "2026-10-26")
+		return []byte(strings.Replace(body, "| Depends | - |", "| RFC gaps | "+cell+" |\n| Depends | - |", 1))
+	}
+	cases := []struct {
+		name  string
+		body  []byte
+		want  []string
+		warns int
+	}{
+		{"absent row", []byte(templateShapedSpec("ready", "2026-10-26")), nil, 0},
+		{"dash", withGaps("-"), nil, 0},
+		{"id and stem", withGaps("RFC2661-5.4-1, rfc7947"), []string{"RFC2661-5.4-1", "rfc7947"}, 0},
+		{"empty item", withGaps("RFC3948-5.1-1, , rfc7947"), []string{"RFC3948-5.1-1", "rfc7947"}, 1},
+		{"duplicate item", withGaps("rfc7947, rfc7947"), []string{"rfc7947"}, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var warnings []string
+			spec, err := Parse(tc.body, "plan/release/validation/spec-proof.md", func(line string) { warnings = append(warnings, line) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(spec.RFCGaps, tc.want) {
+				t.Fatalf("RFCGaps = %q, want %q", spec.RFCGaps, tc.want)
+			}
+			if len(warnings) != tc.warns {
+				t.Fatalf("warnings = %q, want %d", warnings, tc.warns)
+			}
+			for _, line := range warnings {
+				if !strings.Contains(line, "RFC gaps") || !strings.Contains(line, "spec-proof.md") {
+					t.Fatalf("warning does not name the field and the spec: %q", line)
+				}
+			}
+		})
 	}
 }

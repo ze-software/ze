@@ -36,7 +36,8 @@ as full RFC support, and disclosure does not excuse a known defect.
 | P2 | Release validation and delivery |
 | P3 | Post-release work |
 
-Each spec records `Priority`, `Release reason` and `Depends` in its header.
+Each spec records `Priority`, `Release reason` and `Depends` in its header,
+and `RFC gaps` when it closes requirements of an RFC Ze implements.
 Priority orders attention within a category; a dependency takes precedence.
 Freeze the shipped capability and platform set first. Fix security and
 configuration boundaries, then routing and recovery. Prepare test hosts and

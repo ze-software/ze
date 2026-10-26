@@ -298,6 +298,7 @@ func parseMetadata(data []byte, rel, bucket string, warn func(string)) Spec {
 		Phase:         metaField(rows, "Phase"),
 		Updated:       metaField(rows, "Updated"),
 		Set:           detectSet(base),
+		RFCGaps:       rfcGaps(metaField(rows, "RFC gaps"), rel, warn),
 	}
 	for line := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(line, "## ") {
@@ -329,6 +330,44 @@ func parseMetadata(data []byte, rel, bucket string, warn func(string)) Spec {
 		s.Phase = "-"
 	}
 	return s
+}
+
+// rfcGaps splits an `RFC gaps` cell into its items. `-` and an empty cell
+// declare none and answer an empty list, which JSON renders as [] rather than
+// null, as the roadmap's diagnostics do. An empty item between commas, or an item
+// written twice, is an authoring error: it is reported through warn and left
+// out, so the list never carries a blank or a repeat. Whether each item names
+// a requirement or a stem the corpus holds is not judged here, because this
+// parser reads one spec and never the RFC corpus.
+func rfcGaps(cell, rel string, warn func(string)) []string {
+	items := make([]string, 0)
+	if cell == "" || cell == "-" {
+		return items
+	}
+	for item := range strings.SplitSeq(cell, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			rfcGapsWarn(warn, rel, "holds an empty item between commas", "remove the extra comma")
+			continue
+		}
+		if slices.Contains(items, item) {
+			rfcGapsWarn(warn, rel, "names "+item+" twice", "keep one "+item)
+			continue
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+// rfcGapsWarn reports one `RFC gaps` authoring error, naming the spec, the
+// problem and the edit that fixes it.
+func rfcGapsWarn(warn func(string), rel, problem, fix string) {
+	if warn == nil {
+		return
+	}
+	var tb textbuf.Buffer
+	warn(tb.Str("spec-status: ").Str(rel).Str(": the RFC gaps cell ").Str(problem).
+		Str("; ").Str(fix).Str(" in its | RFC gaps | row").String())
 }
 
 // StatusPhrases answers the population's per-status breakdown as

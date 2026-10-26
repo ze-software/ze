@@ -46,6 +46,7 @@ type Item struct {
 	Set           string   `json:"set"`
 	Updated       string   `json:"updated"`
 	SourceURL     string   `json:"source-url"`
+	RFCGaps       []string `json:"rfc-gaps"` // the `RFC gaps` Meta cell, as specstatus parses it
 	Diagnostics   []string `json:"diagnostics"`
 }
 
@@ -124,6 +125,7 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 			Status: parsed.Status, Depends: parsed.Depends, Phase: parsed.Phase,
 			Priority: parsed.Priority, ReleaseReason: parsed.ReleaseReason,
 			Set: parsed.Set, Updated: parsed.Updated, SourceURL: sourceURL(resolved, entry.path),
+			RFCGaps:     parsed.RFCGaps,
 			Diagnostics: make([]string, 0),
 		}
 		itemDiagnostics(&item)

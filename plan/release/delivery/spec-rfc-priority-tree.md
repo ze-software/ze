@@ -6,6 +6,7 @@
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
+| RFC gaps | - |
 | Depends | - |
 | Phase | 2/5 |
 | Handoff | - |
@@ -448,6 +449,7 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 - Phase 2: `rfc/graph.tsv` is derived and gitignored like the ledger family. `8ae7424594` retired the committed ledgers and their freshness check, so "the same freshness check as `rfc/enrolled.txt`" now means the same derived-artifact registration. `./le rfc check` parses the texts itself through `graph.Load` (about 0.4 s of CPU), so no gate reads a stale copy.
 - Phase 2: the redirect to a successor applies to `builds-on` edges only; `updates` and `obsoletes` edges keep the RFC the header names, because the Meta link check compares against them.
 - Phase 2: `checkHeaderLinks` judges `Updates` and `Obsoletes` exactly and `Updated by` for false links only: an omitted updater is the graph's reverse relation, not a second copy to keep. `Obsoleted by` is not judged against headers, because it carries the `{superseded}` successor, and rfc6810's `Obsoleted by RFC 8210` reads a header that says `Updates: 6810`. Two `Updated by` cells beyond the 24 named a corpus RFC whose header does not update them (rfc2784: RFC 2890; rfc7011: RFC 7012) and were corrected.
+- Phase 5, first part: `specstatus.rfcGaps` splits the `RFC gaps` cell (`-` or an absent row is none, answered as an empty list so JSON carries `[]`), warns on an empty or repeated item, and `Spec.RFCGaps` and `roadmap.Item.RFCGaps` carry it as `rfc-gaps`. The corpus judgement (unknown id or stem refused) and the Profiles column wait on two exports of `internal/le/rfc` that do not exist yet: the profile closure (Phase 3 writes it) and an id-to-stem index read without the tag scan `rfc.Collect` runs. The roadmap reads only objects of one committed revision while `rfc.LoadProfiles` and `graph.Load` read a directory, so the closure must be reachable for a revision's tree, not only the working tree.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
