@@ -46,6 +46,11 @@ When the user provides a handoff document (structured state from a previous sess
 
 **Mechanical check:** count the items in your enumeration. Count the items in the handoff. If they don't match, you missed something.
 
+**When Thomas is away** (he set a goal spanning several phases and said so),
+steps 2 and 3 do not stop the session: write the enumeration into the per-spec
+session state file and carry on under the handoff's plan. He checks
+completeness there.
+
 ## Session Focus
 
 Do not switch to a different line of work without confirming with the user first.

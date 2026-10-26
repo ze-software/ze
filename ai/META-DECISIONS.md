@@ -85,6 +85,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - The Linux host is too busy for full test runs: there, run scoped package
   tests only, and never run `./le verify worktree`, a full functional suite or
   a full `./le go lint run`. Full runs happen on another host.
+- Performance is measured only on Thomas's Mac, whose hardware is known. No
+  perf run of any kind, not even a smoke run, happens on the Linux host: agents
+  prepare the harness and Thomas runs it. A Linux-only harness runs on the Mac
+  inside a Linux QEMU guest.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
@@ -124,7 +128,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A red prevents a release, never a commit. No gate refuses a commit for a red,
   whether a test, lint, a structural check or a generated-file check, and
   whether or not the commit caused it. The commit names the reds it knows of in
-  its body. Reds are owed at release, where Thomas's release check must be
+  its body. A refusal that judges what the commit itself adds (an open journal
+  row no spec owns, a test weakened without the judge's approval) is not a
+  red, and it stands. Reds are owed at release, where Thomas's release check must be
   green.
 - Day-to-day work is judged only by the tests of the components it changed
   (BGP, OSPF, IS-IS, a plugin, the tooling), found from the change itself: the

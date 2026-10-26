@@ -7,6 +7,9 @@
 3. **Merge** related bullets; heading + 1-3 lines max
 4. **Overflow** >5 lines -> `ai/rationale/memory.md`
 5. **Cap**: 200 lines hard
+6. **Owner rules leave memory**: a `feedback` entry, or any rule Thomas set for
+   how agents work, goes to `ai/META-DECISIONS.md` in the same turn. Memory keeps
+   facts only
 
 Consult `ai/rationale/<name>.md` when the compressed rule leaves gaps.
 
