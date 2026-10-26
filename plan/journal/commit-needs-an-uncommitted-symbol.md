@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-26 | spec-ike-unbound-peer-inner-address (audit, found) | IKE engine and crypto test packages (`ike_auth_algorithms_test.go`, `ike/crypto` tests) | Commit e1467639d8 landed tests that use `ikecrypto.ENCR_CHACHA20_POLY1305` and `ENCR_3DES`, defined only in the uncommitted working-tree `internal/component/ike/crypto/transform.go`, so at HEAD both test packages fail to compile and `./le rfc check` counts the 292 requirements tagged in `ike/engine` as not evidence | open: commit the transform constants (or drop the tests that need them) so HEAD's IKE test packages compile |

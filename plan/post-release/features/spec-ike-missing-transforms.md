@@ -51,6 +51,12 @@ Transform-dependent documentation updates belong here only when implementation a
 |---|---|
 | Current unsupported cryptographic-primitives claim in Known Limitations; no new transform code. | `plan/release/validation/spec-ike-transform-support-claims.md` |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `commit-needs-an-uncommitted-symbol.md` | 2026-10-26 | e1467639d8 tests use `ENCR_CHACHA20_POLY1305`/`ENCR_3DES` only the working tree defines |
+
 ## Historical planning record
 
 The following is the complete pre-migration planning body. Its old Task, criteria, implementation steps and bucket statements are retained as history, not a second current implementation contract. The current sections above assign every obligation; original owner decisions, constraints, evidence and pauses remain authoritative. Heading levels alone are demoted for that distinction.
