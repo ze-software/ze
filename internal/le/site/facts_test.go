@@ -667,7 +667,7 @@ func TestNoPublishedSourceNamesAGeneratedLedgerFile(t *testing.T) {
 		} {
 			if strings.Contains(source, generated) {
 				t.Errorf("_sources[%q] names %s as an input, and that file is GENERATED "+
-					"from rfc/short/*.md by ./le rfc index-update", key, generated)
+					"from rfc/short/*.md by ./le rfc update", key, generated)
 			}
 		}
 	}

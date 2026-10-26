@@ -1,6 +1,6 @@
 package rfc
 
-// VALIDATES: `./le rfc index-update` writes rfc/graph.tsv from the RFC texts (AC-1 wiring).
+// VALIDATES: `./le rfc update` writes rfc/graph.tsv from the RFC texts (AC-1 wiring).
 // PREVENTS: a graph the check parses but the generated file never shows.
 
 import (

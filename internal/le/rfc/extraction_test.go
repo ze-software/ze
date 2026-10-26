@@ -599,7 +599,7 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
 	if len(writes) != 10 || !writes["evidence-split"] || !writes["extraction-create"] || !writes["extraction-classify"] ||
-		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] ||
+		!writes["discriminate-record"] || !writes["reseal"] || !writes["update"] ||
 		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["rename"] {
 		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp discriminate-record "+
 			"evidence-split extraction-classify extraction-create index-update quote-backfill rename reseal]", sortedKeys(writes))

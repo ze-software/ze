@@ -56,7 +56,7 @@ type RenameReport struct {
 }
 
 // renameNextStep is the command the derived ledgers need after a rename.
-const renameNextStep = "./le rfc index-update"
+const renameNextStep = "./le rfc update"
 
 // Text renders one line per move, rewrite, citation and mention, then the next step.
 func (r RenameReport) Text() string {

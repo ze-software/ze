@@ -152,7 +152,7 @@ var portedProducers = []portedProducer{
 
 	// RFC conformance.
 	{Target: "ze-rfc-check", Area: "rfc", Verb: "check"},
-	{Target: "ze-rfc-index-update", Area: "rfc", Verb: "index-update"},
+	{Target: "ze-rfc-index-update", Area: "rfc", Verb: "update"},
 	{Target: "ze-rfc-reseal", Area: "rfc", Verb: "reseal"},
 	{Target: "ze-rfc-extraction-create", Area: "rfc", Verb: "extraction-create"},
 	{Target: "ze-rfc-extraction-status", Area: "rfc", Verb: "extraction-status"},

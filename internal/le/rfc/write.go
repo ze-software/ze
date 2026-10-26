@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the rfc area, as one command
 // Overview: render.go -- the two pages this driver emits
 //
-// write.go is `ze-rfc-index-update`. It emits ai/RFC-REQUIREMENTS.md, one
+// write.go is `./le rfc update`. It emits ai/RFC-REQUIREMENTS.md, one
 // file per RFC under rfc/requirements/ and the dependency graph rfc/graph.tsv,
 // then DELETES every shard the render no longer produces.
 //

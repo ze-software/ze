@@ -364,7 +364,7 @@ func TestTheResealPageNamesWhatItDidAndWhatItRefused(t *testing.T) {
 	for _, want := range []string{
 		"refused rfc9999 RFC9999-2-2: stale-unit, a human must re-read it\n",
 		"re-stamped rfc9999 RFC9999-2-1\n",
-		"re-sealed 1 shifted verdict(s); 1 refused. The ledger now needs: ./le rfc index-update\n",
+		"re-sealed 1 shifted verdict(s); 1 refused. The ledger now needs: ./le rfc update\n",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page does not carry %q:\n%s", want, page)

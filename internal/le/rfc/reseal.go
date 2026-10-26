@@ -48,7 +48,7 @@ func (r ResealReport) Text() string {
 	}
 	return tb.Str("re-sealed ").Int(int64(len(r.Resealed))).Str(" shifted verdict(s); ").
 		Int(int64(len(r.Refused))).
-		Str(" refused. The ledger now needs: ./le rfc index-update\n").String()
+		Str(" refused. The ledger now needs: ./le rfc update\n").String()
 }
 
 // resealTree re-stamps every SHIFTED verdict in the checkout and answers what it

@@ -84,7 +84,7 @@ func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
 }
 
 // StatusPage answers the public support page for one checkout: the same bytes
-// `./le rfc index-update` writes to docs/features/rfc-status.md.
+// `./le rfc update` writes to docs/features/rfc-status.md.
 //
 // The site renders the page from here rather than publishing the file, so the
 // published claim states what the summaries say today and a build needs no
@@ -118,7 +118,7 @@ func renderEnrolled(metas map[string]Meta) string {
 		}
 	}
 	var tb textbuf.Buffer
-	tb.Str(generatedBanner("#", "./le rfc index-update")).Byte('\n')
+	tb.Str(generatedBanner("#", "./le rfc update")).Byte('\n')
 	tb.Str("#\n")
 	tb.Str("# The gate's scope: ").Str(share(len(enrolled), len(stems))).
 		Str(" declare `| Enrolment | enrolled |`.\n")
@@ -144,7 +144,7 @@ func renderEnrolled(metas map[string]Meta) string {
 	tb.Str("# `./le rfc check` enforces this. See ai/skills/ze-rfc.md.\n")
 	tb.Str("#\n")
 	tb.Str("# To enrol an RFC, edit its summary and nothing else: set `| Enrolment | enrolled |`\n") //nolint:misspell // Generated ledger prose naming the `Enrolment` field; `enroll` here would rewrite rfc/enrolled.txt.
-	tb.Str("# and `| Enrolment reason | ... |` in its `## Meta` table, then run `./le rfc index-update`.\n")
+	tb.Str("# and `| Enrolment reason | ... |` in its `## Meta` table, then run `./le rfc update`.\n")
 	tb.Str("# Enrolment REQUIRES the RFC's own text at rfc/full/<stem>.txt or rfc/drafts/<stem>.txt,\n")
 	tb.Str("# and an extraction sign-off at rfc/extraction/<stem>.json. `checkEnrolment` refuses\n")
 	tb.Str("# without them, and enrolment is monotonic: an RFC whose MUSTs were gated cannot stop\n")
@@ -170,7 +170,7 @@ func renderNotEnrolled(metas map[string]Meta) string {
 		byKind[meta.Enrolment]++
 	}
 	var tb textbuf.Buffer
-	tb.Str(generatedBanner("#", "./le rfc index-update")).Byte('\n')
+	tb.Str(generatedBanner("#", "./le rfc update")).Byte('\n')
 	tb.Str("#\n")
 	tb.Str("# The declared remainder: ").Str(share(len(declared), len(stems))).
 		Str(" are not enrolled, and each states why in its own `## Meta` table.\n")
@@ -243,7 +243,7 @@ func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, le
 		rowed += len(rows)
 	}
 	var tb textbuf.Buffer
-	tb.Str(generatedBanner("<!--", "./le rfc index-update")).Str(" -->\n\n")
+	tb.Str(generatedBanner("<!--", "./le rfc update")).Str(" -->\n\n")
 	tb.Str("# RFC Implementation Status\n\n")
 	tb.Str(statusPageIntro(len(metas)-rowed, len(metas)))
 	for _, name := range sortedKeysOf(aggregates) {

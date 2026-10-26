@@ -447,7 +447,7 @@ type rfcLedgerInput struct {
 // Every fact here is authored in one place. `rfc/enrolled.txt`,
 // `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` were three authored
 // files until spec-rfc-ledger-single-declaration on 2026-09-01, and are now
-// GENERATED from these tables by `./le rfc index-update`. Reading a generated
+// GENERATED from these tables by `./le rfc update`. Reading a generated
 // copy to publish a fact the summary declares would be reading the echo
 // (ai/rules/principles.md).
 func rfcLedgerStemOf(in *rfcLedgerInput) rfcLedgerStem {

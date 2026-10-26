@@ -97,7 +97,7 @@ func ProvenShareOf(metas map[string]Meta, requirements []Requirement, tags []Tag
 		return ProvenShare{}, errors.New(
 			"no enrolled RFC declares a public row claiming support, so the published proof " +
 				"share would divide by zero: check that rfc/short/*.md still carry their " +
-				"`| Support status |` cells, and re-run `./le rfc index-update`")
+				"`| Support status |` cells, and re-run `./le rfc update`")
 	}
 	return out, nil
 }

@@ -59,15 +59,15 @@ claimed test with and without its break.
 | `rfc/full/<stem>.txt`, `rfc/drafts/` | The RFC's own text. The source, and the only thing a conformance claim may quote |
 | `rfc/errata/<stem>/<number>.txt` | The verified text of one erratum a row cites: its original and corrected text as the RFC Editor publishes them. A row that cites it is quoted against it ("The row quote") |
 | `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
-| `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc index-update`: which summaries are gated, and the recorded reason for each that is not |
+| `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc update`: which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
 | `rfc/audit/<stem>/<requirement-id>.json` | One requirement's recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts from a pending file outside `rfc/audit/` and computes their fingerprints. With `mode rejudge` it replaces, in place, a recorded verdict a judge re-made, and accepts the `upgrade_reason` that a `weak`, `wrong` or `partial` verdict raised to `enforced` over unchanged units needs. `./le rfc reseal` re-stamps a recorded one whose unit only shifted; it cannot re-judge changed scope |
 | `rfc/discrimination/<stem>/<requirement-id>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit, each requirement's records in its own file |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
-| `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc index-update`: the PUBLIC support claim, one row per summary that declares a section. Its `Proof` column is the exception to that: it is derived from the checklist and the tags, and states each stem's gated count partitioned into proven, annotated and untested |
+| `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc update`: the PUBLIC support claim, one row per summary that declares a section. Its `Proof` column is the exception to that: it is derived from the checklist and the tags, and states each stem's gated count partitioned into proven, annotated and untested |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
-| `rfc/graph.tsv` | GENERATED from the RFC texts by `./le rfc index-update`: the dependency graph, one `from`, `kind`, `to` row per in-corpus edge ("The dependency graph") |
+| `rfc/graph.tsv` | GENERATED from the RFC texts by `./le rfc update`: the dependency graph, one `from`, `kind`, `to` row per in-corpus edge ("The dependency graph") |
 
 The audit verdicts and the discrimination records are stored one file per
 requirement, never one per RFC. Several sessions work the same RFC at once, and
@@ -1035,7 +1035,7 @@ Citation cycles (RFC 4301, 4302 and 4303 cite each other) collapse into one
 component; a component's level is 0 when it builds on nothing in the corpus,
 else one above the highest component it builds on.
 
-`./le rfc index-update` writes the edges to `rfc/graph.tsv`, a derived file
+`./le rfc update` writes the edges to `rfc/graph.tsv`, a derived file
 like the ledger family. `./le rfc check` parses the texts itself on every run
 (`graph.Load`), so no check reads a stale copy.
 
@@ -1695,7 +1695,7 @@ draws a refusal from its paths, its source's state or its target. A refusal
 judged on an evidence record, an escaped path spelling or evidence that is not
 one JSON value, is judged by the batch's rewrite alone, so `propose` does not
 see it, and the rename then refuses the whole batch rather than writing it. The output
-file is created, never overwritten. Run `./le rfc index-update` after a rename.
+file is created, never overwritten. Run `./le rfc update` after a rename.
 <!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, planCitations, proposeRenames, judgeRenameTarget -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->

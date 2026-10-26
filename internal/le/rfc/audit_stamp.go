@@ -117,7 +117,7 @@ func (r AuditStampReport) Text() string {
 		tb.Str("stamped ").Str(rid).Byte('\n')
 	}
 	return tb.Str("stamped ").Int(int64(len(r.Stamped))).Str(" verdict(s) into ").Str(auditRel).
-		Byte('/').Str(r.Stem).Str("/. The ledger now needs: ./le rfc index-update\n").String()
+		Byte('/').Str(r.Stem).Str("/. The ledger now needs: ./le rfc update\n").String()
 }
 
 // auditStamp stamps every verdict of one pending file and merges them into the

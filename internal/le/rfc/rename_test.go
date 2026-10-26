@@ -583,7 +583,7 @@ func TestRenameReportNamesIndexUpdate(t *testing.T) {
 	for _, want := range []string{"moved " + selftestTestPath + " -> " + renameTarget,
 		"rewrote " + selftestDiscriminationRel + ": 1 key(s)", "rewrote " + renameAuditRel,
 		"citation rewritten: " + renameDocRel + ":1", "plain mention left unchanged, read it: " + renameDocRel + ":2",
-		"next: ./le rfc index-update"} {
+		"next: ./le rfc update"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the report omits %q:\n%s", want, text)
 		}

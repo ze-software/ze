@@ -274,7 +274,6 @@ const (
 const (
 	actionAccept                  = "accept" // The policy decision recorded for a route.
 	actionCheck                   = "check"
-	actionIndexUpdate             = "index-update"
 	actionL2TPTest                = "l2tp-test"
 	actionPayloadReport           = "report payload"
 	actionReject                  = "reject"

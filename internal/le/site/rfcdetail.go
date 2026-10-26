@@ -507,7 +507,7 @@ func rfcThemesMirror(label, prose string, declared map[string]bool) string {
 // rfcNoPublicRowWhy says where the absence is DECLARED.
 //
 // The summary declares it. docs/features/rfc-status.md is generated from that
-// declaration by `./le rfc index-update`, so the page names the authored fact
+// declaration by `./le rfc update`, so the page names the authored fact
 // and then the file that carries no row for it, in that order.
 func rfcNoPublicRowWhy(entry *rfcLedgerStem) string {
 	return ", so its summary declares `| Support | - |` and docs/features/rfc-status.md " +

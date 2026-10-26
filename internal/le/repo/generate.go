@@ -66,7 +66,7 @@ var generationActions = []generationAction{
 	{area: areaRules, verb: "update render", answer: airules.Answer},
 	{area: areaRules, verb: "update condensed", answer: airules.Answer},
 	{area: areaRules, verb: "update index", answer: airules.Answer},
-	{area: "rfc", verb: verbIndexUpdate, answer: rfc.Answer},
+	{area: "rfc", verb: verbUpdate, answer: rfc.Answer},
 	{area: "arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
 	{area: "discovery-index", verb: verbUpdate, answer: repopackagemap.Answer},
 	{area: areaDocIndex, verb: verbUpdate, answer: docindex.Answer},
@@ -118,9 +118,8 @@ func runGeneration(mode string, actions []generationAction) (any, int) {
 
 // The generator verbs and the two areas that carry more than one of them.
 const (
-	verbCheck       = "check"
-	verbUpdate      = "update"
-	verbIndexUpdate = "index-update"
-	areaRules       = "ai rules"
-	areaDocIndex    = "doc index"
+	verbCheck    = "check"
+	verbUpdate   = "update"
+	areaRules    = "ai rules"
+	areaDocIndex = "doc index"
 )

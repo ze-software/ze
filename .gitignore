@@ -190,7 +190,7 @@ gokrazy/docker-host/extrafiles_*.tar
 # every one of their `git status` runs.
 /ai/.*.md.tmp-*
 
-# The generated RFC ledger family, written by `./le rfc index-update` from the
+# The generated RFC ledger family, written by `./le rfc update` from the
 # `## Meta` table and the checklist of each rfc/short/*.md. One run writes all
 # five, and internal/le/rfc registers each one in internal/le/derived, so a
 # write to a summary, an audit verdict, a discrimination record or a tag carrier

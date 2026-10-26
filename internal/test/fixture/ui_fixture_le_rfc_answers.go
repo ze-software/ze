@@ -287,7 +287,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"approve":             wordWrites,
 		"reseal":              wordWrites,
 		"audit-stamp":         wordWrites,
-		actionIndexUpdate:     wordWrites,
+		actionUpdate:          wordWrites,
 		"quote-backfill":      wordWrites,
 	}
 	for action, effect := range wantListed {
@@ -295,7 +295,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"rfc listing action %q has effect %q, want %q:\n%s",
 			action, listed[action], effect, listing.stdout)
 	}
-	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionIndexUpdate} {
+	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionUpdate} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted a stem argument or exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -407,30 +407,30 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(resealTreeA), shiftedAfterA),
 		"a second re-seal changed already-fresh audit bytes")
 
-	// index-update owns the ledger and every requirements shard. Equivalent
+	// update owns the ledger and every requirements shard. Equivalent
 	// copies must produce the same page, file set, and bytes; JSON rendering
 	// gets a third copy so it cannot read pages from either plain invocation.
 	checkoutPages := leRFCAnswersGenerated(root)
 	indexTreeA := leRFCAnswersCopyTree(root, here, "index-a")
 	indexTreeB := leRFCAnswersCopyTree(root, here, "index-b")
-	indexA := runLE(indexTreeA, "rfc", "index-update")
-	indexB := runLE(indexTreeB, "rfc", "index-update")
+	indexA := runLE(indexTreeA, "rfc", "update")
+	indexB := runLE(indexTreeB, "rfc", "update")
 	for name, result := range map[string]leRFCAnswersResult{"index-a": indexA, "index-b": indexB} {
 		leRFCAnswersRequire(result.code == 0,
-			"%s rfc index-update exited %d\nstdout:\n%s\nstderr:\n%s",
+			"%s rfc update exited %d\nstdout:\n%s\nstderr:\n%s",
 			name, result.code, result.stdout, result.stderr)
 		leRFCAnswersRequire(result.stderr == "",
-			"%s rfc index-update wrote to stderr: %q", name, result.stderr)
+			"%s rfc update wrote to stderr: %q", name, result.stderr)
 		leRFCAnswersRequire(!strings.Contains(result.stdout, "\x1b["),
-			"%s rfc index-update emitted terminal escapes: %q", name, result.stdout)
+			"%s rfc update emitted terminal escapes: %q", name, result.stdout)
 	}
 	leRFCAnswersRequire(indexA.stdout == indexB.stdout,
-		"equivalent owned copies rendered different index-update bytes\nfirst:\n%s\nsecond:\n%s",
+		"equivalent owned copies rendered different rfc update bytes\nfirst:\n%s\nsecond:\n%s",
 		indexA.stdout, indexB.stdout)
 	pagesA := leRFCAnswersGenerated(indexTreeA)
 	pagesB := leRFCAnswersGenerated(indexTreeB)
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersMapKeys(pagesA), []string{"ai/RFC-REQUIREMENTS.md", "rfc/requirements/rfc4456.md"}),
-		"rfc index-update wrote %v, want the ledger and the one authored RFC's shard", leRFCAnswersMapKeys(pagesA))
+		"rfc update wrote %v, want the ledger and the one authored RFC's shard", leRFCAnswersMapKeys(pagesA))
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersMapKeys(pagesA), leRFCAnswersMapKeys(pagesB)),
 		"equivalent index updates wrote different file sets: %v",
 		leRFCAnswersSymmetricDifference(leRFCAnswersMapKeys(pagesA), leRFCAnswersMapKeys(pagesB)))
@@ -440,34 +440,34 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	}
 
 	indexJSONTree := leRFCAnswersCopyTree(root, here, "index-json")
-	indexJSON := runLE(indexJSONTree, "rfc", "index-update", "|", "json")
+	indexJSON := runLE(indexJSONTree, "rfc", "update", "|", "json")
 	leRFCAnswersRequire(indexJSON.code == 0,
-		"rfc index-update | json exited %d\nstdout:\n%s\nstderr:\n%s",
+		"rfc update | json exited %d\nstdout:\n%s\nstderr:\n%s",
 		indexJSON.code, indexJSON.stdout, indexJSON.stderr)
 	leRFCAnswersRequire(indexJSON.stderr == "",
-		"rfc index-update | json wrote to stderr: %q", indexJSON.stderr)
-	indexPayload := leRFCAnswersJSONObject(indexJSON.stdout, "rfc index-update | json")
+		"rfc update | json wrote to stderr: %q", indexJSON.stderr)
+	indexPayload := leRFCAnswersJSONObject(indexJSON.stdout, "rfc update | json")
 	leRFCAnswersRequire(
 		reflect.DeepEqual(leRFCAnswersMapKeys(indexPayload), []string{"deleted", "files", "ledger", "shards"}),
-		"rfc index-update | json returned fields %v, want deleted, files, ledger, and shards: %s",
+		"rfc update | json returned fields %v, want deleted, files, ledger, and shards: %s",
 		leRFCAnswersMapKeys(indexPayload), indexJSON.stdout)
 	leRFCAnswersRequire(
-		leRFCAnswersJSONInt(indexPayload["shards"], "index-update.shards") == int64(len(pagesA)-1),
-		"rfc index-update reported %d shard(s), but the generated tree holds %d",
-		leRFCAnswersJSONInt(indexPayload["shards"], "index-update.shards"), len(pagesA)-1,
+		leRFCAnswersJSONInt(indexPayload["shards"], "update.shards") == int64(len(pagesA)-1),
+		"rfc update reported %d shard(s), but the generated tree holds %d",
+		leRFCAnswersJSONInt(indexPayload["shards"], "update.shards"), len(pagesA)-1,
 	)
 
 	// The ledger files the report NAMES are held to the same parity as the
 	// shards, and the population is read off the report rather than copied into
 	// this fixture, so a file the generator adds is covered the day it is added
 	// (ai/rules/evidence.md).
-	ledgerFiles := leRFCAnswersStrings(indexPayload["files"], "index-update.files")
+	ledgerFiles := leRFCAnswersStrings(indexPayload["files"], "update.files")
 	leRFCAnswersRequire(len(ledgerFiles) != 0,
-		"rfc index-update named no ledger file beside its shards: %s", indexJSON.stdout)
+		"rfc update named no ledger file beside its shards: %s", indexJSON.stdout)
 	for _, relative := range ledgerFiles {
 		written := leRFCAnswersRead(indexJSONTree, relative)
 		leRFCAnswersRequire(len(written) != 0,
-			"rfc index-update named %s and wrote nothing there", relative)
+			"rfc update named %s and wrote nothing there", relative)
 		leRFCAnswersRequire(bytes.Equal(written, leRFCAnswersRead(indexTreeA, relative)),
 			"equivalent index updates wrote different bytes into %s", relative)
 	}
@@ -831,7 +831,7 @@ func leRFCAnswersGenerated(tree string) map[string][]byte {
 		leRFCAnswersRequireNoError(err, "read "+ledgerPath)
 	}
 	// rfc/requirements is derived on demand and ignored by git, so a checkout
-	// that never ran index-update holds no directory. Absence is a state the
+	// that never ran rfc update holds no directory. Absence is a state the
 	// caller compares like any other: a writer that fills the directory still
 	// changes the answer.
 	shardsPath := filepath.Join(tree, "rfc", "requirements")
@@ -1014,10 +1014,10 @@ func (t leRFCPartialTree) checkJSON(what string) (int, map[string]any) {
 	return check.code, report
 }
 
-// indexShard runs index-update over the valid seeded row and returns the shard.
+// indexShard runs rfc update over the valid seeded row and returns the shard.
 func (t leRFCPartialTree) indexShard() []byte {
-	index := t.runLE("rfc", actionIndexUpdate)
-	leRFCAnswersRequire(index.code == 0, "index-update refused valid scope: %s", index.stderr)
+	index := t.runLE("rfc", actionUpdate)
+	leRFCAnswersRequire(index.code == 0, "rfc update refused valid scope: %s", index.stderr)
 	shard := leRFCAnswersRead(t.tree, leRFCPartialShard)
 	for _, fact := range []string{leRFCPartialRID, leRFCPartialTested, leRFCPartialGap, "zero whole-requirement credit"} {
 		leRFCAnswersRequire(strings.Contains(string(shard), fact), "shard omitted %q", fact)
@@ -1030,10 +1030,10 @@ func (t leRFCPartialTree) refuses(shard []byte, row, refusal string) {
 	t.write(leRFCPartialSummary, leRFCPartialMeta+row)
 	bad := t.runLE("rfc", actionCheck, "|", renderJSON)
 	leRFCAnswersRequire(bad.code == 1 && strings.Contains(bad.stdout, refusal), "invalid scope was accepted: %s", bad.stdout)
-	badIndex := t.runLE("rfc", actionIndexUpdate)
-	leRFCAnswersRequire(badIndex.code == 2, "index-update accepted invalid scope")
+	badIndex := t.runLE("rfc", actionUpdate)
+	leRFCAnswersRequire(badIndex.code == 2, "rfc update accepted invalid scope")
 	unchanged := leRFCAnswersRead(t.tree, leRFCPartialShard)
-	leRFCAnswersRequire(bytes.Equal(shard, unchanged), "refused index-update changed shard")
+	leRFCAnswersRequire(bytes.Equal(shard, unchanged), "refused rfc update changed shard")
 }
 
 // leRFCPartialDriver turns a failure panic into the fixture's error and hands

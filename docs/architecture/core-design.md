@@ -374,7 +374,7 @@ WHOLE, so a write that reaches an input with no hook in its path leaves the
 artifact present and stale until the next hooked write removes it. A native
 action writing from Go is such a write: `./le rfc reseal`,
 `./le rfc audit-stamp` and `./le rfc rename` edit an input of the five RFC
-outputs and no hook sees it, so `./le rfc index-update` follows each one.
+outputs and no hook sees it, so `./le rfc update` follows each one.
 
 A READER inside Go is the same gap on the other side. The write hook watches an
 editing tool and the Bash hook reads a command line, so neither one sees a Go
@@ -418,7 +418,7 @@ deciding whether to run.
 file still moves with one rename, so a reader never sees a partial file. The
 batch syncs none of them, because one fsync for each of about 200 files was most
 of a run. So after a power loss a file can be empty or short, and nothing
-notices it: run `./le rfc index-update` again. `WriteAtomic` still syncs before
+notices it: run `./le rfc update` again. `WriteAtomic` still syncs before
 its rename.
 
 <!-- source: internal/le/ai/digest/digest.go -- Check -->

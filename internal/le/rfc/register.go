@@ -91,7 +91,7 @@ func init() {
 // What this does NOT catch is a member deleted by hand under a ledger that is
 // still there. Catching that needs the expected stem set, which is Collect plus
 // a render: about two seconds, paid by every grep that names the directory, to
-// decide whether to run the thing it just did. `./le rfc index-update` restores
+// decide whether to run the thing it just did. `./le rfc update` restores
 // the directory in one command, and the directory is wholly derived, so the
 // cheaper marker is the trade taken here.
 func shardsRendered(root string) bool {
