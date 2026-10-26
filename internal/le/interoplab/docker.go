@@ -796,7 +796,7 @@ func dockerFlagNamed(argument, flag string) bool {
 // refuseOwnedArguments refuses a free-form docker argument that would replace
 // what the client owns on a container: its name, which a canceled or torn-down
 // run removes the container by, and its ze.lab owner labels, which a later run
-// and `./le test integration cleanup` judge the owner by. A label file is
+// and `./le test integration clean` judge the owner by. A label file is
 // refused too, because what it carries cannot be read here. field names the
 // free-form field and nameSource the typed source of the container's name.
 // Either form is a Ze defect in the caller, never an operator input.

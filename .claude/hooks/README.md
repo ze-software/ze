@@ -146,7 +146,7 @@ These return hook protocol output directly rather than a check verdict, so
 
 | Action | Event | What it does |
 |---|---|---|
-| `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints status. It deletes nothing; `./le session reap` owns proof-based cleanup. |
+| `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints status. It deletes nothing; `./le session clean` owns proof-based cleanup. |
 | `compaction-reminder` | UserPromptSubmit | Detects compaction and reminds the session to read the post-compaction rule. |
 | `pre-compact-save` | PreCompact | Saves session state before compaction. |
 | `block-premature-stop` | Stop | Refuses the stop while the claimed spec is implemented but not closed. Warns in one line when the claim is `in-progress` or no subagent was spawned. It never reads the last message. |

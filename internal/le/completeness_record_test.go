@@ -275,7 +275,7 @@ var portedProducers = []portedProducer{
 	// Scratch, sessions and the appliance artifacts.
 	{Target: "ze-scratch-links-ensure", Area: "scratch", Verb: "ensure"},
 	{Target: "ze-scratch-migrate", Area: "scratch", Verb: "migrate"},
-	{Target: "ze-session-reap", Area: "session", Verb: "reap"},
+	{Target: "ze-session-reap", Area: "session", Verb: "clean"},
 	{Target: "ze-host-build", Area: "build host-driver", Verb: "run"},
 	{Target: "ze-setup-build", Area: "build host-driver", Verb: "run", Note: "ze-host carries ze_core and ze_setup, and it is the binary that runs `ze appliance ...` on the build host"},
 	{Target: "ze-installer-build", Area: "build installer", Verb: "amd64", Note: "arm64 carries the second half the target ran"},
@@ -417,7 +417,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "clean",
-		Reason: "the subject is gone: the recipe called scripts/dev/session-scratch.sh and scripts/dev/ensure-links.py, both deleted. What it did beside them is `le session reap`, `le scratch ensure`, and `go clean -cache`",
+		Reason: "the subject is gone: the recipe called scripts/dev/session-scratch.sh and scripts/dev/ensure-links.py, both deleted. What it did beside them is `le session clean`, `le scratch ensure`, and `go clean -cache`",
 	},
 	{
 		Target: "clean-all",
@@ -425,11 +425,11 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-scratch-clean",
-		Reason: "the subject is gone: the recipe deleted in-tree tmp/ entries by mtime. Scratch is placed outside the checkout now, and a session directory is removed by ownership rather than by age (`le session reap`)",
+		Reason: "the subject is gone: the recipe deleted in-tree tmp/ entries by mtime. Scratch is placed outside the checkout now, and a session directory is removed by ownership rather than by age (`le session clean`)",
 	},
 	{
 		Target: "ze-session-clean",
-		Reason: "absorbed: removing session directories is `le session reap` (internal/le/session), which removes only the ones whose owning process is provably gone, so a date cutoff has no separate identity",
+		Reason: "absorbed: removing session directories is `le session clean` (internal/le/session), which removes only the ones whose owning process is provably gone, so a date cutoff has no separate identity",
 	},
 	{
 		Target: "le-build",

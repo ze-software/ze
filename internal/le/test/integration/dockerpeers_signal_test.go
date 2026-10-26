@@ -95,7 +95,7 @@ func TestSignalSweepReports(t *testing.T) {
 	}
 	refused := &fakeCleaner{err: errors.New("daemon gone")}
 	text := sweepAfterSignal(t.Context(), dockerPeersVerb, refused, gaterun.ProcessGroup{}, groupExitTimeout)
-	for _, want := range []string{"daemon gone", "./le test integration cleanup"} {
+	for _, want := range []string{"daemon gone", "./le test integration clean"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("refusal %q lacks %q", text, want)
 		}
@@ -173,7 +173,7 @@ func TestSignalSweepNamesMembersLeft(t *testing.T) {
 	if !slices.Equal(cleaner.dry, []bool{false}) {
 		t.Errorf("CleanupOrphans calls = %v, want one non-dry sweep past the bound", cleaner.dry)
 	}
-	for _, want := range []string{strconv.Itoa(member), "had not all exited", "live-owned: process group ", "./le test integration cleanup"} {
+	for _, want := range []string{strconv.Itoa(member), "had not all exited", "live-owned: process group ", "./le test integration clean"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("summary %q lacks %q", text, want)
 		}

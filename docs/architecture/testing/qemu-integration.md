@@ -1116,7 +1116,7 @@ RPKI tests through the same switch. Both run their `go test` child under the
 verb's signal root: a SIGINT or SIGTERM kills the child's whole process group,
 so `le` answers non-zero at once rather than waiting out the child's own
 900 s bound. That kill skips every `labtest` `t.Cleanup`, so a signalled run
-then makes the call `./le test integration cleanup` makes, one non-dry orphan
+then makes the call `./le test integration clean` makes, one non-dry orphan
 sweep on a context the signal did not cancel, bounded at 60 s, and prints its
 summary: the killed test binaries owned the containers, so the sweep proves
 them gone and removes them in the same invocation. Reaping `go test` does not

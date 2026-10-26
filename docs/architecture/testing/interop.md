@@ -229,7 +229,7 @@ fifteen-second bound.
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
 | A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
-| Docker | `./le test integration cleanup`, `./le test integration docker-peers` | No Ze kernel: neither runs Ze in a container |
+| Docker | `./le test integration clean`, `./le test integration docker-peers` | No Ze kernel: neither runs Ze in a container |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
 `NET_ADMIN` capability (granted automatically by the orchestrator).
@@ -371,7 +371,7 @@ images. For each scenario it then:
    another run took first, or one never created is never removed. `Docker.CreateNetwork` refuses a
    network name that already exists rather than join it. A SIGKILL, a lost
    machine or a panic runs no teardown; the next lab start, or
-   `./le test integration cleanup`, removes what it left.
+   `./le test integration clean`, removes what it left.
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Lab.preClean, Lab.cleanup, createdResources -->
 <!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, ContainerMayExist, containerNameTaken -->
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
@@ -505,7 +505,7 @@ answers count as absent. When a start failed or was canceled, `Docker.RemoveCont
 first answer. It runs `docker rm -f` again every `createSettleInterval` until
 `createSettleWindow` ends, and removes the container if it appears. If the
 container appears and cannot be removed, or the wait is stopped, the error
-names the container and `./le test integration cleanup`. This applies to every
+names the container and `./le test integration clean`. This applies to every
 start that marks its name: `Docker.RunDetached` (the deployment proofs, the
 benchmark), a lab peer's run, and a one-shot container. A create that lands
 after the window still carries the owner labels, so the cleanup removes it.
@@ -567,11 +567,11 @@ left a container: never for a name the daemon refused as another container's.
 
 `Suite.Run` runs the cleanup after the Docker probe and before Preflight. It
 prints each removal or skip as a progress line, then the summary line that
-`./le test integration cleanup` ends with: `interop: cleanup: N removed, N kept,
+`./le test integration clean` ends with: `interop: cleanup: N removed, N kept,
 N failed, N unknown`, or `interop: cleanup: no Ze lab resource on this Docker
 daemon` when the sweep met nothing. So a sweep that ran always says so. A listing the daemon refuses is
 a setup error that names the pre-run cleanup, why the run stops, and the fix:
-run the failing docker command by hand, then `./le test integration cleanup`
+run the failing docker command by hand, then `./le test integration clean`
 or the run again. Before a scenario creates its network and containers, its
 pre-clean removes an existing resource of the same name when its labels are
 exactly the ones this run's own creates carry (an earlier scenario's shared
@@ -584,8 +584,8 @@ scenario's teardown then removes nothing of that name: it removes only what
 the scenario itself created.
 <!-- source: internal/le/interoplab/orphans.go -- Docker.claimName, OrphanReport.Summary -->
 
-`./le test integration cleanup` runs the cleanup by hand and exits 1 when a
-removal failed, naming the failing command. `./le test integration cleanup
+`./le test integration clean` runs the cleanup by hand and exits 1 when a
+removal failed, naming the failing command. `./le test integration clean
 dry` lists what would go and what stays, removes nothing, and also lists
 `ze-interop-retained:` tags left from before the labels existed, which no mode
 removes. Both render through `| json`.

@@ -265,7 +265,7 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		{"verify-lint", `./le go lint run | grep issues`, true},
 		{"verify-deps", `./le verify deps unit-cached | head -20`, true},
 		{"verify-status", `./le verify status check | tail -1`, false},
-		{"verify-summary", `./le verify summary append | head -2`, false},
+		{"verify-summary", `./le verify summary record | head -2`, false},
 		{"ze-le-verify-gate", `ze le verify current | tail -5`, true},
 		{"ze-le-verify-status", `ze le verify status check | tail -1`, false},
 		{"functional-run", `./le test functional gating | tail -5`, true},

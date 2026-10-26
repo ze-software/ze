@@ -21,7 +21,7 @@ func TestSuiteRunOrphanSweepFailureNamesWhatWhyAndFix(t *testing.T) {
 	if report.Code != 1 {
 		t.Fatalf("Suite code = %d, want 1", report.Code)
 	}
-	for _, want := range []string{"pre-run", "permission denied", "Fix:", "./le test integration cleanup"} {
+	for _, want := range []string{"pre-run", "permission denied", "Fix:", "./le test integration clean"} {
 		if !strings.Contains(report.SetupError, want) {
 			t.Errorf("setup error %q does not name %q", report.SetupError, want)
 		}

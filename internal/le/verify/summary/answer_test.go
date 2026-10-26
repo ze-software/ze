@@ -35,12 +35,12 @@ func TestMigratedSummaryKeepsItsExitCodes(t *testing.T) {
 	}{
 		{nil, 0},
 		{[]string{"walk"}, 2},
-		{[]string{"append"}, 2},
-		{[]string{"append", "failures", index}, 2},
-		{[]string{"append", "failures", index, "stage", "lint"}, 2},
-		{[]string{"append", "failures", index, "stage", "lint", "log"}, 2},
-		{[]string{"append", "failures", index, "stage", "lint", "log", missing, "extra"}, 2},
-		{[]string{"append", "failures", unwritable, "stage", "lint", "log", missing}, 1},
+		{[]string{"record"}, 2},
+		{[]string{"record", "failures", index}, 2},
+		{[]string{"record", "failures", index, "stage", "lint"}, 2},
+		{[]string{"record", "failures", index, "stage", "lint", "log"}, 2},
+		{[]string{"record", "failures", index, "stage", "lint", "log", missing, "extra"}, 2},
+		{[]string{"record", "failures", unwritable, "stage", "lint", "log", missing}, 1},
 	}
 	for _, tc := range cases {
 		if _, code := Answer(tc.args); code != tc.want {
@@ -58,7 +58,7 @@ func TestSummaryAppendsTheBlockTheLineNames(t *testing.T) {
 	if err := os.WriteFile(stageLog, []byte("FAIL something broke\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, code := Answer([]string{"append", "stage", "lint", "log", stageLog, "failures", index}); code != 0 {
+	if _, code := Answer([]string{"record", "stage", "lint", "log", stageLog, "failures", index}); code != 0 {
 		t.Fatalf("a well-formed append answered %d, want 0", code)
 	}
 	written, err := os.ReadFile(index) //nolint:gosec // the path is this test's own temporary file
@@ -74,7 +74,7 @@ func TestSummaryAppendsTheBlockTheLineNames(t *testing.T) {
 // append action whose three keywords are required and typed.
 func TestSummaryDeclaresItsGrammar(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 1 || list.Actions[0].Verb != appendVerb {
+	if len(list.Actions) != 1 || list.Actions[0].Verb != recordVerb {
 		t.Fatalf("verify summary declares %+v, want the one append action", list.Actions)
 	}
 	for _, parameter := range list.Actions[0].Parameters {

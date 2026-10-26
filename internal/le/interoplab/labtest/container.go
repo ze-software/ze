@@ -61,7 +61,7 @@ func (h host) build(t tester, name, image, dockerfile string) bool {
 		defer cancel()
 		if err := h.docker.ReleaseImage(ctx, built); err != nil {
 			t.Errorf("labtest: cannot release the image tag this run built for %s: %v. Fix: `./le test"+
-				" integration cleanup` removes it once this process has exited", image, err)
+				" integration clean` removes it once this process has exited", image, err)
 		}
 	})
 	return true

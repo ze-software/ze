@@ -234,7 +234,7 @@ run and still removes the container. A scenario the interruption caught ends at
 once with the interruption as the run's error, never a FAIL for a feature the
 run did not finish probing. When the removal fails, the report's
 `container-removal-error` names the reason and the verb exits 1; run
-`./le test integration cleanup` to remove it. A run killed outright leaves a
+`./le test integration clean` to remove it. A run killed outright leaves a
 labeled container that the next lab start or that cleanup removes.
 <!-- source: internal/le/test/deployment/actions.go -- signalRooted -->
 <!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->

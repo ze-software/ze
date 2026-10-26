@@ -144,7 +144,7 @@ of them names docker. A local shadows a package-level name of the same
 spelling. A program reached through a function parameter, a struct field or a
 multi-value call is not judged. The route is
 `interoplab.Docker`, which labels what it creates so
-`./le test integration cleanup` removes what a killed run left, and bounds
+`./le test integration clean` removes what a killed run left, and bounds
 every command; a package test starts its server with `labtest.Start`. The
 check has no exemption list and no baseline.
 <!-- source: internal/le/arch/tier/dockerexec.go -- DockerRoute, dockerExecScan, dockerExecGate -->

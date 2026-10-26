@@ -441,7 +441,7 @@ func dockerExecGate(scan *dockerExecScan) CheckResult {
 		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).Byte(' ').Str(site.Action).Byte(' ').Str(site.Program).Byte('\n')
 	}
 	tb.Str("  Rule: every docker command goes through interoplab.Docker, which labels what it creates so")
-	tb.Str(" `./le test integration cleanup` removes what a killed run left, and bounds each command")
+	tb.Str(" `./le test integration clean` removes what a killed run left, and bounds each command")
 	tb.Str(" (docs/architecture/module-tiers.md, \"The docker route\").\n")
 	tb.Str("  Fix: call the interoplab.Docker method for the command; a package test starts its server")
 	tb.Str(" with labtest.Start (docs/architecture/testing/interop.md).\n")

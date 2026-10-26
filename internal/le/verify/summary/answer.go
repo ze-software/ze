@@ -10,9 +10,9 @@ import (
 
 const name = "verify summary"
 
-// The verb and the keywords `append` takes.
+// The verb and the keywords `record` takes.
 const (
-	appendVerb      = "append"
+	recordVerb      = "record"
 	failuresKeyword = "failures"
 	stageKeyword    = "stage"
 	logKeyword      = "log"
@@ -24,8 +24,8 @@ const (
 // initialization cycle.
 func area() leaction.Area {
 	return leaction.New(name, leaction.Action{
-		Verb:    appendVerb,
-		Summary: "append one stage failure to the failure index",
+		Verb:    recordVerb,
+		Summary: "record one stage failure in the failure index",
 		Why:     "append one stage failure block to the verification failure index",
 		Parameters: []leaction.Parameter{
 			{Keyword: failuresKeyword, Kind: leaction.KindPath, Value: "failures-log", Requirement: leaction.Required,
@@ -57,7 +57,7 @@ func Answer(args []string) (any, int) { return area().Answer(args) }
 func answerAppend(args leaction.Arguments) (any, int) {
 	for _, keyword := range []string{failuresKeyword, stageKeyword, logKeyword} {
 		if !args.Has(keyword) {
-			return nil, area().Refuse(appendVerb, errors.New(name+" append needs "+keyword+" and its value"))
+			return nil, area().Refuse(recordVerb, errors.New(name+" "+recordVerb+" needs "+keyword+" and its value"))
 		}
 	}
 	summary, err := verifyengine.AppendSummary(args.One(failuresKeyword), args.One(stageKeyword), args.One(logKeyword))

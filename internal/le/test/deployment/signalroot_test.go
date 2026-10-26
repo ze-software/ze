@@ -78,7 +78,7 @@ func TestContainerRemovalSurvivesCancelAndIsReported(t *testing.T) {
 	if !strings.Contains(text, "ze-l2tp-evidence-1 was not removed") {
 		t.Errorf("report text does not name the leftover:\n%s", text)
 	}
-	if !strings.Contains(text, "./le test integration cleanup") {
+	if !strings.Contains(text, "./le test integration clean") {
 		t.Errorf("report text does not name the command that removes it:\n%s", text)
 	}
 	if code := l2tpExitCode(report); code != 1 {

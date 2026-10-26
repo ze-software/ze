@@ -13,8 +13,8 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// cleanupVerb is the explicit orphan cleanup, `./le test integration cleanup [dry]`.
-const cleanupVerb = "cleanup"
+// cleanupVerb is the explicit orphan cleanup, `./le test integration clean [dry]`.
+const cleanupVerb = "clean"
 
 // labCleaner is the part of interoplab.Docker the cleanup verb drives.
 type labCleaner interface {
@@ -36,14 +36,14 @@ func labCleanup(ctx context.Context, cleaner labCleaner, dry bool) (any, int) {
 	if err := cleaner.Probe(ctx); err != nil {
 		leaction.ReportError(errors.New(problem.Str("cleanup: Docker does not answer (").Err(err).
 			Str("), so no lab resource can be listed. Fix: start Docker, or point DOCKER_HOST at the").
-			Str(" daemon the labs use, then run `./le test integration cleanup` again").String()))
+			Str(" daemon the labs use, then run `./le test integration clean` again").String()))
 		return nil, 1
 	}
 	report, err := cleaner.CleanupOrphans(ctx, dry)
 	if err != nil {
 		leaction.ReportError(errors.New(problem.Str("cleanup: the labeled lab resources could not be listed (").
 			Err(err).Str("). Fix: run the failing docker command by hand to see why the daemon refuses it,").
-			Str(" then run `./le test integration cleanup` again").String()))
+			Str(" then run `./le test integration clean` again").String()))
 		return nil, 1
 	}
 	return report, report.Code()

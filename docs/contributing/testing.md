@@ -267,8 +267,8 @@ They are not part of the normal development cycle.
 ./le test qemu all-tests
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
-./le test integration cleanup dry    # what a killed lab run left, and why the rest stays
-./le test integration cleanup        # remove the lab resources whose owner is gone
+./le test integration clean dry    # what a killed lab run left, and why the rest stays
+./le test integration clean        # remove the lab resources whose owner is gone
 ```
 
 A package test that starts a real peer container carries `//go:build docker`,
@@ -709,5 +709,5 @@ Reproducing a load-dependent flake is
 | Check the commit compiles | `./le repo compiles check` |
 | Check web behavior | `./le test functional web` |
 | Run every package test that starts a real server container (`docker` tag) | `./le test integration docker-peers` |
-| List, then remove, Docker resources a killed lab run left behind | `./le test integration cleanup dry`, then `./le test integration cleanup` |
+| List, then remove, Docker resources a killed lab run left behind | `./le test integration clean dry`, then `./le test integration clean` |
 | Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo update` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |

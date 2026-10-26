@@ -68,7 +68,7 @@ const imageBuildTimeout = 10 * time.Minute
 
 // cleanupCommand is what an operator runs to remove a container or network
 // this run could not remove: every one carries the owner labels it matches.
-const cleanupCommand = "./le test integration cleanup"
+const cleanupCommand = "./le test integration clean"
 
 // Steps selects what one suite run does. The runner refuses a run that selects
 // neither, because it would do nothing and answer success.

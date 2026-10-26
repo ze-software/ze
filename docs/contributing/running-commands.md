@@ -566,7 +566,7 @@ dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created fo
 ```
 
 A session directory outlives its session, so a log written today is there
-tomorrow. Nothing removes it at session end or from a hook. `./le session reap`
+tomorrow. Nothing removes it at session end or from a hook. `./le session clean`
 removes only session directories whose owners are provably gone, and the hourly
 store trim (see "When the disk is full") removes a directory only when those same
 rules call it dead AND its mtime is more than a day old. Inside a directory it
@@ -615,7 +615,7 @@ session directory and its scratch, and owns what follows:
 
 A session id and an agent id hold only letters, digits, `.`, `_` and `-`, so the
 `+` splits a name one way only, and no session can pose as another's agent.
-The session reaper removes a dead session's agent markers with its own
+The session cleaner removes a dead session's agent markers with its own
 (`lepath.MarkerOwnedBy`).
 
 An agent that claimed no spec reads its parent's claim, and its `release`

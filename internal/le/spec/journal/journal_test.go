@@ -185,8 +185,8 @@ func TestActionsPublishTheNativeRegistryRows(t *testing.T) {
 		t.Fatalf("why = %q, want %q", action.Why, journalWhy())
 	}
 	validate := list.Actions[1]
-	if validate.Verb != "validate" || validate.Writes ||
-		validate.Why != "validate one edited plan/journal class file's header, rows, dates, Spec keys, "+
+	if validate.Verb != "check" || validate.Writes ||
+		validate.Why != "check one edited plan/journal class file's header, rows, dates, Spec keys, "+
 			"Fix markers, Captured: line, and the 600-character cap on a row added or rewritten against HEAD" {
 		t.Fatalf("validate action = %#v", validate)
 	}
@@ -225,15 +225,15 @@ func TestValidateActionUsesClosedFileKeywordGrammar(t *testing.T) {
 	t.Setenv("ZE_REPO_ROOT", tree)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
-	payload, code := Answer([]string{"validate", "file", "plan/journal/valid.md"})
+	payload, code := Answer([]string{"check", "file", "plan/journal/valid.md"})
 	report, ok := payload.(ValidationReport)
 	if code != 0 || !ok || report.Rows != 1 {
 		t.Fatalf("validate action = %T %#v, code %d", payload, payload, code)
 	}
-	if _, code := Answer([]string{"validate", "plan/journal/valid.md"}); code != 2 {
+	if _, code := Answer([]string{"check", "plan/journal/valid.md"}); code != 2 {
 		t.Fatalf("identifier-first grammar code = %d, want 2", code)
 	}
-	if _, code := Answer([]string{"validate", "file"}); code != 2 {
+	if _, code := Answer([]string{"check", "file"}); code != 2 {
 		t.Fatalf("missing file value code = %d, want 2", code)
 	}
 }

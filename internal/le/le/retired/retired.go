@@ -228,6 +228,14 @@ var renames = []Rename{
 	{Retired: "scratch cache-clean", Command: "scratch", Action: "clean"},
 	{Retired: "scratch store-trim", Command: "scratch", Action: "trim"},
 	{Retired: "scratch links-ensure", Command: "scratch", Action: "ensure"},
+	// `reap` and `clean` shared one meaning.
+	{Retired: "session reap", Command: "session", Action: "clean"},
+	// `cleanup` and `clean` shared one meaning.
+	{Retired: "test integration cleanup", Command: "test integration", Action: "clean"},
+	// `append` and `record` shared one meaning.
+	{Retired: "verify summary append", Command: "verify summary", Action: "record"},
+	// `validate` and `check` shared one meaning.
+	{Retired: "spec journal validate", Command: "spec journal", Action: "check"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

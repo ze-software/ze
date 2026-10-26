@@ -69,7 +69,7 @@ type ContainerExec struct {
 }
 
 // RunDetached starts one labeled detached container. The owner labels are what
-// let a later start or `./le test integration cleanup` remove it when this
+// let a later start or `./le test integration clean` remove it when this
 // process dies before its own RemoveContainer runs. ContainerMayExist on its
 // answer says whether the caller owes that RemoveContainer.
 func (d *Docker) RunDetached(ctx context.Context, spec DetachedContainer) error {

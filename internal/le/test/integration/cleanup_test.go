@@ -41,7 +41,7 @@ func (f *fakeCleaner) CleanupOrphans(ctx context.Context, dry bool) (interoplab.
 	return f.report, f.err
 }
 
-// VALIDATES: the wiring row "./le test integration cleanup [dry] -> the
+// VALIDATES: the wiring row "./le test integration clean [dry] -> the
 // registered action -> Docker.CleanupOrphans": the verb is in the area's
 // table with the closed keyword grammar `dry`, and its handler probes Docker
 // and runs one orphan cleanup, answering the report and its code.

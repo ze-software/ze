@@ -255,7 +255,7 @@ func IsRepoRoot(dir string) bool {
 // place in the session's own directory. Nothing under tmp/session/ is removed
 // automatically, so what that costs is attribution, not cleanup: the fallback
 // dir is an unowned $TMPDIR/ze-functional-* that no operator can tie to a
-// session, while `./le session reap` removes provably abandoned session roots.
+// session, while `./le session clean` removes provably abandoned session roots.
 func EnsureScratchRoot(baseDir string) string {
 	root := scratchRoot(baseDir)
 	if root == "" {

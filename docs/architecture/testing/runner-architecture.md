@@ -107,7 +107,7 @@ labs therefore cover the three routes differently. The `defer` beside the start
 is `Suite.Run`'s teardown. Cancellation is a `signal.NotifyContext` root on
 SIGINT and SIGTERM at each lab entry point, so a Ctrl-C runs that teardown. The
 stand-in for `Pdeathsig` is the owner labels every lab resource carries: the
-next lab start, or `./le test integration cleanup`, removes the resources whose
+next lab start, or `./le test integration clean`, removes the resources whose
 owner is provably gone (`interop.md`, "Crash-safe teardown").
 
 The docker client is the opposite case to a runner with no handler: le holds
@@ -124,7 +124,7 @@ stopped by SIGTTIN.
 The signal root holds SIGINT and SIGTERM only. A signal le does not root
 (SIGHUP, SIGQUIT) ends le by Go's default action and leaves its docker clients
 and Go builds running in their own groups. The containers they hold carry le's
-pid in their owner labels, so `./le test integration cleanup` removes them once
+pid in their owner labels, so `./le test integration clean` removes them once
 le is gone.
 
 So the context is the only stop such a child gets, and every docker command

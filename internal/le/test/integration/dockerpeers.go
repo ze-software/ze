@@ -63,7 +63,7 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // non-zero at once instead of waiting out the child's own bound.
 //
 // That SIGKILL skips every labtest t.Cleanup, so a signaled run ends with
-// one orphan sweep through cleaner, the call `./le test integration cleanup`
+// one orphan sweep through cleaner, the call `./le test integration clean`
 // makes: the killed test binaries own their containers, so the sweep proves
 // them gone and removes them in this invocation rather than at the next lab
 // start. A child that ends on its own already ran its cleanups and gets none.
@@ -103,11 +103,11 @@ func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, grou
 	if left != nil {
 		text.Str(verb).Str(": the killed tests had not all exited, so the sweep may have kept containers of").
 			Str(" theirs as live-owned: ").Err(left).
-			Str(". Fix: once they exit, run `./le test integration cleanup`\n")
+			Str(". Fix: once they exit, run `./le test integration clean`\n")
 	}
 	if err != nil {
 		return text.Str(verb).Str(": stopped by a signal, and the sweep of its lab resources failed (").Err(err).
-			Str("), so its containers stay until a later sweep. Fix: run `./le test integration cleanup`").String()
+			Str("), so its containers stay until a later sweep. Fix: run `./le test integration clean`").String()
 	}
 	return text.Str(verb).Str(": stopped by a signal; swept the lab resources its killed tests left:\n").
 		Str(report.Text()).String()

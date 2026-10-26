@@ -478,7 +478,7 @@ func TestCleanupOrphansSkipMessagesNameFix(t *testing.T) {
 		t.Fatal("a foreign owner's resources were not skipped")
 	}
 	for _, resource := range report.Skipped {
-		if !strings.Contains(resource.Fix, "./le test integration cleanup") || !strings.Contains(resource.Fix, otherMachineID) {
+		if !strings.Contains(resource.Fix, "./le test integration clean") || !strings.Contains(resource.Fix, otherMachineID) {
 			t.Errorf("foreign skip fix %q names neither the command nor the machine", resource.Fix)
 		}
 	}

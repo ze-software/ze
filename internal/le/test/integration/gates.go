@@ -52,7 +52,10 @@ const envString = "string"
 // callback or external toolchain command. Exactly one of Native, NativeArgs and
 // Argv is set.
 type Action struct {
-	Verb    string
+	Verb string
+	// Does is the vocabulary verb a suite name performs (D-P4-vocab): every
+	// suite here runs, so each declares run; a verb word declares nothing.
+	Does    string
 	Summary string
 	Why     string
 	Native  func(context.Context, string) (any, int)
@@ -127,12 +130,16 @@ func fixed(argv ...string) func() []string {
 	return func() []string { return slices.Clone(argv) }
 }
 
+// doesRun is the vocabulary verb every suite name of this area performs.
+const doesRun = "run"
+
 // Table answers every action this area declares, in listing order.
 func Table() []Action {
 	return []Action{
 		// ── Interop ──────────────────────────────────────────────────────
 		{
 			Verb:    "interop",
+			Does:    doesRun,
 			Native:  runGeneralInterop,
 			Summary: "run BGP interop against FRR, BIRD and GoBGP",
 			Why: "BGP interop against the FRR, BIRD and GoBGP containers, every scenario" +
@@ -141,6 +148,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "interop-ipsec",
+			Does:    doesRun,
 			Native:  runIPsecInterop,
 			Summary: "run IKEv2 and IPsec interop against strongSwan",
 			Why: "IKEv2/IPsec interop against strongSwan. Needs Docker and privileged" +
@@ -148,6 +156,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "interop-radius",
+			Does:    doesRun,
 			Native:  runRADIUSInterop,
 			Summary: "run RADIUS admin-login interop with FreeRADIUS",
 			Why: "RADIUS admin-login interop against a real FreeRADIUS server, every" +
@@ -156,6 +165,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "interop-radius-subscriber",
+			Does:    doesRun,
 			Native:  runRADIUSSubscriberInterop,
 			Summary: "run subscriber RADIUS interop with FreeRADIUS",
 			Why: "subscriber RADIUS interop: FreeRADIUS accounting and radclient CoA/DM" +
@@ -165,6 +175,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "interop-rsvpte",
+			Does:    doesRun,
 			Native:  runRSVPTEInterop,
 			Summary: "run RSVP-TE interop against freeRouter",
 			Why: "RSVP-TE interop between Ze and freeRouter in ingress, transit, relay and egress roles, every" +
@@ -182,6 +193,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    dockerPeersVerb,
+			Does:    doesRun,
 			Native:  runDockerPeers,
 			Summary: "run every docker-tagged package test",
 			Why: "every package test tagged `docker` (a real peer container started through interoplab," +
@@ -191,6 +203,7 @@ func Table() []Action {
 		// ── Stress ───────────────────────────────────────────────────────
 		{
 			Verb:    StressAction,
+			Does:    doesRun,
 			Native:  runStressGate,
 			Summary: "run the complete BGP stress registry",
 			Why: "the complete native BGP stress registry: bulk IPv4, mixed families," +
@@ -200,6 +213,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "stress-bird",
+			Does:    doesRun,
 			Native:  runStressBirdGate,
 			Summary: "run the BIRD baseline for the stress numbers",
 			Why: "the BIRD baseline the ze bulk-IPv4 stress numbers are read against." +
@@ -207,6 +221,7 @@ func Table() []Action {
 		},
 		{
 			Verb: "stress-web",
+			Does: doesRun,
 			Argv: fixed(goTool, "test", "-tags", "ze_core stress", "-race", "-count=1",
 				"-timeout", "300s", "./internal/component/web/",
 				"-run", "TestWebConcurrentEditStress", "-v"),
@@ -217,6 +232,7 @@ func Table() []Action {
 		},
 		{
 			Verb: "stress-fleet",
+			Does: doesRun,
 			Argv: fixed(goTool, "test", "-tags", "ze_core fleetperf", "-count=1",
 				"-timeout", "300s", "./cmd/ze/hub/",
 				"-run", "TestFleetManyClientsPerf", "-v"),
@@ -227,6 +243,7 @@ func Table() []Action {
 		// ── Live ─────────────────────────────────────────────────────────
 		{
 			Verb:    liveRPKIVerb,
+			Does:    doesRun,
 			Native:  runLiveRPKI,
 			Summary: "test the RPKI validator against stayrtr",
 			Why: "the RPKI validator against a real stayrtr cache started through labtest, with" +
@@ -236,6 +253,7 @@ func Table() []Action {
 		// ── Integration (network namespace) ───────────────────────────────
 		{
 			Verb:    "iface",
+			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/component/iface/..."),
 			Summary: "test the iface component against a real kernel",
 			Why: "the iface component against a real kernel: netlink link, address and" +
@@ -243,6 +261,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "fib",
+			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/plugins/fib/kernel/..."),
 			Summary: "test the kernel FIB backend",
 			Why: "the kernel FIB backend: what a route looks like once netlink has it, and" +
@@ -250,6 +269,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "firewall",
+			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
 			Summary: "test the nft firewall backend and CoPP",
 			Why: "the nft firewall backend against a real nftables ruleset, and the CoPP" +
@@ -257,6 +277,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "traffic",
+			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/plugins/traffic/netlink/..."),
 			Summary: "test the traffic-control netlink backend",
 			Why: "the traffic-control netlink backend: qdisc and filter programming." +
@@ -264,6 +285,7 @@ func Table() []Action {
 		},
 		{
 			Verb: "gtsm",
+			Does: doesRun,
 			// The reactor package carries its whole unit suite beside the two
 			// integration tests, and under -race on a GitHub runner that suite
 			// alone runs 240 to 265 s (evidence-nightly verify shards), so a
@@ -277,6 +299,7 @@ func Table() []Action {
 		},
 		{
 			Verb:    "as112",
+			Does:    doesRun,
 			Argv:    goTest("60s", "./internal/plugins/as112/..."),
 			Summary: "test the AS112 plugin serving DNS on port 53",
 			Why: "the AS112 plugin serving DNS on privileged port 53. Needs" +

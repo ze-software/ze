@@ -471,7 +471,7 @@ func (h host) release(t tester, name string, lines int) {
 		}
 	}
 	if err := h.docker.RemoveContainer(ctx, name); err != nil {
-		t.Errorf("labtest: cannot remove container %s: %v. Fix: `./le test integration cleanup` removes"+
+		t.Errorf("labtest: cannot remove container %s: %v. Fix: `./le test integration clean` removes"+
 			" it once this process has exited", name, err)
 	}
 }

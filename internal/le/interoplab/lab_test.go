@@ -127,7 +127,7 @@ func TestPreCleanRefusesLiveOrUnlabeledSameName(t *testing.T) {
 	}{
 		{name: "gone owner is removed", labels: labelJSON(otherRunLabels()), removed: true},
 		{name: "live owner is refused", labels: labelJSON(otherRunLabels()), lookup: "100",
-			message: []string{"lab-peer", "4242", "_INTEROP_SUFFIX", "./le test integration cleanup"}},
+			message: []string{"lab-peer", "4242", "_INTEROP_SUFFIX", "./le test integration clean"}},
 		{name: "unlabeled is refused", labels: "null",
 			message: []string{"lab-peer", "no Ze lab owner label", "_INTEROP_SUFFIX"}},
 	} {
@@ -291,8 +291,8 @@ func TestPreCleanRefusalNamesTheRealSuffixVariable(t *testing.T) {
 		absent   []string
 	}{
 		{name: "lab with a suffix variable", variable: "ZE_L2TP_INTEROP_SUFFIX",
-			want: []string{"set ZE_L2TP_INTEROP_SUFFIX to", "./le test integration cleanup"}, absent: []string{"<LAB>"}},
-		{name: "suite with none", want: []string{"stop pid 4242", "./le test integration cleanup"},
+			want: []string{"set ZE_L2TP_INTEROP_SUFFIX to", "./le test integration clean"}, absent: []string{"<LAB>"}},
+		{name: "suite with none", want: []string{"stop pid 4242", "./le test integration clean"},
 			absent: []string{"<LAB>", "INTEROP_SUFFIX"}},
 	} {
 		t.Run(row.name, func(t *testing.T) {

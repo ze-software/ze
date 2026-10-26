@@ -170,7 +170,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// are attributable and go with that session's directory when the operator
 	// removes it, instead of accumulating as unowned $TMPDIR/ze-functional-*
 	// dirs. They do not "die with the session": nothing under tmp/session/ is
-	// removed automatically, and `./le session reap` removes directories whose
+	// removed automatically, and `./le session clean` removes directories whose
 	// owners are provably gone. EnsureScratchRoot returns "" when no
 	// session is active, which is exactly what MkdirTemp reads as "use the
 	// system temp dir" -- so a human or CI run is unchanged.

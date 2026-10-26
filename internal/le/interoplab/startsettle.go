@@ -23,7 +23,7 @@ import (
 // removal the daemon started refuses the `docker rm -f` that follows it as
 // "already in progress" while it runs (D-f, 2026-10-20). A container that
 // outlasts the window still carries its owner labels, so
-// `./le test integration cleanup` removes it once this process has exited.
+// `./le test integration clean` removes it once this process has exited.
 const (
 	createSettleWindow   = 5 * time.Second
 	createSettleInterval = 250 * time.Millisecond
@@ -149,7 +149,7 @@ func (e *pendingRemovalError) Unwrap() []error {
 }
 
 // RemovalNamesCleanup reports whether err, from RemoveContainer, already ends
-// with the fix that names `./le test integration cleanup`: a container still
+// with the fix that names `./le test integration clean`: a container still
 // settling or still being removed when this run stopped. A caller that
 // reports a removal error adds its own pointer to the cleanup only when this
 // answers false, so the reader is told the fix once.

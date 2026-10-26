@@ -201,7 +201,7 @@ func exactJournalCells(line string) ([5]string, bool) {
 
 func journalRelativePath(root, rawPath string) (string, error) {
 	if strings.TrimSpace(rawPath) == "" || strings.ContainsAny(rawPath, "\x00\r\n") {
-		return "", errors.New("journal validate requires one safe file path")
+		return "", errors.New("spec journal check requires one safe file path")
 	}
 	root, err := filepath.Abs(root)
 	if err != nil {

@@ -18,7 +18,7 @@
 //
 // Every docker command goes through interoplab.Docker, which labels each
 // container with its owner so a run killed before its own removal is reaped by
-// the next start or `./le test integration cleanup`. The proof is still the
+// the next start or `./le test integration clean`. The proof is still the
 // argv that reaches docker: the tests record it through
 // interoplab.NewFixtureDocker rather than replacing the wrapper. The non-docker
 // processes (the cross-compile, the on-host daemons, QEMU) are reached through
@@ -439,7 +439,7 @@ func startProofContainer(ctx context.Context, docker *interoplab.Docker, spec in
 
 // cleanupCommand is what an operator runs to remove a proof container this
 // run could not remove.
-const cleanupCommand = "./le test integration cleanup"
+const cleanupCommand = "./le test integration clean"
 
 // removeContainer takes the proof's container down on a context the run's
 // cancellation does not reach, so a SIGINT still removes it. Its error is

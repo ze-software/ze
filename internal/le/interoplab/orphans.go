@@ -60,7 +60,7 @@ const (
 	hostQueryTimeout = 5 * time.Second
 	purposeBytesMax  = 128
 	purposeWordsMax  = 5
-	cleanupCommand   = "./le test integration cleanup"
+	cleanupCommand   = "./le test integration clean"
 )
 
 // The identity newDocker gives a test double, so its argv is deterministic.
