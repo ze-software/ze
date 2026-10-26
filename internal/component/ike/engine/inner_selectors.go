@@ -1,13 +1,14 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- the inner-selector registry
 // RFC: rfc/short/rfc3948.md -- no two peers' tunnels for one inner packet (Section 5.1)
 // Related: ts_narrow.go -- narrowChildSelectors drops the pairs this registry refuses
-// Related: child.go -- installChildSA claims a Child SA, removeChildSAExcept releases it
+// Related: child.go -- installChildSA claims a Child SA, removeChildSAExcept releases or strands it
 // Related: table.go -- the SATable carries this registry to every peer session
 
 package engine
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -38,15 +39,31 @@ import (
 // or blocks while holding it.
 type innerSelectorRegistry struct {
 	mu sync.Mutex
-	// held is bounded by the live Child SAs: claim adds one entry per installed Child
-	// SA, and removeChildSAExcept removes it when the Child SA goes away.
+	// held is bounded by the live Child SAs plus the stranded ones: claim adds one entry
+	// per installed Child SA, and removeChildSAExcept removes it when the Child SA goes
+	// away, or strands it when a policy of it stayed in the dataplane, until
+	// retryStranded removes that policy.
 	held map[*ChildSA]innerSelectorHolding
 }
 
-// innerSelectorHolding is what one live Child SA holds: its peer and its pairs.
+// innerSelectorHolding is what one Child SA holds: its peer and its pairs. stranded is
+// nil while the Child SA is live, and names the policies still to remove once its
+// removal left some in the dataplane (releaseInnerRecord).
 type innerSelectorHolding struct {
-	owner string
-	pairs []innerSelectorPair
+	owner    string
+	pairs    []innerSelectorPair
+	stranded *strandedPolicies
+}
+
+// strandedPolicies is what a removed Child SA left in the dataplane: the policies whose
+// removal failed, the dataplane to retry them on, and the log of the session that
+// removed it. It is never mutated once a holding carries it: a retry that leaves some
+// policies replaces it, so a retry running beside another can tell by identity whether
+// the holding changed under it.
+type strandedPolicies struct {
+	dp   dataplane.Dataplane
+	left []dataplane.SPParams
+	log  *slog.Logger
 }
 
 // innerSelectorPair is one negotiated pair as the dataplane installs it outbound, with
@@ -162,10 +179,13 @@ func innerPairText(pp policyPair) string {
 // rest keep their order. Only when nothing is left is the exchange refused, with the
 // first conflict met, which wraps errTSUnacceptable.
 func dropForeignInnerOverlaps(sa *SA, pairs []tsPair) ([]tsPair, error) {
-	// refuse-by-default: guards narrowChildSelectors -- only an SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
+	// refuse-by-default: guards dropForeignInnerOverlaps -- only an SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
 	if sa.innerSelectors == nil {
 		return pairs, nil
 	}
+	// RFC 3948 Section 5.1: a record a failed removal stranded is retried before it can
+	// refuse this proposal.
+	sa.innerSelectors.retryStranded()
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
 		return nil, err
@@ -234,8 +254,14 @@ func (r *innerSelectorRegistry) admit(owner string, p innerSelectorPair) error {
 // passed the narrowing filter cannot both be recorded. A claim of a child already
 // recorded replaces its record.
 //
+// installs is every policy child will install, both directions. A stranded holding of
+// the same owner gives up each policy of its own that installs names: the install
+// upserts that selector (xfrmBackend.InstallPolicy), so the kernel entry belongs to
+// child from then on, and a later retry removing it would take the live tunnel's
+// policy with it.
+//
 // MUST be paired with release when the Child SA goes away or its install fails.
-func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []innerSelectorPair) error {
+func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []innerSelectorPair, installs []dataplane.SPParams) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range pairs {
@@ -243,18 +269,130 @@ func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []inne
 			return err
 		}
 	}
+	r.adoptStrandedLocked(owner, installs)
 	r.held[child] = innerSelectorHolding{owner: owner, pairs: pairs}
 	return nil
+}
+
+// adoptStrandedLocked drops from every stranded holding of owner the policies installs
+// re-installs, and forgets a holding left with none (claim). MUST be called with r.mu
+// held.
+func (r *innerSelectorRegistry) adoptStrandedLocked(owner string, installs []dataplane.SPParams) {
+	for child, holding := range r.held {
+		if holding.stranded == nil {
+			continue
+		}
+		if holding.owner != owner {
+			continue
+		}
+		left := make([]dataplane.SPParams, 0, len(holding.stranded.left))
+		for i := range holding.stranded.left {
+			if !installsSelector(installs, &holding.stranded.left[i]) {
+				left = append(left, holding.stranded.left[i])
+			}
+		}
+		if len(left) == 0 {
+			delete(r.held, child)
+			continue
+		}
+		holding.stranded = &strandedPolicies{dp: holding.stranded.dp, left: left, log: holding.stranded.log}
+		r.held[child] = holding
+	}
+}
+
+// installsSelector reports whether installs holds an entry with p's selector.
+func installsSelector(installs []dataplane.SPParams, p *dataplane.SPParams) bool {
+	sel := selectorOf(p)
+	for i := range installs {
+		if selectorOf(&installs[i]) == sel {
+			return true
+		}
+	}
+	return false
 }
 
 // release forgets child's record. Releasing a child never recorded does nothing, so
 // every removal path can call it.
 //
-// MUST be called for every Child SA claim recorded, once the Child SA is removed.
+// MUST be called for every Child SA claim recorded, once the Child SA is removed with
+// every policy of it gone; strand is called instead when some stayed.
 func (r *innerSelectorRegistry) release(child *ChildSA) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.held, child)
+}
+
+// strand keeps child's record after its removal left the policies s names in the
+// dataplane, so retryStranded can remove them and then release it. A child never
+// recorded stays unrecorded: nothing of it can conflict.
+func (r *innerSelectorRegistry) strand(child *ChildSA, s *strandedPolicies) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	holding, ok := r.held[child]
+	if !ok {
+		return
+	}
+	holding.stranded = s
+	r.held[child] = holding
+}
+
+// retryStranded tries again to remove the policies of every stranded holding, and
+// releases each holding whose policies are all gone.
+//
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." A stranded record keeps refusing every overlapping tunnel, which is right
+// while its policy is in the kernel and wrong the moment it is not. One transient
+// netlink failure (EIO, ENOBUFS) at teardown would otherwise refuse the overlapping
+// peer until Ze restarted. The retry runs where the record matters, before a peer's
+// proposal is narrowed (dropForeignInnerOverlaps) and before a Child SA claims
+// (installChildSA), and on each configuration commit (reconcilePeers). It is bounded:
+// one removal per stranded policy each time, with no loop and no goroutine of its own,
+// and a refused peer's next attempt is the next try.
+//
+// Safe for concurrent use. The dataplane is called with r.mu released, and a holding
+// that changed while it ran (released, adopted, or retried beside it) is left as the
+// other path left it.
+func (r *innerSelectorRegistry) retryStranded() {
+	type strandedChild struct {
+		child    *ChildSA
+		stranded *strandedPolicies
+	}
+	r.mu.Lock()
+	var work []strandedChild
+	for child, holding := range r.held {
+		if holding.stranded != nil {
+			work = append(work, strandedChild{child: child, stranded: holding.stranded})
+		}
+	}
+	r.mu.Unlock()
+
+	for _, w := range work {
+		left := removeStrandedPolicies(w.stranded)
+		r.settleStranded(w.child, w.stranded, left)
+	}
+}
+
+// settleStranded records the outcome of one retry of was: child is released when left
+// is empty, and otherwise keeps a record naming left. A holding no longer carrying was
+// is left alone (retryStranded).
+func (r *innerSelectorRegistry) settleStranded(child *ChildSA, was *strandedPolicies, left []dataplane.SPParams) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	holding, ok := r.held[child]
+	if !ok {
+		return
+	}
+	if holding.stranded != was {
+		return
+	}
+	if len(left) == 0 {
+		delete(r.held, child)
+		was.log.Info("child-sa: the policies a failed removal left are gone, so their tunnel selectors are released",
+			"peer", holding.owner, "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
+		return
+	}
+	holding.stranded = &strandedPolicies{dp: was.dp, left: left, log: was.log}
+	r.held[child] = holding
 }
 
 // holdings returns how many Child SAs the registry records.
@@ -287,6 +425,9 @@ func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair
 			}
 			if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {
 				continue
+			}
+			if holding.stranded != nil {
+				return innerSelectorStrandedConflict(owner, p, holding.owner, h, holding.stranded)
 			}
 			return innerSelectorConflict(owner, p, holding.owner, h)
 		}
@@ -324,19 +465,87 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 		errInnerSelectorConflict, owner, p.text, h.text, holder, owner, owner, owner)
 }
 
+// innerSelectorStrandedConflict is the refusal of p for owner because a removed Child SA
+// of holder left a policy overlapping it in the dataplane (strandedPolicies). It wraps
+// errInnerSelectorStranded, so it is answered TS_UNACCEPTABLE like any overlap, and its
+// fix names what releases the record: the retry Ze runs, and the exact commands that
+// remove the policies now. It names no configuration of holder, which may no longer be
+// a configured peer at all.
+func innerSelectorStrandedConflict(owner string, p innerSelectorPair, holder string, h innerSelectorPair,
+	s *strandedPolicies,
+) error {
+	var commands textbuf.Buffer
+	for i := range s.left {
+		if i > 0 {
+			commands.WriteString("; ")
+		}
+		commands.WriteString(deleteCommand(&s.left[i]))
+	}
+	return fmt.Errorf("%w: peer %s proposed the tunnel %s, which overlaps the tunnel %s that peer %s held, "+
+		"and a policy of that tunnel could not be removed from the dataplane, so one packet could still be "+
+		"sent into it (RFC 3948 Section 5.1); Ze retries the removal each time a peer proposes a tunnel and "+
+		"each time a configuration is committed; to release it now, run %s, and the next proposal "+
+		"releases it, or as a last resort restart Ze",
+		errInnerSelectorStranded, owner, p.text, h.text, holder, commands.String())
+}
+
 // claim records child in its registry (RFC 3948 Section 5.1). A tunnel-mode Child SA
 // only: transport-mode overlap is refused by the dataplane (RFC 3948 Section 5.2,
 // dataplane policyOwners.claim), and recording it here would refuse it twice.
 func (g innerSelectorGuard) claim(child *ChildSA) error {
-	// refuse-by-default: guards installChildSA -- only a Child SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
+	// refuse-by-default: guards innerSelectorGuard -- only a Child SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
 	if g.registry == nil {
 		return nil
 	}
 	if child.Mode == modeTransport {
 		return nil
 	}
-	return g.registry.claim(child, child.Owner, innerSelectorPairsOf(child))
+	installs := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
+	return g.registry.claim(child, child.Owner, innerSelectorPairsOf(child), installs)
 }
+
+// retryStranded retries the stranded records of its registry (innerSelectorRegistry.retryStranded).
+func (g innerSelectorGuard) retryStranded() {
+	// refuse-by-default: guards innerSelectorGuard -- only a Child SA a test built by hand carries no registry, and none holds a stranded record
+	if g.registry == nil {
+		return
+	}
+	g.registry.retryStranded()
+}
+
+// strand keeps child's record in its registry with the policies its removal left
+// (releaseInnerRecord). Safe on a Child SA never recorded.
+func (g innerSelectorGuard) strand(child *ChildSA, s *strandedPolicies) {
+	// refuse-by-default: guards innerSelectorGuard -- only a Child SA a test built by hand carries no registry, and it was never recorded
+	if g.registry == nil {
+		return
+	}
+	g.registry.strand(child, s)
+}
+
+// errInnerSelectorStranded marks a refusal because a removed Child SA of another peer
+// left an overlapping policy in the dataplane (innerSelectorStrandedConflict). It wraps
+// errInnerSelectorConflict, so every path that answers an overlap answers this one the
+// same way, and the fix selectors name childRefusedFixResponderStranded and
+// childResponseFixStranded in its place.
+var errInnerSelectorStranded = fmt.Errorf("%w: a removed tunnel's policy is still in the dataplane",
+	errInnerSelectorConflict)
+
+// childRefusedFixResponderStranded is the fix logged beside that refusal as responder.
+const childRefusedFixResponderStranded = "a tunnel another peer held, which one packet could also be " +
+	"sent into, left a policy Ze could not remove (RFC 3948 Section 5.1), so this peer gets no Child SA " +
+	"until it is gone; Ze retries the removal each time a peer proposes a tunnel and each time a " +
+	"configuration is committed; to release it now, run the ip xfrm policy delete commands the error " +
+	"names, and the peer's next proposal releases it, or as a last resort restart Ze"
+
+// childResponseFixStranded is the fix logged when this node, as the Child SA initiator,
+// refuses the answered tunnel for the same reason.
+const childResponseFixStranded = "a tunnel another peer held, which one packet could also be " +
+	"sent into, left a policy Ze could not remove (RFC 3948 Section 5.1), so this Child SA was deleted " +
+	"and the IKE SA kept with no Child SA, asking again on its creation schedule; Ze retries the removal " +
+	"at each attempt and each time a configuration is committed; to release it now, run the " +
+	"ip xfrm policy delete commands the error names, and the next attempt releases it, or as a last " +
+	"resort restart Ze"
 
 // errInnerSelectorConflict marks a refusal because another peer holds an overlapping
 // tunnel (innerSelectorConflict). It wraps errTSUnacceptable, so notifyForRefusal still

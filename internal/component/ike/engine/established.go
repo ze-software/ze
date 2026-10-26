@@ -131,7 +131,7 @@ func (ps *PeerSession) runEstablished(
 			// RFC 3948 Section 5.1
 			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
 			log.Warn("ike: child SA refused, another peer holds an overlapping tunnel, deleting the pair and keeping the IKE SA",
-				"peer", ps.peerName, "error", err, "fix", childResponseFixInnerSelector)
+				"peer", ps.peerName, "error", err, "fix", childResponseRefusedFix(err))
 			child = nil
 			ps.childCreate.start(time.Now())
 		case err != nil:

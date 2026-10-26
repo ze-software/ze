@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
@@ -71,7 +70,9 @@ var spdLeft = &spdLeftover{entries: map[spdSelector]dataplane.SPParams{}}
 // a check it makes before any write reaches the dataplane and that refused the install
 // the same way: the VPP backend for an entry naming no interface (the IKE bypass, which
 // VPP has no node-wide SPD for) or when it created no SPD, and a platform with no XFRM.
-// The entry was never installed, so recording it would make warnSPDLeft name entries
+// A kernel answering the raw errno of a platform with no XFRM (isXFRMUnsupported) is the
+// same refusal, the one installChildSA kept a degraded Child SA on. The entry was never
+// installed, so recording it would make warnSPDLeft name entries
 // that do not exist and keep the catch-all on every exit.
 //
 // Why the refusal and not a record of which installs succeeded: the ledger's question
@@ -88,19 +89,13 @@ func (l *spdLeftover) record(p *dataplane.SPParams, err error) {
 	sel := selectorOf(p)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if err == nil {
-		delete(l.entries, sel)
-		return
-	}
-	if errors.Is(err, syscall.ENOENT) {
-		delete(l.entries, sel)
-		return
-	}
-	if errors.Is(err, dataplane.ErrNotSupported) {
-		delete(l.entries, sel)
-		return
-	}
 	if _, owned := errors.AsType[*dataplane.PolicyOwnedError](err); owned {
+		return
+	}
+	// policyGone (child.go) is the one answer to whether the entry left the dataplane,
+	// so the ledger and the cross-peer record a Child SA keeps never disagree.
+	if policyGone(err) {
+		delete(l.entries, sel)
 		return
 	}
 	l.entries[sel] = *p

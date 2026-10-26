@@ -602,7 +602,10 @@ const (
 func childRefusedResponderFix(err error) string {
 	switch {
 	// First: an install-time conflict also wraps errChildInstall, whose fix blames the
-	// kernel (inner_selectors.go).
+	// kernel (inner_selectors.go). A stranded record's refusal also wraps the conflict,
+	// so it comes before it.
+	case errors.Is(err, errInnerSelectorStranded):
+		return childRefusedFixResponderStranded
 	case errors.Is(err, errInnerSelectorConflict):
 		return childRefusedFixResponderInnerSelector
 	case errors.Is(err, errChildEncapPort):
@@ -695,7 +698,10 @@ const (
 func childResponseRefusedFix(err error) string {
 	switch {
 	// First: an install-time conflict also wraps errChildInstall, whose fix blames the
-	// kernel (inner_selectors.go).
+	// kernel (inner_selectors.go). A stranded record's refusal also wraps the conflict,
+	// so it comes before it.
+	case errors.Is(err, errInnerSelectorStranded):
+		return childResponseFixStranded
 	case errors.Is(err, errInnerSelectorConflict):
 		return childResponseFixInnerSelector
 	case errors.Is(err, errChildTransportDeclined):

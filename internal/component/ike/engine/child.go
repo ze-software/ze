@@ -402,6 +402,10 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 // dataplane refuses as unsupported keeps it: the caller keeps that Child SA as a
 // degraded one (warnDegraded), and it still owns its selectors in the control plane.
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	// RFC 3948 Section 5.1: a record a failed removal stranded is retried before it can
+	// refuse this Child SA, and before this install can upsert a selector it names
+	// (innerSelectorRegistry.retryStranded).
+	child.innerGuard.retryStranded()
 	if err := child.innerGuard.claim(child); err != nil {
 		return err
 	}
@@ -924,39 +928,74 @@ func removeChildSAExcept(child, keep *ChildSA, dp dataplane.Dataplane, log *slog
 		return
 	}
 	dropPolicy := !samePolicySelector(child, keep)
-	outGone := removeChildSAOutgoing(child, dp, log, dropPolicy)
-	inGone := removeChildSAIncoming(child, dp, log, dropPolicy)
+	left := removeChildSAOutgoing(child, dp, log, dropPolicy)
+	left = append(left, removeChildSAIncoming(child, dp, log, dropPolicy)...)
 	// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
 	// occurring." The record outlives the kernel policy, never the other way round
 	// (dataplane policyOwners.deleteThenRelease). Releasing it while a policy this Child
 	// SA installed is still in the kernel would let another peer claim an overlapping
 	// tunnel beside a live one, and one packet could then match either. A policy that
-	// could not be removed therefore keeps the record, and the peer that overlaps it
-	// stays refused until the operator removes the policy the SPD ledger names.
-	releaseInnerRecord(child, outGone && inGone, log)
+	// could not be removed therefore keeps the record, stranded with the policies left,
+	// and innerSelectorRegistry.retryStranded removes them and releases it later.
+	releaseInnerRecord(child, dp, left, log)
 	child.Clear()
 	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI,
 		"policies-removed", dropPolicy)
 }
 
 // releaseInnerRecord releases child's cross-peer record when every policy it installed
-// is gone, and otherwise keeps it and says why (removeChildSAExcept).
-func releaseInnerRecord(child *ChildSA, policiesGone bool, log *slog.Logger) {
-	if policiesGone {
+// is gone (left is empty), and otherwise strands it with the policies left and says why
+// (removeChildSAExcept).
+//
+// The removal is not tried again here: the failure that just answered is the freshest
+// fact about the kernel, and a loop at teardown would hold the session's goroutine.
+// retryStranded tries again when it matters, each time a peer proposes a tunnel and
+// each time a configuration is committed (inner_selectors.go).
+func releaseInnerRecord(child *ChildSA, dp dataplane.Dataplane, left []dataplane.SPParams, log *slog.Logger) {
+	if len(left) == 0 {
 		child.innerGuard.release(child)
 		return
 	}
+	child.innerGuard.strand(child, &strandedPolicies{dp: dp, left: left, log: log})
+	commands := make([]string, 0, len(left))
+	for i := range left {
+		commands = append(commands, deleteCommand(&left[i]))
+	}
 	log.Warn("child-sa: a policy could not be removed, so its tunnel selectors stay reserved and "+
-		"another peer proposing an overlapping tunnel is refused (RFC 3948 Section 5.1); delete the "+
-		"policy with the 'ip xfrm policy delete' command Ze logs at exit, or restart Ze",
-		"peer", child.Owner, "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
+		"another peer proposing an overlapping tunnel is refused (RFC 3948 Section 5.1); Ze retries "+
+		"the removal each time a peer proposes a tunnel and each time a configuration is committed, "+
+		"and releases the selectors once it succeeds; to release them now, run each command in "+
+		"commands, and the next proposal releases them, or as a last resort restart Ze",
+		"peer", child.Owner, "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "commands", commands)
+}
+
+// removeStrandedPolicies tries again to remove each policy s names, and returns the
+// ones still in the dataplane (policyGone). It is the retry of the removals
+// removeChildSAOutgoing and removeChildSAIncoming made, through the same
+// removeZePolicy, so a success also takes the entry out of the SPD ledger.
+func removeStrandedPolicies(s *strandedPolicies) []dataplane.SPParams {
+	beginDataplaneWrite()
+	defer endDataplaneWrite()
+
+	var left []dataplane.SPParams
+	for _, p := range s.left {
+		err := removeZePolicy(s.dp, p)
+		if policyGone(err) {
+			continue
+		}
+		s.log.Debug("child-sa: retry remove policy", "dir", dirLabel(p.Dir), "error", err)
+		left = append(left, p)
+	}
+	return left
 }
 
 // policyGone reports whether a policy removal leaves no policy of this Child SA in the
-// kernel: it succeeded, the kernel holds no such policy (ENOENT), the dataplane installs
-// no policies (ErrNotSupported), or another peer owns the selector, so this Child SA's
-// policy was never installed there. These are the cases removeZePolicy drops from the
-// SPD ledger (spd_left.go), and any other failure is the one it keeps.
+// kernel: it succeeded, the kernel holds no such policy (ENOENT), or another peer owns
+// the selector, so this Child SA's policy was never installed there. It is also true
+// when the dataplane answers that it offers no XFRM (isXFRMUnsupported), the answer
+// that let installChildSA keep a degraded Child SA whose policies never reached the
+// dataplane. These are the cases removeZePolicy drops from the SPD ledger or never
+// records there (spd_left.go), and any other failure is the one it keeps.
 func policyGone(err error) bool {
 	if err == nil {
 		return true
@@ -964,7 +1003,7 @@ func policyGone(err error) bool {
 	if errors.Is(err, syscall.ENOENT) {
 		return true
 	}
-	if errors.Is(err, dataplane.ErrNotSupported) {
+	if isXFRMUnsupported(err) {
 		return true
 	}
 	_, owned := errors.AsType[*dataplane.PolicyOwnedError](err)
@@ -977,23 +1016,24 @@ func policyGone(err error) bool {
 // deletes "the outgoing SAs while processing the request and the incoming SAs while
 // processing the response". Callers that close a whole pair use removeChildSA above.
 //
-// It reports whether every policy it was asked to remove is gone (policyGone), which
-// removeChildSAExcept needs before it releases the cross-peer record. It answers true
-// when it removes no policy: dropPolicy false, no dataplane, or no Child SA.
-func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) bool {
+// It returns the policies it was asked to remove that are still in the dataplane (every
+// one whose removal policyGone does not accept), which removeChildSAExcept needs before
+// it releases the cross-peer record. It returns none when it removes no policy:
+// dropPolicy false, no dataplane, or no Child SA.
+func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) []dataplane.SPParams {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
 	// refuse-by-default: guards removeChildSAExcept -- with no dataplane no policy was removed, so none is left behind
 	if dp == nil {
-		return true
+		return nil
 	}
 	// refuse-by-default: guards removeChildSAExcept -- with no Child SA no policy was removed, so none is left behind
 	if child == nil {
-		return true
+		return nil
 	}
 	setChildRemoving(child, true)
-	gone := true
+	var left []dataplane.SPParams
 	if dropPolicy {
 		// RemovePolicyParams, not the three-argument RemovePolicy: it names the whole
 		// selector the install used, and it carries the Owner the dataplane refuses a
@@ -1003,44 +1043,49 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		for _, p := range childPolicies(child, dataplane.SADirOut) {
 			if err := removeZePolicy(dp, p); err != nil {
 				logPolicyRemoveFailure(log, "outbound", child, err)
-				gone = gone && policyGone(err)
+				if !policyGone(err) {
+					left = append(left, p)
+				}
 			}
 		}
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove outbound SA", "error", err)
 	}
-	return gone
+	return left
 }
 
 // removeChildSAIncoming removes the half of a Child SA pair this node RECEIVES on.
-// The companion of removeChildSAOutgoing above, and it reports the same way.
-func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) bool {
+// The companion of removeChildSAOutgoing above, and it returns the policies left the
+// same way.
+func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) []dataplane.SPParams {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
 	// refuse-by-default: guards removeChildSAExcept -- with no dataplane no policy was removed, so none is left behind
 	if dp == nil {
-		return true
+		return nil
 	}
 	// refuse-by-default: guards removeChildSAExcept -- with no Child SA no policy was removed, so none is left behind
 	if child == nil {
-		return true
+		return nil
 	}
 	setChildRemoving(child, true)
-	gone := true
+	var left []dataplane.SPParams
 	if dropPolicy {
 		for _, p := range childPolicies(child, dataplane.SADirIn) {
 			if err := removeZePolicy(dp, p); err != nil {
 				logPolicyRemoveFailure(log, "inbound", child, err)
-				gone = gone && policyGone(err)
+				if !policyGone(err) {
+					left = append(left, p)
+				}
 			}
 		}
 	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove inbound SA", "error", err)
 	}
-	return gone
+	return left
 }
 
 // logPolicyRemoveFailure reports a policy that could not be removed, at the level the

@@ -449,8 +449,27 @@ and refuses it at `installChildSA` before any dataplane call. It judges overlap
 with `dataplane.PolicySelectorsOverlap`, the same predicate over `policyKey`
 that `claim` uses for transport mode, so the two cannot disagree. The VPP and
 noop backends run no `policyOwners`, which is why that guard does not live here.
+
+With no dataplane (`Get()` nil) nothing is installed, and the record is still
+taken, so the control plane never holds two peers' Child SAs for one inner
+address; `removeChildSAExcept` releases it at once. With a dataplane, the record
+is released only after the removal (`releaseInnerRecord`), and only when every
+policy the Child SA installed is gone by `policyGone`: removed, ENOENT, owned by
+another peer, or refused as a dataplane with no XFRM (`isXFRMUnsupported`, the
+same refusal on which `installChildSA` kept a degraded Child SA and its record).
+The SPD ledger (`spdLeftover.record`) reads the same predicate, so the two never
+disagree. Any other failure strands the record with the policies left. An
+overlapping peer is then refused with `errInnerSelectorStranded`, whose text
+names the `ip xfrm policy delete` command for each policy and no configuration
+of the holder, which may have been removed. `retryStranded` removes them again
+before each narrowing, before each claim and on each `reconcilePeers`, one
+removal per policy each time with no goroutine of its own, and releases the
+record once all are gone. A claim by the same owner adopts each stranded policy
+its own install re-creates (`adoptStrandedLocked`), because the upsert makes the
+kernel entry the live Child SA's, and a later retry must not remove it.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
-<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, adoptStrandedLocked, innerSelectorStrandedConflict -->
+<!-- source: internal/component/ike/engine/child.go -- removeChildSAExcept, releaseInnerRecord, policyGone, removeStrandedPolicies -->
 
 **A guard keyed on inequality is inert when both sides are empty.** The claim
 refuses on `held != p.Owner`. Delete the owner at either producer and every

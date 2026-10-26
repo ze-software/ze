@@ -253,6 +253,24 @@ vpn ipsec site-to-site peer <name> policy-priority <n>`). A leased address
 counts like any other, so keep pool ranges disjoint from other peers' remote
 prefixes.
 
+When Ze is the side that asks for the Child SA and the tunnel the responder
+answers with overlaps another peer's, Ze refuses the answer itself. It deletes the
+Child SA pair it just negotiated, keeps the IKE SA with no Child SA, and asks
+again 30 seconds later, doubling the wait after each refusal up to 300 seconds.
+The warning it logs names the fix, which is the same as above without the pool,
+since a pool is the responder's to lease.
+
+A tunnel keeps its selectors until its kernel policies are gone, not only until
+the tunnel ends. If Ze cannot remove a policy when a tunnel ends, after a
+transient netlink error for example, the policy can still send packets into the
+old tunnel, so its selectors stay reserved and a peer proposing an overlapping
+tunnel is refused. The warning lists the `ip xfrm policy delete` command for
+each policy left. Ze tries the removal again each time a peer proposes a tunnel
+and each time a configuration is committed, and releases the selectors as soon
+as the policies are gone. Running the listed commands lets the next proposal
+succeed, and restarting Ze is the last resort. The refusal names no
+configuration of the peer that held the tunnel, which may no longer exist.
+
 Remote prefixes that you configure on two peers, and that each peer negotiates
 exactly as written, may overlap only when the two peers have different
 `policy-priority` values: you ordered them, and the lower value decides which

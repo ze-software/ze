@@ -644,6 +644,10 @@ func reconcilePeers(
 	for _, r := range removing {
 		stopPeerSession(r.name, r.ps, active, table, dp, bus, log)
 	}
+	// RFC 3948 Section 5.1: a commit is the operator's own next step after a refusal, so
+	// a record a failed policy removal stranded, a removed peer's included, is retried
+	// here before the new peers start (innerSelectorRegistry.retryStranded).
+	table.innerSelectors.retryStranded()
 
 	// Start new or restarted peers.
 	for name := range desired {
