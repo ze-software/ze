@@ -7,11 +7,35 @@
 | Priority | P3 |
 | Release reason | Developer tooling only: `le` is never shipped (`TestNormalZeLinksNoInternalLe`), so its usability is release-independent engineering work |
 | Depends | - |
-| Phase | 4/7 (phases 1, 2, 3, 5, 6, 7 committed; phase 4 part 1 committed; phase 4 bulk renames owed) |
-| Handoff | see "Current state" below |
-| Updated | 2026-10-25 |
+| Phase | closure (all seven phases committed; review gate clean after 10 rounds; closure blocked, see "Blocker") |
+| Handoff | see "Blocker" below |
+| Updated | 2026-10-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+`/ze-close` ran on 2026-10-26 at HEAD 46d65cbe92 and stopped before commit A.
+The closure sections at the end of this spec are filled. These items hold
+the closure, and each one names what clears it:
+
+| # | What blocks | Producer | What clears it |
+|---|-------------|----------|----------------|
+| B-1 | AC-37 is not proven. `TestCompletionCallbackAnswersWithinBudget` measured a 134 ms median at load average 30 after b553aea262, when completion started matching retired spellings. The budget is 100 ms and is not loosened | `internal/le/completion/budget_test.go`, `leroot.Complete` through `retiredLine` (`internal/le/le/root/dispatch.go`) | Thomas runs `./le job run label ac37 command go test -count=1 -run TestCompletionCallbackAnswersWithinBudget ./internal/le/completion/` on a quiet machine at or after b553aea262. RESOLVED by 5b6a4f5d8c: the time was package init, not the matching. go-runewidth v0.0.27 (pulled in 2026-09-08 by 0d824cb9ed) filled a 2x0x110000 width table in `init()`, 40 to 60 ms on every `le` and `ze` start; v0.0.31 builds it on first use. `TestCompletionCallbackAnswersWithinBudget` passes unchanged at load 28: median 85 to 86 ms (before: 122 to 130 ms, same load, interleaved). The bump changes 39 format characters from width 1 to 0, and under an East Asian locale 49 ambiguous Latin letters from 2 to 1 (upstream's documented change) |
+| B-2 | AC-25 is half implemented. Retired spellings are refused (`le doc check retired-commands`), but nothing resolves every cited `le` invocation against the manifest, so a citation of a spelling that never existed is not caught. The planned `TestNoCitationNamesAVerbTheRegistryDoesNotHold` was never written | `internal/le/doc/check/retired.go` (old spellings only); no producer exists for the resolver half | RESOLVED by 320ff6ee57, 3bb7b67a64 and 79f4378c2d: `doc check retired-commands` judges every cited invocation through dispatch's own resolution (`List.AtVerb`), pinned by `TestCitationJudgeAcceptsWhatDispatchAccepts`; 0 unheld. Test code and plan/ sit outside the unheld judgement and inside the retired one |
+| B-3 | Two planned unit tests were never written: `TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage` (AC-27, R-15) and `TestStressReproRunHelpComesFromTheTable` (AC-18). `le ai help` answers the `ai` namespace page with exit 0 (probed 2026-10-26), but no test pins it | `leroot.Dispatch` and `helpAI` (`internal/le/le/root/dispatch.go`); `internal/le/test/stressrepro` | RESOLVED by dbba135a1c: both tests written and red-proven |
+| B-4 | `./le doc check retired-commands` reports this spec's own code: three messages of `TestSuccessorOfALongTypedLineAllocatesLinearly` (`internal/le/le/retired/retired_test.go`, added by 5e1a3027e8, the round 5 fix) name `le test harness` | `doccheck.retiredDeclarations` (`internal/le/doc/check/retired.go`) lists the map, the sweep and the two leroot tests, but not the map package's own test | `[source]` add `internal/le/le/retired/retired_test.go` to `retiredDeclarations`, whose comment already scopes it to "the rename map, the sweep and their tests". RESOLVED by 7796507039; reviewed in round 7 (owner-authorised) |
+| B-6 | AC-41's pin `ui/ze-help-ai-unchanged` is red at 5c81db8d03 (working tree): "ze help ai differs from ze-help-ai-summary.golden ... first at line 12: now `101 plugins, 19 address families`, golden `98 plugins`". The ze was built with the runner's tags (`TestBuildTags`: zetest, ze_core, ze_distro, ze_setup and the feature gates). No `register.go` was added since the golden's commit 167d602b5b, so the three extra plugins are not traced. The golden pins a count that any session's new plugin changes | `internal/test/fixture/ui_fixture_ze_help_ai_unchanged.go`, `internal/test/fixture/testdata/ze-help-ai-*.golden` | Trace which three plugins registered, against HEAD rather than the shared working tree. If ze changed under another session, the pin needs a design that survives a new plugin, and refreshing the golden goes to a `ze-test-judge` agent. RESOLVED by dcf0508c7a: the count was the three linux-only plugins, and the goldens are now per GOOS (D-P6-golden-fixture), judged by `ze-test-judge`. The darwin goldens still owe a run on Thomas's Mac |
+| B-5 | `le-completion-shells` drives bash and zsh at a pty, and fish. Only bash is installed on this Linux host (`which zsh fish` finds neither). Its last recorded pass is dbf0dbd866, before b553aea262 changed completion | `internal/test/fixture/ui_fixture_le_completion_shells.go` | RESOLVED 2026-10-26 at HEAD 314c2f8e89+: Thomas installed zsh 5.9 and fish 3.7.0 on the Linux host; `./le test ui le-completion-shells` PASS (91.8 s), run with other sessions' dirty Go files pinned to HEAD (`GOFLAGS=-overlay`), since another session's in-progress `cmd/ze/hub/editor_adapter.go` broke the ze build |
+
+Not blockers, stated so nobody hides them:
+
+- `.claude/settings.local.json` still says `worktree update`. It is Thomas's file and he will change it.
+- The untracked, build-ignored probe `internal/le/doc/check/zz_probe_test.go` is waiting for Thomas to approve its deletion.
+- `plan/release/fixes/spec-ike-unbound-peer-inner-address.md` (another session's spec, with uncommitted edits) names `rfc discriminate-record` twice. That session owns the fix (R-18).
+- Other sessions' reds: `vpn-kernel-test` (vocabulary tests), `rfccorpus`, `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify`, and the posttool-bash hook mismatch in the uncommitted `.claude/settings.json`.
+- Thomas owes his release check, `./le verify current`.
+- After closure, `./le verify changed` over the closing commits is owed. The main thread or a fresh `/ze-verify` agent runs it.
 
 ## Current state (handoff, 2026-10-25)
 
@@ -437,7 +461,7 @@ exit code.
 - → Decision D-P23-push-argv (Phase 3, commit): `commit push "<owner authorisation>"` declares its words as a positional of kind `argv`, the action's only parameter, read as typed (a leading dash included). The positional rule (`checkPositional`: never kind string) and `TestPositionalParameterRules` are unchanged from HEAD. `New` refuses a positional argv beside any other parameter, because every word after the verb is its own. The body still takes exactly one word, so `push a b` is refused as before and the script output is unchanged. The dispatch probe (`probesFor`) sends a positional argv no probe, since every probe line would run the action (a real push preparation); `TestCommitRefusesWhatItsTableRefuses` asserts the bare and two-word refusals
 - → Decision D-P6-root (Phase 6, verify): le's `completion` area keeps its name, and `TestLeRegistersOneRootAndNoToolRoots` judges who registered a same-named root. Reason: the test exists so that one package registers one root (`le`) and no tool of le's becomes a second one; `ze completion` is the product's own root, registered by `internal/plugins/completion`, and `le completion` lives at `le completion`, so the two never meet, and a rename would only cost users the word D-Q7 gave them. The test now fails when a root sharing a tool's name has a handler defined under `internal/le/`.
 - → Decision D-P6-golden (Phase 6, verify): ze's captured completion scripts are `internal/plugins/completion/testdata/ze.<shell>.golden`. Reason: `TestNoPythonLeRemains` reads a tracked `.bash` file as a first-party shell source, and the captures are test data, so the suffix says what they are and no exemption list is needed.
-- → Decision D-P6-golden-fixture (Phase 6, verify; replaces D-P6-tags): `ze help ai`'s pin is the functional test `test/ui/ze-help-ai-unchanged.ci`, whose native fixture (`internal/test/fixture/ui_fixture_ze_help_ai_unchanged.go`) runs the ze binary the functional runner built and compares it with `internal/test/fixture/testdata/ze-help-ai-{summary,all,json}.golden`: all three byte for byte, the services' `Env vars:` lines included. The summary golden was captured from `dbf0dbd866^`, before the shared reference type, built under the runner's tag set (`runner.TestBuildTags`). The `all` and `--json` goldens were first compared as sorted lines without the env-var lines, because RPC order and env-var attribution followed map order (journal `reference-output-depends-on-map-order.md`); once `aihelp` ordered its RPCs, notifications and services and gave a service only its own `ze.<service>.*` group, they were recaptured from that producer under the same tags and the comparison became byte exact (a strengthening). The recapture changes two services' env-var lines, which were wrong before: `bmp` listed gnmi's vars and `ntp` listed `ze.metrics.interval`. The cmd/ze unit test `TestZeHelpAiOutputUnchanged`, its goldens and its split feature-tag files are deleted, and no test skips. Reason: the output depends on which features the binary links (it prints the plugin and RPC counts), a unit test sees only the tags of the run that compiles it, and the runner's ze is the one build that always links every feature.
+- → Decision D-P6-golden-fixture (Phase 6, verify; replaces D-P6-tags): `ze help ai`'s pin is the functional test `test/ui/ze-help-ai-unchanged.ci`, whose native fixture (`internal/test/fixture/ui_fixture_ze_help_ai_unchanged.go`) runs the ze binary the functional runner built and compares it with `internal/test/fixture/testdata/ze-help-ai-{summary,all,json}-<GOOS>.golden` for the platform the run is on: all three byte for byte, the services' `Env vars:` lines included. The goldens are per platform because one feature set links three linux-only plugins (`iface-dhcp`, `iface-ra`, `memlock`; `platformOnly` in `internal/component/plugin/all/all_test.go`), so Linux lists three plugins darwin does not and its summary's plugin count is three higher (B-6: the first goldens were captured on darwin, and every Linux run was red on that count). The `-darwin` goldens are those first captures, unchanged; the `-linux` goldens were captured from HEAD on Linux under the same tags and differ from them by exactly those three plugins, and the Linux summary is byte-identical to `dbf0dbd866^` built on Linux. A platform with no golden is a refusal naming the missing file and the capture command, never a pass. To recapture, run `ze help ai`, `ze help ai all` and `ze help ai --json` from the runner's ze on that platform into the three files, and have an independent `ze-test-judge` agent judge them before commit. The summary golden was captured from `dbf0dbd866^`, before the shared reference type, built under the runner's tag set (`runner.TestBuildTags`). The `all` and `--json` goldens were first compared as sorted lines without the env-var lines, because RPC order and env-var attribution followed map order (journal `reference-output-depends-on-map-order.md`); once `aihelp` ordered its RPCs, notifications and services and gave a service only its own `ze.<service>.*` group, they were recaptured from that producer under the same tags and the comparison became byte exact (a strengthening). The recapture changes two services' env-var lines, which were wrong before: `bmp` listed gnmi's vars and `ntp` listed `ze.metrics.interval`. The cmd/ze unit test `TestZeHelpAiOutputUnchanged`, its goldens and its split feature-tag files are deleted, and no test skips. Reason: the output depends on which features the binary links (it prints the plugin and RPC counts), a unit test sees only the tags of the run that compiles it, and the runner's ze is the one build that always links every feature.
 - → Decision D-P7-q (Phase 7): `q` quits the shared menu from any level while no filter is typed, and is a filter letter once one is. `tui-launcher.md` already said "q quits from anywhere" and AC-42 requires it, while ze's model typed it as a filter letter: the code was the side that was wrong. This is the one change to ze's launcher; `TestZeMenuViewUnchanged` (golden captured from the model before the move) pins every screen byte-for-byte
 - → Decision D-P7-echo (Phase 7): the echoed line is the line le runs, so AC-44 echoes `running: le spec claim spec <path>`, not `le spec claim <path>`: `spec claim`'s grammar is `le spec claim spec <spec>` and a bare `le spec claim` reaches the area's one action. A bare line of an area with exactly one action prompts for that action; any other bare line is not prompted
 - → Decision D-P7-missing (Phase 7): requiredness stays a declaration (`leaction.Requirement`); `List.Missing` derives the absent Required parameters from the same parser, and a line that parser refuses is not prompted, so it is refused as before. A forwarding action and a pass-through area are never prompted. Tab offers `leroot.Complete`'s candidates at that place, plus paths on disk for kinds path and spec. Ctrl-C or Ctrl-D answers 2; a terminal that fails under the prompt answers 1. `TestBareLeOnAPipePrintsTheRootPage` lives in `internal/le/le/root/menu_test.go` beside the menu test, not in `dispatch_test.go`
@@ -1040,20 +1064,151 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
 - fish registers completion by command name, so `./le` in fish relies on fish's own path handling; the script's install line states the exact behaviour Phase 6 observes.
 - A value literally spelled `spec` after `le spec claim` is refused as the retired form (D-retired); a spec path always ends in `.md`, so no real value is lost.
 
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1, f21dd47e50: typed parameters on `leaction.Parameter` (kind, help, values, pair, source, retired) and the read-only derived `command.Node` tree (`leroot.Tree`). The two absorbed skeletons are removed.
+- Phases 2 and 3, f293c0323d: one help renderer on stdout at every level, per-keyword pages, and usage errors that name one action. All 30 hand-rolled parsers are on the action table, `commit` last. 56 forwarding areas declare pass-through. `requireEveryAreaHasATable` stops le on an area with no table.
+- Phase 5, 9181e95fd8 and 19df13723d: exit codes 0 success, 1 found a problem, 2 usage, 3 could not run, with the hook and pass-through exemptions listed by `le help ai exit-codes`.
+- Phase 6, dbf0dbd866 and 896e8e1d9c: `le completion bash|zsh|fish` through the shared `internal/plugins/completion` generator; `le help ai` with sections and `| json` / `| yaml`.
+- Phase 7, e52b525724 and de4403eab5: bare `le` at a terminal opens the menu shared with ze (`internal/component/cli/menu`); a missing required value is prompted for with Tab completion. Namespace summaries and short and long texts landed in e537b1b87e, 87c8b38c9d, a18841e271 and 145da76fb9.
+- Phase 4: the rename map `internal/le/le/retired` and the 36-verb vocabulary (d390bcb148). Then batches A to I and the site batch, from f13944bd08 to 0cd53b2116. The verbless sole actions `spec claim <file>` and `rollback` landed in 7ecd9f7880. The owed list was deleted in 9798985854. Leftovers: cf6801cd6d, a33323ffd3, a4f6bf5cf1, 2d6ec6d58c. The plan sweep: 431751d928, 09be99b7db, 33b25ad240, 46e32c0b65, f4cbacc050, 3c2c9c447c.
+- Review fixes: see "Findings fixed" under Review Gate. The round 2 NOTEs were fixed too: f50d6a83cd (completion strips the help word and the pipe chain as dispatch does) and a4b3bbfd46 (the successor bound; the retired test went from 76 s to 4.5 s under `-race`).
+
+### Bugs Found/Fixed
+- Each review finding, with its test, is in "Findings fixed". The successor walk had three defects across rounds 3, 4 and 5 (a panic on growing tails, a reachable "did not settle" panic on typed argv, quadratic memory). `TestSuccessorIsNeverARetiredLine` and `TestSuccessorOfALongTypedLineAllocatesLinearly` (`internal/le/le/retired/retired_test.go`) now cover them.
+- Owned journal rows fixed: f9b0be585d and 292fbbeae6 (`ze help ai` determinism and env-var attribution; the bootstrap named import).
+
+### Documentation Updates
+- `docs/contributing/running-commands.md` (verb vocabulary with its six rules, exit codes, completion install, launcher words), `docs/architecture/core-design.md`, `docs/functional-tests.md`, `ai/INDEX.md` rows, `docs/architecture/testing/interop.md` (render all). The last pass was b3e4bb7a48. The page edits rode in each phase's commit.
+- `./le doc check all` was not re-run at closure. It is a gate the main thread owes. `./le doc check retired-commands` was re-run: see AC Verified, AC-25.
+
+### Deviations from Plan
+- `TestRefuseArgumentAndRefuseValueAgree` was replaced by `TestEveryStrayWordRefusalComesFromTheTable`, because `leroot.RefuseArgument` was deleted (D-P3-refuseargument).
+- `TestNoAreaRegistersWrite` was not written. `write` and `generate` are `leaction.retiredVerbs`, so `TestEveryRegisteredVerbIsInTheVocabulary` and `TestNoNameEmbedsAVerbOrTest` refuse any action spelled with them.
+- `TestSpawnedHelpersAreHiddenFromHelpAndCompletion` was replaced by `TestSpawnedMocksAreExactlyTheHiddenOnes` (30e6ae2ecc), `TestHiddenAreaIsOnlyInHelpAI` and `TestEveryWordLeAcceptsIsInHelp`.
+- `TestPhase4OwedListOnlyShrinks` was deleted with the emptied owed list (D-P4-owed, 9798985854, judge APPROVE).
+- `TestCompletionScriptsInRealShells` is the fixture `ui/le-completion-shells`. `TestZeHelpAiOutputUnchanged` is the fixture `ui/ze-help-ai-unchanged` (D-P6-golden-fixture). `TestZeLeParity` sits in `helpai_test.go`, not `parity_test.go`.
+- Files: the vocabulary is `internal/le/le/action/vocabulary.go`, not `verbs.go`. The completion callback is `internal/le/completion/completion.go`, not `words.go`. le's menu items are built by `openMenu` in `internal/le/le/root/prompt.go`, not a `menu.go`. `internal/component/aihelp/reference` has no `reference_test.go`: its tests live in `internal/component/aihelp`.
+- AC-11: D-P7-short-long deleted `leaction.FirstSentence`. Listings show the declared short text and pages show the long one.
+- The spec's own decision lines in this file name old spellings (D-P4-counts and the rename map). They leave the tree with commit B.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Three planned tests were never written (B-2, B-3), and nothing tracked a planned test name against HEAD | the TDD plan names tests, but no gate reads the plan | `/ze-close` grep of every test name in this spec at HEAD | route to `/ze-implement` (B-2, B-3) |
+| approach | The round 5 fix added test messages that spell a retired command, and `retiredDeclarations` did not list the map package's own test | the sweep reads every tracked line, test messages included | `./le doc check retired-commands` at closure | B-4 |
+| assumption | A-4: a keystroke's callback fits 100 ms on this Linux host | it measured 111 to 208 ms under load once completion matched retired spellings (b553aea262) | `TestCompletionCallbackAnswersWithinBudget` at closure | B-1 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D-1 shell completion (bash, zsh, fish) | Partial | `internal/le/completion`, `internal/plugins/completion` | B-1 budget, B-5 shells not re-run |
+| D-1 correct and complete help at every level | Done | `leroot.Dispatch`, `leaction` renderers | `ui/le-help-pages` OK |
+| D-1 interactive filling at a terminal | Done | `internal/le/le/root/prompt.go`, `internal/component/cli/menu` | `ui/le-menu-and-prompt` OK |
+| D-1 and D-4 `le help ai` | Partial | `internal/le/le/root/helpai.go` | `ui/le-help-ai` OK. The `ai` namespace page has no test (B-3). AC-41's pin is red (B-6) |
+| D-2 one table per area, one verb per job, exit codes | Partial | `internal/le/le/action`, `internal/le/le/retired` | AC-25's resolver half is missing (B-2) |
+| D-3 renames, no alias | Done | `internal/le/le/retired/retired.go` | 203 spellings refused; B-4 is one gate line |
+| D-5 root help by tree with tags | Done | `internal/le/le/root/group.go` | `TestRootPageIsLaidOutByTree` |
+| D-6 typed parameters, shared machinery | Done | `leaction.Parameter`, `leroot.Tree` | `TestNormalZeLinksNoInternalLe` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestManifestCarriesTypedParameters`, `TestEveryParameterHasAKindAndHelp` | |
+| AC-2 | Done | `ls` of both skeletons fails | |
+| AC-3 | Done | `TestHelpGoesToStdout`, `ui/le-help-pages` | |
+| AC-4 | Done | `TestRootPageIsLaidOutByTree` | |
+| AC-5 | Done | `TestHelpGoesToStdout`, `ui/le-help-pages` | |
+| AC-6 | Done | `TestCommitCreateHelpRendersEveryLiveKeyword` | |
+| AC-7 | Done | `TestOneRendererForEveryPage` | `spec claim <spec>` verbless since 7ecd9f7880 |
+| AC-8 | Done | `TestKeywordHelpPage` | |
+| AC-9 | Done | `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage`, `TestClaimWithoutASpecRefusesWithClaimsUsageOnly` | |
+| AC-10 | Done | `TestListingWrapsUnderTheDescriptionColumn` | |
+| AC-11 | Changed | `TestListingShowsTheFirstSentenceAndThePageTheWhole`, `TestEveryWordLeOffersSaysWhatItDoes` | D-P7-short-long |
+| AC-12 | Done | `TestUsageNamesTheRunningProgram` | |
+| AC-13 | Done | `TestVerifyAreaDescribesTheNamespace` | |
+| AC-14 | Done | `TestEveryRegisteredAreaProvidesActions`, `TestMigratedAreaKeepsItsExitCodes` | |
+| AC-15 | Done | `TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough` | |
+| AC-16 | Done | `TestAnAreaWithoutATableStopsLeNamingIt`; no `areasWithoutAnActionTable` | |
+| AC-17 | Done | `TestMigratedAreaKeepsItsExitCodes` (three files) | |
+| AC-18 | Partial | `TestActionComesBeforeSuiteAndBareCommandListsGrammar` (the table listing) | the planned `run --help` test is missing (B-3) |
+| AC-19 | Done | `TestEveryForwardingAreaDeclaresItsGrammarOrPassThrough`, `ui/le-help-ai` | |
+| AC-20 | Done | `ui/le-retired-spellings`, `TestRetiredSpellingNamesItsSuccessor`; `./le cli grammar` OK | |
+| AC-21 | Changed | `TestEveryRegisteredVerbIsInTheVocabulary`, `TestNoNameEmbedsAVerbOrTest`, `ui/le-retired-spellings` | see Deviations |
+| AC-22 | Done | `ui/le-retired-spellings`; 15 packages under `internal/le/mock/` | |
+| AC-23 | Changed | `TestSpawnedMocksAreExactlyTheHiddenOnes`, `TestHiddenAreaIsOnlyInHelpAI`, `TestEveryWordLeAcceptsIsInHelp` | |
+| AC-24 | Done | `./le test --help` shows `fixture`, `mcp`, `peer`, `replay` as `[tool]` and `functional`, `unit` as `[suite]` | |
+| AC-25 | Partial | `./le doc check retired-commands` | resolver half missing (B-2); three own lines red (B-4) |
+| AC-26 | Done | `TestEveryRegisteredVerbIsInTheVocabulary`, `TestEveryVocabularyVerbIsUsed`, `le help ai verbs` (cf6801cd6d) | |
+| AC-27 | Partial | `TestFrozenHookWordsAreExactlyTheSettingsCalls`; `./le ai help` probed exit 0 | the namespace page has no test (B-3) |
+| AC-28 | Done | `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes`, `ui/le-exit-codes` | |
+| AC-29 | Done | `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes`, `ui/le-exit-codes` | |
+| AC-30 | Changed | `TestEveryStrayWordRefusalComesFromTheTable` | D-P3-refuseargument |
+| AC-31 | Done | `TestReviewCheckNotCleanExitsOne` | |
+| AC-32 | Done | `TestHookActionsKeepTheHookProtocolCodes`, `TestPassThroughAreasKeepTheirProgramsCode` | |
+| AC-33 | Partial | `TestCompletionCallbackHonoursRepeatAndRetired`, `TestLeCompletionScriptRegistersBothSpellings` | pty half: B-5 |
+| AC-34 | Partial | `TestLeCompletionScriptRegistersBothSpellings` | zsh at a pty: B-5 |
+| AC-35 | Partial | `TestLeCompletionScriptRegistersBothSpellings` | fish: B-5 |
+| AC-36 | Partial | `TestCompletionCallbackRunsNoBeforeDispatchHook` | the absent `bin/le` half is in `ui/le-completion-shells` (B-5) |
+| AC-37 | Not met | `TestCompletionCallbackAnswersWithinBudget` red: 111, 208 and 159 ms medians | B-1 |
+| AC-38 | Done | `TestHelpAiTextSummary`, `ui/le-help-ai` | |
+| AC-39 | Done | `TestHelpAiJSONListsEveryAreaWithTypedParameters`, `ui/le-help-ai` | |
+| AC-40 | Done | `TestHelpAiRefusesRenderingFlags` | |
+| AC-41 | Not met | `ui/ze-help-ai-unchanged` red on the plugin count | B-6 |
+| AC-42 | Done | `TestLeMenuItemsComeFromTheTree`, `TestLeMenuArrowsAndEnterDrillToAnAction`, `ui/le-menu-and-prompt` | |
+| AC-43 | Done | `TestBareLeOnAPipePrintsTheRootPage`, the fixture's half-terminal step | |
+| AC-44 | Done | `TestPromptCompletesFromTheValueSource`, the fixture's claim prompt step | |
+| AC-45 | Done | `TestOptionalParametersAreNeverPrompted` | |
+| AC-46 | Done | `TestPromptCancelRunsNothing`, the fixture's Ctrl-C step | |
+| AC-47 | Done | `TestHumanGateIsNotAnsweredByAPrompt` | |
+| AC-48 | Partial | `TestZeLeParity`, the fixture's `ze le` menu step | completion half: B-5 |
+| AC-49 | Done | `TestCommitExecutionFailureIsNotAUsageError` | |
+| AC-50 | Done | `TestListingWrapsAtTheTerminalWidth` | |
+| AC-51 | Done | `TestEveryWordTheLauncherConsumesIsInHelp`, `TestEveryWordLeAcceptsIsInHelp`, `ui/le-launcher-words` | |
+| AC-52 | Done | `TestEveryActionWordIsAVerbOrADeclaringName`, `TestNoNameEmbedsAVerbOrTest`, `TestOnlyTheHookAreaFreezesAWord`, `TestFrozenHookWordsAreExactlyTheSettingsCalls` | red only on other sessions' names `vpn-kernel-test` and `readme-carrier` |
+| AC-53 | Done | `TestEveryNamespaceIsDescribedInTheMenu`, `TestEveryNamespaceIsDescribedOnTheRootPageAndInHelpAI`, `namespacesummary_test.go` | |
+| AC-54 | Done | `TestEveryWordLeOffersSaysWhatItDoes`, `TestEveryItemWithoutTextStopsLeNamingIt` | |
+| AC-55 | Done | the same two, `TestZeMenuViewUnchanged` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test of the TDD plan except those below | Done | at the file the plan names, or the file "Deviations from Plan" names | each found at HEAD with `git grep "func <name>("` |
+| `TestStressReproRunHelpComesFromTheTable`, `TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage`, `TestNoCitationNamesAVerbTheRegistryDoesNotHold` | Skipped | none | B-2, B-3. Back to `/ze-implement`, not an approved skip |
+| `TestNoAreaRegistersWrite`, `TestSpawnedHelpersAreHiddenFromHelpAndCompletion`, `TestRefuseArgumentAndRefuseValueAgree`, `TestPhase4OwedListOnlyShrinks` | Changed | see Deviations | |
+| the eight `.ci` tests | Done | `test/ui/` | the latest results are in Wiring Verified |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file of "Files to Create" | Done | except the four renamed in "Deviations from Plan" (vocabulary.go, completion.go, prompt.go, aihelp tests) |
+
+### Audit Summary
+- **Total items:** 55 AC, 8 Task requirements
+- **Done:** 41 AC
+- **Partial:** 8 AC (AC-18, AC-25, AC-27, AC-33 to AC-36, AC-48). No approval asked: each goes back to implementation
+- **Skipped:** none approved; three planned tests are missing (B-2, B-3)
+- **Changed:** 4 AC (AC-11, AC-21, AC-23, AC-30), recorded in Deviations
+- **Not met:** AC-37, AC-41
+
 ## Goal Validation (BLOCKING)
 
 <!-- Evidence is filled at closure. Rows are fixed now, one per goal in Task and D-1 to D-6. -->
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| le has shell completion for bash, zsh and fish through ze's mechanism (D-1) | functional, pty | `test/ui/le-completion-shells.ci` output; `TestZeCompletionScriptsUnchanged`; `TestCompletionCallbackAnswersWithinBudget` timing |
-| correct and complete help at every level (D-1, D-5) | functional | `test/ui/le-help-pages.ci` output; `TestRootPageIsLaidOutByTree`; `TestCommitCreateHelpRendersEveryLiveKeyword` |
-| interactive filling of missing arguments at a terminal, never on a pipe (D-1) | functional, pty | `test/ui/le-menu-and-prompt.ci` output; `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` |
-| self-documentation through `le help ai` in ze's shape (D-1, D-4) | functional | `test/ui/le-help-ai.ci` output with the area count equal to the manifest's |
-| every area on the action table, typed grammar published (D-2, D-6) | unit | `TestEveryRegisteredAreaProvidesActions` with no migration list; `TestEveryParameterHasAKindAndHelp` |
-| one verb per job, renames with no alias (D-2, D-3) | functional | `test/ui/le-retired-spellings.ci`; `./le doc check retired-commands` zero findings; `TestEveryRegisteredVerbIsInTheVocabulary` |
-| one meaning per exit code (D-2) | functional | `test/ui/le-exit-codes.ci` output |
-| shared implementation over copies (D-6) | unit | `TestNormalZeLinksNoInternalLe` green; `TestMenuModel_*` run from `internal/component/cli/menu`; `TestZeLeParity` |
-| a human developer finds le usable, matching ze (goal) | functional, pty | the three pty runs above, recorded at closure with their transcripts |
+| le has shell completion for bash, zsh and fish through ze's mechanism (D-1) | functional, pty | NOT MET at closure (B-1, B-5). `internal/plugins/completion` green with the feature tags at 5c81db8d03 (`TestZeCompletionScriptsUnchanged`, `TestLeCompletionScriptRegistersBothSpellings`). `ui/le-completion-shells` refuses on this host: "zsh is not installed". Its last pass was at dbf0dbd866. `TestCompletionCallbackAnswersWithinBudget` red three times on 2026-10-26: 111 ms median (sibling packages running), 208 ms (load 16), 159 ms (run alone, load 13 to 20) |
+| correct and complete help at every level (D-1, D-5) | functional | `ui/le-help-pages` printed `OK` at 5c81db8d03; `TestRootPageIsLaidOutByTree`, `TestCommitCreateHelpRendersEveryLiveKeyword` green (`internal/le/le/root`, `internal/le/commit`) |
+| interactive filling of missing arguments at a terminal, never on a pipe (D-1) | functional, pty | `ui/le-menu-and-prompt` at 5c81db8d03 passed six steps in a pty: menu drill-down, echo and run; q quits with 0; claim prompt, Tab, echo and run; Ctrl-C runs nothing; half terminal prints the root page; ze le opens the menu. `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` green |
+| self-documentation through `le help ai` in ze's shape (D-1, D-4) | functional | `ui/le-help-ai` printed `OK` at 5c81db8d03. `ui/ze-help-ai-unchanged`: see Wiring Verified |
+| every area on the action table, typed grammar published (D-2, D-6) | unit | `areasWithoutAnActionTable` absent from `internal/le/actions_test.go` (grep exit 1). `TestEveryRegisteredAreaProvidesActions` and `TestEveryParameterHasAKindAndHelp` are in `internal/le`. Its run at 5c81db8d03 failed only on other sessions' names (`vpn-kernel-test`, `readme-carrier`, `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify`) |
+| one verb per job, renames with no alias (D-2, D-3) | functional | `ui/le-retired-spellings` at 5c81db8d03: "refused 203 retired spellings, each naming its successor; every successor page answers", `OK`. `./le doc check retired-commands` leaves this spec's own lines, `.claude/settings.local.json`, another session's IKE spec and B-4's three test lines. `ui/le-launcher-words` `OK`: `./le rollback newest` refused, exit 2, store unchanged |
+| one meaning per exit code (D-2) | functional | `ui/le-exit-codes` printed `OK` at 5c81db8d03 |
+| shared implementation over copies (D-6) | unit | `cmd/ze` `TestNormalZeLinksNoInternalLe` and `TestZeMenuViewUnchanged` green. `internal/component/cli/menu` green (17 tests, `TestMenuModel_*` among them). `TestZeLeParity` green in `internal/le/le/root` |
+| a human developer finds le usable, matching ze (goal) | functional, pty | the menu and prompt pty run above, and `ui/le-help-pages`, `le-help-ai` and `le-exit-codes` through the built binary. The shell half waits on B-5 and the keystroke budget on B-1 |
 
 ## Review Gate
 
@@ -1062,14 +1217,136 @@ packages, `./le cli grammar`, `./le doc check retired-commands` (Phase 4 on),
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | |
-| Rounds | |
-| Reviewer lenses used | |
+| Artifact | `tmp/review/le-cli-usability-006d366f-eb05-4b27-8c8c-5b860d3909de.md` (1 file: this spec; verdict clean; findings-file this spec's "Findings fixed"). The pin is over this file's content, so any edit made while B-1 to B-6 clear needs a re-record. A re-record is not a new round. A code fix for B-2 to B-6 is new code and needs its own independent pass |
+| `./le spec review check` | `review_gate: OK (0 code files, clean, hashes match ...)` on 2026-10-26, before this row was edited, so re-record before commit A |
+| Rounds | 10. Round 5 (8d685c0e96) found a product defect: the retired-successor walk took quadratic memory on typed argv (10k words, 797 MB). 5e1a3027e8 fixed it. Thomas authorised round 6 ("yes for the next review"), which found 0 BLOCKER, 0 ISSUE. The closure blocker fixes (B-2, B-3, B-4, B-6) were new code: Thomas authorised round 7 ("round 7"), round 8 ("Round 8") and rounds 9 and 10 ("Round 10", each run only when the round before found a problem). Rounds 7 to 9 each found a defect in the round before's fixes; round 10 found 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | r1: three lenses over the Phase 4 diff (wiring, logic, guards and docs). r2 to r10: one reviewer over each round's fixes; r2 to r6 re-ran the `le-launcher-words` and `le-retired-spellings` fixtures |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| r1-A | BLOCKER | no test drove `le test weakened check` through its table | `internal/le/test/weakened/actions.go` | e4b7ac353a |
+| r1-B | ISSUE | `le help <retired>` and completion after a retired spelling said "no such action" instead of naming the successor | `leroot.Dispatch`, `leroot.Complete` | b553aea262 (`leroot.RetiredError`, `retiredSpelling`) |
+| r1-C | ISSUE | no test pinned the real hidden set (AC-23) | `internal/le/mock/*/register.go` | 30e6ae2ecc (`TestSpawnedMocksAreExactlyTheHiddenOnes`) |
+| r1-D | ISSUE | a retired successor took one hop and could name another retired line | `leretired.Rename.Successor` | b553aea262 |
+| r1-E | ISSUE | the tree's action-versus-area guard could not fire (parent processed before child area) | `treeFrom` (`internal/le/le/root/tree.go`) | 4c846fb883 |
+| r1-F | ISSUE | the reseal-note skip applied to every Go file and failed open | `internal/le/doc/check/retired.go` | 201f379ce7 |
+| r1-G | ISSUE | the launcher refused `./le rollback help`, `--help` and pipe words | `le` launcher script | d408c38b3f |
+| r1-H | ISSUE | `retired-commands` red on lines that quote a retired spelling on purpose | `retiredExceptions` | 201f379ce7 (line-scoped exceptions) |
+| r1-I | ISSUE | `le help ai commands | json` gave a verbless action `"verb": ""` and no `does` | `reference.Action`, `actionOf` | db0c0a6893 |
+| r1-J | NOTE, fixed | vocabulary rule tests had no floor | `internal/le/vocabulary_test.go` | 3430fb256f |
+| r1-K | NOTE, fixed | the retired test checked only the successor's first word | `TestRetiredSpellingNamesItsSuccessor` | b553aea262 (`TestRetiredSuccessorLineIsAcceptedWhole`) |
+| r1-L | ISSUE | running-commands.md "Verb vocabulary" said three rules (tests enforce six); stale heavy-area list; `ai/INDEX.md` rows missing | docs | b3e4bb7a48 |
+| r2-1 | ISSUE | goconst: repeated literals in `retired.go` and the launcher fixture | `internal/le/doc/check/retired.go`, `ui_fixture_le_launcher_words.go` | 4e9ad0b093 |
+| r2-2 | judge REFUSE | `TestRetiredEveryDeclaredExceptionIsFileScoped` lost its proof that each declared line matches | `internal/le/doc/check/retired_test.go` | 8e37b8a192, then a fresh judge APPROVED |
+| r3-1 | ISSUE | the Successor bound panicked on terminating chains that reuse rows with growing tails | `leretired.Rename.Successor` | 6373063b16 (seen-set cycle detection, explicit hop cap) |
+| r4-1 | BLOCKER | typed argv reached the "did not settle" BUG panic (`test harness` repeated, `rollback newest ...`) | `leretired.Rename.Successor` | 8d685c0e96 (only kept hops count) |
+| r5-1 | ISSUE | the successor walk took quadratic memory (10k words: 1.21 s, 797 MB) | `leretired.Rename.Successor` | 5e1a3027e8 (10k words: 328 KB) |
+| r6 | NOTE x2, fixed | architecture gates: name the refuse-by-default guard in `retiredSpelling`; split compound guards in the retired-spellings fixture | `internal/le/le/root/dispatch.go`, `ui_fixture_le_retired_spellings.go` | 46d65cbe92 |
+| r7-1 | red, this spec's | `TestTheCheckoutsOwnHeadIsClean` walked two directory levels, counted the launcher's `--name` rows, and expected rows for hidden mocks | `internal/le/repo/bootstraps/tracked.go` | fca2e40055 |
+| r7-2 | NOTE, fixed | `leaction.New`'s Default refusals and `AtVerb`'s default branch untested | `internal/le/le/action/leaction.go` | d562e8820e |
+| r7-3 | NOTE, fixed | an area listing never said a bare line runs the default action | `leaction.List.Section` | 2a35c81c8c |
+| r8-1 | ISSUE | two tests kept their own copy of the dispatcher's word bound | `doc/check/retired_test.go`, `group_test.go` | ad1c08cfa5 |
+| r8-2 | NOTE, fixed | a defaulted area's Usage showed `<action>` as required | `leaction.List.Page` | e6eed3abcb |
+| r9-1 | ISSUE | `TestNoRegisteredLeCommandExceedsTwoWords` kept a literal 3 | `internal/le/group_test.go` | acd753ae85 |
+| r9-2 | NOTE, fixed | a workflow's `le` line resolved its command by a two-word hand-count, and a verbless two-word line by its first word | `rfc.actionsInCommand` | 7eca1f201b (longest registered prefix up to `CommandWordsMax`, verb from `List.AtVerb`; RFC carrier data unchanged) |
+
+Round 1's full list: `tmp/session/2026-10-25-006d366f-eb05-4b27-8c8c-5b860d3909de/scratch/review-r1-findings.md`.
+Unfixed round 1 NOTEs: test names that still say TwoWords (renaming a test needs
+approval); a nested namespace under a plain namespace (latent); `Area.verbless`
+and `List.Verbless` derive the same fact twice; three-word dispatch has no `.ci`
+run.
+Unfixed later NOTEs: `citationExempt` exempts a whole line on one substring match
+and nothing reports an exception row that matches no line (r7); `rfc.actionsInCommand`
+credits a command with no table or an unheld word instead of refusing, as the
+citation judge does, though no carrier reads such a key (r10).
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| B-1 to B-6 | open at closure; each is owed by this spec, which stays open (Status `blocked`) | `plan/post-release/engineering/spec-le-cli-usability.md` |
+
+## Pre-Commit Verification
+
+All evidence below is from 2026-10-26 at HEAD 5c81db8d03, over a shared working
+tree. The logs are `close-tests.log`, `close-tests-2.log` and `close-tests-3b.log`
+in `tmp/session/2026-10-25-006d366f-eb05-4b27-8c8c-5b860d3909de/scratch/`.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the 21 planned files under `internal/le/le/root`, `le/action`, `le/retired`, `completion`, `internal/le/exitcode_test.go`, `internal/component/cli/menu`, `aihelp/reference/reference.go` | yes | `ls` listed each one; the four renamed files are in Deviations |
+| `internal/le/mock/<name>/` | yes | `ls -d internal/le/mock/*/` counts 15 |
+| `test/ui/le-help-pages.ci`, `le-completion-shells.ci`, `le-menu-and-prompt.ci`, `le-help-ai.ci`, `le-retired-spellings.ci`, `le-launcher-words.ci`, `le-exit-codes.ci`, `ze-help-ai-unchanged.ci`, `root-completion.ci` | yes | `git ls-files` listed all nine |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-17, AC-19, AC-49, AC-50 | help, table and typed grammar | `go test` passed for `internal/le/le/action`, `le/root`, `le/human`, `le/retired`, `commit`, `verify`, `spec/...`, `rollback` and `internal/component/cli/menu`. `ui/le-help-pages` printed OK. `internal/le` failed only `TestEveryActionWordIsAVerbOrADeclaringName`, `TestNoNameEmbedsAVerbOrTest` (other sessions' `vpn-kernel-test`, `readme-carrier`) and `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` (another session's `running-commands.md` lines) |
+| AC-20 to AC-24, AC-26, AC-51, AC-52 | renames, vocabulary, launcher | `ui/le-retired-spellings`: "refused 203 retired spellings, each naming its successor; every successor page answers", OK. `ui/le-launcher-words` OK. `./le cli grammar`: `cli-grammar: OK`. `./le test --help` shows the tags |
+| AC-25 | zero retired-commands findings | NOT MET: 16 lines. This spec's own lines (leave with commit B), `.claude/settings.local.json` (Thomas), `spec-ike-unbound-peer-inner-address.md` (another session) and three lines of `TestSuccessorOfALongTypedLineAllocatesLinearly` (B-4). Resolver half missing (B-2) |
+| AC-28 to AC-32 | exit codes | `ui/le-exit-codes` OK; `internal/le/ai/hooks` ok. `internal/le/test/weakened` failed three `proposed_test.go` tests ("git log --grep failed: fatal: not a git repository"), in tests another session's e23a116783 changed |
+| AC-33 to AC-36 | completion | `internal/plugins/completion` ok with the feature tags (without them it fails four tests, the phantom red of `running-commands.md` "A bare go test is not ./le test unit"). `ui/le-completion-shells`: "zsh is not installed" (B-5) |
+| AC-37 | median under 100 ms | NOT MET: 111.2 ms (sibling packages running), 208.3 ms (load 16), 159.5 ms (alone, load 13 to 20) (B-1) |
+| AC-38 to AC-40, AC-48 | help ai, parity | `ui/le-help-ai` OK; `TestZeLeParity` passed in `le/root` |
+| AC-41 | ze help ai unchanged | NOT MET: `ui/ze-help-ai-unchanged` "now `101 plugins`, golden `98 plugins`" (B-6) |
+| AC-42 to AC-47 | menu and prompt | `ui/le-menu-and-prompt` passed all six pty steps; `internal/component/cli/menu` ok; `le/human` ok |
+| AC-53 to AC-55 | descriptions | `internal/le` namespace and describe tests passed (not in the failure list); `cmd/ze` `TestZeMenuViewUnchanged` ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le help` on a pipe | `test/ui/le-help-pages.ci` | OK at 5c81db8d03 |
+| a retired spelling | `test/ui/le-retired-spellings.ci` | OK at 5c81db8d03, 203 rows |
+| `./le rollback <words>` | `test/ui/le-launcher-words.ci` | OK at 5c81db8d03 |
+| exit codes 2, 1, 3 | `test/ui/le-exit-codes.ci` | OK at 5c81db8d03 |
+| `le help ai | json` | `test/ui/le-help-ai.ci` | OK at 5c81db8d03 |
+| bare `le` at a pty | `test/ui/le-menu-and-prompt.ci` | OK at 5c81db8d03, six steps |
+| `le completion bash` at a pty | `test/ui/le-completion-shells.ci` | NOT RUN here: zsh and fish are absent (B-5) |
+| `ze help ai` | `test/ui/ze-help-ai-unchanged.ci` | RED: plugin count (B-6) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Phase 3 (f293c0323d) migrated all 30 parsers. Positionals found were declared with the positional rule (`TestPositionalParameterRules`; D-P23-push-argv, D-P4-positional) |
+| A-2 | confirmed | `leroot.Run` unchanged by Phase 3; `TestMigratedAreaKeepsItsExitCodes` green |
+| A-3 | confirmed | 203 retired rows refused at runtime; `retired-commands` finds every remaining citation, including a later one by another session (R-18) |
+| A-4 | broken on Linux under load | 111 to 208 ms medians at closure (B-1); a quiet-machine run is owed |
+| A-5 | confirmed | `commit` on the table; `TestCommitCreateHelpRendersEveryLiveKeyword`, `TestEveryCreateKeywordReadsOptions` green |
+| A-6 | confirmed | Phase 5 re-grepped the readers before changing a producer (9181e95fd8); `TestHookActionsKeepTheHookProtocolCodes` green |
+| A-7 | confirmed | `TestCompletionCallbackRunsNoBeforeDispatchHook` green |
+| A-8 | broken as stated, resolved | D-Q3: ArgDef not grown; `TestDerivedTreeMapsKindsToArgDefs` green |
+| A-9 | broken in part, resolved | program descriptor; `TestZeCompletionScriptsUnchanged` green with the feature tags |
+| A-10 | broken, resolved | D-Q1; `TestHelpAiRefusesRenderingFlags` green |
+| A-11 | confirmed | `TestBareLeOnAPipePrintsTheRootPage`, `TestMissingRequiredParameterOnAPipeRefusesWithOneUsage` green; the half-terminal fixture step passed |
+| A-12 | confirmed | the ten `write` actions renamed to `update` (f13944bd08); `write` is a `leaction.retiredVerbs` entry |
+| A-13 | broken on this host | `which zsh fish` finds neither on the Linux host; the fixture refuses naming zsh (B-5) |
+| A-14 | confirmed | the le fixtures drive a pty with `creack/pty`, as `ui_fixture_display_fill_completion.go` does |
+| A-15 | confirmed | `TestPromptCompletesFromTheValueSource` green in `internal/component/cli/menu` |
+| A-16 | confirmed | `completion` and `mock` register (`TestLeRegistersOneRootAndNoToolRoots`) |
+
+### Closure commit body (prepared, not created)
+
+Commit A must carry these judge verdicts as quoted lines, because
+`./le commit create` refuses a hand-written `Weakening-approved:` trailer. The
+rows are in `tmp/commit-weakening-approved-fc4b44f2.md`.
+
+> Weakening-approved: terminaldemo.TestActionsCarryTheirContracts
+> Weakening-approved: doccheck.TestRetiredEveryDeclaredExceptionIsFileScoped
+> Test-judge (7ecd9f7880): rollback.TestEveryLineRefusesExceptHelp, rollback.TestCompletionOffersRollback, spec.TestSpecSessionCommandMapsEveryOwnershipAction, spec.TestTheSpecMembersKeepTheirSpellings, specclaim.TestClaimWithoutASpecRefusesWithClaimsUsageOnly, leroot.TestDerivedTreeHoldsEveryRegisteredAction, le.TestEveryPublishedVerbIsDispatchedThroughItsOwnTable, le.TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea
+
+Before commit B, these tracked files cite this spec by its full path and need a
+repoint or the bare stem: `docs/contributing/running-commands.md` (the claim
+example), and Go comments in `internal/le/job/answer.go`,
+`internal/le/le/action/leaction.go`, `internal/le/le/root/manifest_test.go`,
+`namespacesummary.go`, `tree.go`, the three `internal/le/migrated_exit_codes*_test.go`,
+`internal/le/repo/bootstraps/actions.go`, `internal/le/repo/inventory/inventory.go`,
+`internal/le/spec/actions.go`, `spec/actions_test.go`, `spec/status/answer.go`,
+`internal/le/test/qemu/stress_test.go`, `internal/le/verify/summary/answer.go`,
+and `plan/post-release/engineering/spec-gates-report-cause-and-progress.md`.
+Get the list fresh with `git grep -n 'plan/post-release/engineering/spec-le-cli-usability.md'`.
+None is a `// Design:` header.
 
 ## Checklist
 
