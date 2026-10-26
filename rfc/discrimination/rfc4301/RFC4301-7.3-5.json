@@ -29,8 +29,8 @@
     "claim-sha": "7e9beb4de3e7a139",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "2c0d9a26dc943e66",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2eee337497ae3801",
+    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.3-5",
@@ -40,7 +40,7 @@
     "claim-sha": "e2f9f56ce3479219",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "2c0d9a26dc943e66",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2eee337497ae3801",
+    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
