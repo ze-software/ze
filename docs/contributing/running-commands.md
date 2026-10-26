@@ -181,13 +181,21 @@ pass-through area) answers its program's own code.
 
 A retired spelling is refused before le parses anything, with one line
 naming the spelling that does the same work now, the words typed after it
-carried over: `error: le verify lock was renamed: run le job run`. The rename
-map is declared once, in `internal/le/le/retired`, and `le doc check
-retired-commands` reads the same map to find callers that still name an old
-spelling.
+carried over: `error: le verify lock was renamed: run le job run`. A help
+question about one gets the same refusal with the help word on both sides
+(`le help commit audit` answers `run le help test weakened check`, exit 2),
+and completion after one answers it too, so Tab offers nothing and the
+callback names the successor. `ai` after the help word is the agent
+reference, so a retired `ai` spelling is asked about as `le ai <old> help`.
+The line named is the one le holds now: a successor that a later rename
+retired in turn is followed to its end, so `le spec session claim spec x`
+names `le spec claim x`. The rename map is declared once, in
+`internal/le/le/retired`, and `le doc check retired-commands` reads the same
+map to find callers that still name an old spelling.
 
-<!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
-<!-- source: internal/le/le/retired/retired.go -- Match -->
+<!-- source: internal/le/le/root/dispatch.go -- retiredSpelling, refuseRetired -->
+<!-- source: internal/le/le/root/complete.go -- Complete -->
+<!-- source: internal/le/le/retired/retired.go -- Match, Successor -->
 
 ### The words the launcher reads first
 

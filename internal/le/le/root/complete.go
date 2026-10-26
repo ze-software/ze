@@ -28,7 +28,9 @@ var ErrUnknownWord = errors.New("le has no such command")
 // Complete answers the candidates for the last of words, which is the word
 // being typed and may be empty; every word before it is complete. A typed word
 // le does not know is ErrUnknownWord, naming it: the shell then offers nothing,
-// and a caller can tell that from a place where nothing may follow. Every word
+// and a caller can tell that from a place where nothing may follow. Typed
+// words that open with a retired spelling answer a *RetiredError, the refusal
+// dispatch gives for the same words. Every word
 // after a pass-through area answers no candidate, because its program reads
 // them.
 func Complete(words []string) ([]leaction.Candidate, error) {
@@ -46,6 +48,11 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 		return Complete(rest)
 	}
 	typed, partial := words[:len(words)-1], words[len(words)-1]
+	// A retired spelling typed whole is refused as dispatch refuses it, naming
+	// the line that does the work now, so Tab teaches what a run would.
+	if retired := retiredSpelling(leaction.Program(), "", typed); retired != nil {
+		return nil, retired
+	}
 	if len(typed) == 0 {
 		return withPrefix(append(childrenOf(Tree()), launcherCandidates()...), partial), nil
 	}

@@ -330,9 +330,22 @@ func Match(words []string) (Rename, bool) {
 
 // Successor answers the line a caller types now in place of words, which row
 // matched: the row's new words, then every word the caller typed after the old
-// ones, so `verify lock run x` answers `job run x`.
+// ones, so `verify lock run x` answers `job run x`. A line a later rename
+// retired in turn is followed to the line le holds now, so `spec session claim
+// spec x` answers `spec claim x` and never the retired `spec claim spec x`:
+// a refusal that names a retired line refuses its reader twice.
 func (r Rename) Successor(words []string) []string {
-	return append(r.New(), words[len(r.Old()):]...)
+	line := append(r.New(), words[len(r.Old()):]...)
+	// Each hop applies one row of the map, so a chain longer than the map is a
+	// cycle in it, which only a Ze defect in the declaration above can make.
+	for range renames {
+		next, retired := Match(line)
+		if !retired {
+			return line
+		}
+		line = append(next.New(), line[len(next.Old()):]...)
+	}
+	panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
 }
 
 // RetiredKind says what sort of name a Retirement retires. The zero value is

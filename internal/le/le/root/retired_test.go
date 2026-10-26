@@ -12,6 +12,7 @@
 package leroot_test
 
 import (
+	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -115,6 +116,109 @@ func TestRetiredSpellingNamesItsSuccessor(t *testing.T) {
 			}
 		})
 	}
+}
+
+// VALIDATES: AC-21 and AC-22 -- `le help <retired spelling>` and completion
+// of a retired spelling answer the refusal dispatch gives for the same words:
+// exit 2, the old words, and the line that does the work now, with the help
+// word carried on both sides of a help question.
+// PREVENTS: a help question or a Tab answering "no such action" for a
+// spelling dispatch would have named the successor of, so the reader who asks
+// before running learns less than the one who runs.
+//
+// Method: the dispatch refusal is captured first and the other two are
+// compared to it, so the three are proven one mechanism, not three copies.
+func TestRetiredSpellingIsRefusedByHelpAndCompletion(t *testing.T) {
+	for _, row := range leretired.Renames() {
+		old := row.Old()
+		t.Run(strings.Join(old, " "), func(t *testing.T) {
+			_, refusal := streams(t, func() { leroot.Dispatch("le", slices.Clone(old)) })
+			prefix := "error: le " + strings.Join(old, " ") + " was renamed: run le "
+			successor, named := strings.CutPrefix(strings.TrimSuffix(refusal, "\n"), prefix)
+			if !named {
+				t.Fatalf("dispatch refused `le %s` with\n%q\nwhich does not open with %q", strings.Join(old, " "), refusal, prefix)
+			}
+
+			// `ai` after the help word is reserved for the agent reference, so
+			// `le help ai <words>` asks for its sections and never names the ai
+			// area; a retired ai spelling is asked about as `le ai <old> help`,
+			// which dispatch refuses above.
+			if old[0] != "ai" {
+				code := 0
+				_, stderr := streams(t, func() { code = leroot.Dispatch("le", append([]string{"help"}, old...)) })
+				if code != 2 {
+					t.Errorf("`le help %s` answered %d, want 2: a retired spelling is a usage error", strings.Join(old, " "), code)
+				}
+				want := "error: le help " + strings.Join(old, " ") + " was renamed: run le help " + successor + "\n"
+				if stderr != want {
+					t.Errorf("`le help %s` wrote\n%q\nwant\n%q", strings.Join(old, " "), stderr, want)
+				}
+			}
+
+			candidates, err := leroot.Complete(append(slices.Clone(old), ""))
+			if _, retired := errors.AsType[*leroot.RetiredError](err); !retired {
+				t.Fatalf("completing after `le %s` answered %v and %d candidates, want the retired refusal",
+					strings.Join(old, " "), err, len(candidates))
+			}
+			wantErr := "le " + strings.Join(old, " ") + " was renamed: run le " + successor
+			if err.Error() != wantErr {
+				t.Errorf("completing after `le %s` refused with\n%q\nwant\n%q", strings.Join(old, " "), err.Error(), wantErr)
+			}
+		})
+	}
+}
+
+// VALIDATES: the whole line a refusal names is one le's live tables accept,
+// not only its first word: the area is registered, the verb is one its table
+// holds, and every word after the verb parses under that verb's grammar.
+// PREVENTS: a successor whose verb exists but whose next word the verb
+// refuses (`check generatd`, a keyword the action never declared), which the
+// verb-only check of TestRetiredSpellingNamesItsSuccessor passes.
+func TestRetiredSuccessorLineIsAcceptedWhole(t *testing.T) {
+	parsed := 0
+	for _, row := range leretired.Renames() {
+		line := row.Successor(row.Old())
+		spelled := strings.Join(line, " ")
+		area, rest := liveArea(line)
+		if area == "" {
+			if !namespaceHolds(spelled) {
+				t.Errorf("the successor `le %s` of `le %s` names no registered command or namespace",
+					spelled, strings.Join(row.Old(), " "))
+			}
+			continue
+		}
+		list, tabled := leroot.ActionsOf(area)
+		// A forwarding area's words belong to the program it runs, and a
+		// hand-rolled area publishes no grammar to parse against.
+		if !tabled || list.PassesWords || list.PassesTo != "" {
+			continue
+		}
+		words := list.AtVerb(rest)
+		if len(words) == 0 {
+			continue
+		}
+		if _, err := list.Missing(words[0], words[1:]); err != nil {
+			t.Errorf("the successor `le %s` of `le %s` is refused by `le %s`: %v",
+				spelled, strings.Join(row.Old(), " "), area, err)
+			continue
+		}
+		parsed++
+	}
+	if parsed == 0 {
+		t.Error("no successor line was parsed against an action table, so this test proves nothing")
+	}
+}
+
+// liveArea answers the longest registered command that opens line, and the
+// words after it, or "" when no prefix of line is registered.
+func liveArea(line []string) (string, []string) {
+	for cut := len(line); cut > 0; cut-- {
+		name := strings.Join(line[:cut], " ")
+		if leroot.LookupCommand(name) != nil {
+			return name, line[cut:]
+		}
+	}
+	return "", nil
 }
 
 // namespaceHolds reports whether some registered command sits under the

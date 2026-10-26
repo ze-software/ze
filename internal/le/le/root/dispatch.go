@@ -161,6 +161,12 @@ func Dispatch(program string, args []string) int {
 		if args[1] == aiWord {
 			return helpAI(program, args[2:])
 		}
+		// A retired spelling asked about is refused as dispatch refuses it,
+		// naming the help question, spelled as typed, that answers it now.
+		asked, _ := splitChain(args[1:])
+		if retired := retiredSpelling(program, args[0], asked); retired != nil {
+			return refuseRetired(retired)
+		}
 		return helpAsked(program, args[1:])
 	}
 	return dispatchLine(program, args, false)
@@ -174,10 +180,9 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 	// A retired spelling is refused before anything resolves or parses it,
 	// naming the line that does the work now (D-retired). The rename map is
 	// the one leretired declares, which the documentation sweep also reads.
-	if own, _ := splitChain(args); len(own) != 0 {
-		if row, ok := leretired.Match(own); ok {
-			return refuseRetired(program, row, own)
-		}
+	typed, _ := splitChain(args)
+	if retired := retiredSpelling(program, "", typed); retired != nil {
+		return refuseRetired(retired)
 	}
 	name, handler, toolArgs := resolve(args)
 	if token, rest, nested := nestedNamespace(name, toolArgs); nested {
@@ -247,14 +252,54 @@ func nestedNamespace(name string, rest []string) (string, []string, bool) {
 	return token, rest[1:], true
 }
 
-// refuseRetired says the line names a retired spelling, and the exact line that
-// does the same work now, then answers the usage code: the caller typed a line
-// le does not accept, and nothing ran.
-func refuseRetired(program string, row leretired.Rename, words []string) int {
+// RetiredError is the refusal of a line whose own words open with a retired
+// spelling: the old words and the line that does the same work now, each
+// spelled after the program and Lead. Dispatch, `le help` and completion all
+// refuse through retiredSpelling, so the three cannot name different lines.
+type RetiredError struct {
+	// Program is the name le was started as: "le" or "ze le".
+	Program string
+	// Lead is the help word typed before the command of a help question, as
+	// typed, and empty for a line that runs.
+	Lead string
+	// Old is the retired words as the rename map spells them.
+	Old []string
+	// Successor is the line that does the work now, the caller's own
+	// trailing words carried on.
+	Successor []string
+}
+
+// Error says the old spelling was renamed, and the exact line to run instead.
+func (e *RetiredError) Error() string {
 	var tb textbuf.Buffer
-	tb.Str("error: ").Str(program).Byte(' ').Join(row.Old(), " ").
-		Str(" was renamed: run ").Str(program).Byte(' ').Join(row.Successor(words), " ").Byte('\n').
-		StdErr() //nolint:errcheck // CLI output
+	tb.Str(e.Program).Byte(' ')
+	if e.Lead != "" {
+		tb.Str(e.Lead).Byte(' ')
+	}
+	tb.Join(e.Old, " ").Str(" was renamed: run ").Str(e.Program).Byte(' ')
+	if e.Lead != "" {
+		tb.Str(e.Lead).Byte(' ')
+	}
+	return tb.Join(e.Successor, " ").String()
+}
+
+// retiredSpelling answers the refusal of own, the words of a line before any
+// pipe, when they open with a retired spelling (D-retired), and nil when they
+// do not. The rename map is the one leretired declares, which the
+// documentation sweep also reads.
+func retiredSpelling(program, lead string, own []string) *RetiredError {
+	row, ok := leretired.Match(own)
+	if !ok {
+		return nil
+	}
+	return &RetiredError{Program: program, Lead: lead, Old: row.Old(), Successor: row.Successor(own)}
+}
+
+// refuseRetired writes the refusal and answers the usage code: the caller
+// typed a line le does not accept, and nothing ran.
+func refuseRetired(retired *RetiredError) int {
+	var tb textbuf.Buffer
+	tb.Str("error: ").Str(retired.Error()).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
 }
 

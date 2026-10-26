@@ -200,7 +200,9 @@ build tags, harness file names and harness variables. Two readers use it.
 `Dispatch` matches the typed words against the map before anything resolves or
 parses them, the longest matching row winning, and refuses a match with exit 2
 and one line: `error: le <old> was renamed: run le <new> <the words typed
-after it>`. A retired name is never registered, so it is absent from
+after it>`. `le help <old>` and completion after the old words answer the same
+refusal through the same match, and the line named is followed through any
+later rename to the one le holds now. A retired name is never registered, so it is absent from
 `./le '|' json` and from the help page, and a test refuses a row whose old
 words are still a live command or action, so the refusal can never shadow one.
 `le doc check retired-commands` reads the
