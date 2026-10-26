@@ -12,8 +12,11 @@ package reactor
 
 import (
 	"bytes"
+	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -185,8 +188,14 @@ func TestReactorForwardRSHonorsRelaySendPermission(t *testing.T) {
 	}
 
 	skipped, dispatched := reactorForwardRS(r, h.update, 1, h.update.SourcePeerIP, source)
-	if len(skipped) != 0 {
-		t.Fatalf("skipped %v; want none", skipped)
+	// The two refused destinations go back to the route server, whose cached
+	// rail refuses and reports them (filterPermittedPeers,
+	// sendPermissionDenied), exactly as it does with no fast path.
+	wantSkipped := []netip.AddrPort{h.dests[1].Settings().PeerKey(), h.dests[2].Settings().PeerKey()}
+	slices.SortFunc(skipped, netip.AddrPort.Compare)
+	slices.SortFunc(wantSkipped, netip.AddrPort.Compare)
+	if !slices.Equal(skipped, wantSkipped) {
+		t.Fatalf("skipped %v; want %v, the destinations granting the route server no send [ update ]", skipped, wantSkipped)
 	}
 	if dispatched != 1 {
 		t.Fatalf("dispatched %d; want 1, the one destination granting the route server send", dispatched)
@@ -239,5 +248,65 @@ func TestReactorForwardRSRetryRechecksRelaySend(t *testing.T) {
 	}
 	if output[0].Len() <= message.HeaderLen {
 		t.Fatal("the granted destination received no UPDATE on the retry pass")
+	}
+}
+
+// TestRSFastPathWarnsOnceForAMissingGrant proves an rs-fast-path peer that
+// lacks a route-server grant is reported once, with the attach line that fixes
+// it, and not again on a rebuild that changes nothing. Method: capture the
+// forward logger, build the snapshot of a peer per attach block, then rebuild
+// it the way an interface event does (refreshForwardFactsIfLive) and count the
+// warnings. A peer without rs-fast-path, or with both grants, says nothing.
+// PREVENTS: the fast path declining a source or passing over a destination with
+// nothing in the log above debug, which made the grant rule invisible.
+func TestRSFastPathWarnsOnceForAMissingGrant(t *testing.T) {
+	both := ProcessBinding{
+		PluginName: rsFixtureRelay,
+		Receive:    map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived},
+		Send:       map[string]bool{bgpevents.SendUpdate: true},
+	}
+	for _, tc := range []struct {
+		name       string
+		fastPath   bool
+		bindings   []ProcessBinding
+		wantAction string
+	}{
+		// With no binding the fix names the first registered route server,
+		// which in this test binary need not be the fixture.
+		{"no_binding", true, nil, " { receive [ update-received ]; send [ update ]; }` to this peer"},
+		{"receive_only", true, []ProcessBinding{rsRelayReceiveBinding()}, "add `attach process " + rsFixtureRelay + " { send [ update ]; }` to this peer"},
+		{"send_only", true, []ProcessBinding{rsRelaySendBinding()}, "add `attach process " + rsFixtureRelay + " { receive [ update-received ]; }` to this peer"},
+		{"both_grants", true, []ProcessBinding{both}, ""},
+		{"no_fast_path", false, nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var sink bytes.Buffer
+			prev := fwdLogger
+			fwdLogger = func() *slog.Logger {
+				return slog.New(slog.NewTextHandler(&sink, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			}
+			t.Cleanup(func() { fwdLogger = prev })
+
+			settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01020304)
+			settings.RSFastPath = tc.fastPath
+			settings.ProcessBindings = tc.bindings
+			peer := NewPeer(settings)
+			peer.refreshForwardFacts()
+			peer.refreshForwardFactsIfLive()
+
+			warnings := strings.Count(sink.String(), "level=WARN")
+			if tc.wantAction == "" {
+				if warnings != 0 {
+					t.Fatalf("want no warning, got %q", sink.String())
+				}
+				return
+			}
+			if warnings != 1 {
+				t.Fatalf("want one warning across two snapshots, got %d: %q", warnings, sink.String())
+			}
+			if !strings.Contains(sink.String(), tc.wantAction) {
+				t.Fatalf("warning %q does not carry the fix %q", sink.String(), tc.wantAction)
+			}
+		})
 	}
 }

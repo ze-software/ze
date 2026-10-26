@@ -385,12 +385,18 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 		t.Cleanup(gate.release)
 	}
 	destination.sendingInitialRoutes.Store(0)
+	// Both sources are route-server clients like the destination: each grants
+	// the route server `send [ update ]`, so the fast path hands neither back
+	// on the skipped list when the other one sends (reactorForwardRSSection).
+	source.settings.ProcessBindings = append(source.settings.ProcessBindings, rsRelaySendBinding())
+	source.refreshForwardFacts()
 	other := NewPeer(&PeerSettings{
-		Connection: ConnectionBoth,
-		Address:    netip.MustParseAddr("10.0.0.3"),
-		LocalAS:    65000,
-		PeerAS:     65001,
-		RouterID:   0x01020303,
+		Connection:      ConnectionBoth,
+		Address:         netip.MustParseAddr("10.0.0.3"),
+		LocalAS:         65000,
+		PeerAS:          65001,
+		RouterID:        0x01020303,
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	})
 	other.state.Store(int32(PeerStateEstablished))
 	other.negotiated.Store(&NegotiatedCapabilities{

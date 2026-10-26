@@ -401,13 +401,17 @@ forwards in place of `bgp-rs`, so it obeys the permissions `bgp-rs` would. It
 relays an UPDATE only from a source peer that grants `bgp-rs`
 `receive [ update-received ]` (or `update`, or `*`), and only to a destination
 peer that grants `bgp-rs` `send [ update ]`. A source without the receive grant
-gets no forwarding on either path: the fast path declines it and logs why at
-debug level, and `bgp-rs` never sees its UPDATEs. A destination without the send
-grant is sent nothing. To fix either, add
+gets no forwarding on either path: the fast path declines it, and `bgp-rs` never
+sees its UPDATEs. A destination without the send grant is sent nothing: the fast
+path hands it back to `bgp-rs`, whose forward is refused and logged as
+`send refused`, exactly as with the fast path off. When a peer with
+`rs-fast-path` lacks either grant, Ze logs one warning for it as its session
+comes up (`rs-fast-path: this peer does not grant the route server what the
+fast path needs`), naming the missing grant and the line to add. To fix either, add
 `attach process <rs-name> { receive [ update-received ]; send [ update ]; }` to
 the peer, where `<rs-name>` is the name your `plugin { internal ... }` block
 gives `bgp-rs`.
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted, reportRSRelayGrants -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver fast-path gate -->
 

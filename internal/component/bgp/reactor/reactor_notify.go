@@ -721,10 +721,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			// receives. A source whose attach block feeds no RelaysOnRSFastPath
 			// process its UPDATEs is relayed by nobody on the cached rail, so it
 			// is relayed by nobody here either; the flag stays clear and the
-			// cache entry is released by the delivery count.
-			fwdLogger().Debug("rs fast path declined: the source does not feed the route server its UPDATEs",
-				"id", messageID, "peer", peer.addrString,
-				"fix", "attach the route server to the peer with receive [ update-received ]")
+			// cache entry is released by the delivery count. It says nothing
+			// per UPDATE: reportRSRelayGrants warned once, with the fix, when
+			// the snapshot was built without the grant.
 		case !ok:
 			// The entry was Add()ed a few lines above, so a miss means it was
 			// evicted under concurrent load. bgp-rs still delivers via

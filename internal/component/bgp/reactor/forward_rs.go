@@ -243,12 +243,16 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			continue
 		}
 		// The fast path forwards in place of the route server's cached
-		// forward, so it reaches only the peers that forward may reach: a
-		// peer granting the route server no `send [ update ]` is refused
-		// there (filterPermittedPeers), and is sent nothing here. Checked
-		// before the policy skips, because handing such a peer back to the
-		// plugin only earns it the same refusal.
+		// forward, so it sends nothing to a peer granting the route server no
+		// `send [ update ]`. It hands that peer back on the skipped list, as
+		// it does a peer its policy skips, so the cached rail decides it the
+		// way it would with no fast path: filterPermittedPeers refuses the
+		// forward and sendPermissionDenied reports it. Passing over it here
+		// instead made the two rails differ: with no granted destination the
+		// UPDATE fell back to the route server, which reported the refusal,
+		// and with one granted destination the refused one went unreported.
 		if !pf.rsRelaySend {
+			skipped = append(skipped, pf.peerKey)
 			continue
 		}
 		if !pf.exportPolicy.AcceptsAtEnd() {

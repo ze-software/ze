@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -274,7 +275,73 @@ func (p *Peer) forwardFacts() *peerForwardFacts {
 // interface table (link_scope.go).
 func (p *Peer) refreshForwardFacts() {
 	p.refreshLinkScope()
-	p.fwdFacts.Store(p.buildForwardFacts())
+	next := p.buildForwardFacts()
+	previous := p.fwdFacts.Swap(next)
+	p.reportRSRelayGrants(previous, next)
+}
+
+// reportRSRelayGrants tells the operator, once, that an rs-fast-path peer lacks
+// a route-server grant the fast path obeys (rsRelayReceive, rsRelaySend). The
+// fast path declines such a source and passes over such a destination without a
+// word per UPDATE, so this is where the decision is made visible: when a
+// snapshot first lacks a grant, after a session comes up (previous is nil) or
+// when a reload removes it. A rebuild that changes nothing (an interface event,
+// refreshPeerLinkScopes) says nothing again.
+func (p *Peer) reportRSRelayGrants(previous, next *peerForwardFacts) {
+	if !p.settings.RSFastPath {
+		return
+	}
+	missingReceive := !next.rsRelayReceive && (previous == nil || previous.rsRelayReceive)
+	missingSend := !next.rsRelaySend && (previous == nil || previous.rsRelaySend)
+	if !missingReceive && !missingSend {
+		return
+	}
+
+	p.mu.RLock()
+	relay := rsRelayProcessName(p.settings.ProcessBindings)
+	p.mu.RUnlock()
+
+	var missing, effect, action textbuf.Buffer
+	action.Str("add `attach process ").Str(relay).Str(" {")
+	if missingReceive {
+		missing.Str("receive [ update-received ]")
+		effect.Str("the routes this peer sends are relayed to no other peer")
+		action.Str(" receive [ update-received ];")
+	}
+	if missingSend {
+		if missingReceive {
+			missing.Str(" and ")
+			effect.Str("; ")
+		}
+		missing.Str("send [ update ]")
+		effect.Str("this peer is sent no route the route server relays")
+		action.Str(" send [ update ];")
+	}
+	action.Str(" }` to this peer")
+	fwdLogger().Warn("rs-fast-path: this peer does not grant the route server what the fast path needs",
+		"peer", p.settings.Address,
+		"process", relay,
+		"missing", missing.String(),
+		"effect", effect.String(),
+		"action", action.String())
+}
+
+// rsRelayProcessName answers the process name an operator's fix names: the
+// route-server process the peer already attaches, else the first registered
+// plugin declaring registry.RelaysOnRSFastPath. It runs only when
+// reportRSRelayGrants warns, never per UPDATE.
+func rsRelayProcessName(bindings []ProcessBinding) string {
+	for i := range bindings {
+		if registry.RelaysOnRSFastPath(bindings[i].PluginName) {
+			return bindings[i].PluginName
+		}
+	}
+	for _, reg := range registry.All() {
+		if reg.RelaysOnRSFastPath {
+			return reg.Name
+		}
+	}
+	return "<route-server process>"
 }
 
 // refreshForwardFactsIfLive rebuilds the snapshot only for a peer that already has
@@ -300,7 +367,9 @@ func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix) {
 			return
 		}
 		p.refreshLinkScopeFrom(connected)
-		if p.fwdFacts.CompareAndSwap(previous, p.buildForwardFacts()) {
+		next := p.buildForwardFacts()
+		if p.fwdFacts.CompareAndSwap(previous, next) {
+			p.reportRSRelayGrants(previous, next)
 			return
 		}
 	}
