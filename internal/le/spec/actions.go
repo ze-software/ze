@@ -27,7 +27,7 @@ import (
 // when bare: hooks and skills call it that way, and a bare listing would answer
 // them 0 with nothing done. `spec claim <spec>` is a verbless action: the area
 // word is the whole command and the spec file its positional value
-// (D-P4-areaword of plan/post-release/engineering/spec-le-cli-usability.md).
+// (D-P4-areaword of spec-le-cli-usability).
 
 // The value slots the review and state grammars name more than once.
 const (

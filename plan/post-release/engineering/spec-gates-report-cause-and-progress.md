@@ -282,7 +282,7 @@ renders no cause.
 - `failing-gate-prints-no-cause.md` 2026-09-19 guard self-check names the wrong causes: a guard message, the gate-population family.
 
 ## Related specs
-- `plan/post-release/engineering/spec-le-cli-usability.md` (absorbed the `le-one-verb-one-job` skeleton) owns `refuseVerb` and `refuseValue` answering 2 and saying why, in `internal/le/le/action/leaction.go`. This spec owns where they write; that one owns the exit-code contract.
+- `spec-le-cli-usability` (closed; absorbed the `le-one-verb-one-job` skeleton) owns `refuseVerb` and `refuseValue` answering 2 and saying why, in `internal/le/le/action/leaction.go`. This spec owns where they write; that one owns the exit-code contract.
 - `plan/post-release/engineering/spec-lint-ratchet-clock-and-discarded-errors.md` (ready) adds new lint captures. Its captures only refuse new occurrences if lint runs on commit, which AC-9 provides.
 
 ## Checklist

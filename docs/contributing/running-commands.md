@@ -112,8 +112,8 @@ runs it:
 
 ```
 $ ./le spec claim
-spec (the spec file this session takes): plan/post-release/engineering/spec-le-cli-usability.md
-running: le spec claim plan/post-release/engineering/spec-le-cli-usability.md
+spec (the spec file this session takes): plan/<bucket>/spec-<name>.md
+running: le spec claim plan/<bucket>/spec-<name>.md
 ```
 
 A line chosen at the menu is echoed the same way, whether or not anything was

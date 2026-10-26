@@ -202,6 +202,7 @@ before execution. The responsible component remains unestablished.
 |------------|------|-----------------|
 | `artifact-bytes-disagree-with-identity` | 2026-10-26 | native executable corruption after content hashing |
 | `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
+| `tool-help-contradicts-owner-rule.md` | 2026-10-25 | `le verify changed` help and page grant agents a run the Linux-host rule withholds (moved from the closed spec-le-cli-usability) |
 | `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` |
 | `blanket-mechanism-hid-missing-cases` | 2026-08-10 | Stop hook classifier |
 | `bulk-rename-corruption` | 2026-08-10 | lint `unused` on l2tp |

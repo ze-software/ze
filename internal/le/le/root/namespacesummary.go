@@ -7,7 +7,7 @@
 // It holds commands without being one, so no area registration describes it.
 // Its one sentence is declared here, by the package that owns the namespace,
 // and every surface that lists a namespace derives it from this registry
-// (plan/post-release/engineering/spec-le-cli-usability.md, D-P7-namespace).
+// (spec-le-cli-usability, D-P7-namespace).
 package leroot
 
 import (

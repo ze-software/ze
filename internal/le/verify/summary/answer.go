@@ -51,7 +51,7 @@ func Answer(args []string) (any, int) { return area().Answer(args) }
 
 // answerAppend appends the block one parsed line names. The parser does not
 // yet refuse a missing required keyword (D-P2-required in
-// plan/post-release/engineering/spec-le-cli-usability.md), so the append does,
+// spec-le-cli-usability), so the append does,
 // with the 2 a malformed line has always answered here: a block with no index,
 // no stage or no log is a mistake, never a default.
 func answerAppend(args leaction.Arguments) (any, int) {

@@ -114,7 +114,7 @@ func TestStressPrefixesLowerBound(t *testing.T) {
 // derived from the harness registry, so a new scenario is discoverable here
 // with no edit. Method: compare the declared enum values with StressScenarios,
 // and read them back from the usage line the listing renders. The keyword is an
-// enum since plan/post-release/engineering/spec-le-cli-usability.md typed it,
+// enum since spec-le-cli-usability typed it,
 // so the registry lives in Values and usage renders it as `<a|b|...>`.
 func TestStressScenarioPlaceholderIsTheRegistry(t *testing.T) {
 	want := strings.Join(testintegration.StressScenarios(), ",")

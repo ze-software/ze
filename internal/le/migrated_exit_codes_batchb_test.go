@@ -1,7 +1,7 @@
 package le
 
 // migratedRefusalsBatchB is the golden of the Phase 3 batch B areas
-// (plan/post-release/engineering/spec-le-cli-usability.md, AC-17). Each row
+// (spec-le-cli-usability, AC-17). Each row
 // carries the code the line answers through the table. A refusal the table's
 // PARSER makes answers 2 (D-P3-stray, D-P3-dash), so a row whose hand-rolled
 // parser answered 1 says so in its comment. A refusal the action's BODY makes

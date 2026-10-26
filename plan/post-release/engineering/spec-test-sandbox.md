@@ -222,6 +222,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | suite-shares-one-persistent-store.md | 2026-10-03 | plugin/clamped-path far daemons (startFarDaemons, internal/test/fixture/plu |
 | test-shares-a-process-global.md | 2026-10-21 | TestRFC7311ExtendedNextHopCostRecovery (internal/component/bgp/reactor/rfc7 |
 | test-shares-a-process-global.md | 2026-10-21 | TestImplicitDiscardReadsWhatTheLastApplyInstalled (internal/component/ike/e |
+| test-shares-a-process-global.md | 2026-10-25 | internal/le/le/root table-less probe tests, run alone (moved from the closed spec-le-cli-usability) |
 | container-build-leaves-root-owned-scratch.md | 2026-08-24 | tmp/kernel/build, written by the containerized kernel build and cleaned by |
 | container-build-leaves-root-owned-scratch.md | 2026-09-05 | setupBinShims (internal/test/runner/runner.go), reached by every .ci te |
 | check-mode-mutates-the-tree.md | 2026-09-14 | TestAMissingLLMSInputStopsTheBuild (internal/le/site/derived_test.go) |

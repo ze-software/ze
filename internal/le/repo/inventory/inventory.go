@@ -465,7 +465,7 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le repo inventory` command. A bare line runs the report, as
 // callers have always typed it (D-P3-bare in
-// plan/post-release/engineering/spec-le-cli-usability.md), so the table
+// spec-le-cli-usability), so the table
 // supplies the verb (leaction.Action.Default) and the table reads the rest of
 // the line. A word the area declares travels as it stands, so `le repo
 // inventory report` is the same action.

@@ -22,7 +22,7 @@ const (
 
 // The verbs and keywords of `le spec status`. The closure spellings are the
 // ones the Stop hook and ze-close type, kept until the rename phase of
-// plan/post-release/engineering/spec-le-cli-usability.md.
+// spec-le-cli-usability.
 const (
 	name           = "spec status"
 	verbReport     = "report"

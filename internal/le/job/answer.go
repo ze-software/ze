@@ -124,7 +124,7 @@ func parseRun(words []string) (runArgs, bool) {
 
 // runArgsOf turns the parsed keywords into the run. The parser does not yet
 // refuse a missing required keyword (D-P2-required in
-// plan/post-release/engineering/spec-le-cli-usability.md), so the run does:
+// spec-le-cli-usability), so the run does:
 // a job with no name or nothing to run is a mistake, never a default.
 func runArgsOf(args leaction.Arguments) (runArgs, error) {
 	if !args.Has(labelKeyword) {

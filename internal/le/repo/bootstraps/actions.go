@@ -45,7 +45,7 @@ var revEntry = env.MustRegister(env.EnvEntry{
 // the run failed to judge the commit.
 //
 // A bare line runs the gate, as hooks and verify stages have always typed it
-// (D-P3-bare in plan/post-release/engineering/spec-le-cli-usability.md), so the
+// (D-P3-bare in spec-le-cli-usability), so the
 // table supplies the verb (leaction.Action.Default) and reads the rest of the
 // line. A word the area declares travels as it stands, so `le repo bootstraps
 // check` is the same gate.

@@ -30,7 +30,7 @@ func manifestProbeRoots(t *testing.T) []registry.RootCommand {
 }
 
 // rootHelpToday is the root page for manifestProbeRoots on a pipe, laid out by
-// tree (plan/post-release/engineering/spec-le-cli-usability.md, AC-4). A
+// tree (spec-le-cli-usability, AC-4). A
 // reader's page is what the spec fixes, so the bytes are pinned rather than
 // described.
 const rootHelpToday = "le - the Ze repository and development entry point\n" +

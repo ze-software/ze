@@ -5,7 +5,7 @@
 // The command tree completion, help, the menu, prompting and `le help ai` read.
 // It is DERIVED from the registry and the action tables at the moment it is
 // asked for, so it holds no fact of its own: dispatch and validation still
-// parse only through leaction (plan/post-release/engineering/spec-le-cli-usability.md,
+// parse only through leaction (spec-le-cli-usability,
 // D-Q3).
 package leroot
 

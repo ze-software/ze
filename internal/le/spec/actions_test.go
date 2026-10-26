@@ -56,7 +56,7 @@ func parseReviewRecordLine(args []string) (reviewRecord, error) {
 
 // TestTheSpecMembersKeepTheirSpellings checks that each spelling a hook, a
 // skill or a page types still reads through its member's table: the rename
-// phase of plan/post-release/engineering/spec-le-cli-usability.md changes
+// phase of spec-le-cli-usability changes
 // spellings, and this phase must not. Method: parse each line through the
 // table and run nothing.
 //

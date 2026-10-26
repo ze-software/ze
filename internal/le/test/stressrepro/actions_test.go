@@ -1,4 +1,4 @@
-// Design: plan/post-release/engineering/spec-le-cli-usability.md -- AC-18, the run page from the table
+// Design: docs/functional-tests.md -- the native command keeps its closed option table
 // Related: actions.go -- the action table this test reads its expectations from
 
 // The external test package links le's composition root, which imports this

@@ -432,7 +432,7 @@ func (a Area) Parse(verb string, args []string) (Arguments, error) {
 // (internal/le/actions_test.go) now drives every published verb and is the
 // answer to "which areas are these", so a new one reddens the ratchet rather
 // than waiting for the next probe
-// (plan/post-release/engineering/spec-le-cli-usability.md).
+// (spec-le-cli-usability).
 //
 // A forwarding row (Row.Forwards) answers false for every word after its verb:
 // those words are another program's command line, so `perf send --help` asks
@@ -557,7 +557,7 @@ func IsOption(word string) bool {
 // letter against le's declared options would refuse `command prog -xyz`, which
 // is argv forwarding itself. So the test is four exact words, and every other
 // option travels on
-// (plan/post-release/engineering/spec-le-cli-usability.md).
+// (spec-le-cli-usability).
 //
 // leroot dispatches on the same answer, so the vocabulary is declared here and
 // read there.

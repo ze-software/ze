@@ -16,7 +16,7 @@ type migratedRefusal struct {
 
 // migratedRefusalsBatchA is the golden of the Phase 3 batch A areas, captured
 // from the hand-rolled parsers before each conversion
-// (plan/post-release/engineering/spec-le-cli-usability.md, AC-17). The bare
+// (spec-le-cli-usability, AC-17). The bare
 // line is in it because it answered the listing with 0 and ran no gate.
 //
 // The single-gate areas after doc yang-contract run their gate when bare
