@@ -27,7 +27,7 @@ import (
 //
 // Ze prevents it the way RFC 3948 Section 5.2 names for transport mode, "by disallowing
 // conflicting connections": a pair that overlaps a pair another peer holds is refused,
-// unless the operator configured the remote half of both and gave the two peers
+// unless the operator configured the whole of both and gave the two peers
 // different policy priorities (operatorOrdered). A transport-mode pair is recorded too,
 // because a tunnel another peer negotiates around a transport peer's address is the
 // same confusion: one packet, two SAs. Two transport-mode pairs are not compared here;
@@ -142,7 +142,7 @@ func ipNetText(n *net.IPNet) string {
 }
 
 // innerSelectorPair is one negotiated pair as the dataplane installs it outbound, with
-// whether the peer's operator configured its remote half, and its text for an operator.
+// whether the peer's operator configured that whole policy, and its text for an operator.
 // Its mode is the policy's (transport).
 type innerSelectorPair struct {
 	policy        dataplane.SPParams
@@ -166,15 +166,18 @@ func (p innerSelectorPair) kind() string {
 }
 
 // innerSelectorGuard is what a Child SA carries to be recorded: the registry its peer
-// session shares, and the remote selectors that peer's operator configured. A rekey
+// session shares, and the selector pairs that peer's operator configured. A rekey
 // inherits it from the retired Child SA, because the replacement belongs to the same
 // peer under the same configuration.
 type innerSelectorGuard struct {
-	registry         *innerSelectorRegistry
-	configuredRemote []tsSelector
-	// configuredHost is the peer's configured remote address as a host prefix (/32 or
-	// /128), or nil when the operator configured no single address (configuredRemoteHost).
-	configuredHost *net.IPNet
+	registry *innerSelectorRegistry
+	// configured is the peer's configured traffic selectors, each as the policy pair it
+	// installs in this node's orientation (configuredPairs).
+	configured []policyPair
+	// configuredHost is the pair a transport-mode connection installs between the two
+	// configured addresses for every protocol and every port, or nil when either address
+	// is not an address literal (configuredHostPair).
+	configuredHost *policyPair
 }
 
 // newInnerSelectorRegistry returns an empty registry.
@@ -182,24 +185,48 @@ func newInnerSelectorRegistry() *innerSelectorRegistry {
 	return &innerSelectorRegistry{held: make(map[*ChildSA]innerSelectorHolding)}
 }
 
-// configuredRemoteSelectors returns the remote halves of the operator's configured
-// traffic selectors of peer, the form innerSelectorPairOf compares against.
-func configuredRemoteSelectors(peer ipsec.SiteToSitePeer) []tsSelector {
-	out := make([]tsSelector, 0, len(peer.TrafficSelectors))
+// configuredPairs returns the operator's configured traffic selectors of peer, each as
+// the policy pair it installs in this node's orientation, the form classifyInnerPair
+// compares against. A configured selector carries one protocol for both halves, so the
+// pair installs that protocol (childPolicyPair intersects the two halves' protocols).
+func configuredPairs(peer ipsec.SiteToSitePeer) []policyPair {
+	out := make([]policyPair, 0, len(peer.TrafficSelectors))
 	for _, ts := range peer.TrafficSelectors {
-		out = append(out, tsSelector{Net: ts.RemotePrefix, Port: ts.RemotePort, Proto: ts.Protocol})
+		out = append(out, policyPair{
+			local:      ts.LocalPrefix,
+			remote:     ts.RemotePrefix,
+			upperProto: ts.Protocol,
+			localPort:  selectorPort(tsSelector{Port: ts.LocalPort}),
+			remotePort: selectorPort(tsSelector{Port: ts.RemotePort}),
+		})
 	}
 	return out
 }
 
-// configuredRemoteHost returns the peer's configured remote address as a host prefix,
-// the remote half of every transport-mode pair with that peer (RFC 7296 Section 2.23.1:
+// configuredHostPair returns the pair a transport-mode connection with peer installs when
+// nothing narrows it: this node's configured local address to the peer's configured remote
+// address, each as a host prefix, every protocol and every port (RFC 7296 Section 2.23.1:
 // "For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.").
-// It is nil when RemoteAddress is not an address literal (the remote-address leaf also
-// takes a DNS hostname): then the operator wrote no address, only a name that resolves
-// to one, and no transport pair of that peer is operator-fixed by it (classifyInnerPair).
-func configuredRemoteHost(peer ipsec.SiteToSitePeer) *net.IPNet {
-	ip := net.ParseIP(peer.RemoteAddress)
+// The local half is the address the IKE SA runs on (observedLocalAddress). It is nil when
+// either address is not an address literal (the remote-address leaf also takes a DNS
+// hostname): then the operator wrote no address, only a name that resolves to one, and no
+// transport pair of that peer is operator-fixed by it (classifyInnerPair).
+func configuredHostPair(peer ipsec.SiteToSitePeer) *policyPair {
+	local := hostPrefixOf(peer.LocalAddress)
+	if local == nil {
+		return nil
+	}
+	remote := hostPrefixOf(peer.RemoteAddress)
+	if remote == nil {
+		return nil
+	}
+	return &policyPair{local: local, remote: remote}
+}
+
+// hostPrefixOf returns the address literal address as a host prefix (/32 or /128), or nil
+// when address is not an address literal.
+func hostPrefixOf(address string) *net.IPNet {
+	ip := net.ParseIP(address)
 	if ip == nil {
 		return nil
 	}
@@ -215,72 +242,91 @@ func configuredRemoteHost(peer ipsec.SiteToSitePeer) *net.IPNet {
 //
 // RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
 // entries to express a desired access control policy." A pair is operator-fixed when the
-// operator wrote its remote half, in one of two ways: it is exactly a remote selector the
-// operator configured, prefix, protocol and port alike; or it is a transport-mode pair
-// whose remote half is exactly the peer's configured remote address (configuredHost), any
-// protocol and any port, because a transport-mode connection's selectors are its two endpoint addresses and no
-// traffic selector can move them. Two such pairs of different peers overlap because the
-// operator wrote them so, and that stays legal while their policy-priority values differ
-// and so order them (operatorOrdered). A remote half the peer narrowed inside a
-// configured prefix, protocol or port, or narrowed to one protocol or port at the
-// configured remote address, is the peer's choice, and is not operator-fixed.
-func innerSelectorPairOf(child *ChildSA, pair tsPair, configuredRemote []tsSelector,
-	configuredHost *net.IPNet,
+// operator wrote the whole policy it installs, in one of two ways: it is exactly a traffic
+// selector the operator configured, both prefixes, the protocol and both ports alike; or
+// it is a transport-mode pair that is exactly the two configured addresses
+// (configuredHost) for every protocol and every port, because a transport-mode
+// connection's selectors are its two endpoint addresses and no traffic selector can move
+// them. Two such pairs of different peers overlap because the operator wrote them so, and
+// that stays legal while their policy-priority values differ and so order them
+// (operatorOrdered). A pair the peer narrowed, on either half, inside a configured
+// selector or to one protocol or port between the configured addresses, is the peer's
+// choice, and is not operator-fixed: the policy the priorities would order is not one the
+// operator wrote.
+func innerSelectorPairOf(child *ChildSA, pair tsPair, configured []policyPair,
+	configuredHost *policyPair,
 ) (innerSelectorPair, bool) {
-	pp, remote, ok := childPolicyPair(child, pair)
+	pp, _, ok := childPolicyPair(child, pair)
 	if !ok {
 		return innerSelectorPair{}, false
 	}
-	return classifyInnerPair(child, pp, remote, configuredRemote, configuredHost), true
+	return classifyInnerPair(child, pp, configured, configuredHost), true
 }
 
 // classifyInnerPair builds the outbound policy of pp, a pair already in this node's
-// orientation whose remote half is remote, and classifies it (innerSelectorPairOf).
-func classifyInnerPair(child *ChildSA, pp policyPair, remote tsSelector, configuredRemote []tsSelector,
-	configuredHost *net.IPNet,
+// orientation, and classifies it (innerSelectorPairOf). It judges pp whole, because pp is
+// what the dataplane installs: its protocol is the intersection of the two halves'
+// (childPolicyPair), so a peer that narrows only this node's half still narrows the policy.
+func classifyInnerPair(child *ChildSA, pp policyPair, configured []policyPair,
+	configuredHost *policyPair,
 ) innerSelectorPair {
 	p := innerSelectorPair{
 		policy: childPairPolicy(child, dataplane.SADirOut, pp),
 		text:   innerPairText(pp),
 	}
-	for _, c := range configuredRemote {
-		if sameInnerSelector(c, remote) {
+	for _, c := range configured {
+		if samePolicyPair(c, pp) {
 			p.operatorFixed = true
 			return p
 		}
 	}
 	if p.transport() {
-		p.operatorFixed = isConfiguredHost(remote, configuredHost)
+		p.operatorFixed = isConfiguredHost(pp, configuredHost)
 	}
 	return p
 }
 
-// isConfiguredHost reports whether remote is exactly host, the peer's configured remote
-// address (configuredRemoteHost), for every protocol and every port. The operator wrote
-// the address and nothing else, so a remote half the peer narrowed to one protocol or
-// one port is the peer's choice, as it is inside a configured traffic selector. A nil
-// host matches nothing.
-func isConfiguredHost(remote tsSelector, host *net.IPNet) bool {
+// isConfiguredHost reports whether pp is exactly host, the pair between the peer's two
+// configured addresses (configuredHostPair), for every protocol and every port on both
+// halves. The operator wrote the addresses and nothing else, so a pair the peer narrowed
+// to one protocol or one port, on either half, is the peer's choice, as it is inside a
+// configured traffic selector. A nil host matches nothing.
+func isConfiguredHost(pp policyPair, host *policyPair) bool {
 	if host == nil {
 		return false
 	}
-	return sameInnerSelector(tsSelector{Net: host}, remote)
+	return samePolicyPair(*host, pp)
 }
 
-// sameInnerSelector reports whether two selectors match exactly the same packets on
-// their side: one prefix, one protocol, one port match. The port is compared in the
-// form the dataplane installs (selectorPort), so an unset port and "any" agree.
-func sameInnerSelector(a, b tsSelector) bool {
-	if a.Proto != b.Proto {
+// samePolicyPair reports whether two pairs install the same policy: both prefixes, one
+// protocol, and both port matches in the form the dataplane installs (selectorPort), so
+// an unset port and "any" agree.
+func samePolicyPair(a, b policyPair) bool {
+	if a.upperProto != b.upperProto {
 		return false
 	}
-	if selectorPort(a) != selectorPort(b) {
+	if a.localPort != b.localPort {
 		return false
 	}
-	if a.Net == nil || b.Net == nil {
-		return a.Net == nil && b.Net == nil
+	if a.remotePort != b.remotePort {
+		return false
 	}
-	return a.Net.String() == b.Net.String()
+	if !samePrefix(a.local, b.local) {
+		return false
+	}
+	return samePrefix(a.remote, b.remote)
+}
+
+// samePrefix reports whether a and b are one prefix. Two nil prefixes agree, and a nil
+// prefix matches no other.
+func samePrefix(a, b *net.IPNet) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return false
+	}
+	return a.String() == b.String()
 }
 
 // innerPairText renders a pair in this node's orientation for an operator.
@@ -331,8 +377,8 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair, mode uint8) ([]tsPair, err
 	// The Child SA this answer would install, as far as its policies go: this node
 	// responds, so its own side is TSr (narrowChildSelectors).
 	probe := &ChildSA{IfID: ifID, Mode: mode, Owner: sa.PeerName, PolicyPriority: sa.PeerCfg.PolicyPriority}
-	configured := configuredRemoteSelectors(sa.PeerCfg)
-	host := configuredRemoteHost(sa.PeerCfg)
+	configured := configuredPairs(sa.PeerCfg)
+	host := configuredHostPair(sa.PeerCfg)
 	kept := make([]tsPair, 0, len(pairs))
 	var refusal error
 	for _, pair := range pairs {
@@ -358,7 +404,7 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair, mode uint8) ([]tsPair, err
 // innerSelectorPairsOf builds every pair child installs, in the order childPolicies
 // installs them.
 func innerSelectorPairsOf(child *ChildSA) []innerSelectorPair {
-	configured := child.innerGuard.configuredRemote
+	configured := child.innerGuard.configured
 	host := child.innerGuard.configuredHost
 	// A Child SA with no negotiated pairs installs one policy from TSLocal and TSRemote,
 	// already in this node's orientation (childPolicies). The pair is built the same
@@ -366,7 +412,7 @@ func innerSelectorPairsOf(child *ChildSA) []innerSelectorPair {
 	// read TSLocal as the remote half and recorded the policy reversed.
 	if len(child.Selectors) == 0 {
 		pp := policyPair{local: child.TSLocal, remote: child.TSRemote}
-		return []innerSelectorPair{classifyInnerPair(child, pp, tsSelector{Net: child.TSRemote}, configured, host)}
+		return []innerSelectorPair{classifyInnerPair(child, pp, configured, host)}
 	}
 	out := make([]innerSelectorPair, 0, len(child.Selectors))
 	for _, pair := range child.Selectors {
@@ -637,8 +683,8 @@ func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair
 }
 
 // operatorOrdered reports whether the operator both wrote and ordered the overlap of p
-// and h: each remote half is operator-fixed (a selector the operator configured, or a
-// transport-mode pair's configured remote address, classifyInnerPair), and the two policies
+// and h: each pair is operator-fixed (a selector pair the operator configured, or a
+// transport-mode pair between the two configured addresses, classifyInnerPair), and the two policies
 // sit at different priorities, so the SPD sends every packet into one tunnel. Equal
 // priorities fail the test even when both pairs are operator-fixed (conflictLocked).
 func operatorOrdered(p, h innerSelectorPair) bool {
@@ -689,36 +735,41 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 // innerSelectorTransportConflict is innerSelectorConflict when one of the two pairs is a
 // transport-mode connection; tunnelPeer is the peer of the other pair, the one whose
 // configuration can move it. Its last fix states the exemption operatorOrdered grants:
-// distinct priorities order the two only when the tunnel's remote half is exactly a
-// traffic selector its operator configured and the transport-mode connection's remote
-// half is exactly its peer's configured remote address, any protocol and any port
-// (classifyInnerPair), and it names when that address exists: a remote-address that is
-// an address literal (configuredRemoteHost), or a single-host traffic selector the
-// transport peer's operator configured.
+// distinct priorities order the two only when the tunnel is exactly a traffic selector its
+// operator configured, both halves, and the transport-mode connection is exactly the pair
+// between its peer's two configured addresses, any protocol and any port
+// (classifyInnerPair). It names when that pair exists: a local-address and a
+// remote-address that are address literals (configuredHostPair), or a traffic selector of
+// exactly those two hosts the transport peer's operator configured. The selector commands
+// carry the connection's own two addresses, each a host prefix of its family (/32 or
+// /128), and both halves, because a traffic selector entry commits only with its local
+// prefix (ze-ipsec-conf.yang, local prefix mandatory) and a transport-mode peer's selector
+// takes single hosts alone.
 func innerSelectorTransportConflict(owner string, p innerSelectorPair, holder string, h innerSelectorPair,
 	tunnelPeer string,
 ) error {
 	transportPeer := owner
+	transport := p
 	if tunnelPeer == owner {
 		transportPeer = holder
+		transport = h
 	}
-	return fmt.Errorf("%w: peer %s proposed the %s %s, which overlaps the %s %s that peer %s "+
+	return fmt.Errorf("%[1]w: peer %[2]s proposed the %[3]s %[4]s, which overlaps the %[5]s %[6]s that peer %[7]s "+
 		"already holds, so one packet could be sent into either SA (RFC 3948 Section 5.1); "+
-		"configure remote prefixes for peer %s that leave out the transport-mode peer's address with "+
-		"'set vpn ipsec site-to-site peer %s traffic-selector <n> remote prefix <prefix>', bind peer %s "+
-		"to a virtual-IP pool with 'set vpn ipsec site-to-site peer %s virtual-ip-pool <pool>', or, "+
-		"where peer %s's configured traffic selector covers peer %s's configured remote address on "+
+		"configure remote prefixes for peer %[8]s that leave out the transport-mode peer's address with "+
+		"'set vpn ipsec site-to-site peer %[8]s traffic-selector <n> remote prefix <prefix>', bind peer %[8]s "+
+		"to a virtual-IP pool with 'set vpn ipsec site-to-site peer %[8]s virtual-ip-pool <pool>', or, "+
+		"where peer %[8]s's configured traffic selector covers peer %[9]s's address on "+
 		"purpose, order the two by giving one a different priority with "+
-		"'set vpn ipsec site-to-site peer %s policy-priority <n>': the priorities order them only "+
-		"when the tunnel's remote half is exactly a traffic selector peer %s's operator configured "+
-		"and the transport-mode connection's remote half is exactly peer %s's configured remote address "+
-		"for any protocol and any port, which it has only when peer %s's 'remote-address' is an address "+
-		"literal rather than a DNS hostname, or when peer %s's operator configured a traffic selector of "+
-		"that one host with 'set vpn ipsec site-to-site peer %s traffic-selector <n> remote prefix <address>/32'",
+		"'set vpn ipsec site-to-site peer %[2]s policy-priority <n>': the priorities order them only "+
+		"when the tunnel is exactly a traffic selector peer %[8]s's operator configured, both halves, "+
+		"and the transport-mode connection is exactly local %[10]s remote %[11]s for any protocol and "+
+		"any port, which it is only when peer %[9]s's 'local-address' and 'remote-address' are address "+
+		"literals rather than DNS hostnames, or when peer %[9]s's operator configured that pair as a "+
+		"traffic selector with 'set vpn ipsec site-to-site peer %[9]s traffic-selector <n> local prefix %[10]s' "+
+		"and 'set vpn ipsec site-to-site peer %[9]s traffic-selector <n> remote prefix %[11]s', then commit",
 		errInnerSelectorConflict, owner, p.kind(), p.text, h.kind(), h.text, holder,
-		tunnelPeer, tunnelPeer, tunnelPeer, tunnelPeer,
-		tunnelPeer, transportPeer, owner, tunnelPeer, transportPeer,
-		transportPeer, transportPeer, transportPeer)
+		tunnelPeer, transportPeer, transport.policy.Src.String(), transport.policy.Dst.String())
 }
 
 // innerSelectorStrandedConflict is the refusal of p for owner because a removed Child SA

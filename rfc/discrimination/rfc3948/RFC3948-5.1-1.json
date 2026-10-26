@@ -23,14 +23,47 @@
   },
   {
     "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948ConcurrentInstallsHoldOneInnerAddress",
+    "unit-sha": "fa6b04d419e90e70",
+    "claim-sha": "a3bb7210c7bf8c99",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
+    "producer-sha": "f86a425719742ef1",
+    "break": "line 468: \"r.adoptStrandedLocked(owner, installs)\" -\u003e \"r.mu.Unlock(); r.retryMu.Unlock(); r.retryMu.Lock(); r.mu.Lock(); r.adoptStrandedLocked(owner, installs)\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused",
+    "unit-sha": "930411afce07ca6c",
+    "claim-sha": "bb15e9d28e574b76",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::classifyInnerPair",
+    "producer-sha": "4f923b3d70797bb1",
+    "break": "line 284: \"p.operatorFixed = isConfiguredHost(pp, configuredHost)\" -\u003e \"p.operatorFixed = true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_local_half_test.go::TestRFC3948OrderedTransportLocalHalfNarrowedRefused",
+    "unit-sha": "5e611efd0812cbe9",
+    "claim-sha": "a7a2767a05ffcad8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::isConfiguredHost",
+    "producer-sha": "be74f55b2e213d9f",
+    "break": "line 298: \"return samePolicyPair(*host, pp)\" -\u003e \"return samePrefix(host.remote, pp.remote) \u0026\u0026 host.remotePort == pp.remotePort\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go::TestRFC3948OrderedTransportBesideFullTunnelServed",
     "unit-sha": "735e4931af5ae91b",
     "claim-sha": "6dec58b360eabb63",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::classifyInnerPair",
-    "producer-sha": "ad7ba15acba0542f",
-    "break": "line 253: \"p.operatorFixed = isConfiguredHost(remote, configuredHost)\" -\u003e \"p.operatorFixed = false\""
+    "producer-sha": "4f923b3d70797bb1",
+    "break": "line 284: \"p.operatorFixed = isConfiguredHost(pp, configuredHost)\" -\u003e \"p.operatorFixed = false\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -51,8 +84,8 @@
     "claim-sha": "5a3b782110b78c28",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::isConfiguredHost",
-    "producer-sha": "91e6d5c0c6cad70f",
-    "break": "line 267: \"return sameInnerSelector(tsSelector{Net: host}, remote)\" -\u003e \"return remote.Net != nil \u0026\u0026 remote.Net.String() == host.String()\""
+    "producer-sha": "be74f55b2e213d9f",
+    "break": "line 298: \"return samePolicyPair(*host, pp)\" -\u003e \"return samePrefix(host.remote, pp.remote)\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -160,9 +193,9 @@
     "unit-sha": "11840e9e37251e60",
     "claim-sha": "95508a017447a35c",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
-    "producer-sha": "28e15c7002924714",
-    "break": "line 241: \"return a.Net.String() == b.Net.String()\" -\u003e \"return true\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::samePolicyPair",
+    "producer-sha": "89bbfa4cd5d535af",
+    "break": "line 317: \"return samePrefix(a.remote, b.remote)\" -\u003e \"return true\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -171,9 +204,9 @@
     "unit-sha": "a00ee0f1c7eb70a9",
     "claim-sha": "afd314bc7b95b751",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
-    "producer-sha": "28e15c7002924714",
-    "break": "line 235: \"if selectorPort(a) != selectorPort(b) {\" -\u003e \"if false {\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::samePolicyPair",
+    "producer-sha": "89bbfa4cd5d535af",
+    "break": "line 311: \"if a.remotePort != b.remotePort {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -182,9 +215,9 @@
     "unit-sha": "8397c425bea02e6d",
     "claim-sha": "48f1159780cab0d0",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
-    "producer-sha": "28e15c7002924714",
-    "break": "line 232: \"if a.Proto != b.Proto {\" -\u003e \"if false {\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::samePolicyPair",
+    "producer-sha": "89bbfa4cd5d535af",
+    "break": "line 305: \"if a.upperProto != b.upperProto {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC3948-5.1-1",

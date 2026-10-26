@@ -37,13 +37,22 @@ var (
 	transportTSr = []string{"192.0.2.1/32"}
 )
 
-// mustNamePeersAndFix asserts the refusal names both peers and the selector fix on the
-// tunnel peer.
+// mustNamePeersAndFix asserts the refusal names both peers, the selector fix on the
+// tunnel peer, and the traffic selector that would make the transport-mode connection
+// operator-fixed: both halves, as the connection's own host prefixes (this node
+// 192.0.2.1, the transport peer 198.18.0.9), since an entry with no local prefix does
+// not commit.
 func mustNamePeersAndFix(t *testing.T, err error, tunnelPeer string) {
 	t.Helper()
+	transportPeer := "b"
+	if tunnelPeer == "b" {
+		transportPeer = "a"
+	}
 	for _, want := range []string{
 		"peer a ", "peer b ", "transport-mode connection",
 		"set vpn ipsec site-to-site peer " + tunnelPeer + " traffic-selector <n> remote prefix <prefix>",
+		"set vpn ipsec site-to-site peer " + transportPeer + " traffic-selector <n> local prefix 192.0.2.1/32",
+		"set vpn ipsec site-to-site peer " + transportPeer + " traffic-selector <n> remote prefix 198.18.0.9/32",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not name %q", err, want)

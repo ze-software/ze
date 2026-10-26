@@ -623,12 +623,12 @@ func TestRFC3948FailedPolicyRemovalKeepsRecord(t *testing.T) {
 // TestInnerSelectorPairsOfNoSelectorsMatchesPolicy: a Child SA with no negotiated pairs is
 // recorded as the policy childPolicies installs from TSLocal and TSRemote, not reversed.
 // Method: compare the recorded outbound policy with the installed one, and check the
-// remote half the operator configured is classified operator-fixed.
+// pair the operator configured is classified operator-fixed.
 func TestInnerSelectorPairsOfNoSelectorsMatchesPolicy(t *testing.T) {
-	remote := mustNet(t, "10.1.2.3/32")
+	local, remote := mustNet(t, "192.0.2.0/24"), mustNet(t, "10.1.2.3/32")
 	child := &ChildSA{
-		Owner: "a", Mode: modeTunnel, TSLocal: mustNet(t, "192.0.2.0/24"), TSRemote: remote,
-		innerGuard: innerSelectorGuard{configuredRemote: []tsSelector{{Net: remote}}},
+		Owner: "a", Mode: modeTunnel, TSLocal: local, TSRemote: remote,
+		innerGuard: innerSelectorGuard{configured: []policyPair{{local: local, remote: remote}}},
 	}
 	pairs := innerSelectorPairsOf(child)
 	if len(pairs) != 1 {
@@ -640,7 +640,7 @@ func TestInnerSelectorPairsOfNoSelectorsMatchesPolicy(t *testing.T) {
 			installed.Src, installed.Dst)
 	}
 	if !pairs[0].operatorFixed {
-		t.Fatal("the configured remote half 10.1.2.3/32 was not classified operator-fixed")
+		t.Fatal("the configured pair 192.0.2.0/24 to 10.1.2.3/32 was not classified operator-fixed")
 	}
 }
 

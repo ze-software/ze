@@ -292,16 +292,18 @@ transport-mode connection inside a tunnel another peer already holds, whichever
 of the two comes first. The warning names both peers, and the fix is on the
 tunnel peer: remote prefixes that leave out the transport-mode peer's address,
 or a pool. Where the overlap is on purpose, different `policy-priority` values
-order the two, exactly as for two tunnels, when the tunnel's remote half is
-exactly a traffic selector you configured on the tunnel peer and the
-transport-mode connection's remote half is exactly that peer's `remote-address`,
+order the two, exactly as for two tunnels, when the tunnel is exactly a traffic
+selector you configured on the tunnel peer, both sides, and the transport-mode
+connection runs exactly from that peer's `remote-address` to its `local-address`,
 for every protocol and port. A transport-mode peer that narrows its proposal to
-one protocol or one port at that address, `198.18.0.9/32` TCP port 80 for
-example, chose that itself, and is refused at any priority. A host-to-host
+one protocol or one port, on its own address or on Ze's (`198.18.0.9/32` to
+`192.0.2.1/32` TCP port 80 for example), chose that itself, and is refused at any
+priority. The refusal names the traffic selector that would order the connection,
+both prefixes at the connection's own addresses, /32 for IPv4 and /128 for IPv6. A host-to-host
 transport-mode peer at 198.18.0.9 beside a full-tunnel peer configured with
 `0.0.0.0/0` on both sides is therefore served at two different priorities, and
-refused at one. A transport-mode peer whose `remote-address` is a
-DNS hostname is ordered only by a traffic selector you configured on it. Two
+refused at one. A transport-mode peer whose `remote-address` or `local-address`
+is a DNS hostname is ordered only by a traffic selector you configured on it. Two
 transport-mode peers that overlap, two clients behind one NAT for example, are
 refused by the dataplane instead (RFC 3948 Section 5.2).
 

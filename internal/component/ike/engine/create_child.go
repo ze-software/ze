@@ -90,9 +90,9 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		// RFC 3948 Section 5.1: installChildSA records this Child SA's tunnel selectors
 		// against every other peer's.
 		innerGuard: innerSelectorGuard{
-			registry:         sa.innerSelectors,
-			configuredRemote: configuredRemoteSelectors(sa.PeerCfg),
-			configuredHost:   configuredRemoteHost(sa.PeerCfg),
+			registry:       sa.innerSelectors,
+			configured:     configuredPairs(sa.PeerCfg),
+			configuredHost: configuredHostPair(sa.PeerCfg),
 		},
 		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
 		// of them.

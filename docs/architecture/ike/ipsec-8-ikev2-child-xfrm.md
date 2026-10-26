@@ -470,18 +470,25 @@ transport-mode pairs is left to `claim` above (`conflictLocked`,
 
 The operator-ordered exemption applies to a tunnel against a transport-mode pair
 as to two tunnels: both pairs operator-fixed, at different `policy-priority`
-values (`operatorOrdered`). The tunnel's remote half is operator-fixed when it is
-exactly a traffic selector its operator configured. A transport-mode pair's
-remote half is operator-fixed when it is exactly such a selector, or when it is
-exactly the peer's configured remote address as a host prefix, /32 or /128, for
-any protocol and any port (`classifyInnerPair`, `configuredRemoteHost`,
-`isConfiguredHost`), because a transport-mode connection's selectors are its
-endpoint addresses and an ordinary host-to-host peer configures no traffic
-selector. The operator wrote that address and nothing else, so a remote half the
-peer narrowed to one protocol or one port at that address (198.18.0.9/32, TCP
-port 80) is the peer's choice, as inside a configured selector, and is refused
-against an overlapping pair at any priority
-(`TestRFC3948OrderedTransportNarrowedToPortRefused`). So a transport-mode peer at 198.18.0.9 beside
+values (`operatorOrdered`). A pair is judged whole, as the policy it installs:
+both prefixes, the protocol (the intersection of the two halves' protocols,
+`childPolicyPair`) and both ports (`samePolicyPair`). A tunnel pair is
+operator-fixed when it is exactly a traffic selector its operator configured. A
+transport-mode pair is operator-fixed when it is exactly such a selector, or when
+it is exactly the pair between the peer's configured `local-address` and
+`remote-address` as host prefixes, /32 or /128, for any protocol and any port on
+both halves (`classifyInnerPair`, `configuredHostPair`, `isConfiguredHost`),
+because a transport-mode connection's selectors are its endpoint addresses and an
+ordinary host-to-host peer configures no traffic selector. The operator wrote
+those addresses and nothing else, so a pair the peer narrowed to one protocol or
+one port on either half (TSi 198.18.0.9/32 TCP port 80, or TSi any with TSr
+192.0.2.1/32 TCP port 80), or a host other than the configured address, is the
+peer's choice, as inside a configured selector, and is refused against an
+overlapping pair at any priority (`TestRFC3948OrderedTransportNarrowedToPortRefused`,
+`TestRFC3948OrderedTransportLocalHalfNarrowedRefused`,
+`TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused`). The refusal
+(`innerSelectorTransportConflict`) names that traffic selector with both halves at
+the connection's own host prefixes. So a transport-mode peer at 198.18.0.9 beside
 a full-tunnel peer configured with 0.0.0.0/0 on both sides is served when the two
 priorities differ, and the second to establish is refused when they are equal. A
 peer whose `remote-address` is a DNS hostname rather than an address literal has
