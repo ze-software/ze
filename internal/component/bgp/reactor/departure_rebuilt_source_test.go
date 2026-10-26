@@ -1,6 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- source-owned DOWN recovery.
 // Related: peer.go -- forwardGenerationClock, advanceForwardGeneration
-// Related: relay_recovery.go -- departedOwner, unsendableSurvivor
+// Related: relay_recovery.go -- departedOwner, unsendableSurvivor, recoverySources, queueRecoveryOutcome
 // Related: adj_rib_out.go -- announcerLifts
 
 package reactor
@@ -10,7 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // rebuiltSource is a new Peer for old's address, as a config remove and
@@ -144,7 +146,8 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	unheld := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received + 1,
 		AddPath: entry.owner.addPath, MessageID: 3}
 	decided := recoveryAdmitKey{key: key, record: record}
-	admission := &recoveryAdmission{peer: rail.destination}
+	_, issued := (&reactorAPIAdapter{r: rail.r}).recoverySources()
+	admission := &recoveryAdmission{peer: rail.destination, sourcesIssued: issued}
 	admission.unsendableSurvivor(&decided, &unheld)
 	require.Equal(t, recoveryKeyReowed, decided.outcome,
 		"a path the destination does not hold cannot be sent from a sessionless source")
@@ -162,4 +165,63 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	table.mu.Unlock()
 	require.NotContains(t, excluded, source,
 		"a session started after the decision stays excluded by the unsendable survivor")
+}
+
+// PREVENTS: a survivor judged sessionless against the round's source snapshot
+// being excluded up to the clock at the decision, which covers a session the
+// source started after the snapshot, during the RIB lookup. That session
+// announces the key and ends under graceful restart before the next round,
+// and the exclusion then skips its retained route (RFC 4724 Section 4.2).
+// Method: the source's departure owes the key; the round's snapshot is taken
+// through recoverySources while the source is sessionless; the source then
+// starts a session; the survivor goes through queueRecoveryOutcome, whose
+// queueRecovery refuses it because the session is not the snapshot's
+// (errRelayNoSource), so the key is re-owed with the source excluded; that
+// session announces the key and ends; the next round must ask the RIB with
+// the source electable.
+func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
+	rail := newOwedRail(t)
+	source := rail.source.Settings().Address
+	prefix := []byte{24, 192, 0, 2}
+	ended := oldPeerSessions(t, rail, prefix)
+
+	departure := departureGenerationBatch(source, ended)
+	session := rail.destination.currentSession()
+	owed, err := oweDeparture(rail.destination, session, &departure)
+	require.NoError(t, err)
+	require.Len(t, owed, 1, "the departure owes the source's route")
+	record := owed[0]
+	key := departureGenerationKey(t, rail.destination)
+	entry, held := adjOutTestEntry(rail.destination)
+	require.True(t, held)
+
+	adapter := &reactorAPIAdapter{r: rail.r}
+	sources, issued := adapter.recoverySources()
+	rail.source.setState(PeerStateEstablished) // Started during the RIB lookup.
+	require.Greater(t, rail.source.forwardGeneration.Load(), issued)
+
+	admission := &recoveryAdmission{peer: rail.destination, session: session, ctx: t.Context(),
+		done: make(chan struct{}), sources: sources, sourcesIssued: issued,
+		keys: []recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}}}
+	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source,
+		PathID: entry.owner.received + 1, AddPath: entry.owner.addPath, MessageID: 3}}}
+	require.NoError(t, adapter.queueRecoveryOutcome(&outcome, 0, family.IPv4Unicast, admission, plugin.OperatorSender()))
+	decided := &admission.keys[0]
+	require.Equal(t, recoveryKeyReowed, decided.outcome,
+		"a survivor whose session is not the snapshot's is re-owed with its source excluded")
+	require.Equal(t, issued, decided.gone.generation,
+		"the exclusion is bounded by the round's snapshot, not the clock at the decision")
+	table := &rail.destination.adjOut
+	table.mu.Lock()
+	record.exclude(decided.gone)
+	table.mu.Unlock()
+
+	adjOutTestForward(t, rail.destination, rail.source, prefix, 4)
+	endSession(rail.source)
+
+	table.mu.Lock()
+	excluded := record.electableExcluded()
+	table.mu.Unlock()
+	require.NotContains(t, excluded, source,
+		"a session started during the lookup stays excluded by the unsendable survivor")
 }

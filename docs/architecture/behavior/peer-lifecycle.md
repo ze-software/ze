@@ -17,8 +17,9 @@ A peer outlives its sessions, so the `Peer` also carries the two counters
 that fence its forwarded routes across them. `forwardGeneration` advances
 when a new session reaches Established and when the peer is stopped, and it
 takes each new value from one process-wide clock (`advanceForwardGeneration`),
-so a `Peer` built again for an address that was removed and re-added starts
-above every generation the old one used. `forwardRevocation` advances when a
+so the first session of a `Peer` built again for an address that was removed
+and re-added is above every generation the old one used (the new `Peer` holds
+zero until that session reaches Established). `forwardRevocation` advances when a
 reload unbinds processes from a session that stays up (`unbindProcesses`),
 because that targeted down moves no generation. An Adj-RIB-Out path is still
 owned by its source only while both counters match the values it recorded.

@@ -294,7 +294,8 @@ type Peer struct {
 	// a generation is ordered against every other Peer's too: departures and
 	// exclusions compare generations by source address, and a Peer rebuilt
 	// for an address (config remove and re-add, a dynamic peer re-created)
-	// MUST start above every generation its predecessor stamped.
+	// holds zero until its first session reaches Established, and that
+	// session MUST be above every generation its predecessor stamped.
 	forwardGeneration atomic.Uint64
 
 	// forwardRevocation fences this source's Adj-RIB-Out ownership across a

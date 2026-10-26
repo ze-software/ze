@@ -385,11 +385,13 @@ revision, the key is held and nothing is written: the newer revision waits for
 the source's next session to announce it, and the source's own departure or
 the RIB's stale purge withdraws the path if the source does not return. An
 ADD-PATH key, owed per prefix, never holds this way. Otherwise the key is
-owed again with the source excluded over every session known so far: the
-exclusion's bound is the newest generation issued when the round decided, so a
-session the source starts later, even one that announces the key and then ends
-under graceful restart before the next round, lifts it
-(`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
+owed again with the source excluded over every session the round's source
+snapshot knew: the survivor was judged sessionless against that snapshot, so
+the exclusion's bound is the newest generation issued when the snapshot was
+taken (`reactorAPIAdapter.recoverySources`), never the clock when the round
+decided. A session the source starts after the snapshot, even during the RIB
+lookup, and even one that announces the key and then ends under graceful
+restart before the next round, lifts it (`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release
 answers one completion after releasing all child resources, including
 cancellation and pool shutdown, and a canceled or unrun admission leaves its
@@ -439,7 +441,7 @@ Replacement UPDATEs pass ordinary egress policy and reflection rules; a
 policy-denied replacement withdraws the obsolete advertised identity.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoveryCandidate, recoverySentNLRI -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, departedOwner, unsendableSurvivor, heldSurvivor, drainRecoverySources, recoveryAdmission.admit, settle -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, departedOwner, unsendableSurvivor, heldSurvivor, recoverySources, drainRecoverySources, recoveryAdmission.admit, settle -->
 <!-- source: internal/component/plugin/process/delivery.go -- DrainEventsApplied -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites, releaseItem -->
 <!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker.run -->

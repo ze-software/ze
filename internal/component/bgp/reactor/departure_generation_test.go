@@ -129,7 +129,8 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
 	require.Equal(t, uint64(1), entry.owner.message, "the owed key keeps session 1's path until decided")
-	admission := &recoveryAdmission{peer: rail.destination}
+	_, issued := (&reactorAPIAdapter{r: rail.r}).recoverySources()
+	admission := &recoveryAdmission{peer: rail.destination, sourcesIssued: issued}
 
 	retained := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received,
 		AddPath: entry.owner.addPath, MessageID: 2}
@@ -142,20 +143,17 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	other := retained
 	other.PathID = entry.owner.received + 1
 	elsewhere := recoveryAdmitKey{key: key, record: record}
-	issuedBefore := forwardGenerationClock.Load()
 	admission.unsendableSurvivor(&elsewhere, &other)
-	issuedAfter := forwardGenerationClock.Load()
 	require.Equal(t, recoveryKeyReowed, elsewhere.outcome,
 		"a path the destination does not hold cannot be sent from a sessionless source")
-	// The bound is the newest generation issued at the decision. Another
-	// test's peer may advance the clock meanwhile, so the decision lies
-	// between the two reads; with no advance between them it is exact.
+	// The bound is the newest generation issued when the round's source
+	// snapshot was taken, the snapshot the survivor was judged against.
 	require.Equal(t, source, elsewhere.gone.source)
 	require.Zero(t, elsewhere.gone.departed, "an unsendable survivor is no departure")
-	require.GreaterOrEqual(t, elsewhere.gone.generation, issuedBefore,
-		"the exclusion covers every session issued before the decision")
-	require.LessOrEqual(t, elsewhere.gone.generation, issuedAfter,
-		"the exclusion covers no session issued after the decision")
+	require.GreaterOrEqual(t, elsewhere.gone.generation, rail.source.forwardGeneration.Load(),
+		"the exclusion covers every session the snapshot knew")
+	require.Equal(t, issued, elsewhere.gone.generation,
+		"the exclusion is bounded by the round's snapshot, not the clock at the decision")
 }
 
 // PREVENTS: the ADD-PATH writer withdrawing an identifier a newer session of

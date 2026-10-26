@@ -166,7 +166,7 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 	checks := 0
 	session.egressFinalAccepts = func() bool {
 		checks++
-		source.forwardGeneration.Store(generation + 1)
+		source.advanceForwardGeneration()
 		return true
 	}
 

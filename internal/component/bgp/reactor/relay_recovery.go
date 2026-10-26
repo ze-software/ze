@@ -62,6 +62,11 @@ type recoveryAdmission struct {
 	err      error
 	done     chan struct{}
 	sources  map[*Peer]recoverySourceReceipt
+	// sourcesIssued is the newest forward generation issued when sources was
+	// taken (recoverySources). A survivor the round judged sessionless is
+	// judged against that snapshot, so its exclusion is bounded there: a
+	// session the source started after it is newer and lifts the exclusion.
+	sourcesIssued uint64
 }
 
 // recoveryKeyOutcome is one owed key's outcome at its admission.
@@ -301,15 +306,20 @@ type recoverySourceReceipt struct {
 
 // recoverySources binds selected bytes to the sessions present before lookup.
 // The cold map is bounded by configured peers and covers both lookup transports.
-func (a *reactorAPIAdapter) recoverySources() map[*Peer]recoverySourceReceipt {
+// It also returns issued, the newest forward generation issued before any
+// receipt was read: every session the receipts can name is at or below it,
+// and every session started after the snapshot is above it, whichever Peer of
+// an address runs it (recoveryAdmission.sourcesIssued).
+func (a *reactorAPIAdapter) recoverySources() (sources map[*Peer]recoverySourceReceipt, issued uint64) {
+	issued = forwardGenerationClock.Load()
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
-	sources := make(map[*Peer]recoverySourceReceipt, len(a.r.peers))
+	sources = make(map[*Peer]recoverySourceReceipt, len(a.r.peers))
 	for _, peer := range a.r.peers {
 		sources[peer] = recoverySourceReceipt{generation: peer.forwardGeneration.Load(),
 			cut: peer.receiveCut()}
 	}
-	return sources
+	return sources, issued
 }
 
 // drainRecoverySources closes the gap between a fast-path wire decision and
@@ -714,11 +724,13 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 // keeping the source's path is what retention asks, while the source's own
 // departure or the RIB's stale purge withdraws it if the source does not
 // return. Otherwise the key is re-owed with the source excluded over every
-// session known so far, so the next round elects without it. The bound is the
-// newest generation issued now (forwardGenerationClock), never "every
-// session": a session the source starts later is newer, so its announcement
-// lifts the exclusion (adjOutOwed.announcerLifts) even after that session
-// ends under graceful restart before the next round.
+// session the round's source snapshot knew, so the next round elects without
+// it. The bound is the newest generation issued when that snapshot was taken
+// (sourcesIssued), never the clock at this decision and never "every
+// session": the survivor was judged sessionless against the snapshot, and a
+// session the source started after it, even during the RIB lookup, is newer,
+// so its announcement lifts the exclusion (adjOutOwed.announcerLifts) even
+// after that session ends under graceful restart before the next round.
 // RFC 4724 Section 4.2: "The router MUST NOT differentiate between stale and
 // other routing information during forwarding."
 func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, survivor *ribevents.RecoveryRoute) {
@@ -727,7 +739,7 @@ func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, su
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = adjOutExclusion{source: survivor.Source, generation: forwardGenerationClock.Load()}
+	key.gone = adjOutExclusion{source: survivor.Source, generation: admission.sourcesIssued}
 }
 
 // heldSurvivor returns the destination's path for key when it is survivor's

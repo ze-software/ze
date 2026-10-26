@@ -102,10 +102,13 @@ type adjOutAnnouncer struct {
 	generation uint64
 }
 
-// adjOutExclusion is one source a record's election skips, bounded by the
-// newest forward generation (Peer.forwardGeneration) of that source's sessions
-// the exclusion covers: a departure's ended session, or a chosen survivor's
-// session that ended before its write. A later session of the source is not
+// adjOutExclusion is one source a record's election skips, bounded by a
+// forward generation (Peer.forwardGeneration) at or above every session of
+// that source the exclusion covers: a departure's ended session, a chosen
+// survivor's session that ended before its write, or, for a survivor the
+// round judged sessionless (recoveryAdmission.unsendableSurvivor), the newest
+// generation issued when the round's source snapshot was taken
+// (recoveryAdmission.sourcesIssued). A later session of the source is not
 // excluded, so its route, graceful-restart retained or live, stays electable.
 // departed is the newest session a DEPARTURE covers, zero when none did: only
 // a departure says a path is gone, so only it lets a write withdraw one. A
