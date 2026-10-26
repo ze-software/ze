@@ -6,3 +6,4 @@ severity: blocking
 directives ## Directives
   the-gate-runs-on-a-commit-not-the-working-tree
   only-one-check-compiles-what-git-holds
+  land-first-then-verify-never-a-private-export

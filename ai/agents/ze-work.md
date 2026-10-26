@@ -34,6 +34,16 @@ name the gates you owe in your handoff, and let the main thread run them, or a
 fresh agent that holds nothing else (`ai/rules/commands.md`). Never write a polling loop:
 `internal/le/hookruntime/bash.go` blocks one.
 
+**Land your change yourself, the moment its package tests pass.** Landing is
+`./le commit create`, the script it prints, and `./le repo compiles check` when
+the commit carried Go. Never build an export, archive or copy of HEAD to
+pre-test your commit set: `./le repo compiles check` and the main thread's
+`./le verify changed` already judge what git holds, and a red they find is fixed
+forward in a new commit. Never investigate a red your own diff did not cause:
+name it in the commit body and move on. A finished change left uncommitted at
+your call budget costs a whole successor agent just to commit it
+(`ai/rules/precommit-verify.md`).
+
 <!--
 The `tools:` list above holds ONLY names this harness resolves for a subagent.
 A name it does not serve is dropped in SILENCE: the agent still loads, and the
