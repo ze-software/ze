@@ -129,8 +129,7 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
 	require.Equal(t, uint64(1), entry.owner.message, "the owed key keeps session 1's path until decided")
-	sources := (&reactorAPIAdapter{r: rail.r}).recoverySources()
-	admission := newRecoveryAdmission(t.Context(), rail.destination, nil, sources, nil)
+	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
 
 	retained := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received,
 		AddPath: entry.owner.addPath, MessageID: 2}
@@ -152,7 +151,7 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	require.Zero(t, elsewhere.gone.departed, "an unsendable survivor is no departure")
 	require.GreaterOrEqual(t, elsewhere.gone.generation, rail.source.forwardGeneration.Load(),
 		"the exclusion covers every session the snapshot knew")
-	require.Equal(t, sources.issued, elsewhere.gone.generation,
+	require.Equal(t, admission.sources.issued, elsewhere.gone.generation,
 		"the exclusion is bounded by the round's snapshot, not the clock at the decision")
 }
 

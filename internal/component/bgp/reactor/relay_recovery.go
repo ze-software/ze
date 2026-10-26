@@ -61,26 +61,25 @@ type recoveryAdmission struct {
 	settled  bool
 	err      error
 	done     chan struct{}
-	// sources is the round's source snapshot (recoverySources). A survivor
-	// the round judged sessionless is judged against it, so its exclusion is
-	// bounded by the snapshot's issued generation: a session the source started
-	// after it is newer and lifts the exclusion. newRecoveryAdmission refuses
-	// an admission without one, so the bound is never a zero nobody issued.
+	// sources is the round's source snapshot, taken by newRecoveryAdmission
+	// through recoverySources and by nothing else. A survivor the round judged
+	// sessionless is judged against it, so its exclusion is bounded by the
+	// snapshot's issued generation: a session the source started after it is
+	// newer and lifts the exclusion. The round drains these receipts before
+	// its lookup, so the snapshot it judges against is the one it drained.
 	sources recoverySourceSnapshot
 }
 
 // newRecoveryAdmission builds the admission of one lookup of destination
-// peer's session, judged against sources, the snapshot recoverySources took
-// for the round. keys may be nil and filled afterward. It is the only
-// constructor: a recoveryAdmission literal would carry a zero snapshot, and a
-// survivor judged sessionless against it would be excluded only up to
-// generation zero, which every session lifts.
-func newRecoveryAdmission(ctx context.Context, peer *Peer, session *Session, sources recoverySourceSnapshot, keys []recoveryAdmitKey) *recoveryAdmission {
-	if sources.receipts == nil {
-		panic("BUG: recovery admission built without its round's source snapshot")
-	}
+// peer's session and takes the round's source snapshot (recoverySources) as
+// it does, so an admission cannot exist without the snapshot it is judged
+// against. keys may be nil and filled afterward. It is the only constructor:
+// a recoveryAdmission literal would carry a zero snapshot, and a survivor
+// judged sessionless against it would be excluded only up to generation
+// zero, which every session lifts.
+func (a *reactorAPIAdapter) newRecoveryAdmission(ctx context.Context, peer *Peer, session *Session, keys []recoveryAdmitKey) *recoveryAdmission {
 	return &recoveryAdmission{peer: peer, session: session, ctx: ctx, done: make(chan struct{}),
-		sources: sources, keys: keys}
+		sources: a.recoverySources(), keys: keys}
 }
 
 // recoveryKeyOutcome is one owed key's outcome at its admission.
@@ -320,8 +319,8 @@ type recoverySourceReceipt struct {
 
 // recoverySourceSnapshot is one recovery round's view of its sources: a
 // receipt per Peer, and issued, the newest forward generation issued when the
-// receipts were read. recoverySources is its only producer: receipts is never
-// nil there, so a nil map is a snapshot nobody took.
+// receipts were read. recoverySources is its only producer, and
+// newRecoveryAdmission its only holder.
 type recoverySourceSnapshot struct {
 	receipts map[*Peer]recoverySourceReceipt
 	issued   uint64

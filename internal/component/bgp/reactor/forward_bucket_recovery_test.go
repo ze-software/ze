@@ -65,7 +65,7 @@ func TestRecoveryBucketMergePacksOneSourceMessage(t *testing.T) {
 		announce(other, 8, attrs2, p3), // 10: over the size limit, opens a new pack.
 		announce(other, 8, attrs2, p4), // 11: joins 10.
 	}
-	admission := newRecoveryAdmission(t.Context(), nil, nil, (&reactorAPIAdapter{r: &Reactor{}}).recoverySources(), nil)
+	admission := (&reactorAPIAdapter{r: &Reactor{}}).newRecoveryAdmission(t.Context(), nil, nil, nil)
 	admission.items = items
 	for k := range items {
 		outcome := recoveryKeyWrite
@@ -145,7 +145,7 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 	withdrawn := []byte{24, 198, 51, 100}
 	prefixes := [][]byte{{24, 192, 0, 2}, {24, 192, 0, 3}}
 	generation := source.forwardGeneration.Load()
-	admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(), nil)
+	admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session, nil)
 	key, record := recoveryOweForTest(t, destination, session, withdrawn)
 	admission.keys = append(admission.keys, recoveryAdmitKey{key: key, record: record, epoch: record.epoch})
 	// RFC 4271 Section 4.3: withdrawn routes length 4, the prefix, no attributes.

@@ -391,8 +391,8 @@ the exclusion's bound is the newest generation issued when the snapshot was
 taken (`reactorAPIAdapter.recoverySources`), never the clock when the round
 decided. The snapshot reads the clock and every `Peer`'s generation in one cut
 that each advance takes too (`forwardGenerationCut`), so no session straddles
-it: every session a receipt names is at or below the bound, and every session
-it does not name is above it. A session the source starts after the snapshot, even during the RIB
+it: every session a receipt names is at or below the bound, and a session it
+does not name that started after the snapshot is above it. A session the source starts after the snapshot, even during the RIB
 lookup, and even one that announces the key and then ends under graceful
 restart before the next round, lifts it (`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release

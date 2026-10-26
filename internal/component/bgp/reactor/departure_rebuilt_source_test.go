@@ -146,8 +146,7 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	unheld := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received + 1,
 		AddPath: entry.owner.addPath, MessageID: 3}
 	decided := recoveryAdmitKey{key: key, record: record}
-	sources := (&reactorAPIAdapter{r: rail.r}).recoverySources()
-	admission := newRecoveryAdmission(t.Context(), rail.destination, nil, sources, nil)
+	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
 	admission.unsendableSurvivor(&decided, &unheld)
 	require.Equal(t, recoveryKeyReowed, decided.outcome,
 		"a path the destination does not hold cannot be sent from a sessionless source")
@@ -196,13 +195,12 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	require.True(t, held)
 
 	adapter := &reactorAPIAdapter{r: rail.r}
-	sources := adapter.recoverySources()
-	issued := sources.issued
+	admission := adapter.newRecoveryAdmission(t.Context(), rail.destination, session,
+		[]recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}})
+	issued := admission.sources.issued
 	rail.source.setState(PeerStateEstablished) // Started during the RIB lookup.
 	require.Greater(t, rail.source.forwardGeneration.Load(), issued)
 
-	admission := newRecoveryAdmission(t.Context(), rail.destination, session, sources,
-		[]recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}})
 	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source,
 		PathID: entry.owner.received + 1, AddPath: entry.owner.addPath, MessageID: 3}}}
 	require.NoError(t, adapter.queueRecoveryOutcome(&outcome, 0, family.IPv4Unicast, admission, plugin.OperatorSender()))
@@ -272,19 +270,36 @@ func TestRecoverySourcesIsOneGenerationCut(t *testing.T) {
 	<-advanced
 }
 
-// VALIDATES: a recovery admission cannot be built without its round's source
-// snapshot.
-// PREVENTS: an admission whose zero snapshot bounds an unsendable survivor's
-// exclusion at generation zero, which every session of the source lifts, so
-// the exclusion would silently never hold.
-// Method: newRecoveryAdmission refuses a snapshot recoverySources did not
-// produce, and accepts one it did.
-func TestRecoveryAdmissionRequiresSourceSnapshot(t *testing.T) {
+// VALIDATES: a recovery admission holds the round's source snapshot, taken
+// when the admission is built, as one cut of the generation clock: its issued
+// generation is the clock read during the build, it holds the source's
+// receipt at the source's current, nonzero generation, at or below issued,
+// and a session the source starts afterward is above it.
+// PREVENTS: an admission judged against a snapshot other than the one its
+// round drained, a stale one, or none, whose zero bound every session of the
+// source lifts, so an unsendable survivor's exclusion would never hold.
+// Method: advance the source once so its receipt is nonzero, read the clock
+// immediately before and after building the admission through
+// newRecoveryAdmission, the only constructor, and bracket issued between the
+// two reads; then advance the source.
+func TestRecoveryAdmissionHoldsRoundSnapshot(t *testing.T) {
 	rail := newOwedRail(t)
-	require.Panics(t, func() {
-		newRecoveryAdmission(t.Context(), rail.destination, nil, recoverySourceSnapshot{}, nil)
-	}, "an admission without a snapshot has no bound for its exclusions")
-	sources := (&reactorAPIAdapter{r: rail.r}).recoverySources()
-	admission := newRecoveryAdmission(t.Context(), rail.destination, nil, sources, nil)
-	require.Equal(t, sources.issued, admission.sources.issued)
+	rail.source.advanceForwardGeneration()
+	adapter := &reactorAPIAdapter{r: rail.r}
+	before := forwardGenerationClock.Load()
+	admission := adapter.newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
+	after := forwardGenerationClock.Load()
+	issued := admission.sources.issued
+	require.LessOrEqual(t, before, issued, "issued is the clock read while the admission is built, not a stale value")
+	require.LessOrEqual(t, issued, after, "issued is the clock read while the admission is built")
+	receipt, present := admission.sources.receipts[rail.source]
+	require.True(t, present, "the admission's snapshot holds a receipt for every configured Peer")
+	require.Positive(t, receipt.generation, "the advanced source's receipt names its session")
+	require.Equal(t, rail.source.forwardGeneration.Load(), receipt.generation,
+		"the snapshot is taken when the admission is built")
+	require.LessOrEqual(t, receipt.generation, issued,
+		"every session a receipt names is at or below the snapshot's issued generation")
+	rail.source.advanceForwardGeneration()
+	require.Greater(t, rail.source.forwardGeneration.Load(), issued,
+		"a session started after the admission is above its snapshot's bound")
 }

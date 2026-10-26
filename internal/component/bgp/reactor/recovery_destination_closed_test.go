@@ -52,7 +52,7 @@ func TestRecoveryAdmissionSettlesWhenDestinationClosed(t *testing.T) {
 			session := destination.currentSession()
 			tc.close(t, destination, session)
 
-			admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(), nil)
+			admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session, nil)
 			items := []fwdItem{{peer: destination, recovery: admission}}
 			fwdBatchHandler(fwdKey{peerAddr: destination.Settings().PeerKey()}, items)
 			r.fwdPool.releaseItem(&items[0])

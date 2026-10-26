@@ -292,7 +292,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
 		epoch := record.epoch
 		generation := source.forwardGeneration.Load()
-		admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(),
+		admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session,
 			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
 				candidate: adjOutPath{source: source}}})
 		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
@@ -325,7 +325,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		epoch := record.epoch
 		source.acceptedReceive(1).complete(1)
 		generation := source.forwardGeneration.Load()
-		admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(),
+		admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session,
 			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
 				candidate: adjOutPath{source: source}}})
 		admission.items = []fwdItem{{peer: destination, session: session, authority: adjOutRecovery,

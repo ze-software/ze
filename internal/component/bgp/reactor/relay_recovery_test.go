@@ -368,7 +368,7 @@ func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 			cancel()
 			session := destination.currentSession()
 			key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
-			admission := newRecoveryAdmission(ctx, destination, session, (&reactorAPIAdapter{r: r}).recoverySources(),
+			admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(ctx, destination, session,
 				[]recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}})
 			released := 0
 			buffers := newPeerPool(4096)
