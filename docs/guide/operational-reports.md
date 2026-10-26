@@ -99,11 +99,12 @@ own by calling the push API documented in the architecture reference.
 |------|---------|-------------|-------------|
 | `notification-sent` | peer address | `code`, `subcode`, `direction=sent` | Ze sends any BGP NOTIFICATION (RFC 4271 §4.5) to the peer. Includes all causes: operator teardown, hold-timer expiry, protocol error, prefix-max exceeded. |
 | `notification-received` | peer address | `code`, `subcode`, `direction=received` | The peer sends a NOTIFICATION to ze. |
-| `session-dropped` | peer address | `reason` (string: "tcp-failure" when the transport ended, "local-close" when ze closed the session and no NOTIFICATION reached the peer) | An Established session ends WITHOUT a NOTIFICATION exchange (TCP loss, peer FIN, internal teardown without wire notification). Suppressed when a notification-sent or notification-received was already raised in the same session. |
+| `session-dropped` | peer address | `reason` (string: "tcp-failure" when the transport ended, "local-close" when ze closed the session and no NOTIFICATION reached the peer, "adj-rib-in-invalid" when ze could not publish some UPDATE the peer sent and no NOTIFICATION reached the peer) | An Established session ends WITHOUT a NOTIFICATION exchange (TCP loss, peer FIN, internal teardown without wire notification). Suppressed when a notification-sent or notification-received was already raised in the same session. |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- reportCodeNotificationSent, reportCodeNotificationReceived, reportCodeSessionDropped constants -->
 <!-- source: internal/component/bgp/reactor/peer_stats.go -- IncrNotificationSent/Received -->
-<!-- source: internal/component/bgp/reactor/peer_run.go -- FSM Established->Idle branch raises session-dropped when !notificationExchanged -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- sessionDown raises session-dropped when no NOTIFICATION was exchanged -->
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
 
 ## Common operator workflows
 

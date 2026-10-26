@@ -168,8 +168,8 @@ event on the script's stdin. That is the CWE-116 ExaBGP's own `oneline()` exists
 to close.
 
 A `down` states why the session ended in the words ExaBGP's reactor hands its
-encoders, on the text line and as the JSON `reason` member: ze's `tcp-failure`
-and `local-close` are `closing connection`, a peer removed from the
+encoders, on the text line and as the JSON `reason` member: ze's `tcp-failure`,
+`local-close` and `adj-rib-in-invalid` are `closing connection`, a peer removed from the
 configuration is `stop, message [removed]`, and a session a NOTIFICATION ended
 is `notification sent (6,4)` or `notification received (4,0)`, from the
 direction and codes ze's down event carries. One table keyed by the reactor's

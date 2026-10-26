@@ -356,7 +356,10 @@ NOTIFICATION reads `notification sent (6,2)` or `notification received (6,2)`
 same words from the direction and codes ze's down event carries. A
 NOTIFICATION ze could not write told the peer nothing, so that down reads
 `notification` alone. A lost transport is `closing connection` and a removed
-peer `stop, message [removed]` in both.
+peer `stop, message [removed]` in both. A session ze ended because it could not
+publish an UPDATE the peer sent, with no NOTIFICATION on the wire (ze's
+`adj-rib-in-invalid`), is `closing connection` too: ExaBGP reports any
+connection dropped without a NOTIFICATION that way.
 
 <!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
 
