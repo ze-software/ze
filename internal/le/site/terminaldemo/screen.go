@@ -11,6 +11,7 @@ import (
 
 const tabStop = 8
 
+// terminalScreen requires newTerminalScreen; zero and nil values are not usable.
 type terminalScreen struct {
 	height      int
 	width       int
@@ -24,7 +25,23 @@ type terminalScreen struct {
 	savedColumn int
 	dirty       map[int]struct{}
 	history     []string
+	sequence    terminalSequence
+	parameters  []rune
 }
+
+// terminalSequence tracks only unfinished input; its zero value is uninitialized.
+type terminalSequence uint8
+
+const (
+	terminalSequenceUnspecified terminalSequence = iota
+	terminalSequenceText
+	terminalSequenceEscape
+	terminalSequenceControl
+	terminalSequenceIntermediate
+	terminalSequenceString
+	terminalSequenceStringEscape
+	terminalSequenceCharacterSet
+)
 
 func newTerminalScreen(height, width int) *terminalScreen {
 	return &terminalScreen{
@@ -37,6 +54,7 @@ func newTerminalScreen(height, width int) *terminalScreen {
 		row:      1,
 		savedRow: 1,
 		dirty:    map[int]struct{}{},
+		sequence: terminalSequenceText,
 	}
 }
 
@@ -82,15 +100,41 @@ func (s *terminalScreen) settle(text string) {
 }
 
 func (s *terminalScreen) feed(text string) {
-	runes := []rune(text)
-	for index := 0; index < len(runes); {
-		character := runes[index]
-		if character == '\x1b' {
-			index = s.escapeSequence(runes, index)
+	for _, character := range text {
+		switch s.sequence {
+		case terminalSequenceUnspecified:
+			panic("BUG: terminal screen has no parser state")
+		case terminalSequenceText:
+			// Ordinary text is handled below.
+		case terminalSequenceEscape:
+			s.escapeSequence(character)
+			continue
+		case terminalSequenceControl, terminalSequenceIntermediate:
+			s.controlSequence(character)
+			continue
+		case terminalSequenceString, terminalSequenceStringEscape:
+			if character == '\a' {
+				s.sequence = terminalSequenceText
+				continue
+			}
+			if s.sequence == terminalSequenceStringEscape {
+				if character == '\\' {
+					s.sequence = terminalSequenceText
+					continue
+				}
+			}
+			s.sequence = terminalSequenceString
+			if character == '\x1b' {
+				s.sequence = terminalSequenceStringEscape
+			}
+			continue
+		case terminalSequenceCharacterSet:
+			s.sequence = terminalSequenceText
 			continue
 		}
-		index++
 		switch character {
+		case '\x1b':
+			s.sequence = terminalSequenceEscape
 		case '\n':
 			s.move(s.row+1, s.column)
 		case '\r':
@@ -107,54 +151,38 @@ func (s *terminalScreen) feed(text string) {
 	}
 }
 
-func (s *terminalScreen) escapeSequence(runes []rune, index int) int {
-	if index+1 >= len(runes) {
-		return index + 1
+// Escape state survives feed boundaries without retaining completed input or OSC payloads.
+func (s *terminalScreen) escapeSequence(character rune) {
+	switch character {
+	case '[':
+		s.sequence = terminalSequenceControl
+	case ']':
+		s.sequence = terminalSequenceString
+	case '(', ')', '*', '+', '#', '%':
+		s.sequence = terminalSequenceCharacterSet
+	default:
+		s.sequence = terminalSequenceText
+		s.escape(character)
 	}
-	next := runes[index+1]
-	if next == '[' {
-		return s.controlSequence(runes, index)
-	}
-	if next == ']' {
-		at := index + 2
-		for at < len(runes) {
-			if runes[at] == '\a' {
-				return at + 1
-			}
-			if runes[at] == '\x1b' && at+1 < len(runes) && runes[at+1] == '\\' {
-				return at + 2
-			}
-			at++
-		}
-		return len(runes)
-	}
-	if strings.ContainsRune("()*+#%", next) {
-		return min(index+3, len(runes))
-	}
-	s.escape(next)
-	return index + 2
 }
 
-func (s *terminalScreen) controlSequence(runes []rune, index int) int {
-	at := index + 2
-	parameterStart := at
-	for at < len(runes) {
-		character := runes[at]
-		if character >= 0x40 && character <= 0x7e {
-			parameters := string(runes[parameterStart:at])
-			parameterEnd := len(parameters)
-			for offset, value := range parameters {
-				if value >= 0x20 && value <= 0x2f {
-					parameterEnd = offset
-					break
-				}
-			}
-			s.control(parameters[:parameterEnd], character)
-			return at + 1
-		}
-		at++
+func (s *terminalScreen) controlSequence(character rune) {
+	final := character >= 0x40 && character <= 0x7e
+	if final {
+		s.control(string(s.parameters), character)
+		s.parameters = s.parameters[:0]
+		s.sequence = terminalSequenceText
+		return
 	}
-	return len(runes)
+	if s.sequence == terminalSequenceIntermediate {
+		return
+	}
+	intermediate := character >= 0x20 && character <= 0x2f
+	if intermediate {
+		s.sequence = terminalSequenceIntermediate
+		return
+	}
+	s.parameters = append(s.parameters, character)
 }
 
 func (s *terminalScreen) escape(final rune) {
@@ -437,6 +465,7 @@ func (s *terminalScreen) control(parameters string, final rune) {
 			line[index] = ' '
 		}
 		s.rows[s.row] = line
+		s.dirty[s.row] = struct{}{}
 	case 'L':
 		s.insertLines(one)
 	case 'M':
@@ -446,6 +475,7 @@ func (s *terminalScreen) control(parameters string, final rune) {
 		start := min(s.column, len(line))
 		end := min(start+one, len(line))
 		s.rows[s.row] = append(line[:start], line[end:]...)
+		s.dirty[s.row] = struct{}{}
 	case '@':
 		line := s.rows[s.row]
 		for len(line) < s.column {
@@ -459,6 +489,7 @@ func (s *terminalScreen) control(parameters string, final rune) {
 		copy(line[s.column+one:], line[s.column:len(line)-one])
 		copy(line[s.column:], spaces)
 		s.rows[s.row] = line
+		s.dirty[s.row] = struct{}{}
 	case 'S':
 		s.scroll(one)
 	case 'r':

@@ -62,6 +62,13 @@ selects its personality from its file name. The container records a tape with
 `le site terminal-demo pty --tape <file>`. That action hands its words to the
 PTY recorder, so `./le site terminal-demo pty --help` prints the recorder's own
 options.
+
+Command-mode waits match freshly painted terminal rows, including cursor edits
+to text painted by an earlier command. Unchanged success text left on screen
+does not satisfy a later command's wait. Command and tape driving share the
+terminal grid, which retains incomplete control sequences across PTY reads.
+<!-- source: internal/le/site/terminaldemo/pty.go -- driveCommands -->
+<!-- source: internal/le/site/terminaldemo/screen.go -- terminalScreen -->
 <!-- source: internal/le/linuxle/linuxle.go -- Argv -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- recorderBuildCommand -->
 <!-- source: internal/le/site/terminaldemo/entrypoint.go -- recorderCommand -->

@@ -897,13 +897,11 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		return err
 	}
 	defer terminatePTY(command, master)
-	captured := make([]byte, 0)
-	initial, err := readUntilPTY(master, options.ready, options.timeout, nil, false)
-	if err != nil {
+	session := commandSession{master: master, screen: newTerminalScreen(40, 120)}
+	if err := session.waitFor(options.ready, options.timeout, 0, false); err != nil {
 		return err
 	}
-	captured = append(captured, initial...)
-	window := len(captured)
+	window := len(session.screen.history)
 	for index, commandText := range options.commands {
 		last := index == len(options.commands)-1
 		directive, argument := splitPTYDirective(commandText)
@@ -913,15 +911,13 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		}
 		if directive == tapeWaitDirective {
 			pattern := regexp.MustCompile(argument)
-			chunk, err := readUntilPTY(master, pattern, options.timeout, captured[window:], false)
-			if err != nil {
+			if err := session.waitFor(pattern, options.timeout, window, false); err != nil {
 				return err
 			}
-			captured = append(captured, chunk...)
-			window = len(captured)
+			window = len(session.screen.history)
 			continue
 		}
-		window = len(captured)
+		window = len(session.screen.history)
 		switch directive {
 		case "@escape":
 			_, err = master.Write([]byte{0x1b})
@@ -931,9 +927,7 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 			_, err = master.Write(ptyKeys[strings.TrimSpace(argument)])
 		case tapeSleepDirective:
 			seconds, _ := strconv.ParseFloat(strings.TrimSpace(argument), 64)
-			var chunk []byte
-			chunk, err = readForPTY(master, time.Duration(seconds*float64(time.Second)))
-			captured = append(captured, chunk...)
+			err = session.pump(time.Duration(seconds * float64(time.Second)))
 		default:
 			_, err = master.Write(append([]byte(commandText), '\r'))
 		}
@@ -944,76 +938,85 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 			continue
 		}
 		if last {
-			chunk, err := readUntilPTY(master, closePattern, options.timeout, nil, true)
-			if err != nil {
+			if err := session.waitFor(closePattern, options.timeout, window, true); err != nil {
 				return err
 			}
-			captured = append(captured, chunk...)
 		} else {
-			chunk, err := readForPTY(master, options.delay)
-			if err != nil {
+			if err := session.pump(options.delay); err != nil {
 				return err
 			}
-			captured = append(captured, chunk...)
 		}
 	}
-	_, err = stdout.Write(ansiPattern.ReplaceAll(captured, nil))
+	_, err = stdout.Write(ansiPattern.ReplaceAll(session.captured.Bytes(), nil))
 	return err
 }
 
-func readForPTY(master *os.File, duration time.Duration) ([]byte, error) {
-	deadline := time.Now().Add(duration)
-	var output bytes.Buffer
-	for time.Now().Before(deadline) {
-		ready, err := pollPTY(master, deadline)
-		if err != nil {
-			return nil, err
-		}
-		if !ready {
-			break
-		}
-		chunk, err := readPTY(master)
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		output.Write(chunk)
-	}
-	return output.Bytes(), nil
+// commandSession retains the terminal grid and partial UTF-8 between all reads.
+// The caller MUST supply an open master and its screen; the zero value is not
+// usable. Reads are sequential, and captured preserves the command stdout stream.
+type commandSession struct {
+	master   *os.File
+	screen   *terminalScreen
+	decoder  utf8Stream
+	captured bytes.Buffer
 }
 
-func readUntilPTY(master *os.File, pattern *regexp.Regexp, timeout time.Duration, seen []byte, eofOK bool) ([]byte, error) {
-	deadline := time.Now().Add(timeout)
-	search := append([]byte(nil), seen...)
-	var output bytes.Buffer
-	for {
-		// The pattern describes what a reader SEES, so it is matched with the
-		// escape sequences removed. A phrase that carries a style change inside
-		// it ("> show" changes color after the cursor) never matches the raw
-		// stream, and the failure reads as a phrase that is plainly on screen.
-		if pattern.Match(ansiPattern.ReplaceAll(search, nil)) {
-			return output.Bytes(), nil
-		}
-		ready, err := pollPTY(master, deadline)
+func (session *commandSession) read() error {
+	chunk, err := readPTY(session.master)
+	if err != nil {
+		return err
+	}
+	session.captured.Write(chunk)
+	session.screen.settle(session.decoder.decode(chunk))
+	return nil
+}
+
+func (session *commandSession) pump(duration time.Duration) error {
+	deadline := time.Now().Add(duration)
+	for time.Now().Before(deadline) {
+		ready, err := pollPTY(session.master, deadline)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !ready {
-			return nil, fmt.Errorf("timed out waiting for %q; output: %s", pattern.String(), ansiPattern.ReplaceAll(search, nil))
+			break
 		}
-		chunk, err := readPTY(master)
+		err = session.read()
 		if errors.Is(err, io.EOF) {
-			if eofOK {
-				return output.Bytes(), nil
-			}
-			return nil, fmt.Errorf("terminal closed while waiting for %q", pattern.String())
+			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
-		output.Write(chunk)
-		search = append(search, chunk...)
+	}
+	return nil
+}
+
+func (session *commandSession) waitFor(pattern *regexp.Regexp, timeout time.Duration, window int, eofOK bool) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		// Only changed rows since the boundary can prove this command completed.
+		// Those rows include retained cells, unlike the incoming byte stream.
+		search := strings.Join(session.screen.history[window:], "\n")
+		if pattern.MatchString(search) {
+			return nil
+		}
+		ready, err := pollPTY(session.master, deadline)
+		if err != nil {
+			return err
+		}
+		if !ready {
+			return fmt.Errorf("timed out waiting for %q; output: %s", pattern.String(), search)
+		}
+		err = session.read()
+		if errors.Is(err, io.EOF) {
+			if eofOK {
+				return nil
+			}
+			return fmt.Errorf("terminal closed while waiting for %q", pattern.String())
+		}
+		if err != nil {
+			return err
+		}
 	}
 }
