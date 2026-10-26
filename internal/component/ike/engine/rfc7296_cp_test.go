@@ -97,8 +97,9 @@ func builtCPSweep(t *testing.T) (found []*wire.PayloadCP, outerPayloads, innerPa
 func TestZeSendsNoConfigurationRequest(t *testing.T) {
 	found, outerPayloads, innerPayloads := builtCPSweep(t)
 	for _, cp := range found {
-		t.Errorf("a Configuration payload (CFG type %d, %d attributes) was built; ze takes "+
-			"no IRAC role and constructs no CP payload", cp.CFGType, len(cp.Attrs))
+		t.Errorf("a Configuration payload (CFG type %d, %d attributes) was built in a swept "+
+			"message; ze takes no IRAC role, and no swept message answers a CFG_REQUEST",
+			cp.CFGType, len(cp.Attrs))
 	}
 	t.Logf("swept %d outer and %d decrypted inner payloads", outerPayloads, innerPayloads)
 
