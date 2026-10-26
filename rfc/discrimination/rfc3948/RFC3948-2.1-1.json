@@ -117,8 +117,8 @@
     "claim-sha": "1f9755ce5684850f",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
-    "producer-sha": "7e741855084555ef",
-    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7adce11d4f7d01d6",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3948-2.1-1",
@@ -128,7 +128,7 @@
     "claim-sha": "80836e6ae5f1a667",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
-    "producer-sha": "7e741855084555ef",
-    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7adce11d4f7d01d6",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

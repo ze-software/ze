@@ -95,8 +95,8 @@
     "claim-sha": "7c4b60431c21f211",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
-    "producer-sha": "228ef23627d4c42c",
-    "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels, rSels[:1])\""
+    "producer-sha": "3a89c8e1a3984703",
+    "break": "line 916: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels, rSels[:1])\""
   },
   {
     "rid": "RFC4301-4.4.2-2",
@@ -106,7 +106,7 @@
     "claim-sha": "6f9955d20ba3f643",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
-    "producer-sha": "228ef23627d4c42c",
-    "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels[:1], rSels[:1])\""
+    "producer-sha": "3a89c8e1a3984703",
+    "break": "line 916: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels[:1], rSels[:1])\""
   }
 ]

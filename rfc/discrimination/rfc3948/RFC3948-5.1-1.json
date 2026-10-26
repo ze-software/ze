@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/cp_test.go::TestNoChildSAWithoutLeaseOnBoundPeer",
+    "unit-sha": "96006af21af34c72",
+    "claim-sha": "526a12acc7578070",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::assignVirtualIP",
+    "producer-sha": "9bad47de42e548c1",
+    "break": "line 166: \"name == \\\"\\\"\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/cp_test.go::TestTwoPeersSameRequestedAddressDistinctLeases",
+    "unit-sha": "5f68bfb7681aede1",
+    "claim-sha": "2abd99db1f99bcc2",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/cp.go::substituteVirtualIP",
+    "producer-sha": "453e4e9a7f17824d",
+    "break": "line 242: \"sa.PeerCfg.VirtualIPPoolName() == \\\"\\\"\" -\u003e \"true\""
+  }
+]
