@@ -91,7 +91,7 @@ verdicts here from its "Blocked by" table (AC-4), which now owns them alone.
 |------------|--------|
 | Failing test first | One unit test per row, red against HEAD |
 | Both polarities | D1: NOTIFICATION teardown flushes, TCP loss retains. D2: each of the three bullets purges, a family with both F bits set is kept. D3/D4: received LLGR_STALE is least preferred and withheld from a non-LLGR neighbour, a fresh route is not; a received LLGR_STALE route is retained at TCP loss and kept after its refresh and EOR, a retention-stale route the peer did not re-send is purged |
-| Discrimination | Every RFC-tagged unit carries a `./le rfc discriminate-record` record |
+| Discrimination | Every RFC-tagged unit carries a `./le rfc record` record |
 | Real entry point | `.ci` tests driving a peer through NOTIFICATION and reconnect |
 | Interop | The existing GR interop scenario against FRR (`test/interop/scenarios/bgp-graceful-restart-frr`) extended with a NOTIFICATION teardown, and an LLGR scenario with a peer sending LLGR_STALE |
 
@@ -477,7 +477,7 @@ Every other tagged unit named in the verdict table keeps its body and tag:
 `TestGRStateManagerNotificationBypass`, `TestGRStateManagerRouteRetention`,
 both `rib/rfc9494_test.go` units, `TestComparePair_GRStaleCompetesNormally`,
 both 4.3-3 egress units and `test/plugin/llgr-egress-state-unloaded.ci`. New
-tagged units are additions, each with a `./le rfc discriminate-record` record in
+tagged units are additions, each with a `./le rfc record` record in
 the same change. Keeping body and tag does not keep the record: a unit whose
 producer this spec edits owes a fresh record, listed below.
 
@@ -487,7 +487,7 @@ producer this spec edits owes a fresh record, listed below.
 committed producer (`docs/contributing/rfc-conformance-gates.md`), whatever RFC
 the record belongs to. Searched: every `producer` field in
 `rfc/discrimination/*.json` against every function this spec edits, 2026-10-14.
-Each row is re-recorded with `./le rfc discriminate-record` in the phase that
+Each row is re-recorded with `./le rfc record` in the phase that
 edits its producer; a row marked "if edited" is owed only when the implementation
 changes that function's body, and the phase names which way it went.
 

@@ -386,7 +386,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
    - Verify: AC-6 to AC-11, including the zero-allocation assertion and the syslog backend
 5. **Phase: documentation and discovery** -- every row of the Documentation checklist
    - Files: the docs listed under Files to Modify, plus `ai/INDEX.md`
-   - Verify: `./le doc check verify`, `./le doc wiring`
+   - Verify: `./le doc check all`, `./le doc wiring`
 
 ### Critical Review Checklist
 
@@ -413,7 +413,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | The web tool page still works | `./le test functional ui` |
 | The runtime tap | `./le test functional plugin` for `test-bgp-wire-decode-log.ci` |
 | Core tier respected | `./le arch tier check` |
-| Docs and discovery | `./le doc check verify`, `./le doc wiring` |
+| Docs and discovery | `./le doc check all`, `./le doc wiring` |
 
 ### Security Review Checklist
 

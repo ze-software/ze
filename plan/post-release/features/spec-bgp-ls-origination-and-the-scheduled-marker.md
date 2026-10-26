@@ -164,7 +164,7 @@ Two, one per phase.
 
 - Phase 1: a requirement line in `rfc/short/rfc9552.md`, read by
   `internal/le/rfc/rfc.go` when `./le rfc check` or
-  `./le rfc index-update` runs.
+  `./le rfc update` runs.
 - Phase 2: the operator's configuration, as a YANG leaf carrying the 8-octet
   BGP-LS Instance-ID, plus the IGP link-state database ze already holds in its
   IS-IS and OSPF plugins.
@@ -240,7 +240,7 @@ Two, one per phase.
 | a `{scheduled: plan/spec-<name>.md; why}` on a gated requirement line | → | `_parse_annotation` | `test_scheduled_marker_parses_and_names_its_spec` |
 | `./le rfc check` over a summary carrying a valid marker | → | the per-requirement loop | `test_scheduled_marker_clears_the_unproven_error` |
 | `./le rfc check` over a marker whose spec file is absent | → | the precondition check | `test_scheduled_marker_refuses_an_absent_spec` |
-| `./le rfc index-update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
+| `./le rfc update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
 | operator configures a BGP-LS Instance-ID | → | the ls plugin's config parse | `TestBGPLSInstanceIDReachesTheOriginator` |
 | operator runs the RFC gate over a scheduled row | → | `./le rfc check` | `test/plugin/rfc-scheduled-marker.ci` | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | operator configures origination and watches the wire | → | `originate.go` → `WriteTo` | `test/decode/bgp-ls-originate.ci` | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
@@ -253,7 +253,7 @@ Two, one per phase.
 | AC-2 | the same marker, and `plan/spec-<name>.md` does NOT exist | the check errors, naming the row and the missing spec |
 | AC-3 | a `{scheduled}` marker with no reason after the `;` | the check errors, as `_parse_annotation` already does for every bare annotation |
 | AC-4 | a row carrying `{scheduled}` AND a tagged test | the check errors that the marker is stale, as it does for `{gap}` |
-| AC-5 | `./le rfc index-update` over a scheduled row | `ai/RFC-REQUIREMENTS.md` shows it as DEBT with the owning spec named, never as covered |
+| AC-5 | `./le rfc update` over a scheduled row | `ai/RFC-REQUIREMENTS.md` shows it as DEBT with the owning spec named, never as covered |
 | AC-6 | a row that had a tagged test at HEAD now carries `{scheduled}` | `check_coverage_ratchet` fires; the marker is not an escape |
 | AC-7 | a commit removes a spec while a `{scheduled}` row still names it | the check errors on the removal, before the row goes silently stale |
 | AC-8 | `docs/features/rfc-status.md` Remaining prose | its spelled count agrees with the real scheduled count as well as the gap count |
@@ -380,7 +380,7 @@ Two, one per phase.
 3. **Phase: Publication** -- the debt is visible, and counted
    - Tests: `test_scheduled_row_publishes_as_debt_naming_its_spec`, `test_status_remaining_count_covers_scheduled_rows`, `test_scheduled_does_not_escape_the_coverage_ratchet`
    - Files: `internal/le/rfc/rfc.go`, `docs/features/rfc-status.md`
-   - Verify: `./le rfc index-update` names the owning spec on each scheduled row
+   - Verify: `./le rfc update` names the owning spec on each scheduled row
 4. **Phase: Adopt the three rows** -- Phase 1 closes here and MAY be committed alone
    - Tests: `rfc-scheduled-marker`, and `./le rfc check` exits 0 on rfc9552 (AC-9)
    - Files: `rfc/short/rfc9552.md`, `ai/rules/rfc-compliance.md`, the new rule point, `test/plugin/rfc-scheduled-marker.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->

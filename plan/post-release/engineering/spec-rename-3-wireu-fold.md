@@ -113,7 +113,7 @@ audit snapshot and implementation.
 | A-1 | Zero identifier clashes between the two packages | comm audit 2026-07-08 (exported 60+81 vs 24+7; unexported 108 vs 34; tests included) | clash needs a rename first; fold design holds otherwise | rerun both comm audits at start | confirmed (2026-07-08 snapshot; MUST rerun at start) |
 | A-2 | Only doc.go and errors.go collide by filename | directory-listing comm 2026-07-08 | more file renames in the move | rerun listing comm at start | confirmed (2026-07-08 snapshot) |
 | A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
-| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check all` after sweep | confirmed (2026-07-08 snapshot) |
 | A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `./le spec status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
 
 ### Risks
@@ -137,7 +137,7 @@ audit snapshot and implementation.
 | AC-1 | after fold | `internal/component/bgp/wireu/` does not exist; its files live in `internal/component/bgp/packet/` with package clause `packet`; `errors.go` collision resolved (e.g. `errors_update.go`); doc.go content merged into the destination doc.go |
 | AC-2 | repo-wide grep for the old import path and `wireu.` qualifier | zero hits in code and living docs (plan/learned history exempt) |
 | AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
-| AC-4 | `./le doc check verify` | green after the 17-anchor + prose sweep |
+| AC-4 | `./le doc check all` | green after the 17-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md glossary `wireu` row removed (decision recorded as superseded); protocol.md BGP row updated |
 | AC-6 | fuzz | `FuzzRewriteASPath` seed corpus found and passing from its new location |
 | AC-7 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
@@ -212,7 +212,7 @@ audit snapshot and implementation.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `./le doc check verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `./le doc check all` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -249,7 +249,7 @@ audit snapshot and implementation.
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `./le doc check verify`
+   - Tests: `./le doc check all`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 5. **Full verification** — `./le verify current mode full`; AC-7.

@@ -164,7 +164,7 @@ Goals.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le test integration interop-ipsec` on a daemon whose kernel lacks a feature | → | the le kernel-feature check in `Suite.Run` | `TestSuiteRefusesDockerHostMissingAKernelFeature` (`internal/le/interoplab/lab_test.go`, recording `docker` on PATH answering the ze JSON) |
-| `./le test deployment docker-l2tp-ppp-test` on the same daemon | → | same check | `TestDockerDeploymentRefusesMissingKernelFeature` (`internal/le/test/deployment/`) |
+| `./le test deployment docker-l2tp-ppp` on the same daemon | → | same check | `TestDockerDeploymentRefusesMissingKernelFeature` (`internal/le/test/deployment/`) |
 | terminal-demo render on the same daemon | → | same check | `TestRenderRefusesMissingKernelFeature` (`internal/le/site/terminaldemo/render_test.go`) |
 | the `ze doctor` all-capabilities mode | → | `kernelcap` evaluation with `InUse` ignored | `TestDoctorAllCapabilitiesIgnoresConfig` (`internal/component/kernelcap/kernelcap_test.go`) |
 | `ike` dataplane `init()` | → | `XFRM_MSG_MIGRATE_STATE` enrolment | `TestMOBIKEMigrationIsEnrolled` (`internal/component/ike/dataplane/`) |

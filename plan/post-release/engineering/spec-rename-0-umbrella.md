@@ -119,7 +119,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Concurrent sessions have uncommitted work touching renamed files; a big rename conflicts with everything in flight | `git status` shows other-session modifications in the affected trees | Land each child as one atomic commit pair in a quiet window; children 2-3 stay blocked until rib-arch closes |
-| R-2 | Doc sweep fixes anchors (gated by `./le doc check verify`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
+| R-2 | Doc sweep fixes anchors (gated by `./le doc check all`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
 | R-3 | Mixing logic edits into a rename commit destroys `git log --follow` usability and bloats review | diff shows non-mechanical hunks | Pure rename/merge commits only; any discovered logic fix goes in a separate commit before or after |
 | R-4 | Historical records (plan/learned/, rfc-may-decisions, learned summaries) mention old paths | grep hits under plan/learned/ | Leave history untouched; it describes the past accurately. Only living docs (docs/, ai/) are updated |
 
@@ -205,7 +205,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered plugin/event/send/command/capability inventory changed? | [ ] | No |
-| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `./le doc check verify` gates it |
+| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `./le doc check all` gates it |
 | 17 | Existing docs show config/CLI/API examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create

@@ -360,7 +360,7 @@ daemon, and no RFC obligation is touched.
 | The recovery path survives | `TestPowerUserIgnoresLoginSets`, driven from a running daemon |
 | An untouched config still works | A `.ci` on a config with no login section at all |
 | Lint | `./le repo changed scope` |
-| Schema | `./le doc check verify`, `./le cli grammar` |
+| Schema | `./le doc check all`, `./le cli grammar` |
 
 ### Security Review Checklist
 | Check | What to look for |

@@ -375,7 +375,7 @@ Each scenario owes a recorded red: remove its registry row, rebuild `test/intero
 - `test/ipsec/ipsec-sa-chacha20poly1305.ci`, `test/ipsec/ipsec-sa-modp8192.ci`
 - `swanctl.conf` and `ze.conf` under each new scenario directory in `test/interop-ipsec/scenarios/`
 - `rfc/short/rfc7634.md`, `rfc/short/rfc3526.md`, `rfc/short/rfc5903.md` (via `/ze-rfc`)
-- `rfc/discrimination/<stem>.json` records for every newly tagged test (via `./le rfc discriminate-record`)
+- `rfc/discrimination/<stem>.json` records for every newly tagged test (via `./le rfc record`)
 
 ##### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -429,7 +429,7 @@ Each scenario owes a recorded red: remove its registry row, rebuild `test/intero
    - Tests: `TestESPKeyBitsReportsFixedKey`, `TestXfrmChaCha20KeyIs36Octets`, both `.ci` green
 5. **Phase: YANG text, kernel config, docs** - every page in the checklist, in this phase
 6. **Phase: interop** - A-1 and A-2 measured first; the five scenarios (`chacha20poly1305-ike-esp`, `ike-modp3072`, `ike-modp4096`, `ike-modp8192`, `ike-ecp521`) and their checkers; each with its own recorded red (D-1)
-7. **Phase: RFC discrimination** - `./le rfc discriminate-record` for each tagged test
+7. **Phase: RFC discrimination** - `./le rfc record` for each tagged test
 
 ##### Critical Review Checklist
 | Check | What to verify for this spec |

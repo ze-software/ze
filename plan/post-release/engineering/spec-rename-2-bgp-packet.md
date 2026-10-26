@@ -58,7 +58,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 - [ ] `ai/rules/protocol.md` - BGP probe row lists `message`+`wireu` as the pre-SDK codec pair
   → Constraint: probe row + exceptions table change here (message) and again in spec-rename-3 (wireu)
 - [ ] `docs/architecture/wire/messages.md` - the `// Design:` anchor for this package's files
-  → Constraint: prose + anchors updated in the same commit; `./le doc check verify` gates
+  → Constraint: prose + anchors updated in the same commit; `./le doc check all` gates
 - [ ] `ai/rules/performance.md` - the encoding architecture this package implements
   → Constraint: rename must not disturb WriteTo(buf, off) patterns; mechanical hunks only
 
@@ -117,7 +117,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | rib-arch set closed before this starts | Depends field; user ordering decision 2026-07-08 | rename conflicts with in-flight branches | the retired `ze-spec-status` (current: `./le spec status`) at start | unvalidated (checked at start) |
 | A-2 | No local `packet` identifier in any of the 124 importers | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./...` | confirmed (2026-07-08 snapshot; re-grep at start) |
-| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check all` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | quoted-literal grep 2026-07-08 found none; `pkg/` zero refs | user-visible break | post-rename repo grep AC | confirmed (2026-07-08 snapshot) |
 | A-5 | Only the historical hook-parity producer hardcoded paths into this package | 2026-07-08 snapshot | a native hook check breaks post-rename | run `./le ai hooks unit` at the start and `./le verify current mode full` after the rename | confirmed (2026-07-08 snapshot) |
 
@@ -143,7 +143,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 | AC-1 | after rename | `internal/component/bgp/message/` does not exist; `internal/component/bgp/packet/` builds; package clause `packet` in all files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ living surfaces (plan/learned history exempt) |
 | AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary `legacy 2` (after spec-1's 3); `--verbose` shows `bgp: ... packet=canonical`; `--selftest` OK with fixtures updated |
-| AC-4 | `./le doc check verify` | green after the 34-anchor + prose sweep |
+| AC-4 | `./le doc check all` | green after the 34-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md `message` row marked retired/historical; protocol.md BGP row no longer lists `message` |
 | AC-6 | `internal/le/` | passes with fixture paths updated to `bgp/packet/` |
 | AC-7 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
@@ -217,7 +217,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `./le doc check verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `./le doc check all` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -254,7 +254,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 34 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `./le doc check verify`
+   - Tests: `./le doc check all`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 5. **Full verification** — `./le verify current mode full`; AC-7.

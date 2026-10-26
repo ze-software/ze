@@ -121,7 +121,7 @@ A later WITHDRAW for a path Ze never kept is accepted and frees no slot. The sen
 - [ ] `docs/architecture/wire/capabilities.md` - the anchor target for `session_paths_limit.go`, per `ai/CODE-TO-DOCS.md`
   → Constraint: capability 76's wire shape does not change. Only the meaning of the number Ze puts in it gains a second job
 - [ ] `docs/architecture/testing/interop.md` - the discrimination walk and the four vacuity traps
-  → Constraint: a tagged test added to already-working code has no red phase, so a receive-side ceiling test is observed RED through `./le rfc discriminate-record`, which refuses a red it did not see
+  → Constraint: a tagged test added to already-working code has no red phase, so a receive-side ceiling test is observed RED through `./le rfc record`, which refuses a red it did not see
 - [ ] `ai/patterns/config-option.md` - the structural template for a YANG leaf
   → Constraint: every leaf takes maximum native validation. Both new leaves keep `type uint16 { range "1..65535"; }`, which is what the scalar carried, because a zero is an absent container rather than an operator asking for none
 - [ ] `docs/features/exabgp-compatibility.md` - the page anchored on `migrate.go`
@@ -458,7 +458,7 @@ Two entry points, one per direction.
    - Files: `fields.go`, `format/decode.go`, `format/json.go`, and the seven config files listed above
    - Verify: the json, yaml and table pipes each render the payload, and no in-tree config still carries the scalar
 6. **Phase: RFC proof** -- the tagged test and its discrimination record
-   - Tests: the tagged carrier for `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7`, recorded through `./le rfc discriminate-record`
+   - Tests: the tagged carrier for `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7`, recorded through `./le rfc record`
    - Files: `rfc/short/draft-abraitis-idr-addpath-paths-limit.md`, `rfc/discrimination/`
    - Verify: `./le rfc check` accepts the tagged unit, and the `Support coverage` sentence no longer says the knob does not police
 7. **Phase: Interop** -- gated on A-5
@@ -518,7 +518,7 @@ Two entry points, one per direction.
 | Goal | Evidence that proves it |
 |------|------------------------|
 | G-1 The `limit` leaf becomes a container carrying `send` and `receive` at both levels, and the scalar is deleted | `TestParseAddPathLimitContainerReceive`, `TestParseAddPathLimitContainerPerFamilyOverride`, and `test/ui/cli-config-addpath-scalar-limit-refused.ci`, which proves the old spelling no longer loads |
-| G-2 `receive` bounds what Ze accepts, not only what Ze advertises | `test/plugin/paths-limit-receive-ceiling.ci`: a peer sends three paths for one prefix at ceiling 2 and the RIB holds two. The tagged carrier for requirement 3-7 with a `./le rfc discriminate-record` artifact proving it goes RED when the ceiling is removed |
+| G-2 `receive` bounds what Ze accepts, not only what Ze advertises | `test/plugin/paths-limit-receive-ceiling.ci`: a peer sends three paths for one prefix at ceiling 2 and the RIB holds two. The tagged carrier for requirement 3-7 with a `./le rfc record` artifact proving it goes RED when the ceiling is removed |
 | G-3 `send` caps what Ze announces, combined with the peer's limit by minimum | `test/plugin/paths-limit-local-send-cap.ci` for the peer-silent case, plus the four `TestInitPathsLimit` unit tests covering every combination of present and absent |
 | G-4 A migrated ExaBGP config asks peers for exactly what it asked for before | `TestMigrateAddPathLimitBecomesReceiveContainer` and `test/exabgp-compat/encoding/conf-paths-limit.ci`, which drives the ExaBGP-native config end to end and asserts the same wire output |
 | G-5 Capability encoding preserves the existing receive request when the scalar is migrated to `receive`, and no local `send` value is advertised | `test/encode/paths-limit.ci` keeps its OPEN assertion and `bgp-paths-limit-frr` proves negotiation after the config restructure. UPDATE selection and demotion withdrawals may change for remotely capped peers even without a local `send`; AC-17/AC-18 and G-7 must prove that case |

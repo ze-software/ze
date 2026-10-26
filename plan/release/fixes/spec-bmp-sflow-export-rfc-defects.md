@@ -34,7 +34,7 @@ in HEAD on 2026-09-27.
 |------------|--------|
 | Failing test first | D1: a peer-down after a TCP loss yields reason 4. D2: a pool past 2^32 wraps |
 | Both polarities | D1: a local close without NOTIFICATION stays reason 2, a NOTIFICATION stays reason 1 or 3. D2: below the limit the value is unchanged |
-| Discrimination | `./le rfc discriminate-record` for every tagged unit |
+| Discrimination | `./le rfc record` for every tagged unit |
 | Interop | D1 against a BMP collector (the existing BMP interop scenario); D2 against sflowtool, by extending the existing carrier with the sibling `TestFlowExportSFlowToolSamplePoolInterop` beside `TestFlowExportSFlowToolInterop` (Q-8, review r2 #6), reading the collector's decoded `samplePool` per sample, the test's delta over them, and the wrap |
 
 ## Owner decisions
@@ -387,7 +387,7 @@ Failing first: every new or changed assertion below is run red against the curre
 | `internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone` | RFC7854-4.9-1 negative | gains a reason 4 arm asserting no Data after the reason byte; the tag prose names reason 4 and cites the figure and Section 10.8 "Type = 4: Remote system closed, no data", because the 4.9-1 row text itself quotes reasons 1-3 only | the figure's "Data (present if Reason = 1, 2 or 3)" binds reason 4 too |
 | `internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal` | SFLOW-V5-x-11 positive | subtest "saturates rather than wraps" inverts to "wraps modulo 2^32" (AC-18). The tag prose is rewritten: it drops "tracks the total packets seen" (an over-claim before and after, because the encoder writes an estimate, not Section 5's "Total number of packets that could have been sampled"), states the estimate as Ze's D2 choice and not as sFlow text, and cites sFlow v5 Section 5 for the wrap: "Use the maximum counter value to indicate that the counter is not available." and "An available counter may temporarily have the max value just before it rolls to zero. This is permitted." | the prose today claims saturation, which the text reads as "not available". Unchanged siblings tagged SFLOW-V5-x-28 (in `sflow_v5_test.go` and `sflow_v5_sequence_test.go`) assert pool == k*rate at constant rate and stay true under per-source accumulation; the rewritten prose must not call a wrap a "reset" in the x-28 sense |
 
-Every changed tag owes a fresh `./le rfc discriminate-record` and a rejudge by an agent that did not write it (`./le rfc audit-stamp ... mode rejudge`), per AC-3, AC-4, AC-5.
+Every changed tag owes a fresh `./le rfc record` and a rejudge by an agent that did not write it (`./le rfc audit-stamp ... mode rejudge`), per AC-3, AC-4, AC-5.
 
 #### Owner approval commands
 
@@ -520,7 +520,7 @@ Discrimination for the interop (`ai/rules/interop-and-goal-validation.md`): reve
 4. **Phase: delete the BMP NOTIFICATION cache** -- `notifyCache`, `notifyPDU`, `cacheNotificationPDU` removed before `peerDownFor` reads the down event (no layering); `TestBMPHoldsNoNotificationCache`
 5. **Phase: sFlow D2** -- per-source wrapping pool; `TestSFlowFlowSamplePoolTracksTotal` changed (Q-7), `TestSFlowSamplePoolPerSource`
 6. **Phase: Interop** -- `bmp-peerdown-reason-pmacct` and `TestFlowExportSFlowToolSamplePoolInterop` (the carrier's sibling, run through the collector image's default command), with their red-then-green discrimination; the `state-down-carries-close-notification.ci` functional test
-7. **Phase: verdicts** -- `./le rfc discriminate-record` per changed tag, rejudge by a different agent, `rfc/audit` updated by the tool
+7. **Phase: verdicts** -- `./le rfc record` per changed tag, rejudge by a different agent, `rfc/audit` updated by the tool
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

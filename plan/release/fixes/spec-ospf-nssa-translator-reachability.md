@@ -35,7 +35,7 @@ one that cannot actually translate, and the external route goes missing.
 |------------|--------|
 | Failing test first | a higher-RID translator unreachable over area 0 no longer suppresses Ze's Type-5 |
 | Both polarities | a reachable higher-RID equivalent translator still suppresses |
-| Discrimination | `./le rfc discriminate-record` for the tagged units |
+| Discrimination | `./le rfc record` for the tagged units |
 | Interop | an NSSA scenario against FRR ospfd or BIRD with two translators, one partitioned from area 0 |
 
 ## Owner decisions

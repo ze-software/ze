@@ -347,7 +347,7 @@ One command per section:
 
     git show HEAD:rfc/short/rfc7296.md | grep -oE 'RFC7296-4-[0-9]+' | sort -V | tail -1
 
-After the rows land, run `./le rfc index-update` and commit `ai/RFC-REQUIREMENTS.md` in the
+After the rows land, run `./le rfc update` and commit `ai/RFC-REQUIREMENTS.md` in the
 SAME commit. The ledger records each tagged test's `file:line`, and both verify modes of
 `./le rfc check` fail on a stale ledger.
 
@@ -804,7 +804,7 @@ in that decision.
 | D | The consumer | `engine/cp.go`. The CP case at all THREE drop sites. The EAP start signature. The reply insertion between AUTH and SAr2. Traffic-selector narrowing before the child response payloads are built. Real pool wiring in place of `_ = ipPool` | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | Authorization and error paths | The two fail-closed guards, `FAILED_CP_REQUIRED` emission with its short-circuit before the Child SA install, and `INTERNAL_ADDRESS_FAILURE` | `2.19-5`, `2.19-6` | 0.5 day |
 | F | Tests | The tagged pairs, every mutation run and reverted, the pool tests, a `test/ipsec/` functional test, and the strongSwan road-warrior scenario | all 17 proven | 1.5 days |
-| G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `./le rfc index-update`, and the Integration Checklist re-answer | - | 0.5 day |
+| G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `./le rfc update`, and the Integration Checklist re-answer | - | 0.5 day |
 
 The original estimate was roughly 6 days. It does not authorize concurrent CP
 implementation under both specs. The earlier suggestion to land A and B alone

@@ -397,7 +397,7 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] Targeted tests pass: the scoped package tests of each changed package under `./le job run`, `./le test functional exabgp-test` for the api and encoding cases named above, and `./le verify current fast`; the full gate (`./le verify current`) once over the closing commits
+- [ ] Targeted tests pass: the scoped package tests of each changed package under `./le job run`, `./le test functional exabgp` for the api and encoding cases named above, and `./le verify current fast`; the full gate (`./le verify current`) once over the closing commits
 - [ ] Every A-N confirmed or broken
 - [ ] Every item this spec did not do is a spec of its own, named here
 

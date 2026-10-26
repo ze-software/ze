@@ -107,7 +107,7 @@ unaffected.
 - [ ] `rfc/short/rfc9552.md` - rows `RFC9552-8.2.3-1` and `RFC9552-8.2.3-3`
   → Constraint: both are SHOULD-level, so `./le rfc check` does not gate them; the proof owed is a tagged test, not a gate pass
   → Constraint: `RFC9552-8.2.6-2` now reads `{not-applicable}` (it binds the operator); `RFC9552-8.2.6-1` is tagged by `TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes` and `TestBGPLSPrefixLimitActuallyFires` (`internal/component/bgp/reactor/rfc9552_prefix_limit_test.go`). Neither test is edited by this spec
-  → Constraint: every tag this spec adds carries a discrimination record written by `./le rfc discriminate-record` in the same change (`ai/rules/rfc-compliance.md`)
+  → Constraint: every tag this spec adds carries a discrimination record written by `./le rfc record` in the same change (`ai/rules/rfc-compliance.md`)
 
 **RFC text, read at `rfc/full/rfc9552.txt`:**
 
@@ -364,7 +364,7 @@ before writing the release, and AC-7 carries one subtest per path class.
 - `internal/component/bgp/config/loader_create.go` - load passes the ceiling to the reactor
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - the bgp-level ceiling list
 - `rfc/short/rfc9552.md` - `RFC9552-8.2.3-1` and `RFC9552-8.2.3-3` gain tagged tests and their scoped evidence (Q-2 for 8.2.3-1)
-- `rfc/discrimination/rfc9552.json` - written by `./le rfc discriminate-record`, never by hand
+- `rfc/discrimination/rfc9552.json` - written by `./le rfc record`, never by hand
 - `docs/architecture/wire/nlri-bgpls.md` - a "Receiver Controls (RFC 9552 Section 8.2.3)" section: the family list, the filter, the ceiling
 - `docs/architecture/core-design.md` - declared by `filter_family/handler.go`; read at implementation and edited only if the family-filter description must name the per-direction use
 - `docs/guide/configuration.md` - the bgp-level ceiling
@@ -434,7 +434,7 @@ before writing the release, and AC-7 carries one subtest per path class.
 2. **Phase: Accept/advertise proof** -- no product code expected
    - Tests: `TestRFC9552ListedNeighborsLinkStateNLRIIsAccepted`, `TestRFC9552UnlistedNeighborsLinkStateNLRIIsNotAccepted`, `rfc9552-823-accept-by-family.ci`, `rfc9552-823-advertise-by-family.ci`
    - Files: the two new test files; `rfc/short/rfc9552.md`
-   - Verify: each tag's red is recorded with `./le rfc discriminate-record` (break `validateUpdateFamilies`' refusal; break the forward gate found under A-3). If A-3 is refuted, the advertise gate is a defect fixed here
+   - Verify: each tag's red is recorded with `./le rfc record` (break `validateUpdateFamilies`' refusal; break the forward gate found under A-3). If A-3 is refuted, the advertise gate is a defect fixed here
 3. **Phase: The ceiling** -- reserve, release, report
    - Tests: the remaining `router_ceiling_test.go` and `rfc9552_router_ceiling_test.go` tests, `rfc9552-823-rib-ceiling.ci`
    - Files: `router_ceiling.go`, `session_prefix.go`, `session.go`

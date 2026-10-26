@@ -588,9 +588,9 @@ sessions the converted commands act on are unchanged in every byte they send.
    - Files: the components in the class K table that own a display node
    - Verify: the gate reaches zero for class K's display half
 7. **Phase: the documentation** -- complete the doc edits each phase started
-   - Tests: `TestInheritExtensionHasOneUser`, `./le doc check verify`
+   - Tests: `TestInheritExtensionHasOneUser`, `./le doc check all`
    - Files: the pages in the Documentation checklist, `demos/terminal/`
-   - Verify: `./le cli grammar` green, `./le doc check verify` green. `extension inherit` is NOT deleted: `request interface migrate` still declares it
+   - Verify: `./le cli grammar` green, `./le doc check all` green. `extension inherit` is NOT deleted: `request interface migrate` still declares it
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -614,7 +614,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 | The bare form answers for all | `test/ui/limit-bare-peer-answers-all.ci` |
 | Narrowing is server-side | `test/ui/limit-narrows-to-one-peer.ci` asserting the wire answer, not the rendered text |
 | The old forms are gone | `test/ui/limit-old-form-is-refused.ci` |
-| Documentation matches | `./le doc check verify`; `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` reports no unnamed owner |
+| Documentation matches | `./le doc check all`; `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` reports no unnamed owner |
 
 ### Security Review Checklist
 | Check | What to look for |

@@ -501,7 +501,7 @@ The OSPF and IS-IS rows use the stop spec's drain fixture shape (an external `le
 | `ospf-runtime-drain-undrain-frr` | `test/interop/scenarios/` | FRR ospfd and ospf6d | drained: FRR's LSDB shows the stop spec's AC-34 values with the adjacency Full; undrained: FRR's LSDB shows Ze's LSAs with config's metrics and FRR's routing table returns to its pre-drain next hops; red with the undrain re-origination reverted | |
 | `isis-runtime-drain-undrain-frr` | `test/interop/scenarios/` | FRR isisd (the stop spec's two-container narrow layout) | drained: overload bit and the Q-8 metrics; undrained: overload clear, config's metrics, routes back through Ze; red with the undrain regeneration reverted | |
 
-Each scenario issues the commands through the check engine's `zeCommand` path (as `check_rpki_reload.go` runs `request bgp rpki validate`), polls FRR during each state, and never stops Ze. Each red is recorded with `./le rfc discriminate-record` where the carrier holds an `RFC requirement:` tag (RFC 8326 Sections 4.2 and 4.3, RFC 6987, RFC 3787).
+Each scenario issues the commands through the check engine's `zeCommand` path (as `check_rpki_reload.go` runs `request bgp rpki validate`), polls FRR during each state, and never stops Ze. Each red is recorded with `./le rfc record` where the carrier holds an `RFC requirement:` tag (RFC 8326 Sections 4.2 and 4.3, RFC 6987, RFC 3787).
 
 ### Goal Validation
 | Goal (from Task) | Evidence |

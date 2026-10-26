@@ -50,7 +50,7 @@ keeps the path spelled as given.
 | Both polarities | `https://host/` and `https://host` publish at the bare suffix; `https://host/mcp` keeps `/mcp`; a query-only identifier (`https://host?x`) and `https://host/a/?q` keep their spelling |
 | Identity | the `resource` member served at the derived path equals the configured identifier byte for byte |
 | Test correction | `TestRFC9728TerminatingSlashRemovedBeforeInsertion` asserts the stripped form; its `/mcp/` case is corrected, not deleted |
-| Discrimination | `./le rfc discriminate-record` for RFC9728-3.1-3 |
+| Discrimination | `./le rfc record` for RFC9728-3.1-3 |
 | Real entry point | an HTTP test against the running MCP listener: the `WWW-Authenticate` `resource_metadata` URL is fetched and answers 200 |
 
 ## Owner decisions

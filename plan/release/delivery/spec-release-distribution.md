@@ -987,7 +987,7 @@ The test symbols above describe required release-policy behaviour, not existing 
 | AC-32 | both retention units; both credential units; staging `retention` |
 | AC-33 | stable-delete/private-route unit; both retention units; staging `storage-isolation` |
 | AC-34 | both monitor units plus stale-clock credential unit; staging `monitoring` |
-| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `./le doc check verify`; both successful public probes executing guide commands |
+| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `./le doc check all`; both successful public probes executing guide commands |
 | AC-36 | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public canary-failures scenario; all evidence/staging/successful public modes; signed first-public-canary record |
 
 #### Interop Tests
@@ -1347,7 +1347,7 @@ Not applicable. This spec does not add or change a network protocol.
 
 #### Documentation Updates
 
-- Fill during implementation with source anchors and `./le doc check verify` evidence.
+- Fill during implementation with source anchors and `./le doc check all` evidence.
 
 #### Deviations from Plan
 

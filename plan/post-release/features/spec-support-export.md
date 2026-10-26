@@ -364,7 +364,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
    - Files: pipe users, support runner, help metadata
    - Verify: functional tests pass through user entry points.
 5. **Phase: Docs and generated surfaces** - update command docs, feature row, command catalogue, and any generated help data.
-   - Tests: `./le doc check verify`, `./le doc wiring`, and any generated-file check required by changed files
+   - Tests: `./le doc check all`, `./le doc wiring`, and any generated-file check required by changed files
    - Files: docs listed above and generated outputs if required
    - Verify: doc checks pass.
 
@@ -392,7 +392,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | Named destinations parse and validate | `./le test functional parse` with `support-export-destination` pattern |
 | SSH credential reference is checked | owning unit test and doctor test |
 | Syslog behavior is bounded and tested | owning unit test and functional or fixture-backed test |
-| Documentation reflects shipped command shape | `./le doc check verify` and `./le doc wiring` |
+| Documentation reflects shipped command shape | `./le doc check all` and `./le doc wiring` |
 | Changed Go code is linted | `./le repo changed scope` |
 
 ### Security Review Checklist

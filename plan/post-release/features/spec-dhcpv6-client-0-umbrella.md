@@ -70,7 +70,7 @@ Information-request, which child 3 builds.
   → Constraint: every DHCPv6 paragraph carries `<!-- source: -->` anchors to `dhcp_v6_linux.go`, `dhcp_v6_exchange_linux.go`, `dhcp_v6_attach_linux.go`, `dhcp_v6_lease_linux.go`; each child updates the anchors of the functions it adds
 - [ ] `docs/contributing/rfc-conformance-gates.md` - "The feature-declined annotation", `checkGapCountAgreement`, "Proof is monotonic"
   → Decision: `{feature-declined}` requires that "Ze declined X"; after the owner's 2026-10-19 decision that fact is false for these four features, so the rows become `{gap}` (an unconditional or now-binding obligation ze does not meet)
-  → Constraint: a `{gap}` row carries no `positive` or `negative` tag; each feature child removes the `{gap}` and adds both polarities with a discrimination record (`./le rfc discriminate-record`)
+  → Constraint: a `{gap}` row carries no `positive` or `negative` tag; each feature child removes the `{gap}` and adds both polarities with a discrimination record (`./le rfc record`)
   → Constraint: the `Support remaining` cell's spelled number before MUST must equal the `{gap}` plus `{partial}` rows (`spelledGapCount`, `internal/le/rfc/check_status.go`); every child that closes gaps rewrites that number
 - [ ] `docs/architecture/testing/interop.md` - Kea row (`kea-dhcp6.conf`, `test/interop/Dockerfile.kea`)
   → Constraint: the Kea image is Alpine 3.21 `kea-dhcp6` 2.6.2; scenarios are named, never numbered

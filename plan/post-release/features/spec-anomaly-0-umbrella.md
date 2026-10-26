@@ -229,7 +229,7 @@ test passes and the roadmap stays truthful.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Each child spec closed | → | child wiring tests | child `/ze-review` gates + functional tests (see children) |
-| `docs/features.md` behavioral-anomaly row exists & source-anchored | → | feature roll-up | `./le doc check verify` + grep for the source anchor |
+| `docs/features.md` behavioral-anomaly row exists & source-anchored | → | feature roll-up | `./le doc check all` + grep for the source anchor |
 
 ## Acceptance Criteria
 
@@ -263,7 +263,7 @@ test passes and the roadmap stays truthful.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | (per child) | (per child) | see child specs | |
-| `anomaly-doc` | `./le doc check verify` | features row + operator guide build and source anchors resolve | |
+| `anomaly-doc` | `./le doc check all` | features row + operator guide build and source anchors resolve | |
 
 ### Interop Tests
 Owned by child 8 (upstream FlowSpec touches the wire). N/A for the umbrella itself.
@@ -356,7 +356,7 @@ Recommended order (harden, then widen, then extend):
 - [ ] Phase-B children (5 entity-matrix, 6 as-enrichment, 7 as-entities-cohorts) closed
 - [ ] Child 8 (upstream-response) closed ~~OR its plugin→reactor announce-seam dependency documented as the blocker~~ (corrected 2026-08-03: there is no seam blocker to document; see the Correction block)
 - [ ] Child 9 (subsecond-beaconing) remains blocked with a documented prerequisite (not implemented against 1s)
-- [ ] `docs/features.md` row + operator guide pass `./le doc check verify`
+- [ ] `docs/features.md` row + operator guide pass `./le doc check all`
 
 ## Checklist
 
