@@ -467,7 +467,9 @@ authority (RFC 3948 Section 5.1).
 | AC-26 | one peer with an established SA re-initiates in parallel | the new SA holds the same address; the pool held count rises by 0, and after the old SA closes the address is still held |
 | AC-27 | a pool cycled through every address with releases between | the rotating cursor does not hand the most recently released address to a different owner while another address is free |
 | AC-28 | pool at 90% held | `ze doctor` names the pool and the fix |
-| AC-29 | CFG_REQUEST asking APPLICATION_VERSION, in IKE_AUTH and in INFORMATIONAL | APPLICATION_VERSION with an empty value |
+| AC-29 | CFG_REQUEST asking APPLICATION_VERSION, in IKE_AUTH on a pool-bound peer; and in INFORMATIONAL | IKE_AUTH: APPLICATION_VERSION with an empty value in the CFG_REPLY; INFORMATIONAL: no CP payload, as at HEAD |
+
+-> Decision (AC-29, 2026-10-26, supervisor): RFC 7296 Section 2.20 (`rfc/full/rfc7296.txt`, line 3209) reads "In that case, it MUST either return an empty string or no CP payload if CP is not supported." Ze takes both permitted forms: the IKE_AUTH CFG_REPLY to a granted request carries the empty string (`buildCFGReply`, `TestSupportedAttributesDerived`), and an INFORMATIONAL CFG_REQUEST keeps HEAD's no-CP answer, which two committed RFC7296-2.20-1 tagged tests pin: `TestRFC7296InformationalVersionRequestDrawsNoCP` and `TestRFC7296InformationalVersionRequestReflectsNoVersionString` (`internal/component/ike/engine/rfc7296_cp_version_informational_test.go`). `inbound.go` is unchanged.
 | AC-30 | pool range edited while a lease is live | the live address is never handed to another peer; the old lease stays held until its IKE SA closes |
 | AC-31 | commit with overlapping pools / unknown pool name / `virtual-ip-pool` on an `initiate` peer / selectors not covering the pool / `domain` set | each refused with an error naming the item, why, and the fix |
 | AC-32 | IKE SA rekey, Ze initiating and Ze responding | lease kept by the successor; held count unchanged; no release at retirement |
@@ -523,7 +525,7 @@ authority (RFC 3948 Section 5.1).
 | `TestParallelReinitSharesLease` | `cp_lease_test.go` | AC-26 | |
 | `TestRotatingCursor` | `pool_test.go` | AC-27 | |
 | `TestDoctorVirtualIPPoolUtilization` | `internal/component/ike/engine/doctor_test.go` | AC-28 | |
-| `TestApplicationVersionEmpty` | `cp_test.go` | AC-29 | |
+| `TestSupportedAttributesDerived` (IKE_AUTH); `TestRFC7296InformationalVersionRequestDrawsNoCP`, `TestRFC7296InformationalVersionRequestReflectsNoVersionString` (INFORMATIONAL, committed) | `cp_test.go`, `rfc7296_cp_version_informational_test.go` | AC-29 | |
 | `TestPoolEditKeepsLiveLease` | `internal/component/ike/engine/apply_test.go` | AC-30 | |
 | `TestVirtualIPPoolCommitRefusals` | `internal/component/ike/ipsec/config_test.go` | AC-31 | |
 | `TestIKERekeyKeepsLease` | `cp_lease_test.go` | AC-32, A-2 | |

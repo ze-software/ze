@@ -378,8 +378,17 @@ type SA struct {
 	// cannot be built. The initiator has not authenticated at that point, so the final
 	// IKE_AUTH answers it (selectAuthChildSA, responder.go). Nil when nothing refused.
 	eapChildRefusal error
-	NegotiatedTSi   *net.IPNet // narrowed initiator TS from AUTH response
-	NegotiatedTSr   *net.IPNet // narrowed responder TS from AUTH response
+	// cpRequest is the CFG_REQUEST decided from the peer's IKE_AUTH (decideCPRequest,
+	// cp.go), nil when the peer sent none Ze serves. eapTSi and eapTSr keep a pool-bound
+	// EAP peer's proposed selectors from the first IKE_AUTH, so the final IKE_AUTH narrows
+	// them with the lease it grants.
+	cpRequest      *cpRequest
+	eapTSi, eapTSr *wire.PayloadTS
+	// virtualIP is the lease set this IKE SA holds (assignVirtualIP), nil when it holds
+	// none. Released once by forgetKeys, moved to a rekeyed successor by moveVirtualIP.
+	virtualIP     *virtualIPGrant
+	NegotiatedTSi *net.IPNet // narrowed initiator TS from AUTH response
+	NegotiatedTSr *net.IPNet // narrowed responder TS from AUTH response
 
 	// NegotiatedPairs is the full narrowed selector set, in TSi/TSr orientation.
 	//
@@ -759,6 +768,7 @@ func (sa *SA) forgetKeys() {
 		sa.LocalDH.Clear()
 	}
 	sa.closeEAPSession()
+	sa.releaseVirtualIP()
 	clear(sa.EAPMSK[:])
 	sa.LocalNonce = nil
 	sa.RemoteNonce = nil

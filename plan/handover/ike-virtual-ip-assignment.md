@@ -253,3 +253,26 @@ selectors stay wildcard.
 | Docs | `ipsec-14-responder.md`, `rfcgate-1b-rfc7296-pilot.md`, `ipsec-3-data-model.md`, `config-reference.md`, `ipsec-10-cli-diag.md`, `rfc-status.md` not updated |
 | Journal | `unwired-feature.md` 2026-08-16 row: mark fixed when the consumer commits |
 | Lint | scoped lint on `./internal/component/ike/...` not run; the edit hook flagged only the foreign `esp_fixed_test.go` |
+
+## Fourth agent, 2026-10-26: consumer completed, all green, committed by the fifth agent
+
+Green: `go test -race` over `ike/engine`, `ike/cmd`, `core/eap`, `core/diagnostic` (job log
+`tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch/job-unit-pkg4-1b335d6d.log`);
+the eleven `test/parse/ipsec-*` `.ci` files green (`scratch/vip-parse.log`).
+
+| Item | Content |
+|------|---------|
+| `ts_narrow.go` | the `substituteVirtualIP` insertion in `narrowChildSelectors`, so AC-5, AC-7, AC-7b went green |
+| Childless response | `buildChildlessAuthResponse` carries the CFG_REPLY when a lease was granted |
+| AC-6, AC-22 | `cp_eap_test.go`: CFG_REPLY only in the final EAP IKE_AUTH, selector names the lease |
+| AC-32 | `adoptRekeyedIKESA` in `established.go`, the one swap site of both rekey directions; `TestIKERekeyKeepsLease` drives both |
+| AC-33 | `LeaseVirtualIPForTest` and a `show vpn ipsec sa` test of a leased SA through `saToMap` |
+| AC-28 | `doctor_virtual_ip.go` (`ipsec-virtual-ip-pool`, 90% threshold) and its test, `diagnostic.CodeDoctorIPsecVirtualIPPool`, the registration in `register.go`, gauge `ze_ipsec_virtual_ip_leases{pool}` in `metrics.go`, `eap.Registry.HeldIn` |
+| Lint | `decideCPRequest` returns `*cpRequest` |
+| `rfc7296_cp_test.go` | the `RFC7296-2.20-1` claim prose reworded: "Ze constructs no Configuration payload in any message" became false. A discrimination record is owed |
+| Journal | `unwired-feature.md` 2026-08-16 row marked fixed |
+
+AC-29 INFORMATIONAL was parked on two RFC-tagged tests. The supervisor decided it: RFC 7296
+Section 2.20 permits "either return an empty string or no CP payload", and Ze keeps the no-CP
+answer in INFORMATIONAL (spec AC-29 `-> Decision:`). The parked `scratch/ac29-*` files were
+deleted.

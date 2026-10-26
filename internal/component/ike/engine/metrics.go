@@ -38,6 +38,29 @@ type IPsecMetrics struct {
 	dataplaneMu      sync.Mutex
 	dataplaneIfIDs   map[string]bool
 	dataplaneDrifted map[string]bool
+
+	// virtualIPLeases is the live lease count of each remote-access pool. virtualIPMu
+	// guards the pool names it last published, for the same two goroutines.
+	virtualIPLeases metrics.GaugeVec
+	virtualIPMu     sync.Mutex
+	virtualIPPools  map[string]bool
+}
+
+// publishVirtualIPGauges sets the lease count of every pool of the running engine and
+// deletes the series of a pool the configuration no longer carries. With no engine
+// running, it publishes no series: nothing is held, and no pool exists to report.
+func (m *IPsecMetrics) publishVirtualIPGauges() {
+	values := map[string]float64{}
+	if table := ActiveTable(); table != nil {
+		if gen := table.virtualIP.pools.Load(); gen != nil {
+			for name := range gen.byName {
+				values[name] = float64(table.virtualIP.leases.Held(name))
+			}
+		}
+	}
+	m.virtualIPMu.Lock()
+	defer m.virtualIPMu.Unlock()
+	setGaugeSeries(m.virtualIPLeases, m.virtualIPPools, values)
 }
 
 // eapTLSResumptionStats counts how each completed EAP-TLS authentication was
@@ -259,6 +282,10 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 			[]string{metricLabelPeer}),
 		dataplaneIfIDs:   map[string]bool{},
 		dataplaneDrifted: map[string]bool{},
+		virtualIPLeases: reg.GaugeVec("ze_ipsec_virtual_ip_leases",
+			"Number of virtual IP addresses live IKE SAs hold, by remote-access pool",
+			[]string{"pool"}),
+		virtualIPPools: map[string]bool{},
 	}
 }
 
@@ -402,6 +429,7 @@ func (m *IPsecMetrics) Update() {
 	m.publishErrorNotifyCounts()
 	m.publishCookieCounts()
 	m.publishEAPTLSResumptionCounts()
+	m.publishVirtualIPGauges()
 	// RFC 7296 Section 2.23 needs the kernel to decapsulate ESP that arrives inside
 	// UDP. A failure to arm that is invisible on the wire: the tunnel establishes and
 	// carries nothing. The count rises on every listener rebuild that fails, so a

@@ -218,6 +218,9 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 		// keep in its SET_WINDOW_SIZE notify. Zero means the peer sent none, which the
 		// same section reads as a window of one.
 		"peer-window-size": sa.PeerWindowSize,
+		// The inner addresses this IKE SA leased to its peer from a remote-access pool
+		// (RFC 7296 Section 2.19), empty when the peer is bound to no pool.
+		"virtual-ip": virtualIPText(sa.VirtualIPs()),
 	}
 
 	if info, ok := peerInfos[sa.PeerName]; ok {
@@ -281,6 +284,17 @@ func selectorAddressText(ip net.IP) any {
 		return nil
 	}
 	return ip.String()
+}
+
+// virtualIPText renders the leased inner addresses as a list of strings. An SA that
+// holds no lease answers an empty list, never null, because holding none is a fact
+// the engine knows rather than an unread value.
+func virtualIPText(addrs []netip.Addr) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		out = append(out, a.String())
+	}
+	return out
 }
 
 // addChildCounters fills the four counter keys the `sa` and `peer name` YANG

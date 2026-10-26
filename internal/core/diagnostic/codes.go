@@ -56,6 +56,7 @@ const (
 	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
+	CodeDoctorIPsecVirtualIPPool                   = "doctor-ipsec-virtual-ip-pool"
 	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
 	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
 	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
@@ -905,6 +906,17 @@ var builtinCodes = []CodeMeta{
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cookie-threshold"},
+	},
+	{
+		Code:  CodeDoctorIPsecVirtualIPPool,
+		Title: "IPsec virtual-IP pool nearly exhausted",
+		Description: "At least 90% of the addresses one family of a remote-access pool can lease " +
+			"are held by live IKE SAs. A lease lives as long as its IKE SA, so once the range is " +
+			"full every further remote-access client bound to the pool is refused with " +
+			"INTERNAL_ADDRESS_FAILURE (RFC 7296 Section 3.15.4) and gets no tunnel. Widen range " +
+			"or range6 under vpn ipsec remote-access pool <name>, or bind some peers to another " +
+			"pool with virtual-ip-pool.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-virtual-ip-pool"},
 	},
 	{
 		Code:  CodeDoctorIPsecXFRMUnavailable,

@@ -356,6 +356,17 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorIPsecCookieThreshold},
 			Check:        checkIPsecCookieThreshold,
+		}, {
+			// RFC 7296 Section 3.15.4: a full remote-access pool refuses the next client
+			// with INTERNAL_ADDRESS_FAILURE. Utilization is engine runtime state, read
+			// from the running SA table as ipsec-udp-encap reads its socket state.
+			Name:         "ipsec-virtual-ip-pool",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        734,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecVirtualIPPool},
+			Check:        checkIPsecVirtualIPPool,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

@@ -202,7 +202,13 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 	// A refusal here is kept, not acted on: the initiator has not authenticated yet,
 	// and the final IKE_AUTH answers it beside AUTH and keeps the IKE SA
 	// (selectAuthChildSA, buildChildlessAuthResponse). RFC 7296 Section 2.21.2.
-	if tsi != nil && tsr != nil {
+	//
+	// A pool-bound peer is the exception: its inner selector is the lease, which is
+	// granted only after authentication, so its proposal is kept and narrowed in the
+	// final IKE_AUTH (selectAuthChildSA). RFC 3948 Section 5.1
+	if sa.PeerCfg.VirtualIPPoolName() != "" {
+		sa.eapTSi, sa.eapTSr = tsi, tsr
+	} else if tsi != nil && tsr != nil {
 		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
 			log.Warn("ike: no acceptable traffic selector from initiator", "peer", sa.PeerName, "error", err)
 			sa.eapChildRefusal = err
@@ -296,13 +302,21 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 
 	var eapPayload *wire.PayloadEAP
 	var authPayload *wire.PayloadAUTH
+	var cps []*wire.PayloadCP
 	for i := range inner {
 		switch p := inner[i].Payload.(type) {
 		case *wire.PayloadEAP:
 			eapPayload = p
 		case *wire.PayloadAUTH:
 			authPayload = p
+		case *wire.PayloadCP:
+			cps = append(cps, p)
 		}
+	}
+	// A CFG_REQUEST the first IKE_AUTH did not carry is accepted from the final one,
+	// which is the message the CFG_REPLY answers (RFC 7296 Section 2.19).
+	if authPayload != nil && sa.cpRequest == nil {
+		sa.cpRequest = decideCPRequest(cps)
 	}
 
 	// After EAP-Success the initiator sends its AUTH derived from the MSK, with no

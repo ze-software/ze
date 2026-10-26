@@ -616,6 +616,14 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// narrows exactly as it did before (ts_nat_substitute.go).
 	proposedI, proposedR = substituteResponderSelectors(sa, proposedI, proposedR)
 
+	// RFC 3948 Section 5.1: the lease replaces the peer's proposed inner selector (cp.go).
+	// It runs before the policy match, so the SPD lookup below judges the leased address
+	// and no Child SA of a pool-bound peer names an inner source the registry did not grant.
+	proposedI, err := substituteVirtualIP(sa, proposedI)
+	if err != nil {
+		return err
+	}
+
 	// Narrowing is the RESPONDER's job (RFC 7296 Section 2.9), and every caller of this
 	// function is answering a proposal somebody else sent. This node is therefore the
 	// RESPONDER of the exchange in hand, so its configured local side is TSr.

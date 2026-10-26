@@ -227,6 +227,14 @@ func notifyForRefusal(err error) uint16 {
 	if errors.Is(err, errTSUnacceptable) {
 		return wire.NotifyTSUnacceptable
 	}
+	// RFC 7296 Section 2.19 and Section 3.15.4: the two Configuration-payload refusals
+	// of a pool-bound peer (assignVirtualIP, cp.go).
+	if errors.Is(err, errCPRequired) {
+		return wire.NotifyFailedCPRequired
+	}
+	if errors.Is(err, errNoAddressAssigned) {
+		return wire.NotifyInternalAddressFailure
+	}
 	return wire.NotifyNoProposalChosen
 }
 

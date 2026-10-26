@@ -126,10 +126,11 @@ func TestZeSendsNoConfigurationRequest(t *testing.T) {
 
 // RFC requirement: RFC7296-2.20-1 positive -- RFC 7296 Section 2.20 lets an implementation
 // decline to give out version information. It requires a decline to be an empty string, or
-// no CP payload at all when CP is not supported. Ze declines, and it takes the second form.
-// Ze constructs no Configuration payload in any message. It therefore emits no
-// APPLICATION_VERSION attribute in any exchange. The sweep asserts that the attribute count
-// is zero over every message kind, at both nesting levels.
+// no CP payload at all when CP is not supported. Ze declines. None of the message builders
+// the sweep drives answers a CFG_REQUEST, and none emits an APPLICATION_VERSION attribute:
+// the sweep asserts that the attribute count is zero over every message kind it builds, at
+// both nesting levels. A granted IKE_AUTH CFG_REQUEST that asks the version is answered
+// with the empty string, the first form (buildCFGReply in cp.go).
 //
 // RFC requirement: RFC7296-2.20-1 negative -- the silence is a decline, not a missing code
 // path. The codec carries a non-empty APPLICATION_VERSION and returns it unchanged. Ze CAN

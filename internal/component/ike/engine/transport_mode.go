@@ -102,6 +102,12 @@ func transportModeNotify() *wire.PayloadNotify {
 // established in tunnel mode with no notification in the response, which is exactly the
 // outcome the RFC names for a decline.
 func decideResponderTransportMode(sa *SA) {
+	// RFC 7296 Section 1.3.1 lets the responder decline. A pool-bound peer is declined:
+	// its leased inner address is a tunnel-mode concept.
+	if sa.PeerCfg.VirtualIPPoolName() != "" {
+		sa.UseTransportMode = false
+		return
+	}
 	sa.UseTransportMode = sa.PeerRequestedTransport && wantsTransportMode(sa)
 }
 

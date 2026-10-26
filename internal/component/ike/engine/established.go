@@ -406,28 +406,10 @@ func (ps *PeerSession) maintainSA(
 				handleDPDResponse(dpd, log, ps.peerName)
 			}
 			if out.newSA != nil {
-				// RFC 7296 §2.8: rekeyed IKE SA has new SPIs. Point routing at the new SA
-				// BEFORE it is discoverable in the table, so a packet for it is never
-				// briefly handled inline instead of on this owner loop; then re-key the
-				// table and swap the loop's SA.
-				oldSA := sa
+				// RFC 7296 §2.8: the rekeyed IKE SA replaces the loop's SA, and the
+				// retired one closes, its virtual-IP lease moved first.
+				ps.adoptRekeyedIKESA(sa, out.newSA, table, log)
 				sa = out.newSA
-				ps.ownedSA.Store(sa)
-				// A path probe that left on the retired SA can no longer be
-				// answered or retransmitted: answer it now, before the swap
-				// forgets the window it held.
-				ps.retirePendingProbe(log)
-				// The session pointer follows the swap too. TerminatePeerSA and
-				// TerminateAllSAs remove the SA that ps.getSA returns. A pointer
-				// left on the retired SA deletes a key that is already gone, and
-				// leaves the live tunnel in the table.
-				ps.setSA(sa)
-				table.Insert(sa)
-				table.Remove(oldSA.InitiatorSPI, oldSA.ResponderSPI)
-				// RFC 7296 Section 2.12: the retired SA is closed here, so it forgets
-				// its keys AND the DH private value, nonces and EAP key that could
-				// recompute them. Clearing SKKeys alone left SK_d's own inputs behind.
-				oldSA.forgetKeys()
 				ikeLT = newLifetimeState(ikeGroup.Lifetime)
 				ps.incRekeyCount()
 			}
@@ -1123,4 +1105,32 @@ func emitChildRekey(bus ze.EventBus, peerName string, child *ChildSA, log *slog.
 	if _, err := ChildRekey.Emit(bus, evt); err != nil {
 		log.Debug("ike: emit child-rekey failed", "error", err)
 	}
+}
+
+// adoptRekeyedIKESA makes successor the session's IKE SA and closes retired, at the one
+// swap site both IKE SA rekey directions reach: Ze's own rekey (applyIKERekeyResponse)
+// and the peer's, confirmed by its Delete of the old SA (ps.pendingIKESwap). It runs on
+// the owner goroutine; the caller then reads successor as its SA.
+func (ps *PeerSession) adoptRekeyedIKESA(retired, successor *SA, table *SATable, log *slog.Logger) {
+	// RFC 7296 Section 2.8: the rekeyed IKE SA has new SPIs. Routing points at the new
+	// SA BEFORE it is discoverable in the table, so a packet for it is never briefly
+	// handled inline instead of on the owner loop.
+	ps.ownedSA.Store(successor)
+	// A path probe that left on the retired SA can no longer be answered or
+	// retransmitted: answer it now, before the swap forgets the window it held.
+	ps.retirePendingProbe(log)
+	// The session pointer follows the swap too. TerminatePeerSA and TerminateAllSAs
+	// remove the SA that ps.getSA returns. A pointer left on the retired SA deletes a
+	// key that is already gone, and leaves the live tunnel in the table.
+	ps.setSA(successor)
+	table.Insert(successor)
+	table.Remove(retired.InitiatorSPI, retired.ResponderSPI)
+	// RFC 7296 Section 3.15.1: "The requested address is valid as long as this IKE SA
+	// (or its rekeyed successors) requesting the address is valid." The virtual-IP
+	// lease is not the retired SA's to release: it moves to the successor first.
+	moveVirtualIP(retired, successor)
+	// RFC 7296 Section 2.12: the retired SA is closed here, so it forgets its keys AND
+	// the DH private value, nonces and EAP key that could recompute them. Clearing
+	// SKKeys alone left SK_d's own inputs behind.
+	retired.forgetKeys()
 }

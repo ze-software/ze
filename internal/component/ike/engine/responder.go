@@ -561,10 +561,13 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	var tsi, tsr *wire.PayloadTS
 	var certPayloads []*wire.PayloadCERT
 	var setWindowSize *wire.PayloadNotify
+	var cps []*wire.PayloadCP
 	// RFC 7296 Section 2.5 forbids rejecting a message over payload order, so this walk
 	// only collects and every check runs after it.
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
+		case *wire.PayloadCP:
+			cps = append(cps, p)
 		case *wire.PayloadID:
 			if p.IDPayloadType == wire.PayloadTypeIDi {
 				sa.RemoteIDPayload = p
@@ -637,6 +640,9 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	// because transport mode constrains them to a single address (Section 2.23.1). Both
 	// the direct and the EAP path below read the decision.
 	decideResponderTransportMode(sa)
+	// RFC 7296 Section 4: the CFG_REQUEST is parsed in the first IKE_AUTH on both paths;
+	// the address is granted only after authentication (selectAuthChildSA).
+	sa.cpRequest = decideCPRequest(cps)
 	if remoteSAi2 != nil {
 		sa.acceptMobikeOffer(inner)
 		sa.recordMobikeLocal(sa.replyLocal)
@@ -964,7 +970,7 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		return nil, nil, err
 	}
 
-	childInner, ifID, err := selectAuthChildSA(sa, remoteSAi2, tsi, tsr, fromEAP)
+	childInner, ifID, err := selectAuthChildSA(sa, ps.virtualIP, remoteSAi2, tsi, tsr, fromEAP)
 	if err != nil {
 		return buildChildlessAuthResponse(sa, msgID, authInner, err, log)
 	}
@@ -1015,8 +1021,9 @@ func buildAuthIdentityPayloads(sa *SA, fromEAP bool) ([]wire.PayloadEntry, error
 // selectAuthChildSA negotiates the Child SA piggybacked on IKE_AUTH and returns the
 // Child SA half of the response (SAr2, [USE_TRANSPORT_MODE], TSi, TSr) and the XFRM
 // interface id the Child SA installs on. An error means no Child SA can be built and
-// names the refusal (notifyForRefusal).
-func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, fromEAP bool) ([]wire.PayloadEntry, uint32, error) {
+// names the refusal (notifyForRefusal). For a pool-bound peer the half opens with the
+// CFG_REPLY, and vip is the engine's lease state the address is granted from.
+func selectAuthChildSA(sa *SA, vip *virtualIPState, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, fromEAP bool) ([]wire.PayloadEntry, uint32, error) {
 	// The EAP path selected the Child SA on the first IKE_AUTH, before the initiator
 	// had authenticated, and kept a refusal for this final IKE_AUTH to answer.
 	if fromEAP && sa.eapChildRefusal != nil {
@@ -1034,6 +1041,18 @@ func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.Payloa
 	}
 	if sa.ChildOutboundSPI == 0 {
 		return nil, 0, errors.New("ike auth: no initiator ESP SPI (missing SAi2)")
+	}
+
+	// The peer has authenticated, so a pool-bound peer is granted its inner address
+	// HERE, before the selectors are narrowed with it and before createFirstChildSA.
+	// RFC 3948 Section 5.1, RFC 7296 Sections 2.19 and 3.15.4
+	if err := assignVirtualIP(sa, vip); err != nil {
+		return nil, 0, err
+	}
+	// The EAP path kept a bound peer's proposal unnarrowed from the first IKE_AUTH,
+	// because the lease it is narrowed with exists only now.
+	if fromEAP && sa.eapTSi != nil && sa.eapTSr != nil {
+		tsi, tsr = sa.eapTSi, sa.eapTSr
 	}
 
 	// RFC 7296 Section 2.9: narrow the initiator's proposal to a subset the operator's
@@ -1064,7 +1083,17 @@ func selectAuthChildSA(sa *SA, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.Payloa
 		return nil, 0, fmt.Errorf("%w: %w", errChildBinding, err)
 	}
 
-	inner := make([]wire.PayloadEntry, 0, 4)
+	inner := make([]wire.PayloadEntry, 0, 5)
+	// RFC 7296 Section 2.19: "In all cases, the CP payload MUST be inserted before the SA
+	// payload." And: "In variations of the protocol where there are multiple IKE_AUTH
+	// exchanges, the CP payloads MUST be inserted in the messages containing the SA
+	// payloads." This half is what carries SAr2 on the direct and the EAP final path, so
+	// the CFG_REPLY opens it. Only a granted request reaches here with a lease, and RFC
+	// 7296 Section 2.19: "The responder MUST NOT send a CFG_REPLY without having first
+	// received a CP(CFG_REQUEST) from the initiator".
+	if sa.virtualIP != nil {
+		inner = append(inner, wire.PayloadEntry{Payload: buildCFGReply(sa.virtualIP)})
+	}
 	inner = append(inner, wire.PayloadEntry{Payload: saPayload})
 	// RFC 7296 Section 1.3.1 MUST: "If the request is accepted, the response MUST also
 	// include a notification of type USE_TRANSPORT_MODE." It is absent when the request
@@ -1094,7 +1123,16 @@ func buildChildlessAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEn
 	log.Warn("ike: refused the IKE_AUTH Child SA, keeping the IKE SA", "peer", sa.PeerName,
 		"notify", wire.NotifyTypeName(notifyType), "error", childErr, "fix", childRefusedResponderFix(childErr))
 	refusal := wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: notifyType}}
-	inner := slices.Concat(authInner, []wire.PayloadEntry{refusal}, mobikeAuthOffer(sa))
+	// RFC 7296 Section 2.19: "That address persists at least until the deletion of the IKE
+	// SA." A lease granted before the Child SA was refused (a selector or dataplane
+	// refusal after assignVirtualIP) stays with the IKE SA, and a later CREATE_CHILD_SA
+	// uses it, so the peer is told its address here too, as strongSwan's ike_config
+	// build_r answers independently of the Child SA outcome. No lease, no CFG_REPLY.
+	var reply []wire.PayloadEntry
+	if sa.virtualIP != nil {
+		reply = []wire.PayloadEntry{{Payload: buildCFGReply(sa.virtualIP)}}
+	}
+	inner := slices.Concat(authInner, reply, []wire.PayloadEntry{refusal}, mobikeAuthOffer(sa))
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ike auth: build childless response: %w", err)

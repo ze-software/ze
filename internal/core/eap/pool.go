@@ -457,6 +457,29 @@ func (r *Registry) Available(pool *Pool) uint64 {
 	return pool.Capacity() - held
 }
 
+// HeldIn returns how many live leases lie inside pool's range of family and how many
+// addresses that range can lease, for the utilization gauge and the doctor check. A
+// family the pool does not serve answers ok false, never a zero capacity.
+func (r *Registry) HeldIn(pool *Pool, family Family) (held, capacity uint64, ok bool) {
+	if !pool.Serves(family) {
+		return 0, 0, false
+	}
+	capacity = pool.hosts4
+	if family == FamilyIPv6 {
+		capacity = pool.hosts6
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for addr := range r.byAddr {
+		if addr.Is4() == (family == FamilyIPv4) && pool.Contains(addr) {
+			held++
+		}
+	}
+	return held, capacity, true
+}
+
 // IsHeld reports whether addr is leased to anyone.
 func (r *Registry) IsHeld(addr netip.Addr) bool {
 	r.mu.Lock()
