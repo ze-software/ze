@@ -146,8 +146,8 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	unheld := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received + 1,
 		AddPath: entry.owner.addPath, MessageID: 3}
 	decided := recoveryAdmitKey{key: key, record: record}
-	_, issued := (&reactorAPIAdapter{r: rail.r}).recoverySources()
-	admission := &recoveryAdmission{peer: rail.destination, sourcesIssued: issued}
+	sources := (&reactorAPIAdapter{r: rail.r}).recoverySources()
+	admission := newRecoveryAdmission(t.Context(), rail.destination, nil, sources, nil)
 	admission.unsendableSurvivor(&decided, &unheld)
 	require.Equal(t, recoveryKeyReowed, decided.outcome,
 		"a path the destination does not hold cannot be sent from a sessionless source")
@@ -196,13 +196,13 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	require.True(t, held)
 
 	adapter := &reactorAPIAdapter{r: rail.r}
-	sources, issued := adapter.recoverySources()
+	sources := adapter.recoverySources()
+	issued := sources.issued
 	rail.source.setState(PeerStateEstablished) // Started during the RIB lookup.
 	require.Greater(t, rail.source.forwardGeneration.Load(), issued)
 
-	admission := &recoveryAdmission{peer: rail.destination, session: session, ctx: t.Context(),
-		done: make(chan struct{}), sources: sources, sourcesIssued: issued,
-		keys: []recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}}}
+	admission := newRecoveryAdmission(t.Context(), rail.destination, session, sources,
+		[]recoveryAdmitKey{{key: key, record: record, epoch: record.epoch}})
 	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source,
 		PathID: entry.owner.received + 1, AddPath: entry.owner.addPath, MessageID: 3}}}
 	require.NoError(t, adapter.queueRecoveryOutcome(&outcome, 0, family.IPv4Unicast, admission, plugin.OperatorSender()))
@@ -224,4 +224,67 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	table.mu.Unlock()
 	require.NotContains(t, excluded, source,
 		"a session started during the lookup stays excluded by the unsendable survivor")
+}
+
+// VALIDATES: a recovery round's source snapshot is one cut of the generation
+// clock: every receipt it holds is at or below its issued generation, and a
+// session the source advances to while the snapshot is read is above it.
+// PREVENTS: a session reaching Established after the snapshot read the clock
+// and before it read the source's receipt, so the receipt names a session
+// above the bound; were that session the survivor and to end under graceful
+// restart before the decision, its exclusion would be lifted at once
+// (adjOutOwed.announcerLifts) and a round wasted re-electing it.
+// Method: one goroutine advances the source as fast as it can while the test
+// takes snapshots; each snapshot must hold the source's receipt at or below
+// issued.
+func TestRecoverySourcesIsOneGenerationCut(t *testing.T) {
+	rail := newOwedRail(t)
+	adapter := &reactorAPIAdapter{r: rail.r}
+	stop := make(chan struct{})
+	advanced := make(chan struct{})
+	go func() {
+		defer close(advanced)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				rail.source.advanceForwardGeneration()
+			}
+		}
+	}()
+	for range 2000 {
+		sources := adapter.recoverySources()
+		receipt, present := sources.receipts[rail.source]
+		if !present {
+			close(stop)
+			<-advanced
+			t.Fatal("the snapshot holds a receipt for every configured Peer")
+		}
+		if receipt.generation > sources.issued {
+			close(stop)
+			<-advanced
+			t.Fatalf("receipt names generation %d above the snapshot's issued %d: "+
+				"a session started after the clock read sits in the snapshot", receipt.generation, sources.issued)
+		}
+	}
+	close(stop)
+	<-advanced
+}
+
+// VALIDATES: a recovery admission cannot be built without its round's source
+// snapshot.
+// PREVENTS: an admission whose zero snapshot bounds an unsendable survivor's
+// exclusion at generation zero, which every session of the source lifts, so
+// the exclusion would silently never hold.
+// Method: newRecoveryAdmission refuses a snapshot recoverySources did not
+// produce, and accepts one it did.
+func TestRecoveryAdmissionRequiresSourceSnapshot(t *testing.T) {
+	rail := newOwedRail(t)
+	require.Panics(t, func() {
+		newRecoveryAdmission(t.Context(), rail.destination, nil, recoverySourceSnapshot{}, nil)
+	}, "an admission without a snapshot has no bound for its exclusions")
+	sources := (&reactorAPIAdapter{r: rail.r}).recoverySources()
+	admission := newRecoveryAdmission(t.Context(), rail.destination, nil, sources, nil)
+	require.Equal(t, sources.issued, admission.sources.issued)
 }

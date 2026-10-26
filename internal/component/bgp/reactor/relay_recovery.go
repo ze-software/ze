@@ -61,12 +61,26 @@ type recoveryAdmission struct {
 	settled  bool
 	err      error
 	done     chan struct{}
-	sources  map[*Peer]recoverySourceReceipt
-	// sourcesIssued is the newest forward generation issued when sources was
-	// taken (recoverySources). A survivor the round judged sessionless is
-	// judged against that snapshot, so its exclusion is bounded there: a
-	// session the source started after it is newer and lifts the exclusion.
-	sourcesIssued uint64
+	// sources is the round's source snapshot (recoverySources). A survivor
+	// the round judged sessionless is judged against it, so its exclusion is
+	// bounded by the snapshot's issued generation: a session the source started
+	// after it is newer and lifts the exclusion. newRecoveryAdmission refuses
+	// an admission without one, so the bound is never a zero nobody issued.
+	sources recoverySourceSnapshot
+}
+
+// newRecoveryAdmission builds the admission of one lookup of destination
+// peer's session, judged against sources, the snapshot recoverySources took
+// for the round. keys may be nil and filled afterward. It is the only
+// constructor: a recoveryAdmission literal would carry a zero snapshot, and a
+// survivor judged sessionless against it would be excluded only up to
+// generation zero, which every session lifts.
+func newRecoveryAdmission(ctx context.Context, peer *Peer, session *Session, sources recoverySourceSnapshot, keys []recoveryAdmitKey) *recoveryAdmission {
+	if sources.receipts == nil {
+		panic("BUG: recovery admission built without its round's source snapshot")
+	}
+	return &recoveryAdmission{peer: peer, session: session, ctx: ctx, done: make(chan struct{}),
+		sources: sources, keys: keys}
 }
 
 // recoveryKeyOutcome is one owed key's outcome at its admission.
@@ -229,7 +243,7 @@ func (admission *recoveryAdmission) sourceState(section *fwdItem) receiveCutStat
 	if section.receivedPeer == nil {
 		return receiveCutCurrent
 	}
-	receipt, present := admission.sources[section.receivedPeer]
+	receipt, present := admission.sources.receipts[section.receivedPeer]
 	if !present {
 		return receiveCutEnded
 	}
@@ -304,22 +318,33 @@ type recoverySourceReceipt struct {
 	cut        receivePublicationCut
 }
 
+// recoverySourceSnapshot is one recovery round's view of its sources: a
+// receipt per Peer, and issued, the newest forward generation issued when the
+// receipts were read. recoverySources is its only producer: receipts is never
+// nil there, so a nil map is a snapshot nobody took.
+type recoverySourceSnapshot struct {
+	receipts map[*Peer]recoverySourceReceipt
+	issued   uint64
+}
+
 // recoverySources binds selected bytes to the sessions present before lookup.
 // The cold map is bounded by configured peers and covers both lookup transports.
-// It also returns issued, the newest forward generation issued before any
-// receipt was read: every session the receipts can name is at or below it,
-// and every session started after the snapshot is above it, whichever Peer of
-// an address runs it (recoveryAdmission.sourcesIssued).
-func (a *reactorAPIAdapter) recoverySources() (sources map[*Peer]recoverySourceReceipt, issued uint64) {
-	issued = forwardGenerationClock.Load()
+// The clock and every Peer's generation are read in one forwardGenerationCut,
+// so no advance straddles the snapshot: every session the receipts name is at
+// or below issued, and every session not named, started after the snapshot by
+// any Peer of an address, is above it (recoveryAdmission.sources).
+func (a *reactorAPIAdapter) recoverySources() recoverySourceSnapshot {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
-	sources = make(map[*Peer]recoverySourceReceipt, len(a.r.peers))
+	snapshot := recoverySourceSnapshot{receipts: make(map[*Peer]recoverySourceReceipt, len(a.r.peers))}
+	forwardGenerationCut.Lock()
+	snapshot.issued = forwardGenerationClock.Load()
 	for _, peer := range a.r.peers {
-		sources[peer] = recoverySourceReceipt{generation: peer.forwardGeneration.Load(),
+		snapshot.receipts[peer] = recoverySourceReceipt{generation: peer.forwardGeneration.Load(),
 			cut: peer.receiveCut()}
 	}
-	return sources, issued
+	forwardGenerationCut.Unlock()
+	return snapshot
 }
 
 // drainRecoverySources closes the gap between a fast-path wire decision and
@@ -673,7 +698,7 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
 			NLRIFraming: rpc.NLRIFramingSourceWire}
 		first := len(admission.items)
-		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources, sender)
+		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources.receipts, sender)
 		if errors.Is(err, errAllDestinationsSuppressed) {
 			// The forward rail refused the candidate outright (AC-25), as
 			// reflection refuses a non-client route to a non-client. RFC 4456
@@ -726,8 +751,8 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 // return. Otherwise the key is re-owed with the source excluded over every
 // session the round's source snapshot knew, so the next round elects without
 // it. The bound is the newest generation issued when that snapshot was taken
-// (sourcesIssued), never the clock at this decision and never "every
-// session": the survivor was judged sessionless against the snapshot, and a
+// (recoverySourceSnapshot.issued), never the clock at this decision and never
+// "every session": the survivor was judged sessionless against the snapshot, and a
 // session the source started after it, even during the RIB lookup, is newer,
 // so its announcement lifts the exclusion (adjOutOwed.announcerLifts) even
 // after that session ends under graceful restart before the next round.
@@ -739,7 +764,7 @@ func (admission *recoveryAdmission) unsendableSurvivor(key *recoveryAdmitKey, su
 		return
 	}
 	key.outcome = recoveryKeyReowed
-	key.gone = adjOutExclusion{source: survivor.Source, generation: admission.sourcesIssued}
+	key.gone = adjOutExclusion{source: survivor.Source, generation: admission.sources.issued}
 }
 
 // heldSurvivor returns the destination's path for key when it is survivor's

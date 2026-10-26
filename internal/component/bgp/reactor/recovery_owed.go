@@ -374,8 +374,8 @@ func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) erro
 	if w.session.tearingDown.Load() {
 		return nil // The table resets with the session; nothing stays owed.
 	}
-	sources, issued := w.adapter.recoverySources()
-	stopped, err := drainRecoverySources(w.ctx, sources)
+	sources := w.adapter.recoverySources()
+	stopped, err := drainRecoverySources(w.ctx, sources.receipts)
 	if err != nil {
 		return err
 	}
@@ -388,9 +388,7 @@ func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) erro
 	}
 	request := ribevents.RecoveryRequest{Destination: w.peer.Settings().Address, Family: fam,
 		Keys: make([]ribevents.RecoveryKey, len(chunk))}
-	admission := &recoveryAdmission{peer: w.peer, session: w.session, ctx: w.ctx,
-		done: make(chan struct{}), sources: sources, sourcesIssued: issued,
-		keys: make([]recoveryAdmitKey, len(chunk))}
+	admission := newRecoveryAdmission(w.ctx, w.peer, w.session, sources, make([]recoveryAdmitKey, len(chunk)))
 	for i := range chunk {
 		// The snapshot's excluded set is a copy, so appending to it is safe.
 		request.Keys[i] = ribevents.RecoveryKey{NLRI: chunk[i].record.nlri,

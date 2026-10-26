@@ -278,7 +278,7 @@ keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.allow, recoverySpares -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutExclusion, electableExcluded, announcerLifts, spares -->
-<!-- source: internal/component/bgp/reactor/peer.go -- forwardGenerationClock, advanceForwardGeneration -->
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardGenerationClock, forwardGenerationCut, advanceForwardGeneration -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 
 A lifecycle purge can remove the chosen survivor between the lookup and the
@@ -389,7 +389,10 @@ owed again with the source excluded over every session the round's source
 snapshot knew: the survivor was judged sessionless against that snapshot, so
 the exclusion's bound is the newest generation issued when the snapshot was
 taken (`reactorAPIAdapter.recoverySources`), never the clock when the round
-decided. A session the source starts after the snapshot, even during the RIB
+decided. The snapshot reads the clock and every `Peer`'s generation in one cut
+that each advance takes too (`forwardGenerationCut`), so no session straddles
+it: every session a receipt names is at or below the bound, and every session
+it does not name is above it. A session the source starts after the snapshot, even during the RIB
 lookup, and even one that announces the key and then ends under graceful
 restart before the next round, lifts it (`recoveryAdmission.unsendableSurvivor`). Siblings do not invalidate one another, and
 unrelated output to the destination never cancels a decision. Item release

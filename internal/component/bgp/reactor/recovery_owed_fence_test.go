@@ -292,11 +292,9 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
 		epoch := record.epoch
 		generation := source.forwardGeneration.Load()
-		admission := &recoveryAdmission{peer: destination, session: session, ctx: t.Context(),
-			done:    make(chan struct{}),
-			sources: map[*Peer]recoverySourceReceipt{source: {generation: generation, cut: source.receiveCut()}},
-			keys: []recoveryAdmitKey{{key: key, record: record, epoch: epoch,
-				candidate: adjOutPath{source: source}}}}
+		admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(),
+			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
+				candidate: adjOutPath{source: source}}})
 		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
 			receivedPeer: source, receivedGeneration: generation}}
 		admission.mark(0)
@@ -327,11 +325,9 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		epoch := record.epoch
 		source.acceptedReceive(1).complete(1)
 		generation := source.forwardGeneration.Load()
-		admission := &recoveryAdmission{peer: destination, session: session, ctx: t.Context(),
-			done:    make(chan struct{}),
-			sources: map[*Peer]recoverySourceReceipt{source: {generation: generation, cut: source.receiveCut()}},
-			keys: []recoveryAdmitKey{{key: key, record: record, epoch: epoch,
-				candidate: adjOutPath{source: source}}}}
+		admission := newRecoveryAdmission(t.Context(), destination, session, (&reactorAPIAdapter{r: r}).recoverySources(),
+			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
+				candidate: adjOutPath{source: source}}})
 		admission.items = []fwdItem{{peer: destination, session: session, authority: adjOutRecovery,
 			rawBodies: [][]byte{syncOrderAnnounceBody}, receivedPeer: source, receivedGeneration: generation}}
 		admission.mark(0)

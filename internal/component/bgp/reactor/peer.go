@@ -1769,13 +1769,27 @@ func (p *Peer) State() PeerState {
 // all. Safe for concurrent use.
 var forwardGenerationClock atomic.Uint64
 
+// forwardGenerationCut makes an advance (the clock's issue and the Peer's
+// store) indivisible against a recovery round's source snapshot
+// (reactorAPIAdapter.recoverySources): advances share it, the snapshot holds
+// it alone. Without it an advance could issue g before the snapshot read the
+// clock and store it after the snapshot read the Peer, or issue g after the
+// clock read and store it before the Peer read, and the snapshot's clock
+// would then not separate the sessions its receipts name from the ones they
+// do not. Lock order: Reactor.mu first, then this. Nothing is called while it
+// is held except atomic loads and stores.
+var forwardGenerationCut sync.RWMutex
+
 // advanceForwardGeneration moves the peer to a generation newer than every
 // generation issued so far, to any Peer. It never moves the peer backward: of
 // two concurrent advances, the later issue stands, and a store that lost the
 // race finds the peer already past it. The loop is bounded, because each
-// failed swap means another advance stored a larger value. Safe for
-// concurrent use.
+// failed swap means another advance stored a larger value. The issue and the
+// store happen under forwardGenerationCut, so a recovery snapshot sees both
+// or neither. Safe for concurrent use.
 func (p *Peer) advanceForwardGeneration() {
+	forwardGenerationCut.RLock()
+	defer forwardGenerationCut.RUnlock()
 	next := forwardGenerationClock.Add(1)
 	for {
 		current := p.forwardGeneration.Load()
