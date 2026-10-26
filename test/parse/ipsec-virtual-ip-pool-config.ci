@@ -1,0 +1,75 @@
+# Test: ze config validate, the virtual-ip-pool surface: an operator binds a respond peer to one of two disjoint pools, with a
+# DNS leaf-list of both families; commit accepts it.
+# Design: docs/architecture/ike/ipsec-3-data-model.md (virtual-ip-pool, remote-access pool).
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		ike-group ike-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		remote-access {
+			ike-group ike-default
+			esp-group esp-default
+			authentication {
+				mode eap-mschapv2
+				x509 {
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+			pool clients {
+				range 10.10.0.0/24
+				range6 2001:db8:10::/64
+				dns 10.10.0.53
+				dns 2001:db8:10::53
+			}
+			pool branch {
+				range 10.20.0.0/24
+			}
+		}
+		site-to-site {
+			peer rw {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				virtual-ip-pool clients
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				traffic-selector 1 {
+					local {
+						prefix 192.168.0.0/16
+					}
+					remote {
+						prefix 10.0.0.0/8
+					}
+				}
+				traffic-selector 2 {
+					local {
+						prefix 2001:db8:ffff::/48
+					}
+					remote {
+						prefix 2001:db8::/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

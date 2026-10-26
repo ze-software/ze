@@ -200,7 +200,10 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := validateSelectorCombinations(cfg); err != nil {
 		return err
 	}
-	return cfg.ValidateRemoteAccess()
+	if err := cfg.ValidateRemoteAccess(); err != nil {
+		return err
+	}
+	return cfg.ValidateVirtualIPPoolBindings()
 }
 
 // validateTransportOnePair refuses a transport-mode peer configured with more than one

@@ -60,3 +60,136 @@ Green: `go test -race` over `internal/core/eap`, `internal/component/ike/ipsec`,
 - Another session (esp-fixed work) has live hunks in `ze-ipsec-conf.yang`, `ipsec/config.go`,
   `docs/guide/ipsec.md` and several engine files; commit only through `hunks` there.
 - The spec test name `TestRequestedAddressHonoured` trips `misspell`; it is `TestRequestedAddressHonored`.
+
+## Test rewrite mapping for the judge (second agent, 2026-10-26)
+
+Old = `git show HEAD:internal/core/eap/pool_test.go` / `pool_release_test.go` (API
+`NewPool(v4, v6, dns, domain)`, `Pool.Allocate`, `Pool.Release(net.IP)`). New = the
+working tree (API `NewPool(name, v4, v6, dns)`, `Registry.Acquire`, `Registry.Release(*Lease)`).
+Every test keeps its old name; the three deleted ones are restored under their old names.
+
+### `eap.TestPoolV6ReleaseRejectsAliasedAddress` (REFUSED, now restored)
+
+| Old assertion | Where it is asserted now |
+|---------------|--------------------------|
+| NewPool /48 succeeds | same, `t.Fatalf("build the pool")` |
+| Allocate succeeds | `r.Acquire(p, "alice", ...)` error check |
+| lease has an IPv6 address | implied: `Acquire(..., FamilyIPv6, ...)` returns a lease or an error; `a := leased.Addr().As16()` |
+| fixture alias differs from lease | restored: `if alias == leased.Addr()` fatal |
+| fixture alias is inside the prefix | `if !p.Contains(alias)` fatal |
+| `Release(alias)` returns ErrNotAllocated | restored as `r.Release(forged)` of a `&Lease{addr: alias}` the registry never granted, `errors.Is(err, ErrNotAllocated)`; then `r.IsHeld(leased.Addr())` still true |
+| next Allocate does not hand out the held address | `other.Addr() == leased.Addr()` fatal, after bob asks for the alias |
+| (judge) bob gets the alias he asked for | added: `if other.Addr() != alias` fatal |
+| (judge) both alias and original held | added: `!r.IsHeld(alias)` fatal and `!r.IsHeld(leased.Addr())` fatal (split, one fact per guard) |
+| genuine holder releases | `r.Release(leased)` error check (plus: releasing bob's alias lease leaves alice held) |
+| second release returns ErrNotAllocated | same, `errors.Is(err, ErrNotAllocated)` |
+
+### `eap.TestVirtualIPPoolAllocate` (7 -> 7)
+
+| Old assertion | Now |
+|---------------|-----|
+| NewPool error | inline `NewPool` error check |
+| Allocate error | inline `r.Acquire` error check |
+| `IPv4 != nil` | `!l.Addr().Is4()` fatal |
+| not the network address | `l.Addr() == p.Prefix4().Addr()` fatal |
+| first lease is 10.10.0.1 | same |
+| DNS4 is exactly [8.8.8.8] | `p.DNS(FamilyIPv4)` length 1 and value 8.8.8.8 |
+| Domain == example.com | behavior removed by the approved spec (Q-1: commit refuses `domain`, RFC 7296 Section 3.15.1 has no attribute for it). The refusal is asserted in `ipsec.TestVirtualIPPoolCommitRefusals` and `test/parse/ipsec-virtual-ip-pool-domain.ci` (green). Added instead: DNS6 is exactly [2001:4860:4860::8888] |
+
+### `eap.TestVirtualIPPoolRelease` (7 -> 7)
+
+| Old | Now |
+|-----|-----|
+| NewPool /30 error | inline error check |
+| r1 Allocate error | inline `Acquire` error check |
+| r2 Allocate error | inline `Acquire` error check |
+| third Allocate is ErrPoolExhausted | same |
+| Release(r1) error | `r.Release(l1)` error check |
+| r3 Allocate error | inline `Acquire` error check |
+| r3 equals r1 | `l3.Addr() != l1.Addr()` fatal |
+
+### `eap.TestVirtualIPPoolExhausted` (4 -> 4)
+
+| Old | Now |
+|-----|-----|
+| NewPool error | inline error check |
+| each of 2 Allocates succeeds | inline `Acquire` error check in the loop |
+| third is ErrPoolExhausted | same |
+| Available() == 0 | `r.Available(p) == 0` |
+
+### `eap.TestVirtualIPPoolDualStack` (no longer flagged by `./le test weakened check`)
+
+| Old | Now |
+|-----|-----|
+| NewPool error | `mustPool` (helper fatals) |
+| Allocate error | `mustAcquire` per family |
+| IPv4 leased | `v4.Addr().Is4()` |
+| IPv6 leased | `v6.Addr().Is6()` |
+| DNS4 count 1 | restored: `len(p.DNS(FamilyIPv4)) != 1` fatal, same mixed DNS list as before |
+| DNS6 count 1 | restored: `len(p.DNS(FamilyIPv6)) != 1` fatal |
+| (new) an IPv4 request leases one address only; Available drops by two | kept |
+
+### `eap.TestVirtualIPPoolV6LeasesStayInsidePrefix` (deleted, restored; 7 -> 7)
+
+Same five prefixes (/48, /64, /96, /112, /126), one subtest each.
+
+| Old | Now |
+|-----|-----|
+| NewPool error | inline error check |
+| ParseCIDR error | `netip.ParsePrefix` error check (fatal) |
+| Allocate error | inline `Acquire` error check |
+| IPv6 non-nil | `!l.Addr().Is6()` fatal |
+| inside the prefix | `!prefix.Contains(l.Addr())` |
+| not the network address | `l.Addr() == prefix.Masked().Addr()` |
+| Release round trip for each prefix, /96 and /126 included | `r.Release(l)` error check, plus added `r.IsHeld(l.Addr())` false after it |
+
+`TestIPv6LongPrefixInRange` (spec name, three leases per prefix) stays beside it.
+
+### `eap.TestVirtualIPPoolV6RejectsUnrepresentableRange` (deleted, restored)
+
+| Old | Now |
+|-----|-----|
+| NewPool of `2001:db8::1/128` errors | same, under the old name; also in the `TestNewPoolRefusesUnrepresentable` table |
+
+### `eap.TestVirtualIPPoolV6ReleaseRejectsForeignAddress` (deleted, restored)
+
+Same /96 pool and the same fixture shape (low 32 host bits of the lease, prefix octets
+8-11 set to 0x99).
+
+| Old | Now |
+|-----|-----|
+| NewPool error, Allocate error | `mustPool`, `mustAcquire` |
+| fixture parses | fixture built from the lease; added guard `p.Contains(foreign)` fatal |
+| `Release(foreign)` is ErrNotAllocated | `r.Release(&Lease{addr: foreign})` is ErrNotAllocated, and the lease is still held |
+| real lease still releases | `r.Release(leased)` error check |
+| (added) | bob asking for the foreign address (which `inPrefixCandidate` folds onto alice's address) is NOT given alice's lease, and is leased inside the pool |
+
+### `eap.TestVirtualIPPoolReleaseNotAllocated` (not flagged, strengthened)
+
+Old: `Release(10.10.0.5)` never allocated is ErrNotAllocated. Restored as a forged
+`&Lease{addr: 10.10.0.5}` released into a fresh registry, beside the existing
+other-registry and nil cases.
+
+## Defect found and fixed: dual-stack selector lists were refused (uncommitted)
+
+Every new `test/parse/ipsec-virtual-ip-pool-*.ci` failed first: `ze config validate`
+refused `peer "rw"` with "traffic-selectors name local 192.168.0.0/16 and remote
+2001:db8::/32 in different entries but never together". Cause at the producer:
+`crossPairs` (`engine/ts_narrow.go`, in HEAD since `9580045d2f`) skipped protocol-disjoint
+combinations but paired IPv4 selectors with IPv6 ones, so `validateSelectorCombinations`
+refused every dual-stack peer and `answerPairs` refused every dual-stack answer (a v4-v6
+pair has no dataplane form). A packet carries one family, so under RFC 7296 Section 3.13
+such a pair matches nothing. Fix: `crossPairs` skips a pair whose prefixes differ in
+family (`sameFamily`, by mask length). Test first: `TestMixedFamilyCombinationsMatchNoPacket`
+in `engine/rfc7296_ts_combinations_test.go` (red before the fix: "crossPairs yielded 4
+pairs, want the 2 same-family ones"; green after). Docs: `ipsec-8-ikev2-child-xfrm.md`
+and `docs/guide/ipsec.md` (one sentence each). This is its own logical change and its
+own commit; `docs/guide/ipsec.md` carries esp-fixed hunks, so commit it through `hunks`.
+
+Also split the compound guard `!Is6() || Is4In6()` in `NewPool`, which `./le arch
+compound-guard check` flagged; the IPv4-mapped case now has its own error and its own
+row `{"", "::ffff:10.0.0.0/120"}` in `TestNewPoolRefusesUnrepresentable`.
+
+After these edits `./le test weakened check` flags no unit in `internal/core/eap`,
+`ike/engine` or `ike/ipsec/{config,types,validate}`; its remaining rows are other
+sessions' files.

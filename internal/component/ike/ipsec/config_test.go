@@ -780,7 +780,7 @@ func TestIPsecConfigChangedRemoteAccess(t *testing.T) {
 		Peers: map[string]SiteToSitePeer{},
 		RemoteAccess: &RemoteAccessConfig{
 			IKEGroup: "IKE-RA",
-			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Pools:    map[string]VirtualIPPool{"pool1": {Name: "pool1", Range: "10.10.0.0/24"}},
 			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "old"}},
 		},
 	}
@@ -788,7 +788,7 @@ func TestIPsecConfigChangedRemoteAccess(t *testing.T) {
 		Peers: map[string]SiteToSitePeer{},
 		RemoteAccess: &RemoteAccessConfig{
 			IKEGroup: "IKE-RA",
-			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Pools:    map[string]VirtualIPPool{"pool1": {Name: "pool1", Range: "10.10.0.0/24"}},
 			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "new"}},
 		},
 	}
@@ -807,7 +807,7 @@ func TestIPsecConfigChangedRemoteAccess(t *testing.T) {
 		Peers: map[string]SiteToSitePeer{},
 		RemoteAccess: &RemoteAccessConfig{
 			IKEGroup: "IKE-RA",
-			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Pools:    map[string]VirtualIPPool{"pool1": {Name: "pool1", Range: "10.10.0.0/24"}},
 			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "old"}},
 		},
 	}
@@ -1031,8 +1031,8 @@ func makeRemoteAccessTree(opts remoteAccessOpts) *config.Tree {
 		if opts.poolRange6 != "" {
 			poolEntry.Set("range6", opts.poolRange6)
 		}
-		for _, dns := range opts.poolDNS {
-			poolEntry.Set("dns", dns)
+		if len(opts.poolDNS) > 0 {
+			poolEntry.SetSlice("dns", opts.poolDNS)
 		}
 		if opts.poolDomain != "" {
 			poolEntry.Set("domain", opts.poolDomain)
@@ -1091,17 +1091,18 @@ func TestParseRemoteAccessPool(t *testing.T) {
 		t.Fatal("RemoteAccess is nil")
 	}
 	ra := cfg.RemoteAccess
-	if ra.Pool.Name != "roadwarrior" {
-		t.Errorf("pool name = %q, want roadwarrior", ra.Pool.Name)
+	pool := ra.Pools["roadwarrior"]
+	if pool.Name != "roadwarrior" {
+		t.Errorf("pool name = %q, want roadwarrior", pool.Name)
 	}
-	if ra.Pool.Range != "10.10.0.0/24" {
-		t.Errorf("pool range = %q, want 10.10.0.0/24", ra.Pool.Range)
+	if pool.Range != "10.10.0.0/24" {
+		t.Errorf("pool range = %q, want 10.10.0.0/24", pool.Range)
 	}
-	if len(ra.Pool.DNS) != 1 || ra.Pool.DNS[0] != "8.8.8.8" {
-		t.Errorf("pool dns = %v, want [8.8.8.8]", ra.Pool.DNS)
+	if len(pool.DNS) != 1 || pool.DNS[0] != "8.8.8.8" {
+		t.Errorf("pool dns = %v, want [8.8.8.8]", pool.DNS)
 	}
-	if ra.Pool.Domain != "vpn.example.com" {
-		t.Errorf("pool domain = %q, want vpn.example.com", ra.Pool.Domain)
+	if pool.Domain != "vpn.example.com" {
+		t.Errorf("pool domain = %q, want vpn.example.com", pool.Domain)
 	}
 	if ra.IKEGroup != "IKE-RA" {
 		t.Errorf("ike-group = %q, want IKE-RA", ra.IKEGroup)
@@ -1226,11 +1227,11 @@ func TestValidatePoolRange(t *testing.T) {
 				RemoteAccess: &RemoteAccessConfig{
 					IKEGroup: "IKE-RA",
 					ESPGroup: "ESP-RA",
-					Pool: VirtualIPPool{
+					Pools: map[string]VirtualIPPool{"test": {
 						Name:   "test",
 						Range:  tt.r,
 						Range6: tt.r6,
-					},
+					}},
 					Users: make(map[string]EAPUser),
 				},
 			}
@@ -1250,7 +1251,6 @@ func TestValidateEAPUserPassword(t *testing.T) {
 			IKEGroup: "IKE-RA",
 			ESPGroup: "ESP-RA",
 			Auth:     AuthConfig{Mode: AuthEAPMSCHAPv2},
-			Pool:     VirtualIPPool{Name: "pool1"},
 			Users: map[string]EAPUser{
 				"nopw": {Name: "nopw"},
 			},
@@ -1273,7 +1273,6 @@ func TestValidateEAPTLSUserCertificate(t *testing.T) {
 			IKEGroup: "IKE-RA",
 			ESPGroup: "ESP-RA",
 			Auth:     AuthConfig{Mode: AuthEAPTLS},
-			Pool:     VirtualIPPool{Name: "pool1"},
 			Users: map[string]EAPUser{
 				"nocert": {Name: "nocert"},
 			},
@@ -1303,11 +1302,110 @@ func TestDualStackPool(t *testing.T) {
 	if cfg.RemoteAccess == nil {
 		t.Fatal("RemoteAccess is nil")
 	}
-	pool := cfg.RemoteAccess.Pool
+	pool := cfg.RemoteAccess.Pools["dualstack"]
 	if pool.Range != "10.10.0.0/24" {
 		t.Errorf("range = %q, want 10.10.0.0/24", pool.Range)
 	}
 	if pool.Range6 != "fd00:vpn::/64" {
 		t.Errorf("range6 = %q, want fd00:vpn::/64", pool.Range6)
+	}
+}
+
+// TestVirtualIPPoolCommitRefusals proves each AC-31 mistake is refused at commit with an
+// error naming the item, why, and the fix, and that a correct binding is accepted. Method:
+// build one valid configuration, break one thing per case, and run the two validators the
+// engine's verify path runs (ValidateRemoteAccess, ValidateVirtualIPPoolBindings).
+func TestVirtualIPPoolCommitRefusals(t *testing.T) {
+	_, remote10, err := net.ParseCIDR("10.0.0.0/8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, remote192, err := net.ParseCIDR("192.168.0.0/16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := func() *IPsecConfig {
+		return &IPsecConfig{
+			IKEGroups: map[string]IKEGroup{"IKE": {}},
+			ESPGroups: map[string]ESPGroup{"ESP": {}},
+			Peers: map[string]SiteToSitePeer{"rw": {
+				Name: "rw", IKEGroup: "IKE", ESPGroup: "ESP",
+				ConnectionType: ConnectionRespond, VirtualIP: &VirtualIPBinding{Pool: "clients"},
+				TrafficSelectors: []TrafficSelectorPolicy{{Number: "1", RemotePrefix: remote10}},
+			}},
+			RemoteAccess: &RemoteAccessConfig{
+				IKEGroup: "IKE", ESPGroup: "ESP",
+				Pools: map[string]VirtualIPPool{
+					"clients": {Name: "clients", Range: "10.10.0.0/24", DNS: []string{"10.10.0.53", "2001:db8::53"}},
+					"other":   {Name: "other", Range: "10.20.0.0/24"},
+				},
+				Users: map[string]EAPUser{},
+			},
+		}
+	}
+	validate := func(cfg *IPsecConfig) error {
+		if err := cfg.ValidateRemoteAccess(); err != nil {
+			return err
+		}
+		return cfg.ValidateVirtualIPPoolBindings()
+	}
+	if err := validate(valid()); err != nil {
+		t.Fatalf("a valid binding was refused: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(*IPsecConfig)
+		want   []string
+	}{
+		{"overlapping pools", func(c *IPsecConfig) {
+			c.RemoteAccess.Pools["other"] = VirtualIPPool{Name: "other", Range: "10.10.0.128/25"}
+		}, []string{`"clients" and "other"`, "overlap", "disjoint"}},
+		{"unknown pool", func(c *IPsecConfig) {
+			p := c.Peers["rw"]
+			p.VirtualIP = &VirtualIPBinding{Pool: "nope"}
+			c.Peers["rw"] = p
+		}, []string{`peer "rw"`, `"nope" is not declared`, "remote-access pool nope"}},
+		{"no remote-access at all", func(c *IPsecConfig) {
+			c.RemoteAccess = nil
+		}, []string{`peer "rw"`, "is not declared"}},
+		{"initiate peer", func(c *IPsecConfig) {
+			p := c.Peers["rw"]
+			p.ConnectionType = ConnectionInitiate
+			c.Peers["rw"] = p
+		}, []string{`peer "rw"`, "connection-type respond", "never requests one"}},
+		{"selectors not covering", func(c *IPsecConfig) {
+			p := c.Peers["rw"]
+			p.TrafficSelectors = []TrafficSelectorPolicy{{Number: "1", RemotePrefix: remote192}}
+			c.Peers["rw"] = p
+		}, []string{`peer "rw"`, "10.10.0.0/24", "TS_UNACCEPTABLE", "widen"}},
+		{"domain set", func(c *IPsecConfig) {
+			p := c.RemoteAccess.Pools["clients"]
+			p.Domain = "corp.example"
+			c.RemoteAccess.Pools["clients"] = p
+		}, []string{`pool "clients"`, "domain", "search-domain", "delete `domain`"}},
+		{"dns not an address", func(c *IPsecConfig) {
+			p := c.RemoteAccess.Pools["clients"]
+			p.DNS = []string{"resolver.example"}
+			c.RemoteAccess.Pools["clients"] = p
+		}, []string{`pool "clients"`, "not an IP address"}},
+		{"pool without range", func(c *IPsecConfig) {
+			c.RemoteAccess.Pools["other"] = VirtualIPPool{Name: "other"}
+		}, []string{`pool "other"`, "neither range nor range6"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := valid()
+			tc.mutate(cfg)
+			err := validate(cfg)
+			if err == nil {
+				t.Fatal("accepted")
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("error %q does not contain %q", err, w)
+				}
+			}
+		})
 	}
 }

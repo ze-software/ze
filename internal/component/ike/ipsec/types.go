@@ -255,8 +255,9 @@ func ParseAuthMode(s string) (AuthMode, bool) {
 	return m, ok
 }
 
-// ConnectionType controls whether the local side initiates or waits.
-type ConnectionType int
+// ConnectionType controls whether the local side initiates or waits. It is one octet so
+// SiteToSitePeer packs it into the tail padding beside Mode (types_size_test.go).
+type ConnectionType uint8
 
 const (
 	ConnectionInitiate ConnectionType = iota
@@ -615,15 +616,20 @@ func (a AuthConfig) CertificateChainLimit() uint8 {
 
 // SiteToSitePeer is a remote IPsec VPN peer.
 type SiteToSitePeer struct {
-	Name           string
-	IKEGroup       string // reference to IKEGroup.Name
-	ESPGroup       string // reference to ESPGroup.Name
-	ConnectionType ConnectionType
-	LocalAddress   string
-	RemoteAddress  string
-	Auth           AuthConfig
-	VTIBind        string // VTI interface name
-	IfID           uint32 // XFRM if_id for SA binding (must match the XFRM interface)
+	Name          string
+	IKEGroup      string // reference to IKEGroup.Name
+	ESPGroup      string // reference to ESPGroup.Name
+	LocalAddress  string
+	RemoteAddress string
+	Auth          AuthConfig
+	VTIBind       string // VTI interface name
+	// VirtualIP binds this peer to a remote-access pool, or is nil for an unbound peer.
+	// A bound peer MUST send a CFG_REQUEST in IKE_AUTH: Ze answers with a lease and
+	// narrows the peer's inner selector to it, or refuses the Child SA (RFC 7296 Section
+	// 2.19, RFC 3948 Section 5.1). It is a pointer so the struct stays under the
+	// hugeParam size (types_size_test.go); read it through VirtualIPPoolName.
+	VirtualIP *VirtualIPBinding
+	IfID      uint32 // XFRM if_id for SA binding (must match the XFRM interface)
 
 	// ProhibitNAT rejects translated paths. False preserves the existing NAT-T
 	// policy; true also protects MOBIKE address updates with NO_NATS_ALLOWED.
@@ -642,6 +648,9 @@ type SiteToSitePeer struct {
 	// to negotiate transport mode, all Child SAs will use tunnel mode", so tunnel is the
 	// default and it is the RFC's own default rather than a Ze preference.
 	Mode uint8
+
+	// ConnectionType sits here, in the tail padding beside Mode, to keep the struct packed.
+	ConnectionType ConnectionType
 
 	// TransportRequired records that tunnel mode is unacceptable to this peer.
 	//
@@ -711,6 +720,20 @@ func (p SiteToSitePeer) Equal(q SiteToSitePeer) bool {
 	return reflect.DeepEqual(p, q)
 }
 
+// VirtualIPBinding is a peer's virtual-ip-pool leaf: the pool it leases its inner address
+// from.
+type VirtualIPBinding struct {
+	Pool string
+}
+
+// VirtualIPPoolName returns the pool this peer is bound to, or "" for an unbound peer.
+func (p *SiteToSitePeer) VirtualIPPoolName() string {
+	if p.VirtualIP == nil {
+		return ""
+	}
+	return p.VirtualIP.Pool
+}
+
 // EAPUser is a remote-access EAP user entry.
 type EAPUser struct {
 	Name        string
@@ -718,13 +741,16 @@ type EAPUser struct {
 	Certificate string // PKI store name (EAP-TLS only)
 }
 
-// VirtualIPPool defines the address pool for road warrior clients.
+// VirtualIPPool is one configured `remote-access pool` entry: the ranges a responder
+// leases inner addresses from (RFC 7296 Section 2.19) and the DNS servers sent with them.
 type VirtualIPPool struct {
 	Name   string
-	Range  string   // IPv4 CIDR (e.g. "10.10.0.0/24")
+	Range  string   // IPv4 CIDR (e.g. "10.10.0.0/24"), optional
 	Range6 string   // IPv6 CIDR (e.g. "fd00::/64"), optional
-	DNS    []string // DNS servers pushed to clients
-	Domain string   // search domain pushed to clients
+	DNS    []string // DNS servers of either family, split by family on the wire
+	// Domain is parsed only so commit can refuse it: RFC 7296 defines no search-domain
+	// attribute, so no value set here could reach a client (ValidateRemoteAccess).
+	Domain string
 }
 
 // RemoteAccessConfig holds EAP-based remote access VPN settings.
@@ -732,8 +758,10 @@ type RemoteAccessConfig struct {
 	IKEGroup string // reference to IKEGroup.Name
 	ESPGroup string // reference to ESPGroup.Name
 	Auth     AuthConfig
-	Pool     VirtualIPPool
-	Users    map[string]EAPUser
+	// Pools holds every configured pool by name. A respond peer draws from the one its
+	// virtual-ip-pool leaf names.
+	Pools map[string]VirtualIPPool
+	Users map[string]EAPUser
 }
 
 // IPsecConfig holds the complete parsed IPsec configuration.
@@ -839,17 +867,9 @@ func remoteAccessEqual(a, b *RemoteAccessConfig) bool {
 	if !a.Auth.Equal(b.Auth) {
 		return false
 	}
-	if a.Pool.Name != b.Pool.Name || a.Pool.Range != b.Pool.Range ||
-		a.Pool.Range6 != b.Pool.Range6 || a.Pool.Domain != b.Pool.Domain {
+	// Every pool is compared whole, so a DNS or range edit on any pool is a change.
+	if !reflect.DeepEqual(a.Pools, b.Pools) {
 		return false
-	}
-	if len(a.Pool.DNS) != len(b.Pool.DNS) {
-		return false
-	}
-	for i, d := range a.Pool.DNS {
-		if d != b.Pool.DNS[i] {
-			return false
-		}
 	}
 	if len(a.Users) != len(b.Users) {
 		return false

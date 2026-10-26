@@ -5,90 +5,107 @@ package eap
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 	"testing"
 )
 
-// VALIDATES: only the exact address a pool leased can release that lease.
-// PREVENTS: the host-bit mask folding many addresses onto one identifier. host6 is
-// ^uint64(0) for any prefix shorter than /64. In a /48 the low 64 bits alone name the
-// lease, and every bit between the prefix and bit 64 is discarded. 2001:db8::1 and
-// 2001:db8:0:1::1 mapped to the same identifier, and net.IPNet.Contains admitted both.
-// Releasing the second freed the first client's lease. The pool then handed that
-// address to a second client while the first still held it.
+// VALIDATES: only the lease a registry handed out can release that address, and an
+// address that shares the low 64 bits of a lease is a different address.
+// PREVENTS: the aliasing defect of the old per-pool identifier map, where in a /48
+// 2001:db8::1 and 2001:db8:0:1::1 mapped to one identifier, so releasing the second freed
+// the first client's lease and the pool then handed that address to a second client.
+// The registry keys every lease by its full address, so this test releases a forged lease
+// naming the alias (refused), then asks for the alias as a requested address while the
+// original is held and checks it is leased as asked and both stay distinct.
 func TestPoolV6ReleaseRejectsAliasedAddress(t *testing.T) {
-	p, err := NewPool("", "2001:db8::/48", nil, "")
+	p, err := NewPool("p", "", "2001:db8::/48", nil)
 	if err != nil {
 		t.Fatalf("build the pool: %v", err)
 	}
+	r := NewRegistry()
 
-	leased, err := p.Allocate()
+	leased, err := r.Acquire(p, "alice", FamilyIPv6, netip.Addr{})
 	if err != nil {
-		t.Fatalf("allocate: %v", err)
-	}
-	if leased.IPv6 == nil {
-		t.Fatal("the pool leased no IPv6 address")
+		t.Fatalf("acquire: %v", err)
 	}
 
-	// Same low 64 bits, different bits inside the /48's host part. It is inside the
-	// prefix, so Contains admits it, and it is NOT an address this pool ever leased.
-	alias := make(net.IP, 16)
-	copy(alias, leased.IPv6)
-	alias[7] ^= 0x01
-	if alias.Equal(leased.IPv6) {
+	// Same low 64 bits, different bits inside the /48's host part.
+	a := leased.Addr().As16()
+	a[7] ^= 0x01
+	alias := netip.AddrFrom16(a)
+	if alias == leased.Addr() {
 		t.Fatal("the fixture did not produce a different address")
 	}
-	if !p.net6.Contains(alias) {
+	if !p.Contains(alias) {
 		t.Fatal("the fixture left the prefix, so it does not exercise the aliasing")
 	}
 
-	if err := p.Release(alias); !errors.Is(err, ErrNotAllocated) {
-		t.Fatalf("releasing an address the pool never leased returned %v; it freed "+
+	// A lease the registry never granted, naming the alias, frees nothing.
+	forged := &Lease{addr: alias, family: FamilyIPv6, pool: "p", owner: "alice", holders: 1}
+	if err := r.Release(forged); !errors.Is(err, ErrNotAllocated) {
+		t.Fatalf("releasing an address the registry never leased returned %v; it freed "+
 			"another client's lease", err)
 	}
+	if !r.IsHeld(leased.Addr()) {
+		t.Fatal("the rejected release of the alias freed the genuine lease")
+	}
 
-	// The lease must still be held, so the next client cannot be given it.
-	next, err := p.Allocate()
+	other, err := r.Acquire(p, "bob", FamilyIPv6, alias)
 	if err != nil {
-		t.Fatalf("allocate after the rejected release: %v", err)
+		t.Fatalf("acquire the alias: %v", err)
 	}
-	if next.IPv6.Equal(leased.IPv6) {
-		t.Fatal("the pool leased one address to two clients")
+	if other.Addr() != alias {
+		t.Fatalf("the free in-prefix alias %s was not leased as requested, got %s", alias, other.Addr())
+	}
+	if !r.IsHeld(alias) {
+		t.Fatalf("the alias %s is not held after it was leased", alias)
+	}
+	if !r.IsHeld(leased.Addr()) {
+		t.Fatalf("leasing the alias freed the original %s", leased.Addr())
+	}
+	if other.Addr() == leased.Addr() {
+		t.Fatal("the registry leased one address to two clients")
+	}
+	if err := r.Release(other); err != nil {
+		t.Fatalf("release the alias lease: %v", err)
+	}
+	if !r.IsHeld(leased.Addr()) {
+		t.Fatal("releasing the alias freed another client's lease")
 	}
 
-	// The genuine holder still releases, and the address then comes back.
-	if err := p.Release(leased.IPv6); err != nil {
-		t.Fatalf("the address the pool leased was refused its own release: %v", err)
+	if err := r.Release(leased); err != nil {
+		t.Fatalf("the genuine holder was refused its own release: %v", err)
 	}
-	if err := p.Release(leased.IPv6); !errors.Is(err, ErrNotAllocated) {
-		t.Fatalf("a second release of a freed address returned %v", err)
+	if err := r.Release(leased); !errors.Is(err, ErrNotAllocated) {
+		t.Fatalf("a second release of a freed lease returned %v, want ErrNotAllocated", err)
 	}
 }
 
-// VALIDATES: the round trip holds for prefixes on both sides of /64, where host6 changes
-// shape.
-// PREVENTS: a fix that rejects the aliased address by also rejecting the real one.
+// VALIDATES: the round trip holds for prefixes on both sides of /64, where the host mask
+// changes shape.
+// PREVENTS: a fix that rejects an aliased address by also rejecting the real one.
 func TestPoolV6ReleaseAcceptsItsOwnLeases(t *testing.T) {
 	for _, cidr := range []string{"2001:db8::/48", "2001:db8::/64", "2001:db8::/112"} {
 		t.Run(cidr, func(t *testing.T) {
-			p, err := NewPool("", cidr, nil, "")
+			p, err := NewPool("p", "", cidr, nil)
 			if err != nil {
 				t.Fatalf("build the pool: %v", err)
 			}
-			var leases []net.IP
-			for range 4 {
-				got, allocErr := p.Allocate()
-				if allocErr != nil {
-					t.Fatalf("allocate: %v", allocErr)
+			r := NewRegistry()
+			var leases []*Lease
+			for i := range 4 {
+				got, acqErr := r.Acquire(p, string(rune('a'+i)), FamilyIPv6, netip.Addr{})
+				if acqErr != nil {
+					t.Fatalf("acquire: %v", acqErr)
 				}
-				if !p.net6.Contains(got.IPv6) {
-					t.Fatalf("the pool leased %s from outside its own prefix", got.IPv6)
+				if !p.Contains(got.Addr()) {
+					t.Fatalf("the pool leased %s from outside its own prefix", got.Addr())
 				}
-				leases = append(leases, got.IPv6)
+				leases = append(leases, got)
 			}
-			for _, ip := range leases {
-				if err := p.Release(ip); err != nil {
-					t.Fatalf("the pool refused to release its own lease %s: %v", ip, err)
+			for _, l := range leases {
+				if err := r.Release(l); err != nil {
+					t.Fatalf("the registry refused to release its own lease %s: %v", l.Addr(), err)
 				}
 			}
 		})

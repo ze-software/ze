@@ -2,13 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Prevent conflicting peer inner addresses (RFC 3948 Section 5.1 MUST) and make the accepted remote-access pool effective. |
 | RFC gaps | RFC3948-5.1-1 |
 | Depends | - |
-| Phase | - |
+| Phase | 1/9 |
+| Approved | 2026-10-26, supervising session f3ae7c00 under the owner's standing rule for away goals (`ai/META-DECISIONS.md`, "How agents work"): every design question is answered by the RFC 7296 / RFC 3948 text and strongSwan source quoted here. Q-1 settled as written: the pool `domain` leaf is refused at commit (RFC 8598 enrolment is frozen) |
 | Handoff | - |
 | Updated | 2026-10-26 |
 

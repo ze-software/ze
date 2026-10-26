@@ -7,7 +7,9 @@ package ipsec
 import (
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -460,15 +462,8 @@ func (c *IPsecConfig) ValidateRemoteAccess() error {
 	}
 	ra := c.RemoteAccess
 
-	if ra.Pool.Range != "" {
-		if err := validatePoolPrefix(ra.Pool.Range, 8, 30); err != nil {
-			return fmt.Errorf("ipsec remote-access pool %q range: %w", ra.Pool.Name, err)
-		}
-	}
-	if ra.Pool.Range6 != "" {
-		if err := validatePoolPrefix(ra.Pool.Range6, 48, 126); err != nil {
-			return fmt.Errorf("ipsec remote-access pool %q range6: %w", ra.Pool.Name, err)
-		}
+	if err := validateVirtualIPPools(ra.Pools); err != nil {
+		return err
 	}
 
 	if ra.IKEGroup != "" {
@@ -496,6 +491,166 @@ func (c *IPsecConfig) ValidateRemoteAccess() error {
 	}
 
 	return nil
+}
+
+// validateVirtualIPPools checks every pool on its own, then every pair: two pools whose
+// ranges overlap could each lease one address, which is the duplicate inner address RFC 3948
+// Section 5.1 forbids, so the overlap is refused here where the operator can fix it.
+func validateVirtualIPPools(pools map[string]VirtualIPPool) error {
+	names := slices.Sorted(maps.Keys(pools))
+	for _, name := range names {
+		if err := validateVirtualIPPool(name, pools[name]); err != nil {
+			return err
+		}
+	}
+	for i, a := range names {
+		for _, b := range names[i+1:] {
+			if leaf, ok := poolsOverlap(pools[a], pools[b]); ok {
+				return fmt.Errorf("ipsec remote-access pools %q and %q: their %s values overlap, so both "+
+					"could lease one inner address to two peers (RFC 3948 Section 5.1); make the ranges "+
+					"disjoint", a, b, leaf)
+			}
+		}
+	}
+	return nil
+}
+
+// validateVirtualIPPool checks one pool: a range to lease from, bounded prefixes, DNS
+// addresses, and no domain.
+func validateVirtualIPPool(name string, pool VirtualIPPool) error {
+	if pool.Range == "" && pool.Range6 == "" {
+		return fmt.Errorf("ipsec remote-access pool %q: neither range nor range6 is set, so the pool "+
+			"has no address to lease; set `range` or `range6`, or delete the pool", name)
+	}
+	if pool.Range != "" {
+		if err := validatePoolPrefix(pool.Range, 8, 30); err != nil {
+			return fmt.Errorf("ipsec remote-access pool %q range: %w", name, err)
+		}
+	}
+	if pool.Range6 != "" {
+		if err := validatePoolPrefix(pool.Range6, 48, 126); err != nil {
+			return fmt.Errorf("ipsec remote-access pool %q range6: %w", name, err)
+		}
+	}
+	for _, server := range pool.DNS {
+		if _, err := netip.ParseAddr(server); err != nil {
+			return fmt.Errorf("ipsec remote-access pool %q: dns %q is not an IP address; "+
+				"set an IPv4 or IPv6 server address", name, server)
+		}
+	}
+	if pool.Domain != "" {
+		return fmt.Errorf("ipsec remote-access pool %q: domain is not supported, because the IKEv2 "+
+			"Configuration payload (RFC 7296 Section 3.15.1) has no search-domain attribute, so no "+
+			"client could receive it; delete `domain` from the pool", name)
+	}
+	return nil
+}
+
+// poolsOverlap reports whether two validated pools share an address, and in which leaf.
+func poolsOverlap(a, b VirtualIPPool) (string, bool) {
+	if prefixesOverlap(a.Range, b.Range) {
+		return "range", true
+	}
+	if prefixesOverlap(a.Range6, b.Range6) {
+		return "range6", true
+	}
+	return "", false
+}
+
+// prefixesOverlap reports whether two CIDR strings name overlapping prefixes. An empty side
+// names no prefix and overlaps nothing; validatePoolPrefix has already refused a malformed one.
+func prefixesOverlap(a, b string) bool {
+	pa, errA := netip.ParsePrefix(a)
+	if errA != nil {
+		return false
+	}
+	pb, errB := netip.ParsePrefix(b)
+	if errB != nil {
+		return false
+	}
+	return pa.Masked().Overlaps(pb.Masked())
+}
+
+// ValidateVirtualIPPoolBindings checks every peer's virtual-ip-pool leaf. The pool MUST be
+// declared. The peer MUST be a respond peer, because Ze answers a CFG_REQUEST only as the
+// IKE_AUTH responder and never sends one. When the peer has traffic selectors, a remote
+// prefix MUST cover each pool range: the lease replaces the peer's proposed inner address,
+// and a policy that excludes it would refuse every Child SA.
+func (c *IPsecConfig) ValidateVirtualIPPoolBindings() error {
+	for _, name := range slices.Sorted(maps.Keys(c.Peers)) {
+		peer := c.Peers[name]
+		poolName := peer.VirtualIPPoolName()
+		if poolName == "" {
+			continue
+		}
+		var pool VirtualIPPool
+		found := false
+		if c.RemoteAccess != nil {
+			pool, found = c.RemoteAccess.Pools[poolName]
+		}
+		if !found {
+			return fmt.Errorf("ipsec peer %q: virtual-ip-pool %q is not declared, so the peer would have "+
+				"no address to lease; declare it under `vpn ipsec remote-access pool %s` or correct the name",
+				name, poolName, poolName)
+		}
+		if peer.ConnectionType != ConnectionRespond {
+			return fmt.Errorf("ipsec peer %q: virtual-ip-pool needs `connection-type respond`, because Ze "+
+				"assigns an address only when answering a peer's IKE_AUTH and never requests one; set "+
+				"`connection-type respond` or delete `virtual-ip-pool`", name)
+		}
+		if err := selectorsCoverPool(peer.TrafficSelectors, pool); err != nil {
+			return fmt.Errorf("ipsec peer %q: virtual-ip-pool %q: %w", name, poolName, err)
+		}
+	}
+	return nil
+}
+
+// selectorsCoverPool returns an error when a non-empty selector policy has no remote prefix
+// containing a configured range of the pool. An empty policy allows everything.
+func selectorsCoverPool(selectors []TrafficSelectorPolicy, pool VirtualIPPool) error {
+	if len(selectors) == 0 {
+		return nil
+	}
+	for _, cidr := range []string{pool.Range, pool.Range6} {
+		if cidr == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil {
+			return fmt.Errorf("range %q: %w", cidr, err)
+		}
+		prefix = prefix.Masked()
+		if !anyRemoteCovers(selectors, prefix) {
+			return fmt.Errorf("no traffic-selector remote prefix contains the pool range %s, so every "+
+				"leased address would be refused with TS_UNACCEPTABLE; widen a traffic-selector `remote "+
+				"prefix` to cover %s", prefix, prefix)
+		}
+	}
+	return nil
+}
+
+// anyRemoteCovers reports whether some selector's remote prefix contains all of prefix.
+func anyRemoteCovers(selectors []TrafficSelectorPolicy, prefix netip.Prefix) bool {
+	for i := range selectors {
+		remote := selectors[i].RemotePrefix
+		if remote == nil {
+			continue
+		}
+		addr, ok := netip.AddrFromSlice(remote.IP)
+		if !ok {
+			continue
+		}
+		addr = addr.Unmap()
+		if addr.BitLen() != prefix.Addr().BitLen() {
+			continue
+		}
+		ones, _ := remote.Mask.Size()
+		covering := netip.PrefixFrom(addr, ones).Masked()
+		if covering.Bits() <= prefix.Bits() && covering.Contains(prefix.Addr()) {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePoolPrefix(cidr string, minBits, maxBits int) error {

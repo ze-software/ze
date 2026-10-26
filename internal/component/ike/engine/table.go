@@ -8,11 +8,16 @@ import "sync"
 type SATable struct {
 	mu    sync.RWMutex
 	bySPI map[string]*SA
+
+	// virtualIP is the engine's virtual-IP lease registry and pool generation. It rides
+	// on the table because the table is the one runtime object the engine creates once
+	// and hands to every peer session; it is never replaced (virtual_ip.go).
+	virtualIP *virtualIPState
 }
 
 // NewSATable creates an empty SA table.
 func NewSATable() *SATable {
-	return &SATable{bySPI: make(map[string]*SA)}
+	return &SATable{bySPI: make(map[string]*SA), virtualIP: newVirtualIPState()}
 }
 
 // Insert adds an SA to the table. Returns false if the SPI pair already exists.

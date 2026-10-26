@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // applyTestStatesLive counts the engine states applyTestState has built and not yet
@@ -234,56 +236,149 @@ func TestReloadKeepsTheSocketsWhenTheAddressIsUnchanged(t *testing.T) {
 
 // VALIDATES: an operator who edits the remote-access pool gets a pool built from what
 // they wrote. The comparison is over the whole ipsec.VirtualIPPool, so an edit to the DNS
-// servers alone rebuilds it too.
+// servers alone rebuilds it too, and an unedited pool keeps its descriptor.
 //
 // RED before the fix: the pool was built only while the pointer was nil, so the second
 // apply kept the range the daemon started with and allocated 10.10.0.1 forever.
 func TestReloadRebuildsTheVirtualIPPoolWhenTheOperatorEditsIt(t *testing.T) {
 	state := applyTestState(t)
+	vip := state.table.virtualIP
+	poolsCfg := func(rng, dns string) *ipsec.RemoteAccessConfig {
+		return &ipsec.RemoteAccessConfig{Pools: map[string]ipsec.VirtualIPPool{
+			"clients": {Name: "clients", Range: rng, DNS: []string{dns}},
+		}}
+	}
 
 	cfg := testIPsecConfig()
-	cfg.RemoteAccess = &ipsec.RemoteAccessConfig{
-		Pool: ipsec.VirtualIPPool{Name: "clients", Range: "10.10.0.0/24", DNS: []string{"10.10.0.53"}},
-	}
+	cfg.RemoteAccess = poolsCfg("10.10.0.0/24", "10.10.0.53")
 	if err := state.applyConfig(cfg, applyReload); err != nil {
 		t.Fatalf("setup apply: %v", err)
 	}
-	if state.pool == nil {
+	if _, ok := vip.pool("clients"); !ok {
 		t.Fatal("setup: no pool was built")
 	}
 
 	edited := testIPsecConfig()
-	edited.RemoteAccess = &ipsec.RemoteAccessConfig{
-		Pool: ipsec.VirtualIPPool{Name: "clients", Range: "10.20.0.0/24", DNS: []string{"10.10.0.53"}},
-	}
+	edited.RemoteAccess = poolsCfg("10.20.0.0/24", "10.10.0.53")
 	if err := state.applyConfig(edited, applyReload); err != nil {
 		t.Fatalf("reload apply: %v", err)
 	}
-
-	allocated, err := state.pool.Allocate()
+	pool, ok := vip.pool("clients")
+	if !ok {
+		t.Fatal("the edited pool is missing")
+	}
+	lease, err := vip.leases.Acquire(pool, "peer", eap.FamilyIPv4, netip.Addr{})
 	if err != nil {
-		t.Fatalf("allocate from the reloaded pool: %v", err)
+		t.Fatalf("acquire from the reloaded pool: %v", err)
 	}
-	_, want, err := net.ParseCIDR("10.20.0.0/24")
-	if err != nil {
-		t.Fatalf("parse the edited range: %v", err)
-	}
-	if !want.Contains(allocated.IPv4) {
-		t.Fatalf("the pool allocated %s, which is outside the edited range %s", allocated.IPv4, want)
+	if want := netip.MustParsePrefix("10.20.0.0/24"); !want.Contains(lease.Addr()) {
+		t.Fatalf("the pool allocated %s, which is outside the edited range %s", lease.Addr(), want)
 	}
 
-	// The DNS edit alone must rebuild it too: a client is pushed the resolver, so a pool
+	// The DNS edit alone must rebuild it too: a client is sent the resolver, so a pool
 	// compared on its range alone would keep offering the one the operator replaced.
 	resolverEdited := testIPsecConfig()
-	resolverEdited.RemoteAccess = &ipsec.RemoteAccessConfig{
-		Pool: ipsec.VirtualIPPool{Name: "clients", Range: "10.20.0.0/24", DNS: []string{"10.20.0.53"}},
-	}
-	rebuilt := state.pool
+	resolverEdited.RemoteAccess = poolsCfg("10.20.0.0/24", "10.20.0.53")
 	if err := state.applyConfig(resolverEdited, applyReload); err != nil {
 		t.Fatalf("resolver reload apply: %v", err)
 	}
-	if state.pool == rebuilt {
+	rebuilt, ok := vip.pool("clients")
+	if !ok || rebuilt == pool {
 		t.Fatal("an edit to the pool's DNS servers alone did not rebuild the pool")
+	}
+	if dns := rebuilt.DNS(eap.FamilyIPv4); len(dns) != 1 || dns[0].String() != "10.20.0.53" {
+		t.Fatalf("rebuilt pool serves DNS %v, want [10.20.0.53]", dns)
+	}
+
+	unchanged := testIPsecConfig()
+	unchanged.RemoteAccess = poolsCfg("10.20.0.0/24", "10.20.0.53")
+	if err := state.applyConfig(unchanged, applyReload); err != nil {
+		t.Fatalf("unchanged reload apply: %v", err)
+	}
+	if again, _ := vip.pool("clients"); again != rebuilt {
+		t.Fatal("a reload that changed nothing rebuilt the pool")
+	}
+}
+
+// VALIDATES: a pool range edit while a lease is live never hands the live address to a
+// second peer, and the old lease stays held until it is released (AC-30).
+// PREVENTS: a rebuild that replaces the lease state with the pool, which would forget the
+// live lease and re-issue its address.
+func TestPoolEditKeepsLiveLease(t *testing.T) {
+	state := applyTestState(t)
+	vip := state.table.virtualIP
+	ra := func(rng string) *ipsec.RemoteAccessConfig {
+		return &ipsec.RemoteAccessConfig{Pools: map[string]ipsec.VirtualIPPool{
+			"clients": {Name: "clients", Range: rng},
+		}}
+	}
+	cfg := testIPsecConfig()
+	cfg.RemoteAccess = ra("10.30.0.0/30")
+	if err := state.applyConfig(cfg, applyReload); err != nil {
+		t.Fatalf("setup apply: %v", err)
+	}
+	pool, _ := vip.pool("clients")
+	live, err := vip.leases.Acquire(pool, "alice", eap.FamilyIPv4, netip.Addr{})
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+
+	// Widen the range so it still contains the live address, and rebuild.
+	edited := testIPsecConfig()
+	edited.RemoteAccess = ra("10.30.0.0/29")
+	if err := state.applyConfig(edited, applyReload); err != nil {
+		t.Fatalf("edit apply: %v", err)
+	}
+	widened, _ := vip.pool("clients")
+	if widened == pool {
+		t.Fatal("the range edit did not rebuild the pool")
+	}
+	for i := range 5 {
+		l, acqErr := vip.leases.Acquire(widened, "peer"+strconv.Itoa(i), eap.FamilyIPv4, live.Addr())
+		if acqErr != nil {
+			t.Fatalf("acquire %d after the edit: %v", i, acqErr)
+		}
+		if l.Addr() == live.Addr() {
+			t.Fatalf("the live address %s was handed to a second peer after the pool edit", live.Addr())
+		}
+	}
+	if !vip.leases.IsHeld(live.Addr()) {
+		t.Fatal("the pool edit dropped the live lease")
+	}
+	if err := vip.leases.Release(live); err != nil {
+		t.Fatalf("the old lease was not releasable after the edit: %v", err)
+	}
+}
+
+// VALIDATES: the operator's virtual-ip-pool leaf selects the pool the peer session draws
+// from, among several configured pools, and an unbound peer reports no binding.
+func TestPeerBindingSelectsNamedPool(t *testing.T) {
+	state := applyTestState(t)
+	cfg := testIPsecConfig()
+	cfg.RemoteAccess = &ipsec.RemoteAccessConfig{Pools: map[string]ipsec.VirtualIPPool{
+		"a": {Name: "a", Range: "10.40.0.0/24"},
+		"b": {Name: "b", Range: "10.41.0.0/24"},
+	}}
+	if err := state.applyConfig(cfg, applyReload); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	peer := ipsec.SiteToSitePeer{Name: "rw", VirtualIP: &ipsec.VirtualIPBinding{Pool: "b"}, ConnectionType: ipsec.ConnectionRespond}
+	ps := &PeerSession{peerCfg: peer, virtualIP: state.table.virtualIP}
+	pool, bound, ok := ps.boundVirtualIPPool()
+	if !bound || !ok {
+		t.Fatalf("bound=%v ok=%v, want a resolved binding", bound, ok)
+	}
+	if pool.Name() != "b" || pool.Prefix4() != netip.MustParsePrefix("10.41.0.0/24") {
+		t.Fatalf("the binding resolved pool %q %s, want b 10.41.0.0/24", pool.Name(), pool.Prefix4())
+	}
+
+	ps.peerCfg.VirtualIP = &ipsec.VirtualIPBinding{Pool: "gone"}
+	if _, bound, ok := ps.boundVirtualIPPool(); !bound || ok {
+		t.Fatalf("an unresolvable binding answered bound=%v ok=%v, want bound and unresolved", bound, ok)
+	}
+	ps.peerCfg.VirtualIP = nil
+	if _, bound, _ := ps.boundVirtualIPPool(); bound {
+		t.Fatal("an unbound peer reported a binding")
 	}
 }
 

@@ -265,10 +265,28 @@ of a run against an independent peer.
 TLS records through EAP request and response packets. Implementing TLS again was
 rejected.
 
-**The virtual IP pool allocates sequentially from the CIDR base.** Random
-allocation buys nothing here and makes debugging harder.
+**Virtual IP leases come from one engine-wide registry, never from a pool.** A
+`Pool` is an immutable descriptor: its IPv4 and IPv6 ranges and the DNS servers
+sent with a lease. Every lease is taken through `Registry.Acquire`, which keys
+each live lease by its full address, so two pools, or one pool rebuilt on a
+reload, can never hand one address to two peers (RFC 3948 Section 5.1). The
+registry lives as long as the engine; a pool edit replaces the descriptor and
+leaves live leases held until their IKE SA releases them.
 
-<!-- source: internal/core/eap/pool.go -- Pool, Allocate, Release -->
+An owner (the peer) holds at most one address per pool and family. A second
+`Acquire` for the same slot returns the same lease with one more holder, which
+is what reauthentication and a parallel re-initiation need. Otherwise the
+order is: the requested address when it is a free host address of the range
+(for IPv6 outside the prefix, its interface identifier placed inside the
+prefix); the owner's last released address while it is still free; the next
+free address after a rotating per-pool cursor, so a just-released address is
+not handed to someone else while another is free. Only the requested family is
+leased. `Release` drops one holder and frees the address at the last one; a
+release the registry did not grant returns `ErrNotAllocated`. `NewPool` refuses
+an IPv4 prefix outside /8 to /30 and an IPv6 prefix outside /48 to /126, and an
+IPv6 pool hands out at most 65535 host identifiers, so every scan is bounded.
+
+<!-- source: internal/core/eap/pool.go -- Pool, NewPool, Registry, Acquire, Release, Available -->
 
 **NAT detection hashes compare in constant time.** The comparison is not
 security sensitive, because a SHA-1 NAT detection hash is public. The

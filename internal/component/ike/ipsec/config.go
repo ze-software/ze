@@ -555,6 +555,10 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 		peer.ESPGroup = v
 	}
 
+	if v, ok := t.Get("virtual-ip-pool"); ok {
+		peer.VirtualIP = &VirtualIPBinding{Pool: v}
+	}
+
 	if v, ok := t.Get("connection-type"); ok {
 		ct, valid := parseConnectionType(v)
 		if !valid {
@@ -589,6 +593,7 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 
 func parseRemoteAccess(t *config.Tree) (RemoteAccessConfig, error) {
 	ra := RemoteAccessConfig{
+		Pools: make(map[string]VirtualIPPool),
 		Users: make(map[string]EAPUser),
 	}
 
@@ -607,12 +612,12 @@ func parseRemoteAccess(t *config.Tree) (RemoteAccessConfig, error) {
 		ra.Auth = auth
 	}
 
-	if pools := t.GetListOrdered("pool"); len(pools) > 0 {
-		pool, err := parseVirtualIPPool(pools[0].Key, pools[0].Value)
+	for _, entry := range t.GetListOrdered("pool") {
+		pool, err := parseVirtualIPPool(entry.Key, entry.Value)
 		if err != nil {
 			return ra, err
 		}
-		ra.Pool = pool
+		ra.Pools[entry.Key] = pool
 	}
 
 	for _, entry := range t.GetListOrdered("eap-user") {
@@ -640,9 +645,7 @@ func parseVirtualIPPool(name string, t *config.Tree) (VirtualIPPool, error) {
 		pool.Range6 = v
 	}
 
-	if v, ok := t.Get("dns"); ok {
-		pool.DNS = append(pool.DNS, v)
-	}
+	pool.DNS = t.GetSlice("dns")
 
 	if v, ok := t.Get("domain"); ok {
 		pool.Domain = v

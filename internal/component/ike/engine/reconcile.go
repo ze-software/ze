@@ -39,6 +39,12 @@ type PeerSession struct {
 	// mode can change under a reload while the peer name does not.
 	resumption *eap.Resumption
 
+	// virtualIP is the engine's lease registry and pool generation, shared by every
+	// session (SATable.virtualIP). A peer bound to a pool leases its inner address
+	// through it; nil only in a test that built the session by hand, and a bound peer
+	// then has no pool and is refused its Child SA (boundVirtualIPPool).
+	virtualIP *virtualIPState
+
 	// responderBusy gates a `respond` peer to ONE in-flight half-open handshake --
 	// its documented meaning. The shared dispatchInbound goroutine CAS-sets it true
 	// when it creates a responder SA on an unsolicited IKE_SA_INIT; it is cleared
@@ -752,6 +758,7 @@ func startPeerSession(
 		// session the operator bounced with `clear vpn ipsec sa all` still redeems
 		// the tickets its predecessor issued (resumptionFor, resumption.go).
 		resumption: resumptionFor(name, peer.Auth),
+		virtualIP:  table.virtualIP,
 		ike:        tr,
 		natt:       natt,
 		inbound:    make(chan transport.Packet, inboundQueueDepth),

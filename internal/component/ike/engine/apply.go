@@ -8,13 +8,11 @@ package engine
 import (
 	"log/slog"
 	"maps"
-	"reflect"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
-	"github.com/ze-software/ze/internal/core/eap"
 )
 
 // ikeListeners is the pair of UDP sockets the engine receives IKE on, with the
@@ -167,12 +165,6 @@ type ikeEngineState struct {
 	log     *slog.Logger
 
 	listeners ikeListeners
-
-	// pool is the remote-access address pool, and poolCfg is the configuration it was
-	// built from. The pair is what lets applyConfig tell an edited pool from an
-	// unedited one, for the reason ikeListeners records its host.
-	pool    *eap.Pool
-	poolCfg ipsec.VirtualIPPool
 
 	// installedSPD is the operator's SPD entries as currently installed. It is tracked
 	// rather than re-derived from the live configuration because the removal half needs
@@ -342,7 +334,7 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	}
 	s.rebindListeners(ikeListenHost(ifIP, peerLocal), len(cfg.Peers) > 0)
 
-	s.reloadPool(cfg.RemoteAccess)
+	s.table.virtualIP.reload(cfg.RemoteAccess, s.log)
 
 	// Peer reconciliation is the only part of an apply that puts packets on the wire,
 	// and at STARTUP it is deferred to OnAllPluginsReady. Phase 1 loads a config-path
@@ -425,46 +417,6 @@ func (s *ikeEngineState) stopAllPeers() {
 	for name, ps := range stopping {
 		stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
 	}
-}
-
-// reloadPool rebuilds the remote-access address pool when the operator edited it, and
-// releases it when remote access is removed.
-//
-// The comparison is over the WHOLE ipsec.VirtualIPPool and not over its Range alone. The
-// DNS servers and the search domain are pushed to a client as well, so a pool rebuilt
-// only on a range edit would keep offering the resolver the operator replaced. It is
-// written here rather than as ipsec.VirtualIPPool.Equal because this is the type's only
-// comparer, so there is no second declaration to disagree with.
-//
-// NOTHING READS s.pool YET, and the rebuild does not change that. eap.Pool.Allocate has
-// no non-test caller, so ze negotiates no INTERNAL_IP4_ADDRESS (RFC 7296 Section 2.19)
-// and a remote-access client receives no address from this pool however often it is
-// rebuilt. What the rebuild does change is operator-visible: an edited range is
-// validated and reported on the commit that makes it, where before the daemon held the
-// range it started with and said nothing until it was restarted. The missing consumer is
-// recorded in plan/journal/stale-artifact-reused.md.
-func (s *ikeEngineState) reloadPool(ra *ipsec.RemoteAccessConfig) {
-	if ra == nil {
-		s.pool = nil
-		s.poolCfg = ipsec.VirtualIPPool{}
-		return
-	}
-	if s.pool != nil && reflect.DeepEqual(s.poolCfg, ra.Pool) {
-		return
-	}
-
-	pool, err := eap.NewPool(ra.Pool.Range, ra.Pool.Range6, ra.Pool.DNS, ra.Pool.Domain)
-	if err != nil {
-		// The pool is dropped rather than kept, so a later apply that repeats the same
-		// broken range reports it again instead of going quiet over a stale pool.
-		s.pool = nil
-		s.poolCfg = ipsec.VirtualIPPool{}
-		s.log.Warn("ike: failed to create virtual IP pool", "range", ra.Pool.Range, "error", err)
-		return
-	}
-	s.pool = pool
-	s.poolCfg = ra.Pool
-	s.log.Info("ike: virtual IP pool created", "range", ra.Pool.Range)
 }
 
 // shutdown ends everything the engine runs, on every exit of runEngine, in an order

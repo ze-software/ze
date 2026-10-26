@@ -267,13 +267,14 @@ nothing rebuilt them. A reload that moved the address half-applied: the peers
 restarted, because `peerConfigChanged` saw `LocalAddress` change, and the socket
 under them stayed bound to the address the daemon started with.
 
-The remote-access address pool is rebuilt on the same rule, comparing the whole
-`ipsec.VirtualIPPool` rather than its range alone, because the DNS servers and
-the search domain are pushed to a client too. Nothing reads that pool yet:
-`eap.Pool.Allocate` has no non-test caller, so ze negotiates no
-INTERNAL_IP4_ADDRESS and a client receives no address from it. What the rebuild
-changes today is that an edited range is validated and reported on the commit
-that makes it.
+Every remote-access pool is rebuilt on the same rule, each compared as a whole
+`ipsec.VirtualIPPool` rather than by its range alone, because the DNS servers
+are sent to a client too; an unedited pool keeps its descriptor and cursor.
+`virtualIPState.reload` publishes the new generation through an atomic pointer
+that peer sessions load. The lease registry beside it is created once with the
+engine's `SATable` and never replaced, so an edit cannot forget a live lease or
+hand its address out again. A peer reaches its pool through its
+`virtual-ip-pool` leaf (`PeerSession.boundVirtualIPPool`).
 
 **A reload reaches the engine through `OnConfigApply`, and an apply with nothing
 staged is refused.** The plugin protocol splits a reload into a verify phase and
@@ -294,7 +295,8 @@ that wants config and registered neither `OnConfigApply` nor
 config-apply answers an error, and `OnConfigApply(nil)` panics.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
-<!-- source: internal/component/ike/engine/apply.go -- ikeEngineState, applyConfig, rebindListeners, stopAllPeers, reloadPool -->
+<!-- source: internal/component/ike/engine/apply.go -- ikeEngineState, applyConfig, rebindListeners, stopAllPeers -->
+<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState, reload, boundVirtualIPPool -->
 <!-- source: internal/component/ike/engine/register.go -- applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, DeclareAppliesNothing, configVerifyCallback, refuseConfigApply -->
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
