@@ -1,0 +1,94 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4754",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4754.txt",
+  "source-sha": "fc7087d50dadf19f",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "7:1",
+      "quote": "When ECDSA-256, ECDSA-384, or ECDSA-521 is used as the digital signature in IKE or IKEv2, the signature payload SHALL contain an encoding of the computed signature consisting of the concatenation of a pair of integers r and s.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4754-7-1"
+    }
+  ]
+}

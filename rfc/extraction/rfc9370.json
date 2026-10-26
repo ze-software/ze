@@ -1,0 +1,288 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9370",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9370.txt",
+  "source-sha": "81af94e0d6bb79b6",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.1",
+      "sites": 12,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.4",
+      "sites": 10,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2.1:1",
+      "quote": "Additional key exchanges negotiated via newly defined transforms MUST take place in a series of IKE_INTERMEDIATE exchanges following the IKE_SA_INIT exchange, performed in an order of the values of their Transform Types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-1"
+    },
+    {
+      "id": "2.2.1:2",
+      "quote": "Each additional key exchange method MUST be fully completed before the next one is started.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-2"
+    },
+    {
+      "id": "2.2.1:3",
+      "quote": "On the other hand, if the initiator includes any ADDKE Transform Type in the proposal, the responder MUST select one of the algorithms proposed using this type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-3"
+    },
+    {
+      "id": "2.2.1:4",
+      "quote": "However, for the ADDKE Transform Types, the responder's choice MUST NOT contain duplicated algorithms (those with an identical Transform ID and attributes), except for the Transform ID of NONE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-4"
+    },
+    {
+      "id": "2.2.1:5",
+      "quote": "If the responder is unable to select algorithms that are not duplicated for each proposed key exchange (either because the proposal contains too few choices or due to the local policy restrictions on using the proposed algorithms), then the responder MUST reject the message with an error notification of type NO_PROPOSAL_CHOSEN.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-5"
+    },
+    {
+      "id": "2.2.1:6",
+      "quote": "If the responder's message contains one or more duplicated choices, the initiator should log the error and MUST treat the exchange as failed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-6"
+    },
+    {
+      "id": "2.2.1:7",
+      "quote": "The initiator MUST NOT initiate any IKE_INTERMEDIATE (or IKE_FOLLOWUP_KE) exchanges so that no new SA is created.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-7"
+    },
+    {
+      "id": "2.2.1:8",
+      "quote": "If the responder selects NONE for some ADDKE Transform Types (provided they are proposed by the initiator), then any corresponding additional key exchanges MUST NOT take place.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-8"
+    },
+    {
+      "id": "2.2.1:9",
+      "quote": "The responder MUST treat all of the omitted ADDKE transforms as if they were proposed with Transform ID NONE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-9"
+    },
+    {
+      "id": "2.2.1:10",
+      "quote": "If the initiator includes any ADDKE Transform Types into the SA payload in the IKE_SA_INIT exchange request message, then it MUST also negotiate the use of the IKE_INTERMEDIATE exchange, as described in [RFC9242] by including an INTERMEDIATE_EXCHANGE_SUPPORTED notification in the same message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-10"
+    },
+    {
+      "id": "2.2.1:11",
+      "quote": "If the responder agrees to use additional key exchanges while establishing an initial IKE SA, it MUST also return this notification in the IKE_SA_INIT response message, confirming that IKE_INTERMEDIATE exchange is supported and will be used for transferring additional key exchange data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-11"
+    },
+    {
+      "id": "2.2.1:12",
+      "quote": "If the IKE_INTERMEDIATE exchange is not negotiated, then the peers MUST treat any ADDKE Transform Types in the IKE_SA_INIT exchange messages as unknown transform types and skip the proposals they appear in.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.1-12"
+    },
+    {
+      "id": "2.2.2:1",
+      "quote": "The former \"Diffie-Hellman Group Num\" (now called \"Key Exchange Method\") field in the KEi(n) and KEr(n) payloads MUST match the n-th negotiated additional key exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.2-1"
+    },
+    {
+      "id": "2.2.4:1",
+      "quote": "Each additional key exchange method MUST be fully completed before the next one is started.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-1"
+    },
+    {
+      "id": "2.2.4:2",
+      "quote": "The responder MUST include this notification in a CREATE_CHILD_SA or IKE_FOLLOWUP_KE response message in case the next IKE_FOLLOWUP_KE exchange is expected, filling it with some data that would allow linking the current exchange to the next one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-2"
+    },
+    {
+      "id": "2.2.4:3",
+      "quote": "The initiator MUST send back this notification intact in the request message of the next IKE_FOLLOWUP_KE exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-3"
+    },
+    {
+      "id": "2.2.4:4",
+      "quote": "The former \"Diffie-Hellman Group Num\" (now called \"Key Exchange Method\") field in the KEi(n) and KEr(n) payloads MUST match the n-th negotiated additional key exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-4"
+    },
+    {
+      "id": "2.2.4:5",
+      "quote": "The responder MUST handle this situation gracefully and delete the associated state if it does not receive the next expected IKE_FOLLOWUP_KE request after some reasonable period of time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-5"
+    },
+    {
+      "id": "2.2.4:6",
+      "quote": "If the responder receives an IKE_FOLLOWUP_KE message for which it does not have a key exchange state, it MUST send back a new error type notification called \"STATE_NOT_FOUND\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-6"
+    },
+    {
+      "id": "2.2.4:7",
+      "quote": "If the initiator receives this notification in response to an IKE_FOLLOWUP_KE exchange performing an additional key exchange, it MUST cancel this exchange and MUST treat the whole series of exchanges started from the CREATE_CHILD_SA exchange as having failed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-7"
+    },
+    {
+      "id": "2.2.4:8",
+      "quote": "If the initiator continues to receive STATE_NOT_FOUND notifications after several retries, it MUST treat this situation as a fatal error and delete the IKE SA by sending a DELETE payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-8"
+    },
+    {
+      "id": "2.2.4:9",
+      "quote": "For this reason, if additional key exchanges are negotiated in the CREATE_CHILD_SA exchange in which the smallest nonce is used, then, because there is nothing to delete yet, the initiator of this exchange just stops the rekeying process, and it MUST NOT initiate the IKE_FOLLOWUP_KE exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-9"
+    },
+    {
+      "id": "2.2.4:10",
+      "quote": "In this case, a TEMPORARY_FAILURE notification MUST be sent in response to such a request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9370-2.2.4-10"
+    },
+    {
+      "id": "C:1",
+      "quote": "Therefore, in order to fully prevent any downgrade attacks, using a KE payload alone is not sufficient, and the initiator MUST always indicate its preferred post-quantum proposals and policies in a notify payload in the subsequent IKE_SA_INIT messages following an N(INVALID_KE_PAYLOAD) response.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix C lists alternative designs the authors considered and discarded. This sentence closes the bullet 'Sending post-quantum proposals and policies in the KE payload only', and states what that discarded design would have needed to resist the downgrade attack it describes. The adopted design negotiates additional exchanges through ADDKE Transform Types in the SA payload (Section 2.2.1), so no implementer of this document is bound by the sentence."
+    }
+  ]
+}

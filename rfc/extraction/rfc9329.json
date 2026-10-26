@@ -1,0 +1,418 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9329",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9329.txt",
+  "source-sha": "3d8cc0d5a6d18adb",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.4",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.2:1",
+      "quote": "If an IKE SA is rekeyed one or more times, the TCP Originator MUST remain the peer that originally initiated the first IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-1.2-1"
+    },
+    {
+      "id": "2:1",
+      "quote": "Compliant implementations MUST support TCP encapsulation on TCP port 4500, which is reserved for IPsec NAT traversal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-2-1"
+    },
+    {
+      "id": "3:1",
+      "quote": "Empty messages (where the Length field equals 2) MUST be silently ignored by receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The value in the Length field MUST NOT be 0 or 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "The receiver MUST treat these values as fatal errors and MUST close the TCP connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3.1-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The Security Parameter Index (SPI) field [RFC7296] in the ESP header MUST NOT be a zero value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "The value in the Length field MUST NOT be 0 or 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3.2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "The receiver MUST treat these values as fatal errors and MUST close TCP connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-3.2-3"
+    },
+    {
+      "id": "4:1",
+      "quote": "Each stream of bytes used for IKE and IPsec encapsulation MUST begin with a fixed sequence of 6 bytes as a magic value, containing the characters \"IKETCP\" as ASCII values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "If a Responder is configured to accept and is allowed to use TCP encapsulation, it MUST listen on the configured port(s) in case any peers will initiate new IKE sessions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "If TCP encapsulation is being used for a specific IKE SA, all IKE messages for that IKE SA and ESP packets for its Child SAs MUST be sent over a TCP connection until the SA is deleted or IKEv2 Mobility and Multihoming (MOBIKE) is used to change the SA endpoints and/or the encapsulation protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-5-2"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "When switching from UDP to TCP, a new IKE_SA_INIT exchange MUST be initiated with the Initiator's new SPI and with recalculated content of NAT_DETECTION_*_IP notifications.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-5.1-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "The first bytes sent on the TCP stream MUST be the stream prefix value (Section 4).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-1"
+    },
+    {
+      "id": "6.1:2",
+      "quote": "The TCP Responder MUST wait for the entire stream prefix to be received on the stream before trying to parse out any IKE or ESP messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-2"
+    },
+    {
+      "id": "6.1:3",
+      "quote": "Since new TCP connections may use different IP addresses and/or ports due to NAT mappings or local address or port allocations changing, the TCP Responder MUST allow packets for existing SAs to be received from new source IP addresses and ports.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-3"
+    },
+    {
+      "id": "6.1:4",
+      "quote": "Note that the IPv6 Flow-ID header MUST remain constant when a new TCP connection is created to avoid ECMP load balancing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-4"
+    },
+    {
+      "id": "6.1:5",
+      "quote": "A peer MUST discard a partially received message due to a broken connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-5"
+    },
+    {
+      "id": "6.1:6",
+      "quote": "Whenever the TCP Originator opens a new TCP connection to be used for an existing IKE SA, it MUST send the stream prefix first, before any IKE or ESP messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-6"
+    },
+    {
+      "id": "6.1:7",
+      "quote": "Multiple IKE SAs MUST NOT share a single TCP connection, unless one is a rekey of an existing IKE SA, in which case there will temporarily be two IKE SAs on the same TCP connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-7"
+    },
+    {
+      "id": "6.1:8",
+      "quote": "The TCP Responder MUST NOT accept any messages for the existing IKE session on a new incoming connection, unless that connection begins with the stream prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-8"
+    },
+    {
+      "id": "6.1:9",
+      "quote": "If there is instead a syntax issue within an IKE message, an implementation MUST send the INVALID_SYNTAX notify payload and tear down the IKE SA as usual, rather than tearing down the TCP connection directly.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.1-9"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "* If a new TCP connection for the IKE SA is established while the exchange Initiator is waiting for a response, the Initiator MUST retransmit its request over this connection and continue to wait for a response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.2-1"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "Note that the Responder MUST NOT include the Initiator's TCP port into the Cookie calculation (*) since the Cookie can be returned over a new TCP connection with a different port.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.3-1"
+    },
+    {
+      "id": "6.6:1",
+      "quote": "Any implementation using TCP encapsulation MUST silently drop incoming NAT-keepalive packets and not treat them as errors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.6-1"
+    },
+    {
+      "id": "6.7:1",
+      "quote": "These MUST NOT be used as indications of IKE peer liveness, for which purpose the standard IKEv2 mechanism of exchanging (usually empty) INFORMATIONAL messages is used (see Section 1.4 of [RFC7296]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-6.7-1"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "Implementations that implement both MOBIKE and TCP encapsulation within the same connection configuration MUST support dynamically enabling and disabling TCP encapsulation as interfaces change.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-7.1-1"
+    },
+    {
+      "id": "7.1:2",
+      "quote": "A new INFORMATIONAL exchange MUST NOT be started in this situation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-7.1-2"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "In other words, with the next security gateway, the client MUST first try UDP and then fall back to TCP while establishing a new IKE SA, regardless of the transport of the SA the redirect notification was received over (unless the client's configuration instructs it to instantly use TCP for the gateway it is redirected to).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-7.2-1"
+    },
+    {
+      "id": "7.5:1",
+      "quote": "Even if fragmentation is negotiated, an implementation SHOULD NOT send fragments when going over a TCP connection, although it MUST support receiving fragments.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-7.5-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "Implementations MUST favor using direct ESP or UDP encapsulation over TCP encapsulation whenever possible.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9329-9-1"
+    }
+  ]
+}

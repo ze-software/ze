@@ -1,0 +1,290 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5685",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5685.txt",
+  "source-sha": "ff73460a83920d9b",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "The gateway MUST keep track of those clients that indicated support for the redirect mechanism and those that didn't.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "If the IKE_SA_INIT request did not indicate support for the redirect mechanism, the responder MUST NOT send the REDIRECT payload to the VPN client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-2"
+    },
+    {
+      "id": "3:3",
+      "quote": "When the client receives the IKE_SA_INIT response, it MUST verify that the nonce data matches the value sent in the IKE_SA_INIT request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-3"
+    },
+    {
+      "id": "3:4",
+      "quote": "If the values do not match, the client MUST silently discard the response (and keep waiting for another response).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-4"
+    },
+    {
+      "id": "3:5",
+      "quote": "In the IKE_SA_INIT exchange with the new VPN gateway, the client MUST include the REDIRECTED_FROM payload (see Section 9.3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-5"
+    },
+    {
+      "id": "3:6",
+      "quote": "When the client gets redirected, it MUST use the same Peer Authorization Database (PAD) and Security Policy Database (SPD) entries as it would have used with the original gateway.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-6"
+    },
+    {
+      "id": "3:7",
+      "quote": "Receiving a redirect notification MUST NOT result in the modification of any PAD or SPD entries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-3-7"
+    },
+    {
+      "id": "4:1",
+      "quote": "If the destination address on the IKE_SA_INIT request is an anycast address, the VPN gateway that received the IKE_SA_INIT request MUST include the REDIRECT payload to redirect the VPN client to a unicast address of one of the VPN gateways.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "The REDIRECT payload MUST carry information about the new VPN gateway.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "The gateway MUST NOT include any nonce data in the REDIRECT payload, since it is a gateway- initiated redirect and is protected by the IKEv2 security association.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-5-2"
+    },
+    {
+      "id": "6:1",
+      "quote": "The gateway MUST verify the client's AUTH payload before sending the REDIRECT payload, and the client MUST verify the gateway's AUTH payload before acting on the REDIRECT payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "In this case, the gateway MUST send the REDIRECT Notify payload in either the first or the last IKE_AUTH response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "The client and the gateway MUST verify the AUTH payloads as described above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-3"
+    },
+    {
+      "id": "6:4",
+      "quote": "Since EAP is used as the authentication mechanism, the client does not include AUTH payload to authenticate its identity, but the server MUST still include its own AUTH payload, and the client MUST verify it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-4"
+    },
+    {
+      "id": "6:5",
+      "quote": "In all of the cases above, the client MUST accept the REDIRECT notification only in the first IKE_AUTH response or the last IKE_AUTH response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-5"
+    },
+    {
+      "id": "6:6",
+      "quote": "It MUST NOT accept the REDIRECT notification in an intermediate IKE_AUTH response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-6-6"
+    },
+    {
+      "id": "8:1",
+      "quote": "However, if the MN has authenticated information about its home agent, it MUST NOT be updated based on the IKE_SA_INIT response.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the Mobile IPv6 mobile node (MN) using IKEv2 with its home agent (HA), the Section 8 role. Ze implements no Mobile IPv6: no Go file under internal/ names Mobile IPv6, MIPv6 or a home agent, and the IKE engine in internal/component/ike/ keeps no Mobile IPv6 binding state, so neither Ze nor a layer acting for it fills the MN role. The generic redirect obligations Ze does owe are the Section 3, 6 and 11 rows."
+    },
+    {
+      "id": "8:2",
+      "quote": "Gateway-initiated REDIRECT notifications exchanged in INFORMATIONAL exchanges (see Section 5) MUST NOT result in updating any Mobile IPv6 state.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the Mobile IPv6 mobile node (MN) using IKEv2 with its home agent (HA), the Section 8 role. Ze implements no Mobile IPv6: no Go file under internal/ names Mobile IPv6, MIPv6 or a home agent, and the IKE engine in internal/component/ike/ keeps no Mobile IPv6 binding state, so neither Ze nor a layer acting for it fills the MN role. The generic redirect obligations Ze does owe are the Section 3, 6 and 11 rows."
+    },
+    {
+      "id": "9.1:1",
+      "quote": "The 'SPI Size' field MUST be set to 0 to indicate that the SPI is not present in this message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.1-1"
+    },
+    {
+      "id": "9.1:2",
+      "quote": "The 'Protocol ID' MUST be set to 0, since the notification is not specific to a particular security association.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.1-2"
+    },
+    {
+      "id": "9.2:1",
+      "quote": "The 'SPI Size' field MUST be set to 0 to indicate that the SPI is not present in this message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.2-1"
+    },
+    {
+      "id": "9.2:2",
+      "quote": "The 'Protocol ID' MUST be set to 0, since the notification is not specific to a particular security association.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.2-2"
+    },
+    {
+      "id": "9.2:3",
+      "quote": "The IPv4 address, the IPv6 address, or the FQDN of the new VPN gateway MUST be encoded as described in Section 3.5 of [2].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.2-3"
+    },
+    {
+      "id": "9.2:4",
+      "quote": "The size of the nonce MUST be between 16 and 256 bytes, as described in Section 3.9 of [2].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.2-4"
+    },
+    {
+      "id": "9.2:5",
+      "quote": "It MUST NOT be included in the REDIRECT payload if sent in an IKE_AUTH response or in a gateway-initiated redirect message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.2-5"
+    },
+    {
+      "id": "9.3:1",
+      "quote": "The 'SPI Size' field MUST be set to 0 to indicate that the SPI is not present in this message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.3-1"
+    },
+    {
+      "id": "9.3:2",
+      "quote": "The 'Protocol ID' MUST be set to 0, since the notification is not specific to a particular security association.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-9.3-2"
+    },
+    {
+      "id": "11:1",
+      "quote": "The redirect mechanism MUST NOT update any state on the client apart from the VPN gateway information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5685-11-1"
+    },
+    {
+      "id": "12:1",
+      "quote": "A specification that extends this registry MUST also mention which of the new values are valid in which Notify payload.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of a future specification that extends the GW Identity Type registry, not an IKEv2 implementation: it says what such a document must state. Ze writes no IETF specification, so no implementation role carries it."
+    }
+  ]
+}

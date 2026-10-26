@@ -1,0 +1,120 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4739",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4739.txt",
+  "source-sha": "797349d9f7bf7b48",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "The Protocol ID and SPI Size fields MUST be set to zero, and there is no data associated with this Notify type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4739-3.1-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The Protocol ID and SPI Size fields MUST be set to zero, and there is no data associated with this Notify type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4739-3.2-1"
+    }
+  ]
+}

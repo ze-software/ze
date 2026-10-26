@@ -1,0 +1,96 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8031",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8031.txt",
+  "source-sha": "c75bde78bf8c4e10",
+  "signed-off": "2026-10-26",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Implementations of Curve25519 and Curve448 in IKEv2 SHALL follow the steps described in this section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8031-2-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Receiving and handling of incompatible point formats MUST follow the considerations described in Section 5 of [RFC7748].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8031-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "In particular, receiving entities MUST mask the most-significant bit in the final byte for X25519 (but not X448), and implementations MUST accept non- canonical values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8031-3.2-2"
+    }
+  ]
+}
