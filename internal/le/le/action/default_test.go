@@ -108,3 +108,38 @@ func TestTheListingNamesTheDefaultAction(t *testing.T) {
 		t.Errorf("a listing with no default has the heading summary %q", got)
 	}
 }
+
+// VALIDATES: an area page's usage line shows the action as optional,
+// `[<action>]`, when the listing declares a default action, and as required,
+// `<action>`, when it declares none. It renders both pages and compares each
+// usage line whole.
+// PREVENTS: the area page telling the reader an action is required right
+// above the heading that says a line naming no action runs the default.
+func TestAreaUsageShowsTheActionOptionalWhenADefaultOwnsTheBareLine(t *testing.T) {
+	cases := []struct {
+		name    string
+		actions []Action
+		want    string
+	}{
+		{"a default", []Action{
+			{Verb: "report", Default: true, Why: "default", Answer: defaultAnswer},
+			{Verb: "write", Why: "other", Answer: defaultAnswer},
+		}, "le a [<action>] [<keyword> <value>...] [| json | yaml | table]"},
+		{"no default", []Action{
+			{Verb: "report", Why: "first", Answer: defaultAnswer},
+			{Verb: "write", Why: "second", Answer: defaultAnswer},
+		}, "le a <action> [<keyword> <value>...] [| json | yaml | table]"},
+	}
+
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			page := New("a", one.actions...).Actions().Page("le")
+			if len(page.Usage) != 1 {
+				t.Fatalf("the area page has %d usage lines, want 1: %q", len(page.Usage), page.Usage)
+			}
+			if page.Usage[0] != one.want {
+				t.Errorf("usage line %q, want %q", page.Usage[0], one.want)
+			}
+		})
+	}
+}

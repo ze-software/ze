@@ -98,7 +98,8 @@ func PageWidth(file *os.File) int {
 
 // Page answers the area page: the area's usage and one line per action, the
 // writes marker in brackets, then the action's declared Summary. A
-// pass-through area's usage takes its program's words, not an action.
+// pass-through area's usage takes its program's words, not an action, and an
+// area with a default action shows the action as optional.
 func (l List) Page(program string) helpfmt.Page {
 	// The area word alone names a verbless listing's action, so the area's
 	// page is that action's page (Action.Verb).
@@ -110,9 +111,14 @@ func (l List) Page(program string) helpfmt.Page {
 	command := tb.Str(program).Byte(' ').Str(l.Area).String()
 	tb.Reset()
 	tb.Str(command)
-	if l.PassesWords {
+	switch _, hasDefault := l.defaultVerb(); {
+	case l.PassesWords:
 		tb.Byte(' ').Str(passedWords)
-	} else {
+	case hasDefault:
+		// A line that names no action runs the default (Action.Default), so
+		// the usage shows the action as optional.
+		tb.Str(" [<action>] [<keyword> <value>...]")
+	default:
 		tb.Str(" <action> [<keyword> <value>...]")
 	}
 	return helpfmt.Page{
