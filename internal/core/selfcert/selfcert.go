@@ -76,10 +76,18 @@ func GenerateWebCertWithNames(listenAddr string, extraNames []string, validity t
 		return nil, nil, fmt.Errorf("generate ECDSA key: %w", err)
 	}
 
-	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	// RFC 5280 Section 4.1.2.2: "The serial number MUST be a positive integer
+	// assigned by the CA to each certificate."
+	// rand.Int draws from [0, max), so the draw is from one below 2^128 and one
+	// is added: the serial is in [1, 2^128 - 1], never zero.
+	one := big.NewInt(1)
+	serialMax := new(big.Int).Lsh(one, 128)
+	serialMax.Sub(serialMax, one)
+	serialNumber, err := rand.Int(rand.Reader, serialMax)
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate serial number: %w", err)
 	}
+	serialNumber.Add(serialNumber, one)
 
 	if validity <= 0 {
 		validity = certValidityDuration

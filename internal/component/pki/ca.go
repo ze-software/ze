@@ -19,9 +19,13 @@ import (
 	"io/fs"
 	"math/big"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -68,6 +72,11 @@ var (
 
 	errIssueLeafNoCommonName = errors.New("pki: leaf certificate needs a common name")
 	errIssueLeafNoHosts      = errors.New("pki: a leaf with no subject alternative name identifies nothing")
+
+	// ErrIssueLeafNamesTheRoot refuses a leaf whose common name compares equal
+	// to the root's own. It is exported so a caller that took the name from an
+	// operator can name the field to edit; the refusal itself carries the name.
+	ErrIssueLeafNamesTheRoot = errors.New("a leaf may not take the name of the certificate authority itself, " + rootSubjectCN + ", in any letter case or spacing")
 
 	errRootNoValidity  = errors.New("pki: root certificate needs a validity longer than zero")
 	errIssueNoValidity = errors.New("pki: leaf certificate needs a validity longer than zero")
@@ -359,6 +368,21 @@ func (r *Root) IssueLeaf(commonName string, hosts []string) (tls.Certificate, er
 	return r.IssueLeafFor(commonName, hosts, leafValidity)
 }
 
+// prepareDNString answers the form of a DN attribute value that RFC 4518 compares
+// under caseIgnoreMatch: compatibility-normalized (NFKC), case folded, with leading
+// and trailing space removed and every inner run of space read as one. Two values
+// with the same prepared form name the same DN attribute to a relying party, so a
+// check of DN uniqueness compares this form and never the raw bytes.
+//
+// RFC 5280 Section 7.1: "Conforming implementations MUST use the LDAP StringPrep profile
+// (including insignificant space handling), as specified in [RFC4518],
+// as the basis for comparison of distinguished name attributes encoded
+// in either PrintableString or UTF8String."
+func prepareDNString(value string) string {
+	folded := cases.Fold().String(norm.NFKC.String(value))
+	return strings.Join(strings.Fields(folded), " ")
+}
+
 // IssueLeafFor is IssueLeaf with the leaf's lifetime named at the call site. A
 // leaf that is minted once and then copied into an image lives as long as the
 // operator asked for, and the caller MUST keep it inside the root's own
@@ -375,6 +399,14 @@ func (r *Root) IssueLeafFor(commonName string, hosts []string, validity time.Dur
 	// it. Refuse here, where the caller can be named.
 	if commonName == "" {
 		return tls.Certificate{}, errIssueLeafNoCommonName
+	}
+	// The root certifies itself, so it is one of the subject entities this CA
+	// certifies, and a leaf carrying its name would share its DN.
+	// RFC 5280 Section 4.1.2.6: "The DN MUST be unique for each subject entity
+	// certified by the one CA as defined by the issuer field."
+	// RFC 5280 Section 7.1: the comparison runs on the prepared form.
+	if prepareDNString(commonName) == prepareDNString(rootSubjectCN) {
+		return tls.Certificate{}, fmt.Errorf("pki: leaf common name %q: %w", commonName, ErrIssueLeafNamesTheRoot)
 	}
 	if len(hosts) == 0 {
 		return tls.Certificate{}, fmt.Errorf("pki: leaf for %s needs at least one host: %w", commonName, errIssueLeafNoHosts)

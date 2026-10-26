@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
@@ -121,61 +120,6 @@ func TestRootKeyIsWrittenPrivate(t *testing.T) {
 	}
 	if perm := info.Mode().Perm(); perm != 0o600 {
 		t.Fatalf("blob file mode %#o, want 0600", perm)
-	}
-}
-
-func TestIssueLeafDrawsAUniqueSerial(t *testing.T) {
-	store, _ := newRootStore(t)
-
-	root, err := LoadOrGenerateRoot(store)
-	if err != nil {
-		t.Fatalf("LoadOrGenerateRoot: %v", err)
-	}
-
-	const issuances = 64
-	limit := new(big.Int).Lsh(big.NewInt(1), serialBits)
-	seen := make(map[string]bool, issuances)
-	wideSerials := 0
-
-	for i := range issuances {
-		cert, err := root.IssueLeaf("ze-test", []string{"127.0.0.1"})
-		if err != nil {
-			t.Fatalf("IssueLeaf %d: %v", i, err)
-		}
-		leaf, err := x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			t.Fatalf("parse leaf %d: %v", i, err)
-		}
-
-		serial := leaf.SerialNumber
-		if serial.Sign() <= 0 {
-			t.Fatalf("serial %d is not positive: %s", i, serial)
-		}
-		if serial.Cmp(limit) >= 0 {
-			t.Fatalf("serial %d needs %d bits, more than the %d drawn", i, serial.BitLen(), serialBits)
-		}
-		if seen[serial.String()] {
-			t.Fatalf("serial %s was issued twice", serial)
-		}
-		seen[serial.String()] = true
-
-		if serial.BitLen() > serialBits-8 {
-			wideSerials++
-		}
-	}
-
-	// A serial drawn from the full 128-bit range lands in the top 1/256 of it
-	// about 255 times in 256. Sixty-four draws all landing below that point has
-	// probability (1/256)^64, so this assertion fails only if the draw is not
-	// 128 bits wide.
-	if wideSerials == 0 {
-		t.Fatalf("no serial out of %d needed more than %d bits: the draw is narrower than %d bits",
-			issuances, serialBits-8, serialBits)
-	}
-	// The root draws from the same range, so it is not a counter either.
-	rootSerial := root.cert.SerialNumber
-	if rootSerial.Sign() <= 0 || rootSerial.Cmp(limit) >= 0 {
-		t.Fatalf("root serial %s is outside the %d-bit range", rootSerial, serialBits)
 	}
 }
 

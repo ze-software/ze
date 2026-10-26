@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5280-4.2.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured",
+    "unit-sha": "68e011888c9f983d",
+    "claim-sha": "a2e463d1ec6c2443",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cert_payload.go::resolveCertPayloads",
+    "producer-sha": "b799606fd5dc1cca",
+    "break": "body of resolveCertPayloads replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

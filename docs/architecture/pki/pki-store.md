@@ -193,6 +193,13 @@ rotate.
   (`architecture/appliance/builder.md`). A validity of zero or less is refused,
   because a certificate that is expired when it is issued reads as a daemon that
   minted it wrong.
+- `IssueLeafFor` refuses a leaf whose common name is the root's own, `Ze Local
+  CA`, compared as RFC 5280 Section 7.1 requires through RFC 4518 preparation:
+  compatibility-normalized, case folded, with leading and trailing space dropped
+  and inner runs of space read as one. The root certifies itself, so such a leaf
+  would share its DN (RFC 5280 Section 4.1.2.6). `ze-local-ca` is a different
+  name; `ze local ca` and `Ze  Local CA` are not. The appliance build host turns
+  the refusal into one that names `identity.hostname` and where to edit it.
 - A 24-hour leaf is short because it is RENEWED, not because a daemon restarts
   daily. `ServingLeaf` (`internal/component/plugin/leaf.go`) holds the leaf a
   listener presents and reissues it once two thirds of its life is spent, from

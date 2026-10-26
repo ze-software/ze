@@ -5,11 +5,15 @@ package appliance
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -207,5 +211,35 @@ func TestApplianceRootStoreRefusesAnUnknownKey(t *testing.T) {
 	}
 	if string(stored) != "root material" {
 		t.Errorf("read back %q, want the bytes written", stored)
+	}
+}
+
+// TestIssueWebLeafRefusesTheAuthorityName drives the DN-uniqueness refusal from the
+// appliance's one TLS write path. The hostname is the authority's own name in another
+// letter case and with a doubled inner space, which RFC 4518 comparison reads as the
+// same name, so no certificate or key may be written, and the error names the field
+// the operator edits.
+func TestIssueWebLeafRefusesTheAuthorityName(t *testing.T) {
+	dir := t.TempDir()
+	const name = "caname"
+	cfg := DefaultConfig(name)
+	cfg.Identity.Hostname = "ze LOCAL  ca"
+	if err := os.MkdirAll(tLSDir(dir, name), secretsDirPerm); err != nil {
+		t.Fatalf("create tls dir: %v", err)
+	}
+
+	err := writeTLSSecrets(dir, name, &cfg, "", "", nil)
+	if !errors.Is(err, zepki.ErrIssueLeafNamesTheRoot) {
+		t.Fatalf("writeTLSSecrets returned %v, want ErrIssueLeafNamesTheRoot", err)
+	}
+	for _, want := range []string{"identity.hostname", `"ze LOCAL  ca"`, "ze appliance replace-cert caname", ConfigPath(dir, name)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal %q does not name %q", err, want)
+		}
+	}
+	for _, file := range []string{"cert.pem", "key.pem"} {
+		if _, statErr := os.Stat(filepath.Join(tLSDir(dir, name), file)); !errors.Is(statErr, fs.ErrNotExist) {
+			t.Errorf("%s was written, or could not be checked: %v", file, statErr)
+		}
 	}
 }

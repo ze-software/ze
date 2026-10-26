@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5280-4.1.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestIssueLeafDrawsAUniqueSerial",
+    "unit-sha": "dd3d321486a10647",
+    "claim-sha": "7afa2e04d8454020",
+    "route": "revert",
+    "producer": "internal/component/pki/ca.go::randomSerial",
+    "producer-sha": "d890a8278fb7771f",
+    "break": "body of randomSerial replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

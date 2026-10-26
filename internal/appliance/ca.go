@@ -152,12 +152,22 @@ func issueWebLeaf(baseDir, name string, cfg *applianceConfig, passphrase []byte)
 
 	// The common name names the device in the subject and is never matched
 	// against a hostname; the SANs are what a client verifies.
-	commonName := cfg.Identity.Hostname
+	commonName, field := cfg.Identity.Hostname, "identity.hostname"
 	if commonName == "" {
-		commonName = cfg.Identity.Name
+		commonName, field = cfg.Identity.Name, "identity.name"
 	}
 
 	leaf, err := root.IssueLeafFor(commonName, selfcert.WebCertHosts(cfg.SSH.Host, extraNames), leafValidity)
+	if errors.Is(err, zepki.ErrIssueLeafNamesTheRoot) {
+		// The name came from the operator, so the refusal names the field and
+		// where it is edited for each command that reaches here.
+		return nil, nil, fmt.Errorf("issue appliance certificate: %s %q is the name of the appliance's own "+
+			"certificate authority, and a certificate under it would share the authority's name: %w. "+
+			"Set %s to the router's own hostname, in the file given to `ze appliance init --config`, "+
+			"in the manifest entry given to `ze appliance init --batch` (its \"hostname\"), or in %s "+
+			"for `ze appliance replace-cert %s`, then run the same command again",
+			field, commonName, err, field, ConfigPath(baseDir, name), name)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("issue appliance certificate: %w", err)
 	}

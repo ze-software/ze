@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-7.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5280_relying_party_test.go::TestRFC5280DNSNamesCompareCaseInsensitiveAndExact",
+    "unit-sha": "7a2330cb2b3efb2b",
+    "claim-sha": "83d0afaedf467da2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::asciiEqualFold",
+    "producer-sha": "eeba42bce0d8cd9b",
+    "break": "body of asciiEqualFold replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-7.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5280_relying_party_test.go::TestRFC5280DNSNamesCompareCaseInsensitiveAndExact",
+    "unit-sha": "7a2330cb2b3efb2b",
+    "claim-sha": "14f01d4032e19d5c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::asciiEqualFold",
+    "producer-sha": "eeba42bce0d8cd9b",
+    "break": "body of asciiEqualFold replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

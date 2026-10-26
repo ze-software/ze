@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5280-8-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5280_relying_party_test.go::TestRFC5280OCSPFetchDoesNotRecurseIntoTheResponderCertificate",
+    "unit-sha": "62b3104abf845ead",
+    "claim-sha": "c91902a2bfd57968",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/postauth_revocation.go::checkServerChainStatus",
+    "producer-sha": "2e54dce5530ff92b",
+    "break": "body of checkServerChainStatus replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

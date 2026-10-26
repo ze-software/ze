@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-6.3.3-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5280_crl_path_test.go::TestRFC5280CRLMustChainToTheCertificatesOwnAnchor",
+    "unit-sha": "014a23d1f3371140",
+    "claim-sha": "7c6736847cc0c53a",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::currentListFrom",
+    "producer-sha": "f2dc27c200cd54fc",
+    "break": "body of currentListFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-6.3.3-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5280_crl_path_test.go::TestRFC5280CRLMustChainToTheCertificatesOwnAnchor",
+    "unit-sha": "014a23d1f3371140",
+    "claim-sha": "c1eeff1963af6ef6",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::currentListFrom",
+    "producer-sha": "f2dc27c200cd54fc",
+    "break": "body of currentListFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

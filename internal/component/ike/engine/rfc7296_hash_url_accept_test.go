@@ -66,6 +66,9 @@ func TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured(t *testing.T)
 			// RFC requirement: RFC7296-3.6-2 positive -- configured for hash-and-url, ze
 			// accepts a received encoding 12 and a received encoding 13 with an http URL:
 			// each is fetched, its SHA-1 matches, and the leaf becomes the peer certificate.
+			// RFC requirement: RFC5280-4.2.2.1-1 positive -- Ze accesses certificates over
+			// HTTP, and the encoding 12 case serves one individual DER certificate, which
+			// is accepted byte for byte as the peer certificate.
 			if !acceptedCertEncoding(sa, payload) {
 				t.Fatalf("encoding %d was not accepted with hash-and-url configured", tc.encoding)
 			}

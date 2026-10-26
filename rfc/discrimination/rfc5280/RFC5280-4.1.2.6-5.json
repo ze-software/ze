@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-4.1.2.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestRFC5280LeafIdentitiesSitInTheSubjectAltName",
+    "unit-sha": "c903a3737a725f92",
+    "claim-sha": "2590f491d66cf39e",
+    "route": "revert",
+    "producer": "internal/component/pki/ca.go::IssueLeafFor",
+    "producer-sha": "0189e17e0dcbcee4",
+    "break": "body of IssueLeafFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-4.1.2.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestRFC5280LeafIdentitiesSitInTheSubjectAltName",
+    "unit-sha": "c903a3737a725f92",
+    "claim-sha": "d111aac1e1a48270",
+    "route": "mutant",
+    "producer": "internal/component/pki/ca.go::prepareDNString",
+    "producer-sha": "c1c3dd834d95bdd4",
+    "break": "line 383: \"strings.Join(strings.Fields(folded), \\\" \\\")\" -\u003e \"func() string { _ = folded; return strings.Clone(value) }()\""
+  }
+]

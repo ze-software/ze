@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-4.2.1.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestRFC5280LeafIsAMarkedEndEntity",
+    "unit-sha": "bd959b645c7937d3",
+    "claim-sha": "b0d6527fc3904dea",
+    "route": "revert",
+    "producer": "internal/component/pki/ca.go::generateRoot",
+    "producer-sha": "1f66ed55b88cdb90",
+    "break": "body of generateRoot replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-4.2.1.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/pki/rfc5280_ca_profile_test.go::TestRFC5280LeafIsAMarkedEndEntity",
+    "unit-sha": "bd959b645c7937d3",
+    "claim-sha": "9d183d60452986dd",
+    "route": "revert",
+    "producer": "internal/component/pki/ca.go::IssueLeafFor",
+    "producer-sha": "6a6ab2f3eb12f031",
+    "break": "body of IssueLeafFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

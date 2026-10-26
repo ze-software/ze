@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5280-4.2.1.6-3",
+    "polarity": "positive",
+    "unit": "internal/core/selfcert/rfc5280_alt_name_only_test.go::TestRFC5280AltNameOnlyCertificateMarksTheExtensionCritical",
+    "unit-sha": "9f58194aee0544ae",
+    "claim-sha": "36e45166744b8bc2",
+    "route": "revert",
+    "producer": "internal/core/selfcert/selfcert.go::GenerateWebCertWithNames",
+    "producer-sha": "1b84f4790bcd4b20",
+    "break": "body of GenerateWebCertWithNames replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
