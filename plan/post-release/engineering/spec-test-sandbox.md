@@ -233,6 +233,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | false-synchronization-claim.md | 2026-10-05 | reactor.TestReceiveCollapseLogsDiscardedMalformedAS4Path |
 | package-red-not-reproduced.md | 2026-10-15 | test/ipsec/ipsec-peer-reload-applies-selectors.ci in the QEMU arm64 guest |
 | gate-verdict-depends-on-the-machine.md | 2026-10-21 | ./le test qemu run, all-tests, stress, mobike (run.go, run_iso.go); ze appl |
+| gate-verdict-depends-on-the-machine.md | 2026-10-26 | ./le rfc record Linux guest unit run boots the Alpine Run guest (discriminate_guest.go, run_exec.go) |
 | gate-verdict-depends-on-the-machine.md | 2026-10-20 | the Ze host kernel (7.2.9-ze) |
 | gate-verdict-depends-on-the-machine.md | 2026-10-20 | ./le test exabgp api run directly (internal/test/cli), api-healthcheck-modu |
 | gate-verdict-depends-on-the-machine.md | 2026-10-18 | publishPluginRegistry (internal/le/site/build.go), ./le site build |

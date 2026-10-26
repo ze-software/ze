@@ -337,6 +337,12 @@ The burn-down of the other revert records is child 2
 - The 1559 grandfathered records outside the pilot are child 2.
 - The mutant route for `.ci` carriers (D-3 b) is not in this child. If the owner chooses it, it is its own spec in `plan/pre-release/`.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `reference-checked-claim-unchecked.md` | 2026-10-26 | `./le rfc record` has no statement-level break route; `revert` proves only function dependence |
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)

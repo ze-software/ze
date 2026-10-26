@@ -125,7 +125,7 @@ rule that fires on every edit.
 
 | Route | Means | Counted as |
 |---|---|---|
-| `mutant` | the break was generated, by `gomu` over the producer | proven |
+| `mutant` | one line of the producer was replaced from a gomu-format report entry, which gomu made or an author wrote | proven |
 | `revert` | the producer was disabled by hand, which is the method `docs/contributing/testing.md` already prescribes | proven |
 | `no-break` | no expressible break exists | escaped |
 
@@ -134,7 +134,10 @@ published. It carries no `producer-sha` and no `break`, because it states there
 is nothing to observe. It still names what ties it to THIS claim, and which field
 carries that tie depends on the reason.
 
-A `mutant` record is recorded from a gomu report. Only a KILLED mutant inside
+A `mutant` record is recorded from a gomu-format report. The recorder applies
+the entry the selector names, whatever its status. A hand-written entry breaks
+one statement (`docs/contributing/rfc-conformance-gates.md`, "Producing a
+record: the two proof routes"). The proposer is narrower. Only a KILLED mutant inside
 code the tagged unit's own coverage profile executes is ever proposed: a
 NOT_VIABLE mutant does not compile, a SURVIVED one is noticed by no test in the
 package, and a mutant the unit never reaches cannot redden it. `./le rfc
