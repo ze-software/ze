@@ -248,7 +248,7 @@ func registeringDirectories(t *testing.T, tools string) []string {
 }
 
 // registeringDepth is the deepest command name le dispatches, in words: the
-// dispatcher's commandWordsMax (internal/le/le/root/dispatch.go), which
+// dispatcher's CommandWordsMax (internal/le/le/root/dispatch.go), which
 // TestNoRegisteredLeCommandExceedsTwoWords holds every registration to.
 const registeringDepth = 3
 

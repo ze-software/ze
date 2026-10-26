@@ -80,7 +80,7 @@ func TestANamedImportOfARegisteringPackageIsWired(t *testing.T) {
 	if !slices.Equal(wired, []string{"alpha", "beta", "gamma"}) {
 		t.Fatalf("wired = %v, want alpha beta gamma", wired)
 	}
-	if broken := Compare(wired, registering, nil, []string{"a", "b", "g"}); len(broken) != 0 {
+	if broken := Compare(wired, registering, nil, nil, []string{"a", "b", "g"}); len(broken) != 0 {
 		t.Errorf("a named import of a registering package was reported broken: %v", broken)
 	}
 }
@@ -194,7 +194,7 @@ func TestTheUsageLineIsNotACommandOnAGroupedPage(t *testing.T) {
 // --- The comparison ---------------------------------------------------------
 
 func TestAgreementIsClean(t *testing.T) {
-	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, []string{"alpha", "beta"})
+	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, nil, []string{"alpha", "beta"})
 	if len(broken) != 0 {
 		t.Errorf("a tree that agrees reported %v", broken)
 	}
@@ -204,7 +204,7 @@ func TestAgreementIsClean(t *testing.T) {
 // this gate exists for: the tool is committed, it compiles, and le does not
 // carry it.
 func TestAPackageThatRegistersAndIsNotImportedIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha"}, []string{"alpha", "beta"}, nil, []string{"alpha"})
+	broken := Compare([]string{"alpha"}, []string{"alpha", "beta"}, nil, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -216,7 +216,7 @@ func TestAPackageThatRegistersAndIsNotImportedIsBroken(t *testing.T) {
 // TestAnImportOfAPackageThatRegistersNothingIsBroken is the mirror: an import
 // that adds no command is a tool that was wired and never written.
 func TestAnImportOfAPackageThatRegistersNothingIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha", "ghost"}, []string{"alpha"}, nil, []string{"alpha"})
+	broken := Compare([]string{"alpha", "ghost"}, []string{"alpha"}, nil, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -229,7 +229,7 @@ func TestAnImportOfAPackageThatRegistersNothingIsBroken(t *testing.T) {
 // halves can agree while the built binary offers fewer commands, which is what
 // an init() that registered under another name looks like.
 func TestACommandTheBinaryDoesNotOfferIsBroken(t *testing.T) {
-	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, []string{"alpha"})
+	broken := Compare([]string{"alpha", "beta"}, []string{"alpha", "beta"}, nil, nil, []string{"alpha"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -241,7 +241,7 @@ func TestACommandTheBinaryDoesNotOfferIsBroken(t *testing.T) {
 // TestAnEmptyCommittedTreeIsBroken is the vacuity guard. A registry that lists
 // nothing would make every assertion above answer clean.
 func TestAnEmptyCommittedTreeIsBroken(t *testing.T) {
-	if broken := Compare(nil, nil, nil, nil); len(broken) == 0 {
+	if broken := Compare(nil, nil, nil, nil, nil); len(broken) == 0 {
 		t.Error("a commit carrying no tool at all was reported clean")
 	}
 }
@@ -252,7 +252,7 @@ func TestAnEmptyCommittedTreeIsBroken(t *testing.T) {
 // it offers no row of its own. Counting it as a wired row made the page look
 // short by one row for every namespace.
 func TestANamespacePackageIsWiredAndOffersNoRow(t *testing.T) {
-	broken := Compare([]string{"ai", "ai/rules", "commit"}, []string{"ai/rules", "commit"}, []string{"ai"},
+	broken := Compare([]string{"ai", "ai/rules", "commit"}, []string{"ai/rules", "commit"}, []string{"ai"}, nil,
 		[]string{"commit", "ai"})
 	if len(broken) != 0 {
 		t.Errorf("a wired namespace package was reported broken: %v", broken)
@@ -263,7 +263,7 @@ func TestANamespacePackageIsWiredAndOffersNoRow(t *testing.T) {
 // checked: a namespace package nobody imports leaves its members with no
 // summary, which le refuses at startup.
 func TestANamespaceTheRootDoesNotImportIsBroken(t *testing.T) {
-	broken := Compare([]string{"ai/rules"}, []string{"ai/rules"}, []string{"ai"}, []string{"ai"})
+	broken := Compare([]string{"ai/rules"}, []string{"ai/rules"}, []string{"ai"}, nil, []string{"ai"})
 	if len(broken) != 1 {
 		t.Fatalf("Compare = %v, want one finding", broken)
 	}
@@ -312,6 +312,13 @@ func missing(name string) {
 import "github.com/ze-software/ze/internal/core/registry"
 func init() { registry.Register("a") }
 `, declaration{}},
+	{"a hidden tool", `package a
+import leroot "github.com/ze-software/ze/internal/le/le/root"
+func init() {
+	leroot.Register("mock a", 0, nil, nil)
+	leroot.RegisterHidden("mock a")
+}
+`, declaration{tool: true, hidden: true}},
 	{"another leroot call", `package a
 import leroot "github.com/ze-software/ze/internal/le/le/root"
 func init() { leroot.RegisterActions("a", nil) }

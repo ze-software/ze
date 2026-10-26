@@ -68,15 +68,17 @@ func helpRoot(program string) int {
 	return 0
 }
 
-// commandWordsMax bounds how many argv words the lookup may consume. le's
+// CommandWordsMax bounds how many argv words the lookup may consume. le's
 // deepest registered path is a namespace, a nested namespace and one member
 // (`le setup docker kernel`), so three words after `le` is the whole grammar.
 //
 // The bound is load-bearing. LookupLocalData matches the longest registered
 // prefix of whatever it is handed, so an unbounded span would let a value
 // further along the line be read as a command word: `le job run label x
-// command le go lint` offers nine.
-const commandWordsMax = 3
+// command le go lint` offers nine. It is exported because a package sits at
+// the path its command name predicts, one directory per word, so it is also how
+// deep `le repo bootstraps` walks internal/le for registering packages.
+const CommandWordsMax = 3
 
 // resolve answers the registered command among the leading words of argv: the
 // name as it was typed, its handler, and the words the tool itself receives.
@@ -84,7 +86,7 @@ const commandWordsMax = 3
 // The pipe word ends the candidate span, so `le verify list | json` offers the
 // matcher `verify list` and never the chain.
 func resolve(args []string) (string, command.LocalDataHandler, []string) {
-	span := min(len(args), commandWordsMax)
+	span := min(len(args), CommandWordsMax)
 	for index := range args[:span] {
 		if args[index] == pipeWord {
 			span = index

@@ -68,9 +68,14 @@ func (w LauncherWord) spelling() string {
 	return w.Word + " " + w.Value
 }
 
+// LauncherTitle is the title of the root page's launcher block. Its rows are
+// words the ./le script reads, not commands, so `le repo bootstraps` stops
+// counting the page's commands at this heading.
+const LauncherTitle = "Launcher"
+
 // launcherSection is the root page's launcher block.
 func launcherSection() helpfmt.HelpSection {
-	section := helpfmt.HelpSection{Title: "Launcher", Summary: "words ./le reads before le starts; they come first"}
+	section := helpfmt.HelpSection{Title: LauncherTitle, Summary: "words ./le reads before le starts; they come first"}
 	for _, word := range launcherWords {
 		section.Entries = append(section.Entries, helpfmt.HelpEntry{Name: word.spelling(), Desc: word.Meaning})
 	}
