@@ -7,8 +7,8 @@
     "claim-sha": "9fe6235926926052",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
-    "producer-sha": "eaba4e6ee9a18352",
-    "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "574811b5578567a2",
+    "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.5.3-1",
