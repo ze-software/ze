@@ -242,8 +242,11 @@ not open with one of the area's verbs, the bare line included, is that
 action's, so `./le weekly source <file>` runs
 `./le weekly publish source <file>`. The table supplies the verb, so
 dispatch, help, the missing-value prompt and the citation judge read the line
-the same way.
+the same way. The area's listing (`le help <area>`, `le <area> help`) says so
+on its heading line, `Actions: a line that names no action runs publish`, and
+its JSON row carries `default`.
 <!-- source: internal/le/le/action/leaction.go -- AtVerb, Answer -->
+<!-- source: internal/le/le/action/page.go -- Section -->
 
 The `le ai hooks <name>` words that `.claude/settings.json` calls are frozen:
 the rules do not judge them, and a test holds the frozen set equal to the

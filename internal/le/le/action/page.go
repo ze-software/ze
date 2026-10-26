@@ -123,7 +123,8 @@ func (l List) Page(program string) helpfmt.Page {
 }
 
 // Section answers the listing of the area's actions, which the area page and
-// leroot's help page for the area both render.
+// leroot's help page for the area both render. A listing with a default action
+// names it on the heading line.
 //
 // A pass-through listing (PassesWords) holds no action, so its section is the
 // one line that says where the words go, under the name its usage gives them.
@@ -141,7 +142,15 @@ func (l List) Section() helpfmt.HelpSection {
 		}
 		entries = append(entries, helpfmt.HelpEntry{Name: row.Verb, Desc: mark + row.Summary})
 	}
-	return helpfmt.HelpSection{Title: "Actions", Entries: entries}
+	section := helpfmt.HelpSection{Title: "Actions", Entries: entries}
+	// A default action (Action.Default) also owns every line that names no
+	// action, the bare one included, so the heading says which: help covers
+	// every word le accepts, and that line is one.
+	if verb, defaulted := l.defaultVerb(); defaulted {
+		var tb textbuf.Buffer
+		section.Summary = tb.Str("a line that names no action runs ").Str(verb).String()
+	}
+	return section
 }
 
 // Text renders the area page for a person on stdout, which is where the Prose

@@ -85,3 +85,26 @@ func TestAtVerbResolvesALineWithNoVerbToTheDefaultAction(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: the listing's heading names the default action, derived from the
+// table, so the text page says what a line naming no action runs; a listing
+// with no default keeps a bare heading.
+// PREVENTS: `le repo working-tree help` listing `report` without saying that
+// `le repo working-tree` alone runs it, a word le accepts that its help hid.
+func TestTheListingNamesTheDefaultAction(t *testing.T) {
+	defaulted := New("probe-area",
+		Action{Verb: "report", Default: true, Summary: "report", Why: "the default", Answer: defaultAnswer},
+		Action{Verb: "write", Summary: "write", Why: "the other", Answer: defaultAnswer},
+	).Actions()
+	if got, want := defaulted.Section().Summary, "a line that names no action runs report"; got != want {
+		t.Errorf("Section().Summary = %q, want %q", got, want)
+	}
+	if text := defaulted.Text(); !strings.Contains(text, "Actions: a line that names no action runs report") {
+		t.Errorf("the area page does not name the default action:\n%s", text)
+	}
+
+	plain, _ := fixture(t)
+	if got := plain.Actions().Section().Summary; got != "" {
+		t.Errorf("a listing with no default has the heading summary %q", got)
+	}
+}
