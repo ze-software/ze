@@ -39,8 +39,8 @@ func provenRequirements(verdicts []DiscriminationVerdict) map[string]bool {
 
 // Figure is rows proven over rows owed.
 type Figure struct {
-	Proven int
-	Total  int
+	Proven int `json:"proven"`
+	Total  int `json:"total"`
 }
 
 // add sums two figures.
@@ -174,14 +174,16 @@ func rowCounts(requirement *Requirement, proven map[string]bool) (owed, met bool
 // aggregate's members.
 type Rollup struct {
 	// RFCs counts every member, absent ones included.
-	RFCs int
+	RFCs int `json:"rfcs"`
 	// NotWalked and Absent count the members that contribute no rows. Both
 	// are stated beside the figures, because a set whose figure reads 100%
-	// while members are unwalked or absent is not complete.
-	NotWalked int
-	Absent    int
-	Mandatory Figure
-	Optional  Figure
+	// while members are unwalked or absent is not complete. A member with a
+	// text and no summary (a node `./le rfc tree` reaches through the graph)
+	// has no walked list either, so it counts not walked.
+	NotWalked int    `json:"not-walked"`
+	Absent    int    `json:"absent"`
+	Mandatory Figure `json:"mandatory"`
+	Optional  Figure `json:"optional"`
 }
 
 // rollupOf sums the figures of members, adding absent RFCs a profile lists.

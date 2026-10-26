@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // checkFixtureTree writes the smallest checkout Check can judge: one enrolled RFC whose
@@ -980,7 +982,11 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 
-	page, err := renderStatusPage(metas, profiles.Aggregates, nil)
+	levels, err := graph.Load(root)
+	if err != nil {
+		t.Fatalf("read the dependency graph: %v", err)
+	}
+	page, err := renderStatusPage(metas, profiles.Aggregates, levels, nil)
 	if err != nil {
 		t.Fatalf("render the public rows: %v", err)
 	}
@@ -1083,7 +1089,7 @@ func TestSupportedRowScopeFixtures(t *testing.T) {
 		"bgp-core": {Name: "bgp-core", Heading: "BGP core", Shape: ShapeWide},
 		"drafts":   {Name: "drafts", Heading: "Drafts", Shape: ShapeBrief},
 	}
-	page, err := renderStatusPage(metas, aggregates, nil)
+	page, err := renderStatusPage(metas, aggregates, graph.Build(nil), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1153,7 +1159,7 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	if len(metaProblems) > 0 {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
-	placed, err := placeRows(metas, profiles.Aggregates)
+	placed, err := placeRows(metas, profiles.Aggregates, graph.Build(nil))
 	if err != nil {
 		t.Fatalf("place the rows: %v", err)
 	}
@@ -1175,7 +1181,7 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 			Aggregate: "no-such-aggregate", Row: true, Area: "a", Status: "Partial",
 			Coverage: "c", Remaining: "r"},
 	}
-	if _, err := placeRows(stray, profiles.Aggregates); err == nil {
+	if _, err := placeRows(stray, profiles.Aggregates, graph.Build(nil)); err == nil {
 		t.Error("a row under an undeclared aggregate was placed, so it would render under no heading")
 	} else if !strings.Contains(err.Error(), "rfc/profiles/no-such-aggregate.md") {
 		t.Errorf("the refusal does not name the missing profile: %v", err)

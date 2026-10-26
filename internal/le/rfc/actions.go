@@ -181,6 +181,28 @@ var actions = leaction.New(area,
 			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
+	leaction.Action{Verb: "tree", Does: "report", Summary: "print the RFC dependency tree with both coverage figures",
+		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
+			"level, aggregate, builds-on and updated-by edges, and its mandatory and optional coverage " +
+			"figures (rows proven by a recorded break over rows owed, `not walked` without a valid extraction " +
+			"sign-off). Without profile the nodes a release profile reaches come first. profile <name> limits " +
+			"it to one use-case profile's closure, saying why each RFC is in it, or to one aggregate's members, " +
+			"and adds the profile's rollup with its not-walked and absent counts",
+		Parameters: []leaction.Parameter{
+			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to limit the tree to", Value: "name", Requirement: leaction.Optional},
+		},
+		AnswerArgs: treeAnswer},
+	leaction.Action{Verb: "next", Does: "report", Summary: "name the next RFC gap to close",
+		Why: "name the next RFC gap the owner rule orders: the lowest-level RFC of the closure that owes a " +
+			"mandatory row (uncovered, not walked, or with no summary), its uncovered requirement ids, the " +
+			"profiles it serves and the edge path that puts it in the closure. A row marked {updated-by} is " +
+			"owed at the updater's level, and a citation cycle is named whole. Once the mandatory figure is " +
+			"complete it names the next optional gap instead, and an absent RFC keeps the mandatory figure " +
+			"incomplete. Without profile it judges every release profile at once",
+		Parameters: []leaction.Parameter{
+			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to judge alone", Value: "name", Requirement: leaction.Optional},
+		},
+		AnswerArgs: nextAnswer},
 	leaction.Action{Verb: "index-update", Summary: "regenerate the RFC requirement index and tables", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
 		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
 		"tests themselves carry. It DELETES a table the render no longer produces, " +
@@ -428,6 +450,40 @@ func indexUpdateAnswer() (any, int) {
 		return nil, 2
 	}
 	report, err := IndexUpdate(tree)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
+
+// treeAnswer prints the dependency tree of this checkout.
+//
+// It answers 2 for anything that stopped it, an unknown profile included: a
+// tree over a corpus that did not load would show figures nobody counted.
+func treeAnswer(args leaction.Arguments) (any, int) {
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := treeReport(tree, args.One(keyProfile))
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
+
+// nextAnswer names the next gap of this checkout. It answers 2 for anything
+// that stopped it, as treeAnswer does.
+func nextAnswer(args leaction.Arguments) (any, int) {
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := nextReport(tree, args.One(keyProfile))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

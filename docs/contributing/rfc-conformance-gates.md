@@ -315,8 +315,10 @@ does not parse is reported like a summary that does not parse.
 A root with no summary is refused naming the profile and the stem, so a root
 never drops out of a closure in silence; an `Absent` item whose summary exists
 is refused too. The status page renders one section per aggregate, in name
-order, with rows in RFC number order and the non-RFC stems after them by name.
-No order is authored, so no two summaries can claim one place.
+order, with rows by dependency level (see "The dependency graph"), then RFC
+number with the non-RFC stems after them by name; a summary whose text is not
+in the repository has no level and sorts after the ones that do. No order is
+authored, so no two summaries can claim one place.
 <!-- source: internal/le/rfc/profile.go -- LoadProfiles, parseProfile, parseUseCase, parseAggregate -->
 <!-- source: internal/le/rfc/meta.go -- readSupport, checkAggregate -->
 <!-- source: internal/le/rfc/render_ledger.go -- renderStatusPage, placeRows, statusRowCompare -->
@@ -1053,6 +1055,47 @@ it. A summary whose text is not in the repository has no header to compare.
 <!-- source: internal/le/rfc/graph/parse.go -- Parse, headerLinks, proseLinks, referenceSection -->
 <!-- source: internal/le/rfc/graph/graph.go -- Load, Build, collapse -->
 <!-- source: internal/le/rfc/check_headerlinks.go -- checkHeaderLinks -->
+
+### The priority tree: `./le rfc tree` and `./le rfc next`
+
+A use-case profile's closure is its roots and every text reachable from them
+over `builds-on` edges and over the `updates` edges pointing at them, so an
+RFC that rewrites a root joins the root's profiles. A technology aggregate's
+members are the summaries naming it, and it follows no edge. The closure
+reaches texts with no summary too: such a node has no requirement list and
+counts as not walked in the rollup, beside the RFCs the profile lists as
+`Absent`.
+
+`./le rfc tree` prints one row per node, roots to leaves: level, cycle
+members, aggregate, `builds-on` and `updated-by` edges, both figures (or `not
+walked`, `no summary`, or 0% for an absent RFC) and the use-case profiles
+whose closure holds it. Without `profile` it covers every text and summary,
+with the nodes a release profile reaches first. `profile <name>` limits it to
+one closure, adds why each RFC is in it (`route-server: rfc7947 builds-on
+rfc4271`) and the rollup, and lists the absent RFCs last. A level is printed
+`L?` for a summary whose text is not in the repository.
+
+`./le rfc next` names the next gap the owner rule orders, across every release
+profile or inside `profile <name>`. Until the closure's mandatory figure is
+complete it judges the mandatory register: an RFC owes there when a mandatory
+row is owed and not proven, when it has no summary, or when it is not walked.
+The answer is the lowest level holding such an RFC, the lowest RFC number at
+that level, and every member of its citation cycle owing at the same level.
+A row marked `{updated-by}` is owed at the updater's level, counted in its own
+RFC's figure. With nothing left at any level and absent RFCs listed, it names
+those, because they keep the figure incomplete. Once the mandatory figure is
+complete it judges the optional register the same way, and says so.
+
+Both answer through `| json`. Another le package reads the same closure
+through `ProfileClosures` (parsed inputs: `ParseProfiles` over the profile
+files and `graph.Build` over `graph.Parse` of each text) or
+`LoadProfileClosures` (a checkout), and maps requirement ids to stems through
+`RequirementStems` or `LoadRequirementStems`, which read only the summaries.
+<!-- source: internal/le/rfc/priority.go -- closure, scope, loadPriorityCorpus -->
+<!-- source: internal/le/rfc/tree.go -- tree, treeRow -->
+<!-- source: internal/le/rfc/next.go -- next, gapCandidates -->
+<!-- source: internal/le/rfc/priority_export.go -- ProfileClosures, RequirementStems -->
+<!-- source: internal/le/rfc/profile.go -- ParseProfiles -->
 
 ## The extraction sign-off
 

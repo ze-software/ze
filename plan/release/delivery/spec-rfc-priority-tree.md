@@ -8,7 +8,7 @@
 | Release reason | Orders first-release RFC work by use-case profile and dependency tree, and publishes coverage per profile, so release planning closes the RFC gaps the release profiles reach before any leaf work |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/5 |
+| Phase | 3/5 |
 | Handoff | - |
 | Updated | 2026-10-26 |
 
@@ -158,9 +158,9 @@ Agreed shape (owner, 2026-10-25):
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Normative references are extractable from column-0 headings | research 2026-10-25: 201 separate, 49 combined, 7 special cases | Missing edges make a profile reach too few RFCs | parser test over the whole corpus asserting every text yields a section or is on a named no-references list | confirmed: `TestEveryCorpusTextYieldsReferences`; every text but rfc5301, rfc5396, rfc7457 (Informative only, listed) yields a section; 791, 905, 1071 indent the heading and are read |
-| A-2 | Optional rows can carry tags and discrimination records like mandatory rows | `rfc/short` rows carry SHOULD/MAY levels; tags bind by requirement id | Optional figure always 0 | grep tags naming a SHOULD row id; one fixture | unvalidated |
+| A-2 | Optional rows can carry tags and discrimination records like mandatory rows | `rfc/short` rows carry SHOULD/MAY levels; tags bind by requirement id | Optional figure always 0 | grep tags naming a SHOULD row id; one fixture | confirmed: `rfc tree profile route-server` reads optional 52 of 828 proven over the corpus (2026-10-26) |
 | A-3 | The RFC header is the authority over summary Meta links | owner gate 2026-10-25; research found 24 disagreements | Wrong edges | the 24 rows reviewed one by one in Phase 2 | confirmed: the parser reproduces the 24 (8 disagree, 16 omit, all in `Updates`/`Obsoletes`); the five disputed headers read by hand (2890, 905, 4486, 4724, 5250 carry no lineage line); corrected to the header |
-| A-4 | Collapsing a citation cycle into one level is acceptable ordering | research: 10 components, mostly genuine pairs (4301/4303, 2865/2866) | `next` names a component member arbitrarily | `next` names the whole component, members by RFC number | unvalidated |
+| A-4 | Collapsing a citation cycle into one level is acceptable ordering | research: 10 components, mostly genuine pairs (4301/4303, 2865/2866) | `next` names a component member arbitrarily | `next` names the whole component, members by RFC number | confirmed: `TestNextActionNamesLowestUncoveredLevel` names rfc5 and rfc6 together; over the corpus `next` names rfc791 and rfc792 as one gap |
 | A-5 | Drafts are nodes like RFCs | 15 drafts parse the same way; none cites another corpus draft | Draft edges missing | parser test on the drafts | confirmed: the corpus test covers rfc/drafts/; a draft citation drops its `-NN` version |
 
 ### Risks
@@ -450,6 +450,10 @@ Aggregates (each RFC names one): bgp-core, bgp-session-ops, bgp-transport-securi
 - Phase 2: the redirect to a successor applies to `builds-on` edges only; `updates` and `obsoletes` edges keep the RFC the header names, because the Meta link check compares against them.
 - Phase 2: `checkHeaderLinks` judges `Updates` and `Obsoletes` exactly and `Updated by` for false links only: an omitted updater is the graph's reverse relation, not a second copy to keep. `Obsoleted by` is not judged against headers, because it carries the `{superseded}` successor, and rfc6810's `Obsoleted by RFC 8210` reads a header that says `Updates: 6810`. Two `Updated by` cells beyond the 24 named a corpus RFC whose header does not update them (rfc2784: RFC 2890; rfc7011: RFC 7012) and were corrected.
 - Phase 5, first part: `specstatus.rfcGaps` splits the `RFC gaps` cell (`-` or an absent row is none, answered as an empty list so JSON carries `[]`), warns on an empty or repeated item, and `Spec.RFCGaps` and `roadmap.Item.RFCGaps` carry it as `rfc-gaps`. The corpus judgement (unknown id or stem refused) and the Profiles column wait on two exports of `internal/le/rfc` that do not exist yet: the profile closure (Phase 3 writes it) and an id-to-stem index read without the tag scan `rfc.Collect` runs. The roadmap reads only objects of one committed revision while `rfc.LoadProfiles` and `graph.Load` read a directory, so the closure must be reachable for a revision's tree, not only the working tree.
+
+- Phase 3: a closure follows builds-on edges and the updates edges pointing at a member (its updaters); an aggregate's members follow no edge. A text the closure reaches with no summary has no requirement list: it renders `no summary`, counts not walked in the rollup, and `next` names it as owed at its level, because the owner rule covers every RFC a release profile reaches.
+- Phase 3: `next` judges the mandatory register until the rollup is complete. An RFC owes there when a mandatory row is owed and unproven (a `{not-applicable}` row included: the 2026-09-02 ruling keeps it owed, and `next` prints the annotation), when it has no summary, or when it is not walked. The gap is the lowest level, the lowest RFC number there, and every member of its cycle owing at that level. With no leveled gap left and absent RFCs listed, the absent RFCs are the gap (R-7). A summary whose text is not in the corpus (rfc4762, rfc5120, rfc5925) has no level, renders `L?` and sorts after every leveled node, on the status page too.
+- Phase 3: exported for the roadmap (Phase 5): `ParseProfiles(files map[string]string, stems map[string]bool) (Profiles, []string)`, `ProfileClosures(g *graph.Graph, profiles Profiles) map[string][]string`, `LoadProfileClosures(tree string) (map[string][]string, error)`, `RequirementStems(summaries map[string]string) (map[string]string, error)`, `LoadRequirementStems(tree string) (map[string]string, error)`.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

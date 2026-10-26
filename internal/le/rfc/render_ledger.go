@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // generatedBanner is the do-not-edit line every file here opens with, in the
@@ -59,9 +60,9 @@ func share(count, total int) string {
 //
 // aggregates is the parsed rfc/profiles/: the heading, intro and table shape
 // of every aggregate a row renders under.
-func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate,
+func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate, levels *graph.Graph,
 	coverage []CoverageRow) (map[string]string, error) {
-	page, err := renderStatusPage(metas, aggregates, coverage)
+	page, err := renderStatusPage(metas, aggregates, levels, coverage)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate,
 // and a coverage set assembled from a different triple on one of them would
 // publish a Proof column the other cannot reproduce.
 func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
-	return ledgerFiles(in.Metas, in.Profiles.Aggregates, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+	return ledgerFiles(in.Metas, in.Profiles.Aggregates, in.Graph, CoverageRows(in.Requirements, in.Tags, in.Carriers))
 }
 
 // StatusPage answers the public support page for one checkout: the same bytes
@@ -227,12 +228,12 @@ func renderNotEnrolled(metas map[string]Meta) string {
 // to publish. What IS derived is every count, the Proof cell beside each claim,
 // the row order inside an aggregate, and the aggregate headings themselves.
 //
-// Aggregates render in name order, and rows inside one in RFC number order
-// (statusRowLess). Neither order is authored, so no two summaries can claim
-// one place.
-func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate,
+// Aggregates render in name order, and rows inside one by dependency level,
+// then RFC number (statusRowCompare). Neither order is authored, so no two
+// summaries can claim one place.
+func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, levels *graph.Graph,
 	coverage []CoverageRow) (string, error) {
-	placed, err := placeRows(metas, aggregates)
+	placed, err := placeRows(metas, aggregates, levels)
 	if err != nil {
 		return "", err
 	}
@@ -324,13 +325,24 @@ type statusRow struct {
 }
 
 // placeRows groups every summary that renders a row by its aggregate, each
-// group in RFC number order.
+// group ordered by the level levels gives it, then by RFC number. A summary
+// whose text is not in the corpus has no level and sorts after the ones that
+// do: a level of 0 would claim it builds on nothing.
+//
+// A nil graph is refused: every row's place depends on it, and an order by
+// number alone would publish in silence a page the graph would reorder.
 //
 // A row naming an aggregate the profiles do not declare is REFUSED: it has no
 // heading to render under, and dropping it would remove a public claim in
 // silence. summaryMetas refuses such a summary first, so this guards a caller
 // that hands in metas it built itself.
-func placeRows(metas map[string]Meta, aggregates map[string]Aggregate) (map[string][]statusRow, error) {
+func placeRows(metas map[string]Meta, aggregates map[string]Aggregate,
+	levels *graph.Graph) (map[string][]statusRow, error) {
+	if levels == nil {
+		return nil, parseErr(new(textbuf.Buffer).Str(statusRel).
+			Str(" cannot be ordered: no dependency graph was loaded. Assemble the input with ").
+			Str("NewRenderInput, which reads rfc/full/ and rfc/drafts/"))
+	}
 	out := map[string][]statusRow{}
 	for _, stem := range sortMetaStems(metas) {
 		meta := metas[stem]
@@ -347,15 +359,27 @@ func placeRows(metas map[string]Meta, aggregates map[string]Aggregate) (map[stri
 	}
 	for name := range out {
 		rows := out[name]
-		slices.SortFunc(rows, func(left, right statusRow) int { return statusRowCompare(left.Stem, right.Stem) })
+		slices.SortFunc(rows, func(left, right statusRow) int {
+			if order := compareLevels(levelOf(levels, left.Stem), levelOf(levels, right.Stem)); order != 0 {
+				return order
+			}
+			return statusRowCompare(left.Stem, right.Stem)
+		})
 	}
 	return out, nil
 }
 
-// statusRowCompare orders two stems inside one aggregate: `rfc<number>` stems
-// by number, ahead of every other stem, which sort by name.
-//
-// The DAG level joins this order ahead of the number once the graph exists.
+// levelOf answers stem's level in levels, nil for a stem with no text.
+func levelOf(levels *graph.Graph, stem string) *int {
+	level, held := levels.Level(stem)
+	if !held {
+		return nil
+	}
+	return &level
+}
+
+// statusRowCompare orders two stems of one level: `rfc<number>` stems by
+// number, ahead of every other stem, which sort by name.
 func statusRowCompare(left, right string) int {
 	leftNumber, leftRFC := rfcStemNumber(left)
 	rightNumber, rightRFC := rfcStemNumber(right)

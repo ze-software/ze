@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // shardRelDir is where one stem's requirement table is written.
@@ -68,7 +69,10 @@ type RenderInput struct {
 	// would publish differently depending on who rendered it.
 	Covers         map[Cover][]Tag
 	Discrimination []DiscriminationVerdict
-	Unscanned      []UnscannedTag
+	// Graph is the dependency graph of the texts: the status page orders the
+	// rows of one aggregate by its levels, and `./le rfc tree` walks it.
+	Graph     *graph.Graph
+	Unscanned []UnscannedTag
 }
 
 // NewRenderInput derives everything the generated pages need from one checkout.
@@ -160,6 +164,9 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 		return RenderInput{}, err
 	}
 	if in.Unscanned, err = unscannedTags(tree, in.Carriers); err != nil {
+		return RenderInput{}, err
+	}
+	if in.Graph, err = graph.Load(tree); err != nil {
 		return RenderInput{}, err
 	}
 	return in, nil

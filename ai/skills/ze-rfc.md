@@ -7,6 +7,16 @@ description: RFC Implementation Summary
 
 Generate a structured implementation summary from an RFC text file.
 
+## Choosing which RFC to work on
+
+Run `./le rfc next` before picking an RFC yourself. It names the next gap the
+owner rule orders across every release profile: the lowest-level RFC of a
+release profile's closure that owes a mandatory row, with its uncovered ids,
+the profiles it serves and why it is in the closure. `./le rfc next profile
+<name>` judges one profile, and `./le rfc tree profile <name>` shows the whole
+closure with both coverage figures per RFC. An RFC it names as `no summary`
+is this skill's work; one named `not walked` owes its extraction sign-off.
+
 ## Instructions
 1. Use ULTRATHINK for deep analysis
 2. READ: `rfc/full/$ARGUMENTS.txt` (drafts: `rfc/drafts/$ARGUMENTS.txt`). If it is not
@@ -43,7 +53,7 @@ Generate a structured implementation summary from an RFC text file.
    |----------|-------|
    | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `out-of-scope`, `source-restricted` |
    | `Enrolment reason` | what makes that kind true. Never blank |
-   | `Support` | the aggregate this RFC's public row renders under, a file name under `rfc/profiles/` (`bgp-core` for `rfc/profiles/bgp-core.md`), or `-` for no public row. The row's place is derived: its aggregate, then its RFC number |
+   | `Support` | the aggregate this RFC's public row renders under, a file name under `rfc/profiles/` (`bgp-core` for `rfc/profiles/bgp-core.md`), or `-` for no public row. The row's place is derived: its aggregate, then its dependency level, then its RFC number |
    | `Aggregate` | ONLY where `Support` is `-`: the aggregate the RFC still belongs to, so it joins that aggregate's coverage rollup. Refused beside a `Support` cell that names one |
    | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
    | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names an aggregate |

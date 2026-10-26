@@ -122,22 +122,36 @@ func LoadProfiles(tree string, stems map[string]bool) (Profiles, []string, error
 		}
 		return Profiles{}, nil, err
 	}
-	var problems []string
+	files := map[string]string{}
 	for _, entry := range entries {
 		name, isProfile := strings.CutSuffix(entry.Name(), ".md")
 		if entry.IsDir() || !isProfile {
 			continue
 		}
-		rel := profileRel + "/" + entry.Name()
-		text, err := readFile(filepath.Join(treePath(tree, profileRel), entry.Name()), rel)
+		text, err := readFile(filepath.Join(treePath(tree, profileRel), entry.Name()), profileRel+"/"+entry.Name())
 		if err != nil {
 			return Profiles{}, nil, err
 		}
-		if err := parseProfile(&out, text, name, rel, stems); err != nil {
+		files[name] = text
+	}
+	profiles, problems := ParseProfiles(files, stems)
+	return profiles, problems, nil
+}
+
+// ParseProfiles parses profile files already read, keyed by file name
+// without `.md` (the profile's name), against the summary stems: the parser
+// for a caller that reads one committed revision's blobs rather than a
+// directory. Each file that does not parse is a problem in the second answer
+// and absent from the first, as LoadProfiles reports it.
+func ParseProfiles(files map[string]string, stems map[string]bool) (Profiles, []string) {
+	out := Profiles{UseCases: map[string]UseCase{}, Aggregates: map[string]Aggregate{}}
+	var problems []string
+	for _, name := range sortedKeysOf(files) {
+		if err := parseProfile(&out, files[name], name, profileRel+"/"+name+".md", stems); err != nil {
 			problems = append(problems, err.Error())
 		}
 	}
-	return out, problems, nil
+	return out, problems
 }
 
 // parseProfile reads one profile into out, refusing an unknown or missing

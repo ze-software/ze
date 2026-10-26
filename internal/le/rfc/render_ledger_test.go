@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // ledgerFixture answers the three generated files over this checkout.
@@ -34,7 +36,11 @@ func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 	if err != nil {
 		t.Fatalf("read the carriers: %v", err)
 	}
-	files, err := ledgerFiles(collected.Metas, collected.Profiles.Aggregates,
+	levels, err := graph.Load(root)
+	if err != nil {
+		t.Fatalf("read the dependency graph: %v", err)
+	}
+	files, err := ledgerFiles(collected.Metas, collected.Profiles.Aggregates, levels,
 		CoverageRows(collected.Requirements, collected.Tags, known))
 	if err != nil {
 		t.Fatalf("render the ledger files: %v", err)
