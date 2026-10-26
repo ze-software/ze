@@ -110,7 +110,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-doc-drift-check", Area: "doc yang-contract", Verb: "doc-drift"},
 	{Target: "ze-docs-pipe-operators-update", Area: "doc yang-contract", Verb: "update"},
 	{Target: "ze-doc-links-check", Area: "doc check", Verb: "links"},
-	{Target: "ze-doc-verify", Area: "doc check", Verb: "verify"},
+	{Target: "ze-doc-verify", Area: "doc check", Verb: "all"},
 	{Target: "ze-templ-output-check", Area: "doc check", Verb: "templ-output"},
 	{Target: "ze-templ-orphan-check", Area: "doc wiring", Verb: "templ-orphans"},
 	{Target: "ze-doc-wiring-check", Area: "doc wiring", Verb: "check", Note: "the router is one action: `changed-file <path>` and `dry-run` are its keywords, and the whole-tree form the gate ran is the bare line"},

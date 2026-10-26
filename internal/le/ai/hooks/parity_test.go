@@ -86,7 +86,7 @@ func TestBashNativeStatementBoundariesMatchDispatcher(t *testing.T) {
 		},
 		{
 			name:    "run-shaped quoted scratch redirect is refused",
-			command: `bash -c "./le doc check verify > tmp/out.log"`,
+			command: `bash -c "./le doc check all > tmp/out.log"`,
 			code:    2,
 		},
 	}
