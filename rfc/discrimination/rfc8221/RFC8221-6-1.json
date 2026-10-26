@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8221-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc8221_esp_auth_none_test.go::TestRFC8221ESPEncryptionIsAuthenticated",
+    "unit-sha": "7824b19990752333",
+    "claim-sha": "9ff9e6876167e0c6",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseESPProposal",
+    "producer-sha": "9004a36a22f75722",
+    "break": "body of parseESPProposal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8221-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc8221_esp_auth_none_test.go::TestRFC8221ESPEncryptionIsAuthenticated",
+    "unit-sha": "7824b19990752333",
+    "claim-sha": "ddb438a2a1968a25",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseESPProposal",
+    "producer-sha": "9004a36a22f75722",
+    "break": "body of parseESPProposal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

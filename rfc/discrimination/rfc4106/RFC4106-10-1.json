@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4106-10-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc4106_gcm_keymat_test.go::TestRFC4106DirectionsTakeDifferentSalts",
+    "unit-sha": "ae673f35cc57a769",
+    "claim-sha": "8578df0da5f88195",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "2f408bd1b701c971",
+    "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

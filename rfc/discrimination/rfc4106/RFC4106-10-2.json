@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4106-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go::TestRFC4106GCMKeyCannotOutliveTheSequenceSpace",
+    "unit-sha": "3b84f8e2a00c7f2e",
+    "claim-sha": "1900bc795bba7fc5",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

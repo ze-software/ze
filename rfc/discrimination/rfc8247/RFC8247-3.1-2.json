@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8247-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247SharedKeyAuth",
+    "unit-sha": "2f70b310a8931c49",
+    "claim-sha": "de7b2e1099188eaf",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/eap_auth.go::verifyAuthFromSharedSecret",
+    "producer-sha": "00b77c0807b5884f",
+    "break": "body of verifyAuthFromSharedSecret replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247SharedKeyAuth",
+    "unit-sha": "2f70b310a8931c49",
+    "claim-sha": "b26362be78e2d85e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/eap_auth.go::verifyAuthFromSharedSecret",
+    "producer-sha": "00b77c0807b5884f",
+    "break": "body of verifyAuthFromSharedSecret replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

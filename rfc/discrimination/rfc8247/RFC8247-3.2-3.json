@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8247-3.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247SignatureHashes",
+    "unit-sha": "4c7fd6885ecf1901",
+    "claim-sha": "257ea52c900a62ce",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::hashFromAlgID",
+    "producer-sha": "ec8853f304817766",
+    "break": "body of hashFromAlgID replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247SignatureHashes",
+    "unit-sha": "4c7fd6885ecf1901",
+    "claim-sha": "9a0d0a70a99ecbe3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::hashFromAlgID",
+    "producer-sha": "ec8853f304817766",
+    "break": "body of hashFromAlgID replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

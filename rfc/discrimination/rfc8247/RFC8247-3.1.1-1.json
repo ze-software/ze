@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8247-3.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247RSAKeySizes",
+    "unit-sha": "d3462f46c629a5ba",
+    "claim-sha": "92839bd0b2ad1d91",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifySignature",
+    "producer-sha": "ed652ef733d0875b",
+    "break": "body of verifySignature replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC8247RSAKeySizes",
+    "unit-sha": "d3462f46c629a5ba",
+    "claim-sha": "60466e131efdc147",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifySignature",
+    "producer-sha": "ed652ef733d0875b",
+    "break": "body of verifySignature replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

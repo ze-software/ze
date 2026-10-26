@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8247-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc8247_ike_algorithms_test.go::TestRFC8247PRFHMACSHA2256",
+    "unit-sha": "7079a799849cd350",
+    "claim-sha": "9cefc7680e769680",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptPRF",
+    "producer-sha": "2247854089207463",
+    "break": "body of acceptPRF replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc8247_ike_algorithms_test.go::TestRFC8247PRFHMACSHA2256",
+    "unit-sha": "7079a799849cd350",
+    "claim-sha": "3883c283bc2bae45",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptPRF",
+    "producer-sha": "2247854089207463",
+    "break": "body of acceptPRF replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

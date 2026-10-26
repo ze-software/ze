@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8221-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go::TestRFC8221ESPMandatoryCiphersInstall",
+    "unit-sha": "a8a0618b8888dd88",
+    "claim-sha": "0a5120552f430b28",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8221-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go::TestRFC8221ESPMandatoryCiphersInstall",
+    "unit-sha": "a8a0618b8888dd88",
+    "claim-sha": "bc3697328aa4f81a",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8221-6-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc8221_esp_algorithms_test.go::TestRFC8221ESPRefusesMD5AndDESMACIntegrity",
+    "unit-sha": "d4e6ff6f476f1f05",
+    "claim-sha": "484db6837cb3d948",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::matchESP",
+    "producer-sha": "d81b7a45b78966c0",
+    "break": "body of matchESP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8221-6-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc8221_esp_algorithms_test.go::TestRFC8221ESPRefusesMD5AndDESMACIntegrity",
+    "unit-sha": "d4e6ff6f476f1f05",
+    "claim-sha": "c86a8d54794a415f",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::matchESP",
+    "producer-sha": "d81b7a45b78966c0",
+    "break": "body of matchESP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

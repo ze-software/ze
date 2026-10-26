@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8221-6-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go::TestRFC8221ESPMandatoryIntegrityInstall",
+    "unit-sha": "31b4342e380d9434",
+    "claim-sha": "5e52689a497ee1a7",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmAuthName",
+    "producer-sha": "81704eaf672dbe8b",
+    "break": "body of xfrmAuthName replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8221-6-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go::TestRFC8221ESPMandatoryIntegrityInstall",
+    "unit-sha": "31b4342e380d9434",
+    "claim-sha": "6bf0430e733cc82e",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmAuthName",
+    "producer-sha": "81704eaf672dbe8b",
+    "break": "body of xfrmAuthName replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

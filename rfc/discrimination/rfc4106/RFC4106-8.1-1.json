@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4106-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc4106_gcm_keymat_test.go::TestRFC4106KeymatCarriesTheSalt",
+    "unit-sha": "39836fa2c1b0faec",
+    "claim-sha": "4d82c1cf66cd9d4c",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
+    "producer-sha": "26d40dbbdccd8133",
+    "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4106-8.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc4106_gcm_keymat_test.go::TestRFC4106KeymatCarriesTheSalt",
+    "unit-sha": "39836fa2c1b0faec",
+    "claim-sha": "7eb573220d5f002b",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
+    "producer-sha": "26d40dbbdccd8133",
+    "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

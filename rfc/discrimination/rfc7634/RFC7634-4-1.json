@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7634-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC7634ChaChaProposalCarriesNoInteg",
+    "unit-sha": "b043bcba7aafed94",
+    "claim-sha": "09de7630997a2677",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+    "producer-sha": "2d361fc226c9def6",
+    "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7634-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC7634ChaChaProposalCarriesNoInteg",
+    "unit-sha": "b043bcba7aafed94",
+    "claim-sha": "fdfad77751aeb79f",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::matchESP",
+    "producer-sha": "d81b7a45b78966c0",
+    "break": "body of matchESP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

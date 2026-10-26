@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8221-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/ipsec_manual_counter_mode_test.go::TestManualKeyingRefusesCounterModeCiphers",
+    "unit-sha": "a5e724f78bac8da7",
+    "claim-sha": "d8620bd4725c63f6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+    "producer-sha": "6c765386d4847d11",
+    "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8221-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/ipsec_manual_counter_mode_test.go::TestManualKeyingRefusesCounterModeCiphers",
+    "unit-sha": "a5e724f78bac8da7",
+    "claim-sha": "3626d29f199b787d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+    "producer-sha": "6c765386d4847d11",
+    "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

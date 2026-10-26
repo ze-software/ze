@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5998-3-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/ike_auth_algorithms_test.go::TestRFC5998IKEAuthCarriesNoEAPOnlyNotify",
+    "unit-sha": "b6988a991d134a70",
+    "claim-sha": "0ccc27ae90cf6b9d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildAuthRequest",
+    "producer-sha": "d27f7dbf21b2c24f",
+    "break": "body of buildAuthRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4106-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go::TestRFC4106GCMStateCarriesTheFullICV",
+    "unit-sha": "cded0a9057a3e4e0",
+    "claim-sha": "a5ad67e5bc612906",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmAEADName",
+    "producer-sha": "be06aeb3301e312f",
+    "break": "body of xfrmAEADName replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4106-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go::TestRFC4106GCMStateCarriesTheFullICV",
+    "unit-sha": "cded0a9057a3e4e0",
+    "claim-sha": "4293692abbd59012",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmAEADName",
+    "producer-sha": "be06aeb3301e312f",
+    "break": "body of xfrmAEADName replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
