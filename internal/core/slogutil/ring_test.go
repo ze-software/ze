@@ -3,7 +3,11 @@ package slogutil
 import (
 	"context"
 	"log/slog"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestLogRingAppendAndSnapshot(t *testing.T) {
@@ -132,3 +136,141 @@ func TestRingHandlerEnabled(t *testing.T) {
 type discardWriter struct{}
 
 func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// VALIDATES: derived handlers can capture concurrently without crossing their
+// structured fields, and ring snapshots retain independently owned values.
+// PREVENTS: one logger's serialized attributes being attached to another record.
+func TestRingHandlerConcurrentAttributes(t *testing.T) {
+	const workers = 32
+	ring := newLogRing(workers)
+	handler := newRingHandler(slog.NewTextHandler(discardWriter{}, nil), ring)
+	logger := slog.New(handler).With("subsystem", "concurrent")
+	var wg sync.WaitGroup
+	for i := range workers {
+		name := strconv.Itoa(i)
+		child := logger.WithGroup("attempt").With("owner", name)
+		wg.Go(func() {
+			child.Warn(name, "observed", name)
+		})
+	}
+	wg.Wait()
+	entries := ring.Recent(0)
+	if len(entries) != workers {
+		t.Fatalf("captured %d records, want %d", len(entries), workers)
+	}
+	for _, entry := range entries {
+		attrs, err := entry.Attributes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		attempt, ok := attrs["attempt"].(map[string]any)
+		if !ok {
+			t.Fatalf("record %q has no attempt group: %v", entry.Message, attrs)
+		}
+		if attempt["owner"] != entry.Message || attempt["observed"] != entry.Message {
+			t.Errorf("record %q received another logger's fields: %v", entry.Message, attrs)
+		}
+	}
+	// Overwrite every slot while retaining the previous snapshot.
+	for range workers {
+		logger.Warn("replacement", "owner", "replacement")
+	}
+	for _, entry := range entries {
+		attrs, err := entry.Attributes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if attrs["attempt"].(map[string]any)["owner"] != entry.Message {
+			t.Fatalf("ring overwrite changed retained record %q: %v", entry.Message, attrs)
+		}
+	}
+}
+
+type nestedLogValue struct {
+	logger *slog.Logger
+}
+
+func (v nestedLogValue) LogValue() slog.Value {
+	v.logger.Warn("nested LogValuer")
+	return slog.StringValue("resolved")
+}
+
+type nestedLogText struct {
+	logger *slog.Logger
+	Secret string
+}
+
+func (v nestedLogText) MarshalText() ([]byte, error) {
+	v.logger.Warn("nested TextMarshaler")
+	return []byte("[REDACTED]"), nil
+}
+
+// VALIDATES: user value callbacks execute outside shared capture locks.
+// PREVENTS: a LogValuer or TextMarshaler deadlocking when it uses the same logger,
+// or JSON querying exposing a field its text marshaler intentionally redacts.
+func TestRingHandlerReentrantValues(t *testing.T) {
+	ring := newLogRing(10)
+	logger := slog.New(newRingHandler(slog.NewTextHandler(discardWriter{}, nil), ring))
+	finished := make(chan struct{})
+	go func() {
+		logger.Warn("outer",
+			"value", nestedLogValue{logger: logger},
+			"opaque", nestedLogText{logger: logger, Secret: "must-not-be-exposed"})
+		close(finished)
+	}()
+	select {
+	case <-finished:
+	case <-time.After(10 * time.Second):
+		t.Fatal("value callback could not log through its own handler")
+	}
+	entries := ring.Recent(0)
+	if len(entries) != 3 || entries[0].Message != "outer" {
+		t.Fatalf("expected outer and both nested records: %+v", entries)
+	}
+	attrs, err := entries[0].Attributes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attrs["value"] != "resolved" || attrs["opaque"] != "[REDACTED]" {
+		t.Fatalf("value callbacks were lost or exposed raw fields: %v", attrs)
+	}
+}
+
+// VALIDATES: attributes omitted by the text handler do not discard their record.
+// PREVENTS: empty source metadata panicking during record or logger capture.
+func TestRingHandlerOmittedSource(t *testing.T) {
+	for _, source := range []struct {
+		name  string
+		value *slog.Source
+	}{
+		{name: "nil"},
+		{name: "empty", value: &slog.Source{}},
+	} {
+		for _, bound := range []bool{false, true} {
+			t.Run(source.name+"/bound="+strconv.FormatBool(bound), func(t *testing.T) {
+				ring := newLogRing(2)
+				var text strings.Builder
+				logger := slog.New(newRingHandler(slog.NewTextHandler(&text, nil), ring))
+				if bound {
+					logger.With("source", source.value).Warn("kept event", "peer", "responder")
+				} else {
+					logger.Warn("kept event", "source", source.value, "peer", "responder")
+				}
+				entries := ring.Recent(0)
+				if len(entries) != 1 || entries[0].Message != "kept event" {
+					t.Fatalf("source omission lost its record: %+v", entries)
+				}
+				attrs, err := entries[0].Attributes()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, present := attrs["source"]; present || attrs["peer"] != "responder" {
+					t.Fatalf("source omission changed retained fields: %v", attrs)
+				}
+				if strings.Contains(text.String(), "source=") || !strings.Contains(text.String(), "peer=responder") {
+					t.Fatalf("source omission changed the text record: %q", text.String())
+				}
+			})
+		}
+	}
+}

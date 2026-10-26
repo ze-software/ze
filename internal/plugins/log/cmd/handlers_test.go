@@ -8,9 +8,14 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -231,5 +236,167 @@ func TestLogRecentLevelFilterMatchesTypedWord(t *testing.T) {
 	}
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("show log recent level verbose: status %v, want StatusError for a word that names no level", resp.Status)
+	}
+}
+
+// VALIDATES: a structured diagnostic reaches the registered query and both
+// output formats in one entry, without changing its message or level.
+// PREVENTS: a useful error/peer attribute being visible only in daemon stderr.
+func TestLogRecentStructuredDiagnostic(t *testing.T) {
+	const message = "peer authenticated and refused the Child SA, keeping the IKE SA"
+	logger := slogutil.Logger(t.Name()).With("peer", "responder")
+	record := slog.NewRecord(time.Date(2026, 10, 26, 10, 0, 0, 0, time.UTC), slog.LevelWarn, message, 0)
+	record.AddAttrs(slog.String("notify", "NO_PROPOSAL_CHOSEN"), slog.Any("error", errors.New("no shared ESP proposal")))
+	if err := logger.Handler().Handle(context.Background(), record); err != nil {
+		t.Fatal(err)
+	}
+	recent := registeredHandler(t, "ze-log:bgp-log-recent")
+	response, err := recent(nil, commandtest.Args("component", t.Name(), "level", "warn", "count", "1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Status != plugin.StatusDone {
+		t.Fatalf("log query: %s", response.Error)
+	}
+	encoded, err := json.Marshal(response.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Entries []struct {
+			Timestamp  string            `json:"timestamp"`
+			Level      string            `json:"level"`
+			Component  string            `json:"component"`
+			Message    string            `json:"message"`
+			Attributes map[string]string `json:"attributes"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(encoded, &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 1 {
+		t.Fatalf("entries: %s", encoded)
+	}
+	entry := result.Entries[0]
+	if entry.Timestamp != "2026-10-26T10:00:00Z" || entry.Level != "warn" ||
+		entry.Component != t.Name() || entry.Message != message {
+		t.Fatalf("metadata changed: %+v", entry)
+	}
+	for key, want := range map[string]string{
+		"peer": "responder", "notify": "NO_PROPOSAL_CHOSEN", "error": "no shared ESP proposal",
+	} {
+		if entry.Attributes[key] != want {
+			t.Errorf("attributes[%q] = %q, want %q", key, entry.Attributes[key], want)
+		}
+	}
+	_, pipes := command.ParsePipe("show log recent | yaml")
+	visible, diagnostic := command.ApplyPipes(string(encoded), pipes, nil, nil)
+	if diagnostic != "" {
+		t.Fatal(diagnostic)
+	}
+	for _, want := range []string{"notify: NO_PROPOSAL_CHOSEN", "peer: responder", "error: no shared ESP proposal", message} {
+		if !strings.Contains(visible, want) {
+			t.Errorf("visible query lacks %q: %s", want, visible)
+		}
+	}
+}
+
+type redactedLogSecret string
+
+func (redactedLogSecret) LogValue() slog.Value {
+	return slog.StringValue("[REDACTED]")
+}
+
+type redactedStringLogSecret struct {
+	Secret string
+}
+
+func (redactedStringLogSecret) String() string {
+	return "[REDACTED]"
+}
+
+// VALIDATES: the query preserves slog group scope and snapshots mutable
+// persistent/record values, while retaining LogValuer redaction.
+// PREVENTS: sibling logger contamination, leaked raw secrets, or a later caller
+// mutation changing a previously recorded diagnostic.
+func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
+	persistent := map[string]string{"router": "edge-original"}
+	base := slogutil.Logger(t.Name()).With("inventory", persistent)
+	persistent["router"] = "changed-after-With"
+	group := []slog.Attr{slog.String("peer", "responder")}
+	left := slog.New(base.Handler().WithGroup("session").WithAttrs(group))
+	group[0] = slog.String("peer", "changed-attribute-slice")
+	right := base.WithGroup("other").With("peer", "alternate")
+	details := map[string]any{"ciphers": []string{"aes256"}, "counter": uint64(9007199254740993)}
+	left.Warn("grouped",
+		slog.Attr{},
+		slog.Group("", slog.String("notify", "NO_PROPOSAL_CHOSEN")),
+		slog.Group("empty"),
+		slog.Any("details", details),
+		slog.Uint64("counter", 9007199254740993),
+		slog.Any("stringer", redactedStringLogSecret{Secret: "must-not-be-exposed"}),
+		slog.Any("secret", redactedLogSecret("must-not-be-exposed")))
+	details["ciphers"].([]string)[0] = "changed-after-Log"
+	details["counter"] = uint64(0)
+	base.WithGroup("").Warn("ungrouped", "peer", "root")
+	right.Warn("sibling", "notify", "OTHER_REASON")
+
+	recent := registeredHandler(t, "ze-log:bgp-log-recent")
+	// Repeat after mutating the first query's decoded data: it must not own
+	// any part of the retained ring entry.
+	for range 2 {
+		response, err := recent(nil, commandtest.Args("component", t.Name(), "count", "3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.Status != plugin.StatusDone {
+			t.Fatalf("log query: %s", response.Error)
+		}
+		payload := response.Data.(plugin.Map)
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(encoded), "must-not-be-exposed") || strings.Contains(string(encoded), "changed-") {
+			t.Fatalf("query exposed raw or subsequently mutated data: %s", encoded)
+		}
+		var result struct {
+			Entries []struct {
+				Message    string         `json:"message"`
+				Attributes map[string]any `json:"attributes"`
+			} `json:"entries"`
+		}
+		decoder := json.NewDecoder(strings.NewReader(string(encoded)))
+		decoder.UseNumber()
+		if err := decoder.Decode(&result); err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Entries) != 3 {
+			t.Fatalf("entries: %s", encoded)
+		}
+		sibling, root, grouped := result.Entries[0], result.Entries[1], result.Entries[2]
+		if sibling.Message != "sibling" || root.Message != "ungrouped" || grouped.Message != "grouped" {
+			t.Fatalf("query lost newest-first ordering: %s", encoded)
+		}
+		if sibling.Attributes["session"] != nil || root.Attributes["session"] != nil || root.Attributes["other"] != nil {
+			t.Fatalf("group escaped its logger: %s", encoded)
+		}
+		other := sibling.Attributes["other"].(map[string]any)
+		if other["peer"] != "alternate" || root.Attributes["peer"] != "root" {
+			t.Fatalf("sibling fields changed: %s", encoded)
+		}
+		attrs := grouped.Attributes["session"].(map[string]any)
+		if attrs["peer"] != "responder" || attrs["notify"] != "NO_PROPOSAL_CHOSEN" ||
+			attrs["secret"] != "[REDACTED]" || attrs["stringer"] != "[REDACTED]" ||
+			attrs["empty"] != nil || attrs[""] != nil {
+			t.Fatalf("grouped fields changed: %s", encoded)
+		}
+		if grouped.Attributes["inventory"] != "map[router:edge-original]" ||
+			attrs["details"] != "map[ciphers:[aes256] counter:9007199254740993]" ||
+			attrs["counter"] != json.Number("9007199254740993") {
+			t.Fatalf("captured values changed: %s", encoded)
+		}
+		entries := payload["entries"].([]map[string]any)
+		entries[2]["attributes"].(map[string]any)["session"].(map[string]any)["peer"] = "changed-query-result"
 	}
 }

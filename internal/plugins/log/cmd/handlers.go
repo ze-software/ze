@@ -108,11 +108,16 @@ func handleLogRecent(_ *pluginserver.CommandContext, validated command.Validated
 	}
 	out := make([]map[string]any, 0, len(entries))
 	for i := range entries {
+		attributes, err := entries[i].Attributes()
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, map[string]any{
-			"timestamp": entries[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			fieldLevel:  entries[i].Level,
-			"component": entries[i].Component,
-			"message":   entries[i].Message,
+			"timestamp":  entries[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			fieldLevel:   entries[i].Level,
+			"component":  entries[i].Component,
+			"message":    entries[i].Message,
+			"attributes": attributes,
 		})
 	}
 	return &plugin.Response{

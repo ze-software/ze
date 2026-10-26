@@ -26,6 +26,30 @@ is the reason none of them needed a bespoke transport.
 | Health | component health registry, HTTP `/health` returning 200 or 503 |
 | Log query | slog ring handler filtered by level, component and count |
 
+### Structured log fields
+
+`show log recent` keeps each record's `timestamp`, `level`, `component` and
+`message`, with its structured fields in `attributes` (an object, or null when
+absent). JSON and the normal CLI rendering expose the same fields in the same
+entry: an error or protocol rejection reason is not inferred from another log message.
+
+The ring captures logger-bound attributes, nested groups and resolved `LogValuer`
+values. JSON scalar fields stay typed. Opaque `Any` values retain the standard slog
+text handler's presentation as strings, including `TextMarshaler` and `Stringer`
+redaction; querying JSON must not reveal fields the configured text log hid.
+Resolution and text formatting run before shared capture locks. A standard slog
+JSON handler then captures an immutable snapshot, without retaining caller-owned
+maps, slices or attribute arrays. Attribute decoding happens only when queried.
+The fixed entry capacity and newest-first level/component/count filters are unchanged.
+
+The ring is inside the existing level and debug-filter handler chain. It does not
+bypass filtering, expand a value that its `LogValuer` redacts, or change command
+authorization. Log producers remain responsible for excluding secrets, just as
+they are for the configured text/syslog backend. Crash reports keep their existing
+message-only recent-log header rather than adding structured fields implicitly.
+
+<!-- source: internal/plugins/log/cmd/handlers.go -- log query attributes -->
+
 ## Ring buffers with atomic opt-in
 
 A ring that is off costs nothing and takes no lock when on:
