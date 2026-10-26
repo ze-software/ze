@@ -8,16 +8,13 @@
 // hides a second verb (`condensed-update`), and a vocabulary that lists every
 // word and so proves nothing (R-20).
 //
-// Phase 4 lands its renames in batches. Until a batch lands, its rows are
-// findings this tree still holds, listed in phase4Owed: a finding outside the
-// list fails, and an entry that is no longer a finding fails too, so the list
-// only shrinks and the last batch deletes it.
+// Every finding fails: Phase 4 landed its last rename batch, so no finding is
+// owed and none is skipped.
 package le
 
 import (
 	"encoding/json"
 	"maps"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -108,14 +105,11 @@ func judgeAction(area string, row leaction.Row) []string {
 	return broken
 }
 
-// requireRule fails for every finding of rule that phase4Owed does not list.
+// requireRule fails for every finding of rule.
 func requireRule(t *testing.T, rule string) {
 	t.Helper()
 	for _, finding := range vocabularyFindings(t) {
 		if !strings.HasPrefix(finding, rule+" ") {
-			continue
-		}
-		if _, owed := phase4Owed[finding]; owed {
 			continue
 		}
 		t.Errorf("%s: see \"Verb vocabulary\" in docs/contributing/running-commands.md", finding)
@@ -166,44 +160,6 @@ func TestNoTwoVocabularyVerbsShareAMeaning(t *testing.T) {
 		}
 	}
 }
-
-// TestPhase4OwedListOnlyShrinks fails for an owed entry the tree no longer
-// holds, so a batch that lands its rename deletes its rows in the same commit.
-func TestPhase4OwedListOnlyShrinks(t *testing.T) {
-	current := map[string]bool{}
-	for _, finding := range vocabularyFindings(t) {
-		current[finding] = true
-	}
-	for _, owed := range slices.Sorted(maps.Keys(phase4Owed)) {
-		if !current[owed] {
-			t.Errorf("%q is no longer a finding: delete it from phase4Owed", owed)
-		}
-	}
-}
-
-// phase4OwedFile is the work Phase 4 has still to land, one finding per line,
-// a tab, then the rename or the declaration that clears it ("Phase 4 rename
-// map" and D-P4-minimal in spec-le-cli-usability). It is data a batch deletes
-// lines from, never adds to: TestPhase4OwedListOnlyShrinks refuses a stale
-// line, and a new finding is refused by the rule tests above.
-const phase4OwedFile = "testdata/vocabulary-owed.txt"
-
-// phase4Owed maps each owed finding to what clears it.
-var phase4Owed = func() map[string]string {
-	text, err := os.ReadFile(phase4OwedFile)
-	if err != nil {
-		panic("BUG: read " + phase4OwedFile + ": " + err.Error())
-	}
-	owed := map[string]string{}
-	for line := range strings.SplitSeq(strings.TrimSpace(string(text)), "\n") {
-		finding, clears, found := strings.Cut(line, "\t")
-		if !found {
-			panic("BUG: " + phase4OwedFile + " line has no tab before what clears it: " + line)
-		}
-		owed[finding] = clears
-	}
-	return owed
-}()
 
 // TestHelpAiVerbsRendersTheVocabulary proves `le help ai verbs` is the
 // vocabulary itself (AC-26, D-P4-vocab): it lists every vocabulary verb in its

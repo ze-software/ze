@@ -223,12 +223,8 @@ committed artifact; `write` and `generate` are not verbs.
 its declared order with its kind and meaning, then every name that declares it
 (`declared by: test functional bgp, ...`, or `names` in `| json`).
 
-The tests in `internal/le/vocabulary_test.go` judge every registered action.
-While the renames of `spec-le-cli-usability` Phase 4 land in batches, the
-findings the tree still holds are listed in
-`internal/le/testdata/vocabulary-owed.txt`, each with the rename or
-declaration that clears it. A new finding fails, and a listed finding the tree
-no longer holds fails too, so the list only shrinks.
+The tests in `internal/le/vocabulary_test.go` judge every registered action,
+and every finding fails its rule's test: no finding is owed or skipped.
 
 <!-- source: internal/le/le/action/vocabulary.go -- vocabulary, ForbiddenNamePart -->
 <!-- source: internal/le/vocabulary_test.go -- vocabularyFindings, judgeAction -->
