@@ -7,7 +7,9 @@
 // test daemon spawns from its config (`le mock engine-steps`). It dispatches
 // like any other command, and only the listings a person reads leave it out.
 // `le help ai commands` still lists it, marked hidden, so every word le
-// accepts is in le's help.
+// accepts is in le's help. The hidden mocks are exactly the ones a functional
+// test's daemon config starts from a plugin `run "le mock <name>"` statement,
+// which TestSpawnedMocksAreExactlyTheHiddenOnes reads from test/**/*.ci.
 
 package leroot
 
