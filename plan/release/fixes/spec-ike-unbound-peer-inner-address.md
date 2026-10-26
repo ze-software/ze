@@ -7,7 +7,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Shipped IKEv2 tunnel-mode responder violates an RFC 3948 Section 5.1 MUST for every peer bound to no virtual-IP pool: two peers can hold Child SAs and kernel policies for one inner address |
@@ -43,203 +43,349 @@ one with TSr 0.0.0.0/0 and one with TSr 192.0.2.10/32, were both answered, the
 two policy keys differ, and both tunnel policies installed. Configured remote
 selectors that overlap another peer's are not refused either.
 
-Two fix options, to be decided at design with evidence:
+Two fix options were put to design:
 
-| Option | Behavior | Evidence to gather |
-|--------|----------|--------------------|
-| A | Refuse a tunnel Child SA whose peer-proposed remote (inner) selector overlaps another peer's live remote selector (TS_UNACCEPTABLE), extending `claim`'s overlap check, or an engine-level registry, to the tunnel population that is peer-chosen rather than operator-configured | Whether an operator-configured overlap ordered by priority must stay legal, and how a strongSwan initiator answers the refusal |
-| B | Narrow an unconfigured responder's TSi to the peer's observed address, as strongSwan's `%dynamic` default does | strongSwan source quote for `%dynamic` resolution on the responder; whether a NATed peer's observed address breaks site-to-site use |
+| Option | Behavior | Verdict |
+|--------|----------|---------|
+| A | Refuse a tunnel Child SA whose peer-chosen selectors overlap another peer's live Child SA selectors (TS_UNACCEPTABLE) | CHOSEN, engine-level, see Key Design Decisions |
+| B | Narrow an unconfigured responder's TSi to the peer's observed address, as strongSwan's `%dynamic` default does | REJECTED: insufficient on its own, and it breaks the unconfigured site-to-site and route-based use while refusing every NATed road warrior; see Key Design Decisions |
 
-Goal: no two peers can hold a tunnel Child SA (or a kernel policy) whose inner
-remote selectors overlap unless the operator configured both, and
-`RFC3948-5.1-1` loses its `{partial}` marker with both polarities proven over the
-unbound path.
+Goal: no two peers can hold a tunnel Child SA (or a kernel policy) whose
+selectors overlap unless the operator configured both, and `RFC3948-5.1-1`
+loses its `{partial}` marker with both polarities proven over the unbound path.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/doors/system.md` and the IKE door named in `ai/doors/README.md`
+- [ ] `ai/doors/system.md` and `ai/doors/access-security.md` (the IKE door)
+  → Constraint: `ike/dataplane` is ungated and shared with OSPF (RFC 4552); the guard must not live in a dataplane backend, because the VPP and noop backends do not run `policyOwners` and the obligation is the IKE responder's, not one backend's.
+  → Constraint: readers of IKE state outside the engine use `ipsecinventory` / `ikeprobe`; the new registry is engine-internal and needs no core leaf.
 - [ ] `docs/architecture/ike/ipsec-14-responder.md` - virtual-IP narrowing and the responder selector path
+  → Constraint: `narrowChildSelectors` is the single responder narrowing entry: IKE_AUTH direct (`responder.go` `selectAuthChildSA`), EAP (`responder_eap.go`), CREATE_CHILD_SA new (`create_child.go` `respondNewChild`) and Child rekey (`rekey.go` `respondChildRekey`). A filter placed there reaches every responder path.
 - [ ] `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` - "selectors of a peer bound to no pool pass through unchanged"
-- [ ] `docs/guide/ipsec.md` - virtual IP pool section, which now discloses this gap
-  → Constraint: [to fill at design]
+  → Constraint: that sentence becomes false; the page gains the cross-peer inner-selector guard in the same change.
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - "Policy ownership" (the `// Design:` doc of `policy_owner.go`)
+  → Constraint: its last sentence ("Tunnel-mode selectors are compared for identity only, because an overlap between operator prefixes that priority orders is a deliberate configuration") stays true for operator-fixed selectors only; the page must name the engine guard for peer-chosen tunnel selectors.
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the lease registry (`virtual_ip.go` `// Design:`)
+  → Decision: the new registry follows the lease registry's shape: one instance on `SATable`, carried to each `PeerSession` the way `SATable.virtualIP` reaches `PeerSession.virtualIP` (`reconcile.go`), mutex-guarded, no package-level global.
+- [ ] `docs/guide/ipsec.md` - virtual IP pool section, which discloses this gap (lines 284-289)
+  → Constraint: the disclosure paragraph is replaced by the operator-visible rule and the refusal's fix.
+- [ ] `plan/learned/035-ike-virtual-ip-assignment.md`
+  → Constraint: lines 12-16 say this spec owns the unbound-peer remainder; the learned note's pointer is updated at closure.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc3948.md` - RFC3948-5.1-1 (`{partial}`) and Section 5.2 transport overlap
+- [ ] `rfc/short/rfc3948.md` - RFC3948-5.1-1 (`{partial}`, line 225) and the `Support remaining` row (line 21)
+  → Constraint: both texts describe the gap and are rewritten when the row loses `{partial}`; new tagged tests need `./le rfc discriminate-record` records.
 - [ ] `rfc/full/rfc3948.txt` Sections 5.1, 5.2
-- [ ] `rfc/full/rfc7296.txt` Sections 2.9, 2.19 (narrowing may only answer a subset of the proposal)
-  → Constraint: [to fill at design]
+  → Constraint: 5.1 says "it is possible for remote peers to negotiate entries that overlap in an SGW (security gateway), an issue affecting tunnel mode" and "Implementors MUST devise ways of preventing this from occurring." The hazard is a PACKET that matches two peers' SAs ("confused about where to send packets coming from Suzy's server"), so the guard compares whole selector pairs, not the remote half alone.
+  → Decision: 5.2 already names the remedy Ze uses for transport mode: "either by disallowing conflicting connections, or by other means." Ze applies the same remedy to tunnel mode.
+- [ ] `rfc/full/rfc7296.txt` Section 2.9 (lines 2424-2428)
+  → Constraint: "If the responder's policy does not allow it to accept any part of the proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE Notify message." A conflict with another peer is the responder's policy refusing that part, so the notify is TS_UNACCEPTABLE (`errTSUnacceptable`, `notifyForRefusal`).
+  → Constraint: Section 2.9 MUST "If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices" (quoted in `narrowSelectors`). Refusing a whole multi-pair proposal because a LATER pair conflicts would break it, so conflicting pairs are DROPPED at narrowing and only an empty remainder is refused.
+- [ ] `rfc/full/rfc4301.txt` Section 4.4.1 (line 1087)
+  → Constraint: "Thus, a user or administrator MUST be able to order the entries to express a desired access control policy." Overlap between operator-configured selectors is the operator's ordering (`policy-priority`), so it stays legal.
+
+### Peer implementation (interop, owner rule: read the deciding function)
+strongSwan upstream master, commit `b8e275ca6230d42fc24edb2d9881e8eb4a1b0c8f`.
+
+| File | Function | What it decides |
+|------|----------|-----------------|
+| `src/libcharon/plugins/vici/vici_config.c` | child config load | an unset `remote_ts` becomes `traffic_selector_create_dynamic(0, 0, 65535)`: strongSwan's default is `dynamic`, never allow-everything |
+| `src/libcharon/sa/ike_sa.c` | `ike_sa_get_dynamic_hosts` | with no virtual IP: `else if (!have_pool(this))` / `{	/* use remote host only if we don't have a pool configured */` / `list->insert_last(list, this->other_host);` -- `dynamic` resolves to the peer's observed (post-NAT) IKE address |
+| `src/libstrongswan/selectors/traffic_selector_list.c` | `resolve_dynamic_ts`, `select_` | a dynamic TS takes the host address (`ts2->set_address(ts2, host);`), then each received TS is intersected: `selected = ts1->get_subset(ts1, ts2);` -- an empty result is TS_UNACCEPTABLE |
+| `src/libcharon/sa/ikev2/tasks/child_create.c` | `narrow_ts` | the responder narrows the received TSi with `hosts = ike_sa_get_dynamic_hosts(this->ike_sa, local);`; NAT substitution (`get_transport_nat_ts`) is applied for `MODE_TRANSPORT` only |
+| `src/libcharon/sa/ikev2/tasks/child_create.c` | initiator notify handling | on TS_UNACCEPTABLE: `"received %N notify, no CHILD_SA built"` and `/* an error in CHILD_SA creation is not critical */` -- the IKE SA survives |
+| `src/libcharon/plugins/kernel_netlink/kernel_netlink_ipsec.c` | `policy_entry_t`, `get_priority` | identical policies are shared (`/** List of SAs this policy is used by, ordered by priority */`); overlaps are ordered by an automatic priority from prefix lengths (`priority -= (policy->sel.prefixlen_s + policy->sel.prefixlen_d) * 512;`). strongSwan never refuses an overlap: its 5.1 protection is the `dynamic` default |
+
+  → Decision: strongSwan as a gateway with no pool and default `remote_ts` answers a NATed tunnel client proposing its private 10.1.2.3/32 with TS_UNACCEPTABLE (dynamic = public address, intersection empty). Two such clients never conflict because NEITHER gets service. Copying that (option B) would turn a prevented conflict into no service for every NATed road warrior without a pool.
+  → Decision: a strongSwan initiator handles TS_UNACCEPTABLE in IKE_AUTH gracefully (IKE SA kept, no CHILD_SA), so option A's refusal interoperates.
+  → libreswan was not consulted: strongSwan answers both interop questions (what default protects 5.1, and how the initiator reads the refusal).
 
 **Key insights:** (minimal context to resume after compaction)
-- [insight from docs]
+- Chosen: option A only, enforced in the ENGINE by a new cross-peer inner-selector registry on `SATable`; filter at `narrowChildSelectors` (drop conflicting pairs, TS_UNACCEPTABLE when none left), atomic check-and-record at `installChildSA` (race backstop, both roles), release on every Child SA removal.
+- A selector pair is "operator-fixed" when its remote half equals one of the peer's configured remote selectors (prefix, protocol, port). Two overlapping pairs conflict unless they belong to the same peer, or both are operator-fixed.
+- Overlap = one packet can match both pairs: same if_id, both address sides overlap, protocols meet, ports meet. The dataplane already owns that predicate (`selectorsOverlap`); it is exported over `SPParams`, not rewritten.
+- Responder installs BEFORE it answers (`responder.go` line 987 to `buildChildlessAuthResponse`, `create_child.go` `respondNewChild` line 441), so an install-time refusal wrapping `errTSUnacceptable` still reaches the wire as TS_UNACCEPTABLE.
+- Transport mode stays with `policyOwners.claim` (RFC 3948 Section 5.2) and is not recorded in the new registry.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/ike/engine/ts_narrow.go` - `narrowSelectors`, `narrowChildSelectors`
-- [ ] `internal/component/ike/dataplane/policy_owner.go` - `claim`, `selectorsOverlap`
-- [ ] `internal/component/ike/engine/cp.go` - `substituteVirtualIP` (the pool-bound path that already prevents it)
+- [ ] `internal/component/ike/engine/ts_narrow.go` - `narrowSelectors` (line 86), `narrowChildSelectors` (line 600), `policyPairs` (line 416)
+  → Constraint: `narrowSelectors` with an empty `policy` returns every proposed combination ("An unconfigured peer allows everything ... This is Section 2.9's second bullet"). `narrowChildSelectors` order: NAT substitution (transport only), `substituteVirtualIP`, `narrowSelectors` against `policyPairs(sa.PeerCfg, false)` (TSi = configured REMOTE), transport single-address filter, `closedSubset`, rekey floor check, then records `sa.NegotiatedPairs`. The new filter goes after the transport filter and BEFORE `closedSubset`, so the closed subset is cut from conflict-free pairs and the first choice still leads.
+- [ ] `internal/component/ike/dataplane/policy_owner.go` - `claim` (line 106), `selectorsOverlap` (line 156), `policyKey` (line 37)
+  → Constraint: `claim` refuses a different owner on an identical key always, and on an overlapping key for transport mode only. `selectorsOverlap` compares dir, if_id, ifIndex, upper protocol, both port matches and both prefixes. This behavior is preserved; only an exported wrapper over `SPParams` is added for the engine.
+- [ ] `internal/component/ike/engine/cp.go` - `substituteVirtualIP` (line 286)
+  → Constraint: a pool-bound peer's TSi is already narrowed to its unique lease. Its Child SAs are recorded in the new registry like any other (so an unbound peer cannot take a leased address, and vice versa, first come first served); leases among pool peers never overlap, so pool peers are never refused against each other.
+- [ ] `internal/component/ike/engine/ts_nat_substitute.go` - `substituteResponderSelectors`, `transportSelectorsInPlay`, `observedRemoteAddress`
+  → Constraint: NAT substitution is transport-mode only (RFC 7296 Section 2.23.1). Tunnel-mode inner selectors are never substituted, which is why tunnel 5.1 is not met by the existing NAT code.
+- [ ] `internal/component/ike/engine/register.go` - `matchResponderPeer` (line 738)
+  → Constraint: an unsolicited IKE_SA_INIT is matched to the one `respond` peer whose configured `remote-address` equals the source. Two road warriors therefore are two configured peers with two distinct (post-NAT) remote addresses, and the owner identity of a Child SA is the peer name (`ChildSA.Owner`).
+- [ ] `internal/component/ike/engine/responder.go` - `selectAuthChildSA` (line 1026), the `createFirstChildSA` call (line 987)
+  → Constraint: narrowing precedes install, and an install error is answered with `buildChildlessAuthResponse`, which maps the error with `notifyForRefusal`. An error wrapping `errTSUnacceptable` is therefore sent as TS_UNACCEPTABLE and the IKE SA is kept (RFC 7296 Section 2.21.2).
+- [ ] `internal/component/ike/engine/create_child.go` - `respondNewChild` (line 352: narrow at 379, `installChildTolerant` at 441); `applyChildCreateResponse` (line 964, initiator install at 1070)
+  → Constraint: the CREATE_CHILD_SA responder also installs before it answers; the initiator installs after adopting the answer.
+- [ ] `internal/component/ike/engine/child.go` - `installChildSA` (line 379), `installChildTolerant` (line 613), `removeChildSA` / `removeChildSAExcept` (lines 835, 859), `childPairPolicy` (line 706)
+  → Constraint: `installChildTolerant` returns early on a nil dataplane and otherwise calls `installChildSA`; an XFRM-unsupported error degrades without failing. `removeChildSAExcept` returns early on a nil dataplane or child. The record must be taken before any kernel call and released before those early returns. `childPairPolicy` already builds the `SPParams` (Src, Dst, ports, proto, IfID, Owner) of one pair, which is the shape the overlap predicate compares.
+- [ ] `internal/component/ike/engine/virtual_ip.go`, `reconcile.go` (line 42-47, 762), `table.go` (line 12-20)
+  → Decision: the registry rides `SATable` and is copied into `PeerSession` at session start exactly like `virtualIP`.
+- [ ] `internal/component/ike/ipsec/config.go` (line 535-548), `types.go` (line 666), YANG `ze-ipsec-conf.yang` (`virtual-ip-pool` line 817, `policy-priority` line 938, `traffic-selector` line 970)
+  → Constraint: the operator surfaces named in the refusal's fix are `vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>` and `vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>`. No new leaf is added.
+- [ ] `test/interop-ipsec/scenarios/virtual-ip-uniqueness/` and `internal/le/interoplab/ipsec/checkers.go` (line 96), `virtualip.go` (`checkVirtualIPUniqueness`, line 335), `nat.go`
+  → Decision: the new interop scenario copies this two-clients-behind-NAT lab (strongSwan holds 172.28.0.3 and adds 172.28.0.8, NAT shows them as 172.28.0.7 and 172.28.0.9, Ze is 172.28.0.2 seen as 172.28.0.6) with the pool removed.
+- [ ] `test/ipsec/ipsec-sa-show.ci`, `ipsec-child-rekey-xfrm-narrowing.ci`, `ipsec-traffic-selector-config.ci`
+  → Constraint: multi-daemon `.ci` tests use loopback addresses (127.0.0.1, 127.0.0.2) sharing `ze_test_ike_port`, and `ze_test_ike_dataplane=noop` runs without CAP_NET_ADMIN. An engine-level guard is provable with the noop dataplane.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The pool-bound path and its tests (`TestTwoPeersSameRequestedAddressDistinctLeases`, `TestNoChildSAWithoutLeaseOnBoundPeer`, `TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease`)
-- Transport-mode overlap refusal (RFC 3948 Section 5.2)
+- Transport-mode overlap refusal (RFC 3948 Section 5.2) in `policyOwners.claim`, and the identical-key refusal for every mode
+- The unconfigured-peer default of `narrowSelectors` (an empty policy accepts the proposal): a single unbound peer, or several whose selectors are disjoint, are answered exactly as today
+- Operator-configured overlapping selectors that each peer negotiates whole (the RFC 4301 Section 4.4.1 ordering by `policy-priority`)
+- Route-based peers with distinct if_id all negotiating 0.0.0.0/0 (no packet can match two of them)
+- A Child SA rekey or IKE SA re-authentication of the SAME peer, which overlaps its own live selectors by construction
+- Every existing interop scenario (`responder-psk`, `responder-ike-rekey`, the `real-nat-*` and EAP responder scenarios each run one peer)
 
 **Behavior to change:** (only what the user asked for)
-- [list, or "None - preserve all existing behavior"]
+- A tunnel-mode Child SA whose negotiated selector pair overlaps a live Child SA of ANOTHER peer, where at least one of the two pairs is not operator-fixed, is no longer created: the responder drops the conflicting pairs from its answer and answers TS_UNACCEPTABLE when none remain; an install that loses a race is refused before any kernel call.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Wire: the peer's TSi/TSr payloads in IKE_AUTH (direct or EAP final) or CREATE_CHILD_SA (new Child SA or Child rekey), decrypted and parsed by the owner `PeerSession` goroutine into `wire.PayloadTS`.
+- Format at entry: RFC 7296 Section 3.13.1 selector entries, converted by `wireToSelectors` to `tsSelector` prefixes.
 
 ### Transformation Path
-1. [Stage 1]
-2. [Stage 2]
+1. `narrowChildSelectors` (ts_narrow.go): NAT substitution (transport), `substituteVirtualIP` (pool-bound), `narrowSelectors` against configured policy, transport single-address filter.
+2. NEW: cross-peer filter. For a tunnel-mode exchange, each narrowed pair is classified operator-fixed or peer-chosen against `sa.PeerCfg.TrafficSelectors`, and dropped when the registry holds an overlapping pair of another owner that is not operator-fixed on both sides. No pair left: `errTSUnacceptable` with the conflict named. The filter is read-only.
+3. `closedSubset`, rekey floor check, record `sa.NegotiatedPairs` (unchanged).
+4. Answer payloads built; responder calls `createFirstChildSA` / `installChildTolerant` before sending.
+5. NEW: `installChildSA` first performs the registry's atomic check-and-record for a tunnel-mode child (owner, outbound pairs, fixed flags, if_id). A conflict returns an error wrapping `errTSUnacceptable` before any dataplane call; a later kernel failure in the same call releases the record.
+6. Answer sent (TS_UNACCEPTABLE via `notifyForRefusal` when step 2 or 5 refused).
+7. NEW: every Child SA removal (`removeChildSAExcept`, and any direct path that ends a Child SA) releases its record.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Peer session goroutine ↔ other peer sessions | the registry, one mutex, owned by `SATable` and shared by pointer like `virtualIPState` | No |
+| Engine ↔ dataplane | the engine calls an exported overlap predicate over `SPParams`; no new Dataplane interface method, no backend change | No |
+| Engine ↔ wire | TS_UNACCEPTABLE notify through the existing `notifyForRefusal` | No |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `narrowChildSelectors` - gains the filter step; signature gains access to the registry (through the SA or PeerSession, implementer's choice, one pointer from `SATable`).
+- `installChildSA` / `removeChildSAExcept` - record and release.
+- `dataplane.selectorsOverlap` / `policyKey` - wrapped by one exported function comparing two `SPParams`.
+- `childPairPolicy` - builds the `SPParams` the registry stores and compares (outbound direction).
+- `notifyForRefusal` - unchanged; maps the wrapped `errTSUnacceptable`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | the filter sits in `narrowChildSelectors`, the single responder narrowing entry; the backstop sits in `installChildSA`, the single install funnel |
+| No unintended coupling (components stay isolated) | Yes | engine-internal registry; the only new dataplane surface is a pure function in the ungated `ike/dataplane` package the engine already imports |
+| No duplicated functionality (extends existing, does not recreate) | Yes | overlap is the dataplane's existing `selectorsOverlap`, exported; registry pattern copies `virtualIPState`. `policyOwners` keeps the kernel-level transport check; the new registry holds tunnel-mode negotiation state the backends do not all track (VPP and noop run no `policyOwners`) |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | the registry stores the `SPParams` already built per pair; no wire buffer is retained (`tsSelector` nets are detached copies, per `firstSelectorAddress`'s rule) |
+| Registration over hardcoding, outbound | Yes | no command, family or handler added |
+| Registration over hardcoding, inbound | Yes | searched: `notifyForRefusal` (maps by `errors.Is`, no list to extend), `checkers.go` scenario map (the interop runner's existing registry; one row is how every scenario registers), no switch learns a peer name |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | Every responder path installs the Child SA before sending its answer, so an install-time refusal still answers TS_UNACCEPTABLE | `responder.go` line 987-991 (IKE_AUTH, EAP final shares it), `create_child.go` line 441 (`respondNewChild`), `rekey.go` line 831 (`respondChildRekey` installs, then builds the response) | a responder path answers first and then fails to install, leaving the peer with a Child SA Ze lacks | read at design (2026-10-26) on all three; `TestInnerSelectorInstallBackstopRefusesSecond` re-proves it on IKE_AUTH and CREATE_CHILD_SA | validated (source read) |
+| A-2 | `ChildSA.Owner` is the configured peer name and is equal for the old and new SA of a rekey and of an IKE re-authentication | `childPairPolicy` sets `Owner: child.Owner`; `policyOwners.claim` relies on the same equality for rekey upserts | same-peer rekey refused | `TestInnerSelectorSamePeerRekeyAllowed` | unvalidated |
+| A-3 | Removal of every Child SA funnels through `removeChildSAExcept` (or a path the implementer finds with `gopls references`) | `removeChildSA` delegates to it; the outgoing/incoming split is called from rekey | a leaked record locks other peers out of an address until restart | `gopls references` on `removeChildSAOutgoing`/`removeChildSAIncoming`; `TestInnerSelectorRegistryEmptyAfterTeardown` covering delete, rekey, IKE SA death, peer reload | unvalidated |
+| A-4 | A strongSwan initiator keeps its IKE SA and reports the child failure on TS_UNACCEPTABLE in IKE_AUTH | strongSwan `child_create.c`: "received %N notify, no CHILD_SA built", "an error in CHILD_SA creation is not critical" | interop checker cannot assert IKE SA ESTABLISHED for the refused client | interop scenario `unbound-inner-address-uniqueness` | unvalidated |
+| A-5 | No existing interop or functional test runs two peers whose live tunnel selectors overlap with a peer-chosen side | survey of `test/interop-ipsec/scenarios/*/ze.conf` (each responder scenario has one peer) | an existing test goes red | the scoped ipsec functional suite and the IKE engine package tests | unvalidated |
+| A-6 | Comparing outbound-direction pairs suffices: the inbound policy is the mirror, so two pairs overlap outbound exactly when they overlap inbound | `childPolicies` builds the inbound policy by swapping Src/Dst of the same pair | a conflict seen only inbound is missed | unit test asserting symmetric verdicts | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | Record leaked on some removal path: a peer that went away keeps an address, and another peer is refused until restart | `TestInnerSelectorRegistryEmptyAfterTeardown` fails; interop re-initiate of client b after a's delete is refused | release in the removal funnel before its early returns; registry size exposed in the test hook; the refusal log names the holder so an operator sees the stale owner |
+| R-2 | Race: two peers pass the narrowing filter at once | both answered with Child SAs | atomic check-and-record in `installChildSA` under the registry mutex; `TestInnerSelectorInstallBackstopRefusesSecond` |
+| R-3 | Same-peer make-before-break (Child rekey, IKE re-auth, re-initiation) refused | rekey tests red | same owner always exempt; explicit tests |
+| R-4 | First-come lockout: a hostile but authenticated unbound peer proposing 0.0.0.0/0 first blocks every overlapping peer | refusal logs name that peer | documented in the guide with the fix (configure the peer's remote prefixes or bind a pool); the unconfigured default is the operator's choice and two such peers already collide today on the identical key |
+| R-5 | Operator-fixed classification wrong for a configured selector with ports or a protocol | a whole-negotiated configured pair refused | classification compares prefix, protocol and port of the remote half exactly; `TestInnerSelectorConfiguredOverlapNegotiatedWholeAllowed` with a protocol/port selector |
+| R-6 | Initiator-role install refused by the backstop leaves the remote responder holding a Child SA | initiator install error | the existing initiator install-failure path in `applyChildCreateResponse` / `initiatorFirstChildSA` handles it as any install failure; `TestInnerSelectorInitiatorInstallRefusedInstallsNothing` asserts no dataplane call and the logged refusal |
+| R-7 | Registry lock held across a dataplane call | slow installs serialize every peer | check-and-record and release are pure map operations; no dataplane call under the registry mutex |
+| R-8 | A pool-bound client refused because an unbound peer already holds its leased address | pool client gets TS_UNACCEPTABLE | that is the 5.1 prevention working (first come); the Warn line names both peers and the fix (keep pool ranges disjoint from other peers' remote prefixes) |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration] |
-| Who else touches this path? | [other specs working the same files] |
+| What breaks if this is wrong? | a legitimate second tunnel is refused (TS_UNACCEPTABLE, IKE SA kept, Warn line), or the conflict is still admitted |
+| How is it reverted? | single commit revert; no config migration |
+| Who else touches this path? | `ts_narrow.go` and `child.go` are hot IKE files; check `./le spec status` for in-progress IKE specs before implementing |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| IKE_AUTH from a second unbound peer proposing an inner TSi a first peer holds | → | `narrowChildSelectors` cross-peer filter | `test/ipsec/ipsec-unbound-inner-address-unique.ci` |
+| IKE_AUTH from two strongSwan clients behind two NATs, no pool, both 10.1.2.3 | → | filter + `installChildSA` record | interop `unbound-inner-address-uniqueness` |
+| Two configured peers with overlapping remote prefixes negotiated whole | → | operator-fixed exemption | `test/ipsec/ipsec-overlapping-configured-selectors-kept.ci` |
+| CREATE_CHILD_SA from a second peer | → | `respondNewChild` → filter | `TestRFC3948CreateChildSecondPeerSameInnerRefused` |
+| Two exchanges racing past narrowing | → | `installChildSA` check-and-record | `TestInnerSelectorInstallBackstopRefusesSecond` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | Unbound, unconfigured responder peers a and b; a holds a tunnel Child SA TSi 10.1.2.3/32 TSr 0.0.0.0/0; b proposes TSi 10.1.2.3/32 TSr 192.0.2.10/32 in IKE_AUTH | b is answered TS_UNACCEPTABLE, b's IKE SA is established with no Child SA, no policy naming 10.1.2.3 is installed for b, a's Child SA and policies are untouched |
+| AC-2 | As AC-1 but b proposes TSi 10.1.2.4/32 | b is answered with its Child SA (positive polarity: distinct inner addresses both served) |
+| AC-3 | As AC-1 but b proposes TSi 10.1.2.3/32 with TSr 198.51.100.0/24 while a holds TSr 192.0.2.10/32 | both served: no packet matches both pairs |
+| AC-4 | Peers a and b each configured with remote prefix 10.0.0.0/8; a holds narrowed 10.1.2.3/32; b proposes 10.1.2.3/32 | b refused TS_UNACCEPTABLE (peer-chosen inside an operator overlap) |
+| AC-5 | Peer a configured remote 10.1.0.0/16, peer b configured remote 10.1.2.0/24 (different `policy-priority`), both peers propose exactly their configured selectors | both served (operator-fixed on both sides); policies installed with each peer's priority |
+| AC-6 | Peer a holds operator-fixed 10.1.0.0/16; unconfigured peer b proposes 10.1.5.0/24 | b refused (peer-chosen overlapping a fixed holder) |
+| AC-7 | b proposes TSi {10.1.2.4/32, 10.1.2.3/32} (first entry free, second held by a) | b is answered with the first pair only (RFC 7296 Section 2.9 first-choice MUST) |
+| AC-8 | Peer a rekeys its Child SA, or re-authenticates its IKE SA, with the same selectors | accepted; no conflict with itself |
+| AC-9 | Route-based peers a and b with distinct if_id both negotiate 0.0.0.0/0 ↔ 0.0.0.0/0 | both served |
+| AC-10 | Two peers pass narrowing for the same inner address before either installs | the second install is refused before any dataplane call, with an error wrapping `errTSUnacceptable`; on the responder the answer is TS_UNACCEPTABLE |
+| AC-11 | a's Child SA is deleted (peer DELETE, IKE SA death, `clear`, peer reload, rekey retire); then b proposes 10.1.2.3/32 | b is served; the registry holds no record of the removed child |
+| AC-12 | Second peer refused for a conflict | Ze logs one Warn line naming: the refused peer and its selector pair, the holding peer and its pair, that one packet could be sent into either tunnel (RFC 3948 Section 5.1), and the fix: configure disjoint remote prefixes (`set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>`) or bind the peer to a virtual-IP pool (`set vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>`) |
+| AC-13 | Transport-mode Child SAs | unchanged: not recorded in the new registry; RFC 3948 Section 5.2 refusal stays in `policyOwners.claim` (existing tests green) |
+| AC-14 | Pool-bound peers | existing pool tests green; a lease equal to an unbound peer's live inner address is refused for the newcomer, whichever came second |
+| AC-15 | `rfc/short/rfc3948.md` | RFC3948-5.1-1 loses `{partial}`, the `Support remaining` row no longer describes the unbound gap, and every new tagged test carries a discrimination record (`./le rfc check` green) |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [user operation] | [path] | [test name] |
+| 1 | Operator configures two respond peers with no pool and no selectors; both clients behind NATs use 10.1.2.3 | strongSwan IKE_AUTH → Ze narrowing filter → TS_UNACCEPTABLE to the second; first keeps traffic | interop `unbound-inner-address-uniqueness` |
+| 2 | Operator configures a hub with deliberately overlapping, priority-ordered remote prefixes for two spokes | both IKE_AUTH answered, both tunnels installed | `ipsec-overlapping-configured-selectors-kept.ci` |
+| 3 | Operator reads why the second client has no tunnel | Warn line with both peers and the fix | `ipsec-unbound-inner-address-unique.ci` (stderr assertion) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused` | `internal/component/ike/engine/rfc3948_inner_selector_test.go` | AC-1, the judge's probe (TSr 0.0.0.0/0 vs 192.0.2.10/32); tagged `RFC requirement: RFC3948-5.1-1 negative` | |
+| `TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed` | same | AC-2; tagged `RFC3948-5.1-1 positive` | |
+| `TestInnerSelectorDisjointLocalSidesNoConflict` | same | AC-3 | |
+| `TestRFC3948ConfiguredOverlapNarrowedByPeerRefused` | same | AC-4; tagged `RFC3948-5.1-1 negative` | |
+| `TestInnerSelectorConfiguredOverlapNegotiatedWholeAllowed` | same | AC-5, includes a selector with protocol 6 and a port (R-5) | |
+| `TestInnerSelectorPeerChosenOverlapsFixedRefused` | same | AC-6 | |
+| `TestInnerSelectorFirstChoiceKeptWhenLaterPairConflicts` | same | AC-7 | |
+| `TestInnerSelectorSamePeerRekeyAllowed` | same | AC-8 (Child rekey through `respondChildRekey` with floor, and a second SA of the same owner) | |
+| `TestInnerSelectorDistinctIfIDNoConflict` | same | AC-9 | |
+| `TestInnerSelectorInstallBackstopRefusesSecond` | same | AC-10, recording dataplane receives no call for the refused child | |
+| `TestRFC3948CreateChildSecondPeerSameInnerRefused` | same | AC-1 over CREATE_CHILD_SA (`respondNewChild`), notify TS_UNACCEPTABLE | |
+| `TestInnerSelectorRegistryEmptyAfterTeardown` | same | AC-11 over delete, rekey retire, IKE SA death, failed kernel install | |
+| `TestInnerSelectorRefusalNamesBothPeersAndFix` | same | AC-12 error text | |
+| `TestInnerSelectorTransportModeNotRecorded` | same | AC-13 | |
+| `TestRFC3948LeaseVersusUnboundPeerFirstComeWins` | same | AC-14 | |
+| `TestInnerSelectorInitiatorInstallRefusedInstallsNothing` | same | R-6 | |
+| `TestInnerSelectorOverlapSymmetric` | same | A-6 | |
+| `TestPolicySelectorsOverlapExported` | `internal/component/ike/dataplane/policy_owner_test.go` | the exported wrapper agrees with `selectorsOverlap` on identical, overlapping, disjoint, different-if_id and different-protocol inputs | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| prefix length in overlap (IPv4) | 0-32 | /32 vs /0 overlap; /32 vs adjacent /32 do not | N/A | N/A |
+| prefix length in overlap (IPv6) | 0-128 | /128 vs ::/0 overlap | N/A | N/A |
+| port match | 0-65535 | port 65535 vs any overlaps; 179 vs 180 do not | N/A | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `ipsec-unbound-inner-address-unique` | `test/ipsec/ipsec-unbound-inner-address-unique.ci` | hub (127.0.0.1, two unconfigured `respond` peers, noop dataplane) and two Ze initiator spokes (127.0.0.2, 127.0.0.3) each configured local 10.1.2.3/32 remote 0.0.0.0/0; spoke-a first, then spoke-b. Assert: `show vpn ipsec sa` on the hub lists spoke-a's Child SA with 10.1.2.3/32 and spoke-b's IKE SA with no Child SA; hub stderr carries the AC-12 Warn line; spoke-b stderr names TS_UNACCEPTABLE | |
+| `ipsec-overlapping-configured-selectors-kept` | `test/ipsec/ipsec-overlapping-configured-selectors-kept.ci` | hub with spoke-a configured remote 10.1.0.0/16 (`policy-priority 2000`) and spoke-b remote 10.1.2.0/24 (`policy-priority 1500`), spokes propose exactly those; both Child SAs listed | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| [named scenario] | `test/interop/scenarios/` | strongSwan | [two unbound clients claiming one inner address] | |
+| `unbound-inner-address-uniqueness` | `test/interop-ipsec/scenarios/unbound-inner-address-uniqueness/` (nat.conf, swanctl.conf, ze.conf) and checker `checkUnboundInnerAddressUniqueness` in `internal/le/interoplab/ipsec/unbound_inner.go`, registered in `checkers.go` | strongSwan (two connections ze-a from 172.28.0.3 and ze-b from 172.28.0.8, both `local_ts = 10.1.2.3/32`, `remote_ts = 10.20.0.1/32`, no `vips`), NAT as `virtual-ip-uniqueness` | after ze-a: child-a INSTALLED and Ze holds one out policy to 10.1.2.3/32 with a's public tunnel endpoint; after ze-b: swanctl reports TS_UNACCEPTABLE / no CHILD_SA, IKE SA ze-b ESTABLISHED, Ze still holds exactly one policy pair naming 10.1.2.3/32 and it is a's; a ping from 10.1.2.3 via child-a to 10.20.0.1 still succeeds. Red proof: revert the guard, rebuild the Ze image, rerun: two policies naming 10.1.2.3 and the checker fails; record the red | |
 
 ## Files to Modify
-- `internal/component/ike/engine/ts_narrow.go` - [option B]
-- `internal/component/ike/dataplane/policy_owner.go` - [option A]
-- `rfc/short/rfc3948.md` - drop `{partial}` on RFC3948-5.1-1 once both polarities cover the unbound path
+- `internal/component/ike/engine/ts_narrow.go` - cross-peer filter step in `narrowChildSelectors` (tunnel only), with the RFC 3948 Section 5.1 and RFC 7296 Section 2.9 quotes; the `narrowSelectors` doc comment on the empty policy gains a pointer to the filter (its own behavior is unchanged)
+- `internal/component/ike/engine/child.go` - check-and-record in `installChildSA`, release in `removeChildSAExcept` (before its early returns) and on a failed install
+- `internal/component/ike/engine/table.go` - `SATable` carries the registry
+- `internal/component/ike/engine/reconcile.go` - `PeerSession` receives it at session start (beside `virtualIP`)
+- the four `narrowChildSelectors` callers (`responder.go`, `responder_eap.go`, `create_child.go`, `rekey.go`) only if the registry is passed as an argument rather than reached through the SA
+- `internal/component/ike/dataplane/policy_owner.go` - export one predicate over two `SPParams` wrapping `policyKey` + `selectorsOverlap`; update the `claim` comment ("Tunnel mode is not compared ...") to name the engine guard for peer-chosen tunnel selectors
+- `internal/le/interoplab/ipsec/checkers.go` - register the scenario
+- `rfc/short/rfc3948.md` - drop `{partial}` on RFC3948-5.1-1; rewrite the `Support remaining` row
+- `docs/guide/ipsec.md`, `docs/architecture/ike/ipsec-14-responder.md`, `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/ike/ipsec-7-ikev2-engine.md` - see Documentation checklist
+- `plan/learned/035-ike-virtual-ip-assignment.md` - pointer to the closure
 
 ## Files to Create
-- `internal/...` - [new test file]
+- `internal/component/ike/engine/inner_selectors.go` - the registry (`// Design: docs/architecture/ike/ipsec-7-ikev2-engine.md`, `// RFC: rfc/short/rfc3948.md`)
+- `internal/component/ike/engine/rfc3948_inner_selector_test.go`
+- `test/ipsec/ipsec-unbound-inner-address-unique.ci`, `test/ipsec/ipsec-overlapping-configured-selectors-kept.ci`
+- `test/interop-ipsec/scenarios/unbound-inner-address-uniqueness/{nat.conf,swanctl.conf,ze.conf}`
+- `internal/le/interoplab/ipsec/unbound_inner.go`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | |
-| YANG validation constraints | | |
-| YANG custom validators | | |
-| CLI commands/flags | | |
-| CLI grammar (keyword before value) | | |
-| Editor autocomplete | | |
-| Functional test for new RPC/API | | |
-| Pipe completeness | | |
-| Env var registration | | |
-| Doctor check for runtime dependencies | | |
-| Prometheus counters/metrics | | |
-| BGP family surface (new SAFI / capability / attribute) | | |
+| YANG schema (new RPCs/config) | No | no new leaf; the fix names existing `traffic-selector`, `virtual-ip-pool`, `policy-priority` |
+| YANG validation constraints | No | refusal is runtime (it depends on which peer is live) |
+| YANG custom validators | No | as above |
+| CLI commands/flags | No | none added |
+| CLI grammar (keyword before value) | N-A | no command added |
+| Editor autocomplete | N-A | no config change |
+| Functional test for new RPC/API | N-A | no RPC; behavior proven by the two `.ci` tests |
+| Pipe completeness | N-A | no command output changed |
+| Env var registration | No | none added |
+| Doctor check for runtime dependencies | N-A | no runtime dependency added |
+| Prometheus counters/metrics | No | the refusal is visible as the existing TS_UNACCEPTABLE notify and a Warn line; no counter is required by any AC |
+| BGP family surface (new SAFI / capability / attribute) | N-A | IKE |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | |
-| 2 | Config syntax changed? | | |
-| 3 | CLI command added/changed? | | |
-| 4 | API/RPC added/changed? | | |
-| 5 | Plugin added/changed? | | |
-| 6 | Has a user guide page? | | `docs/guide/ipsec.md` (remove the unbound-peer disclosure) |
-| 7 | Wire format changed? | | |
-| 8 | Plugin SDK/protocol changed? | | |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfc3948.md`, `plan/learned/035-ike-virtual-ip-assignment.md` |
-| 10 | Test infrastructure changed? | | |
-| 11 | Affects daemon comparison? | | |
-| 12 | Internal architecture changed? | | `docs/architecture/ike/ipsec-14-responder.md`, `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` |
-| 13 | Route metadata keys added/changed? | | |
-| 14 | Prometheus counters added/changed? | | |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED: `./le spec citation anchors spec plan/release/fixes/spec-ike-unbound-peer-inner-address.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | | |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | RFC 3948 support level via `rfc/short/rfc3948.md` (`docs/features/rfc-status.md` regenerates from it) |
+| 2 | Config syntax changed? | No | |
+| 3 | CLI command added/changed? | No | |
+| 4 | API/RPC added/changed? | No | |
+| 5 | Plugin added/changed? | No | |
+| 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` lines 284-289: replace the disclosure with the rule (one inner selector per live tunnel across peers, operator-configured overlaps kept), the refusal and its fix |
+| 7 | Wire format changed? | No | |
+| 8 | Plugin SDK/protocol changed? | No | |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc3948.md`, `plan/learned/035-ike-virtual-ip-assignment.md` |
+| 10 | Test infrastructure changed? | Yes | new interop scenario: `docs/architecture/testing/interop.md` scenario list if it enumerates ipsec scenarios |
+| 11 | Affects daemon comparison? | Yes | strongSwan comparison: strongSwan prevents 5.1 by its `dynamic` default, Ze by refusing the conflict; add to `docs/guide/ipsec.md` beside the pool section |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-14-responder.md`, `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` (line 157 sentence), `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` ("Policy ownership"), `docs/architecture/ike/ipsec-7-ikev2-engine.md` (new registry beside the lease registry) |
+| 13 | Route metadata keys added/changed? | No | |
+| 14 | Prometheus counters added/changed? | No | |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/release/fixes/spec-ike-unbound-peer-inner-address.md` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` remote-access and site-to-site examples: check none shows two peers that would now be refused |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- [to fill at design]
-2. **Phase: [name]** -- [what to implement]
+1. **Phase: Wiring (MANDATORY FIRST)** -- registry type and `SATable` / `PeerSession` plumbing; exported dataplane overlap predicate with `TestPolicySelectorsOverlapExported`. Write `ipsec-unbound-inner-address-unique.ci` and see it red (both spokes get Child SAs).
+2. **Phase: Install backstop** -- check-and-record in `installChildSA`, release in the removal funnel; tests AC-10, AC-11, R-6 red then green. Resolve A-1 and A-3 with `gopls references` first.
+3. **Phase: Narrowing filter** -- classification (operator-fixed) and the drop step in `narrowChildSelectors`, error text (AC-12); tests AC-1 to AC-9, AC-13, AC-14 red then green.
+4. **Phase: Functional and interop** -- both `.ci` green; interop scenario green, then the red proof by revert and image rebuild, recorded.
+5. **Phase: RFC ledger and docs** -- discrimination records (`./le rfc discriminate-record`) for each tagged test, `rfc/short/rfc3948.md`, every page in the Documentation checklist in the same phase as the code it describes.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| Correctness | [feature-specific] |
+| Correctness | the filter runs before `closedSubset` and after the transport filter; the first choice still leads; same-owner always exempt |
+| Correctness | the record is taken before any dataplane call and released on every removal and failed install; no dataplane call under the registry mutex |
+| Correctness | operator-fixed compares the remote half's prefix, protocol and port exactly against `sa.PeerCfg.TrafficSelectors` |
+| Preservation | transport mode untouched; `claim` behavior byte-for-byte unchanged |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| registry file | `ls internal/component/ike/engine/inner_selectors.go` |
+| tagged tests with records | `./le rfc check` green; `rfc/discrimination/rfc3948.json` lists the new units |
+| interop scenario | `ls test/interop-ipsec/scenarios/unbound-inner-address-uniqueness`; checker row in `checkers.go` |
+| `{partial}` gone | `grep -n 'RFC3948-5.1-1' rfc/short/rfc3948.md` |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | Peer-proposed traffic selectors are untrusted input that can capture another peer's inner address |
+| Input validation | Peer-proposed traffic selectors are untrusted input that can capture another peer's inner address: every tunnel pair a peer chose is compared against every other owner's live pairs |
+| Fail closed | an unparsable or unexpected selector in the comparison counts as overlapping (as `prefixesOverlap` already does) |
+| Denial of service | first-come lockout is documented (R-4); the Warn line names the holder |
 
 ### Failure Routing
 
@@ -253,7 +399,22 @@ unbound path.
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
+## Planned Goal Validation
+
+Carried into the closure template's Goal Validation table by `/ze-close`.
+
+| Goal (from Task) | Evidence that will prove it |
+|------------------|-----------------------------|
+| No two peers hold a tunnel Child SA or kernel policy whose selectors overlap unless the operator configured both | interop `unbound-inner-address-uniqueness`: Ze's `ip xfrm policy` holds exactly one policy pair naming 10.1.2.3/32 after both strongSwan clients initiate, and goes to two with the guard reverted and the image rebuilt (recorded red); `ipsec-unbound-inner-address-unique.ci` hub `show vpn ipsec sa` output |
+| Operator-configured overlaps keep working | `ipsec-overlapping-configured-selectors-kept.ci`: both Child SAs listed; `TestInnerSelectorConfiguredOverlapNegotiatedWholeAllowed` |
+| The first client keeps its traffic (the SGW is not confused) | interop checker: ping from 10.1.2.3 via child-a to 10.20.0.1 succeeds after client b was refused |
+| `RFC3948-5.1-1` loses `{partial}` with both polarities proven over the unbound path | `./le rfc check` green with discrimination records for the positive and negative tagged units; `grep` of the row shows no `{partial}` |
+
 ## Design Insights
+
+- RFC 3948 Section 5.1's hazard is per packet: two SAs a packet could be sent into. Comparing whole selector pairs (both address sides, protocol, ports, if_id) refuses exactly that and no more; comparing the remote half alone would refuse disjoint-server cases no packet can confuse (AC-3).
+- strongSwan meets 5.1 by never accepting a peer-chosen address it did not observe or lease (`dynamic` default), and does not refuse overlaps at all (kernel policies shared or ordered by prefix length). Ze keeps its documented unconfigured default and refuses only the conflict, which serves strictly more clients while still preventing the confusion.
+- The guard must be engine-level: the obligation is the responder's answer (TS_UNACCEPTABLE), and only the xfrm backend runs `policyOwners`.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -263,15 +424,33 @@ unbound path.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Option A (refuse the conflict), not B | B (`%dynamic` narrowing of an unconfigured responder's TSi to the observed address); A+B | B alone is insufficient: it does not cover a peer narrowing inside overlapping CONFIGURED remote prefixes (AC-4), nor an unbound peer's outer /32 inside another peer's configured prefix. B also breaks Ze's documented load-bearing default (`narrowSelectors`: an empty policy accepts the proposal) for unconfigured site-to-site and route-based responders, and behind NAT the observed address is not the tunnel client's inner source, so B answers every NATed road warrior without a pool TS_UNACCEPTABLE (strongSwan `ike_sa_get_dynamic_hosts` + `select_` do exactly that). A prevents 5.1 in every case and follows the remedy RFC 3948 Section 5.2 names ("disallowing conflicting connections"), already used by `claim` for transport mode. A+B adds B's breakage for no extra prevention |
+| Engine registry, not `policyOwners.claim` | extend `claim` to tunnel overlap | `claim` runs in the xfrm backend only (VPP, noop do not track owners), knows nothing of operator-fixed vs peer-chosen, and cannot drop single pairs at narrowing (RFC 7296 Section 2.9 first-choice MUST) |
+| Filter at narrowing AND check-and-record at install | install check only; narrowing check only | install-only refuses a whole proposal when a later pair conflicts (breaks the first-choice MUST); narrowing-only races between peer goroutines. One predicate, two call sites |
+| Operator-fixed = remote half equals a configured remote selector | "peer has any configured selector"; both halves equal | configured-but-narrowed is the 5.1 case (AC-4); the 5.1 subject is the remote inner address, so a peer narrowing only Ze's local half keeps the operator's remote choice |
+| Both-fixed overlaps allowed regardless of `policy-priority` | also require distinct priorities | the goal says "unless the operator configured both"; RFC 4301 Section 4.4.1 gives the ordering to the operator, and `policy-priority` exists. See Known Limitations |
+| Same owner exempt | none | rekey and IKE re-authentication overlap themselves by construction |
+| Tunnel only in the registry | record transport too | transport overlap is already refused by `claim` (RFC 3948 Section 5.2); a second refusal with a different message would duplicate it |
+| Pool-bound children recorded | exempt them | an unbound peer must not take a leased address, nor a lease an unbound peer's live address |
+| TS_UNACCEPTABLE | NO_PROPOSAL_CHOSEN, TEMPORARY_FAILURE | RFC 7296 Section 2.9: the responder's policy does not accept that part of the proposal |
 
 ## Known Limitations
-- [What was deliberately not done and why]
+- Two operator-fixed overlapping selectors with EQUAL `policy-priority` are both installed, and the kernel then orders them by install order. That is the operator's configuration under RFC 4301 Section 4.4.1, which Ze already lets the operator order; it is not peer-negotiated, so it is outside RFC 3948 Section 5.1.
+- First-come wins: an authenticated unbound peer proposing a wide TSi first excludes later overlapping peers until it goes away (R-4). The fix for an operator is configuring each peer's remote prefixes or a pool.
 
 ## RFC Documentation (Scope: protocol)
 
 Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 MUST document: validation rules, error conditions, state transitions, timer
 constraints, message ordering, and every MUST/MUST NOT.
+
+| Site | Quote |
+|------|-------|
+| filter in `narrowChildSelectors`, check-and-record in the registry | RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from occurring." |
+| the refusal | RFC 7296 Section 2.9: "If the responder's policy does not allow it to accept any part of the proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE Notify message." |
+| dropping a later pair, keeping the first | RFC 7296 Section 2.9: "If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices." |
+| operator-fixed exemption | RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the entries to express a desired access control policy." |
+| callers (`installChildSA` call sites added) | `// RFC 3948 Section 5.1` reference only |
 
 ## Checklist
 
