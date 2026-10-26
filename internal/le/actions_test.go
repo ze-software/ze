@@ -12,9 +12,12 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/aihelp/reference"
 	"github.com/ze-software/ze/internal/component/command"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
@@ -522,4 +525,203 @@ func dispatchToStdout(t *testing.T, args ...string) (string, int) {
 		t.Fatalf("read the stdout file: %v", err)
 	}
 	return string(out), code
+}
+
+// TestEveryWordLeAcceptsIsInHelp holds le to the owner rule that every word it
+// accepts is one a reader can find (AC-51, AC-23, ai/META-DECISIONS.md
+// "Developer tooling"). Every registered area, action, keyword and enum value
+// appears on the help page of its level, in `le help ai commands | json`, and
+// among the completion candidates at its place. A hidden helper (one Ze spawns)
+// is absent from the root page and from completion, and present in help ai
+// marked hidden.
+// METHOD: walk leroot.Commands and each area's action table, and for each word
+// read the page through le's own dispatcher (`le help`, `le <area> --help`,
+// `le help <area> <verb>`), the reference through `le help ai commands | json`,
+// and the candidates through leroot.Complete at the words before it. A page
+// lists a word when one of its lines starts with that word followed by a
+// space; an enum value is found as a whole word of the action page.
+// PREVENTS: a word le accepts that no page, reference or completion shows,
+// which is a word nobody but its author can learn.
+func TestEveryWordLeAcceptsIsInHelp(t *testing.T) {
+	rootPage, code := dispatchToStdout(t, "help")
+	if code != 0 {
+		t.Fatalf("le help: exit %d", code)
+	}
+	raw, code := dispatchToStdout(t, "help", "ai", "commands", "|", "json")
+	if code != 0 {
+		t.Fatalf("le help ai commands | json: exit %d", code)
+	}
+	var ref reference.Reference
+	if err := json.Unmarshal([]byte(raw), &ref); err != nil {
+		t.Fatalf("le help ai commands | json is not the reference: %v", err)
+	}
+	referenced := map[string]reference.Command{}
+	for _, entry := range ref.Commands {
+		referenced[entry.Name] = entry
+	}
+
+	areas, actions, keywords, values, hidden := 0, 0, 0, 0, 0
+	for _, root := range leroot.Commands() {
+		area := root.Name
+		words := strings.Fields(area)
+		entry, inReference := referenced[area]
+		if !inReference {
+			t.Errorf("%s: absent from le help ai commands | json", area)
+			continue
+		}
+		first := completionAt(t, words[:len(words)-1])
+		if leroot.Hidden(area) {
+			hidden++
+			if !entry.Hidden {
+				t.Errorf("%s: a hidden helper, and help ai does not mark it hidden", area)
+			}
+			if pageListsWord(rootPage, area) {
+				t.Errorf("%s: a hidden helper, and the root page lists it", area)
+			}
+			if slices.Contains(first, words[len(words)-1]) {
+				t.Errorf("%s: a hidden helper, and completion offers it", area)
+			}
+			continue
+		}
+		areas++
+		if entry.Hidden {
+			t.Errorf("%s: help ai marks it hidden, and it is not registered hidden", area)
+		}
+		if !pageListsWord(rootPage, area) {
+			t.Errorf("%s: `le help` does not list it", area)
+		}
+		if !slices.Contains(first, words[len(words)-1]) {
+			t.Errorf("%s: completion after %q does not offer %q", area, words[:len(words)-1], words[len(words)-1])
+		}
+		list, tabled := leroot.ActionsOf(area)
+		if !tabled || list.PassesWords {
+			continue
+		}
+		// The trailing help word asks every area's page, the `ai` namespace's
+		// included, which `le help ai ...` cannot reach: there `ai` selects
+		// the reference.
+		areaPage, code := dispatchToStdout(t, append(slices.Clone(words), "--help")...)
+		if code != 0 {
+			t.Errorf("le %s --help: exit %d", area, code)
+			continue
+		}
+		verbs := completionAt(t, words)
+		for _, row := range list.Actions {
+			line := slices.Clone(words)
+			if row.Verb != "" {
+				actions++
+				line = append(line, row.Verb)
+				if !pageListsWord(areaPage, row.Verb) {
+					t.Errorf("%s %s: `le %s --help` does not list the action", area, row.Verb, area)
+				}
+				if !slices.Contains(verbs, row.Verb) {
+					t.Errorf("%s %s: completion after %q does not offer the action", area, row.Verb, words)
+				}
+			}
+			action, held := referencedAction(entry, row.Verb)
+			if !held {
+				t.Errorf("%s %s: help ai lists no such action", area, row.Verb)
+				continue
+			}
+			actionPage, code := dispatchToStdout(t, actionPageArgs(line)...)
+			if code != 0 {
+				t.Errorf("le %s: exit %d", strings.Join(actionPageArgs(line), " "), code)
+				continue
+			}
+			opening := completionAt(t, line)
+			for _, parameter := range row.Parameters {
+				if parameter.Retired != "" {
+					continue
+				}
+				published := slices.ContainsFunc(action.Parameters, func(got reference.Parameter) bool {
+					return got.Keyword == parameter.Keyword && got.Value == parameter.Value
+				})
+				if !published {
+					t.Errorf("%s: help ai does not carry the parameter %q <%s>", strings.Join(line, " "), parameter.Keyword, parameter.Value)
+				}
+				valuesAt := opening
+				if parameter.Keyword != "" {
+					keywords++
+					if !pageListsWord(actionPage, parameter.Keyword) {
+						t.Errorf("%s: `le help %s` does not list the keyword %s", strings.Join(line, " "), strings.Join(line, " "), parameter.Keyword)
+					}
+					if !slices.Contains(opening, parameter.Keyword) {
+						t.Errorf("%s: completion does not offer the keyword %s", strings.Join(line, " "), parameter.Keyword)
+					}
+					if parameter.Kind != leaction.KindEnum {
+						continue
+					}
+					valuesAt = completionAt(t, append(slices.Clone(line), parameter.Keyword))
+				}
+				if parameter.Kind != leaction.KindEnum {
+					continue
+				}
+				for _, value := range parameter.Values {
+					values++
+					if !regexp.MustCompile(`(^|[\s|,(<\[])` + regexp.QuoteMeta(value) + `($|[\s|,)>\]])`).MatchString(actionPage) {
+						t.Errorf("%s: `le help %s` does not show the value %s of %q", strings.Join(line, " "), strings.Join(line, " "), value, parameter.Keyword)
+					}
+					if !slices.Contains(valuesAt, value) {
+						t.Errorf("%s: completion does not offer the value %s of %q", strings.Join(line, " "), value, parameter.Keyword)
+					}
+				}
+			}
+		}
+	}
+	if areas == 0 || actions == 0 || keywords == 0 || values == 0 || hidden == 0 {
+		t.Fatalf("checked %d areas, %d actions, %d keywords, %d enum values and %d hidden helpers: a zero count proves nothing", areas, actions, keywords, values, hidden)
+	}
+}
+
+// pageListsWord reports whether one line of a help page starts with word
+// followed by a space, or is the word alone: the shape of every listing entry,
+// padded to its column.
+func pageListsWord(page, word string) bool {
+	for line := range strings.SplitSeq(page, "\n") {
+		// A long entry wraps its summary to the next line, leaving the word
+		// alone on its own.
+		trimmed := strings.TrimSpace(line)
+		if trimmed == word || strings.HasPrefix(trimmed, word+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+// completionAt answers the values leroot.Complete offers after typed, with
+// nothing partial typed yet.
+func completionAt(t *testing.T, typed []string) []string {
+	t.Helper()
+	candidates, err := leroot.Complete(append(slices.Clone(typed), ""))
+	if err != nil {
+		t.Errorf("complete after %q: %v", typed, err)
+		return nil
+	}
+	offered := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		offered = append(offered, candidate.Value)
+	}
+	return offered
+}
+
+// actionPageArgs answers the line that asks le for an action's own page:
+// `help <area> <verb>`, which reaches le's page even for an action whose
+// trailing words are another program's (`perf send`), where a trailing help
+// word would ask that program. The `ai` namespace is the exception: `ai` after
+// `help` selects the reference (D-Q1), so its pages are asked with a trailing
+// help word, and none of its actions hands words to a program.
+func actionPageArgs(line []string) []string {
+	if line[0] == "ai" {
+		return append(slices.Clone(line), "--help")
+	}
+	return append([]string{"help"}, line...)
+}
+
+// referencedAction answers the help ai action spelled verb.
+func referencedAction(entry reference.Command, verb string) (reference.Action, bool) {
+	index := slices.IndexFunc(entry.Actions, func(action reference.Action) bool { return action.Verb == verb })
+	if index < 0 {
+		return reference.Action{}, false
+	}
+	return entry.Actions[index], true
 }

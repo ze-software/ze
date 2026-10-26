@@ -62,11 +62,21 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 			if list.Verbless() {
 				return afterVerb(list.Actions[0], typed[index:], partial)
 			}
+			// An area may also be the first words of other areas (`repo` and
+			// `repo changed`, `setup` and `setup docker host`). Tree refuses a
+			// verb spelled like an area under it, so a word that is no verb of
+			// this area and is a child of its node names the area below.
 			row, held := rowOf(list, word)
-			if !held {
+			if held {
+				return afterVerb(row, typed[index+1:], partial)
+			}
+			child, below := node.Children[word]
+			if !below {
 				return nil, unknownWord(path, word)
 			}
-			return afterVerb(row, typed[index+1:], partial)
+			node = child
+			path = append(path, word)
+			continue
 		}
 		child, held := node.Children[word]
 		if !held {
