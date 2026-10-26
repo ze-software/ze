@@ -49,7 +49,7 @@ var reviewedReach = map[string][]string{
 	"verify deps/unit-cached":       verifyDepsReaders,
 	"verify deps/unit-race-changed": verifyDepsReaders,
 	"verify deps/alloc":             verifyDepsReaders,
-	"test functional/exabgp":   {"test/functional:selectSuites"},
+	"test functional/exabgp":        {"test/functional:selectSuites"},
 }
 
 // TestAWholeStageReachesNoChangeScopeReader refuses a Whole claim the scan
