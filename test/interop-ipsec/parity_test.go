@@ -62,6 +62,8 @@ var ipsecScenarios = []string{
 	"responder-psk",
 	"responder-raises-child-rekey",
 	"responder-two-subnets",
+	"virtual-ip-assignment",
+	"virtual-ip-uniqueness",
 }
 
 // VALIDATES: The native registry exposes the complete reviewed IPsec scenario
@@ -105,6 +107,7 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 		"real-nat-tunnel-control":         {"nat.conf"},
 		"responder-eap-mschapv2":          {"strongswan.conf"},
 		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"virtual-ip-uniqueness":           {"nat.conf"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)
