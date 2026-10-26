@@ -460,15 +460,37 @@ same refusal on which `installChildSA` kept a degraded Child SA and its record).
 The SPD ledger (`spdLeftover.record`) reads the same predicate, so the two never
 disagree. Any other failure strands the record with the policies left. An
 overlapping peer is then refused with `errInnerSelectorStranded`, whose text
-names the `ip xfrm policy delete` command for each policy and no configuration
-of the holder, which may have been removed. `retryStranded` removes them again
-before each narrowing, before each claim and on each `reconcilePeers`, one
-removal per policy each time with no goroutine of its own, and releases the
-record once all are gone. A claim by the same owner adopts each stranded policy
-its own install re-creates (`adoptStrandedLocked`), because the upsert makes the
-kernel entry the live Child SA's, and a later retry must not remove it.
+names, for each policy, the removal command of the dataplane that holds it and
+no configuration of the holder, which may have been removed. The command is the
+backend's own (`dataplane.PolicyDeleteCommander`), named once when the record is
+stranded (`strandedCommand`): `ip xfrm policy delete` with every selector field
+for XFRM, and `vppctl ipsec policy del` for VPP, written from the SPD entry the
+VPP backend recorded, because VPP matches a delete on the whole entry, SA id
+included, and the SA is already removed by then. A backend that names no command
+(the noop one, whose removal never fails) is said to name none, with the
+selector, rather than handed another backend's command. `retryStranded` removes
+them again before each narrowing, before each claim and on each
+`reconcilePeers`, one removal per policy each time with no goroutine of its own,
+and releases the record once all are gone; a count of stranded records lets it
+return at once when there is none. It retries through the dataplane that
+installed the policies, which is the engine's one backend for its life
+(`dataplane.Load` in `runEngine`). A claim by the same owner adopts each stranded
+policy its own install re-creates (`adoptStrandedLocked`), because the upsert
+makes the kernel entry the live Child SA's, and a later retry must not remove it.
+
+The retry holds the registry's `retryMu` from its copy of the stranded records,
+through every removal, to its last settle, and `claim` takes the same lock before
+the registry's map lock (order `retryMu`, then `mu`; nothing takes them the other
+way). Without it, a claim between a retry's copy and its removal adopted a policy
+the retry then removed, deleting the new Child SA's live policy (the XFRM owner
+check passes for the same owner, and the VPP backend checks none), and two
+retries could both remove one policy, the second taking the policy another peer
+had just installed on the freed selector. What the lock spans is bounded: one
+netlink or VPP API request per stranded policy.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
-<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, adoptStrandedLocked, innerSelectorStrandedConflict -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, strandedCommand, adoptStrandedLocked, innerSelectorStrandedConflict -->
+<!-- source: internal/component/ike/dataplane/policy_command.go -- PolicyDeleteCommander, XFRMPolicyDeleteCommand -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppBackend.PolicyDeleteCommand, vppPolicyDelCommand -->
 <!-- source: internal/component/ike/engine/child.go -- removeChildSAExcept, releaseInnerRecord, policyGone, removeStrandedPolicies -->
 
 **A guard keyed on inequality is inert when both sides are empty.** The claim

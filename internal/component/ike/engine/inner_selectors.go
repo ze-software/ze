@@ -9,6 +9,7 @@ package engine
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -35,15 +36,24 @@ import (
 // The inbound policy is the same pair with the two sides swapped, so two pairs overlap
 // inbound exactly when they overlap outbound and one direction is enough.
 //
-// Safe for concurrent use. One mutex guards the map, and no method calls the dataplane
-// or blocks while holding it.
+// Safe for concurrent use. mu guards the map, and no method calls the dataplane or
+// blocks while holding it. retryMu serializes the stranded retry with itself and with
+// claim, and it is held across the retry's policy removals (retryStranded).
+//
+// Lock order: retryMu, then mu. claim and retryStranded take retryMu first; every
+// other method takes mu alone, and nothing takes retryMu while holding mu.
 type innerSelectorRegistry struct {
-	mu sync.Mutex
+	retryMu sync.Mutex
+	mu      sync.Mutex
 	// held is bounded by the live Child SAs plus the stranded ones: claim adds one entry
 	// per installed Child SA, and removeChildSAExcept removes it when the Child SA goes
 	// away, or strands it when a policy of it stayed in the dataplane, until
-	// retryStranded removes that policy.
+	// retryStranded removes that policy. Written only through putLocked and
+	// deleteLocked, which keep stranded in step.
 	held map[*ChildSA]innerSelectorHolding
+	// stranded counts the holdings in held that carry stranded policies, so the retry
+	// that runs before every proposal returns at once when nothing is stranded.
+	stranded int
 }
 
 // innerSelectorHolding is what one Child SA holds: its peer and its pairs. stranded is
@@ -58,12 +68,73 @@ type innerSelectorHolding struct {
 // strandedPolicies is what a removed Child SA left in the dataplane: the policies whose
 // removal failed, the dataplane to retry them on, and the log of the session that
 // removed it. It is never mutated once a holding carries it: a retry that leaves some
-// policies replaces it, so a retry running beside another can tell by identity whether
-// the holding changed under it.
+// policies replaces it, so settleStranded can tell by identity whether the holding
+// changed under it.
+//
+// dp is the dataplane that installed the policies, and the retry removes them through
+// it rather than through dataplane.Get. runEngine loads the backend once
+// (dataplane.Load, register.go) and a configuration commit keeps it, so the two are the
+// same backend for the engine's life. Only that instance could remove the entry anyway:
+// a VPP backend sends back the SPD entry it recorded, in the SPD it created.
 type strandedPolicies struct {
 	dp   dataplane.Dataplane
-	left []dataplane.SPParams
+	left []strandedPolicy
 	log  *slog.Logger
+}
+
+// strandedPolicy is one policy a removal left, with the command that removes it by
+// hand, named when the policy was stranded (strandedCommand). The command is carried
+// rather than asked for when a refusal is written, because the refusal is written
+// under the registry's lock, which never calls the dataplane.
+type strandedPolicy struct {
+	params  dataplane.SPParams
+	command string
+}
+
+// newStrandedPolicies names, for each policy in left, the command that removes it on
+// dp (strandedCommand), and carries both for retryStranded.
+func newStrandedPolicies(dp dataplane.Dataplane, left []dataplane.SPParams, log *slog.Logger) *strandedPolicies {
+	out := make([]strandedPolicy, 0, len(left))
+	for i := range left {
+		out = append(out, strandedPolicy{params: left[i], command: strandedCommand(dp, &left[i])})
+	}
+	return &strandedPolicies{dp: dp, left: out, log: log}
+}
+
+// strandedCommand is the command an operator runs to remove p from dp by hand, as the
+// backend names it (dataplane.PolicyDeleteCommander): `ip xfrm policy delete` for XFRM,
+// `vppctl ipsec policy del` for VPP. A backend that names none, or cannot name this
+// policy, is said to, with the policy's selector, so the operator is never handed
+// another backend's command for it.
+func strandedCommand(dp dataplane.Dataplane, p *dataplane.SPParams) string {
+	commander, ok := dp.(dataplane.PolicyDeleteCommander)
+	if !ok {
+		return "(the dataplane names no command that removes the policy " + strandedSelectorText(p) + ")"
+	}
+	command, err := commander.PolicyDeleteCommand(*p)
+	if err != nil {
+		return "(the dataplane names no command that removes the policy " + strandedSelectorText(p) +
+			": " + err.Error() + ")"
+	}
+	return command
+}
+
+// strandedSelectorText names p's selector in no backend's syntax, for strandedCommand.
+func strandedSelectorText(p *dataplane.SPParams) string {
+	var text textbuf.Buffer
+	text.Str(dirLabel(p.Dir)).Str(" src ").Str(ipNetText(p.Src)).Str(" dst ").Str(ipNetText(p.Dst))
+	if p.UpperProto != 0 {
+		text.Str(" protocol ").Uint8(p.UpperProto)
+	}
+	return string(text.Bytes())
+}
+
+// ipNetText names a selector prefix, a nil one as "any".
+func ipNetText(n *net.IPNet) string {
+	if n == nil {
+		return "any"
+	}
+	return n.String()
 }
 
 // innerSelectorPair is one negotiated pair as the dataplane installs it outbound, with
@@ -260,8 +331,18 @@ func (r *innerSelectorRegistry) admit(owner string, p innerSelectorPair) error {
 // child from then on, and a later retry removing it would take the live tunnel's
 // policy with it.
 //
+// claim takes retryMu before mu, so it never runs while a retry is between copying the
+// stranded policies and settling them. A claim in that window would adopt a policy the
+// retry is about to remove, the caller's install would upsert the same selector, and
+// the retry's removal would then delete the new Child SA's live policy: on XFRM the
+// owner check passes because the owner is the same, and the VPP backend checks no
+// owner at all. Waiting costs at most the retry's own removals, one per stranded
+// policy (retryStranded).
+//
 // MUST be paired with release when the Child SA goes away or its install fails.
 func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []innerSelectorPair, installs []dataplane.SPParams) error {
+	r.retryMu.Lock()
+	defer r.retryMu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range pairs {
@@ -270,7 +351,7 @@ func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []inne
 		}
 	}
 	r.adoptStrandedLocked(owner, installs)
-	r.held[child] = innerSelectorHolding{owner: owner, pairs: pairs}
+	r.putLocked(child, innerSelectorHolding{owner: owner, pairs: pairs})
 	return nil
 }
 
@@ -285,19 +366,40 @@ func (r *innerSelectorRegistry) adoptStrandedLocked(owner string, installs []dat
 		if holding.owner != owner {
 			continue
 		}
-		left := make([]dataplane.SPParams, 0, len(holding.stranded.left))
+		left := make([]strandedPolicy, 0, len(holding.stranded.left))
 		for i := range holding.stranded.left {
-			if !installsSelector(installs, &holding.stranded.left[i]) {
+			if !installsSelector(installs, &holding.stranded.left[i].params) {
 				left = append(left, holding.stranded.left[i])
 			}
 		}
 		if len(left) == 0 {
-			delete(r.held, child)
+			r.deleteLocked(child)
 			continue
 		}
 		holding.stranded = &strandedPolicies{dp: holding.stranded.dp, left: left, log: holding.stranded.log}
-		r.held[child] = holding
+		r.putLocked(child, holding)
 	}
+}
+
+// putLocked records holding for child, keeping the stranded count in step with what it
+// replaces. MUST be called with r.mu held.
+func (r *innerSelectorRegistry) putLocked(child *ChildSA, holding innerSelectorHolding) {
+	if was, ok := r.held[child]; ok && was.stranded != nil {
+		r.stranded--
+	}
+	if holding.stranded != nil {
+		r.stranded++
+	}
+	r.held[child] = holding
+}
+
+// deleteLocked forgets child, keeping the stranded count in step. MUST be called with
+// r.mu held.
+func (r *innerSelectorRegistry) deleteLocked(child *ChildSA) {
+	if was, ok := r.held[child]; ok && was.stranded != nil {
+		r.stranded--
+	}
+	delete(r.held, child)
 }
 
 // installsSelector reports whether installs holds an entry with p's selector.
@@ -319,7 +421,7 @@ func installsSelector(installs []dataplane.SPParams, p *dataplane.SPParams) bool
 func (r *innerSelectorRegistry) release(child *ChildSA) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.held, child)
+	r.deleteLocked(child)
 }
 
 // strand keeps child's record after its removal left the policies s names in the
@@ -333,7 +435,7 @@ func (r *innerSelectorRegistry) strand(child *ChildSA, s *strandedPolicies) {
 		return
 	}
 	holding.stranded = s
-	r.held[child] = holding
+	r.putLocked(child, holding)
 }
 
 // retryStranded tries again to remove the policies of every stranded holding, and
@@ -349,33 +451,53 @@ func (r *innerSelectorRegistry) strand(child *ChildSA, s *strandedPolicies) {
 // one removal per stranded policy each time, with no loop and no goroutine of its own,
 // and a refused peer's next attempt is the next try.
 //
-// Safe for concurrent use. The dataplane is called with r.mu released, and a holding
-// that changed while it ran (released, adopted, or retried beside it) is left as the
-// other path left it.
+// Safe for concurrent use. retryMu is held from the copy of the stranded holdings,
+// through every removal, to the last settle, so a second retry copies only what the
+// first left, and no claim adopts a policy between this retry's copy and its removal
+// (claim). Without it two retries both removed one policy, and a peer that claimed the
+// freed selector between the first removal and the second lost its fresh policy to the
+// second. What retryMu spans is bounded: one dataplane removal per stranded policy,
+// each a netlink or VPP API request. The dataplane is called with r.mu released.
 func (r *innerSelectorRegistry) retryStranded() {
-	type strandedChild struct {
-		child    *ChildSA
-		stranded *strandedPolicies
+	r.retryMu.Lock()
+	defer r.retryMu.Unlock()
+
+	work := r.strandedWork()
+	for i := range work {
+		left := removeStrandedPolicies(work[i].stranded)
+		r.settleStranded(work[i].child, work[i].stranded, left)
 	}
+}
+
+// strandedChild is one stranded holding a retry works on (retryStranded).
+type strandedChild struct {
+	child    *ChildSA
+	stranded *strandedPolicies
+}
+
+// strandedWork copies every stranded holding, and none when the stranded count says
+// there is none, so the retry before each proposal costs one lock when nothing is
+// stranded.
+func (r *innerSelectorRegistry) strandedWork() []strandedChild {
 	r.mu.Lock()
-	var work []strandedChild
+	defer r.mu.Unlock()
+	// refuse-by-default: guards retryStranded -- a zero count is the registry holding no stranded record, kept in step by putLocked and deleteLocked
+	if r.stranded == 0 {
+		return nil
+	}
+	work := make([]strandedChild, 0, r.stranded)
 	for child, holding := range r.held {
 		if holding.stranded != nil {
 			work = append(work, strandedChild{child: child, stranded: holding.stranded})
 		}
 	}
-	r.mu.Unlock()
-
-	for _, w := range work {
-		left := removeStrandedPolicies(w.stranded)
-		r.settleStranded(w.child, w.stranded, left)
-	}
+	return work
 }
 
 // settleStranded records the outcome of one retry of was: child is released when left
 // is empty, and otherwise keeps a record naming left. A holding no longer carrying was
 // is left alone (retryStranded).
-func (r *innerSelectorRegistry) settleStranded(child *ChildSA, was *strandedPolicies, left []dataplane.SPParams) {
+func (r *innerSelectorRegistry) settleStranded(child *ChildSA, was *strandedPolicies, left []strandedPolicy) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	holding, ok := r.held[child]
@@ -386,13 +508,13 @@ func (r *innerSelectorRegistry) settleStranded(child *ChildSA, was *strandedPoli
 		return
 	}
 	if len(left) == 0 {
-		delete(r.held, child)
+		r.deleteLocked(child)
 		was.log.Info("child-sa: the policies a failed removal left are gone, so their tunnel selectors are released",
 			"peer", holding.owner, "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
 		return
 	}
 	holding.stranded = &strandedPolicies{dp: was.dp, left: left, log: was.log}
-	r.held[child] = holding
+	r.putLocked(child, holding)
 }
 
 // holdings returns how many Child SAs the registry records.
@@ -479,13 +601,13 @@ func innerSelectorStrandedConflict(owner string, p innerSelectorPair, holder str
 		if i > 0 {
 			commands.WriteString("; ")
 		}
-		commands.WriteString(deleteCommand(&s.left[i]))
+		commands.WriteString(s.left[i].command)
 	}
 	return fmt.Errorf("%w: peer %s proposed the tunnel %s, which overlaps the tunnel %s that peer %s held, "+
 		"and a policy of that tunnel could not be removed from the dataplane, so one packet could still be "+
 		"sent into it (RFC 3948 Section 5.1); Ze retries the removal each time a peer proposes a tunnel and "+
-		"each time a configuration is committed; to release it now, run %s, and the next proposal "+
-		"releases it, or as a last resort restart Ze",
+		"each time a configuration is committed; to release it now, remove it with the dataplane's own "+
+		"command: %s; the next proposal then releases it, or as a last resort restart Ze",
 		errInnerSelectorStranded, owner, p.text, h.text, holder, commands.String())
 }
 
@@ -535,17 +657,18 @@ var errInnerSelectorStranded = fmt.Errorf("%w: a removed tunnel's policy is stil
 const childRefusedFixResponderStranded = "a tunnel another peer held, which one packet could also be " +
 	"sent into, left a policy Ze could not remove (RFC 3948 Section 5.1), so this peer gets no Child SA " +
 	"until it is gone; Ze retries the removal each time a peer proposes a tunnel and each time a " +
-	"configuration is committed; to release it now, run the ip xfrm policy delete commands the error " +
-	"names, and the peer's next proposal releases it, or as a last resort restart Ze"
+	"configuration is committed; to release it now, run the removal commands the error names, each in " +
+	"the dataplane's own tool (ip xfrm on the Linux kernel, vppctl on VPP), and the peer's next " +
+	"proposal releases it, or as a last resort restart Ze"
 
 // childResponseFixStranded is the fix logged when this node, as the Child SA initiator,
 // refuses the answered tunnel for the same reason.
 const childResponseFixStranded = "a tunnel another peer held, which one packet could also be " +
 	"sent into, left a policy Ze could not remove (RFC 3948 Section 5.1), so this Child SA was deleted " +
 	"and the IKE SA kept with no Child SA, asking again on its creation schedule; Ze retries the removal " +
-	"at each attempt and each time a configuration is committed; to release it now, run the " +
-	"ip xfrm policy delete commands the error names, and the next attempt releases it, or as a last " +
-	"resort restart Ze"
+	"at each attempt and each time a configuration is committed; to release it now, run the removal " +
+	"commands the error names, each in the dataplane's own tool (ip xfrm on the Linux kernel, vppctl on " +
+	"VPP), and the next attempt releases it, or as a last resort restart Ze"
 
 // errInnerSelectorConflict marks a refusal because another peer holds an overlapping
 // tunnel (innerSelectorConflict). It wraps errTSUnacceptable, so notifyForRefusal still

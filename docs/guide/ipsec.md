@@ -264,8 +264,9 @@ A tunnel keeps its selectors until its kernel policies are gone, not only until
 the tunnel ends. If Ze cannot remove a policy when a tunnel ends, after a
 transient netlink error for example, the policy can still send packets into the
 old tunnel, so its selectors stay reserved and a peer proposing an overlapping
-tunnel is refused. The warning lists the `ip xfrm policy delete` command for
-each policy left. Ze tries the removal again each time a peer proposes a tunnel
+tunnel is refused. The warning lists, for each policy left, the command that
+removes it in the dataplane's own tool: `ip xfrm policy delete ...` on the Linux
+kernel, `vppctl ipsec policy del ...` on VPP. Ze tries the removal again each time a peer proposes a tunnel
 and each time a configuration is committed, and releases the selectors as soon
 as the policies are gone. Running the listed commands lets the next proposal
 succeed, and restarting Ze is the last resort. The refusal names no

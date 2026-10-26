@@ -15,6 +15,8 @@ import (
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/ipsec"
 	"go.fd.io/govpp/binapi/ipsec_types"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The SECURITY POLICY half of the VPP IPsec backend: the SPD this backend creates,
@@ -252,6 +254,89 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 	b.forgetSPDEntry(entry)
 	return nil
 }
+
+// PolicyDeleteCommand implements PolicyDeleteCommander with the VPP CLI command that
+// removes the SPD entry this backend recorded for p, run through vppctl.
+//
+// VPP matches a delete on the whole entry, its SA id included: the `ipsec policy`
+// command (ipsec_policy_add_del_command_fn, src/vnet/ipsec/ipsec_cli.c) parses `del`
+// with the same spd, priority, direction, action, sa, protocol, address-range and
+// port-range fields the add carried. The command is therefore written from the entry
+// this backend recorded (spdEntries), never rebuilt from p: when a removal failure is
+// reported the Child SA's states are already removed and their SAD ids forgotten
+// (RemoveSA), so only the record still names the SA id. More than one recorded entry
+// with p's selector means two SAs share it, and the command would be a guess, so it is
+// refused.
+func (b *vppBackend) PolicyDeleteCommand(p SPParams) (string, error) {
+	probe, err := vppSPDSelector(p)
+	if err != nil {
+		return "", err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	probe.SpdID = b.spdID
+	var found []ipsec_types.IpsecSpdEntryV2
+	for _, held := range b.spdEntries {
+		match := held
+		match.SaID = 0
+		if match == probe {
+			found = append(found, held)
+		}
+	}
+	if len(found) == 0 {
+		return "", fmt.Errorf(
+			"vpp: this backend recorded no SPD entry with this selector in SPD %d; find it with 'vppctl show ipsec spd %d'",
+			b.spdID, b.spdID)
+	}
+	if len(found) > 1 {
+		return "", fmt.Errorf(
+			"vpp: %d SPD entries in SPD %d carry this selector under different SAs; find the one to remove with 'vppctl show ipsec spd %d'",
+			len(found), b.spdID, b.spdID)
+	}
+	return vppPolicyDelCommand(&found[0]), nil
+}
+
+// vppPolicyDelCommand writes the `vppctl ipsec policy del` command for entry, every
+// field VPP matches a delete on. An SA is named only for a PROTECT entry, the one action
+// that carries one, and the action words are the ones unformat_ipsec_policy_action
+// reads (src/vnet/ipsec/ipsec_format.c).
+func vppPolicyDelCommand(entry *ipsec_types.IpsecSpdEntryV2) string {
+	var b textbuf.Buffer
+	b.Str("vppctl ipsec policy del spd ").Uint32(entry.SpdID)
+	b.Str(" priority ").Int(int64(entry.Priority))
+	if entry.IsOutbound {
+		b.Str(" outbound")
+	} else {
+		b.Str(" inbound")
+	}
+	b.Str(" action ").Str(vppActionWord(entry.Policy))
+	if entry.Policy == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+		b.Str(" sa ").Uint32(entry.SaID)
+	}
+	b.Str(" protocol ").Uint8(entry.Protocol)
+	b.Str(" local-ip-range ").Str(entry.LocalAddressStart.String()).Str(" - ").Str(entry.LocalAddressStop.String())
+	b.Str(" remote-ip-range ").Str(entry.RemoteAddressStart.String()).Str(" - ").Str(entry.RemoteAddressStop.String())
+	b.Str(" local-port-range ").Uint16(entry.LocalPortStart).Str(" - ").Uint16(entry.LocalPortStop)
+	b.Str(" remote-port-range ").Uint16(entry.RemotePortStart).Str(" - ").Uint16(entry.RemotePortStop)
+	return string(b.Bytes())
+}
+
+// vppActionWord is the VPP CLI word for an SPD action. The set is closed: vppSPDAction
+// produces only bypass, discard and protect, so any other value is a Ze defect.
+func vppActionWord(a ipsec_types.IpsecSpdAction) string {
+	switch a {
+	case ipsec_types.IPSEC_API_SPD_ACTION_BYPASS:
+		return "bypass"
+	case ipsec_types.IPSEC_API_SPD_ACTION_DISCARD:
+		return "discard"
+	case ipsec_types.IPSEC_API_SPD_ACTION_PROTECT:
+		return "protect"
+	case ipsec_types.IPSEC_API_SPD_ACTION_RESOLVE:
+		panic("BUG: vppSPDAction never produces the resolve action")
+	default:
+		panic("BUG: SPD entry carries an action vppSPDAction never produces")
+	}
+}
 func (b *vppBackend) ListPolicies() ([]PolicyInfo, error) {
 	return nil, fmt.Errorf("%w: the vpp backend cannot enumerate the SPD; use the VPP CLI to read it back", ErrNotSupported)
 }
@@ -396,20 +481,11 @@ func (b *vppBackend) freeSPDID() (uint32, error) {
 // created for it. One builder keeps the delete byte-identical to the add, which is
 // what VPP needs to match it. b.mu is held.
 func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
-	var entry ipsec_types.IpsecSpdEntryV2
-	// DIRECTION FIRST, and refused explicitly, as vppUnsupportedSA refuses it for an
-	// SA. ipsec_spd_entry_v2 carries one boolean, is_outbound, so SADirFwd and an unset
-	// Dir both reached VPP as INBOUND. plugins/ospf/ipsec_install.go produces SADirFwd
-	// (buildIPsecPolicies), and it was refused only because its policy is also
-	// transport mode and the mode check happened to run first.
-	if p.Dir != SADirIn && p.Dir != SADirOut {
-		return entry, fmt.Errorf(
-			"%w: vpp: policy direction %d names neither inbound (%d) nor outbound (%d), and an ipsec_spd_entry_v2 carries one direction; installing it would program an inbound policy",
-			ErrNotSupported, p.Dir, SADirIn, SADirOut)
+	entry, err := vppSPDSelector(p)
+	if err != nil {
+		return entry, err
 	}
-	action := vppSPDAction(p.Action)
-	var sadID uint32
-	if action == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+	if entry.Policy == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
 		if err := vppProtectMode(p.Mode); err != nil {
 			return entry, err
 		}
@@ -439,8 +515,27 @@ func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 				"%w: vpp: a protect policy names SA spi=%d dst=%v proto=%d, and this backend has installed no such SA; the policy would resolve to an id it did not allocate",
 				ErrNotSupported, p.SAID, p.TunnelDst, p.Proto)
 		}
-		sadID = got
+		entry.SaID = got
 	}
+	return entry, nil
+}
+
+// vppSPDSelector builds every field of the SPD entry for p except its SpdID and its SA
+// id (spdEntry), which are this backend's state. It is also what PolicyDeleteCommand
+// matches a recorded entry on, once the SA whose id the entry carries is gone.
+func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
+	var entry ipsec_types.IpsecSpdEntryV2
+	// DIRECTION FIRST, and refused explicitly, as vppUnsupportedSA refuses it for an
+	// SA. ipsec_spd_entry_v2 carries one boolean, is_outbound, so SADirFwd and an unset
+	// Dir both reached VPP as INBOUND. plugins/ospf/ipsec_install.go produces SADirFwd
+	// (buildIPsecPolicies), and it was refused only because its policy is also
+	// transport mode and the mode check happened to run first.
+	if p.Dir != SADirIn && p.Dir != SADirOut {
+		return entry, fmt.Errorf(
+			"%w: vpp: policy direction %d names neither inbound (%d) nor outbound (%d), and an ipsec_spd_entry_v2 carries one direction; installing it would program an inbound policy",
+			ErrNotSupported, p.Dir, SADirIn, SADirOut)
+	}
+	action := vppSPDAction(p.Action)
 	upperProto, err := vppUpperProto(p.UpperProto)
 	if err != nil {
 		return entry, err
@@ -466,7 +561,6 @@ func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 		// SpdID is set by the caller, from ensureSPD.
 		Priority:   vppPriority(p.Priority),
 		IsOutbound: p.Dir == SADirOut,
-		SaID:       sadID,
 		Policy:     action,
 		// The SPD protocol is the UPPER-LAYER protocol of the matched traffic, never
 		// the IPsec transform. Sending p.Proto here put ESP (50) in a field that names

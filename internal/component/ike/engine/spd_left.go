@@ -7,10 +7,7 @@ package engine
 import (
 	"errors"
 	"log/slog"
-	"net"
 	"slices"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -108,90 +105,25 @@ func (l *spdLeftover) record(p *dataplane.SPParams, err error) {
 // The command carries every field of spdSelector, because two entries that share
 // direction and prefixes still differ by protocol, port or if_id: the IKE bypass on
 // port 500 and the one on port 4500 are two entries, and a line naming neither port
-// left the operator unable to tell which command removes which. Priority is not
-// written: it ranks an entry but is no part of its identity, so the kernel does not
-// match a removal on it and `ip xfrm policy delete` takes no priority argument.
+// left the operator unable to tell which command removes which
+// (dataplane.XFRMPolicyDeleteCommand).
 func (l *spdLeftover) describe() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	names := make([]string, 0, len(l.entries))
 	for sel := range l.entries {
 		p := l.entries[sel]
-		names = append(names, deleteCommand(&p))
+		names = append(names, dataplane.XFRMPolicyDeleteCommand(&p))
 	}
 	slices.Sort(names)
 	return names
 }
 
-// deleteCommand writes the `ip xfrm policy delete` command whose selector is p's.
-//
-// A nil prefix is written as the wildcard of the family the kernel writer gives it
-// (the destination's, IPv4 when both are nil), because `ip xfrm` needs a family to
-// match the entry the kernel holds. A port the selector constrains is written with
-// its protocol, which `ip xfrm` requires before sport and dport.
-func deleteCommand(p *dataplane.SPParams) string {
-	ipv6 := p.Dst != nil && p.Dst.IP.To4() == nil
-	var b strings.Builder
-	b.WriteString("ip xfrm policy delete ")
-	b.WriteString(dirLabel(p.Dir))
-	b.WriteString(" src ")
-	b.WriteString(prefixLabel(p.Src, ipv6))
-	b.WriteString(" dst ")
-	b.WriteString(prefixLabel(p.Dst, ipv6))
-	if p.UpperProto != 0 {
-		b.WriteString(" proto ")
-		b.WriteString(strconv.Itoa(int(p.UpperProto)))
-	}
-	if !p.SrcPort.IsAny() {
-		b.WriteString(" sport ")
-		b.WriteString(portLabel(p.SrcPort))
-	}
-	if !p.DstPort.IsAny() {
-		b.WriteString(" dport ")
-		b.WriteString(portLabel(p.DstPort))
-	}
-	if p.IfID != 0 {
-		b.WriteString(" if_id ")
-		b.WriteString(string(strconv.AppendUint(nil, uint64(p.IfID), 10)))
-	}
-	return b.String()
-}
-
-// prefixLabel names a selector prefix, writing a nil one as its family's wildcard.
-func prefixLabel(n *net.IPNet, ipv6 bool) string {
-	if n != nil {
-		return n.String()
-	}
-	if ipv6 {
-		return "::/0"
-	}
-	return "0.0.0.0/0"
-}
-
-// portLabel names a port match. The XFRM backend installs only an exact port
-// (xfrmSelectorPort refuses any other mask), so a partial mask can only come from
-// another backend; it is written as port/mask, which `ip xfrm` refuses, rather than
-// as the bare port, which would name a narrower entry than the one left behind.
-func portLabel(m dataplane.PortMatch) string {
-	port := strconv.Itoa(int(m.Port))
-	if m.Mask == 0xffff {
-		return port
-	}
-	return port + "/0x" + string(strconv.AppendUint(nil, uint64(m.Mask), 16))
-}
-
-// dirLabel is the `ip xfrm policy` keyword for a direction, so an operator can paste
-// the warning's entries into the command that removes them.
+// dirLabel is the `ip xfrm policy` keyword for a direction, the one
+// dataplane.XFRMPolicyDeleteCommand writes, so a log line and a removal command name a
+// direction the same way.
 func dirLabel(dir dataplane.SADir) string {
-	switch dir {
-	case dataplane.SADirIn:
-		return "dir in"
-	case dataplane.SADirOut:
-		return "dir out"
-	case dataplane.SADirFwd:
-		return "dir fwd"
-	}
-	return "dir unknown"
+	return dataplane.XFRMDirKeyword(dir)
 }
 
 // warnSPDLeft logs the entries the ledger holds and reports whether there were any.

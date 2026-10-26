@@ -956,16 +956,20 @@ func releaseInnerRecord(child *ChildSA, dp dataplane.Dataplane, left []dataplane
 		child.innerGuard.release(child)
 		return
 	}
-	child.innerGuard.strand(child, &strandedPolicies{dp: dp, left: left, log: log})
-	commands := make([]string, 0, len(left))
-	for i := range left {
-		commands = append(commands, deleteCommand(&left[i]))
+	// The commands are the dataplane's own (strandedCommand): ip xfrm for the kernel,
+	// vppctl for VPP.
+	stranded := newStrandedPolicies(dp, left, log)
+	child.innerGuard.strand(child, stranded)
+	commands := make([]string, 0, len(stranded.left))
+	for i := range stranded.left {
+		commands = append(commands, stranded.left[i].command)
 	}
 	log.Warn("child-sa: a policy could not be removed, so its tunnel selectors stay reserved and "+
 		"another peer proposing an overlapping tunnel is refused (RFC 3948 Section 5.1); Ze retries "+
 		"the removal each time a peer proposes a tunnel and each time a configuration is committed, "+
 		"and releases the selectors once it succeeds; to release them now, run each command in "+
-		"commands, and the next proposal releases them, or as a last resort restart Ze",
+		"commands with the dataplane's own tool, and the next proposal releases them, or as a last "+
+		"resort restart Ze",
 		"peer", child.Owner, "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "commands", commands)
 }
 
@@ -973,18 +977,18 @@ func releaseInnerRecord(child *ChildSA, dp dataplane.Dataplane, left []dataplane
 // ones still in the dataplane (policyGone). It is the retry of the removals
 // removeChildSAOutgoing and removeChildSAIncoming made, through the same
 // removeZePolicy, so a success also takes the entry out of the SPD ledger.
-func removeStrandedPolicies(s *strandedPolicies) []dataplane.SPParams {
+func removeStrandedPolicies(s *strandedPolicies) []strandedPolicy {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
-	var left []dataplane.SPParams
-	for _, p := range s.left {
-		err := removeZePolicy(s.dp, p)
+	var left []strandedPolicy
+	for i := range s.left {
+		err := removeZePolicy(s.dp, s.left[i].params)
 		if policyGone(err) {
 			continue
 		}
-		s.log.Debug("child-sa: retry remove policy", "dir", dirLabel(p.Dir), "error", err)
-		left = append(left, p)
+		s.log.Debug("child-sa: retry remove policy", "dir", dirLabel(s.left[i].params.Dir), "error", err)
+		left = append(left, s.left[i])
 	}
 	return left
 }

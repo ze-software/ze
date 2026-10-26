@@ -63,7 +63,7 @@ func clearLedgerAfter(t *testing.T, child *ChildSA) {
 func ledgerNames(child *ChildSA) bool {
 	left := spdLeft.describe()
 	for _, p := range append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...) {
-		if slices.Contains(left, deleteCommand(&p)) {
+		if slices.Contains(left, dataplane.XFRMPolicyDeleteCommand(&p)) {
 			return true
 		}
 	}
@@ -174,7 +174,7 @@ func TestStrandedRecordRetryReleases(t *testing.T) {
 func TestStrandedRecordRefusalNamesItsFix(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	reg := newInnerSelectorRegistry()
-	dp := &failingRemoveDP{err: syscall.EIO}
+	dp := &xfrmCommandDP{err: syscall.EIO}
 	child := mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), dp, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
 	clearLedgerAfter(t, child)
 	removeChildSA(child, dp, log)

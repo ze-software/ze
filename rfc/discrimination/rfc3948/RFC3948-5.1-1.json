@@ -29,8 +29,8 @@
     "claim-sha": "1ced3937028e3841",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "6705aeacc306938b",
-    "break": "line 268: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer-sha": "f86a425719742ef1",
+    "break": "line 349: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -40,8 +40,8 @@
     "claim-sha": "b0ea20a147faabde",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "6705aeacc306938b",
-    "break": "line 268: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer-sha": "f86a425719742ef1",
+    "break": "line 349: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -73,7 +73,7 @@
     "claim-sha": "608b7aa1ada2552b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::releaseInnerRecord",
-    "producer-sha": "2806b0cd0da0ebda",
+    "producer-sha": "40e934b7873c62f1",
     "break": "line 955: \"if len(left) == 0 {\" -\u003e \"if true {\""
   },
   {
@@ -97,6 +97,17 @@
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
     "producer-sha": "148482028f2f4db9",
     "break": "line 432: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_stranded_refusal_test.go::TestRFC3948StrandedRecordRefusesOverlap",
+    "unit-sha": "09edf3a0c9f2098e",
+    "claim-sha": "445e52a796fb8a0a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
+    "producer-sha": "148482028f2f4db9",
+    "break": "line 552: \"return innerSelectorStrandedConflict(owner, p, holding.owner, h, holding.stranded)\" -\u003e \"continue\""
   },
   {
     "rid": "RFC3948-5.1-1",
