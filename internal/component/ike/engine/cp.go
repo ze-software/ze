@@ -350,8 +350,9 @@ func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) 
 // stays held until the SA closes, so the second case is reachable. The wildcard is sent with
 // no recorded ceiling. With no lease, answerNamesOnlyLeases refuses every answer. With a
 // lease outside the configured prefixes, answerNamesOnlyLeases admits only an answer naming
-// that lease host, and the configured-policy ceiling recordInitiatorSelectors falls back to
-// refuses it, because no configured prefix contains it. Every answer is therefore refused.
+// that lease host, and the configured policy, which recordInitiatorSelectors falls back to
+// as the ceiling, refuses it, because no configured prefix contains it. Every answer is
+// therefore refused.
 func proposeLeasedChildTSPayloads(sa *SA, pairs []tsPair) (*wire.PayloadTS, *wire.PayloadTS) {
 	leased := leasedProposalPairs(sa.leaseGrant(), pairs)
 	tsi, tsr := pairsToWire(leased)

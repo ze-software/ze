@@ -57,7 +57,8 @@ func leasedRekeyFixture(t *testing.T, selectors []ipsec.TrafficSelectorPolicy, a
 }
 
 // leasedRekeySelector is a configured policy valid at commit on a pool-bound peer: the
-// remote prefix 10.10.0.0/24 covers the pool 10.10.0.0/29 (ValidateVirtualIPPoolBindings).
+// remote prefixes 10.10.0.0/24 and fd00:10::/120 cover the pool ranges 10.10.0.0/29 and
+// fd00:10::/120 (ValidateVirtualIPPoolBindings, selectorsCoverPool).
 func leasedRekeySelector(t *testing.T) []ipsec.TrafficSelectorPolicy {
 	t.Helper()
 	_, local, err := net.ParseCIDR("192.168.0.0/16")
@@ -68,9 +69,20 @@ func leasedRekeySelector(t *testing.T) []ipsec.TrafficSelectorPolicy {
 	if err != nil {
 		t.Fatalf("remote prefix: %v", err)
 	}
+	_, local6, err := net.ParseCIDR("::/0")
+	if err != nil {
+		t.Fatalf("local IPv6 prefix: %v", err)
+	}
+	_, remote6, err := net.ParseCIDR("fd00:10::/120")
+	if err != nil {
+		t.Fatalf("remote IPv6 prefix: %v", err)
+	}
 	return []ipsec.TrafficSelectorPolicy{{
 		Number: "1", LocalPrefix: local, LocalPort: ipsec.AnyPort(),
 		RemotePrefix: remote, RemotePort: ipsec.AnyPort(),
+	}, {
+		Number: "2", LocalPrefix: local6, LocalPort: ipsec.AnyPort(),
+		RemotePrefix: remote6, RemotePort: ipsec.AnyPort(),
 	}}
 }
 
@@ -101,19 +113,20 @@ func leasedRekeyAnswer(t *testing.T, hosts map[string]string, tsi, tsr []string)
 // applyChildRekeyResponse on a pool-bound responder SA, with the peer's answer naming
 // its side as the lease host, as the pool prefix, as the configured remote prefix, or as
 // the wildcard. Three peers are covered: one with no configured selector and an IPv4
-// lease, one with the configured selector 192.168.0.0/16 <-> 10.10.0.0/24, and one with
-// no configured selector and an IPv4 and an IPv6 lease. The cases that clear the recorded
+// lease, one with the configured selectors 192.168.0.0/16 <-> 10.10.0.0/24 and
+// ::/0 <-> fd00:10::/120 and an IPv4 lease, and one with no configured selector and an
+// IPv4 and an IPv6 lease. The cases that clear the recorded
 // proposal judge the configured-policy fallback ceiling too. An accepted answer is read
 // back from the outbound policies the dataplane received for the replacement Child SA.
 //
 // RFC requirement: RFC3948-5.1-1 positive -- on a pool-bound peer's IKE SA, the Child SA rekey ze starts records its proposal as this node's side (0.0.0.0/0 and ::/0 with no configured selector, the configured local prefix 192.168.0.0/16 with one) against each of the peer's lease hosts, /32 and /128, and the peer's answer naming exactly those lease hosts is installed as the replacement Child SA, whose outbound policies the dataplane receives name the lease hosts.
-// RFC requirement: RFC3948-5.1-1 negative -- an answer to that rekey whose peer side is the pool prefix 10.10.0.0/29, the configured remote prefix 10.10.0.0/24, 0.0.0.0/0, or the IPv6 pool prefix fd00:10::/120 beside the IPv4 lease host is refused as wider than the proposal and no replacement Child SA is returned, including when no proposal was recorded and the configured policy is the ceiling.
+// RFC requirement: RFC3948-5.1-1 negative -- an answer to that rekey whose peer side is the pool prefix 10.10.0.0/29, the configured remote prefix 10.10.0.0/24, 0.0.0.0/0, or the IPv6 pool prefix fd00:10::/120 beside the IPv4 lease host is refused as wider than the peer's lease host (errTSWidened) and no replacement Child SA is returned, including when no proposal was recorded and the configured policy, which covers the pool, is the ceiling.
 func TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease(t *testing.T) {
 	v4 := []wire.ConfigAttr{ip4Ask(netip.Addr{})}
 	dual := []wire.ConfigAttr{ip4Ask(netip.Addr{}), {Type: wire.CPAttrInternalIP6Address}}
 	for _, tc := range []struct {
 		name       string
-		selector   bool              // the peer configures 192.168.0.0/16 <-> 10.10.0.0/24
+		selector   bool              // the peer configures 192.168.0.0/16 <-> 10.10.0.0/24 and ::/0 <-> fd00:10::/120
 		asks       []wire.ConfigAttr // the CFG_REQUEST attributes
 		proposed   []string          // the recorded proposal, "lease4"/"lease6" for the lease host
 		tsi, tsr   []string          // the answer, "lease4"/"lease6" for the lease host
