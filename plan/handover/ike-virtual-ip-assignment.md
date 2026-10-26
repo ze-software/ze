@@ -499,3 +499,9 @@ Evidence: race run of `ike/engine` and `core/eap` with every feature tag green
 (`scratch/job-unit-pkg-9bfa4e8a.log`); scoped lint of both packages finds only
 `esp_fixed_test.go` (the ESP session's); `./le test weakened check` flags none of these
 files; `./le rfc discriminate id RFC3948-5.1-1` reports no stale record.
+
+Unblocked after the judge's approval: e6d190da7a carries the proposed test and both
+re-taken `RFC3948-5.1-1` records (positive: the pool-name guard of
+`proposeChildTSPayloads` to `false`; negative: the first guard of
+`answerNamesOnlyLeases` to `true`); the scoped race run is green and `./le rfc
+discriminate id RFC3948-5.1-1` shows nothing stale or unproven.
