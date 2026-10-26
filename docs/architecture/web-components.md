@@ -102,7 +102,7 @@ to make the other pass.
 ## Component Filesystem
 
 Every unit below is a templ component in `internal/component/web`. The file name
-carries the visual concern, and `./le repo generate` writes a `*_templ.go` beside
+carries the visual concern, and `./le repo update` writes a `*_templ.go` beside
 each source.
 
 ```
@@ -246,6 +246,15 @@ On error:
   cli.js:  syncErrorPanel, on htmx:after:settle over #error-list, removes
            "collapsed" from #error-panel while the list holds an item
 ```
+
+A text or number field saves on three triggers: blur, Enter (`ze-enter`, sent
+by `initEnterSubmit` in `cli.js`) and a one-second debounce after typing. Each
+is its own htmx listener, and Enter does not cancel the pending debounce. The
+field carries `hx-sync="this:drop"` (`fieldSaveSync`, `view.go`), so a save it
+issues while its own save is in flight is dropped rather than queued: one edit
+reaches the editor once, and a refused value lists one error, not two. Every
+answer replaces the field with what the editor now holds, so the operator sees
+the outcome of the save that was sent.
 
 With no errors the panel carries `collapsed`, which `style.css` renders fully
 off screen (`translateX(100%)`, `pointer-events: none`), so it covers nothing.

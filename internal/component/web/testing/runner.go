@@ -357,10 +357,58 @@ func (b *Browser) clickID(id string) error {
 	// agent-browser reports a missing element as a non-zero exit, so a control
 	// the previous step produced asynchronously (an htmx out-of-band swap, say)
 	// is a race unless the click waits for it. See retryCommand (expect.go).
-	if err := retryCommand(func() error { return b.runAgent("click", sel) }); err != nil {
+	//
+	// It also waits for the element to stop moving. agent-browser measures the
+	// element's box and then dispatches a press and a release at that point, with
+	// no check that the element is still there. A control that a CSS transition
+	// is sliding (the error drawer's tab, for 0.2s after the drawer closes) moves
+	// between the measure and the press, the click lands on whatever is now
+	// under the point, and agent-browser reports success. On a fast runner the
+	// next step's click arrives inside that window: test/web/error-panel-toggle.wb
+	// line 65 clicked the tab, the drawer never opened, and line 66 failed.
+	stable := clickStableExpr(id)
+	if err := retryCommand(func() error {
+		state, evalErr := b.runAgentOutput("eval", stable)
+		if evalErr != nil {
+			return fmt.Errorf("eval before click: %w", evalErr)
+		}
+		if strings.TrimSpace(state) == clickStateMoving {
+			return errClickTargetMoving
+		}
+		return b.runAgent("click", sel)
+	}); err != nil {
 		return fmt.Errorf("click #%s: %w", id, err)
 	}
 	return b.waitLoad()
+}
+
+// errClickTargetMoving is the refusal a click returns when its element is
+// still animated at the deadline. A transition that never ends is a page
+// defect, and a click into it would land on nothing and report success.
+var errClickTargetMoving = errors.New("the element is still moving: a CSS transition or animation " +
+	"runs on it or on an element that contains it, so a click would land where it no longer is; " +
+	"check the page's style.css for a transition that does not finish")
+
+// clickStateMoving is what clickStableExpr answers while a finite animation
+// runs on the element or an ancestor. Every other answer lets the click go:
+// a missing element is reported by agent-browser's own click error, which
+// retryCommand already waits on.
+const clickStateMoving = "1"
+
+// clickStableExpr answers clickStateMoving while document.getAnimations()
+// holds a running, finite animation whose target is the element with this id
+// or contains it. CSS transitions are animations there, and asking forces the
+// style flush that starts a transition a class change just requested. An
+// infinite animation (a spinner) never settles, so it does not hold the click.
+func clickStableExpr(id string) string {
+	var tb textbuf.Buffer
+
+	return tb.Str(`(function(){var el=document.getElementById(`).Quoted(id).
+		Str(`);if(!el)return 0;var moving=document.getAnimations().some(function(a){`).
+		Str(`if(a.playState!=='running')return false;var t=a.effect&&a.effect.target;`).
+		Str(`if(!t||!(t===el||t.contains(el)))return false;`).
+		Str(`return a.effect.getComputedTiming().endTime!==Infinity;});return moving?1:2;})()`).
+		String()
 }
 
 // Fill finds an input by placeholder/label text and fills it.

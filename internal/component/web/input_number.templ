@@ -15,6 +15,7 @@ templ inputNumber(f FieldMeta) {
 		inputmode="numeric"
 		hx-post={ configSetURL(f.Path) }
 		hx-trigger="blur changed, ze-enter, input changed delay:1s"
+		hx-sync={ fieldSaveSync }
 		hx-target="closest .ze-field"
 		hx-swap="outerHTML"
 		hx-vals={ fieldHxVals(f.Leaf) }

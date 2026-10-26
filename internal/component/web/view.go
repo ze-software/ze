@@ -216,6 +216,17 @@ func fieldHxValsWith(leaf, value string) string {
 	return tb.Str(`{"leaf":`).Quoted(leaf).Str(`,"value":`).Quoted(value).Byte('}').String()
 }
 
+// fieldSaveSync is the hx-sync of a text or number field that saves on three
+// triggers: blur, Enter (ze-enter) and the one-second input debounce. Each
+// trigger is its own htmx listener, and Enter does not cancel the pending
+// debounce, so a value typed and then sent with Enter fires the debounce too.
+// htmx 4's default sync for an element is "queue first": the second request
+// waits for the first and then runs, so one edit reached the editor twice and
+// a refused value listed its error twice (test/web/error-panel-toggle.wb, on a
+// loaded host). "drop" discards a save the field issues while its own save is
+// in flight. Every response replaces the field with what the editor now holds.
+const fieldSaveSync = "this:drop"
+
 // splitFieldOptions splits an enum's comma-separated option list. An empty list
 // yields no options, so the editor shows the blank option alone.
 func splitFieldOptions(opts string) []string {

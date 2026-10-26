@@ -64,6 +64,7 @@ templ listTable(v *FragmentData) {
 										placeholder={ cell.Placeholder }
 										hx-post={ "/config/set/" + cell.Path }
 										hx-trigger="blur changed, ze-enter, input changed delay:1s"
+										hx-sync={ fieldSaveSync }
 										hx-target="closest td"
 										hx-swap="innerHTML"
 										name="value"

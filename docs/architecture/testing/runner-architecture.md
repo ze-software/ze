@@ -316,7 +316,7 @@ against the peer address has two values to compare.
 | Action | Keys | Effect |
 |--------|------|--------|
 | `open` | `path` | Navigate to `baseURL + path` |
-| `click` | `id` or `text` | Click element by id or visible text |
+| `click` | `id` or `text` | Click element by id or visible text. A click by `id` first waits, inside the same retry budget, until no finite CSS transition or animation runs on the element or an element containing it: `agent-browser` measures the box and then presses at that point, so a control still sliding (the error drawer's tab) took the click somewhere else and reported success. Still moving at the deadline, the click fails and says so |
 | `fill` | (`id` or `text`) + `value` | Clear and type `value` |
 | `hover` | `id` or `text` | Hover element |
 | `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
