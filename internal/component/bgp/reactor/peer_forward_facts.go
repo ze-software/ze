@@ -15,8 +15,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
@@ -62,6 +65,22 @@ type peerForwardFacts struct {
 	rsClient   bool
 	rrClient   bool
 	asOverride bool
+	// rsRelaySend is the route-server fast path's send permission: this peer's
+	// attach block grants `send [ update ]` to a process whose plugin declares
+	// registry.RelaysOnRSFastPath. The fast path forwards in place of that
+	// plugin's cached forward, which filterPermittedPeers refuses a peer
+	// without the grant, so reactorForwardRSSection selects no peer whose
+	// rsRelaySend is false (rsRelaySendGranted).
+	rsRelaySend bool
+	// rsRelayReceive is the same declaration read from the source side: this
+	// peer's attach block grants a process whose plugin declares
+	// registry.RelaysOnRSFastPath the UPDATEs the peer sends
+	// (`receive [ update-received ]`, or `update` or `*`). Without it the
+	// delivery graph feeds that plugin none of this peer's UPDATEs, so its
+	// cached forward never relays them, and the fast path, forwarding in its
+	// place, declines this source too (notifyMessageReceiver,
+	// rsRelayReceiveGranted).
+	rsRelayReceive bool
 	// propagatePrefixSID is the operator's statement that this EBGP neighbor is
 	// inside ze's SR domain (RFC 8669 Section 8, forward_prefix_sid.go).
 	propagatePrefixSID bool
@@ -195,6 +214,54 @@ func (r *redirectNextHop) add(addr netip.Addr) {
 	}
 }
 
+// rsRelaySendGranted reports whether bindings grant `send [ update ]` to a
+// process whose plugin declares registry.RelaysOnRSFastPath. It applies the
+// grant the route server's cached forward is checked against
+// (ProcessBinding.MaySend, through Peer.maySend and filterPermittedPeers), so
+// the fast path and the cached rail answer one declaration. It runs once per
+// snapshot, never once per UPDATE: the registry lookup resolves an alias
+// through the process manager.
+func rsRelaySendGranted(bindings []ProcessBinding) bool {
+	for i := range bindings {
+		b := &bindings[i]
+		if !b.MaySend(bgpevents.SendUpdate) {
+			continue
+		}
+		if registry.RelaysOnRSFastPath(b.PluginName) {
+			return true
+		}
+	}
+	return false
+}
+
+// rsRelayReceiveGranted reports whether bindings grant the peer's received
+// UPDATEs to a process whose plugin declares registry.RelaysOnRSFastPath. It
+// reads the grant the delivery graph builds its UPDATE edges from
+// (deliveryPeersFromSettings, grantDirection in the plugin server): the
+// wildcard carries both directions, a named type the directions it names. Like
+// rsRelaySendGranted it runs once per snapshot.
+func rsRelayReceiveGranted(bindings []ProcessBinding) bool {
+	for i := range bindings {
+		b := &bindings[i]
+		if !bindingReceivesPeerUpdates(b) {
+			continue
+		}
+		if registry.RelaysOnRSFastPath(b.PluginName) {
+			return true
+		}
+	}
+	return false
+}
+
+// bindingReceivesPeerUpdates reports whether b delivers the UPDATEs the peer
+// sends to its process.
+func bindingReceivesPeerUpdates(b *ProcessBinding) bool {
+	if b.ReceiveAll {
+		return true
+	}
+	return b.Receive[bgpevents.EventUpdate]&events.DirReceived != 0
+}
+
 func (p *Peer) forwardFacts() *peerForwardFacts {
 	return p.fwdFacts.Load()
 }
@@ -268,6 +335,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	isEBGP := s.IsEBGP()
 	isIBGP := s.IsIBGP()
 	aigpEnabled := s.AIGPEnabled()
+	bindings := s.ProcessBindings
 	p.mu.RUnlock()
 
 	ctx := p.sendCtx.Load()
@@ -296,6 +364,8 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		rsClient:           s.RSClient,
 		rrClient:           s.RouteReflectorClient,
 		asOverride:         s.ASOverride,
+		rsRelaySend:        rsRelaySendGranted(bindings),
+		rsRelayReceive:     rsRelayReceiveGranted(bindings),
 		propagatePrefixSID: s.PropagateSRv6PrefixSID,
 		name:               s.Name,
 		groupName:          s.GroupName,

@@ -710,7 +710,21 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		// exist (ai/rules/evidence.md). Both branches below used to be
 		// silent, which is why a rail switch was invisible in the logs.
 		update, ok := r.recentUpdates.Get(messageID)
+		facts := peer.forwardFacts()
 		switch {
+		case facts == nil:
+			fwdLogger().Debug("rs fast path declined: the source has no forwarding snapshot",
+				"id", messageID, "peer", peer.addrString)
+		case !facts.rsRelayReceive:
+			// The fast path forwards in place of the route server's cached
+			// forward, and that forward relays only what the route server
+			// receives. A source whose attach block feeds no RelaysOnRSFastPath
+			// process its UPDATEs is relayed by nobody on the cached rail, so it
+			// is relayed by nobody here either; the flag stays clear and the
+			// cache entry is released by the delivery count.
+			fwdLogger().Debug("rs fast path declined: the source does not feed the route server its UPDATEs",
+				"id", messageID, "peer", peer.addrString,
+				"fix", "attach the route server to the peer with receive [ update-received ]")
 		case !ok:
 			// The entry was Add()ed a few lines above, so a miss means it was
 			// evicted under concurrent load. bgp-rs still delivers via

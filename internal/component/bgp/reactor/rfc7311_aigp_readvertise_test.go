@@ -47,7 +47,9 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		peer.settings.GlobalLocalAS = 65000
 		peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
 		peer.settings.NextHopMode = NextHopSelf
-		peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}}
+		// rsRelaySendBinding is the route server's send grant: the RS fast
+		// path reaches no destination without it, as the cached rail does not.
+		peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}, rsRelaySendBinding()}
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID, peer.recvCtxID = ctxID, ctxID

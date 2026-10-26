@@ -58,6 +58,7 @@ Optional metadata:
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out, so End-of-RIB waits for that report |
+| `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path then relays a source only when the source's attach block feeds this plugin its UPDATEs (`receive [ update-received ]`), and reaches a destination only when the destination grants this plugin `send [ update ]`, the grants the cached forward answers to. `registry.RelaysOnRSFastPath` resolves a `use` alias. bgp-rs declares it |
 | `YANG` | `string` | YANG schema content |
 | `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |

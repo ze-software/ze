@@ -157,6 +157,11 @@ bgp {
 		attach process rs-community-withdraw {
 			send [ update ]
 		}
+		# The fast path relays a source's UPDATE only when the source grants the
+		# route-server relay its received UPDATEs, as the cached rail does.
+		attach process rs {
+			receive [ update-received ]
+		}
 	}
 
 	peer excluded-client {
@@ -189,6 +194,11 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		# The fast path forwards only to a destination that lets the
+		# route-server relay send it UPDATEs.
+		attach process rs {
+			send [ update ]
+		}
 	}
 
 	peer included-client {
@@ -217,6 +227,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process rs {
+			send [ update ]
 		}
 	}
 }

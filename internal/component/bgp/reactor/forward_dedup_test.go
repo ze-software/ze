@@ -269,6 +269,9 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 			LocalAS:    65000,
 			PeerAS:     65000,
 			RouterID:   uint32(0x0A010000 + i), //nolint:gosec // fixture index
+			// The route server's send grant: the RS fast path reaches no
+			// destination without it, as the cached rail does not.
+			ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 		}
 		if modify {
 			// The group's own next-hop. Identical within a group and distinct

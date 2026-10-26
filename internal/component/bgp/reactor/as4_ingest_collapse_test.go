@@ -517,6 +517,9 @@ func collapseDestPeer(t *testing.T, dest collapseDest, ctx *bgpctx.EncodingConte
 		RouterID:      0x01020300 | uint32(addr.As4()[3]),
 		RSFastPath:    dest.rsClient,
 		RSClient:      dest.rsClient,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{

@@ -396,6 +396,21 @@ UPDATEs ze sends deadlocks: forwarding one raises the sent event that the forwar
 is waiting on.
 <!-- source: internal/component/bgp/plugins/rs/server.go -- SetStartupSubscriptions and the deadlock rationale -->
 
+The same two grants govern `behavior { rs-fast-path enable; }`. The fast path
+forwards in place of `bgp-rs`, so it obeys the permissions `bgp-rs` would. It
+relays an UPDATE only from a source peer that grants `bgp-rs`
+`receive [ update-received ]` (or `update`, or `*`), and only to a destination
+peer that grants `bgp-rs` `send [ update ]`. A source without the receive grant
+gets no forwarding on either path: the fast path declines it and logs why at
+debug level, and `bgp-rs` never sees its UPDATEs. A destination without the send
+grant is sent nothing. To fix either, add
+`attach process <rs-name> { receive [ update-received ]; send [ update ]; }` to
+the peer, where `<rs-name>` is the name your `plugin { internal ... }` block
+gives `bgp-rs`.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver fast-path gate -->
+
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
 It needs only `receive [ update-received state ]`. When a peer comes up, the
 route server or reflector reads the stored routes from it, page by page, and

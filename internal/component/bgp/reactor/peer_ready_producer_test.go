@@ -577,8 +577,10 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 			f := ownershipRailNew(t, nil)
 			// The RR can send, and it relays the replay itself, so the refusal
 			// below is the engine's own, not a substituted command or a
-			// fabricated error.
-			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+			// fabricated error. The route server's send grant stays beside it:
+			// the published UPDATE reaches the destination on the RS fast
+			// path, which reaches no destination without it.
+			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner), rsRelaySendBinding()}
 			api, proc := readyProducerServer(t, f.r, owner)
 			adj := api.server.ProcessManager().GetProcess("bgp-adj-rib-in")
 			require.NotNil(t, adj)

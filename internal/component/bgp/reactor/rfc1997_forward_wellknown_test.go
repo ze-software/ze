@@ -70,6 +70,9 @@ func wkPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContex
 		PeerAS:        peerAS,
 		RouterID:      0x01020300 | uint32(peerAddr.As4()[3]),
 		LocalAddress:  netip.MustParseAddr("10.0.0.254"),
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{

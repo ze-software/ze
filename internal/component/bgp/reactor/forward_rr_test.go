@@ -30,6 +30,7 @@ func rrPeer(addr string, routerID, clusterID, remoteRID uint32, rrClient bool, c
 		RouterID:             routerID,
 		ClusterID:            clusterID,
 		RSFastPath:           true,
+		ProcessBindings:      []ProcessBinding{rsRelaySendBinding()},
 		RouteReflectorClient: rrClient,
 	})
 	p.state.Store(int32(PeerStateEstablished))

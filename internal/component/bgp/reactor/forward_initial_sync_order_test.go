@@ -108,6 +108,9 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 		LocalAS:    65000,
 		PeerAS:     65000,
 		RouterID:   0x01020302,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

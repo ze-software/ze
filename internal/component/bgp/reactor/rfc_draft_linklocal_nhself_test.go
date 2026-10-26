@@ -60,6 +60,9 @@ func nhSelfLinkLocalDest(t *testing.T, addr string, nextHopSelf, llnh bool) *Pee
 		GlobalLocalAS: 65000,
 		PeerAS:        65000,
 		RouterID:      0x0a000001,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	}
 	if nextHopSelf {
 		settings.NextHopMode = NextHopSelf

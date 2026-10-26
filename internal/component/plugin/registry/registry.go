@@ -163,6 +163,17 @@ type Registration struct {
 	// report is what lowers the hold.
 	FencesLiveForwards bool
 
+	// RelaysOnRSFastPath declares that the engine's route-server fast path
+	// forwards received UPDATEs on this plugin's behalf, in place of the
+	// cached forward the plugin would otherwise issue. The engine then relays
+	// a source on that path only when the source's attach block feeds this
+	// plugin its UPDATEs (`receive [ update-received ]`), and reaches a
+	// destination only when the destination's attach block grants this plugin
+	// `send [ update ]`: the cached forward relays only what the plugin
+	// receives, and is checked against that send grant. Without the
+	// declaration the fast path cannot tell which process's grants to read.
+	RelaysOnRSFastPath bool
+
 	YANG string // YANG schema content (empty if none)
 
 	// Commands are the commands this plugin serves, and what each answer
@@ -1770,13 +1781,35 @@ func TopologicalGraphTiers(deps map[string][]string) ([][]string, error) {
 // that resolves to no fencing registration answers false: a plugin that never
 // declared the fence is never waited for.
 func FencesLiveForwards(name string) bool {
+	return processDeclares(name, func(reg *Registration) bool {
+		return reg.FencesLiveForwards && reg.SignalsSessionReady
+	})
+}
+
+// RelaysOnRSFastPath reports whether the plugin running under the process
+// name declares Registration.RelaysOnRSFastPath, resolving an alias
+// (`plugin { internal relay { use bgp-rs } }`) the way FencesLiveForwards
+// does. A name that resolves to no declaring registration answers false: the
+// fast path then relays on behalf of no binding to that process.
+func RelaysOnRSFastPath(name string) bool {
+	return processDeclares(name, func(reg *Registration) bool {
+		return reg.RelaysOnRSFastPath
+	})
+}
+
+// processDeclares answers whether the registration the process name runs
+// under satisfies declared. name is a PROCESS name, which is a registry key
+// only when the operator attached the plugin under its own name; an alias is
+// resolved through the plugin server's runtimeRegistryNames seam. A name with
+// no registration, and an alias with no seam installed, answer false.
+func processDeclares(name string, declared func(*Registration) bool) bool {
 	mu.RLock()
 	reg := plugins[name]
 	resolve := runtimeRegistryNames
 	mu.RUnlock()
 
 	if reg != nil {
-		return reg.FencesLiveForwards && reg.SignalsSessionReady
+		return declared(reg)
 	}
 	if resolve == nil {
 		return false
@@ -1790,7 +1823,7 @@ func FencesLiveForwards(name string) bool {
 		if impl == nil {
 			continue
 		}
-		if impl.FencesLiveForwards && impl.SignalsSessionReady {
+		if declared(impl) {
 			return true
 		}
 	}

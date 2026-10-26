@@ -67,6 +67,9 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 		PeerAS:        65002,
 		RouterID:      0x0a000001,
 		NextHopMode:   mode,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

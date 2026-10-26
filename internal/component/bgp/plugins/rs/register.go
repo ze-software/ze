@@ -68,6 +68,14 @@ func init() {
 		// Its peer-up replay and its live forwards reach a peer on two rails:
 		// the engine holds the live ones until the replay is reported.
 		FencesLiveForwards: true,
+		// The reactor fast path (rs-fast-path) forwards in place of this
+		// plugin's cached forward, so it reads the grants that forward
+		// answers to: the source's `receive [ update-received ]` to this
+		// plugin, without which this plugin never sees the UPDATE, and the
+		// destination's `send [ update ]`, which ForwardCached is checked
+		// against. In-process only, like the fast path itself
+		// (filterapi.EnableRSForwarding above).
+		RelaysOnRSFastPath: true,
 		RunEngine:          RunRouteServer,
 		Commands:           commandDecls(),
 		ConfigureEventBus: func(bus ze.EventBus) {

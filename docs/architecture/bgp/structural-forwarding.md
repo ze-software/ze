@@ -93,6 +93,26 @@ announcement. Peers that never require this deferral keep the direct-write path.
 The choice is recorded at receipt even when the fast path is disabled, so
 enabling it cannot overtake cached work already queued for that source.
 
+The fast path forwards in place of the route server's cached forward, so it
+reaches only the destinations that forward may reach. The cached forward is
+checked against the destination's `attach process <route server> { send
+[ update ] }` grant (`filterPermittedPeers`). The fast path reads the same
+grant: a peer's forwarding snapshot records whether it grants `send [ update ]`
+to a process whose registration declares `RelaysOnRSFastPath`, resolved through
+the process's `use` spelling, and both passes of `reactorForwardRSSection`
+select no peer without it. bgp-rs is the plugin that declares it. The source
+side reads the same declaration: the cached forward relays only what the route
+server receives, and the delivery graph feeds it a source's UPDATEs only through
+the source's `attach process <route server> { receive [ update-received ] }`
+grant (or `update`, or `*`). The snapshot records that grant too, and the gate
+in `notifyMessageReceiver` declines the fast path for a source without it, so
+neither rail relays that source.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+<!-- source: internal/component/plugin/registry/registry.go -- RelaysOnRSFastPath -->
+<!-- test: internal/component/bgp/reactor/forward_rs_permission_test.go TestReactorForwardRSHonorsRelaySendPermission, TestReactorForwardRSRetryRechecksRelaySend, TestRSFastPathGateHonorsSourceRelayReceive -->
+
 Live cache entries and reconstructed stored-route replays retain their source
 peer and session generation. Source removal or re-establishment invalidates
 queued entries, and destination workers check that generation before writing.

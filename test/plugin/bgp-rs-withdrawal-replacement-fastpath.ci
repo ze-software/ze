@@ -32,9 +32,9 @@
 # prefix: any extra UPDATE lands where the sentinel is expected.
 # Every peer here, the sources included, attaches the relay with
 # `send [ update ]`, unlike the cached-rail twin. The reactor fast path
-# (reactorForwardRS, forward_rs.go) selects its destinations without reading
-# that permission, so a source without it is forwarded the other sources'
-# routes all the same; the sources' scripts therefore expect them, and the
+# (reactorForwardRS, forward_rs.go) reads that permission as the cached rail
+# does, so the grant makes the sources destinations of the other sources'
+# routes on this rail; the sources' scripts therefore expect them, and the
 # client's assertions are this test's subject.
 
 stdin=sourcea:terminator=EOF_SOURCEA

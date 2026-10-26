@@ -37,6 +37,9 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 		PeerAS:        peerAS,
 		RouterID:      0x01020300 | uint32(peerAddr.As4()[3]),
 		RSFastPath:    true,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -98,11 +101,17 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 			peerAddr := mustParseAddr("10.0.0.1")
 			ps := NewPeerSettings(peerAddr, 65000, 65001, 0x01020304)
 			ps.RSFastPath = true
+			// The route server's receive grant: the fast path relays only a
+			// source the route server's cached forward would relay.
+			ps.ProcessBindings = []ProcessBinding{rsRelayReceiveBinding()}
 			require.NoError(t, reactor.AddPeer(ps))
 			reactor.mu.RLock()
 			src := reactor.peers[ps.PeerKey()]
 			reactor.mu.RUnlock()
 			src.setState(PeerStateEstablished)
+			// An established session holds a forwarding snapshot
+			// (setEncodingContexts); the gate reads the receive grant from it.
+			src.refreshForwardFacts()
 
 			// A DESTINATION peer is required, not just the source. ReactorForwarded
 			// now means "the fast path delivered this UPDATE to someone", not merely
@@ -606,6 +615,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 		PeerAS:               65000,
 		RouterID:             0x01020301,
 		RSFastPath:           true,
+		ProcessBindings:      []ProcessBinding{rsRelaySendBinding()},
 		RouteReflectorClient: true,
 	}
 	src := NewPeer(srcSettings)
@@ -620,13 +630,14 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 
 	// Destination: IBGP non-client (route reflection target).
 	dstSettings := &PeerSettings{
-		Connection: ConnectionBoth,
-		Address:    netip.MustParseAddr("10.0.0.2"),
-		LocalAS:    65000,
-		PeerAS:     65000,
-		RouterID:   0x01020302,
-		RSFastPath: true,
-		ClusterID:  0x01020302,
+		Connection:      ConnectionBoth,
+		Address:         netip.MustParseAddr("10.0.0.2"),
+		LocalAS:         65000,
+		PeerAS:          65000,
+		RouterID:        0x01020302,
+		RSFastPath:      true,
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		ClusterID:       0x01020302,
 	}
 	dst := NewPeer(dstSettings)
 	dst.state.Store(int32(PeerStateEstablished))

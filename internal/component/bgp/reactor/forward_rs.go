@@ -242,6 +242,15 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if pf == nil {
 			continue
 		}
+		// The fast path forwards in place of the route server's cached
+		// forward, so it reaches only the peers that forward may reach: a
+		// peer granting the route server no `send [ update ]` is refused
+		// there (filterPermittedPeers), and is sent nothing here. Checked
+		// before the policy skips, because handing such a peer back to the
+		// plugin only earns it the same refusal.
+		if !pf.rsRelaySend {
+			continue
+		}
 		if !pf.exportPolicy.AcceptsAtEnd() {
 			skipped = append(skipped, pf.peerKey)
 			continue
@@ -265,6 +274,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 		pf := peer.forwardFacts()
 		if pf == nil {
+			continue
+		}
+		// The retry rechecks the send permission with the other live facts:
+		// a reload between passes can revoke the grant.
+		if !pf.rsRelaySend {
 			continue
 		}
 		if hasActiveFilter(pf.exportPolicy.Filters()) {

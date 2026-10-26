@@ -77,11 +77,17 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		PeerAS:        65001,
 		RouterID:      0xcb007147,
 		RSFastPath:    rs,
+		// The route server's receive grant: the RS fast path relays only a
+		// source the route server's cached forward would relay.
+		ProcessBindings: []ProcessBinding{rsRelayReceiveBinding()},
 	})
 	source.state.Store(int32(PeerStateEstablished))
 	session := NewSession(source.Settings())
 	session.localLLGR.Store(localLLGR)
 	source.session = session
+	// An established session holds a forwarding snapshot (setEncodingContexts);
+	// the RS fast-path gate reads the source's receive grant from it.
+	source.refreshForwardFacts()
 
 	dest := NewPeer(&PeerSettings{
 		Connection:    ConnectionBoth,
@@ -90,6 +96,9 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		GlobalLocalAS: 65000,
 		PeerAS:        65002,
 		RouterID:      0x0a000001,
+		// The route server's send grant: the RS fast path reaches no
+		// destination without it, as the cached rail does not.
+		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
 	})
 	dest.state.Store(int32(PeerStateEstablished))
 	dest.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{family.IPv4Unicast: true}})
