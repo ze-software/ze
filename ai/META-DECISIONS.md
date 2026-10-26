@@ -171,6 +171,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   need from him. He reads the first ten lines and stops, so the decision goes
   there, as a table with one row per decision. What you did and what each agent
   found goes last or goes unsaid. Status that changes no decision is one line.
+- Report defects found and fixes made during requested work promptly, rather
+  than waiting for the final report. Say what each defect blocks, distinguish
+  a written patch from a verified fix, and give the evidence when it is fixed.
 - An agent's report is written for the agent that commissioned it. Rewrite it
   for the owner, never forward it. A reply to the owner stays under 15 lines and
   puts its tables before its prose. Other prose follows `ai/rules/writing.md`.
