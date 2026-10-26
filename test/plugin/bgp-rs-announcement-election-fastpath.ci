@@ -24,8 +24,9 @@
 #   withdrawal of 10.9.0.0/24 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A09000000
 # The fixture (plugin/rs-source-sequence) releases each source action by
 # sending that source 192.0.2.0/24 (18C00002), then 198.51.100.0/24 (18C63364),
-# and only once the state the action depends on exists. Sources carry no relay
-# `send [ update ]`, so nothing is forwarded to them on the bgp-rs rail. A sentinel the fixture
+# and only once the state the action depends on exists. In the cached-rail twin
+# the sources carry no relay `send [ update ]`, so nothing is forwarded to them
+# there; here they carry it (see below). A sentinel the fixture
 # sends the client directly (100.65.0.0/24, 18644100; 100.66.0.0/24, 18644200)
 # closes a stretch in which the client must be sent nothing more for the
 # prefix: any extra UPDATE lands where the sentinel is expected.

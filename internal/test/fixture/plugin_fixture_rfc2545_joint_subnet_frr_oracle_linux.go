@@ -55,6 +55,7 @@ bgp {
    family { ipv6/unicast { prefix { maximum 10000; } } }
   }
   behavior { rs-fast-path enable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }
  }
  peer receive {
@@ -66,6 +67,7 @@ bgp {
    family { ipv6/unicast { prefix { maximum 10000; } } }
   }
   behavior { rs-fast-path enable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }
  }
 }
