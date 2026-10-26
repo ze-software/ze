@@ -106,7 +106,7 @@ checkout. The full rule and the reason for each branch are
 checkout, and runs nothing. It names the suites that run, the suites the map
 ruled out, and the suites `ZE_SKIP_SUITES` left out, and it says which package
 it could not answer for when the run widened.
-<!-- source: internal/le/test/functional/actions.go -- selectVerb -->
+<!-- source: internal/le/test/functional/actions.go -- previewVerb -->
 
 A gating run under `ZE_COVER=1` WRITES that artifact, and it runs every suite
 whatever the map says: only a run of every gating suite may publish, so a
@@ -126,7 +126,7 @@ left out.
 
 The functional test target runs 27 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
-web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrrp.
+web, installer, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrrp.
 
 `./le repo check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired

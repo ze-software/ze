@@ -255,6 +255,9 @@ Reach for one of these before inventing a new mechanism.
 | Need | Existing surface |
 |------|------------------|
 | Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
+| Which word an le action takes (verb vocabulary): each verb, its kind and meaning, and the names that declare it | `./le help ai verbs`; the six rules and the declared table are "Verb vocabulary" in `docs/contributing/running-commands.md` (`internal/le/le/action/vocabulary.go`) |
+| A verbless action: an area whose name is the whole command, such as `./le rollback` | "Verb vocabulary" in `docs/contributing/running-commands.md` |
+| What a retired le spelling is called now | Run it: le refuses it and names the successor. The rename map is `internal/le/le/retired/retired.go`; `./le doc check retired-commands` finds every tracked line still naming one |
 | Documentation drift and YANG command contracts | `./le doc check all` |
 | Source-to-document reverse index | `./le doc index update`; read `ai/CODE-TO-DOCS.md` |
 | Which tests enforce an RFC MUST, and what the backlog is | `./le rfc update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check all`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
@@ -316,7 +319,7 @@ disagree, the manifest is right and the row is stale.
 |---------|----------|---------|
 | `./le ai digest` | `internal/le/ai/digest.Answer` | every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line |
 | `./le ai hooks` | `internal/le/ai/hooks.Answer` | native hook dispatcher golden and behavioral fixture selftests |
-| `./le ai rules` | `internal/le/ai/rules.Answer` | the rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript |
+| `./le ai rules` | `internal/le/ai/rules.Answer` | the rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript (`ai rules report`) |
 | `./le ai sync` | `internal/le/ai/sync.Answer` | the generated agent files: sync every tool's copy of the skills and instructions, or check them |
 | `./le ai tokens` | `internal/le/ai/tokens.Answer` | where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store |
 | `./le arch compound-guard` | `internal/le/arch/compoundguard.Answer` | a changed guard holds one fact: an if whose condition is a top-level `\|\|` and whose body only leaves is split into one guard per fact |
@@ -355,6 +358,7 @@ disagree, the manifest is right and the row is stale.
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le spec journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le go module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
+| `./le mock` | `internal/le/mock/<server>`, one package per member | stand-in servers a test starts (`mock cymru`, `dns`, `httpd`, `irr`, `lg`, `peeringdb`, `radius`, `rpki`, `rtr`, `syslog`, `tacacs`), and hidden plugin stand-ins a `.ci` execs, such as `mock engine-steps` and `mock plugin-external` |
 | `./le mrt` | `internal/le/mrt.Answer` | analyze, filter, convert, replay and serve MRT files: `le mrt <subcommand> [options]` |
 | `./le perf` | `internal/le/perf.Answer` | benchmark BGP against every DUT (`run`), run the benchmark program (`send`, `report`, `track`), and suggest a run when data-plane code changed |
 | `./le go vet-platforms` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
@@ -374,9 +378,13 @@ disagree, the manifest is right and the row is stale.
 | `./le repo working-tree` | `internal/le/repo/workingtree.Answer` | how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling |
 | `./le repo` | `internal/le/repo.Answer` | the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, an in-progress spec's acceptance criteria say how they are demonstrated, and every 32-bit text-to-integer parse is on the allowlist that keeps AS numbers going through `asn.Parse` (`internal/le/repo/numberparse-allowlist.txt`) |
 | `./le rfc` | `internal/le/rfc.Answer` | RFC conformance: bind every MUST-level requirement of an enrolled RFC to the tests that enforce it, prove each binding with a recorded break under which the tagged test goes red, and bound what the summaries missed |
+| `./le rfc extraction` | `internal/le/rfc.ExtractionAnswer` | one RFC's extraction skeleton: `create` derives it, `classify` applies authored decisions, `report` prints the counts the drain quota reads |
+| `./le rollback` | `internal/le/rollback.Answer` | set the newest le build aside so the previous one runs; the `./le` launcher performs it, and a help word reaches the build (`docs/contributing/running-commands.md`) |
 | `./le scratch` | `internal/le/scratch.Answer` | keep disposable scratch and durable caches outside the checkout without overwriting existing work, clean every build cache when the cache disk fills (`scratch clean` removes entries older than three hours, safe while others build; `scratch clean all` empties them and refuses while a build runs), and trim the build stores to their budgets (`scratch trim`, which every le command also starts by itself at most once an hour) |
 | `./le session` | `internal/le/session.Answer` | manage this development session's isolated state |
 | `./le setup` | `internal/le/setup.Answer` | install and verify every tool a Ze dev or test workflow needs |
+| `./le setup docker host` | `internal/le/setup/docker/host.DockerHostAnswer` | run Ze's docker-host image on macOS |
+| `./le setup docker kernel` | `internal/le/setup/docker/kernel.DockerKernelAnswer` | check or install Ze's Docker host kernel |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
 | `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify, and render the published terminal demonstrations |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |

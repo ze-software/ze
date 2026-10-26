@@ -217,13 +217,25 @@ le's action words form one closed vocabulary, declared once in
 `internal/le/le/action/vocabulary.go`. An action word is either a verb of the
 vocabulary, performing that verb's one meaning, or a name (a suite, scenario,
 platform, shell, artifact or selection, such as `test functional bgp`) that
-declares the verb it performs in `Does`. Three rules hold it closed:
+declares the verb it performs in `Does`. `all` is the one name every area may
+use, meaning every member in table order, and it declares nothing. Six rules
+hold the vocabulary closed, one finding name each:
 
-- a vocabulary verb never declares a different verb;
-- no hyphen part of a name is a vocabulary verb, `write`, `generate` or
-  `test`, so `condensed-update` and `ipsec-mobike-test` are refused;
-- `all` is the one name every area may use, meaning every member in table
-  order.
+| Finding | The rule |
+|---------|----------|
+| `undeclared-name` | a word outside the vocabulary declares the verb it performs in `Does` |
+| `not-a-verb` | `Does` names a vocabulary verb |
+| `verb-declares` | a vocabulary verb never declares a different verb |
+| `embeds-verb` | no hyphen part of a name is a vocabulary verb, `write`, `generate` or `test`, so `condensed-update` and `ipsec-mobike-test` are refused |
+| `unused-verb` | every vocabulary verb is performed by some action |
+| `frozen-outside` | only `ai hooks` freezes a word |
+
+An area whose one action has no word of its own is verbless: the area's name
+is the whole command, as in `./le rollback`, and a word typed after it is a
+value to that action, refused when it takes none. A verbless action has no
+action word to be a verb, so it is judged as a name: it declares in `Does` the
+verb it performs (`rollback` declares `rollback`), or `undeclared-name` fails.
+`le help <area>` shows it as the bare area line.
 
 The `le ai hooks <name>` words that `.claude/settings.json` calls are frozen:
 the rules do not judge them, and a test holds the frozen set equal to the
@@ -1304,12 +1316,15 @@ starts no run.
 The answer is structured data, so `| json`, `| yaml` and `| table` each render
 it.
 
-The pretool-bash guard refuses that pipe for the areas that RUN something:
-`verify`, `verify lock`, `verify deps`, `verify lint`, `functional`,
-`integration`, `qemu` and `test-unit` (`heavyArea` in
-`internal/le/hookruntime/bash.go`). It reads the two-word area name, so
-`./le verify status check` and `./le verify summary` stay pipeable: they read
-and write the verification certificate and start no run.
+The pretool-bash guard refuses that pipe for the areas that RUN something
+(`heavyArea` in `internal/le/hookruntime/bash.go`): every `verify` area,
+`go lint`, the suites `test functional`, `test unit`, `test integration` and
+`test qemu` when a word follows the suite (`./le test unit` and
+`./le test functional` alone print a listing), and every `test` area whose
+registration is admitted to the job queue, such as `test bgp` and `test ospf`.
+It reads the two-word area name, so `./le verify status check` and
+`./le verify summary` stay pipeable: they read and write the verification
+certificate and start no run.
 
 ## Why one owner runs the suites
 

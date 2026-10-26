@@ -751,7 +751,7 @@ container, so a refused host downloads and starts nothing. With
 `NO_BUILD=1` the proof skips the build and probes with the daemon already at
 that path, and refuses by name when there is none.
 
-The terminal-demo render (`le site terminal-demo render` and `render-all`) and
+The terminal-demo render (`le site terminal-demo render` and `render all`) and
 the renderer's `validate` mode run Ze in validator and recorder containers, so
 both make the same check, through one shared preflight, with the demo binary
 (`tmp/terminal-demos/bin/ze`) after confirming that binary exists and before the

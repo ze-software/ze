@@ -160,7 +160,7 @@ The answer places every gating suite in exactly one of three states, so a suite 
 | `ruled-out` | The map records it, and it reached none of the changed packages |
 | `skipped` | `ZE_SKIP_SUITES` names it. It outranks the map |
 
-<!-- source: internal/le/test/functional/actions.go -- selectVerb -->
+<!-- source: internal/le/test/functional/actions.go -- previewVerb -->
 
 ### What a suite REACHED
 
