@@ -26,6 +26,10 @@ the ISO command automatically.
 Download URLs come from `ze.appliance.kernel.url` and `ze.appliance.initrd.url`,
 with compiled-in defaults. Partial downloads are removed rather than cached.
 
+The download deadline covers the response body, not only the headers.
+`defaultHTTPGet` transfers cancellation to the response body: its caller
+must close that body after reading, which releases the request context.
+
 ## Decisions
 
 - **Doctor checks test for the artifact, not for the build tool.** The artifact

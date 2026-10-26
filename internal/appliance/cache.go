@@ -47,14 +47,35 @@ var (
 	evictNow   = time.Now
 )
 
+// defaultHTTPGet keeps the download deadline active while the body is read.
+// The caller MUST close the response body to release its request context.
 func defaultHTTPGet(url string) (*http.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
-	defer cancel()
+	// The successful response transfers cancellation to downloadBody.Close.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody) //nolint:gosec // URL validated by caller
 	if err != nil {
+		cancel()
 		return nil, err
 	}
-	return http.DefaultClient.Do(req) //nolint:bodyclose // caller closes
+	response, err := http.DefaultClient.Do(req) //nolint:bodyclose // caller closes
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	response.Body = &downloadBody{ReadCloser: response.Body, cancel: cancel}
+	return response, nil
+}
+
+// downloadBody owns a successful download's deadline. Its caller MUST call
+// Close after reading; only defaultHTTPGet constructs it with a live body.
+type downloadBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (body *downloadBody) Close() error {
+	defer body.cancel()
+	return body.ReadCloser.Close()
 }
 
 func resolveCacheDir() string {
