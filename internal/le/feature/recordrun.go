@@ -431,7 +431,7 @@ func (r *repoRunner) prepare() error {
 }
 
 // runInGuest runs the .ci at file in a throwaway QEMU guest, through the
-// suite `le test qemu all-tests` gives its directory, because this host skips
+// suite `le test qemu all` gives its directory, because this host skips
 // it (runner.NeedsGuest): a skip is never a pass, so the host run proves
 // nothing. The guest daemons are cross-built once into the checkout, which the
 // guest mounts. The observation is the guest runner's own output, so the

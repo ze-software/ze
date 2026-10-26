@@ -91,7 +91,7 @@ func TestContainerRemovalSurvivesCancelAndIsReported(t *testing.T) {
 // removal names the container; a start the daemon refused as name-taken, or a
 // spec that never rendered, answers none.
 // METHOD: the fixture answers `docker run -d` with the daemon's refusal of a
-// missing device, the refusal a host without /dev/vhost-net gives vpp-test
+// missing device, the refusal a host without /dev/vhost-net gives vpp
 // after the daemon has created the container (observed 2026-10-19, left
 // `ze-vpp-evidence-2578373` in Created state), then with the name-taken
 // refusal.
@@ -160,7 +160,7 @@ func (s stubProofRun[R]) Run(context.Context) (R, error) { return s.report, s.er
 // partial report a canceled run leaves (no session, an unreached scenario)
 // beside a canceled-context error, once with the container removed and once
 // with the removal failed; the test reads the payload's text.
-// PREVENTS: an interrupted l2tp-test printing "FAIL: xl2tpd session
+// PREVENTS: an interrupted l2tp printing "FAIL: xl2tpd session
 // establishment not observed", a verdict the run never reached (observed in
 // the real Ctrl-C proofs of 2026-10-19, rows 1a and 1b).
 func TestInterruptedProofPrintsNoVerdict(t *testing.T) {
@@ -168,16 +168,16 @@ func TestInterruptedProofPrintsNoVerdict(t *testing.T) {
 	interrupted := fmt.Errorf("docker exec %s: %w", container, context.Canceled)
 	for _, removal := range []string{"", "docker rm -f failed (exit 130)"} {
 		answers := map[string]func() (any, int){
-			"l2tp-test": func() (any, int) {
+			"l2tp": func() (any, int) {
 				report := L2TPReport{Peer: PeerName, Container: container, ContainerRemoval: removal}
 				return runL2TP(t.Context(), stubProofRun[L2TPReport]{report, interrupted})
 			},
-			"vpp-iface-test": func() (any, int) {
+			"vpp-iface": func() (any, int) {
 				report := VPPIfaceReport{Container: container, ContainerRemoval: removal,
 					Scenarios: []ScenarioResult{{Detail: "loopback interface created"}}}
 				return runVPPIface(t.Context(), stubProofRun[VPPIfaceReport]{report, interrupted})
 			},
-			"vpp-test": func() (any, int) {
+			"vpp": func() (any, int) {
 				report := VPPReport{Container: container, ContainerRemoval: removal,
 					Scenarios: []VPPScenarioReport{{Checks: []VPPCheck{{Check: "route", Detail: "route installed"}}}}}
 				return runVPP(t.Context(), stubProofRun[VPPReport]{report, interrupted})

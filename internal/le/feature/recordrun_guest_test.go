@@ -11,7 +11,7 @@ import (
 )
 
 // VALIDATES: a .ci the runner says this host skips (runner.NeedsGuest) is run
-// in the QEMU guest through `le test qemu run ... all-tests test <path>`, and a
+// in the QEMU guest through `le test qemu run ... test qemu all test <path>`, and a
 // .ci it does not skip still runs through its host runner.
 // PREVENTS: feature run observing a host SKIP of a capability-gated test and
 // recording nothing, with no route to the place the test really runs.
@@ -38,7 +38,7 @@ func TestAGuestOnlyTestRunsInTheQEMUGuest(t *testing.T) {
 			t.Fatalf("guest=%v: %v", guest, err)
 		}
 		inGuest := strings.Contains(seen.output, "argv: test qemu run ") &&
-			strings.Contains(seen.output, " test qemu all-tests test test/policy/gated.ci")
+			strings.Contains(seen.output, " test qemu all test test/policy/gated.ci")
 		if inGuest != guest {
 			t.Fatalf("guest=%v: the command feature run chose was:\n%s", guest, seen.output)
 		}

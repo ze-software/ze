@@ -239,8 +239,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	listings := []struct{ name, verb string }{
 		{areaEvidence, actionReleaseCandidate},
 		{areaDeployment, actionL2TPTest},
-		{areaDeployment, "l2tp-ppp-test"},
-		{areaDeployment, "gokrazy-l2tp-ppp-test"},
+		{areaDeployment, "l2tp-ppp"},
+		{areaDeployment, "gokrazy-l2tp-ppp"},
 	}
 	for _, item := range listings {
 		listing := le([]string{item.name}, "", "", "", nil)
@@ -323,7 +323,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Both machine-touching proofs reject the kernel-probe escape before making
 	// any namespace, lab, image, or container change.
-	escaped := le([]string{areaDeployment, "l2tp-ppp-test", "|", renderJSON}, "", "", "",
+	escaped := le([]string{areaDeployment, "l2tp-ppp", "|", renderJSON}, "", "", "",
 		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(escaped.code == 1,
 		"a run carrying the kernel-probe escape exited %d, want 1", escaped.code)
@@ -338,7 +338,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	}
 	uiLeEvidenceAnswersRequire(refused["proven"] == false, "a refused run reports itself proven")
 
-	appliance := le([]string{areaDeployment, "gokrazy-l2tp-ppp-test", "|", renderJSON}, "", "", "",
+	appliance := le([]string{areaDeployment, "gokrazy-l2tp-ppp", "|", renderJSON}, "", "", "",
 		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(appliance.code == 1,
 		"the appliance proof exited %d on the escape, want 1", appliance.code)

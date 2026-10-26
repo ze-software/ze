@@ -259,6 +259,29 @@ var renames = []Rename{
 	{Retired: "web vendor update-report", Command: "web vendor", Action: "report"},
 	{Retired: "feature record-run", Command: "feature", Action: "run"},
 	{Retired: "setup proto-generate", Command: "setup", Action: "proto"},
+	// `*-test` words are nouns to restructure (owner ruling); `install-*` kept
+	// the vocabulary verb install inside a name, and the whole run is `all`.
+	{Retired: "test qemu all-tests", Command: "test qemu", Action: "all"},
+	{Retired: "test qemu install-test", Command: "test qemu", Action: "installer"},
+	{Retired: "test qemu install-iso-test", Command: "test qemu", Action: "installer-iso"},
+	{Retired: "test qemu install-scenarios-test", Command: "test qemu", Action: "installer-scenarios"},
+	{Retired: "test qemu install-ventoy-test", Command: "test qemu", Action: "installer-ventoy"},
+	{Retired: "test qemu ipsec-mobike-test", Command: "test qemu", Action: "ipsec-mobike"},
+	{Retired: "test qemu mpls-boot-test", Command: "test qemu", Action: "mpls-boot"},
+	{Retired: "test qemu netns-test", Command: "test qemu", Action: "netns"},
+	{Retired: "test qemu pppoe-accel-test", Command: "test qemu", Action: "pppoe-accel"},
+	{Retired: "test qemu pppoe-test", Command: "test qemu", Action: "pppoe"},
+	{Retired: "test qemu vpp-hugepages-test", Command: "test qemu", Action: "vpp-hugepages"},
+	{Retired: "test qemu vrrp-keepalived-test", Command: "test qemu", Action: "vrrp-keepalived"},
+	{Retired: "test deployment docker-l2tp-ppp-test", Command: "test deployment", Action: "docker-l2tp-ppp"},
+	{Retired: "test deployment docker-pppoe-accel-test", Command: "test deployment", Action: "docker-pppoe-accel"},
+	{Retired: "test deployment gokrazy-l2tp-ppp-test", Command: "test deployment", Action: "gokrazy-l2tp-ppp"},
+	{Retired: "test deployment ipsec-mobike-test", Command: "test deployment", Action: "ipsec-mobike"},
+	{Retired: "test deployment l2tp-ppp-test", Command: "test deployment", Action: "l2tp-ppp"},
+	{Retired: "test deployment l2tp-scale-test", Command: "test deployment", Action: "l2tp-scale"},
+	{Retired: "test deployment l2tp-test", Command: "test deployment", Action: "l2tp"},
+	{Retired: "test deployment vpp-iface-test", Command: "test deployment", Action: "vpp-iface"},
+	{Retired: "test deployment vpp-test", Command: "test deployment", Action: "vpp"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

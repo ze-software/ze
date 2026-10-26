@@ -139,13 +139,13 @@ nothing exits 0. A skip is never a pass. A `.ci` that declares
 (`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway QEMU
 guest instead: feature run cross-builds `ze` and `ze-stripped` for the guest
 under `tmp/qemu/feature-record-run/`, then runs `le test qemu run ... command
-'<guest le> test qemu all-tests test <path>'`, which runs that one test through
-the suite `all-tests` gives its directory, network-namespace preparation
+'<guest le> test qemu all test <path>'`, which runs that one test through
+the suite `test qemu all` gives its directory, network-namespace preparation
 included. The guest runner's own PASS line is still the observation. When the
 guest route cannot run here (no QEMU, no KVM access, no image), the refusal
 says the test skips on this host and quotes the route's own error. A
 `test/pppoe/` test declares `option=netns-link` and skips outside `./le test
-qemu pppoe-test`, which feature run does not drive, so it observes a skip and
+qemu pppoe`, which feature run does not drive, so it observes a skip and
 records nothing. The chaos-web suite runs under the isolated set like any other:
 its `le chaos run` step is the set's own `le`. A failure, a missing PASS line,
 or a test file that changed during the run writes nothing.

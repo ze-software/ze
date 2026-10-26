@@ -570,7 +570,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"test integration/iface", "test integration/fib", "test integration/firewall",
 		"test integration/traffic", "test integration/gtsm", "test integration/as112",
 		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
-		"test deployment/docker-l2tp-ppp-test", "test deployment/docker-pppoe-accel-test",
+		"test deployment/docker-l2tp-ppp", "test deployment/docker-pppoe-accel",
 		"test qemu/docker-lab", "setup docker kernel/check", "setup/appliance-modules",
 		"test integration/docker-peers", "test integration/live-rpki",
 	}
@@ -595,8 +595,8 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		"interop":        "test integration interop",
 		"ipsec-interop":  "test integration interop-ipsec",
 		"radius-interop": "test integration interop-radius",
-		"l2tp-interop":   "test deployment docker-l2tp-ppp-test",
-		"pppoe-interop":  "test deployment docker-pppoe-accel-test",
+		"l2tp-interop":   "test deployment docker-l2tp-ppp",
+		"pppoe-interop":  "test deployment docker-pppoe-accel",
 	}
 	for _, job := range jobBlocks(t, name) {
 		lab, isLab := dockerLabs[job.name]
@@ -695,17 +695,17 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 		}
 	}
 	for _, proof := range []string{
-		"test qemu all-tests", "TestLDPInteropFRR", "TestISISInteropFRR",
-		"test qemu vrrp-keepalived-test", "test deployment gokrazy-l2tp-ppp-test",
-		"test qemu pppoe-accel-test", "test qemu pppoe-test", "TestAttachTCX_CountsTraffic",
+		"test qemu all", "TestLDPInteropFRR", "TestISISInteropFRR",
+		"test qemu vrrp-keepalived", "test deployment gokrazy-l2tp-ppp",
+		"test qemu pppoe-accel", "test qemu pppoe", "TestAttachTCX_CountsTraffic",
 	} {
 		if !strings.Contains(source, proof) {
 			t.Errorf("%s lacks proof %q", name, proof)
 		}
 	}
 	for _, identity := range []string{
-		"test qemu/all-tests", "test qemu/vrrp-keepalived-test",
-		"test qemu/pppoe-accel-test", "test qemu/pppoe-test",
+		"test qemu/all", "test qemu/vrrp-keepalived",
+		"test qemu/pppoe-accel", "test qemu/pppoe",
 	} {
 		actionExists(t, identity)
 	}
@@ -713,7 +713,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 
 func TestCapabilityGatedTestsHaveANativeVMHome(t *testing.T) {
 	source := workflowSource(t, "qemu-nightly.yml")
-	if !strings.Contains(source, "ZE_QEMU_LINUX_ONLY=1") || !strings.Contains(source, "test qemu all-tests") {
+	if !strings.Contains(source, "ZE_QEMU_LINUX_ONLY=1") || !strings.Contains(source, "test qemu all") {
 		t.Fatal("capability-gated fixtures need the Linux-only native VM run")
 	}
 	root := filepath.Join(repoRoot(t), "test")

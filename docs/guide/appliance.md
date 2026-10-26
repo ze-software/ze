@@ -159,7 +159,7 @@ support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
-./le test deployment gokrazy-l2tp-ppp-test
+./le test deployment gokrazy-l2tp-ppp
 ```
 
 The proof image is built from a temporary gokrazy instance config so the normal

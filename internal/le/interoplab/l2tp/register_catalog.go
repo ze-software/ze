@@ -23,7 +23,7 @@ func init() {
 		Package:          "internal/le/interoplab/l2tp/",
 		ScenarioRoot:     scenarioDirectory,
 		SelectorVariable: selectorVariable,
-		Action:           "test deployment/docker-l2tp-ppp-test",
+		Action:           "test deployment/docker-l2tp-ppp",
 	})
 }
 

@@ -13,7 +13,7 @@
 # mismatch exits non-zero, as does an appliance that never answers under a
 # hardware accelerator (kvm/hvf). On Linux that needs the invoking user in the
 # `kvm` group -- `./le setup` checks this as kvm-access. The exhaustive run is
-# `./le test qemu vpp-hugepages-test`.
+# `./le test qemu vpp-hugepages`.
 
 # The auto-timeout is derived from this test's rolling baseline (5x the average).
 # On a host without KVM the driver SKIPs in a couple of seconds, so the baseline
@@ -23,6 +23,6 @@
 # the run at 15s on the first KVM-capable host to meet it. An explicit timeout
 # always wins over the derived one, so pin it to the real cost.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=le test qemu vpp-hugepages-test
+cmd=foreground:seq=1:exec=le test qemu vpp-hugepages
 expect=exit:code=0
 expect=stdout:pattern=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

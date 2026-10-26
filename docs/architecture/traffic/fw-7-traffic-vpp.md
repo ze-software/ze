@@ -125,7 +125,7 @@ the cached index still names the intended policer.
 The corrected daemon-restart proof exposed duplicate creation on pinned amd64
 VPP 26.06. The earlier v25.10 apply evidence did not prove real Ze replacement:
 stopping a `docker exec` client had left its daemon and VPP state alive.
-The source correction needs a fresh full `./le test deployment vpp-test` run.
+The source correction needs a fresh full `./le test deployment vpp` run.
 <!-- source: internal/le/test/deployment/vppevidencerun.go -- runTrafficInterface -->
 
 ### Undo list for a partial failure

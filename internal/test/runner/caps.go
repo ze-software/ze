@@ -198,7 +198,7 @@ var hasCaps = func(tokens []string) bool {
 // skipReasonNetnsLink is the skip reason applied by applyNetnsLinkGate. It names
 // both targets that DO provision the links, so the reader's next step is one
 // command rather than a source dive.
-const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch mode; run via ./le test qemu netns-test, or ./le test qemu netns-test on Linux)"
+const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch mode; run via ./le test qemu netns, or ./le test qemu netns on Linux)"
 
 // applyNetnsLinkGate skips a record that declared `option=netns-link` when the
 // per-test netns launch mode is off.
@@ -209,7 +209,7 @@ const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch 
 // created and the option is silently inert -- a fail-open gate
 // (ai/rules/evidence.md). The test then runs against a kernel missing
 // the interface it asked for and fails on a symptom far from the cause. Two
-// shapes of that in the 2026-07-25 `./le test qemu all-tests` run, which
+// shapes of that in the 2026-07-25 `./le test qemu all` run, which
 // sets no ZE_TEST_NETNS:
 //
 //   - all 8 needs-linux test/ospf and all 3 test/ospfv3 tests provision their
@@ -230,7 +230,7 @@ const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch 
 // It replaces a weaker reason on purpose: netns mode implies Linux plus the
 // runner's CAP_SYS_ADMIN, so this requirement subsumes
 // needs-linux[:caps=net-admin], and the targets it names are the ones that
-// actually run these tests (`./le test qemu all-tests` never will).
+// actually run these tests (`./le test qemu all` never will).
 func applyNetnsLinkGate(r *Record) {
 	if len(r.NetnsLinks) > 0 && !netnsActive() {
 		r.SkipReason = skipReasonNetnsLink
@@ -239,7 +239,7 @@ func applyNetnsLinkGate(r *Record) {
 
 // NeedsGuest answers whether this host skips the .ci at path because it
 // declares `option=needs-linux` and the host is not Linux or lacks a declared
-// capability. Such a test's home is the QEMU guest (`le test qemu all-tests`),
+// capability. Such a test's home is the QEMU guest (`le test qemu all`),
 // and the answer is this parser's own skip decision, so a caller routing the
 // test there never restates the gate.
 func NeedsGuest(path string) (bool, error) {

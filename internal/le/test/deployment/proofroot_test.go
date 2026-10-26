@@ -14,7 +14,7 @@ import (
 
 // refusingDocker is a docker on PATH whose kernel probe passes, that holds
 // every image, and that refuses every detached start after creating the
-// container: the vhost-net refusal vpp-test met on 2026-10-19, which left
+// container: the vhost-net refusal vpp met on 2026-10-19, which left
 // `ze-vpp-evidence-2578373` in Created state. A removal prints the name, as
 // docker does for a container it removed.
 const refusingDocker = `#!/bin/sh
@@ -66,15 +66,15 @@ type rootedProof struct {
 // signals (signalRooted in actions.go).
 func rootedProofs() []rootedProof {
 	return []rootedProof{
-		{"l2tp-test", func(tree string) string { return NewL2TP(tree).Goarch }, func(ctx context.Context, tree string) error {
+		{"l2tp", func(tree string) string { return NewL2TP(tree).Goarch }, func(ctx context.Context, tree string) error {
 			_, err := NewL2TP(tree).Run(ctx)
 			return err
 		}},
-		{"vpp-test", func(tree string) string { return newVPP(tree).Goarch }, func(ctx context.Context, tree string) error {
+		{"vpp", func(tree string) string { return newVPP(tree).Goarch }, func(ctx context.Context, tree string) error {
 			_, err := newVPP(tree).Run(ctx)
 			return err
 		}},
-		{"vpp-iface-test", func(tree string) string { return newVPPIface(tree).Goarch }, func(ctx context.Context, tree string) error {
+		{"vpp-iface", func(tree string) string { return newVPPIface(tree).Goarch }, func(ctx context.Context, tree string) error {
 			_, err := newVPPIface(tree).Run(ctx)
 			return err
 		}},

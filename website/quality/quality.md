@@ -107,7 +107,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
   <article class="quality-command">
     <h3>Linux and release</h3>
     <p>Use the wider gates only when the behavior needs Linux, real peers, or release evidence.</p>
-    <pre><code>./le test qemu netns-test
+    <pre><code>./le test qemu netns
 ./le test qemu run command '...' keep-alive
 ./le test integration interop
 ./le verify evidence release-candidate</code></pre>

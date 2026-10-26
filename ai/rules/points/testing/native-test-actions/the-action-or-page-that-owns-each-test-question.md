@@ -10,8 +10,8 @@ name is not, and a hand-written second copy of it drifts.**
 |-----------|----------------|
 | Which suite runs which format, and what each `test/<subdir>/` asserts | `docs/functional-tests.md` |
 | `.ci` directives, sleep kinds, the sleep ratchet, the accept-only baseline | `docs/architecture/testing/ci-format.md` |
-| Any change to `//go:build linux` code | `./le test qemu all-tests` |
-| Changes to nft, FIB, or OSPF kernel programming | `./le test qemu netns-test suites firewall,policy,ospf,ospfv3` |
+| Any change to `//go:build linux` code | `./le test qemu all` |
+| Changes to nft, FIB, or OSPF kernel programming | `./le test qemu netns suites firewall,policy,ospf,ospfv3` |
 | Build tags, virtual substitutes, and native action wiring for Linux-only code | `ai/rules/platform-linux.md`, read in full first |
 | A change to reactor lock or shared state (`session*.go`, `forward_pool*.go`, `peer.go`, a new goroutine there) | `go test -race -count=20 ./internal/component/bgp/reactor/...`, and paste the output as the evidence |
 | A VPP backend's Apply pipeline | the `vppOps` seam and scripted `fakeOps` tests, never a running VPP daemon (`internal/plugins/traffic/vpp/apply_test.go`) |

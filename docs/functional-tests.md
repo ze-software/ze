@@ -177,21 +177,21 @@ Docker because the local runner needs a Linux system service; Docker-specific
 targets say so in the target name.
 
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
-`./le test deployment vpp-test` starts VPP in a Docker container that holds
+`./le test deployment vpp` starts VPP in a Docker container that holds
 `NET_ADMIN`, `/dev/net/tun` and `/dev/vhost-net`, never
 `--privileged`, and
 proves `fib-vpp` add and withdraw against VPP's real FIB, traffic policers,
 and the IKE IPsec dataplane backend.
 
 External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
-`./le test deployment l2tp-test` starts Ze and a real `xl2tpd` LAC in a
+`./le test deployment l2tp` starts Ze and a real `xl2tpd` LAC in a
 Docker container that holds `NET_ADMIN` and `/dev/ppp` and never runs
 `--privileged`, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
-separate Linux-only target: `./le test deployment l2tp-ppp-test` creates Ze and
+separate Linux-only target: `./le test deployment l2tp-ppp` creates Ze and
 LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,
 `pppd`, `ping`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
-`./le test deployment docker-l2tp-ppp-test` runs a peer-isolated Docker lab with Ze,
+`./le test deployment docker-l2tp-ppp` runs a peer-isolated Docker lab with Ze,
 a real `xl2tpd`/`pppd` peer, FRR for BGP redistribution, and an independent Go
 RADIUS peer. Its four scenarios cover Ze as LNS and initiator, PPP LCP/IPCP,
 kernel `pppN` interfaces, dataplane traffic, route redistribution, and RADIUS
@@ -199,7 +199,7 @@ accounting attributes. The lab refuses to run a PPP scenario when `/dev/ppp`,
 `ip l2tp`, or the `l2tp_ppp`/`pppol2tp` module is missing. A single scenario is
 selected with `ZE_L2TP_INTEROP_SCENARIO=<name>`.
 
-`./le test deployment docker-pppoe-accel-test` runs two PPPoE roles against independent
+`./le test deployment docker-pppoe-accel` runs two PPPoE roles against independent
 peers. Ze acts as a client against the Alpine
 [accel-ppp](https://accel-ppp.org/) access concentrator, then as an access
 concentrator against `pppd` with the `rp-pppoe` plugin. The checkers require
@@ -209,7 +209,7 @@ clean teardown. The Docker form needs host-kernel `/dev/ppp` and `pppoe`
 support. `ZE_PPPOE_INTEROP_SCENARIO=<name>` selects one role. See
 `docs/labs/pppoe-interop.md`.
 
-`./le test qemu vrrp-keepalived-test` runs the VRRP interop lab against keepalived
+`./le test qemu vrrp-keepalived` runs the VRRP interop lab against keepalived
 2.3.1 on one L2 segment. Three network namespaces are bridged so a passive
 observer can prove the virtual IP moves at layer 2. The action boots Ze's
 runtime kernel through the native QEMU harness and uses the shared verified
@@ -219,13 +219,13 @@ is measured from tcpdump wire timestamps against the acceptance bands in
 `plan/spec-vrrp-6-interop.md`, never from wall clock.
 
 The Linux-only VRRP runtime `.ci` tests carry `option=needs-linux`: they skip on
-Darwin and unprivileged Linux, then run inside `./le test qemu all-tests`.
+Darwin and unprivileged Linux, then run inside `./le test qemu all`.
 
 ### Which pipeline runs each QEMU lab
 
 `.github/workflows/qemu-nightly.yml` invokes the registered `./le test qemu`
-actions. `./le test qemu all-tests` covers the Linux functional suites;
-`vrrp-keepalived-test`, `pppoe-accel-test`, and `pppoe-test` own their protocol
+actions. `./le test qemu all` covers the Linux functional suites;
+`vrrp-keepalived`, `pppoe-accel`, and `pppoe` own their protocol
 labs. `TestEveryWorkflowNativeActionExists` checks the other direction: every
 `./le` action a workflow names is registered in the Go action tables. Nothing
 today refuses a REGISTERED action that no workflow reaches, so a new lab needs
@@ -707,7 +707,7 @@ release/build evidence.
 
 The `installer` group carries no `-race` flag and targets Linux. On another
 host `go test` cross-compiles a Linux binary it cannot start, so the group runs
-`go vet` over the same files. `./le test qemu all-tests` runs them for real inside
+`go vet` over the same files. `./le test qemu all` runs them for real inside
 the Alpine virtual machine.
 
 ### Property-based tests (stdlib `testing/quick`)
@@ -860,7 +860,7 @@ the Docker DUT matrix uses the native Go runner: `./le perf run`.
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
 `.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
-Linux, then run as root inside `./le test qemu all-tests`. CAP_NET_ADMIN and real
+Linux, then run as root inside `./le test qemu all`. CAP_NET_ADMIN and real
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
@@ -1086,7 +1086,7 @@ integration tests supplied by the applicable `./le test integration` action, plu
 the `test/chaos/iface-link-flap.ci` scenario.
 
 Suites that mutate shared, un-namespaced kernel state run serially in
-`./le test qemu all-tests`. The guest is a throwaway VM, so nothing any suite
+`./le test qemu all`. The guest is a throwaway VM, so nothing any suite
 programs reaches the operator's own kernel.
 
 Four suites go further and take a fresh network namespace for each test:
@@ -1281,8 +1281,8 @@ operator's real firewall. An **opt-in per-test network-namespace launch mode**
 makes them runnable host-safely on Linux:
 
 ```bash
-./le test qemu netns-test
-./le test qemu netns-test suites firewall
+./le test qemu netns
+./le test qemu netns suites firewall
 ```
 
 The native action provisions capabilities, runs each suite in a disposable
@@ -1302,7 +1302,7 @@ the same registered QEMU action path.
 
 The `system-kernel-log-show` plugin test opens `/dev/kmsg` and needs
 `CAP_SYSLOG`. It runs in the privileged guest population through
-`./le test qemu all-tests`; an unprivileged host run skips it with the required
+`./le test qemu all`; an unprivileged host run skips it with the required
 capability in the reason.
 
 The namespace runner locks its goroutine to one OS thread, enters a disposable
@@ -1666,7 +1666,7 @@ keeps the `/32` and assertion 1 fails. The owned `.60` sits above keepalived's
 tie-break compares the sender with the address Ze sends from; a tie-break
 against the first virtual address would keep Ze Master and hide the missing
 discard. The scenario's QEMU path is `v2-owner-keeps-the-address` under
-`./le test qemu vrrp-keepalived-test`, with the same assertions on the runtime
+`./le test qemu vrrp-keepalived`, with the same assertions on the runtime
 kernel (`docs/architecture/testing/qemu-integration.md`).
 
 <!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-mastership-keepalived -->
@@ -2088,9 +2088,9 @@ so it needs no DPDK, vfio, root, or Python helper.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- CmdVPPStub, runVPPStub -->
 <!-- source: internal/test/cli/cmd_vpp.go -- CmdVpp -->
 
-Real-daemon evidence uses `./le test deployment vpp-test`. It starts VPP in Docker
+Real-daemon evidence uses `./le test deployment vpp`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
-`./le test deployment vpp-iface-test` covers GRE and WireGuard interface behavior.
+`./le test deployment vpp-iface` covers GRE and WireGuard interface behavior.
 <!-- source: internal/le/test/deployment/actions.go -- Actions -->
 
 ### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
@@ -2162,10 +2162,10 @@ driver.
 
 ```bash
 ./le test functional installer
-./le test qemu install-test
-./le test qemu install-iso-test
-./le test qemu install-scenarios-test
-./le test qemu install-ventoy-test
+./le test qemu installer
+./le test qemu installer-iso
+./le test qemu installer-scenarios
+./le test qemu installer-ventoy
 ```
 
 The QEMU actions self-skip with one visible line when the operator-supplied
@@ -3776,7 +3776,7 @@ excluded from all normal test targets.
 macOS cannot run these tests natively. Use the QEMU Alpine VM:
 
 ```bash
-./le test qemu all-tests
+./le test qemu all
 ```
 
 This is the standard workflow for macOS developers. The QEMU runner boots an
@@ -3788,7 +3788,7 @@ See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
 details on how to write QEMU integration tests and add new packages.
 
 The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/` carry
-`//go:build integration && linux`. `./le test qemu all-tests` runs them inside the
+`//go:build integration && linux`. `./le test qemu all` runs them inside the
 guest with the registered integration population.
 <!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
 <!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
@@ -3799,12 +3799,12 @@ Thomas runs `./le verify evidence release-candidate` at a terminal. The
 deployment and install tests run with:
 
 ```bash
-./le test deployment vpp-test
-./le test deployment l2tp-test
-./le test deployment l2tp-ppp-test
-./le test qemu install-test
-./le test qemu install-iso-test
-./le test deployment docker-l2tp-ppp-test
+./le test deployment vpp
+./le test deployment l2tp
+./le test deployment l2tp-ppp
+./le test qemu installer
+./le test qemu installer-iso
+./le test deployment docker-l2tp-ppp
 ```
 
 These actions are external evidence and declare their own prerequisites.
@@ -3887,12 +3887,12 @@ le test l2tp --list    # List available tests
 le test l2tp --all     # Run all tests
 ```
 
-For external-peer evidence, run `./le test deployment l2tp-test`. It uses a
+For external-peer evidence, run `./le test deployment l2tp`. It uses a
 real `xl2tpd` LAC to establish the L2TP control tunnel and incoming-call session
 against Ze. It intentionally does not claim full PPP/NCP dataplane proof when
 the Docker host lacks the `l2tp_ppp` kernel module.
 
-For full PPP/NCP peer evidence, run `./le test deployment l2tp-ppp-test` on a
+For full PPP/NCP peer evidence, run `./le test deployment l2tp-ppp` on a
 Linux host or target runner with `xl2tpd`, `pppd`, `ping`, `/dev/ppp`,
 `iproute2`, and PPPoL2TP kernel support. The target refuses skip-kernel-probe
 mode, creates peer-isolated Ze and LAC network namespaces, starts Ze as LNS,
@@ -3903,12 +3903,12 @@ the LNS through the PPP tunnel from the LAC namespace to prove dataplane
 connectivity, observes subscriber route injection, and verifies teardown
 returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
-On macOS, `./le test deployment docker-l2tp-ppp-test` runs that same proof in
+On macOS, `./le test deployment docker-l2tp-ppp` runs that same proof in
 privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
 
-For appliance evidence, run `./le test deployment gokrazy-l2tp-ppp-test` on a
+For appliance evidence, run `./le test deployment gokrazy-l2tp-ppp` on a
 Linux host with QEMU and PPPoL2TP support. The native appliance kernel action
 materializes the verified runtime kernel from its durable cache or builds it
 through `internal/appliance/kernelbuilder`. The proof then builds a temporary
@@ -3990,8 +3990,8 @@ server. The native deployment action starts Ze, runs the four-scenario
 registry, checks each result, and retains the simulator's exact result bytes.
 
 ```bash
-./le test deployment l2tp-scale-test
-L2TP_SCALE_SCENARIO=2k-sessions ./le test deployment l2tp-scale-test
+./le test deployment l2tp-scale
+L2TP_SCALE_SCENARIO=2k-sessions ./le test deployment l2tp-scale
 le test scale l2tp --help
 ```
 

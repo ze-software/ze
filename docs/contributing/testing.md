@@ -22,7 +22,7 @@ one; an agent is refused, and its evidence is `./le verify changed`.
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
-`./le test qemu install-iso-test`, and `./le test unit bgp`. Legacy command names
+`./le test qemu installer-iso`, and `./le test unit bgp`. Legacy command names
 have no compatibility aliases.
 
 Action words describe the contract: `check` is a read-only verdict, `verify` is
@@ -80,7 +80,7 @@ green group says nothing about the rest of the tree.
 
 The `installer` group runs the tests on Linux. On another host `go test`
 cross-compiles a Linux binary it cannot start, so the group runs `go vet`
-and type-checks the same files instead. `./le test qemu all-tests` runs them for
+and type-checks the same files instead. `./le test qemu all` runs them for
 real inside the Alpine virtual machine.
 
 ## Test types
@@ -264,7 +264,7 @@ They are not part of the normal development cycle.
 ```sh
 ./le test integration interop
 ./le test integration iface
-./le test qemu all-tests
+./le test qemu all
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
 ./le test integration clean dry    # what a killed lab run left, and why the rest stays

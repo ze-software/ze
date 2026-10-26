@@ -18,14 +18,14 @@ This page is the infrastructure it is owed against.
 |---------------|---------------------|--------------------|---------------|
 | BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP, StayRTR | `test/interop/scenarios/` | `./le test integration interop` |
 | IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le test integration interop-ipsec` |
-| L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp-test`, and `./le test deployment l2tp-ppp-test` for the full PPP and NCP path |
-| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel-test` |
+| L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp`, and `./le test deployment l2tp-ppp` for the full PPP and NCP path |
+| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
 | RADIUS (subscriber: accounting, CoA and Disconnect) | Docker: FreeRADIUS, an xl2tpd + pppd LAC | `test/interop-radius-subscriber/scenarios/` | `./le test integration interop-radius-subscriber` |
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 
 <!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber and interop-rsvpte verbs -->
-<!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
+<!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
 (`internal/le/interoplab/discover.go`) reads the scenario directory, keeps the
@@ -227,7 +227,7 @@ fifteen-second bound.
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp`, `vpp` and `vpp-iface` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT, `./le verify evidence release-candidate` | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 | Docker | `./le test integration clean`, `./le test integration docker-peers` | No Ze kernel: neither runs Ze in a container |
 
@@ -247,7 +247,7 @@ Run the focused service-route proof through native admission:
 This test reuses the deployment VPP image, its container (`NET_ADMIN`,
 `/dev/net/tun` and `/dev/vhost-net`, never `--privileged`), build recipes,
 sockets, and staged Ze configuration. It does not replace the legacy
-`./le test deployment vpp-test` population. Docker, Go, a VPP image with the
+`./le test deployment vpp` population. Docker, Go, a VPP image with the
 SRv6 API and AF_PACKET plugin, and a Docker kernel with veth support are required.
 The managed phase also needs `/usr/bin/vpp`, writable `/etc/vpp`, and sufficient
 already-reserved hugepage resources for its configured 64M heap, 1024 buffers,
@@ -476,8 +476,8 @@ a value. `--name` has no short form.
 <!-- source: internal/le/interoplab/docker.go -- Docker.RunOneShot, refuseOwnedArguments, labelFlagValue, clusterLabelValue -->
 
 A caller outside a lab Suite that needs a long-running container, such as the
-deployment proofs (`./le test deployment l2tp-test`, `vpp-iface-test`,
-`vpp-test`), starts it with `Docker.RunDetached`. Its typed spec
+deployment proofs (`./le test deployment l2tp`, `vpp-iface`,
+`vpp`), starts it with `Docker.RunDetached`. Its typed spec
 (`DetachedContainer`: platform, network and address, capabilities, devices,
 mounts, environment, working directory, entrypoint, command) carries no raw
 docker flag, and the container carries the same owner labels, so a run killed
@@ -737,14 +737,14 @@ It refuses when:
 | the suite names no staged ze | `Suite.StagedZe` |
 
 The refusal is the suite's setup error: `interop: setup: <reason>`, exit 1. The
-`docker-l2tp-ppp-test` and `docker-pppoe-accel-test` deployment proofs run the
+`docker-l2tp-ppp` and `docker-pppoe-accel` deployment proofs run the
 L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
 module of its own, such as the FreeRADIUS admin-login suite, is checked too:
 the owner's rule is about the host, not about the scenario.
 
-The `l2tp-test`, `vpp-test` and `vpp-iface-test` deployment proofs run no suite,
+The `l2tp`, `vpp` and `vpp-iface` deployment proofs run no suite,
 and neither does `TestVPPSRv6ServiceRoute` (build tag `integration`), which
-prepares its daemon through the step `vpp-iface-test` uses. Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
+prepares its daemon through the step `vpp-iface` uses. Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
 `buildCheckedDaemon` runs the same check with that binary right after the build,
 before the proof inspects or pulls its peer image and before its first
 container, so a refused host downloads and starts nothing. With
@@ -836,8 +836,8 @@ and the context are never used in its place. A DOCKER_HOST the operator set is
 kept as it is, because it names a daemon on purpose (the QEMU docker-lab's
 forwarded socket is one), and the kernel check stays the gate that judges that
 daemon's kernel. `ze appliance build`, which every QEMU verb that builds an
-appliance runs (`./le test qemu install-test` and its siblings,
-`vpp-hugepages-test`, `mpls-boot-test`, the two `crash-capture-*` verbs), runs
+appliance runs (`./le test qemu installer` and its siblings,
+`vpp-hugepages`, `mpls-boot`, the two `crash-capture-*` verbs), runs
 under the same selection. ffmpeg, which `le site terminal-demo` runs, is no Docker
 client and runs under le's own environment.
 <!-- source: internal/le/dockerhost/dockerhost.go -- Environment, Inherited, ZeSocket, DockerHostStart -->

@@ -113,13 +113,13 @@ const (
 func (kind InstallKind) String() string {
 	switch kind {
 	case InstallKindHTTP:
-		return "install-test"
+		return "installer"
 	case InstallKindISO:
-		return "install-iso-test"
+		return "installer-iso"
 	case InstallKindScenarios:
-		return "install-scenarios-test"
+		return "installer-scenarios"
 	case InstallKindVentoy:
-		return "install-ventoy-test"
+		return "installer-ventoy"
 	case InstallKindUnspecified:
 		return verdictWordUnspecified
 	default:

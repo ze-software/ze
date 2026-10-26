@@ -11,7 +11,7 @@
 // repository already has.
 //
 // A .ci the host's runner skips (`option=needs-linux:caps=...` on a host that
-// lacks the capability) runs in the same guest through `le test qemu all-tests
+// lacks the capability) runs in the same guest through `le test qemu all
 // test <path>`, the one-.ci narrowing `le feature run` already drives,
 // against daemons cross-built on the host under the overlay.
 package rfc

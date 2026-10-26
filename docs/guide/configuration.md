@@ -3780,7 +3780,7 @@ The fixture refuses to run without that opt-in. Its suite carrier,
 `test/plugin/storage-ntp-restart.ci`, passes the opt-in and is gated
 `option=needs-linux:caps=sys-time`: a process without `CAP_SYS_TIME` skips it,
 so an unprivileged developer host keeps its clock and the QEMU guest
-(`./le test qemu all-tests`) runs it.
+(`./le test qemu all`) runs it.
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->

@@ -35,7 +35,7 @@ func TestL2TPDeploymentContainerRunsWithoutPrivilege(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7. The VPP proofs' container (vpp-iface-test and vpp-test),
+// VALIDATES: AC-7. The VPP proofs' container (vpp-iface and vpp),
 // where VPP locks its buffer memory and creates tap interfaces and ze programs
 // the namespace, holds exactly NET_ADMIN, --device /dev/net/tun and
 // --device /dev/vhost-net: no --privileged, no IPC_LOCK, no other grant. On an

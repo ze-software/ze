@@ -171,7 +171,7 @@ type vmSuite struct {
 	// not run in the guest root namespace. It also records why a suite is in
 	// this list when it gates nowhere else.
 	Why string
-	// Only is the stem of the one test an `all-tests test` run selects, empty
+	// Only is the stem of the one test a `test qemu all test` run selects, empty
 	// for a whole-suite row. It is not part of Args because the runner reads
 	// its flags up to the first test name: suiteCommand puts it after them.
 	Only string
@@ -213,7 +213,7 @@ var vmSuites = []vmSuite{
 		Why: "firewall-nat-exclude installs a nat prerouting chain, and in the guest root namespace" +
 			" that chain sits under the SSH transport carrying the run: the 2026-09-05 run died there" +
 			" with ssh's own exit 255 and every later phase went unaccounted. Serial because the" +
-			" launcher has only ever been exercised one test at a time (./le test qemu netns-test)",
+			" launcher has only ever been exercised one test at a time (./le test qemu netns)",
 	},
 	{
 		Name: "policy", Args: []string{"policy", allTests}, Concurrency: serial, Namespace: perTest,
@@ -296,7 +296,7 @@ var vmSuites = []vmSuite{
 var excludedSuites = map[string]string{}
 
 // integrationPackages are the linux-only test packages, the same set
-// `./le test qemu all-tests` names.
+// `./le test qemu all` names.
 var integrationPackages = []string{
 	// The doctor's integration test is internal/component/doctor
 	// (checks_integration_linux_test.go). This entry once read ./cmd/ze/doctor,
@@ -885,10 +885,10 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 }
 
 // errNotOneCI refuses a test narrowing that names no test/<dir>/<name>.ci.
-var errNotOneCI = errors.New("qemu: all-tests test takes test/<dir>/<name>.ci")
+var errNotOneCI = errors.New("qemu: all test takes test/<dir>/<name>.ci")
 
 // vmSuiteFor answers the VM suite that runs the .ci at rel, test/<dir>/<name>.ci,
-// with its all-tests flag removed and the test's stem in Only, so the suite
+// with its --all flag removed and the test's stem in Only, so the suite
 // selects that one file. A suite walks the directory its last word names.
 // ciRootDir is the checkout directory every .ci suite lives under, and
 // goTestVerb the go subcommand a guest test binary is built with.

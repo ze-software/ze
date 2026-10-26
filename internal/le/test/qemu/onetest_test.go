@@ -3,7 +3,7 @@ package testqemu
 import "testing"
 
 // VALIDATES: the guest command for one .ci points the harness at the cross-built daemons
-// and narrows `all-tests` to that one file, through paths the guest resolves from the
+// and narrows `test qemu all` to that one file, through paths the guest resolves from the
 // checkout it mounts.
 // METHOD: OneCICommand over a fixture directory and file.
 // PREVENTS: a guest run of the host-built ze (no break, or the wrong architecture) and a
@@ -12,7 +12,7 @@ func TestOneCICommand(t *testing.T) {
 	got := OneCICommand("tmp/qemu/x/linux-amd64/bin", "test/plugin/gated.ci", ArchAMD64)
 	want := "ZE_BIN=tmp/qemu/x/linux-amd64/bin/ze ZE_STRIPPED_BIN=tmp/qemu/x/linux-amd64/bin/ze-stripped" +
 		" ZE_STRIPPED_FLOW_BIN=tmp/qemu/x/linux-amd64/bin/ze-stripped-flow" +
-		" tmp/qemu/linux-amd64/le test qemu all-tests test test/plugin/gated.ci"
+		" tmp/qemu/linux-amd64/le test qemu all test test/plugin/gated.ci"
 	if got != want {
 		t.Errorf("OneCICommand\n got %q\nwant %q", got, want)
 	}

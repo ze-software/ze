@@ -13,7 +13,7 @@
 #
 # needs-linux:caps=net-admin: creating a dummy netdev needs CAP_NET_ADMIN, and
 # only Linux honours SO_BINDTODEVICE, so on another platform the bind would
-# succeed with no device at all. Runs as root under `./le test qemu all-tests`.
+# succeed with no device at all. Runs as root under `./le test qemu all`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zedhcpord0 and the address block
 # 198.19.253.0/24. No other file under test/ puts either in a kernel.

@@ -62,7 +62,7 @@ func stageRootedBuildTree(t *testing.T) (string, string) {
 	return tree, record
 }
 
-// VALIDATES: the gokrazy-l2tp-ppp-test image build runs under the verb's
+// VALIDATES: the gokrazy-l2tp-ppp image build runs under the verb's
 // signal root, so the root ending (a SIGTERM to le) starts no go build: the
 // host driver's compile, the first child of the build, is the one a canceled
 // root must not reach.
@@ -198,7 +198,7 @@ func (s *stagedAppliance) Run(ctx context.Context) (GokrazyL2TPReport, error) {
 	return proveAppliance(ctx, s, GokrazyL2TPReport{Peer: PeerName}, work, "ze.conf", work)
 }
 
-// VALIDATES: G-2 for gokrazy-l2tp-ppp-test: a run whose signal root ended
+// VALIDATES: G-2 for gokrazy-l2tp-ppp: a run whose signal root ended
 // during the build, the lab setup or the boot answers the stop as an error and
 // prints no verdict, neither OK nor FAIL with a console tail; a stop during
 // the build boots nothing.

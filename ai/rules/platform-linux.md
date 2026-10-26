@@ -42,7 +42,7 @@
 
 **A test whose prerequisite is absent MUST call `t.Skip`, never `t.Fatal`.** One test file runs in environments with different capabilities, and a fatal there reports a broken product for a missing capability. The worked example is `docs/architecture/testing/qemu-integration.md`.
 
-**A new integration package MUST be added to `integrationPackages` in `internal/le/test/qemu/alltests.go`.** `./le test qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
+**A new integration package MUST be added to `integrationPackages` in `internal/le/test/qemu/alltests.go`.** `./le test qemu all` runs that closed list, so a package absent from it never runs and nothing goes red.
 
 **A probe that asserts on a counter sitting behind state written for a remote
 peer MUST send its traffic over an egress that really carries it, and MUST carry
@@ -96,7 +96,7 @@ that skips it is invisible rather than red.
 
 **An initrd operation MUST use its in-process Go replacement; it MUST NOT shell out to an external tool.** That covers bringing a link up, applying an address and a route, the DHCP lease, the image download, and mount, umount, loop, block-device ioctls, reboot and poweroff. The replacement for each operation, and the procfs or sysfs source for each state read, is `docs/architecture/appliance/installer-initrd.md`.
 
-**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; `./le test qemu install-test` proves that the initrd boots and installs cleanly.
+**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; `./le test qemu installer` proves that the initrd boots and installs cleanly.
 
 ## Appliance Dependency Bumps
 
@@ -110,7 +110,7 @@ that skips it is invisible rather than red.
 4. **You MUST regenerate the go.sums cleanly.** Delete the affected builddir `go.sum` files (filesystem removal, never `git rm`), then run `go mod download all` in each affected builddir. The sums regenerate from the new build list and prune the old version string. You MUST NOT hand-edit hashes.
 5. **Re-vendor and prune.** The module download extracts the new version under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/`. Remove the old `@<old>` directory. Confirm the working tree holds only the expected old-file deletions and new source.
 6. **Refresh coupling.** Search for the old version string and update every document or spec that names the old module-cache path.
-7. **Verify (blocking).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le test deployment gokrazy-l2tp-ppp-test` boots the appliance. An image build alone is insufficient.
+7. **Verify (blocking).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le test deployment gokrazy-l2tp-ppp` boots the appliance. An image build alone is insufficient.
 
 **A `SKIP` MUST NOT be treated as evidence.** Under a hardware accelerator the hugepage proof treats a no-answer as a FAIL; if it skips for want of KVM access, you MUST fix that (on Linux, group membership: `./le setup check`) and rerun.
 

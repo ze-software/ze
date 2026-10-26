@@ -465,7 +465,7 @@ func TestInstallReportAndExitMapping(t *testing.T) {
 			t.Fatalf("%s code=%d want=%d", verdict, got, want)
 		}
 	}
-	report := InstallReport{Action: "install-test", Verdict: InstallVerdictPass}
+	report := InstallReport{Action: "installer", Verdict: InstallVerdictPass}
 	encoded, err := json.Marshal(report)
 	if err != nil {
 		t.Fatal(err)
@@ -478,7 +478,7 @@ func TestInstallReportAndExitMapping(t *testing.T) {
 // VALIDATES: all four installer actions are native and present.
 // PREVENTS: one installer workflow disappearing from the action table.
 func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
-	wanted := map[string]bool{"install-test": false, "install-iso-test": false, "install-scenarios-test": false, "install-ventoy-test": false}
+	wanted := map[string]bool{"installer": false, "installer-iso": false, "installer-scenarios": false, "installer-ventoy": false}
 	for _, action := range Actions().Actions {
 		if _, ok := wanted[action.Verb]; !ok {
 			continue

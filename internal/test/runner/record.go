@@ -271,7 +271,7 @@ type Record struct {
 
 	// NeedsLinux is set when the test carries option=needs-linux: it requires a
 	// real Linux kernel and is validated in the QEMU Alpine VM. Used by the
-	// ZE_QEMU_LINUX_ONLY filter (the `./le test qemu all-tests` tight loop) to
+	// ZE_QEMU_LINUX_ONLY filter (the `./le test qemu all` tight loop) to
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 

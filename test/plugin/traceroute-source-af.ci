@@ -14,7 +14,7 @@
 # caps=net-raw, not skip-os: doTracerouteCtx builds ICMP itself through
 # net.ListenPacket("ip4:icmp"/"ip6:ipv6-icmp"), which the kernel refuses without
 # CAP_NET_RAW. Declaring the capability relocates the test to
-# `./le test qemu all-tests`, which has it, instead of failing where it cannot pass.
+# `./le test qemu all`, which has it, instead of failing where it cannot pass.
 option=needs-linux:caps=net-raw
 
 stdin=peer:terminator=EOF_PEER

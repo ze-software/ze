@@ -224,7 +224,7 @@ generateDecoded:
 	// options are parsed so it does not depend on their order in the .ci file.
 	applyNetnsLinkGate(r)
 
-	// ZE_QEMU_LINUX_ONLY mode (the `./le test qemu all-tests` tight loop) runs
+	// ZE_QEMU_LINUX_ONLY mode (the `./le test qemu all` tight loop) runs
 	// ONLY tests marked option=needs-linux: every other test is skipped so the
 	// QEMU VM spends its time on the Linux-only surface, not re-running tests
 	// that already pass natively. Applied after all options are parsed so the

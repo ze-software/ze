@@ -35,15 +35,15 @@ type daemonProof struct {
 // Docker.
 func daemonProofs() []daemonProof {
 	return []daemonProof{
-		{"l2tp-test", func(tree string) string { return NewL2TP(tree).Goarch }, func(tree string) error {
+		{"l2tp", func(tree string) string { return NewL2TP(tree).Goarch }, func(tree string) error {
 			_, err := NewL2TP(tree).Run(context.Background())
 			return err
 		}},
-		{"vpp-test", func(tree string) string { return newVPP(tree).Goarch }, func(tree string) error {
+		{"vpp", func(tree string) string { return newVPP(tree).Goarch }, func(tree string) error {
 			_, err := newVPP(tree).Run(context.Background())
 			return err
 		}},
-		{"vpp-iface-test", func(tree string) string { return newVPPIface(tree).Goarch }, func(tree string) error {
+		{"vpp-iface", func(tree string) string { return newVPPIface(tree).Goarch }, func(tree string) error {
 			_, err := newVPPIface(tree).Run(context.Background())
 			return err
 		}},
@@ -56,7 +56,7 @@ func daemonProofs() []daemonProof {
 }
 
 // VALIDATES: AC-3 through the deployment proofs that build their own daemon
-// (l2tp-test, vpp-test, vpp-iface-test) and the SRv6 service-route proof. Each
+// (l2tp, vpp, vpp-iface) and the SRv6 service-route proof. Each
 // refuses a daemon kernel that lacks an enrolled feature, naming it and the
 // kernel release, before any container starts.
 // PREVENTS: a proof that runs Ze in Docker without the check the interop suites
@@ -127,7 +127,7 @@ func TestDaemonProofNoBuildNeedsTheDaemon(t *testing.T) {
 	tree := t.TempDir()
 	_, err := NewL2TP(tree).Run(t.Context())
 	if err == nil {
-		t.Fatal("l2tp-test proceeded under NO_BUILD with no daemon built")
+		t.Fatal("l2tp proceeded under NO_BUILD with no daemon built")
 	}
 	if !strings.Contains(err.Error(), daemonRel(NewL2TP(tree).Goarch)) {
 		t.Errorf("refusal does not name the missing daemon: %v", err)

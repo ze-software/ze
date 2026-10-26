@@ -51,7 +51,7 @@ type AllTestsReport struct {
 	// who cannot see the filter reads "ALL PHASES PASSED" as a verdict over
 	// tests that never ran.
 	Selection string `json:"selection,omitempty"`
-	// Test is the one test/<dir>/<name>.ci an `all-tests test` run ran, the
+	// Test is the one test/<dir>/<name>.ci a `test qemu all test` run ran, the
 	// narrowest selection there is. It is not an `option=` tag, so it is kept
 	// apart from Selection, which names one.
 	Test string `json:"test,omitempty"`

@@ -32,7 +32,7 @@
 # Link-Local Next Hop capability (77), which keeps the capability gate quiet.
 #
 # Building the namespaces needs CAP_NET_ADMIN, so the test runs in the QEMU
-# guest as root (`./le test qemu all-tests`) and skips in the unprivileged
+# guest as root (`./le test qemu all`) and skips in the unprivileged
 # merge gate.
 
 option=needs-linux:caps=net-admin

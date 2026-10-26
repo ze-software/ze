@@ -26,7 +26,7 @@ import (
 // fixture that refuses every exec under it, as dockerd does after a Ctrl-C.
 // PREVENTS: awaitFeature polling a VPP nobody can query until ScenarioWait ran
 // out, then answering "not observed", a FAIL verdict for a feature the run never
-// finished probing (vpp-iface-test on the ze Colima profile, 2026-10-21: a FAIL
+// finished probing (vpp-iface on the ze Colima profile, 2026-10-21: a FAIL
 // 24 s after one Ctrl-C).
 func TestAnInterruptedScenarioEndsWithTheInterruption(t *testing.T) {
 	v := fixtureVPPIface(t)

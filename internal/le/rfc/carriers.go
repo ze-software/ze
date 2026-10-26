@@ -189,8 +189,8 @@ func interopSuiteOf(rel string) (interoplab.Catalog, error) {
 var legacyInteropTrees = [...]interopTree{
 	{"interop-bgp", "test/interop/scenarios/", "test integration/interop"},
 	{"interop-ipsec", "test/interop-ipsec/", "test integration/interop-ipsec"},
-	{"interop-l2tp", "test/interop-l2tp/", "test deployment/docker-l2tp-ppp-test"},
-	{"interop-pppoe", "test/interop-pppoe/", "test deployment/docker-pppoe-accel-test"},
+	{"interop-l2tp", "test/interop-l2tp/", "test deployment/docker-l2tp-ppp"},
+	{"interop-pppoe", "test/interop-pppoe/", "test deployment/docker-pppoe-accel"},
 }
 
 // FunctionalSuites answers the suites `./le test functional` runs.

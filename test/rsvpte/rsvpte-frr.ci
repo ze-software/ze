@@ -91,7 +91,7 @@ EOF_CONF
 
 # rsvp-te depends on the interface plugin, which has no backend off Linux
 # (internal/component/iface/default_other.go), so the daemon refuses to start
-# on darwin. The suite runs on Linux and under ./le test qemu all-tests.
+# on darwin. The suite runs on Linux and under ./le test qemu all.
 option=needs-linux
 option=env:var=ze.log.rsvp.te:value=info
 

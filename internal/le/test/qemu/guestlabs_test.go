@@ -15,10 +15,10 @@ func TestGuestEvidenceActionsAreNative(t *testing.T) {
 	t.Parallel()
 	list := Actions()
 	wanted := map[string]bool{
-		"vrrp-keepalived-test": false,
-		"pppoe-accel-test":     false,
-		"netns-test":           false,
-		"pppoe-test":           false,
+		"vrrp-keepalived": false,
+		"pppoe-accel":     false,
+		"netns":           false,
+		"pppoe":           false,
 	}
 	for _, row := range list.Actions {
 		if _, ok := wanted[row.Verb]; !ok {

@@ -6,7 +6,7 @@
 // dedicated network namespace. They require CAP_NET_ADMIN (to create the netns
 // and veth) and CAP_NET_RAW (to open the raw socket); when those are missing the
 // tests t.Skip rather than fail (e.g. on a developer laptop). They run under the
-// native QEMU all-tests action, which derives its package set from
+// native QEMU test qemu all action, which derives its package set from
 // `integration && linux`; the same population is listed in
 // internal/le/test/qemu/alltests.go.
 //

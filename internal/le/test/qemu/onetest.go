@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/qemu-integration.md -- one capability-gated .ci in the guest
-// Overview: alltests.go -- the in-guest `all-tests test <path>` narrowing this command drives
+// Overview: alltests.go -- the in-guest `test qemu all test <path>` narrowing this command drives
 //
 // onetest.go answers how a host process runs ONE .ci inside the guest: the
 // packages it installs and the command the guest executes. Every caller that
@@ -20,7 +20,7 @@ import (
 const OneCIPackages = "coreutils nftables iproute2 iputils-ping kmod iptables libcap"
 
 // OneCICommand answers the guest command that runs the .ci at file, a
-// repository path, through the suite `all-tests` gives its directory.
+// repository path, through the suite `test qemu all` gives its directory.
 //
 // binaries is the checkout-relative directory holding the cross-built `ze`,
 // `ze-stripped` and `ze-stripped-flow` for goarch; the harness is the guest le that `le test qemu run`
@@ -32,6 +32,6 @@ func OneCICommand(binaries, file, goarch string) string {
 		Str(" ZE_STRIPPED_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, zeStrippedName))).
 		Byte(' ').Str(strippedFlowBinKey).Byte('=').Str(filepath.ToSlash(filepath.Join(binaries, zeStrippedFlowName))).
 		Byte(' ').Str(filepath.ToSlash(GuestLeRel(goarch))).
-		Str(" test qemu all-tests ").Str(testKeyword).Byte(' ').Str(file)
+		Str(" test qemu all ").Str(testKeyword).Byte(' ').Str(file)
 	return command.String()
 }

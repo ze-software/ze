@@ -21,7 +21,7 @@
 # enrichment. The command that runs it is `./le test functional firewall`; on a host
 # without CAP_NET_ADMIN and CAP_NET_BIND_SERVICE it is skipped by the option
 # below, and the runner that executes it in the gate is
-# `./le test qemu netns-test suites firewall`.
+# `./le test qemu netns suites firewall`.
 #
 # The fixture is domainGroupShow
 # (internal/test/fixture/netfilter_fixture_domain_group.go). In order it:

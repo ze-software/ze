@@ -118,7 +118,7 @@ work against the device that runs the previous image.
 |---------|--------|
 | `./le test functional appliance`, `./le test functional installer` | The appliance CLI (build, iso, list, serial login) and the installer `.ci` files |
 | `./le test unit installer` | The initrd logic behind the `ze_installer` tag |
-| `./le test qemu install-test`, `./le test qemu install-iso-test`, `./le test qemu install-scenarios-test` | A real install in a VM, the ISO, panic recovery and NIC pinning |
-| `./le test qemu all-tests` | The whole functional population inside the QEMU Linux VM |
+| `./le test qemu installer`, `./le test qemu installer-iso`, `./le test qemu installer-scenarios` | A real install in a VM, the ISO, panic recovery and NIC pinning |
+| `./le test qemu all` | The whole functional population inside the QEMU Linux VM |
 | `./le build gosum` | The `gokrazy/ze/builddir/**/go.sum` files agree with the root module |
 | `./le arch iface-resolution`, `./le arch fs-persistence` | Interface names go through the resolver. Runtime state goes through zefs |

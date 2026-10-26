@@ -592,8 +592,8 @@ The scanner includes command tests under `cmd/`, including tests of daemon liste
 | `test/editor/*.et` | `editor` | `./le test functional editor` | `verify`, on the same earned-per-suite basis |
 | `internal/le/interoplab/bgp/*.go` | `interop` | `./le test integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
 | `internal/le/interoplab/ipsec/*.go` | `interop` | `./le test integration interop-ipsec` | same derivation |
-| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le test deployment docker-l2tp-ppp-test` | same derivation |
-| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le test deployment docker-pppoe-accel-test` | same derivation |
+| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le test deployment docker-l2tp-ppp` | same derivation |
+| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le test deployment docker-pppoe-accel` | same derivation |
 
 A scheduled workflow names a runner directly, or as the lab of a wrapper whose
 action table declares a `le-words` keyword: `./le test qemu docker-lab lab

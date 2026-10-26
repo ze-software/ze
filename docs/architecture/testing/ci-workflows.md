@@ -17,9 +17,9 @@ need.
 | `./le test integration interop`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `interop` | schedule | advisory |
 | `./le test integration interop-ipsec`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `ipsec-interop` | schedule | advisory |
 | `./le test integration interop-radius`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `radius-interop` | schedule | advisory |
-| `./le test deployment docker-l2tp-ppp-test`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `l2tp-interop` | schedule | advisory |
-| `./le test deployment docker-pppoe-accel-test`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
-| `./le test qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
+| `./le test deployment docker-l2tp-ppp`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `l2tp-interop` | schedule | advisory |
+| `./le test deployment docker-pppoe-accel`, inside `./le test qemu docker-lab` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
+| `./le test qemu all`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le test qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
 | The L2TP appliance proof, the PPPoE labs, the ASPA and RFC 2545 plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
 | `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
@@ -82,11 +82,11 @@ The RFC ledger credits a lab run this way to the workflow that schedules it.
 (`leaction.KindWords`), and the workflow reader in `internal/le/rfc`
 credits the command in that value as well as `docker-lab` itself.
 
-The ASPA and RFC 2545 replay cases run through `qemu netns-test suites plugin`,
+The ASPA and RFC 2545 replay cases run through `qemu netns suites plugin`,
 whose closed selection contains the seven `rpki-aspa-*` validation and policy
 carriers plus `adj-rib-in-replay-rfc2545-next-hop`.
 It uses per-test namespaces and the existing functional registry's `bgp plugin`
-command prefix. `all-tests` still runs the full plugin suite in the guest root
+command prefix. `test qemu all` still runs the full plugin suite in the guest root
 namespace, where the ASPA cases' `netns-link` prerequisite causes a skip.
 The replay carrier instead owns distinct speaker, recipient and next-hop
 namespaces and has no `netns-link` prerequisite. It can run when its Linux

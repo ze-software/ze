@@ -125,7 +125,7 @@ programs Ze does not control, so most mistakes here are about ownership.
 |---------|----------------|
 | `./le test unit plugins`, `./le test unit core` | Race-instrumented unit groups |
 | `./le test integration iface`, `fib`, `firewall`, `traffic` | The netlink, nft and tc backends against a real kernel. It needs `CAP_NET_ADMIN` |
-| `./le test qemu all-tests` | Every Linux integration package inside Ze's kernel |
+| `./le test qemu all` | Every Linux integration package inside Ze's kernel |
 | `./le test vpp`, `./le test firewall`, `./le test traffic`, `./le test policy`, `./le test static` | Functional `.ci` suites |
 | `./le arch iface-resolution` | No code resolves an interface name against the kernel directly |
 | `./le plugin boundary check` | No plain in-process call into engine state |

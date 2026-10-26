@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/qemu-integration.md -- Docker labs in the Ze-kernel guest
-// Related: ../deployment/gokrazyroot_test.go -- the same proof for gokrazy-l2tp-ppp-test.
+// Related: ../deployment/gokrazyroot_test.go -- the same proof for gokrazy-l2tp-ppp.
 
 package testqemu
 

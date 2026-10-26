@@ -506,7 +506,7 @@ even after the command succeeds. Log out and back in, or run one command with
 the new group:
 
 ```bash
-sg kvm -c './le test qemu vpp-hugepages-test'
+sg kvm -c './le test qemu vpp-hugepages'
 ```
 
 Setup distinguishes the two states: `kvm-access` reports `pending` when the

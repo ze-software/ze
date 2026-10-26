@@ -50,7 +50,7 @@ func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
 	}
 	guestArtifacts := filepath.Join(GuestWorkspace, relative)
 	command := shellQuote(filepath.Join(guestArtifacts, "le")) +
-		" deployment ipsec-mobike-test daemon " + shellQuote(filepath.Join(guestArtifacts, "ze"))
+		" deployment ipsec-mobike daemon " + shellQuote(filepath.Join(guestArtifacts, "ze"))
 	runArgs := leaction.Arguments{
 		keywordCommand:  {command},
 		keywordKernel:   {args.One(keywordKernel)},

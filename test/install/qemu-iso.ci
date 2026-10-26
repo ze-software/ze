@@ -11,7 +11,7 @@
 # image-build tooling are environment prerequisites. The driver self-skips with
 # a single clear INSTALL-ISO-QEMU: SKIP line when they are absent.
 
-cmd=foreground:seq=1:exec=./le test qemu install-iso-test
+cmd=foreground:seq=1:exec=./le test qemu installer-iso
 expect=exit:code=0
 expect=stdout:pattern=INSTALL-ISO-QEMU: (PASS|SKIP)
 expect=stdout:pattern=INSTALL-ISO-QEMU: (SKIP|installer consumed explicit ze.target=/dev/vda)

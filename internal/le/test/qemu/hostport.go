@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the QEMU forward's host port
-// Related: run.go -- runOps.Port, which answers the run, docker-lab and install-test forwards
+// Related: run.go -- runOps.Port, which answers the run, docker-lab and installer forwards
 
 package testqemu
 
@@ -42,7 +42,7 @@ const (
 // QEMU, for the rest of the process, and the kernel drops the locks when le
 // exits however it exits. The lock covers the VM only while its le lives. A
 // run or docker-lab VM dies with its le on Linux (childProcAttr), and the next
-// run's reap stops it on macOS (vmrecord.go). The install-test, hugepages,
+// run's reap stops it on macOS (vmrecord.go). The installer, hugepages,
 // crash-capture and MPLS boot VMs carry neither, so a SIGKILLed le leaves them
 // running with their port and no lock: forwardPortFree finds that live
 // listener, which is why the probe runs after the lock is taken. Holding the
@@ -98,7 +98,7 @@ func reserveForwardPortIn(first, last int) (int, error) {
 		Str("-").Int(int64(last)).Str("` the programs bound in the band. ").
 		Str("Fix: stop a VM or le run you no longer need, or set a free port outside the band: ").
 		Str("ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run, docker-lab and the MPLS boot, ").
-		Str("ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for install-test, ").
+		Str("ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for installer, ").
 		Str("ze.vpp.hp.ssh.port (ZE_VPP_HP_SSH_PORT) for the hugepages proof. ").
 		Str("Crash capture has no fixed-port setting and needs free ports in the band.").String())
 }
@@ -123,7 +123,7 @@ func forwardPortFree(port int) (bool, error) {
 			return false, nil //nolint:nilerr // a refused bind is the answer "held", not a failure
 		}
 		if err := listener.Close(); err != nil {
-			return false, fmt.Errorf("release the QEMU forward port probe %s:%d: %w. A fixed SSH port skips this probe. Fix: set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run and docker-lab, or ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for install-test, to a free port", host, port, err)
+			return false, fmt.Errorf("release the QEMU forward port probe %s:%d: %w. A fixed SSH port skips this probe. Fix: set ze.qemu.ssh.port (ZE_QEMU_SSH_PORT) for run and docker-lab, or ze.install.ssh.port (ZE_INSTALL_SSH_PORT) for installer, to a free port", host, port, err)
 		}
 	}
 	return true, nil

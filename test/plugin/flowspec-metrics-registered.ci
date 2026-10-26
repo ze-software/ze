@@ -21,7 +21,7 @@
 # internal/plugins/flowspec-firewall/engine.go), and a plugin that cannot clear
 # stale kernel rules fails its startup rather than run beside them. Without the
 # capability no refusal is ever counted, so the test runs where the capability
-# exists (the QEMU guest of `./le test qemu all-tests`) and skips visibly elsewhere.
+# exists (the QEMU guest of `./le test qemu all`) and skips visibly elsewhere.
 option=needs-linux:caps=net-admin
 
 option=env:var=ze.log.flowspec.firewall:value=info

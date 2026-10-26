@@ -98,10 +98,10 @@ func TestForwardPortAnswersAFreePort(t *testing.T) {
 }
 
 // VALIDATES: two forward ports asked for in one run are distinct, so the
-// install-test SSH and web forwards of one VM never name the same port.
+// installer SSH and web forwards of one VM never name the same port.
 // METHOD: take a free loopback port from the kernel, release it, then ask for
 // two ports from a range that starts there, with nothing bound in between.
-// PREVENTS: the 2026-10-22 install-test collision, where bootTargetSSH asked
+// PREVENTS: the 2026-10-22 installer collision, where bootTargetSSH asked
 // the probe twice and both forwards took its first free port.
 func TestForwardPortsInOneRunAreDistinct(t *testing.T) {
 	first := releasedLoopbackPort(t)
@@ -138,7 +138,7 @@ func TestForwardPortSkipsAReservedPort(t *testing.T) {
 // command that shows the holders.
 // METHOD: reserve a free port through the runner's lock, ask for exactly that
 // port, and read the error.
-// PREVENTS: an install-test or hugepages operator told to set the run's key,
+// PREVENTS: an installer or hugepages operator told to set the run's key,
 // which their action never reads.
 func TestForwardPortExhaustionNamesEveryFix(t *testing.T) {
 	port, held := reservedReleasedLoopbackPort(t)

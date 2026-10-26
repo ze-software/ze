@@ -13,12 +13,12 @@
 # The driver self-skips like vpp-hugepages-qemu.ci: no QEMU, sshpass, e2fsprogs
 # or go toolchain is a SKIP, and an appliance that never answers is a SKIP only
 # under software emulation. Under kvm or hvf it is a FAIL. Both PASS and SKIP
-# exit 0. The exhaustive run is `./le test qemu mpls-boot-test`.
+# exit 0. The exhaustive run is `./le test qemu mpls-boot`.
 
 # The derived timeout would settle on the seconds a SKIP takes. A host ze build,
 # an appliance init, a gokrazy image build and a QEMU boot need far more, so the
 # budget is pinned to the real cost, as vpp-hugepages-qemu.ci does.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=le test qemu mpls-boot-test
+cmd=foreground:seq=1:exec=le test qemu mpls-boot
 expect=exit:code=0
 expect=stdout:pattern=APPLIANCE-MPLS-QEMU: (PASS|SKIP)

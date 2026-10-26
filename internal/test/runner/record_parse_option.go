@@ -164,7 +164,7 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 	// management, nftables, kernel sockets, ...) and therefore cannot pass
 	// natively on a non-Linux host. On such a host the test is SKIPPED with
 	// a reason pointing at the QEMU runner; inside the QEMU Alpine VM
-	// (GOOS=linux, via `./le test qemu all-tests`) the directive is
+	// (GOOS=linux, via `./le test qemu all`) the directive is
 	// inert and the test runs normally. This is how Linux-only functional
 	// tests are validated automatically via QEMU instead of failing
 	// natively. See ai/rules/platform-linux.md "Linux-only functional tests".
@@ -206,13 +206,13 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 	}
 	if runtime.GOOS != goosLinux {
 		var tb textbuf.Buffer
-		r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all-tests; current GOOS=").Str(runtime.GOOS).Byte(')').String()
+		r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all; current GOOS=").Str(runtime.GOOS).Byte(')').String()
 		return nil
 	}
 	if len(caps) > 0 && !hasCaps(caps) {
 		var tb textbuf.Buffer
 		r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
-			Str(" (capability absent; run via ./le test qemu all-tests)").String()
+			Str(" (capability absent; run via ./le test qemu all)").String()
 		return nil
 	}
 	return nil

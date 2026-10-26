@@ -86,7 +86,7 @@ func TestTheVerbRefusesToRunOutsideTheGuest(t *testing.T) {
 		t.Skip("this machine has a /workspace, so the refusal cannot be observed here")
 	}
 
-	payload, code := Answer([]string{"all-tests"})
+	payload, code := Answer([]string{"all"})
 	if code == 0 {
 		t.Errorf("the run answered code 0 outside the guest, with payload %v", payload)
 	}

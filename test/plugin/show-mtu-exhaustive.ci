@@ -14,7 +14,7 @@
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
-# root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
+# root (`./le test qemu all`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw

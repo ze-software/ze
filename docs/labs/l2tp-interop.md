@@ -62,8 +62,8 @@ environment causes an immediate refusal.
 ## Running
 
 ```
-./le test deployment docker-l2tp-ppp-test
-ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp-test
+./le test deployment docker-l2tp-ppp
+ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp
 ```
 
 Environment variables: `FRR_IMAGE` (default
@@ -110,7 +110,7 @@ that follows because it has no outgoing-call answerer (it logs `Unimplemented
 message 7`), so the RPC returns an error by design and the established control
 connection is the interop proof. The full OCRQ→OCRP→OCCN call flow is proven
 functionally by `test/l2tp/lns-outgoing-call.ci`. The LAC incoming-call PPP data
-plane is covered by `./le test deployment gokrazy-l2tp-ppp-test`.
+plane is covered by `./le test deployment gokrazy-l2tp-ppp`.
 
 ### 04-radius-acct-attrs
 
@@ -151,10 +151,10 @@ no Access-Request without one.
 
 | Action | What it proves | PPPoL2TP required |
 |--------|----------------|-------------------|
-| `./le test deployment l2tp-test` | Control tunnel and incoming-call session | No |
-| `./le test deployment l2tp-ppp-test` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
-| `./le test deployment docker-l2tp-ppp-test` | Peer-isolated Docker lab (this) | Yes for PPP scenarios |
-| `./le test deployment gokrazy-l2tp-ppp-test` | QEMU gokrazy appliance LNS with a netns LAC | Yes |
+| `./le test deployment l2tp` | Control tunnel and incoming-call session | No |
+| `./le test deployment l2tp-ppp` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
+| `./le test deployment docker-l2tp-ppp` | Peer-isolated Docker lab (this) | Yes for PPP scenarios |
+| `./le test deployment gokrazy-l2tp-ppp` | QEMU gokrazy appliance LNS with a netns LAC | Yes |
 | `test/plugin/redistribute-l2tp-*.ci` | Synthetic BGP UPDATE rendering | No |
 
 The native proof and Docker lab catch different failure shapes. The native

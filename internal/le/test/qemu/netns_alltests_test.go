@@ -12,7 +12,7 @@ import (
 
 // VALIDATES: the suites that program the guest's network state run in a
 // per-test network namespace, and their children are told to enter it.
-// PREVENTS: the run cutting its own transport. `all-tests` ran every suite in
+// PREVENTS: the run cutting its own transport. `test qemu all` ran every suite in
 // the guest ROOT namespace, test/firewall/firewall-nat-exclude.ci installs a
 // nat prerouting chain there, and the run's own SSH session lives in it. The
 // 2026-09-05 run died inside functional/firewall with ssh's exit 255, and the
@@ -25,7 +25,7 @@ import (
 // produces: which suites are routed, that the routed child carries every
 // variable the .ci runner reads before it will enter a namespace, and that a
 // child NOT routed carries none of them. The launcher's own guest proof is
-// `./le test qemu netns-test`, which asserts the guest root nft ruleset is byte
+// `./le test qemu netns`, which asserts the guest root nft ruleset is byte
 // identical before and after.
 
 // perTestSuites is the set this run routes through the per-test namespace,

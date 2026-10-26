@@ -23,7 +23,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-const L2TPScaleAction = "l2tp-scale-test"
+const L2TPScaleAction = "l2tp-scale"
 
 const (
 	l2tpScaleStartupWait = 500 * time.Millisecond

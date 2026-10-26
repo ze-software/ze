@@ -76,7 +76,7 @@ A `.ci` file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel r
 option=needs-linux
 ```
 
-On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le test qemu netns-test` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le test qemu run command '...' keep-alive`.
+On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le test qemu netns` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le test qemu run command '...' keep-alive`.
 
 ## Failure reading
 

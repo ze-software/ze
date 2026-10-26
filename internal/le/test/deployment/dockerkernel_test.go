@@ -50,7 +50,7 @@ exit 0
 // PREVENTS: a deployment proof that runs Ze in Docker without the check the
 // interop suites make.
 func TestDockerDeploymentRefusesMissingKernelFeature(t *testing.T) {
-	for _, verb := range []string{"docker-l2tp-ppp-test", "docker-pppoe-accel-test"} {
+	for _, verb := range []string{"docker-l2tp-ppp", "docker-pppoe-accel"} {
 		t.Run(verb, func(t *testing.T) {
 			dir := t.TempDir()
 			if err := os.WriteFile(filepath.Join(dir, "docker"), []byte(kernelLackingDocker), 0o755); err != nil { //nolint:gosec // a stub on a test's own PATH must be executable

@@ -170,7 +170,7 @@ To check the service status, use `systemctl status ze.service` directly.
 ## Installing on Real Hardware (End to End)
 
 This bare-metal PXE walkthrough follows the same chain as
-`./le test qemu install-test`: build an image, serve it, boot an installer kernel
+`./le test qemu installer`: build an image, serve it, boot an installer kernel
 and initrd, write the disk, then log in over SSH. The reference sections below
 describe each piece.
 
@@ -297,7 +297,7 @@ commit; the committed config replaces the bootstrap config on the next restart.
   `ze.target=/dev/vda` in the cmdline, or detach the extra fixed disks.
 - **Download stalls / non-standard port**: confirm the image server's port and
   pass `ze.port=` in the iPXE cmdline.
-- **Dry-run first**: `./le test qemu install-test` reproduces the whole chain and
+- **Dry-run first**: `./le test qemu installer` reproduces the whole chain and
   reports a broken image, kernel, or initrd before hardware is touched.
 
 ## Appliance ISO Install
@@ -768,8 +768,8 @@ End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:
 
 ```bash
-./le test qemu install-test       # HTTP PXE install
-./le test qemu install-iso-test   # ISO install
+./le test qemu installer       # HTTP PXE install
+./le test qemu installer-iso   # ISO install
 ```
 
 ### No External Binaries
@@ -842,7 +842,7 @@ fifteen seconds, so a hung QEMU or Docker daemon is reported, not waited on.
 
 ## End-to-End QEMU Verification
 
-`./le test qemu install-test` builds the initrd and an appliance image, boots the
+`./le test qemu installer` builds the initrd and an appliance image, boots the
 installer against a blank virtio disk, and transfers the image over HTTP. It
 then boots the installed disk and authenticates over SSH. The storage proof
 also checks the logged first-boot import, the live tree's seed key values, and
@@ -850,17 +850,17 @@ the retired seed. An incomplete staging tree is planted before boot to exercise
 restart with an interrupted import.
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu install-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu installer
 ```
 
-`./le test qemu install-iso-test` exercises the ISO transport. It creates an ISO
+`./le test qemu installer-iso` exercises the ISO transport. It creates an ISO
 through `ze appliance iso`, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.
 <!-- source: internal/le/test/qemu/actions.go -- Actions -->
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le test qemu install-iso-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le test qemu installer-iso
 ```
 
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable

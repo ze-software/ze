@@ -39,7 +39,7 @@ func writeFakeHost(t *testing.T, initCode, buildCode int) string {
 //
 // VALIDATES: a failed step names its exit status.
 // PREVENTS: "ze appliance build failed:" followed by nothing, which is all
-// mpls-boot-test printed when the build exited 1 with an empty output on
+// mpls-boot printed when the build exited 1 with an empty output on
 // 2026-10-10: the harness dropped the error that carried the status.
 //
 // Method: a fake host binary fails one step with a distinct status and prints
@@ -91,7 +91,7 @@ func TestApplianceStepFailureNamesExitStatus(t *testing.T) {
 // where `ze appliance build` does, not only on PATH.
 //
 // VALIDATES: a machine whose e2fsprogs is installed off PATH runs the proof.
-// PREVENTS: mpls-boot-test answering "SKIP e2fsprogs not found" and exit 0 on a
+// PREVENTS: mpls-boot answering "SKIP e2fsprogs not found" and exit 0 on a
 // Mac where Homebrew's keg-only e2fsprogs serves the build perfectly well; the
 // proof then never ran and the run read as success.
 //

@@ -59,30 +59,30 @@ const area = "test qemu"
 // population never sits in an untyped positional slot (ai/rules/cli.md).
 const onlyKeyword = "only"
 
-// testKeyword names the one .ci an all-tests run narrows to.
+// testKeyword names the one .ci a test qemu all run narrows to.
 const testKeyword = "test"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "vpp-hugepages-test", Summary: "test boot-time hugepage reservation in QEMU", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
+	leaction.Action{Verb: "vpp-hugepages", Does: "run", Summary: "test boot-time hugepage reservation in QEMU", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
 		" image.hugepages, boot it, then assert `show host kernel` and `show host" +
 		" memory` over the Ze CLI. Self-skips when qemu, sshpass, e2fsprogs or go" +
 		" are absent; on Linux it needs membership of the kvm group" +
 		" (`./le setup check` reports it as kvm-access)",
 		Answer: runHugepagesHere},
-	leaction.Action{Verb: "mpls-boot-test", Summary: "test the appliance boots with MPLS in use", Why: "the appliance starts with MPLS in use, end to end: build an appliance whose" +
+	leaction.Action{Verb: "mpls-boot", Does: "run", Summary: "test the appliance boots with MPLS in use", Why: "the appliance starts with MPLS in use, end to end: build an appliance whose" +
 		" seed adds `set fib kernel` and `set ldp`, boot it, then assert `show ldp neighbor`" +
 		" answers over the Ze CLI, which a daemon the kernel capability gate refused cannot." +
-		" Self-skips like vpp-hugepages-test",
+		" Self-skips like vpp-hugepages",
 		Answer: runMPLSBootHere},
-	leaction.Action{Verb: "crash-capture-panic-harvest", Summary: "test kernel crash capture survives a panic", Why: "kernel crash capture survives a panic, end to end:" +
+	leaction.Action{Verb: "crash-capture-panic-harvest", Does: "run", Summary: "test kernel crash capture survives a panic", Why: "kernel crash capture survives a panic, end to end:" +
 		" build an appliance that reserves a crash region, boot it, inject an NMI the seed turns into a" +
 		" kernel panic, and assert the next boot harvested a kernel artifact carrying the panic into" +
-		" /perm/ze/crash. amd64 only; self-skips like vpp-hugepages-test",
+		" /perm/ze/crash. amd64 only; self-skips like vpp-hugepages",
 		Answer: runCrashPanicHarvestHere},
-	leaction.Action{Verb: "crash-capture-ota-unaffected", Summary: "test an OTA reboot with crash capture active", Why: "an OTA reboot still works with crash capture active:" +
+	leaction.Action{Verb: "crash-capture-ota-unaffected", Does: "run", Summary: "test an OTA reboot with crash capture active", Why: "an OTA reboot still works with crash capture active:" +
 		" build an appliance that reserves a crash region, boot it, ask gokrazy's update server for the" +
 		" kexec reboot `gok update` ends with, and assert the next boot is armed again with no kernel" +
-		" artifact. amd64 only; self-skips like vpp-hugepages-test",
+		" artifact. amd64 only; self-skips like vpp-hugepages",
 		Answer: runCrashOTAUnaffectedHere},
 	leaction.Action{
 		Verb:    "run",
@@ -103,31 +103,36 @@ var actions = leaction.New(area,
 		AnswerArgs: runQEMUHere,
 	},
 	leaction.Action{
-		Verb:    "install-test",
+		Verb:    "installer",
+		Does:    "run",
 		Summary: "test the installer over HTTP in QEMU",
 		Why:     "build the installer initrd and appliance image, install over HTTP, then prove the installed ZeFS power user over SSH",
 		Answer:  runInstallHTTPHere,
 	},
 	leaction.Action{
-		Verb:    "install-iso-test",
+		Verb:    "installer-iso",
+		Does:    "run",
 		Summary: "test the installer ISO in QEMU",
 		Why:     "build and boot the appliance installer ISO, prove its embedded image bytes, target, GPT layout, safe poweroff, and SSH login",
 		Answer:  runInstallISOHere,
 	},
 	leaction.Action{
-		Verb:    "install-scenarios-test",
+		Verb:    "installer-scenarios",
+		Does:    "run",
 		Summary: "test installer recovery and rescue policies",
 		Why:     "prove installer panic recovery, boot-NIC pin and fallback, the three rescue-console policy branches, and the refusal to choose between two fixed disks",
 		Answer:  runInstallScenariosHere,
 	},
 	leaction.Action{
-		Verb:    "install-ventoy-test",
+		Verb:    "installer-ventoy",
+		Does:    "run",
 		Summary: "test the installer finds its ISO through Ventoy",
 		Why:     "put the appliance ISO on a whole-disk FAT volume and prove the installer finds it through the Ventoy scan",
 		Answer:  runInstallVentoyHere,
 	},
 	leaction.Action{
-		Verb:    "vrrp-keepalived-test",
+		Verb:    "vrrp-keepalived",
+		Does:    "run",
 		Summary: "test ze VRRP against keepalived in the guest",
 		Why: "run ze VRRP against a real keepalived peer inside the guest, across every" +
 			" scenario the lab declares",
@@ -142,7 +147,8 @@ var actions = leaction.New(area,
 		AnswerArgs: runVRRPHere,
 	},
 	leaction.Action{
-		Verb:    "ipsec-mobike-test",
+		Verb:    "ipsec-mobike",
+		Does:    "run",
 		Summary: "test MOBIKE movement in a QEMU guest",
 		Why: "target-build Ze and the native runner, boot the supplied runtime kernel," +
 			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
@@ -154,6 +160,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    dockerLabVerb,
+		Does:    "run",
 		Summary: "run a Docker lab on the docker-host image in QEMU",
 		Why: "run a Docker lab against the dockerd of Ze's docker-host image booted under QEMU" +
 			" (HVF on macOS, KVM on Linux, never TCG; the image is built or taken from its cache):" +
@@ -169,13 +176,15 @@ var actions = leaction.New(area,
 		AnswerArgs: runDockerLabHere,
 	},
 	leaction.Action{
-		Verb:    "pppoe-accel-test",
+		Verb:    "pppoe-accel",
+		Does:    "run",
 		Summary: "test the PPPoE client against accel-ppp in netns",
 		Why:     "run ze's PPPoE client against accel-ppp inside paired network namespaces",
 		Answer:  runPPPoEAccelHere,
 	},
 	leaction.Action{
-		Verb:    "netns-test",
+		Verb:    "netns",
+		Does:    "run",
 		Summary: "run functional subsets through the netns launcher",
 		Why: "run the selected functional subsets through the credential-dropped network" +
 			" namespace launcher and prove the guest root nftables state is unchanged",
@@ -185,7 +194,8 @@ var actions = leaction.New(area,
 		AnswerArgs: runNetnsHere,
 	},
 	leaction.Action{
-		Verb:    "pppoe-test",
+		Verb:    "pppoe",
+		Does:    "run",
 		Summary: "run the PPPoE subset on ze's runtime kernel",
 		Why: "run the PPPoE functional subset through the same guest network-namespace" +
 			" engine, on ze's runtime kernel",
@@ -194,7 +204,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		// This action runs inside the VM. Its caller is the command value passed
 		// to the host qemu run action.
-		Verb:    "all-tests",
+		Verb:    "all",
 		Summary: "run the whole test suite inside the QEMU VM",
 		Why: "the whole ze test suite, inside the QEMU Linux VM: every functional suite at a" +
 			" VM-appropriate concurrency, the unit pass, and the integration-tagged tests." +
@@ -423,7 +433,7 @@ func runAllTestsHere(args leaction.Arguments) (any, int) {
 		selection := args.One(onlyKeyword)
 		if selection != linuxOnlySelection {
 			var tb textbuf.Buffer
-			leaction.ReportError(errors.New(tb.Str("qemu all-tests only takes ").
+			leaction.ReportError(errors.New(tb.Str("qemu all only takes ").
 				Str(linuxOnlySelection).Str(", got ").Quoted(selection).
 				Str(" -- needs-linux runs the .ci tests marked option=needs-linux and no others").String()))
 			return nil, 2

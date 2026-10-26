@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// VALIDATES: `all-tests test test/<dir>/<name>.ci` runs that one test through
+// VALIDATES: `test qemu all test test/<dir>/<name>.ci` runs that one test through
 // the VM suite that walks its directory, selecting it by stem, and runs no other
 // suite and no other phase; a per-test-namespace suite still gets its
 // namespace preparation first. The stem is the LAST word: the runner reads its

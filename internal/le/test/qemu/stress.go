@@ -94,6 +94,7 @@ func (r *StressGuestReport) Text() string {
 func stressAction() leaction.Action {
 	return leaction.Action{
 		Verb:    stressVerb,
+		Does:    "run",
 		Summary: "run one stress scenario as root inside a guest",
 		Why: "boot the guest, run `le test integration stress` for one scenario inside it as root," +
 			" and copy the JSON report, every profile it lists and the DUT binary into the output" +

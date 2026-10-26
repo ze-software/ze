@@ -269,7 +269,7 @@ const (
 const (
 	actionAccept                  = "accept" // The policy decision recorded for a route.
 	actionCheck                   = "check"
-	actionL2TPTest                = "l2tp-test"
+	actionL2TPTest                = "l2tp"
 	actionPayloadReport           = "report payload"
 	actionReject                  = "reject"
 	actionReleaseCandidate        = "release-candidate"
@@ -280,9 +280,9 @@ const (
 	actionStart                   = "start"
 	actionUpdate                  = "update" // The le action verb.
 	actionWrite                   = "write"
-	actionVPPHugepagesTest        = "vpp-hugepages-test"
-	actionVPPIfaceTest            = "vpp-iface-test"
-	actionVPPTest                 = "vpp-test"
+	actionVPPHugepagesTest        = "vpp-hugepages"
+	actionVPPIfaceTest            = "vpp-iface"
+	actionVPPTest                 = "vpp"
 	areaCLI                       = "cli"
 	areaDeployment                = "test deployment"
 	areaDigest                    = "ai digest"

@@ -362,7 +362,7 @@ jobs:
           ZE_QEMU_MEMORY: "12288"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: ./le test qemu docker-lab lab "test deployment docker-l2tp-ppp-test" timeout 5400s
+        run: ./le test qemu docker-lab lab "test deployment docker-l2tp-ppp" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
         # The probe ze is built by the docker-lab step; a run that stopped
         # before building it leaves nothing to probe.
@@ -422,7 +422,7 @@ jobs:
           ZE_QEMU_MEMORY: "12288"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: ./le test qemu docker-lab lab "test deployment docker-pppoe-accel-test" timeout 5400s
+        run: ./le test qemu docker-lab lab "test deployment docker-pppoe-accel" timeout 5400s
       - name: The hosted runner's own Docker kernel, for information
         # The probe ze is built by the docker-lab step; a run that stopped
         # before building it leaves nothing to probe.

@@ -173,7 +173,7 @@ func prepareNetnsState(ctx context.Context) error {
 		return fmt.Errorf("inspect /dev/ppp: %w", err)
 	}
 	if !inThrowawayGuest() {
-		return errors.New("refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the widened node would persist for every local user. Run: ./le test qemu pppoe-test")
+		return errors.New("refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the widened node would persist for every local user. Run: ./le test qemu pppoe")
 	}
 	result, err = guestRun(ctx, "", []string{"sh", "-c", "chmod 0666 /dev/ppp"}, nil)
 	if err != nil {

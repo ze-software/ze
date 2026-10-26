@@ -170,7 +170,7 @@ DHCP ranges, and `ai/digests/firewall.md` for the firewall global options.
 | Web HTTP endpoints | `.wb` | `test/web/` | `./le test web` |
 | Editor TUI interactions | `.et` | `test/editor/` | `./le test editor` |
 | Pure logic (no daemon) | `_test.go` | `internal/<pkg>/` | `go test` |
-| Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `./le test qemu all-tests` |
+| Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `./le test qemu all` |
 
 Key docs: `ai/patterns/functional-test.md` (directories + runner commands),
 `docs/functional-tests.md` (verify artifacts and rerun workflow),
@@ -663,8 +663,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `./le build`, `./le test qemu` |
 | runtime kernel profile, kernel config, TCP_MD5SIG, TCP-MD5 unavailable, ENOPROTOOPT, built-in kernel requirement, appliance image kernel, KernelPackage | `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/gokrazy-build-pins.md`, `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/platform-linux.md`, `./le setup install`, `internal/le/setup/`, `.github/dependabot.yml` |
-| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/test/qemu/`, `internal/install/disk/fault_linux.go`, `./le test qemu install-scenarios-test`, `./le test qemu install-ventoy-test`, `docs/functional-tests.md` |
-| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/test/qemu/`, `./le test qemu vpp-hugepages-test`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
+| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/test/qemu/`, `internal/install/disk/fault_linux.go`, `./le test qemu installer-scenarios`, `./le test qemu installer-ventoy`, `docs/functional-tests.md` |
+| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/test/qemu/`, `./le test qemu vpp-hugepages`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/evidence.md`) |
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
@@ -741,7 +741,7 @@ One line each. The full class, with reproduction and fix, is in `plan/learned/RE
 and the matching `plan/journal/` class file. A mistake-log entry is one line: the lesson, then the
 rule it points at.
 
-- **"Linux-only tests cannot run on this macOS host" is false** (RECURRING, ZERO TOL). Mark kernel-dependent `.ci` cases with `option=needs-linux`, use `./le test qemu netns-test suites <names>` for a focused pass, and `./le test qemu all-tests` for the full guest proof. Never dismiss such a failure as environmental.
+- **"Linux-only tests cannot run on this macOS host" is false** (RECURRING, ZERO TOL). Mark kernel-dependent `.ci` cases with `option=needs-linux`, use `./le test qemu netns suites <names>` for a focused pass, and `./le test qemu all` for the full guest proof. Never dismiss such a failure as environmental.
 - **Feature not wired** (RECURRING, ZERO TOL). Unit tests are not wiring. Name the user entry point.
 - **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin needs a `cmd/ze/<name>/` offline entry point.
 - **Wrong production path** (rib-04). Grep ALL implementations; trace the consumer's call chain.

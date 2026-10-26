@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/qemu-integration.md -- the per-test network namespace
-// Overview: netns_linux.go -- the netns-test launcher, one selected subset at a time
+// Overview: netns_linux.go -- the netns launcher, one selected subset at a time
 // Related: alltests.go -- the whole-suite run that routes four suites the same way
 //
 // netns.go holds what the two callers of the per-test network namespace launch
@@ -8,7 +8,7 @@
 // runner reads (netnsModeActive and netnsChildIDs,
 // internal/test/runner/runner_exec_util.go).
 //
-// The constants are HERE rather than in netns_linux.go because `all-tests`
+// The constants are HERE rather than in netns_linux.go because `test qemu all`
 // compiles on darwin as well and routes four suites through the same mode. One
 // declaration, two callers: a capability set that differed between them would
 // mean the whole-suite run proves something the focused run does not.
@@ -149,7 +149,7 @@ func (a *allTestsRun) usesPerTestNamespace() bool {
 // capability-carrying copy of ze and ze-stripped on a filesystem that keeps an
 // extended attribute, and a state directory the dropped user owns.
 //
-// It is the same preparation ./le test qemu netns-test performs
+// It is the same preparation ./le test qemu netns performs
 // (prepareNetnsBinaries and prepareNetnsState, netns_linux.go). It runs as one
 // child so the run has one exit code to judge and one command line to report.
 func (a *allTestsRun) prepareNamespace(environ []string) error {

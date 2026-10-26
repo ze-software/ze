@@ -117,10 +117,10 @@ func TestTheSelectionIsReadFromTheEnvironment(t *testing.T) {
 // command had narrowed it, which is the worst of both answers.
 func TestAnUnknownPopulationIsRefusedBeforeTheRunStarts(t *testing.T) {
 	for _, args := range [][]string{
-		{"all-tests", "only", "everything"},
-		{"all-tests", "only", ""},
-		{"all-tests", "only"},
-		{"all-tests", "needs-linux"},
+		{"all", "only", "everything"},
+		{"all", "only", ""},
+		{"all", "only"},
+		{"all", "needs-linux"},
 	} {
 		payload, code := Answer(args)
 		if code != 2 {

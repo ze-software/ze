@@ -125,7 +125,7 @@ EOF_CONF2
 
 # rsvp-te depends on the interface plugin, which has no backend off Linux
 # (internal/component/iface/default_other.go), so the daemon refuses to start
-# on darwin. The test runs on Linux and under ./le test qemu all-tests.
+# on darwin. The test runs on Linux and under ./le test qemu all.
 option=needs-linux
 cmd=background:seq=1:exec=le test fixture reload/config-apply-ordering-coarse-root-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s

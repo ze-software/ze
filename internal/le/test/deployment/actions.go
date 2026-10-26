@@ -31,29 +31,30 @@ import (
 const area = "test deployment"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "l2tp-test", Summary: "test the L2TP control session against a peer", Why: "the L2TP control session against an external peer." +
+	leaction.Action{Verb: "l2tp", Does: "run", Summary: "test the L2TP control session against a peer", Why: "the L2TP control session against an external peer." +
 		" Needs Docker and the host's /dev/ppp",
 		Answer: signalRooted(runL2TPAt)},
-	leaction.Action{Verb: "l2tp-ppp-test", Summary: "test L2TP PPP and NCP end to end on the host", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
+	leaction.Action{Verb: "l2tp-ppp", Does: "run", Summary: "test L2TP PPP and NCP end to end on the host", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
 		" interface at each end, a dataplane ping and a clean teardown." +
 		" Needs Linux root, xl2tpd, pppd, ping and PPPoL2TP kernel support",
 		Answer: runL2TPPPPHere},
-	leaction.Action{Verb: L2TPScaleAction, Summary: "run the loopback L2TP scale registry", Why: "the native loopback L2TP scale registry: 2,000 sessions," +
+	leaction.Action{Verb: L2TPScaleAction, Does: "run", Summary: "run the loopback L2TP scale registry", Why: "the native loopback L2TP scale registry: 2,000 sessions," +
 		" clean teardown, pool exhaustion, and delayed RADIUS." +
 		" L2TP_SCALE_SCENARIO=<name> runs one scenario",
 		Answer: runL2TPScaleHere},
-	leaction.Action{Verb: "gokrazy-l2tp-ppp-test", Summary: "test L2TP PPP on the gokrazy appliance image", Why: "the same L2TP PPP/NCP path proven on the gokrazy appliance image" +
+	leaction.Action{Verb: "gokrazy-l2tp-ppp", Does: "run", Summary: "test L2TP PPP on the gokrazy appliance image", Why: "the same L2TP PPP/NCP path proven on the gokrazy appliance image" +
 		" rather than on a dev host. Needs Linux root, QEMU, dnsmasq," +
 		" xl2tpd, pppd and PPPoL2TP kernel support",
 		Answer: signalRooted(runGokrazyL2TPAt)},
-	leaction.Action{Verb: "vpp-iface-test", Summary: "test VPP interface features against a real daemon", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
+	leaction.Action{Verb: "vpp-iface", Does: "run", Summary: "test VPP interface features against a real daemon", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
 		" wireguard, LCP. Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
 		Answer: signalRooted(runVPPIfaceAt)},
-	leaction.Action{Verb: "vpp-test", Summary: "test ze driving a real VPP daemon", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and the" +
+	leaction.Action{Verb: "vpp", Does: "run", Summary: "test ze driving a real VPP daemon", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and the" +
 		" host's /dev/net/tun and /dev/vhost-net",
 		Answer: signalRooted(runVPPAt)},
 	leaction.Action{
 		Verb:       l2tpPPPoXDiagnosticName,
+		Does:       "run",
 		Summary:    "diagnose the netlink, PPPoX and PPP ioctl path",
 		Why:        "the native Linux netlink, PPPoX and PPP ioctl path. Leaves created L2TP objects for inspection",
 		Parameters: pppoxDiagnosticParameters(),
@@ -61,19 +62,21 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       l2tpTunnelDiagnosticName,
+		Does:       "run",
 		Summary:    "diagnose L2TPv3 tunnel creation in the kernel",
 		Why:        "the native Linux protocol-v3 L2TP tunnel create and kernel dump. Leaves the tunnel for inspection",
 		Parameters: tunnelDiagnosticParameters(),
 		AnswerArgs: runL2TPTunnelDiagnosticHere,
 	},
-	leaction.Action{Verb: "docker-l2tp-ppp-test", Summary: "test L2TP PPP in a peer-isolated Docker lab", Why: "the same L2TP PPP/NCP path in a peer-isolated Docker lab. Needs" +
+	leaction.Action{Verb: "docker-l2tp-ppp", Does: "run", Summary: "test L2TP PPP in a peer-isolated Docker lab", Why: "the same L2TP PPP/NCP path in a peer-isolated Docker lab. Needs" +
 		" PPPoL2TP support in the Docker host kernel",
 		Answer: signalRooted(runDockerL2TPAt)},
-	leaction.Action{Verb: "docker-pppoe-accel-test", Summary: "test the PPPoE client against accel-ppp in Docker", Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
+	leaction.Action{Verb: "docker-pppoe-accel", Does: "run", Summary: "test the PPPoE client against accel-ppp in Docker", Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
 		" Docker lab. Needs PPPoE support in the Docker host kernel",
 		Answer: signalRooted(runDockerPPPoEAt)},
 	leaction.Action{
-		Verb:    "ipsec-mobike-test",
+		Verb:    "ipsec-mobike",
+		Does:    "run",
 		Summary: "test MOBIKE movement against strongSwan",
 		Why: "prove both MOBIKE initiator and responder address movement against packaged strongSwan" +
 			" in private Linux namespaces, retaining IKE/Child identities and encrypted traffic",

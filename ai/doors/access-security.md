@@ -133,6 +133,6 @@ a user takes effect at once on every credential surface
 | `./le test functional plugin`, `./le test functional parse` | AAA, TACACS+ and RADIUS config and behavior `.ci` files |
 | `./le test integration interop-ipsec` | Ze against strongSwan |
 | `./le test integration interop-radius`, `./le test integration interop-radius-subscriber` | Ze against FreeRADIUS, admin and subscriber |
-| `./le test deployment l2tp-ppp-test`, `./le test deployment docker-pppoe-accel-test` | L2TP PPP/NCP, and the PPPoE client against accel-ppp |
+| `./le test deployment l2tp-ppp`, `./le test deployment docker-pppoe-accel` | L2TP PPP/NCP, and the PPPoE client against accel-ppp |
 | `./le rfc check` | Every tagged RFC requirement still has its tests and records |
 | `./le plugin boundary check`, `./le arch tier check` | No same-process call across a plugin, and import direction |

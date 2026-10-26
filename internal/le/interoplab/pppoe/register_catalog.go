@@ -23,7 +23,7 @@ func init() {
 		Package:          "internal/le/interoplab/pppoe/",
 		ScenarioRoot:     scenarioDirectory,
 		SelectorVariable: selectorVariable,
-		Action:           "test deployment/docker-pppoe-accel-test",
+		Action:           "test deployment/docker-pppoe-accel",
 	})
 }
 

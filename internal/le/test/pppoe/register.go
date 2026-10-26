@@ -23,7 +23,7 @@ var suite = cli.CIRunnerConfig{
 	Name:            suiteName,
 	TestSubdir:      "pppoe",
 	Description:     "PPPoE",
-	Detail:          "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `./le test qemu pppoe-test` runs them and they SKIP\neverywhere else. That action supplies both halves: the per-test netns launch\nmode, and ze's runtime kernel, whose CONFIG_PPPOE the AF_PPPOX session behind\nPADS needs.",
+	Detail:          "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `./le test qemu pppoe` runs them and they SKIP\neverywhere else. That action supplies both halves: the per-test netns launch\nmode, and ze's runtime kernel, whose CONFIG_PPPOE the AF_PPPOX session behind\nPADS needs.",
 	DefaultParallel: 0,
 }
 

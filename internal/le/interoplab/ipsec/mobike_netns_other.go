@@ -11,7 +11,7 @@ import (
 // Use the runtime-kernel QEMU action on other platforms.
 func RunMOBIKENetns(_ context.Context, _, _, _, _ string) (Report, int) {
 	return Report{
-		SetupError: "native MOBIKE requires Linux; use qemu ipsec-mobike-test with Ze's runtime kernel",
+		SetupError: "native MOBIKE requires Linux; use qemu ipsec-mobike with Ze's runtime kernel",
 		Code:       1,
 	}, 1
 }

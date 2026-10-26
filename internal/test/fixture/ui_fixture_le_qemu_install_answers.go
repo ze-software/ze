@@ -64,10 +64,10 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	runEnv = envWith(runEnv, "ZE_INSTALL_KERNEL", kernel)
 
 	actions := []qemuInstallAction{
-		{name: "install-test", prefix: "INSTALL-QEMU"},
-		{name: "install-iso-test", prefix: "INSTALL-ISO-QEMU"},
-		{name: "install-scenarios-test", prefix: "INSTALL-SCENARIOS-QEMU"},
-		{name: "install-ventoy-test", prefix: "INSTALL-VENTOY-QEMU"},
+		{name: "installer", prefix: "INSTALL-QEMU"},
+		{name: "installer-iso", prefix: "INSTALL-ISO-QEMU"},
+		{name: "installer-scenarios", prefix: "INSTALL-SCENARIOS-QEMU"},
+		{name: "installer-ventoy", prefix: "INSTALL-VENTOY-QEMU"},
 	}
 
 	invokeLE := func(action string, pipes ...string) uiLeQemuInstallAnswersCommandResult {
@@ -134,7 +134,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	}
 
 	for _, operator := range []string{renderJSON, "ndjson", renderTable, renderText, renderYAML, renderRaw, "no-more"} {
-		rendered := invokeLE("install-test", "|", operator)
+		rendered := invokeLE("installer", "|", operator)
 		if rendered.startErr != nil {
 			return fmt.Errorf("FAIL: global pipe %s failed to start: %w", operator, rendered.startErr)
 		}
@@ -146,7 +146,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 		}
 	}
 
-	logged := invokeLE("install-test", "|", "log", "|", "json")
+	logged := invokeLE("installer", "|", "log", "|", "json")
 	if logged.startErr != nil {
 		return fmt.Errorf("FAIL: one-shot log refusal failed to start: %w", logged.startErr)
 	}
@@ -163,7 +163,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	}
 
 	savedPath := filepath.Join(work, "install-answer.json")
-	saved := invokeLE("install-test", "|", "save", savedPath)
+	saved := invokeLE("installer", "|", "save", savedPath)
 	if saved.startErr != nil {
 		return fmt.Errorf("FAIL: save pipe failed to start: %w", saved.startErr)
 	}

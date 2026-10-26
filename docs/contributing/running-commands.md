@@ -422,7 +422,7 @@ gap: they re-run the same non-equivalent launch.
 |------|-----|
 | A whole suite | `./le test functional plugin` (`./le test functional list` names every suite, and `./le test functional preview` says which ones a gating run would start) |
 | One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le test functional <suite>` |
-| A kernel-dependent suite in the VM | `./le test qemu netns-test suites <comma-separated-suites>` |
+| A kernel-dependent suite in the VM | `./le test qemu netns suites <comma-separated-suites>` |
 
 ## A functional run checks the host before it starts
 

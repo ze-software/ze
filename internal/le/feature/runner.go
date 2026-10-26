@@ -98,7 +98,7 @@ func ciRunnerOf(rel, dir string, depth int) (testRunner, string) {
 		"` command runs test/" + dir + "/"
 }
 
-// suiteWords answers a functional suite's words without the all-tests flag,
+// suiteWords answers a functional suite's words without the --all flag,
 // so the selector picks one file.
 func suiteWords(suite testfunctional.Suite) []string {
 	words := make([]string, 0, len(suite.Args))

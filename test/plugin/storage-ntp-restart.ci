@@ -3,7 +3,7 @@
 # PREVENTS: a working generic state RPC hiding a consumer that never restores.
 # The fixture launches ze start <selected>/router.conf without a config-dir pin.
 # It SETS THE SYSTEM CLOCK, so it runs only where the process holds
-# CAP_SYS_TIME: the disposable QEMU guest through ./le test qemu all-tests. An
+# CAP_SYS_TIME: the disposable QEMU guest through ./le test qemu all. An
 # unprivileged developer host skips it. The env opt-in is what the fixture
 # demands before it touches the clock; the caps gate is what keeps it off a host
 # that must keep its time.

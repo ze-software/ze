@@ -1519,7 +1519,7 @@ capability), and a file it skips runs in the guest; a file this host runs keeps
 the host run, and an ExaBGP compatibility file never asks. The daemons are
 cross-built on the host into `tmp/qemu/rfc-discriminate/pid-<pid>/`, with the
 overlay in `GOFLAGS` for the broken run, and the guest runs the one file through
-`le test qemu all-tests test <path>`, the narrowing `./le feature run`
+`le test qemu all test <path>`, the narrowing `./le feature run`
 already drives (`testqemu.OneCICommand`). The guest le that `le test qemu run`
 rebuilds into the shared `tmp/qemu/` path is built after `GOFLAGS` is restored,
 so it never carries the break. The same `kernel <vmlinuz>` rule applies:
