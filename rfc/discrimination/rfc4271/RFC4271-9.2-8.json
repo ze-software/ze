@@ -3,11 +3,22 @@
     "rid": "RFC4271-9.2-8",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn",
-    "unit-sha": "25374d91e645d84d",
-    "claim-sha": "cf78ed067f8798a4",
+    "unit-sha": "fb4ac47f474c0c8f",
+    "claim-sha": "76c0fc8f731d610e",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
     "producer-sha": "13cf02a605ddca00",
     "break": "line 459: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4271-9.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB",
+    "unit-sha": "a78319d3efe9e022",
+    "claim-sha": "e8ca4944d1f3fc3d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 936: \"newBest == nil\" -\u003e \"true\""
   }
 ]
