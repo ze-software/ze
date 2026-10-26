@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/le/spec/roadmap"
 )
 
 func init() {
@@ -79,6 +80,12 @@ func init() {
 		Complete:     shardsRendered,
 		SessionStart: derived.SessionStartDefer,
 	})
+
+	// The roadmap's Profiles column reads one revision's corpus through these
+	// parsers. The roadmap cannot import this package (its test binary would
+	// link every namespace this package's dependencies register), so the
+	// reader registers from here (roadmapcorpus.go).
+	roadmap.RegisterCorpusReader(readRoadmapCorpus)
 }
 
 // shardsRendered reports whether the run that writes the shards finished.

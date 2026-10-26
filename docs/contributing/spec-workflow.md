@@ -127,7 +127,7 @@ this same collector and category declaration without reading the generated index
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect, Snapshot -->
 
 <!-- source: internal/le/spec/roadmap/profiles.go -- loadRFCCorpus, place, rfcBlobs -->
-<!-- source: internal/le/spec/roadmap/rfccorpus/rfccorpus.go -- Read -->
+<!-- source: internal/le/rfc/roadmapcorpus.go -- readRoadmapCorpus -->
 The Profiles column names, for each spec, every use-case profile whose closure
 holds a document its `RFC gaps` names (`profiles` in the snapshot). The
 closure is the one `./le rfc tree profile <name>` walks, and it is read from
@@ -137,7 +137,7 @@ only when some spec of the revision declares a gap. A gap the revision cannot
 place stays visible as a diagnostic: an unknown id or stem, a revision with no
 use-case profile, or a corpus that did not load. The parser's `RFC gaps`
 warnings reach the same Diagnostics column. A spec with no gaps shows `-`. The reader
-registers from `internal/le/spec/roadmap/rfccorpus`, so the roadmap package
+registers from the `init()` of `internal/le/rfc`, so the roadmap package
 itself does not link the RFC parsers; a binary without it reports every gap
 unjudged rather than unplaced. `TestRoadmapProfilesOverRealCorpus` logs what
 the whole collection of HEAD costs with the corpus read.

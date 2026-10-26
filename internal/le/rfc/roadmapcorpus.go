@@ -1,25 +1,26 @@
 // Design: docs/contributing/spec-workflow.md -- the roadmap Profiles column.
-// Related: register.go -- registers Read with the roadmap.
+// Related: register.go -- registers readRoadmapCorpus with the roadmap.
+// Related: profile.go -- ParseProfiles, the profile parser it reads through.
+// Related: priority_export.go -- RequirementStems and ProfileClosures.
 
-package rfccorpus
+package rfc
 
 import (
 	"fmt"
 	"path"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/rfc/graph"
 	"github.com/ze-software/ze/internal/le/spec/roadmap"
 )
 
-// Read builds the roadmap's Corpus from one revision's corpus files, keyed by
-// path, with the same parsers the checkout readers use: rfc.RequirementStems
-// over the summaries, rfc.ParseProfiles over the profiles, graph.Parse and
-// graph.Build over the texts, and rfc.ProfileClosures over both. A file that
-// does not parse is an error naming it, because a document missing from the
-// graph silently shrinks every profile that reaches it.
-func Read(files map[string]string) (roadmap.Corpus, error) {
+// readRoadmapCorpus builds the roadmap's Corpus from one revision's corpus
+// files, keyed by path, with the same parsers the checkout readers use:
+// RequirementStems over the summaries, ParseProfiles over the profiles,
+// graph.Parse and graph.Build over the texts, and ProfileClosures over both. A
+// file that does not parse is an error naming it, because a document missing
+// from the graph silently shrinks every profile that reaches it.
+func readRoadmapCorpus(files map[string]string) (roadmap.Corpus, error) {
 	summaries := map[string]string{}
 	profileFiles := map[string]string{}
 	texts := map[string]graph.Text{}
@@ -43,16 +44,16 @@ func Read(files map[string]string) (roadmap.Corpus, error) {
 			return roadmap.Corpus{}, fmt.Errorf("%s is outside rfc/short/, rfc/profiles/, rfc/full/ and rfc/drafts/, which the roadmap reads", rel)
 		}
 	}
-	requirementStems, err := rfc.RequirementStems(summaries)
+	requirementStems, err := RequirementStems(summaries)
 	if err != nil {
 		return roadmap.Corpus{}, err
 	}
 	corpus.RequirementStems = requirementStems
-	profiles, problems := rfc.ParseProfiles(profileFiles, corpus.SummaryStems)
+	profiles, problems := ParseProfiles(profileFiles, corpus.SummaryStems)
 	if len(problems) != 0 {
 		return roadmap.Corpus{}, fmt.Errorf("a profile under rfc/profiles/ did not parse, so its closure is unknown: %s", strings.Join(problems, "; "))
 	}
-	closures := rfc.ProfileClosures(graph.Build(texts), profiles)
+	closures := ProfileClosures(graph.Build(texts), profiles)
 	corpus.ProfileCount = len(closures)
 	for profile, members := range closures {
 		for _, stem := range members {

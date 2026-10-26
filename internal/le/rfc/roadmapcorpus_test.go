@@ -1,7 +1,7 @@
 // Design: docs/contributing/spec-workflow.md -- the roadmap Profiles column.
 // Tests drive roadmap.Collect, with this package's reader registered, over
 // isolated Git object stores, without touching the developer checkout.
-package rfccorpus
+package rfc
 
 import (
 	"fmt"

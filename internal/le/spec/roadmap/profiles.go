@@ -1,6 +1,6 @@
 // Design: docs/contributing/spec-workflow.md -- the roadmap Profiles column.
 // Related: roadmap.go -- Collect, which places each item through rfcCorpus.
-// Related: rfccorpus/register.go -- registers the reader of the RFC corpus.
+// Related: ../../rfc/register.go -- registers the reader of the RFC corpus.
 
 package roadmap
 
@@ -45,17 +45,19 @@ type CorpusReader func(files map[string]string) (Corpus, error)
 
 // corpusReader is the registered reader. The RFC corpus parser lives in
 // internal/le/rfc, whose dependencies reach most le namespaces; it registers
-// from internal/le/spec/roadmap/rfccorpus so this package's own tests link
-// none of them.
+// from the init() of internal/le/rfc/register.go, so this package imports
+// none of them and its own tests link none of them.
 var corpusReader CorpusReader
 
 // errNoCorpusReader is the answer when no reader is linked into the binary:
 // the gaps are not judged, never judged empty.
 var errNoCorpusReader = errors.New("no RFC corpus reader is linked into this binary; " +
-	"blank-import github.com/ze-software/ze/internal/le/spec/roadmap/rfccorpus")
+	"blank-import github.com/ze-software/ze/internal/le/rfc")
 
 // RegisterCorpusReader installs the reader Collect places `RFC gaps` items
-// with. It MUST be called once, from an init() in a register.go.
+// with. It MUST be called once, from an init() in a register.go: the one
+// caller is internal/le/rfc/register.go, which registers the reader in
+// internal/le/rfc/roadmapcorpus.go.
 func RegisterCorpusReader(reader CorpusReader) {
 	if reader == nil {
 		panic("BUG: roadmap.RegisterCorpusReader: nil reader")

@@ -131,7 +131,6 @@ import (
 	_ "github.com/ze-software/ze/internal/le/spec/release"
 	_ "github.com/ze-software/ze/internal/le/spec/review"
 	_ "github.com/ze-software/ze/internal/le/spec/roadmap"
-	_ "github.com/ze-software/ze/internal/le/spec/roadmap/rfccorpus"
 	_ "github.com/ze-software/ze/internal/le/spec/state"
 	_ "github.com/ze-software/ze/internal/le/spec/status"
 	_ "github.com/ze-software/ze/internal/le/spec/wip"

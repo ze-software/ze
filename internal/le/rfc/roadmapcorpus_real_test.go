@@ -1,6 +1,6 @@
 // Design: docs/contributing/spec-workflow.md -- the roadmap Profiles column.
 
-package rfccorpus
+package rfc
 
 import (
 	"path/filepath"
@@ -17,7 +17,7 @@ import (
 // unknown-gap diagnostic. Method: Collect over this checkout's HEAD; the time
 // the corpus read adds is logged, because it is paid on every roadmap run.
 func TestRoadmapProfilesOverRealCorpus(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
