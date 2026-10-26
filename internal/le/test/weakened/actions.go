@@ -17,10 +17,19 @@ var actions = leaction.New(area,
 		Answer: selftestAnswer},
 	leaction.Action{
 		Verb:    "proposed",
+		Does:    "judge",
 		Summary: "judge one Write or Edit proposal for weakening",
 		Why:     "judge one bounded stdin JSON Write/Edit/MultiEdit proposal against weakening and RFC approval ledgers",
 		Writes:  false,
 		Answer:  proposedAnswer,
+	},
+	leaction.Action{
+		Verb:    "check",
+		Summary: "check a range and worktree for test weakening",
+		Why:     "check a branch range and worktree for unexplained test weakening",
+		Parameters: []leaction.Parameter{{Keyword: "base", Kind: leaction.KindRevision, Value: "revision",
+			Requirement: leaction.Optional, Help: "the revision the checked range starts from; without it, HEAD"}},
+		AnswerArgs: checkAnswer,
 	},
 	leaction.Action{
 		Verb:    "approve",
@@ -51,6 +60,18 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func selftestAnswer() (any, int) {
 	report := SelfTest()
+	return report, report.ExitCode()
+}
+
+// checkAnswer is `le test weakened check`: the audit of a branch range and the
+// worktree for a weakening no approval row explains.
+func checkAnswer(args leaction.Arguments) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report := Audit(AuditRequest{Root: root, Base: args.One("base")})
 	return report, report.ExitCode()
 }
 

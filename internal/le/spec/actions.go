@@ -509,7 +509,7 @@ func lifecycleError(err error) (any, int) {
 }
 
 // The command verbs and keywords this lifecycle accepts, the spec status it
-// transitions from, and the review-check refusal reason.
+// transitions from, and the `commit check` refusal reason.
 const (
 	verbCurrent         = "current"
 	verbLatest          = "latest"

@@ -1,7 +1,7 @@
 # Test: le's exit codes carry one meaning each, through the binary.
 # accept-only: the registered native fixture builds the le personality and runs
 # one line per meaning: usage errors (an unknown command, a namespace
-# non-member, a stray word, a value outside an enum) answer 2; a review-check
+# non-member, a stray word, a value outside an enum) answer 2; a commit check
 # with no review answers 1; a gate with no checkout to read answers 3; a
 # blocking hook answers the hook protocol's 2; a pass-through program's own
 # failure passes through as its code; le help ai exit-codes names the

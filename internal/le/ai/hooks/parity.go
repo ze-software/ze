@@ -140,7 +140,7 @@ func bashCode(command string) int {
 	fields := strings.Fields(command)
 	if len(fields) >= 3 && fields[0] == "./le" && fields[1] == "commit" {
 		switch fields[2] {
-		case "session", "create", "message", "audit", "review-check",
+		case "session", "create", "message", "check",
 			"push", "debt-status":
 		default:
 			return 2

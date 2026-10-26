@@ -107,9 +107,9 @@ func TestCommitRefusesWhatItsTableRefuses(t *testing.T) {
 		{"create", "subject"},
 		{"create", "subject", "s", "attest", "abc"},
 		{"session", "a", "b"},
-		{"audit", "base"},
+		{"check", "spec"},
 		{"debt-status", "commit"},
-		{"review-check", "file", "a"},
+		{"check", "file", "a"},
 		{"push"},
 		{"push", "the owner said yes", "again"},
 	} {
@@ -122,7 +122,7 @@ func TestCommitRefusesWhatItsTableRefuses(t *testing.T) {
 	}
 }
 
-// TestReviewCheckNotCleanExitsOne validates AC-31: `le commit review-check`
+// TestReviewCheckNotCleanExitsOne validates AC-31: `le commit check`
 // over a spec with no recorded review ran, found the review missing, and
 // answers 1, the found-a-problem code, never 3, which means it could not run.
 // Method: run the action body over a fresh checkout that holds no review.
@@ -130,14 +130,14 @@ func TestReviewCheckNotCleanExitsOne(t *testing.T) {
 	root := newCommitRepository(t)
 	answer, code := answerReviewCheck(root, leaction.Arguments{keywordSpec: {"spec-nothing-reviewed"}})
 	if code != 1 {
-		t.Fatalf("review-check over a missing review answered %d, want 1", code)
+		t.Fatalf("check over a missing review answered %d, want 1", code)
 	}
 	review, isReview := answer.(ReviewResult)
 	if !isReview {
-		t.Fatalf("review-check answered %T, want a ReviewResult", answer)
+		t.Fatalf("check answered %T, want a ReviewResult", answer)
 	}
 	if review.Clean || len(review.Problems) == 0 {
-		t.Errorf("review-check answered 1 without naming the problem: %+v", review)
+		t.Errorf("check answered 1 without naming the problem: %+v", review)
 	}
 }
 

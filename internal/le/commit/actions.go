@@ -51,7 +51,7 @@ const keywordDebtStatus = "debt-status"
 // unchanged by the derived debt.
 const (
 	keywordSession        = "session"
-	actionReviewCheck     = "review-check"
+	actionReviewCheck     = "check"
 	keywordReviewOverride = "review-override"
 	keywordRFCChangeOK    = "rfc-change-ok"
 	// keywordAttest prepares the owner's attestation: an empty commit whose
@@ -139,6 +139,7 @@ func table() leaction.Area {
 	return leaction.New(area,
 		leaction.Action{
 			Verb: keywordSession, Writes: true,
+			Does:       "ensure",
 			Summary:    "create or reuse this session's commit namespace",
 			Why:        "create or reuse this harness session's eight-hex commit namespace",
 			Parameters: []leaction.Parameter{sessionParameter},
@@ -153,18 +154,11 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb:       "message",
+			Does:       "preview",
 			Summary:    "render and validate a commit message only",
 			Why:        "render and validate a commit message without preparing a script",
 			Parameters: []leaction.Parameter{subjectParameter, bodyParameter},
 			AnswerArgs: withRoot(answerMessage),
-		},
-		leaction.Action{
-			Verb:    "audit",
-			Summary: "audit a range and worktree for test weakening",
-			Why:     "audit a branch range and worktree for unexplained test weakening",
-			Parameters: []leaction.Parameter{{Keyword: "base", Kind: leaction.KindRevision, Value: "revision",
-				Requirement: leaction.Optional, Help: "the revision the audited range starts from; without it, HEAD"}},
-			AnswerArgs: withRoot(answerAudit),
 		},
 		leaction.Action{
 			Verb:    actionReviewCheck,
@@ -192,6 +186,7 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb:    keywordDebtStatus,
+			Does:    "report",
 			Summary: "report what a push of a verified commit still owes",
 			Why: "derive what a push of the verified commit P, or of commit <rev>, would still owe: " +
 				"exit 0 when nothing, 1 when anything, 2 when it cannot answer",
@@ -254,14 +249,9 @@ func answerMessage(_ string, args leaction.Arguments) (any, int) {
 	return messageResult{Message: message}, 0
 }
 
-func answerAudit(root string, args leaction.Arguments) (any, int) {
-	report := testweakened.Audit(testweakened.AuditRequest{Root: root, Base: args.One("base")})
-	return report, report.ExitCode()
-}
-
 func answerReviewCheck(root string, args leaction.Arguments) (any, int) {
 	if args.One(keywordSpec) == "" {
-		return nil, table().Refuse(actionReviewCheck, errors.New("review-check requires spec <stem>"))
+		return nil, table().Refuse(actionReviewCheck, errors.New(actionReviewCheck+" requires spec <stem>"))
 	}
 	review := CheckReview(root, args.One(keywordSpec), args.Values(keywordFile))
 	if !review.Clean {

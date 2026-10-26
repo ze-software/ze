@@ -206,7 +206,7 @@ answer 2 when they refuse the keywords the line gave (`append` with `replace`,
 no file named, a malformed session id, a subject the message rules refuse), 3
 when the operation could not run (no HEAD to prepare against, a file a gate
 must read is unreadable, the checkout is not found), and 1 when it ran and a
-gate or git refused it. `review-check` answers 1 for a review that is not
+gate or git refused it. `check` answers 1 for a review that is not
 clean. The generated script runs under `set -e`, so any non-zero code stops it.
 
 <!-- source: internal/le/commit/exitcode.go -- exitCodeOf, refusedKeywords, couldNotRun -->

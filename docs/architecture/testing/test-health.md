@@ -146,7 +146,7 @@ a unit also accepts that unit's weakening, so one test never needs two answers.
 | Refused at commit time by | `checkSourceGates` (`internal/le/commit/prepare.go`), which runs `testweakened.Check` |
 | Reads | `tmp/commit-weakening-approved-<session>.md`, `tmp/commit-rfc-approved-<session>.md`, and the HEAD content of the paths the commit names |
 | Source | `internal/le/test/weakened.Check`, called by both gates |
-| Reviewed afterwards by | `./le commit audit`, which reads the audited commit's own `Weakening-approved:` and `RFC-approved:` lines. Either line admits a unit's weakening; only an `RFC-approved:` line admits a change to an RFC-tagged unit |
+| Reviewed afterwards by | `./le test weakened check`, which reads the checked commit's own `Weakening-approved:` and `RFC-approved:` lines. Either line admits a unit's weakening; only an `RFC-approved:` line admits a change to an RFC-tagged unit |
 <!-- source: internal/le/test/weakened/testweakened.go -- Check, loadApprovalFile, claimFinding -->
 
 ### One approval names one test

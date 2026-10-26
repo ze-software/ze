@@ -58,7 +58,7 @@ func leExitCodes(ctx context.Context) error {
 		{why: "a word the ai namespace does not hold", args: []string{"ai", "no-such-member-exit-codes"}, code: 2},
 		{why: "a stray word after a verb", args: []string{areaCLI, "grammar", actionCheck, "stray-exit-codes"}, code: 2},
 		{why: "a value outside an enum", args: []string{"weekly", "channel", "no-such-channel"}, code: 2},
-		{why: "a review-check over a spec with no review", args: []string{"commit", "review-check", "spec", "spec-no-review-exit-codes"}, code: 1},
+		{why: "a commit check over a spec with no review", args: []string{"commit", "check", "spec", "spec-no-review-exit-codes"}, code: 1},
 		{why: "a grammar check with no checkout to read", dir: empty, args: []string{areaCLI, "grammar", actionCheck}, code: 3},
 		{why: "an rfc check with no checkout to read", dir: empty, args: []string{"rfc", actionCheck}, code: 3},
 		{why: "a hook that blocks (the hook protocol)", stdin: `{"tool_name":"Bash","tool_input":{"command":"git push --force"}}`,

@@ -46,7 +46,7 @@ Determine what code to review based on the argument:
 Read the diff to understand the full changeset. Build a file list.
 
 Then run the deterministic test-relaxation audit and keep its output for the Test Coverage agent (and the final report):
-- `./le commit audit` (uncommitted), or `./le commit audit base origin/main` to also cover committed-but-unpushed work. Since this repo commits directly to main, `main` is normally the same commit as HEAD; the tool refuses that base (exit 2) instead of auditing an empty range and reporting clean. Use `main` only from an actual feature branch.
+- `./le test weakened check` (uncommitted), or `./le test weakened check base origin/main` to also cover committed-but-unpushed work. Since this repo commits directly to main, `main` is normally the same commit as HEAD; the tool refuses that base (exit 2) instead of auditing an empty range and reporting clean. Use `main` only from an actual feature branch.
 - The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. It reports only unexplained `[DELETED]` and `[WEAKENED]` findings. This is read-only. Hand its output to Agent 4 and surface every finding as a review blocker.
 
 ### 2. Select agents
@@ -185,7 +185,7 @@ You are a test coverage auditor. Your job is to find untested code paths, weak a
 
 SCOPE: Review these changed files: {file_list}
 
-FIRST, the test-relaxation audit. Run `./le commit audit` (use `base origin/main` to include committed-but-unpushed work; a base of `main` is refused with exit 2 when it is the same commit as HEAD), read-only. For every entry it reports:
+FIRST, the test-relaxation audit. Run `./le test weakened check` (use `base origin/main` to include committed-but-unpushed work; a base of `main` is refused with exit 2 when it is the same commit as HEAD), read-only. For every entry it reports:
 - Report every finding as HIGH severity and a review BLOCKER. "The test was failing" is never a valid reason.
 Also watch for weakening the audit cannot see: an expected value changed in place to match new (possibly wrong) output. If a golden/expected literal changed, verify the new value is correct, not just convenient.
 

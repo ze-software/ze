@@ -190,11 +190,11 @@ func TestWeakenedAreaPublishesNativeActions(t *testing.T) {
 	t.Parallel()
 
 	list := Actions()
-	if list.Area != "test weakened" || len(list.Actions) != 3 {
+	if list.Area != "test weakened" || len(list.Actions) != 4 {
 		t.Fatalf("Actions() = %#v", list)
 	}
-	wantVerbs := []string{"selftest", "proposed", "approve"}
-	wantWrites := []bool{false, false, true}
+	wantVerbs := []string{"selftest", "proposed", "check", "approve"}
+	wantWrites := []bool{false, false, false, true}
 	for index, row := range list.Actions {
 		if row.Verb != wantVerbs[index] || row.Why == "" || row.Writes != wantWrites[index] {
 			t.Fatalf("Actions()[%d] = %#v", index, row)

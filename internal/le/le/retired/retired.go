@@ -238,6 +238,10 @@ var renames = []Rename{
 	{Retired: "spec journal validate", Command: "spec journal", Action: "check"},
 	// `verify` there meant every check in order, which is the shared name `all`.
 	{Retired: "doc check verify", Command: "doc check", Action: "all"},
+	// A test-weakening check belongs to the test area that owns the ledger.
+	{Retired: "commit audit", Command: "test weakened", Action: "check"},
+	// `review-check` embedded the verb in the action word.
+	{Retired: "commit review-check", Command: "commit", Action: "check"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

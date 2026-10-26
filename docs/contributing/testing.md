@@ -330,8 +330,8 @@ is where the commit says which of the two happened.
 
 Git history is where past approvals are read: `git log --grep
 '^Weakening-approved:'` lists each one beside the change it accepted, and
-`./le commit audit` reads the same lines when it reviews a commit. The rule is
-`ai/rules/testing.md`, and the design is
+`./le test weakened check` reads the same lines when it reviews a commit. The
+rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
 ## How Thomas's release check works
