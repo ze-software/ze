@@ -245,7 +245,7 @@ strongSwan upstream master, commit `b8e275ca6230d42fc24edb2d9881e8eb4a1b0c8f`.
 | AC-10 | Two peers pass narrowing for the same inner address before either installs | the second install is refused before any dataplane call, with an error wrapping `errTSUnacceptable`; on the responder the answer is TS_UNACCEPTABLE |
 | AC-11 | a's Child SA is deleted (peer DELETE, IKE SA death, `clear`, peer reload, rekey retire); then b proposes 10.1.2.3/32 | b is served; the registry holds no record of the removed child |
 | AC-12 | Second peer refused for a conflict | Ze logs one Warn line naming: the refused peer and its selector pair, the holding peer and its pair, that one packet could be sent into either tunnel (RFC 3948 Section 5.1), and the fix: configure disjoint remote prefixes (`set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>`) or bind the peer to a virtual-IP pool (`set vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>`) |
-| AC-13 | Transport-mode Child SAs | unchanged: not recorded in the new registry; RFC 3948 Section 5.2 refusal stays in `policyOwners.claim` (existing tests green) |
+| AC-13 | Transport-mode Child SAs | recorded in the registry (independent audit of 7d7658dae0: a tunnel around a transport-mode peer's address went unrefused); a tunnel overlapping another peer's transport-mode pair, and the reverse, is refused at narrowing and at install in either arrival order; two transport-mode pairs stay with `policyOwners.claim` (RFC 3948 Section 5.2) |
 | AC-14 | Pool-bound peers | existing pool tests green; a lease equal to an unbound peer's live inner address is refused for the newcomer, whichever came second |
 | AC-15 | `rfc/short/rfc3948.md` | RFC3948-5.1-1 loses `{partial}`, the `Support remaining` row no longer describes the unbound gap, and every new tagged test carries a discrimination record (`./le rfc check` green) |
 
@@ -275,7 +275,7 @@ strongSwan upstream master, commit `b8e275ca6230d42fc24edb2d9881e8eb4a1b0c8f`.
 | `TestRFC3948CreateChildSecondPeerSameInnerRefused` | same | AC-1 over CREATE_CHILD_SA (`respondNewChild`), notify TS_UNACCEPTABLE | |
 | `TestInnerSelectorRegistryEmptyAfterTeardown` | same | AC-11 over delete, rekey retire, IKE SA death, failed kernel install | |
 | `TestInnerSelectorRefusalNamesBothPeersAndFix` | same | AC-12 error text | |
-| `TestInnerSelectorTransportModeNotRecorded` | same | AC-13 | |
+| `TestInnerSelectorTransportModeRecordedAndLeftToDataplane`, `TestRFC3948TunnelAroundTransportPeerRefused`, `TestRFC3948TunnelAroundTransportPeerInstallBackstop` (`rfc3948_inner_selector_transport_test.go`; replace `TestInnerSelectorTransportModeNotRecorded`, whose expectation was the defect) | same | AC-13 | records: `innerSelectorGuard.claim` transport skip restored, `bothTransport` answering true, both red |
 | `TestRFC3948LeaseVersusUnboundPeerFirstComeWins` | same | AC-14 | |
 | `TestInnerSelectorInitiatorInstallRefusedInstallsNothing` | same | R-6 | |
 | `TestInnerSelectorOverlapSymmetric` | same | A-6 | |
@@ -434,7 +434,7 @@ Carried into the closure template's Goal Validation table by `/ze-close`.
 | Operator-fixed = remote half equals a configured remote selector | "peer has any configured selector"; both halves equal | configured-but-narrowed is the 5.1 case (AC-4); the 5.1 subject is the remote inner address, so a peer narrowing only Ze's local half keeps the operator's remote choice |
 | Both-fixed overlaps allowed only at distinct `policy-priority` values (`operatorOrdered`, f87c1883ac) | allow every both-fixed overlap regardless of priority; refuse at commit time | the goal says "unless the operator configured both at different `policy-priority` values": RFC 4301 Section 4.4.1 gives the ordering to the operator, and only distinct priorities express it. At equal priority the kernel orders by install time, so a packet's tunnel depends on which peer came up first, the RFC 3948 Section 5.1 confusion; the newcomer is refused with TS_UNACCEPTABLE and a fix line naming `policy-priority` (`TestRFC3948ConfiguredOverlapEqualPriorityRefused`). A commit-time refusal was rejected: two peers sharing a wide configured prefix that narrow to disjoint pairs are legitimate, and only the install-time pair comparison tells the two cases apart. See Known Limitations |
 | Same owner exempt | none | rekey and IKE re-authentication overlap themselves by construction |
-| Tunnel only in the registry | record transport too | transport overlap is already refused by `claim` (RFC 3948 Section 5.2); a second refusal with a different message would duplicate it |
+| Record transport too, compare only tunnel-versus-any (superseded "tunnel only in the registry" after the audit of 7d7658dae0) | tunnel only | `policyOwners.claim` compares transport only against transport, so a tunnel a peer chose around a transport-mode peer's address went unrefused (RFC 3948 Section 5.1). Two transport-mode pairs still stay with `claim` (Section 5.2), so no overlap is refused twice |
 | Pool-bound children recorded | exempt them | an unbound peer must not take a leased address, nor a lease an unbound peer's live address |
 | TS_UNACCEPTABLE | NO_PROPOSAL_CHOSEN, TEMPORARY_FAILURE | RFC 7296 Section 2.9: the responder's policy does not accept that part of the proposal |
 

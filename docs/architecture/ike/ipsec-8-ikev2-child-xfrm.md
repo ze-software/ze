@@ -452,6 +452,20 @@ with `dataplane.PolicySelectorsOverlap`, the same predicate over `policyKey`
 that `claim` uses for transport mode, so the two cannot disagree. The VPP and
 noop backends run no `policyOwners`, which is why that guard does not live here.
 
+The registry records transport-mode Child SAs as well. A tunnel one peer
+negotiates around another peer's transport-mode address (an unbound peer
+proposing TSi 198.18.0.9/32 and TSr 0.0.0.0/0 while the transport-mode peer at
+198.18.0.9 holds 198.18.0.9/32 to 192.0.2.1/32) matches the same outbound packet
+at one priority, which is the Section 5.1 confusion, so it is refused, and so is
+a transport-mode connection inside another peer's tunnel, in either arrival
+order, at narrowing (judged in the mode this node decided, `sa.UseTransportMode`)
+and at install. The refusal names both peers and the selector or pool fix on the
+tunnel peer. Only the overlap of two transport-mode pairs is left to `claim`
+above (`conflictLocked`, `bothTransport`), so it is refused once, with
+`TransportSelectorConflictError`. The operator-ordered exemption applies to a
+tunnel against a transport-mode pair as to two tunnels: both remote halves
+exactly as configured, at different `policy-priority` values.
+
 With no dataplane (`Get()` nil) nothing is installed, and the record is still
 taken, so the control plane never holds two peers' Child SAs for one inner
 address; `removeChildSAExcept` releases it at once. With a dataplane, the record
@@ -500,7 +514,7 @@ retries could both remove one policy, the second taking the policy another peer
 had just installed on the freed selector. What the lock spans is bounded: one
 netlink or VPP API request per stranded policy.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
-<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, policyDeleteCommand, adoptStrandedLocked, innerSelectorStrandedConflict -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, policyDeleteCommand, adoptStrandedLocked, innerSelectorStrandedConflict, conflictLocked, bothTransport, innerSelectorTransportConflict -->
 <!-- source: internal/component/ike/dataplane/policy_command.go -- PolicyDeleteCommander, XFRMPolicyDeleteCommand -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppBackend.PolicyDeleteCommand, vppBackend.RemovePolicyParams, vppBackend.recordedEntry, vppPolicyDelCommand -->
 <!-- source: internal/component/ike/engine/child.go -- removeChildSAExcept, releaseInnerRecord, policyGone, removeStrandedPolicies -->

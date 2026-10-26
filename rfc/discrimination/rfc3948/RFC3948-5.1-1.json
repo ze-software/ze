@@ -112,6 +112,83 @@
   {
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948FixedAgainstPeerChosenDistinctPriorityRefused",
+    "unit-sha": "90f371b88b7a28ab",
+    "claim-sha": "74c1bf0f5d74d8b8",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::operatorOrdered",
+    "producer-sha": "ab3748240a695a6a",
+    "break": "line 608: \"if !h.operatorFixed {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948NarrowedByPeerDistinctPriorityRefused",
+    "unit-sha": "11840e9e37251e60",
+    "claim-sha": "95508a017447a35c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
+    "producer-sha": "28e15c7002924714",
+    "break": "line 241: \"return a.Net.String() == b.Net.String()\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948NarrowedPortDistinctPriorityRefused",
+    "unit-sha": "a00ee0f1c7eb70a9",
+    "claim-sha": "afd314bc7b95b751",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
+    "producer-sha": "28e15c7002924714",
+    "break": "line 235: \"if selectorPort(a) != selectorPort(b) {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948NarrowedProtocolDistinctPriorityRefused",
+    "unit-sha": "8397c425bea02e6d",
+    "claim-sha": "48f1159780cab0d0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::sameInnerSelector",
+    "producer-sha": "28e15c7002924714",
+    "break": "line 232: \"if a.Proto != b.Proto {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948PeerChosenAgainstFixedDistinctPriorityRefused",
+    "unit-sha": "7434bfdedcf8aae5",
+    "claim-sha": "4afa3f59688b5034",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::operatorOrdered",
+    "producer-sha": "ab3748240a695a6a",
+    "break": "line 605: \"if !p.operatorFixed {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948TunnelAroundTransportPeerInstallBackstop",
+    "unit-sha": "974683c5ecb0c0c8",
+    "claim-sha": "9295f0782bbd8f6d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::bothTransport",
+    "producer-sha": "a364a1f6286d6430",
+    "break": "line 620: \"return h.transport()\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948TunnelAroundTransportPeerRefused",
+    "unit-sha": "1537b5aaeca6c342",
+    "claim-sha": "abb9ba2ddc4195ef",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorGuard.claim",
+    "producer-sha": "85654bba5cce412a",
+    "break": "line 696: \"if g.registry == nil {\" -\u003e \"if g.registry == nil || child.Mode == modeTransport {\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948InitiatorSessionRefusesHeldInnerAddress",
     "unit-sha": "3eec2e725c0e1ea6",
     "claim-sha": "23bd7cbdba4ca44f",

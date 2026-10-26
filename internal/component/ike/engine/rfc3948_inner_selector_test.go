@@ -476,17 +476,22 @@ func TestInnerSelectorRefusalNamesBothPeersAndFix(t *testing.T) {
 	}
 }
 
-// TestInnerSelectorTransportModeNotRecorded: a transport-mode Child SA is not recorded,
-// because its overlap is refused by the dataplane under RFC 3948 Section 5.2 (AC-13).
+// TestInnerSelectorTransportModeNotRecorded: a transport-mode Child SA IS recorded, so a
+// tunnel another peer negotiates around its address can be refused (RFC 3948 Section
+// 5.1, AC-13), and two transport-mode Child SAs of two peers are not compared by the
+// registry: their overlap is the dataplane's (RFC 3948 Section 5.2, policyOwners.claim),
+// so the mock dataplane, which runs no such check, serves both. The name predates the
+// audit of 7d7658dae0, which found that not recording transport mode was the defect; a
+// rename is a deletion to the weakening gate and waits on a ze-test-judge verdict.
 func TestInnerSelectorTransportModeNotRecorded(t *testing.T) {
 	reg := newInnerSelectorRegistry()
-	sa := innerPeerSA(t, reg, "t", "10.0.0.2")
-	sa.PeerCfg.LocalAddress = "10.0.0.1"
-	sa.PeerCfg.Mode = dataplane.ModeTransport
-	sa.UseTransportMode = true
-	mustInnerChild(t, sa, &mockDP{}, []string{"10.0.0.2/32"}, []string{"10.0.0.1/32"})
-	if got := reg.holdings(); got != 0 {
-		t.Fatalf("registry holds %d Child SAs after a transport-mode install, want 0", got)
+	mustInnerChild(t, transportPeerSA(t, reg, "b"), &mockDP{}, transportTSi, transportTSr)
+	if got := reg.holdings(); got != 1 {
+		t.Fatalf("registry holds %d Child SAs after a transport-mode install, want 1", got)
+	}
+	mustInnerChild(t, transportPeerSA(t, reg, "c"), &mockDP{}, transportTSi, transportTSr)
+	if got := reg.holdings(); got != 2 {
+		t.Fatalf("registry holds %d Child SAs after two transport-mode installs, want 2", got)
 	}
 }
 

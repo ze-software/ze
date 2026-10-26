@@ -657,21 +657,21 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	}
 
 	// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
-	// occurring." A tunnel pair another peer already holds, overlapping, is dropped
-	// here, before closedSubset cuts the answer, so the closed subset is cut from pairs
-	// this node can grant. Transport mode is refused by the dataplane instead (RFC 3948
+	// occurring." A pair that overlaps one another peer already holds is dropped here,
+	// before closedSubset cuts the answer, so the closed subset is cut from pairs this
+	// node can grant. It runs in both modes: a tunnel answer is judged against another
+	// peer's tunnel or transport-mode pair, and a transport-mode answer against another
+	// peer's tunnel. Two transport-mode pairs are left to the dataplane (RFC 3948
 	// Section 5.2, policyOwners.claim).
 	//
-	// The gate is the mode this node DECIDED (decideResponderTransportMode), never the
-	// peer's request: a transport request this node declines still installs a tunnel
-	// (RFC 7296 Section 1.3.1), which innerSelectorGuard.claim records, so the filter
-	// must run for it too. A Child SA rekey inherits the retired Child SA's mode, and its
-	// claim (installChildSA) stays the backstop whatever this gate answers.
-	if !sa.UseTransportMode {
-		narrowed, err = dropForeignInnerOverlaps(sa, narrowed)
-		if err != nil {
-			return err
-		}
+	// The mode judged is the one this node DECIDED (decideResponderTransportMode), never
+	// the peer's request: a transport request this node declines still installs a tunnel
+	// (RFC 7296 Section 1.3.1), so it is judged as one (dropForeignInnerOverlaps). A
+	// Child SA rekey inherits the retired Child SA's mode, and its claim
+	// (installChildSA) stays the backstop whatever this filter answers.
+	narrowed, err = dropForeignInnerOverlaps(sa, narrowed)
+	if err != nil {
+		return err
 	}
 
 	// RFC 7296 Section 3.13: "a packet matches a given TSi/TSr if it matches at least one

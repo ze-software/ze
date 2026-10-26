@@ -388,8 +388,8 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 		"in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID, "error", err)
 }
 
-// installChildSA installs a Child SA into the dataplane, after recording its tunnel
-// selectors in the cross-peer registry.
+// installChildSA installs a Child SA into the dataplane, after recording its selectors,
+// tunnel or transport mode, in the cross-peer registry.
 //
 // RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
 // occurring." The narrowing filter (dropForeignInnerOverlaps) already dropped every pair

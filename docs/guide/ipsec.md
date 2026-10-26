@@ -278,8 +278,18 @@ exactly as written, may overlap only when the two peers have different
 tunnel a packet takes (RFC 4301 Section 4.4.1). At one value, the default 2000
 on both for example, nothing orders them, so the second peer to establish is
 refused like an unconfigured one. An overlap a peer chose by narrowing inside a
-configured prefix is refused at any priority. Route-based peers on distinct
-XFRM interfaces never conflict.
+configured selector, to a smaller prefix, one protocol or one port, is refused at
+any priority. Route-based peers on distinct XFRM interfaces never conflict.
+
+The same rule covers a peer in transport mode. Its connection is held from its
+own address to Ze's, so a tunnel that another peer negotiates around that
+address, for example an unbound peer proposing `198.18.0.9/32` to `0.0.0.0/0`
+while a transport-mode peer runs from 198.18.0.9, is refused, and so is a
+transport-mode connection inside a tunnel another peer already holds, whichever
+of the two comes first. The warning names both peers, and the fix is on the
+tunnel peer: remote prefixes that leave out the transport-mode peer's address,
+or a pool. Two transport-mode peers that overlap, two clients behind one NAT for
+example, are refused by the dataplane instead (RFC 3948 Section 5.2).
 
 strongSwan protects the same case differently: its default `remote_ts` is
 `dynamic`, the peer's observed address, so a client behind a NAT that proposes

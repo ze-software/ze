@@ -127,8 +127,9 @@ func (o *policyOwners) claim(p SPParams) (created bool, err error) {
 		// ports, and an overlap would leave the kernel's ordered search to hand one
 		// client's traffic to the other client's SA. Tunnel mode is not compared here:
 		// an overlap between operator-configured prefixes ordered by priority is a
-		// deliberate configuration, and the overlap a PEER chose is refused by the IKE
-		// engine before any backend is called (RFC 3948 Section 5.1,
+		// deliberate configuration, and the overlap a PEER chose, between two tunnels or
+		// between a tunnel and a transport-mode connection, is refused by the IKE engine
+		// before any backend is called (RFC 3948 Section 5.1,
 		// ike/engine/inner_selectors.go), which reaches every backend rather than this
 		// one.
 		for other, holder := range o.owners {

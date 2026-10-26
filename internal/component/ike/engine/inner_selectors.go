@@ -17,9 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// innerSelectorRegistry holds the selector pairs of every tunnel-mode Child SA the
-// dataplane holds, across every peer, so a second peer cannot negotiate a tunnel one
-// packet could also be sent into.
+// innerSelectorRegistry holds the selector pairs of every Child SA the dataplane holds,
+// tunnel and transport mode alike, across every peer, so a second peer cannot negotiate
+// a tunnel one packet could also be sent into.
 //
 // RFC 3948 Section 5.1: "Because SGW will now see two possible SAs that lead to
 // 10.1.2.3, it can become confused about where to send packets coming from Suzy's
@@ -28,7 +28,10 @@ import (
 // Ze prevents it the way RFC 3948 Section 5.2 names for transport mode, "by disallowing
 // conflicting connections": a pair that overlaps a pair another peer holds is refused,
 // unless the operator configured the remote half of both and gave the two peers
-// different policy priorities (operatorOrdered). A peer bound to a virtual-IP
+// different policy priorities (operatorOrdered). A transport-mode pair is recorded too,
+// because a tunnel another peer negotiates around a transport peer's address is the
+// same confusion: one packet, two SAs. Two transport-mode pairs are not compared here;
+// the dataplane refuses their overlap (RFC 3948 Section 5.2, policyOwners.claim). A peer bound to a virtual-IP
 // pool is recorded like any other, so an unbound peer cannot take a leased address and a
 // lease cannot take an unbound peer's live one, whichever arrives second.
 //
@@ -140,10 +143,26 @@ func ipNetText(n *net.IPNet) string {
 
 // innerSelectorPair is one negotiated pair as the dataplane installs it outbound, with
 // whether the peer's operator configured its remote half, and its text for an operator.
+// Its mode is the policy's (transport).
 type innerSelectorPair struct {
 	policy        dataplane.SPParams
 	operatorFixed bool
 	text          string
+}
+
+// transport reports whether p is a transport-mode pair, in the mode the dataplane
+// installs it: childPairPolicy resolves an unset mode to tunnel, so this cannot disagree
+// with the install.
+func (p innerSelectorPair) transport() bool {
+	return p.policy.Mode == modeTransport
+}
+
+// kind names p's mode for an operator.
+func (p innerSelectorPair) kind() string {
+	if p.transport() {
+		return "transport-mode connection"
+	}
+	return "tunnel"
 }
 
 // innerSelectorGuard is what a Child SA carries to be recorded: the registry its peer
@@ -239,10 +258,14 @@ func innerPairText(pp policyPair) string {
 	return string(text.Bytes())
 }
 
-// dropForeignInnerOverlaps removes from pairs, the narrowed answer of a tunnel-mode
-// exchange this node responds to, every pair that overlaps a live pair of another peer
-// (RFC 3948 Section 5.1). It reads the registry and records nothing: installChildSA
-// records the answer once the Child SA installs.
+// dropForeignInnerOverlaps removes from pairs, the narrowed answer of an exchange this
+// node responds to, every pair that overlaps a live pair of another peer (RFC 3948
+// Section 5.1). The answer is judged in the mode this node decided
+// (sa.UseTransportMode), the mode it installs: a transport-mode answer is refused
+// against another peer's tunnel, and a tunnel answer against another peer's
+// transport-mode pair, while two transport-mode pairs are left to the dataplane
+// (conflictLocked). It reads the registry and records nothing: installChildSA records
+// the answer once the Child SA installs.
 //
 // RFC 7296 Section 2.9: "If the responder's policy allows it to accept the first
 // selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a
@@ -264,7 +287,13 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair) ([]tsPair, error) {
 	}
 	// The Child SA this answer would install, as far as its policies go: this node
 	// responds, so its own side is TSr (narrowChildSelectors).
-	probe := &ChildSA{IfID: ifID, Mode: modeTunnel, Owner: sa.PeerName, PolicyPriority: sa.PeerCfg.PolicyPriority}
+	// RFC 7296 Section 1.3.1: the mode is tunnel unless USE_TRANSPORT_MODE was both
+	// requested and echoed, which is what createFirstChildSA installs.
+	mode := modeTunnel
+	if sa.UseTransportMode {
+		mode = modeTransport
+	}
+	probe := &ChildSA{IfID: ifID, Mode: mode, Owner: sa.PeerName, PolicyPriority: sa.PeerCfg.PolicyPriority}
 	configured := configuredRemoteSelectors(sa.PeerCfg)
 	kept := make([]tsPair, 0, len(pairs))
 	var refusal error
@@ -536,6 +565,13 @@ func (r *innerSelectorRegistry) holdings() int {
 // different priorities are ordered by the operator, so the SPD picks one tunnel for
 // every packet. At one priority nothing orders them: the dataplane matches whichever
 // installed first, which is arrival order, the confusion RFC 3948 Section 5.1 forbids.
+//
+// A tunnel pair is compared with a transport-mode pair like any other: either way round,
+// one packet could be sent into either SA. Two transport-mode pairs are not compared
+// here. RFC 3948 Section 5.2: "Implementations MUST handle this situation, either by
+// disallowing conflicting connections, or by other means." The dataplane already
+// disallows them (dataplane policyOwners.claim), and a second refusal here would answer
+// the same overlap twice with two messages.
 func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair) error {
 	for _, holding := range r.held {
 		if holding.owner == owner {
@@ -543,6 +579,9 @@ func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair
 		}
 		for i := range holding.pairs {
 			h := holding.pairs[i]
+			if bothTransport(p, h) {
+				continue
+			}
 			if operatorOrdered(p, h) {
 				continue
 			}
@@ -572,12 +611,31 @@ func operatorOrdered(p, h innerSelectorPair) bool {
 	return p.policy.Priority != h.policy.Priority
 }
 
+// bothTransport reports whether p and h are both transport-mode pairs, whose overlap
+// the dataplane refuses (conflictLocked).
+func bothTransport(p, h innerSelectorPair) bool {
+	if !p.transport() {
+		return false
+	}
+	return h.transport()
+}
+
 // innerSelectorConflict is the refusal of p for owner because holder holds h. It wraps
 // errTSUnacceptable, which notifyForRefusal answers as TS_UNACCEPTABLE.
 //
 // RFC 7296 Section 2.9: "If the responder's policy does not allow it to accept any part
 // of the proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE Notify message."
+//
+// When one side is a transport-mode connection, its selectors are the two endpoint
+// addresses, which no traffic selector of that peer can move, so the fix names the
+// tunnel peer's selectors and pool.
 func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h innerSelectorPair) error {
+	if p.transport() {
+		return innerSelectorTransportConflict(owner, p, holder, h, holder)
+	}
+	if h.transport() {
+		return innerSelectorTransportConflict(owner, p, holder, h, owner)
+	}
 	return fmt.Errorf("%w: peer %s proposed the tunnel %s, which overlaps the tunnel %s that peer %s "+
 		"already holds, so one packet could be sent into either tunnel (RFC 3948 Section 5.1); "+
 		"configure disjoint remote prefixes with 'set vpn ipsec site-to-site peer %s traffic-selector <n> "+
@@ -586,6 +644,23 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 		"configured remote prefixes overlap on purpose, order them by giving one a different "+
 		"priority with 'set vpn ipsec site-to-site peer %s policy-priority <n>'",
 		errInnerSelectorConflict, owner, p.text, h.text, holder, owner, owner, owner)
+}
+
+// innerSelectorTransportConflict is innerSelectorConflict when one of the two pairs is a
+// transport-mode connection; tunnelPeer is the peer of the other pair, the one whose
+// configuration can move it.
+func innerSelectorTransportConflict(owner string, p innerSelectorPair, holder string, h innerSelectorPair,
+	tunnelPeer string,
+) error {
+	return fmt.Errorf("%w: peer %s proposed the %s %s, which overlaps the %s %s that peer %s "+
+		"already holds, so one packet could be sent into either SA (RFC 3948 Section 5.1); "+
+		"configure remote prefixes for peer %s that leave out the transport-mode peer's address with "+
+		"'set vpn ipsec site-to-site peer %s traffic-selector <n> remote prefix <prefix>', bind peer %s "+
+		"to a virtual-IP pool with 'set vpn ipsec site-to-site peer %s virtual-ip-pool <pool>', or, "+
+		"where both peers' configured remote prefixes overlap on purpose, order them by giving one a "+
+		"different priority with 'set vpn ipsec site-to-site peer %s policy-priority <n>'",
+		errInnerSelectorConflict, owner, p.kind(), p.text, h.kind(), h.text, holder,
+		tunnelPeer, tunnelPeer, tunnelPeer, tunnelPeer, owner)
 }
 
 // innerSelectorStrandedConflict is the refusal of p for owner because a removed Child SA
@@ -612,15 +687,13 @@ func innerSelectorStrandedConflict(owner string, p innerSelectorPair, holder str
 		errInnerSelectorStranded, owner, p.text, h.text, holder, commands.String())
 }
 
-// claim records child in its registry (RFC 3948 Section 5.1). A tunnel-mode Child SA
-// only: transport-mode overlap is refused by the dataplane (RFC 3948 Section 5.2,
-// dataplane policyOwners.claim), and recording it here would refuse it twice.
+// claim records child in its registry (RFC 3948 Section 5.1), in either mode: a
+// transport-mode Child SA is recorded so no other peer's tunnel can overlap it, while
+// its overlap with another transport-mode Child SA is left to the dataplane (RFC 3948
+// Section 5.2, conflictLocked).
 func (g innerSelectorGuard) claim(child *ChildSA) error {
 	// refuse-by-default: guards innerSelectorGuard -- only a Child SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
 	if g.registry == nil {
-		return nil
-	}
-	if child.Mode == modeTransport {
 		return nil
 	}
 	installs := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
@@ -675,10 +748,11 @@ const childResponseFixStranded = "a tunnel another peer held, which one packet c
 // tunnel (innerSelectorConflict). It wraps errTSUnacceptable, so notifyForRefusal still
 // answers TS_UNACCEPTABLE, and childRefusedResponderFix names this fix rather than the
 // kernel-install one an install-time refusal would otherwise read as.
-var errInnerSelectorConflict = fmt.Errorf("%w: another peer holds an overlapping tunnel", errTSUnacceptable)
+var errInnerSelectorConflict = fmt.Errorf("%w: another peer holds an overlapping tunnel or transport-mode connection",
+	errTSUnacceptable)
 
 // childRefusedFixResponderInnerSelector is the fix logged beside that refusal.
-const childRefusedFixResponderInnerSelector = "another peer already holds a tunnel one packet could also be " +
+const childRefusedFixResponderInnerSelector = "another peer already holds a tunnel or a transport-mode connection one packet could also be " +
 	"sent into (RFC 3948 Section 5.1), so this peer gets no Child SA until that tunnel goes away; " +
 	"configure disjoint remote prefixes for the two peers with " +
 	"set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>, bind the peer " +
@@ -690,7 +764,7 @@ const childRefusedFixResponderInnerSelector = "another peer already holds a tunn
 // initiator, refuses the answered tunnel because another peer holds an overlapping one.
 // It names only what the initiator's own configuration controls: a virtual-IP pool is
 // a responder's lease, so it is not offered here.
-const childResponseFixInnerSelector = "another peer already holds a tunnel one packet could also be " +
+const childResponseFixInnerSelector = "another peer already holds a tunnel or a transport-mode connection one packet could also be " +
 	"sent into (RFC 3948 Section 5.1), so this Child SA was deleted and the IKE SA kept with no Child SA, " +
 	"asking again on its creation schedule; configure disjoint remote prefixes for the two peers with " +
 	"set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>, or, where both " +
