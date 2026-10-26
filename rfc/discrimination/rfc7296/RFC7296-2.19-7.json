@@ -2,7 +2,7 @@
   {
     "rid": "RFC7296-2.19-7",
     "polarity": "negative",
-    "unit": "internal/component/ike/engine/cp_eap_test.go::TestCFGReplyInEAPFinalResponse",
+    "unit": "internal/component/ike/engine/rfc7296_cp_eap_test.go::TestCFGReplyInEAPFinalResponse",
     "unit-sha": "4286ef0494951778",
     "claim-sha": "fbd6469c4d825ee4",
     "route": "mutant",
