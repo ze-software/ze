@@ -155,25 +155,25 @@ var retiredExceptions = [...]retiredException{
 	{
 		file:  retiredGuestLeTestFile,
 		old:   retiredLeTestBin,
-		lines: []string{"for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		lines: []string{retiredGuestKeyLoopLine},
 		why:   retiredVariableIgnoredWhy,
 	},
 	{
 		file:  retiredGuestLeTestFile,
 		old:   retiredZeTestBin,
-		lines: []string{"for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		lines: []string{retiredGuestKeyLoopLine},
 		why:   retiredVariableIgnoredWhy,
 	},
 	{
 		file:  retiredGuestLeTestFile,
 		old:   "le.qemu.test.bin",
-		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", "for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", retiredGuestKeyLoopLine},
 		why:   retiredVariableIgnoredWhy,
 	},
 	{
 		file:  retiredGuestLeTestFile,
 		old:   "ze.qemu.test.bin",
-		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", "for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"},
+		lines: []string{"// le.qemu.test.bin nor ze.qemu.test.bin is registered.", retiredGuestKeyLoopLine},
 		why:   retiredVariableIgnoredWhy,
 	},
 	{
@@ -252,9 +252,9 @@ var retiredExceptions = [...]retiredException{
 	{file: retiredOwnershipTestFile, old: "ze_chaos", lines: []string{"// is allowlisted. No build tag exempts the file: the ze_chaos variant that once", "\"a retired ze_chaos tag\": {\"//go:build ze_chaos\\n\\npackage main\\n\\nfunc f() { registry.MustRegisterRootHandler(\\\"bgp\\\", nil, m) }\\n\", 1},"}, why: retiredTagRefusedWhy},
 	{file: retiredHarnessEnvTestFile, old: retiredLeTestBin, lines: []string{"// Method: NewRunner with a stale LE_TEST_BIN exported, then read lePath and", "t.Setenv(\"LE_TEST_BIN\", \"/stale/harness\")"}, why: retiredVariableIgnoredWhy},
 	{file: retiredHarnessEnvTestFile, old: "ze.test.no.build", lines: []string{"if env.IsRegistered(\"ze.test.no.build\") {", "t.Fatal(\"ze.test.no.build is still registered\")", "t.Setenv(\"ZE_TEST_NO_BUILD\", tc.retired)"}, why: retiredVariableIgnoredWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredLeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredZeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
-	{file: retiredHarnessEnvTestFile, old: retiredZePeer, lines: []string{"// `ze-peer` are left to a PATH lookup.", "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredLeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", retiredHarnessHeadsLine, "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZeTest, lines: []string{"// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and", retiredHarnessHeadsLine, "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\"} {"}, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZePeer, lines: []string{"// `ze-peer` are left to a PATH lookup.", retiredHarnessHeadsLine}, why: retiredHarnessRefusedWhy},
 	{file: retiredParsingTestFile, old: retiredLeTest, lines: []string{"{\"le-test fixture storage/empty-tree\", \"le-test fixture storage/empty-tree\"},"}, why: retiredHarnessRefusedWhy},
 	{file: retiredParsingTestFile, old: retiredZeTest, lines: []string{"{\"ze-test fixture storage/empty-tree\", \"ze-test fixture storage/empty-tree\"},"}, why: retiredHarnessRefusedWhy},
 	{file: "internal/test/runner/peer_contract_test.go", old: retiredZePeer, lines: []string{"// that the retired head `ze-peer` no longer takes the peer role (AC-43)."}, why: retiredHarnessRefusedWhy},
@@ -276,19 +276,19 @@ var retiredExceptions = [...]retiredException{
 		why:   "a synthetic probe root the grammar test feeds its own gate, and namesLeFinding runs no le",
 	},
 	{
-		file:  "docs/contributing/running-commands.md",
+		file:  retiredRunningCommandsFile,
 		old:   "le verify lock",
 		lines: []string{"`error: le verify lock was renamed: run le job run`"},
 		why:   "the page quotes the refusal le prints for the retired spelling, not an instruction to run it",
 	},
 	{
-		file:  "docs/contributing/running-commands.md",
+		file:  retiredRunningCommandsFile,
 		old:   "le spec session",
 		lines: []string{"so `le spec session claim spec x`"},
 		why:   retiredTwoHopWhy,
 	},
 	{
-		file:  "docs/contributing/running-commands.md",
+		file:  retiredRunningCommandsFile,
 		old:   "le spec session claim",
 		lines: []string{"so `le spec session claim spec x`"},
 		why:   retiredTwoHopWhy,
@@ -300,6 +300,14 @@ var retiredExceptions = [...]retiredException{
 		why:   "the fixture's report names the retired verb it feeds the launcher to prove the refusal",
 	},
 }
+
+// retiredGuestKeyLoopLine is the guest-le test's loop over the four retired
+// harness variables, which four rows declare.
+const retiredGuestKeyLoopLine = "for _, key := range []string{\"le.qemu.test.bin\", \"ze.qemu.test.bin\", \"le.test.bin\", \"ze.test.bin\"} {"
+
+// retiredHarnessHeadsLine is the harness-env test's loop over the retired
+// heads, which three rows declare.
+const retiredHarnessHeadsLine = "for _, head := range []string{\"le-test\", \"ze-test\", \"ze-peer\", \"lean\", \"sh\", \"./le\"} {"
 
 // retiredTwoHopWhy is the reason of the page that shows a retired spelling
 // whose successor was itself retired, to say the refusal names the final one.
@@ -330,6 +338,7 @@ const (
 	retiredParsingTestFile     = "internal/test/runner/parsing_test.go"
 	retiredPerfRunnerTestFile  = "internal/test/perfrunner/run_test.go"
 	retiredWikiIndexFile       = "website/data/wiki.json"
+	retiredRunningCommandsFile = "docs/contributing/running-commands.md"
 )
 
 // retiredWikiIndexWhy is the reason of the wiki search index. `le site wiki

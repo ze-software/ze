@@ -57,7 +57,7 @@ func leLauncherWords(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, extra := range [][]string{{"newest"}, {"newest", "now"}, {"help", "now"}, {"|", "match"}} {
+	for _, extra := range [][]string{{"newest"}, {"newest", "now"}, {leHelpPagesHelpWord, "now"}, {"|", "match"}} {
 		if err := leLauncherWordsRefused(ctx, checkout, script, extra, before); err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func leLauncherWords(ctx context.Context) error {
 	if err := leLauncherWordsInherited(ctx, checkout, script, before); err != nil {
 		return err
 	}
-	for _, extra := range [][]string{{"help"}, {"-h"}, {"--help"}, {"help", "|", "json"}} {
+	for _, extra := range [][]string{{leHelpPagesHelpWord}, {"-h"}, {"--help"}, {leHelpPagesHelpWord, "|", renderJSON}} {
 		if err := leLauncherWordsHelp(ctx, checkout, script, extra); err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func leLauncherWordsHelp(ctx context.Context, checkout, script string, extra []s
 // usage line shows, and requires exit 0 and the placed build moved aside: the
 // pipe chain shapes an answer and is not a reason to refuse the rollback.
 func leLauncherWordsPiped(ctx context.Context, checkout, script string) error {
-	result, err := leLauncherWordsRun(ctx, checkout, script, leLauncherWordsRollback, "|", "json")
+	result, err := leLauncherWordsRun(ctx, checkout, script, leLauncherWordsRollback, "|", renderJSON)
 	if err != nil {
 		return err
 	}
