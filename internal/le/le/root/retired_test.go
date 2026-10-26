@@ -168,6 +168,50 @@ func TestRetiredSpellingIsRefusedByHelpAndCompletion(t *testing.T) {
 	}
 }
 
+// VALIDATES: completion strips what dispatch strips before it looks for a
+// retired spelling: a leading help word, and the pipe chain after the
+// command. `help <old> ` answers the refusal `le help <old>` gives, and
+// `<old> | ` answers the refusal of `<old>` with no pipe word in its
+// successor.
+// PREVENTS: Tab after `help commit audit` offering nothing where the help
+// question names the successor, and Tab after `commit audit |` naming a
+// successor that carries the `|`, because completion matched the raw words.
+//
+// Method: each answer is compared with the refusal Dispatch gives for the
+// same line, so completion and dispatch are proven one mechanism.
+func TestRetiredSpellingIsRefusedByCompletionAfterHelpAndBeforeAPipe(t *testing.T) {
+	for _, row := range leretired.Renames() {
+		old := row.Old()
+		t.Run(strings.Join(old, " "), func(t *testing.T) {
+			_, refusal := streams(t, func() { leroot.Dispatch("le", slices.Clone(old)) })
+			want := strings.TrimSuffix(strings.TrimPrefix(refusal, "error: "), "\n")
+			piped := append(append(slices.Clone(old), "|"), "")
+			_, err := leroot.Complete(piped)
+			if _, retired := errors.AsType[*leroot.RetiredError](err); !retired {
+				t.Fatalf("completing after `le %s |` answered %v, want the retired refusal", strings.Join(old, " "), err)
+			}
+			if err.Error() != want {
+				t.Errorf("completing after `le %s |` refused with\n%q\nwant\n%q", strings.Join(old, " "), err.Error(), want)
+			}
+
+			// `ai` after the help word is the agent reference, which dispatch
+			// answers before any rename is matched.
+			if old[0] == "ai" {
+				return
+			}
+			_, helpRefusal := streams(t, func() { leroot.Dispatch("le", append([]string{"help"}, old...)) })
+			wantHelp := strings.TrimSuffix(strings.TrimPrefix(helpRefusal, "error: "), "\n")
+			_, err = leroot.Complete(append(append([]string{"help"}, old...), ""))
+			if _, retired := errors.AsType[*leroot.RetiredError](err); !retired {
+				t.Fatalf("completing after `le help %s` answered %v, want the retired refusal", strings.Join(old, " "), err)
+			}
+			if err.Error() != wantHelp {
+				t.Errorf("completing after `le help %s` refused with\n%q\nwant\n%q", strings.Join(old, " "), err.Error(), wantHelp)
+			}
+		})
+	}
+}
+
 // VALIDATES: the whole line a refusal names is one le's live tables accept,
 // not only its first word: the area is registered, the verb is one its table
 // holds, and every word after the verb parses under that verb's grammar.

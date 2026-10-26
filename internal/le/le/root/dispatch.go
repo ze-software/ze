@@ -163,8 +163,7 @@ func Dispatch(program string, args []string) int {
 		}
 		// A retired spelling asked about is refused as dispatch refuses it,
 		// naming the help question, spelled as typed, that answers it now.
-		asked, _ := splitChain(args[1:])
-		if retired := retiredSpelling(program, args[0], asked); retired != nil {
+		if retired := retiredLine(program, args); retired != nil {
 			return refuseRetired(retired)
 		}
 		return helpAsked(program, args[1:])
@@ -180,8 +179,7 @@ func dispatchLine(program string, args []string, fromMenu bool) int {
 	// A retired spelling is refused before anything resolves or parses it,
 	// naming the line that does the work now (D-retired). The rename map is
 	// the one leretired declares, which the documentation sweep also reads.
-	typed, _ := splitChain(args)
-	if retired := retiredSpelling(program, "", typed); retired != nil {
+	if retired := retiredLine(program, args); retired != nil {
 		return refuseRetired(retired)
 	}
 	name, handler, toolArgs := resolve(args)
@@ -281,6 +279,25 @@ func (e *RetiredError) Error() string {
 		tb.Str(e.Lead).Byte(' ')
 	}
 	return tb.Join(e.Successor, " ").String()
+}
+
+// retiredLine answers the refusal of a typed line that opens with a retired
+// spelling, and nil when it does not. A leading help word is the question's,
+// so the spelling is matched after it and the refusal names the help
+// question; `ai` after the help word is the agent reference, never an area,
+// so nothing is matched there. The pipe chain is the renderer's, so only the
+// words before it are matched. Dispatch and completion both answer through
+// it, so Tab and a run refuse the same line the same way.
+func retiredLine(program string, args []string) *RetiredError {
+	lead := ""
+	if len(args) > 1 && isHelpArg(args[0]) {
+		if args[1] == aiWord {
+			return nil
+		}
+		lead, args = args[0], args[1:]
+	}
+	own, _ := splitChain(args)
+	return retiredSpelling(program, lead, own)
 }
 
 // retiredSpelling answers the refusal of own, the words of a line before any

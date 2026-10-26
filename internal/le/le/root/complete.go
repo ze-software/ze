@@ -49,8 +49,9 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 	}
 	typed, partial := words[:len(words)-1], words[len(words)-1]
 	// A retired spelling typed whole is refused as dispatch refuses it, naming
-	// the line that does the work now, so Tab teaches what a run would.
-	if retired := retiredSpelling(leaction.Program(), "", typed); retired != nil {
+	// the line that does the work now, so Tab teaches what a run would: after
+	// a help word, and before a pipe chain, as dispatch reads them.
+	if retired := retiredLine(leaction.Program(), typed); retired != nil {
 		return nil, retired
 	}
 	if len(typed) == 0 {
