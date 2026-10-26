@@ -538,9 +538,9 @@ func TestSessionCoverageReportHasTheLegacyMachineReadableSet(t *testing.T) {
 }
 
 func TestRulesCoverageReportIsADistinctKeywordAction(t *testing.T) {
-	listing := Actions()
+	listing := ReportActions()
 	for _, row := range listing.Actions {
-		if row.Verb != "coverage-report" {
+		if row.Verb != "coverage" {
 			continue
 		}
 		if !row.Writes {
@@ -551,8 +551,8 @@ func TestRulesCoverageReportIsADistinctKeywordAction(t *testing.T) {
 		fixture.writeCore(t, "unrelated.md")
 		fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "internal", "wire.go")})
 		t.Setenv("ZE_REPO_ROOT", fixture.root)
-		answer, code := Answer([]string{
-			"coverage-report",
+		answer, code := ReportAnswer([]string{
+			"coverage",
 			"quiet",
 			"transcript", fixture.transcript,
 			"session", "action-session",
@@ -571,5 +571,5 @@ func TestRulesCoverageReportIsADistinctKeywordAction(t *testing.T) {
 		}
 		return
 	}
-	t.Fatal("rules action list has no coverage-report action")
+	t.Fatal("rules report action list has no coverage action")
 }

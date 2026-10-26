@@ -602,7 +602,7 @@ func TestTheTrackedFlagDebtIsPrintedAndReasoned(t *testing.T) {
 
 // VALIDATES: every `// ze point:` binding on the flag checker names a rule
 // point that exists on disk.
-// PREVENTS: a dangling binding. `./le ai rules gate-map-report` reads only
+// PREVENTS: a dangling binding. `./le ai rules report gate-map` reads only
 // internal/le/hookruntime, so a binding on a gate's own checker is read by
 // nothing else: without this test, a renamed or deleted point would leave the
 // comment claiming an enforcement nobody can find.

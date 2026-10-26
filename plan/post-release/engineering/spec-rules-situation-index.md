@@ -238,7 +238,7 @@ Not applicable. No protocol code.
 
 ## Scope Note (2026-08-18, owner question: one agent per stage of work)
 
-**Where the eager payload actually is.** `./le ai rules payload-report`:
+**Where the eager payload actually is.** `./le ai rules report payload`:
 21,561 tokens always loaded. `ai/INSTRUCTIONS.md` 6,901, `CORE.md` 13,491,
 `TRIGGERS.md` 1,169.
 

@@ -61,7 +61,7 @@ cannot derive either one and an empty line would claim the point was examined.
 
 | Field | Values | Notes |
 |-------|--------|-------|
-| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `./le ai rules gate-map-report` leaves them out of its counts |
+| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `./le ai rules report gate-map` leaves them out of its counts |
 | `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY` | The strongest RFC 2119 level the body states. Required on a `directive`, empty on every other kind. See "Every directive states a level" |
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
@@ -85,7 +85,7 @@ reader who stops after the general statement is misled, and the repetition that
 prevents that is invisible: `ai/rules/writing.md` states the UK English
 exception at three levels, and a dedup pass can delete one copy with every gate
 staying green. The link closes that. Deleting the exception point leaves the
-general point naming nothing, and `./le ai rules gate-map-report` fails.
+general point naming nothing, and `./le ai rules report gate-map` fails.
 
 Declare it when the exception lives in a DIFFERENT point. An instruction that
 states its own carve-out in the same block needs no link, and neither does one
@@ -189,7 +189,7 @@ Score a candidate trigger before you split a section into a rule of its own.
 that too many other triggers share, and `unreachableBlocking` names each
 blocking rule no past task would surface. `coreMembers` then makes exactly that
 set always-on, so a split whose trigger scores nothing returns the new rule to
-the core at full size and saves nothing. `./le ai rules router-report` prints the
+the core at full size and saves nothing. `./le ai rules report router` prints the
 set and the corpus it read.
 
 ## The body budget
@@ -285,8 +285,8 @@ agents work and what is in scope.
 Core membership is derived, never listed. A rule is always-on when the ladder in
 `ai/rules/rule-precedence.md` names it on rung 1 or 2, when it IS that ladder,
 when it has no routable trigger, or when no past task description in `plan/`
-would surface it. `./le ai rules router-report` prints that last set and the corpus
-it read, and `./le ai rules payload-report` measures what a session loads against a
+would surface it. `./le ai rules report router` prints that last set and the corpus
+it read, and `./le ai rules report payload` measures what a session loads against a
 40,000-token budget.
 
 ## Binding a hook check to a point
@@ -304,7 +304,7 @@ A check that enforces nothing written in `ai/rules/` says so, with a reason:
     func bashRootBuild(ctx context) *verdict {
 
 <!-- source: internal/le/ai/rules/coverage.go -- bindingLine, noPointLine -->
-`./le ai rules gate-map-report` joins those comments against the points on disk, and
+`./le ai rules report gate-map` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
 `none`, the two sets of links naming nothing, the ungated count, and the two
@@ -343,7 +343,7 @@ a render that has not run yet feeds them the previous text.
     ./le ai rules check metadata
 
 `./le doc check verify` runs all of them, plus `./le ai rules check render`,
-`./le ai rules check points-roundtrip` and `./le ai rules gate-map-report`. Run it before you commit.
+`./le ai rules check points-roundtrip` and `./le ai rules report gate-map`. Run it before you commit.
 
 The three freshness commands (`render-check`, `condensed-check` and
 `index-check`) compare content, not file size. They exit nonzero for drift and

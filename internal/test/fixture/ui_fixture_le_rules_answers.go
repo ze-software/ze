@@ -89,7 +89,7 @@ func leRulesAnswers(ctx context.Context) error {
 		{"rules check metadata", []string{areaAIRules, actionCheck, rulesTargetMetadata}, []string{"rule point(s) state an RFC 2119 level"}},
 		{"rules check render", []string{areaAIRules, actionCheck, rulesTargetRender}, []string{"rules are fresh"}},
 		{"rules check points-roundtrip", []string{areaAIRules, actionCheck, "points-roundtrip"}, []string{"round-trip byte-identical"}},
-		{"rules gate-map-report", []string{areaAIRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
+		{"rules report gate-map", []string{areaAIRules, "report", "gate-map"}, []string{"gate map: ", "PUBLISHED: "}},
 	}
 	for _, gate := range readOnly {
 		answer, err := le(root, gate.args...)
@@ -223,7 +223,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return err
 	}
 
-	gateMap, err := jsonAnswer(le, root, "gate-map-report")
+	gateMap, err := jsonAnswer(le, root, rulesReportGateMap)
 	if err != nil {
 		return err
 	}
@@ -242,11 +242,11 @@ func leRulesAnswers(ctx context.Context) error {
 	if n, ok := listLength(gateMap["gated"]); !ok || n < 10 {
 		return uiLeRulesAnswersFailf("only %d points are gated", n)
 	}
-	if err := requireRenderings(le, root, "gate-map-report"); err != nil {
+	if err := requireRenderings(le, root, rulesReportGateMap); err != nil {
 		return err
 	}
 
-	counted, err := le(root, areaAIRules, "gate-map-report", "|", "count")
+	counted, err := le(root, areaAIRules, "report", "gate-map", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -265,9 +265,21 @@ func leRulesAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return uiLeRulesAnswersFailf("`le ai rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{actionCheck, actionUpdate, "gate-map-report", wordWrites, fieldChecks} {
+	for _, word := range []string{actionCheck, actionUpdate, wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
+		}
+	}
+	reports, err := le(root, areaAIRules, "report")
+	if err != nil {
+		return err
+	}
+	if reports.code != 0 {
+		return uiLeRulesAnswersFailf("`le ai rules report` exited %d: %s%s", reports.code, reports.stdout, reports.stderr)
+	}
+	for _, word := range []string{"gate-map", "payload", "router", "coverage", wordWrites} {
+		if !strings.Contains(reports.stdout, word) {
+			return uiLeRulesAnswersFailf("the rules report listing does not carry %q: %s", word, reports.stdout)
 		}
 	}
 
@@ -305,8 +317,8 @@ func leRulesAnswers(ctx context.Context) error {
 	}{
 		{"rules check index", rulesCheckIndex, []string{"rules, ai/rules/INDEX.md up to date"}, nil},
 		{"rules check condensed", rulesCheckCondensed, []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
-		{"rules payload-report", actionPayloadReport, nil, []string{"ai/rules/CORE.md: 0 chars"}},
-		{"rules router-report", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
+		{"rules report payload", actionPayloadReport, nil, []string{"ai/rules/CORE.md: 0 chars"}},
+		{"rules report router", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
 	}
 	for _, gate := range digestGates {
 		answer, err := le(root, append([]string{areaAIRules}, strings.Fields(gate.verb)...)...)
@@ -449,17 +461,17 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("the first per-task row carries no surfaced set: %v", first)
 	}
 
-	listing, err = le(root, areaAIRules)
+	listing, err = le(root, areaAIRules, "report")
 	if err != nil {
 		return err
 	}
-	for _, word := range []string{actionCheck, actionUpdate, actionPayloadReport, actionRouterReport} {
+	for _, word := range []string{"payload", "router"} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
 	}
 
-	refused, err = le(root, areaAIRules, "router-report", dirPlan)
+	refused, err = le(root, areaAIRules, "report", "router", dirPlan)
 	if err != nil {
 		return err
 	}
@@ -681,5 +693,6 @@ const (
 	rulesTargetRender   = "render"
 	rulesCheckCondensed = "check condensed"
 	rulesCheckIndex     = "check index"
+	rulesReportGateMap  = "report gate-map"
 	rulesCheckMetadata  = "check metadata"
 )

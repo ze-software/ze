@@ -296,7 +296,7 @@ var coreHeader = []string{
 	"there and this file follows. A rule with no routable trigger lands here too,",
 	"rather than being dropped from both artifacts, and so does a blocking rule",
 	"that no past task description in `plan/` would surface",
-	"(`./le ai rules router-report` prints that set and the corpus it read).",
+	"(`./le ai rules report router` prints that set and the corpus it read).",
 	"",
 	"Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its",
 	"trigger matches.",

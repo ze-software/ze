@@ -17,8 +17,9 @@
 //
 // The table carries the eleven `ze-rules-*` gates and one hook-facing action.
 // The five gates that judge an artifact against its source are the targets of
-// `check`, and the three generators are the targets of `update`; the reports
-// keep their own actions. Transcript coverage declares its native verb directly.
+// `check`, and the three generators are the targets of `update`; the four
+// measurements, transcript coverage among them, are the actions of the
+// `ai rules report` sub-area below.
 
 package airules
 
@@ -100,22 +101,33 @@ var actions = leaction.New(area,
 		"and trigger (index), or ai/rules/*.md from ai/rules/points/ (render)",
 		Writes: true, Parameters: updateParameters,
 		AnswerArgs: func(args leaction.Arguments) (any, int) { return targetAnswer(updateTargets, args) }},
-	leaction.Action{Verb: "gate-map-report", Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
+)
+
+// reportArea is the sub-area holding the rule corpus's measurements
+// (D-P4-positional, D-P4-depth3): their targets take different keywords, so
+// each is its own action of `ai rules report` rather than one positional of a
+// report verb. internal/le/ai/rules/report registers it, the path its name
+// predicts; the table stays here beside the corpus every action reads.
+const reportArea = area + " report"
+
+var reportActions = leaction.New(reportArea,
+	leaction.Action{Verb: "gate-map", Does: "report", Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "payload-report", Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
+	leaction.Action{Verb: "payload", Does: "report", Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
 		"token budget. A MEASUREMENT, except that a payload file which is not there " +
 		"fails: an absent file is not a smaller one",
 		Answer: payloadAnswer},
-	leaction.Action{Verb: "router-report", Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
+	leaction.Action{Verb: "router", Does: "report", Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
 		"and exit 0: each name it prints is a candidate for the always-on core. " +
 		"An unreadable precedence ladder FAILS, because the core this subtracts is " +
 		"derived from it",
 		Answer: routerAnswer},
 	leaction.Action{
-		Verb:    "coverage-report",
+		Verb:    "coverage",
+		Does:    "report",
 		Summary: "report blocking rules matched but never read",
 		Why:     "which blocking rule matched this session's edited file types but was never read",
 		Writes:  true,
@@ -129,6 +141,15 @@ var actions = leaction.New(area,
 		AnswerArgs: coverageReportAnswer,
 	},
 )
+
+// ReportActions answers the `ai rules report` command surface as data.
+func ReportActions() leaction.List { return reportActions.Actions() }
+
+// ReportSubs is the one-line hint help renders under `ai rules report`.
+func ReportSubs() string { return reportActions.Subs() }
+
+// ReportAnswer is the `le ai rules report` command.
+func ReportAnswer(args []string) (any, int) { return reportActions.Answer(args) }
 
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.

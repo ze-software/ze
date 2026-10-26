@@ -3,7 +3,7 @@
 // Overview: actions.go -- the action that runs this
 // Detail: hooktable.go -- the published claim the last block compares
 //
-// coverage_report.go renders the `le ai rules gate-map-report` answer. The answer
+// coverage_report.go renders the `le ai rules report gate-map` answer. The answer
 // contains a payload for every set and the page that the script printed.
 //
 // The script defines two streams. STDOUT contains the report and the published
@@ -59,7 +59,7 @@ type Tally struct {
 	Count int    `json:"count"`
 }
 
-// CoverageReport is what `le ai rules gate-map-report` answers.
+// CoverageReport is what `le ai rules report gate-map` answers.
 type CoverageReport struct {
 	// Refused names native roster problems that stopped the join from running.
 	// Nothing else in this report is filled when it is set.

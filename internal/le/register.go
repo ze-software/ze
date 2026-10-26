@@ -13,6 +13,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/ai/digest"
 	_ "github.com/ze-software/ze/internal/le/ai/hooks"
 	_ "github.com/ze-software/ze/internal/le/ai/rules"
+	_ "github.com/ze-software/ze/internal/le/ai/rules/report"
 	_ "github.com/ze-software/ze/internal/le/ai/sync"
 	_ "github.com/ze-software/ze/internal/le/ai/tokens"
 	_ "github.com/ze-software/ze/internal/le/arch"
