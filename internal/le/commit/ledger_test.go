@@ -410,10 +410,13 @@ func TestANoFindingsCommitKeepsASiblingsUnlandedRow(t *testing.T) {
 }
 
 // newLedgerRepository is a Ze checkout holding two committed tests, which is
-// the baseline every weakening below is judged against.
+// the baseline every weakening below is judged against. It carries its own
+// author, because the generated scripts these tests run commit with the
+// repository's config, and a CI runner has no global git identity.
 func newLedgerRepository(t *testing.T) string {
 	t.Helper()
 	root := newCommitRepository(t)
+	configureCommitAuthor(t, root)
 	writeCommitFixture(t, root, "pkg/one_test.go", ledgerTestBody("TestOne"))
 	writeCommitFixture(t, root, "pkg/two_test.go", ledgerTestBody("TestTwo"))
 	runCommitGit(t, root, "add", "--", "pkg/one_test.go", "pkg/two_test.go")
