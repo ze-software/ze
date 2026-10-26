@@ -270,6 +270,7 @@ with the reason, instead of being matched or missed by a pattern.
 | gate-fires-outside-its-population | 2026-09-28 | `./le doc check retired-commands` (`retiredRecords`, `internal/le/doc/check/retired.go`) |
 | gate-fires-outside-its-population | 2026-10-09 | `(*Runner).goList` (`internal/le/go/lint/verifylint.go`) |
 | gate-fires-outside-its-population | 2026-10-26 | `./le verify changed` scope widens to everything on a deleted package (`internal/le/repo/changed/selector.go`) |
+| gate-fires-outside-its-population | 2026-10-26 | `governedShellWrite` (`internal/le/hookruntime/bash.go`) refuses shell writes to Go source `internal/le/ai/rules/*.go` |
 | gate-excludes-part-of-its-population | 2026-10-07 | RSVP-TE and flow-export interop Go tests missing from the interop catalog |
 | gate-excludes-part-of-its-population | 2026-09-21 | the ignored-path check in `./le commit create` (`validateAddPath`, `internal/le/commit/input.go`) |
 | gate-excludes-part-of-its-population | 2026-09-20 | `importName` and `dropOrphanedImports` (`internal/le/rfc/discriminate_action.go`) |

@@ -303,6 +303,8 @@ before execution. The responsible component remains unestablished.
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci` red at HEAD |
 | `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
 | `published-value-drifts-from-the-behavior-it-describes` | 2026-10-24 | `lab pin` filed under reports while `bump` writes |
+| `validate-accepts-what-start-refuses` | 2026-10-26 | `./le test weakened approve` records a unit key (`airules.TestX`) the commit gate never matches |
+| `reference-checked-claim-unchecked` | 2026-10-26 | hook fixture needle names the retired `./le ai rules update index` (`internal/le/ai/hooks/fixture_catalog.go`) |
 
 ## Rows found already fixed
 
