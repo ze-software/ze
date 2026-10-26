@@ -217,12 +217,13 @@ func configuredRemoteHost(peer ipsec.SiteToSitePeer) *net.IPNet {
 // entries to express a desired access control policy." A pair is operator-fixed when the
 // operator wrote its remote half, in one of two ways: it is exactly a remote selector the
 // operator configured, prefix, protocol and port alike; or it is a transport-mode pair
-// whose remote half is exactly the peer's configured remote address (configuredHost),
-// because a transport-mode connection's selectors are its two endpoint addresses and no
+// whose remote half is exactly the peer's configured remote address (configuredHost), any
+// protocol and any port, because a transport-mode connection's selectors are its two endpoint addresses and no
 // traffic selector can move them. Two such pairs of different peers overlap because the
 // operator wrote them so, and that stays legal while their policy-priority values differ
 // and so order them (operatorOrdered). A remote half the peer narrowed inside a
-// configured prefix is the peer's choice, and is not operator-fixed.
+// configured prefix, protocol or port, or narrowed to one protocol or port at the
+// configured remote address, is the peer's choice, and is not operator-fixed.
 func innerSelectorPairOf(child *ChildSA, pair tsPair, configuredRemote []tsSelector,
 	configuredHost *net.IPNet,
 ) (innerSelectorPair, bool) {
@@ -254,16 +255,16 @@ func classifyInnerPair(child *ChildSA, pp policyPair, remote tsSelector, configu
 	return p
 }
 
-// isConfiguredHost reports whether remote's prefix is exactly host, the peer's
-// configured remote address (configuredRemoteHost). A nil host matches nothing.
+// isConfiguredHost reports whether remote is exactly host, the peer's configured remote
+// address (configuredRemoteHost), for every protocol and every port. The operator wrote
+// the address and nothing else, so a remote half the peer narrowed to one protocol or
+// one port is the peer's choice, as it is inside a configured traffic selector. A nil
+// host matches nothing.
 func isConfiguredHost(remote tsSelector, host *net.IPNet) bool {
 	if host == nil {
 		return false
 	}
-	if remote.Net == nil {
-		return false
-	}
-	return remote.Net.String() == host.String()
+	return sameInnerSelector(tsSelector{Net: host}, remote)
 }
 
 // sameInnerSelector reports whether two selectors match exactly the same packets on
@@ -690,7 +691,10 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 // configuration can move it. Its last fix states the exemption operatorOrdered grants:
 // distinct priorities order the two only when the tunnel's remote half is exactly a
 // traffic selector its operator configured and the transport-mode connection's remote
-// half is exactly its peer's configured remote address (classifyInnerPair).
+// half is exactly its peer's configured remote address, any protocol and any port
+// (classifyInnerPair), and it names when that address exists: a remote-address that is
+// an address literal (configuredRemoteHost), or a single-host traffic selector the
+// transport peer's operator configured.
 func innerSelectorTransportConflict(owner string, p innerSelectorPair, holder string, h innerSelectorPair,
 	tunnelPeer string,
 ) error {
@@ -707,10 +711,14 @@ func innerSelectorTransportConflict(owner string, p innerSelectorPair, holder st
 		"purpose, order the two by giving one a different priority with "+
 		"'set vpn ipsec site-to-site peer %s policy-priority <n>': the priorities order them only "+
 		"when the tunnel's remote half is exactly a traffic selector peer %s's operator configured "+
-		"and the transport-mode connection's remote half is exactly peer %s's configured remote address",
+		"and the transport-mode connection's remote half is exactly peer %s's configured remote address "+
+		"for any protocol and any port, which it has only when peer %s's 'remote-address' is an address "+
+		"literal rather than a DNS hostname, or when peer %s's operator configured a traffic selector of "+
+		"that one host with 'set vpn ipsec site-to-site peer %s traffic-selector <n> remote prefix <address>/32'",
 		errInnerSelectorConflict, owner, p.kind(), p.text, h.kind(), h.text, holder,
 		tunnelPeer, tunnelPeer, tunnelPeer, tunnelPeer,
-		tunnelPeer, transportPeer, owner, tunnelPeer, transportPeer)
+		tunnelPeer, transportPeer, owner, tunnelPeer, transportPeer,
+		transportPeer, transportPeer, transportPeer)
 }
 
 // innerSelectorStrandedConflict is the refusal of p for owner because a removed Child SA

@@ -473,10 +473,15 @@ as to two tunnels: both pairs operator-fixed, at different `policy-priority`
 values (`operatorOrdered`). The tunnel's remote half is operator-fixed when it is
 exactly a traffic selector its operator configured. A transport-mode pair's
 remote half is operator-fixed when it is exactly such a selector, or when it is
-exactly the peer's configured remote address as a host prefix, /32 or /128
-(`classifyInnerPair`, `configuredRemoteHost`), because a transport-mode
-connection's selectors are its endpoint addresses and an ordinary host-to-host
-peer configures no traffic selector. So a transport-mode peer at 198.18.0.9 beside
+exactly the peer's configured remote address as a host prefix, /32 or /128, for
+any protocol and any port (`classifyInnerPair`, `configuredRemoteHost`,
+`isConfiguredHost`), because a transport-mode connection's selectors are its
+endpoint addresses and an ordinary host-to-host peer configures no traffic
+selector. The operator wrote that address and nothing else, so a remote half the
+peer narrowed to one protocol or one port at that address (198.18.0.9/32, TCP
+port 80) is the peer's choice, as inside a configured selector, and is refused
+against an overlapping pair at any priority
+(`TestRFC3948OrderedTransportNarrowedToPortRefused`). So a transport-mode peer at 198.18.0.9 beside
 a full-tunnel peer configured with 0.0.0.0/0 on both sides is served when the two
 priorities differ, and the second to establish is refused when they are equal. A
 peer whose `remote-address` is a DNS hostname rather than an address literal has

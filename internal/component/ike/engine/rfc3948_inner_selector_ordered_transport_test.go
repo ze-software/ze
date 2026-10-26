@@ -143,3 +143,68 @@ func TestOrderedTransportChildRekeyAfterIKERekey(t *testing.T) {
 		t.Fatalf("replacement runs mode %d, want transport (%d)", next.Mode, modeTransport)
 	}
 }
+
+// TestRFC3948OrderedTransportNarrowedToPortRefused: transport-mode peer b at
+// policy-priority 1000 beside full-tunnel peer a at 2000, as in the Served test, but b
+// proposes its own address for TCP port 80 only (TSi 198.18.0.9/32 protocol 6 port 80,
+// TSr 192.0.2.1/32 protocol 6). b's operator wrote the address, not the protocol or the
+// port, so that remote half is b's choice and the priorities do not order it. Method:
+// both orders, each peer through narrowChildSelectors and createFirstChildSA; the second
+// must be answered TS_UNACCEPTABLE with nothing on its dataplane and the registry
+// holding the first alone.
+func TestRFC3948OrderedTransportNarrowedToPortRefused(t *testing.T) {
+	// RFC requirement: RFC3948-5.1-1 negative -- transport-mode peer b with remote address 198.18.0.9 and no traffic selector at policy-priority 1000 proposing TSi 198.18.0.9/32 protocol 6 port 80, TSr 192.0.2.1/32 protocol 6, and tunnel peer a configured with traffic selector 0.0.0.0/0 to 0.0.0.0/0 at policy-priority 2000 proposing exactly it: whichever proposes second is answered TS_UNACCEPTABLE with no state or policy on its dataplane, the registry holding the first alone, because a remote half narrowed to one protocol and port at the configured remote address is the peer's choice.
+	for _, transportFirst := range []bool{true, false} {
+		name := "tunnel first"
+		if transportFirst {
+			name = "transport first"
+		}
+		t.Run(name, func(t *testing.T) {
+			reg := newInnerSelectorRegistry()
+			a, b := orderedTransportPeers(t, reg, 2000, 1000)
+			first, second := a, b
+			if transportFirst {
+				first, second = b, a
+			}
+			if _, err := orderedTransportChild(t, first, &mockDP{}); err != nil {
+				t.Fatalf("peer %s alone: %v", first.PeerName, err)
+			}
+			dp := &mockDP{}
+			_, err := orderedTransportChild(t, second, dp)
+			mustInnerRefused(t, err, "peer "+second.PeerName)
+			mustNamePeersAndFix(t, err, "a")
+			if len(dp.sas) != 0 || len(dp.policies) != 0 {
+				t.Fatalf("peer %s's dataplane got %d states and %d policies, want none",
+					second.PeerName, len(dp.sas), len(dp.policies))
+			}
+			if got := reg.holdings(); got != 1 {
+				t.Fatalf("registry holds %d Child SAs, want 1 (peer %s)", got, first.PeerName)
+			}
+		})
+	}
+}
+
+// orderedTransportChild runs innerAuthChild's two steps for one peer of
+// orderedTransportPeers: peer a proposes its full tunnel, peer b its own address for
+// TCP port 80 only.
+func orderedTransportChild(t *testing.T, sa *SA, dp *mockDP) (*ChildSA, error) {
+	t.Helper()
+	if sa.PeerName == "a" {
+		return innerAuthChild(t, sa, dp, fullTunnelTS, fullTunnelTS)
+	}
+	tsi := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{
+		wireSel(t, "198.18.0.9/32", 80, 80, 6),
+	}}
+	tsr := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSr, TrafficSelectors: []wire.TrafficSelector{
+		wireSel(t, "192.0.2.1/32", 0, 65535, 6),
+	}}
+	if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
+		return nil, err
+	}
+	ifID, err := resolveIfID(&sa.PeerCfg)
+	if err != nil {
+		t.Fatalf("resolveIfID: %v", err)
+	}
+	return createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp,
+		slogutil.DiscardLogger())
+}

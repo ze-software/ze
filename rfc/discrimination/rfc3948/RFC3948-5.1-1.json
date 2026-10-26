@@ -30,7 +30,7 @@
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::classifyInnerPair",
     "producer-sha": "ad7ba15acba0542f",
-    "break": "line 252: \"p.operatorFixed = isConfiguredHost(remote, configuredHost)\" -\u003e \"p.operatorFixed = false\""
+    "break": "line 253: \"p.operatorFixed = isConfiguredHost(remote, configuredHost)\" -\u003e \"p.operatorFixed = false\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -42,6 +42,17 @@
     "producer": "internal/component/ike/engine/inner_selectors.go::operatorOrdered",
     "producer-sha": "ab3748240a695a6a",
     "break": "line 650: \"return p.policy.Priority != h.policy.Priority\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go::TestRFC3948OrderedTransportNarrowedToPortRefused",
+    "unit-sha": "0076b2c9475d9317",
+    "claim-sha": "5a3b782110b78c28",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::isConfiguredHost",
+    "producer-sha": "91e6d5c0c6cad70f",
+    "break": "line 267: \"return sameInnerSelector(tsSelector{Net: host}, remote)\" -\u003e \"return remote.Net != nil \u0026\u0026 remote.Net.String() == host.String()\""
   },
   {
     "rid": "RFC3948-5.1-1",

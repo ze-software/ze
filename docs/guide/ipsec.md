@@ -294,10 +294,13 @@ tunnel peer: remote prefixes that leave out the transport-mode peer's address,
 or a pool. Where the overlap is on purpose, different `policy-priority` values
 order the two, exactly as for two tunnels, when the tunnel's remote half is
 exactly a traffic selector you configured on the tunnel peer and the
-transport-mode connection's remote half is exactly that peer's `remote-address`.
-A host-to-host transport-mode peer at 198.18.0.9 beside a full-tunnel peer
-configured with `0.0.0.0/0` on both sides is therefore served at two different
-priorities, and refused at one. A transport-mode peer whose `remote-address` is a
+transport-mode connection's remote half is exactly that peer's `remote-address`,
+for every protocol and port. A transport-mode peer that narrows its proposal to
+one protocol or one port at that address, `198.18.0.9/32` TCP port 80 for
+example, chose that itself, and is refused at any priority. A host-to-host
+transport-mode peer at 198.18.0.9 beside a full-tunnel peer configured with
+`0.0.0.0/0` on both sides is therefore served at two different priorities, and
+refused at one. A transport-mode peer whose `remote-address` is a
 DNS hostname is ordered only by a traffic selector you configured on it. Two
 transport-mode peers that overlap, two clients behind one NAT for example, are
 refused by the dataplane instead (RFC 3948 Section 5.2).
