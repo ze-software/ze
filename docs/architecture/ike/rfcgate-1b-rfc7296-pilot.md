@@ -161,7 +161,8 @@ packet could match together with a live pair of another peer is dropped, the
 remaining pairs keep their order, so the initiator's first choice still leads
 when it is free, and an answer with no pair left is TS_UNACCEPTABLE. An overlap
 between two remote selectors the operator configured, each negotiated whole,
-is kept.
+is kept only when the two peers' `policy-priority` values differ and so order
+them; at one value the second is refused.
 
 <!-- source: internal/component/ike/engine/cp.go -- substituteVirtualIP -->
 <!-- source: internal/component/ike/engine/inner_selectors.go -- dropForeignInnerOverlaps -->

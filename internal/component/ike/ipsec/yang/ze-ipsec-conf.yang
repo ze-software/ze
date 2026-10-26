@@ -955,10 +955,12 @@ module ze-ipsec-conf {
 
                                      Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for
                                      example, describe the same traffic. Give the one that must win the
-                                     lower value. Peers that share a value are ordered by whichever
-                                     established last, which is what every peer did before this leaf
-                                     existed, so the default 2000 keeps an unordered configuration
-                                     installing exactly what it installed before.
+                                     lower value. Nothing orders two peers that share a value, so
+                                     when their tunnels overlap the one that establishes second is
+                                     answered TS_UNACCEPTABLE and gets no Child SA: one packet could
+                                     otherwise be sent into either tunnel, which RFC 3948 Section 5.1
+                                     forbids. The default 2000 is the rank every peer took before
+                                     this leaf existed.
 
                                      The range starts above 100, which is where the IKE control-plane
                                      bypass sits. A peer entry at or above that rank captures the IKE

@@ -2,7 +2,8 @@
 // Related: inner_selectors.go -- the registry under test
 // Related: ts_narrow.go -- narrowChildSelectors, whose filter step is under test
 // VALIDATES: no two peers hold tunnel Child SAs one packet could be sent into, unless the
-// operator configured the remote half of both, on every responder path and at install.
+// operator configured the remote half of both at different policy priorities, on every
+// responder path and at install.
 // PREVENTS: an unbound peer taking another peer's inner address, the gap RFC 3948
 // Section 5.1 names (rfc/audit/rfc3948/RFC3948-5.1-1.json).
 
@@ -79,6 +80,8 @@ func mustInnerRefused(t *testing.T, err error, what string) {
 
 // selectorPolicy is one configured selector: remote prefix, local prefix, protocol and
 // remote port (0 = any).
+//
+//nolint:unparam // local names the configured local prefix at every call, so each case reads as the selector the operator wrote; the cases vary only the remote half.
 func selectorPolicy(t *testing.T, remote, local string, proto uint8, remotePort uint16) ipsec.TrafficSelectorPolicy {
 	t.Helper()
 	anyPort := ipsec.PortSelector{Form: ipsec.PortAny}
@@ -203,6 +206,51 @@ func TestInnerSelectorConfiguredOverlapNegotiatedWholeAllowed(t *testing.T) {
 				t.Fatalf("policy %s -> %s priority %d, want %d", p.Src, p.Dst, p.Priority, c.want)
 			}
 		}
+	}
+	if got := reg.holdings(); got != 2 {
+		t.Fatalf("registry holds %d Child SAs, want 2 (peers a and b)", got)
+	}
+}
+
+// TestRFC3948ConfiguredOverlapEqualPriorityRefused is the audit case the exemption above
+// must not reach: the operator configured remote 10.1.0.0/16 on peer a and 10.1.2.0/24
+// on peer b, and gave both the same policy-priority, explicitly 2000 or unset (which the
+// dataplane installs at the same default, dataplane.PriorityChildSA). Each peer proposes
+// exactly its configured selector, so both pairs are operator-fixed, yet nothing orders
+// them: a packet to 10.1.2.3 would go into whichever tunnel installed first. Method: peer
+// a negotiates and installs; peer b runs the same steps and must be refused with
+// TS_UNACCEPTABLE before its dataplane sees a call, while a keeps its policies and its
+// record.
+func TestRFC3948ConfiguredOverlapEqualPriorityRefused(t *testing.T) {
+	// RFC requirement: RFC3948-5.1-1 negative -- two tunnel peers configured with overlapping remote prefixes 10.1.0.0/16 and 10.1.2.0/24 at one policy-priority (both 2000, or both unset), each proposing exactly its configured selector: the second is answered TS_UNACCEPTABLE, its dataplane receives no state or policy, and the first peer's policies and record stay.
+	for _, c := range []struct {
+		name     string
+		priority uint32
+	}{{"both 2000", 2000}, {"both unset", 0}} {
+		t.Run(c.name, func(t *testing.T) {
+			reg := newInnerSelectorRegistry()
+			dpA, dpB := &mockDP{}, &mockDP{}
+			a := innerPeerSA(t, reg, "a", "198.18.0.7", selectorPolicy(t, "10.1.0.0/16", "0.0.0.0/0", 0, 0))
+			a.PeerCfg.PolicyPriority = c.priority
+			mustInnerChild(t, a, dpA, []string{"10.1.0.0/16"}, []string{"0.0.0.0/0"})
+
+			b := innerPeerSA(t, reg, "b", "198.18.0.9", selectorPolicy(t, "10.1.2.0/24", "0.0.0.0/0", 0, 0))
+			b.PeerCfg.PolicyPriority = c.priority
+			_, err := innerAuthChild(t, b, dpB, []string{"10.1.2.0/24"}, []string{"0.0.0.0/0"})
+			mustInnerRefused(t, err, "peer b")
+			if !strings.Contains(err.Error(), "set vpn ipsec site-to-site peer b policy-priority <n>") {
+				t.Errorf("refusal %q does not name the policy-priority fix", err)
+			}
+			if len(dpB.sas) != 0 || len(dpB.policies) != 0 {
+				t.Fatalf("peer b's dataplane got %d states and %d policies, want none", len(dpB.sas), len(dpB.policies))
+			}
+			if got := policiesNaming(dpA, "10.1.0.0/16"); got != 2 {
+				t.Fatalf("peer a holds %d policies naming 10.1.0.0/16, want 2 (in and out)", got)
+			}
+			if got := reg.holdings(); got != 1 {
+				t.Fatalf("registry holds %d Child SAs, want 1 (peer a)", got)
+			}
+		})
 	}
 }
 
@@ -416,6 +464,7 @@ func TestInnerSelectorRefusalNamesBothPeersAndFix(t *testing.T) {
 		"one packet could be sent into either tunnel (RFC 3948 Section 5.1)",
 		"set vpn ipsec site-to-site peer road-b traffic-selector <n> remote prefix <prefix>",
 		"set vpn ipsec site-to-site peer road-b virtual-ip-pool <pool>",
+		"set vpn ipsec site-to-site peer road-b policy-priority <n>",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not name %q", err, want)

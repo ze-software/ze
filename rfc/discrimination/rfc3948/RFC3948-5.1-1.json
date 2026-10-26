@@ -24,6 +24,17 @@
   {
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948ConfiguredOverlapEqualPriorityRefused",
+    "unit-sha": "b095ab69f9fbc237",
+    "claim-sha": "d1f748716d88ae8f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::operatorOrdered",
+    "producer-sha": "ab3748240a695a6a",
+    "break": "line 302: \"return p.policy.Priority != h.policy.Priority\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_test.go::TestRFC3948ConfiguredOverlapNarrowedByPeerRefused",
     "unit-sha": "e81c598a90828317",
     "claim-sha": "9852257eb93b89b6",
@@ -40,8 +51,8 @@
     "claim-sha": "b77925e99a563216",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
-    "producer-sha": "093c985361169d92",
-    "break": "line 272: \"if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {\" -\u003e \"if false {\""
+    "producer-sha": "5c1c85ecf6dafec4",
+    "break": "line 282: \"if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -51,8 +62,8 @@
     "claim-sha": "6cc84e29d111791b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/inner_selectors.go::conflictLocked",
-    "producer-sha": "093c985361169d92",
-    "break": "line 275: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
+    "producer-sha": "5c1c85ecf6dafec4",
+    "break": "line 285: \"return innerSelectorConflict(owner, p, holding.owner, h)\" -\u003e \"continue\""
   },
   {
     "rid": "RFC3948-5.1-1",

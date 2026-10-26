@@ -292,7 +292,8 @@ inner-selector guard (`dropForeignInnerOverlaps`, RFC 3948 Section 5.1). Each
 narrowed pair is built as the outbound policy it would install and compared
 with every live Child SA pair of another peer; a pair one packet could match
 together with one of them is dropped, unless the operator configured the remote
-half of both. The remaining pairs keep their order, so the initiator's first
+half of both and gave the two peers different `policy-priority` values
+(`operatorOrdered`). The remaining pairs keep their order, so the initiator's first
 choice leads when it is free (RFC 7296 Section 2.9), and an answer with nothing
 left is TS_UNACCEPTABLE, whose error names both peers, both pairs and the fix.
 Because two sessions can both pass this read-only filter, `installChildSA`

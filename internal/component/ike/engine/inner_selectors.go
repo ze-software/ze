@@ -25,7 +25,8 @@ import (
 //
 // Ze prevents it the way RFC 3948 Section 5.2 names for transport mode, "by disallowing
 // conflicting connections": a pair that overlaps a pair another peer holds is refused,
-// unless the operator configured the remote half of both. A peer bound to a virtual-IP
+// unless the operator configured the remote half of both and gave the two peers
+// different policy priorities (operatorOrdered). A peer bound to a virtual-IP
 // pool is recorded like any other, so an unbound peer cannot take a leased address and a
 // lease cannot take an unbound peer's live one, whichever arrives second.
 //
@@ -88,7 +89,8 @@ func configuredRemoteSelectors(peer ipsec.SiteToSitePeer) []tsSelector {
 // entries to express a desired access control policy." A pair is operator-fixed when its
 // remote half is exactly a remote selector the operator configured, prefix, protocol and
 // port alike. Two such pairs of different peers overlap because the operator wrote them
-// so, ordered by policy-priority, and that stays legal. A remote half the peer narrowed
+// so, and that stays legal while their policy-priority values differ and so order them
+// (operatorOrdered). A remote half the peer narrowed
 // inside a configured prefix is the peer's choice, and is not operator-fixed.
 func innerSelectorPairOf(child *ChildSA, pair tsPair, configuredRemote []tsSelector) (innerSelectorPair, bool) {
 	pp, remote, ok := childPolicyPair(child, pair)
@@ -230,8 +232,8 @@ func (r *innerSelectorRegistry) admit(owner string, p innerSelectorPair) error {
 func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []innerSelectorPair) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, p := range pairs {
-		if err := r.conflictLocked(owner, p); err != nil {
+	for i := range pairs {
+		if err := r.conflictLocked(owner, pairs[i]); err != nil {
 			return err
 		}
 	}
@@ -257,16 +259,24 @@ func (r *innerSelectorRegistry) holdings() int {
 }
 
 // conflictLocked returns the refusal for p when another owner holds a pair one packet
-// could also match, unless both pairs are operator-fixed. The same owner never
-// conflicts with itself: a Child SA rekey and an IKE SA re-authentication overlap their
-// own live selectors by construction. MUST be called with r.mu held.
+// could also match, unless both pairs are operator-fixed AND sit at different policy
+// priorities. The same owner never conflicts with itself: a Child SA rekey and an IKE SA
+// re-authentication overlap their own live selectors by construction. MUST be called
+// with r.mu held.
+//
+// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
+// entries to express a desired access control policy." Two operator-fixed pairs at
+// different priorities are ordered by the operator, so the SPD picks one tunnel for
+// every packet. At one priority nothing orders them: the dataplane matches whichever
+// installed first, which is arrival order, the confusion RFC 3948 Section 5.1 forbids.
 func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair) error {
 	for _, holding := range r.held {
 		if holding.owner == owner {
 			continue
 		}
-		for _, h := range holding.pairs {
-			if p.operatorFixed && h.operatorFixed {
+		for i := range holding.pairs {
+			h := holding.pairs[i]
+			if operatorOrdered(p, h) {
 				continue
 			}
 			if !dataplane.PolicySelectorsOverlap(p.policy, h.policy) {
@@ -278,6 +288,20 @@ func (r *innerSelectorRegistry) conflictLocked(owner string, p innerSelectorPair
 	return nil
 }
 
+// operatorOrdered reports whether the operator both wrote and ordered the overlap of p
+// and h: each remote half is a selector the operator configured, and the two policies
+// sit at different priorities, so the SPD sends every packet into one tunnel. Equal
+// priorities fail the test even when both pairs are operator-fixed (conflictLocked).
+func operatorOrdered(p, h innerSelectorPair) bool {
+	if !p.operatorFixed {
+		return false
+	}
+	if !h.operatorFixed {
+		return false
+	}
+	return p.policy.Priority != h.policy.Priority
+}
+
 // innerSelectorConflict is the refusal of p for owner because holder holds h. It wraps
 // errTSUnacceptable, which notifyForRefusal answers as TS_UNACCEPTABLE.
 //
@@ -287,9 +311,11 @@ func innerSelectorConflict(owner string, p innerSelectorPair, holder string, h i
 	return fmt.Errorf("%w: peer %s proposed the tunnel %s, which overlaps the tunnel %s that peer %s "+
 		"already holds, so one packet could be sent into either tunnel (RFC 3948 Section 5.1); "+
 		"configure disjoint remote prefixes with 'set vpn ipsec site-to-site peer %s traffic-selector <n> "+
-		"remote prefix <prefix>', or bind the peer to a virtual-IP pool with "+
-		"'set vpn ipsec site-to-site peer %s virtual-ip-pool <pool>'",
-		errInnerSelectorConflict, owner, p.text, h.text, holder, owner, owner)
+		"remote prefix <prefix>', bind the peer to a virtual-IP pool with "+
+		"'set vpn ipsec site-to-site peer %s virtual-ip-pool <pool>', or, where both peers' "+
+		"configured remote prefixes overlap on purpose, order them by giving one a different "+
+		"priority with 'set vpn ipsec site-to-site peer %s policy-priority <n>'",
+		errInnerSelectorConflict, owner, p.text, h.text, holder, owner, owner, owner)
 }
 
 // claim records child in its registry (RFC 3948 Section 5.1). A tunnel-mode Child SA
@@ -316,8 +342,10 @@ var errInnerSelectorConflict = fmt.Errorf("%w: another peer holds an overlapping
 const childRefusedFixResponderInnerSelector = "another peer already holds a tunnel one packet could also be " +
 	"sent into (RFC 3948 Section 5.1), so this peer gets no Child SA until that tunnel goes away; " +
 	"configure disjoint remote prefixes for the two peers with " +
-	"set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>, or bind the peer " +
-	"to a virtual-IP pool with set vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>, then commit"
+	"set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>, bind the peer " +
+	"to a virtual-IP pool with set vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>, or, where " +
+	"both peers' configured remote prefixes overlap on purpose, give one of them a different priority " +
+	"with set vpn ipsec site-to-site peer <name> policy-priority <n>, then commit"
 
 // release forgets child in its registry. Safe on a Child SA never recorded.
 func (g innerSelectorGuard) release(child *ChildSA) {

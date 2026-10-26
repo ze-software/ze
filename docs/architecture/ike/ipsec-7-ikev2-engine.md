@@ -292,7 +292,9 @@ Child SA inherits. `narrowChildSelectors` reads it to drop conflicting pairs,
 and releases on a failed install, and `removeChildSAExcept`, the funnel every
 removal path reaches, releases before its nil-dataplane return. Same-peer pairs
 never conflict, and two pairs whose remote halves the operator configured are
-kept. Transport mode is not recorded: `policyOwners.claim` refuses its overlap
+kept only when the two peers' policy priorities differ, the order RFC 4301
+Section 4.4.1 gives the operator (`operatorOrdered`); at one priority nothing
+orders them and the second is refused. Transport mode is not recorded: `policyOwners.claim` refuses its overlap
 (RFC 3948 Section 5.2).
 <!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, innerSelectorGuard, dropForeignInnerOverlaps -->
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, removeChildSAExcept -->

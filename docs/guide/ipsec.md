@@ -246,15 +246,21 @@ TS_UNACCEPTABLE: its IKE SA stays up with no Child SA, and Ze logs a warning tha
 names both peers, both selector pairs and the fix. The first peer to hold the
 address keeps it until its tunnel goes away. The fix is to configure disjoint
 remote prefixes (`set vpn ipsec site-to-site peer <name> traffic-selector <n>
-remote prefix <prefix>`) or to bind the peer to a pool (`set vpn ipsec
-site-to-site peer <name> virtual-ip-pool <pool>`). A leased address counts like
-any other, so keep pool ranges disjoint from other peers' remote prefixes.
+remote prefix <prefix>`), to bind the peer to a pool (`set vpn ipsec
+site-to-site peer <name> virtual-ip-pool <pool>`), or, for an overlap you
+configured on purpose, to give one of the two peers a different priority (`set
+vpn ipsec site-to-site peer <name> policy-priority <n>`). A leased address
+counts like any other, so keep pool ranges disjoint from other peers' remote
+prefixes.
 
 Remote prefixes that you configure on two peers, and that each peer negotiates
-exactly as written, may overlap: you ordered them, and `policy-priority`
-decides which tunnel a packet takes (RFC 4301 Section 4.4.1). An overlap a peer
-chose by narrowing inside a configured prefix is refused like an unconfigured
-one. Route-based peers on distinct XFRM interfaces never conflict.
+exactly as written, may overlap only when the two peers have different
+`policy-priority` values: you ordered them, and the lower value decides which
+tunnel a packet takes (RFC 4301 Section 4.4.1). At one value, the default 2000
+on both for example, nothing orders them, so the second peer to establish is
+refused like an unconfigured one. An overlap a peer chose by narrowing inside a
+configured prefix is refused at any priority. Route-based peers on distinct
+XFRM interfaces never conflict.
 
 strongSwan protects the same case differently: its default `remote_ts` is
 `dynamic`, the peer's observed address, so a client behind a NAT that proposes
@@ -853,11 +859,13 @@ because entries with range selectors overlap: "Thus, a user or administrator
 MUST be able to order the entries to express a desired access control policy."
 
 `policy-priority` under a peer is that order. A LOWER value is searched FIRST,
-in Ze and in the Linux kernel. Two peers that both negotiate `0.0.0.0/0`
-describe the same traffic, so give the one that must win the lower value.
+in Ze and in the Linux kernel. Two peers configured with overlapping remote
+prefixes describe the same traffic, so give the one that must win the lower
+value. Two tunnels that overlap at one value are not ordered at all, so Ze
+refuses the second peer's Child SA rather than let arrival order pick the tunnel
+(RFC 3948 Section 5.1, see the inner-address paragraphs above).
 
-The default is 2000, which every peer took before the leaf existed, so an
-unordered configuration installs what it installed before. The range starts at
+The default is 2000, which every peer took before the leaf existed. The range starts at
 101 because 100 holds the IKE control-plane bypass. A peer entry at or above
 that rank matches the IKE datagrams first, which hands the exchange that builds
 and rekeys the SA to the SA itself, and the tunnel could then never

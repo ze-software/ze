@@ -1780,6 +1780,16 @@ strongSwan's loopback and 10.20.0.1 on Ze's, each with a route to the other.
 The policy count reads `ip xfrm policy` one outbound policy at a time
 (`innerOutPolicyTunnels`), because the selector-pair set the other checkers use
 collapses two policies to one inner address into one entry.
+
+The red run, on 2026-10-26: with the cross-peer guard reverted through a Go
+overlay and the Ze image rebuilt, the scenario FAILS at the `ze-b` step. Ze's
+narrowing filter no longer refuses the second client, so Ze tries to install its
+Child SA, and the dataplane's policy-owner check refuses the inbound policy
+10.1.2.3/32 -> 10.20.0.1/32 that `swan-a` already holds. strongSwan then logs
+NO_PROPOSAL_CHOSEN, not TS_UNACCEPTABLE, and keeps IKE SA `ze-b` ESTABLISHED. The
+kernel never holds two policies for 10.1.2.3 either way, so the policy count
+alone does not discriminate the guard; the checker's TS_UNACCEPTABLE assertion
+does, because only the guard answers the refusal with that notify.
 <!-- source: internal/le/interoplab/ipsec/unbound_inner.go -- checkUnboundInnerAddressUniqueness, innerOutPolicyTunnels, requireOneInnerTunnel, requireZeRefusedSecond -->
 
 ### The strongSwan lab drop-in
