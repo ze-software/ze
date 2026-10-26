@@ -19,7 +19,8 @@ type TreeRow struct {
 	Stem  string `json:"stem"`
 	Title string `json:"title"`
 	// Level is the graph level, nil for a summary whose text is not in the
-	// corpus and for an absent RFC.
+	// corpus and for an absent RFC no closure reaches. An absent RFC the
+	// closure reaches through its text keeps its level and its path.
 	Level *int `json:"level"`
 	// Component is the other members of the stem's citation cycle, which
 	// share its level.
@@ -75,7 +76,9 @@ func treeReport(tree, profile string) (*TreeReport, error) {
 // tree answers the rows, ordered roots to leaves. Without a profile every
 // node of the graph and every summary is a row, and the nodes some release
 // profile reaches come first; with one, its closure and its absent RFCs are,
-// and the absent ones come last because they have no text to level.
+// and the absent ones the closure does not reach come last because they have
+// no text to level. An absent RFC the closure reaches is one row, at its
+// level, rendered absent.
 func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 	useCases := c.useCaseScopes(false)
 	report := &TreeReport{}
@@ -91,7 +94,7 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 		}
 		stems = sortedSet(union)
 	} else {
-		scope, err := c.scope(profile)
+		scope, err := c.scope(profile, "tree")
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +105,15 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 		report.Rollup = &rollup
 		stems = sortedKeysOf(scope.reached)
 	}
+	absentScopes := useCases
+	if named != nil {
+		absentScopes = []profileScope{*named}
+	}
+	absent := absentStemSet(absentScopes)
 	inRelease := map[string]bool{}
 	for _, stem := range stems {
 		row := c.treeRow(stem, useCases)
+		row.Absent = absent[stem]
 		for index := range useCases {
 			if useCases[index].release && slices.Contains(row.Profiles, useCases[index].name) {
 				inRelease[stem] = true
@@ -130,6 +139,9 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 	if named != nil {
 		for _, number := range named.absent {
 			absent := absentFigures(number)
+			if _, reached := named.reached[absent.Stem]; reached {
+				continue
+			}
 			report.Rows = append(report.Rows, &TreeRow{Stem: absent.Stem, Absent: true,
 				Component: []string{}, BuildsOn: []string{}, UpdatedBy: []string{},
 				Profiles: []string{named.name}, Path: named.name + ": listed under Absent"})

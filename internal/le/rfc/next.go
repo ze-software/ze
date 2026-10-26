@@ -103,7 +103,7 @@ func (k gapKey) levelPointer() *int {
 func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 	scopes := c.useCaseScopes(true)
 	if profile != "" {
-		scope, err := c.scope(profile)
+		scope, err := c.scope(profile, "next")
 		if err != nil {
 			return nil, err
 		}

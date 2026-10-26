@@ -760,14 +760,13 @@ func resolveKeyText(lookup func(string) *string, index *scopeIndex,
 func discriminationRouteCounts(verdicts []DiscriminationVerdict) (proven, escaped int) {
 	for index := range verdicts {
 		verdict := &verdicts[index]
-		if !verdict.Verified() {
-			continue
-		}
-		if verdict.Record.Proves() {
+		if verdict.Proven() {
 			proven++
 			continue
 		}
-		escaped++
+		if verdict.Verified() {
+			escaped++
+		}
 	}
 	return proven, escaped
 }

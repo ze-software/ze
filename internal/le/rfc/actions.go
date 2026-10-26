@@ -12,6 +12,13 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
+// The vocabulary verbs (leaction's vocabulary.go) that more than one action
+// below declares in Does, named once so the table spells each the same way.
+const (
+	doesRecord = "record"
+	doesReport = "report"
+)
+
 // actions is the `rfc` command surface; the extraction walk is its sub-area,
 // extractionActions below.
 var actions = leaction.New(area,
@@ -120,7 +127,7 @@ var actions = leaction.New(area,
 				Requirement: leaction.Optional},
 		},
 		AnswerArgs: evidenceSplitAnswer},
-	leaction.Action{Verb: "audit-stamp", Does: "record", Summary: "add newly judged verdicts to an RFC audit file", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
+	leaction.Action{Verb: "audit-stamp", Does: doesRecord, Summary: "add newly judged verdicts to an RFC audit file", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
 		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
 		"pending file OUTSIDE rfc/audit/, an object of rfc and requirements keyed by id, because an unstamped verdict " +
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
@@ -160,7 +167,7 @@ var actions = leaction.New(area,
 			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
-	leaction.Action{Verb: "tree", Does: "report", Summary: "print the RFC dependency tree with both coverage figures",
+	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with both coverage figures",
 		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
 			"level, aggregate, builds-on and updated-by edges, and its mandatory and optional coverage " +
 			"figures (rows proven by a recorded break over rows owed, `not walked` without a valid extraction " +
@@ -168,10 +175,10 @@ var actions = leaction.New(area,
 			"it to one use-case profile's closure, saying why each RFC is in it, or to one aggregate's members, " +
 			"and adds the profile's rollup with its not-walked and absent counts",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to limit the tree to", Value: "name", Requirement: leaction.Optional},
+			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to limit the tree to", Value: "name", Requirement: leaction.Optional, Source: profileCandidates},
 		},
 		AnswerArgs: treeAnswer},
-	leaction.Action{Verb: "next", Does: "report", Summary: "name the next RFC gap to close",
+	leaction.Action{Verb: "next", Does: doesReport, Summary: "name the next RFC gap to close",
 		Why: "name the next RFC gap the owner rule orders: the lowest-level RFC of the closure that owes a " +
 			"mandatory row (uncovered, not walked, or with no summary), its uncovered requirement ids, the " +
 			"profiles it serves and the edge path that puts it in the closure. A row marked {updated-by} is " +
@@ -179,7 +186,7 @@ var actions = leaction.New(area,
 			"complete it names the next optional gap instead, and an absent RFC keeps the mandatory figure " +
 			"incomplete. Without profile it judges every release profile at once",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to judge alone", Value: "name", Requirement: leaction.Optional},
+			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to judge alone", Value: "name", Requirement: leaction.Optional, Source: profileCandidates},
 		},
 		AnswerArgs: nextAnswer},
 	leaction.Action{Verb: "update", Summary: "regenerate the RFC requirement index and tables", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
@@ -218,7 +225,7 @@ var extractionActions = leaction.New(extractionArea,
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem, such as rfc4271", Value: keyStem, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionCreateAnswer},
-	leaction.Action{Verb: "classify", Does: "record", Summary: "apply authored decisions to an extraction skeleton", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
+	leaction.Action{Verb: "classify", Does: doesRecord, Summary: "apply authored decisions to an extraction skeleton", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
 		"file naming the stem it walks. It writes no disposition the file does not name and " +
 		"matches no locator pattern, so it transcribes a walk rather than performing one; a site " +
 		"the file leaves out stays unclassified and is named in the report. binds-another-role " +
@@ -510,4 +517,31 @@ func nextAnswer(args leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 	return report, 0
+}
+
+// profileCandidates answers the names rfc/profiles/ holds, use cases and
+// aggregates, for the `profile` value of `./le rfc tree` and `./le rfc next`.
+// It reads the profiles the action itself reads, so completion offers
+// exactly the names scope accepts. A keystroke calls it, so it reports no
+// error: a profile file that does not parse is left out, as scope refuses
+// it, and a checkout that cannot be read offers nothing.
+func profileCandidates() []leaction.Candidate {
+	tree, err := lepath.Root()
+	if err != nil {
+		// refuse-by-default: guards leaction.ValueSource -- a completion has no error channel, and no candidate is its refusal
+		return nil
+	}
+	profiles, _, err := LoadProfiles(tree, nil)
+	if err != nil {
+		// refuse-by-default: guards leaction.ValueSource -- a completion has no error channel, and no candidate is its refusal
+		return nil
+	}
+	out := make([]leaction.Candidate, 0, len(profiles.UseCases)+len(profiles.Aggregates))
+	for _, name := range sortedKeysOf(profiles.UseCases) {
+		out = append(out, leaction.Candidate{Value: name, Summary: "use case: " + profiles.UseCases[name].Title})
+	}
+	for _, name := range sortedKeysOf(profiles.Aggregates) {
+		out = append(out, leaction.Candidate{Value: name, Summary: "aggregate: " + profiles.Aggregates[name].Title})
+	}
+	return out
 }

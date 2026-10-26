@@ -57,6 +57,13 @@ func TestNormativeReferenceParse(t *testing.T) {
 			refs: true,
 		},
 		{
+			name: "non-normative references are not read",
+			text: "Normative References\n\n   [RFC4271] RFC 4271.\n\nNon-Normative References\n\n   [RFC1771] RFC 1771.\n\n" +
+				"Non Normative References\n\n   [RFC1997] RFC 1997.\n",
+			want: []string{"rfc4271"},
+			refs: true,
+		},
+		{
 			name: "no references section at all",
 			text: "1.  Intro\n\n   This text cites RFC 4271 in prose only.\n",
 			want: nil,

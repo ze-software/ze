@@ -24,20 +24,23 @@ func rfcProfilesFixtureLedger() rfcLedger {
 		Path: "route-server: rfc7947 (root)"}
 	textOnly := &rfc.TreeRow{Stem: "rfc1997", Level: &one, Component: []string{},
 		Path: "route-server: rfc7947 builds-on rfc1997"}
+	// An absent RFC the closure reaches through its text keeps its level.
+	reachedAbsent := &rfc.TreeRow{Stem: "rfc8326", Absent: true, Level: &one, Component: []string{},
+		Path: "route-server: rfc7947 builds-on rfc8326"}
 	noLevel := &rfc.TreeRow{Stem: "rfc4762", Title: "VPLS", Summary: true, Walked: true,
 		MandatoryProven: 0, MandatoryTotal: 0, Component: []string{}, Path: "route-server: rfc4762 (root)"}
 	absent := &rfc.TreeRow{Stem: "rfc8212", Absent: true, Component: []string{},
 		Path: "route-server: listed under Absent"}
 	release := &rfc.TreeReport{Profile: "route-server", Title: "Route server", Kind: "use-case", Release: true,
-		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 5, NotWalked: 2, Absent: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}}},
-		Rows: []*rfc.TreeRow{walked, unwalked, textOnly, noLevel, absent}}
+		Rollup: &rfc.ScopeRollup{RFCs: 5, NotWalked: 2, Absent: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}},
+		Rows: []*rfc.TreeRow{walked, unwalked, textOnly, reachedAbsent, noLevel, absent}}
 	other := &rfc.TreeReport{Profile: "vpn-concentrator", Title: "VPN concentrator", Kind: "use-case",
-		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1, NotWalked: 1}},
+		Rollup: &rfc.ScopeRollup{RFCs: 1, NotWalked: 1},
 		Rows:   []*rfc.TreeRow{unwalked}}
 	aggregate := &rfc.TreeReport{Profile: "bgp-core", Title: "BGP core", Heading: "BGP core protocol",
-		Kind: "technology", Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 2, NotWalked: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}}},
+		Kind: "technology", Rollup: &rfc.ScopeRollup{RFCs: 2, NotWalked: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}},
 		Rows: []*rfc.TreeRow{walked, unwalked}}
 	return rfcLedger{
 		Stems: []rfcLedgerStem{
@@ -126,6 +129,13 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	if mirror := readRFCProfilePage(t, output, "", "index.md"); !strings.Contains(mirror, "[Route server](route-server/)") {
 		t.Errorf("index mirror does not link the release profile:\n%s", mirror)
 	}
+	// A 100% mandatory bar beside Absent > 0 must not read complete.
+	if !strings.Contains(index, "Mandatory register") || !strings.Contains(index, "not complete") {
+		t.Errorf("index carries no mandatory register column")
+	}
+	if mirror := readRFCProfilePage(t, output, "", "index.md"); !strings.Contains(mirror, "| not complete |") {
+		t.Errorf("index mirror carries no mandatory register cell:\n%s", mirror)
+	}
 
 	page := readRFCProfilePage(t, output, "route-server", pageIndexFile)
 	for _, fact := range []string{
@@ -144,6 +154,14 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 			t.Errorf("route-server page lacks %q", fact)
 		}
 	}
+	if headings := strings.Count(page, "<h3>Level 1</h3>"); headings != 1 {
+		t.Errorf("route-server page carries %d Level 1 headings, want 1: a reached absent RFC stays in its level", headings)
+	}
+	for _, keyword := range append(rfc.MandatoryKeywords(), rfc.OptionalKeywords()...) {
+		if !strings.Contains(page, keyword+",") && !strings.Contains(page, keyword+" and") && !strings.Contains(page, keyword+" rows") {
+			t.Errorf("route-server page cards do not name keyword %q", keyword)
+		}
+	}
 	if bars := strings.Count(page, `<div class="rfc-bar`); bars != 2*len(ledger.Profiles[0].Rows) {
 		t.Errorf("route-server page carries %d bars, want two per RFC (%d)", bars, 2*len(ledger.Profiles[0].Rows))
 	}
@@ -160,7 +178,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 
 	aggregatePage := readRFCProfilePage(t, output, "bgp-core", pageIndexFile)
 	if !strings.Contains(aggregatePage, "Technology aggregate") || strings.Contains(aggregatePage, "Why it is here") {
-		t.Error("an aggregate page is labelled as one and carries no path column")
+		t.Error("an aggregate page is labeled as one and carries no path column")
 	}
 
 	if _, err := os.Stat(filepath.Join(output, filepath.FromSlash(rfcProfilesDirectory), "withdrawn")); !os.IsNotExist(err) {

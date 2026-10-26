@@ -191,7 +191,7 @@ Agreed shape (owner, 2026-10-25):
 | `./le rfc index-update` | → | graph parser writes `rfc/graph.tsv` | `TestIndexUpdateWritesGraph` (`internal/le/rfc/write_test.go`) |
 | `./le rfc tree` | → | tree answer over fixture corpus | `TestTreeActionRendersLevelsAndFigures` (`internal/le/rfc/tree_test.go`) |
 | `./le rfc next profile lns` | → | next answer | `TestNextActionNamesLowestUncoveredLevel` (`internal/le/rfc/next_test.go`) |
-| `./le rfc check` | → | `checkUpdatedBy`, `checkHeaderLinks`, profile parse | `TestCheckRefusesUpdatedByWithoutHeaderLink`, `TestCheckRefusesMetaLinkHeaderMismatch` (`internal/le/rfc/check_test.go`) |
+| `./le rfc check` | → | `checkUpdatedBy`, `checkHeaderLinks`, profile parse | `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater` (`internal/le/rfc/updatedby_test.go`), `TestCheckRefusesMetaLinkHeaderMismatch` (`internal/le/rfc/check_headerlinks_test.go`) |
 | `./le site build` | → | `rfc-profiles` producer | `TestRFCProfilePagesRendered` (`internal/le/site/rfcprofiles_test.go`) |
 | `./le spec roadmap` | → | `RFC gaps` column | `TestRoadmapProfilesColumnFromRFCGaps` (`internal/le/spec/roadmap/rfccorpus/rfccorpus_test.go`) |
 | spec validation hook (`./le ai hooks validate-spec`) | → | `validateSpecRFCGaps` | `TestValidateSpecRefusesUnknownRFCGap` (`internal/le/hookruntime/runtime_test.go`) |
@@ -330,7 +330,7 @@ N-A: tooling, no protocol peer.
 Five phases, one commit each; each phase updates its pages before the next starts.
 
 1. **Phase 1: model** -- profile files, aggregate files, `Support | <aggregate>` migration, `{updated-by}` marker and check, coverage function
-   - Tests: `TestSupportNamesAggregate`, `TestCheckRefusesUpdatedByWithoutHeaderLink`, `TestStatusPageRowSetUnchanged`, `TestCoverageMandatoryOptional`, `TestProfileUnknownRootRefused`, `TestCorpusProfilesParse`
+   - Tests: `TestSupportNamesAggregate`, `TestCheckUpdatedByHoldsThePointerAgainstTheUpdater`, `TestStatusPageRowSetUnchanged`, `TestCoverageMandatoryOptional`, `TestProfileUnknownRootRefused`, `TestCorpusProfilesParse`
    - Files: `meta.go`, `render_ledger.go`, `check_core.go`, `profile.go`, `profilecoverage.go`, `rfc/profiles/`, `rfc/short/*.md` (Support cell only), `ai/skills/ze-rfc.md`
    - Wiring first: `./le rfc check` parses `rfc/profiles/` and refuses an unknown aggregate before the migration lands
    - The `{updated-by}` header check reads Meta links in this phase and switches to the graph in Phase 2

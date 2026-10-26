@@ -330,9 +330,13 @@ OPTIONAL over every other level. Each is rows proven over rows owed. A row is
 proven only when a tagged unit covering it carries a discrimination record
 that still verifies and is not the `no-break` escape
 (`DiscriminationVerdict.Proven`, the one per-row predicate). The denominator
-follows the 2026-09-02 ruling: `{not-applicable}` and `{lower-layer}` rows stay
-in, `{rollup}` rows are out of both sides. A `{gap}` or `{partial}` row stays
-in and is never proven, whatever records its tags carry, because the summary
+follows the 2026-09-02 ruling, the one `ProvenShareOf` applies:
+`{rollup}` rows are out of both sides, and every other annotated row stays in
+the denominator. `{single-polarity}` is the one annotation a row can be
+proven under, by a verifying record on its one side. A `{not-applicable}`,
+`{lower-layer}` or `{feature-declined}` row is never proven by Ze, whatever
+records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
+or `{partial}` row stays in and is never proven either, because the summary
 itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
 
@@ -1014,7 +1018,7 @@ none is authored:
 
 | Kind | From |
 |------|------|
-| `builds-on` | A citation in the Normative References section. A text with no separate one gives its combined References section instead, which over-reaches on purpose: a profile may reach more RFCs than it needs, never fewer |
+| `builds-on` | A citation in the Normative References section, never in a Non-Normative References one (RFC 3526 carries both). A text with no separate one gives its combined References section instead, which over-reaches on purpose: a profile may reach more RFCs than it needs, never fewer |
 | `updates`, `obsoletes` | The `Updates:` and `Obsoletes:` header lines, continuation lines included, or the front-matter sentence (`This memo obsoletes RFC 1234`) an old RFC states them in |
 
 `Parse` (`graph/parse.go`) reads a heading only at column 0, because the table
@@ -1064,7 +1068,10 @@ RFC that rewrites a root joins the root's profiles. A technology aggregate's
 members are the summaries naming it, and it follows no edge. The closure
 reaches texts with no summary too: such a node has no requirement list and
 counts as not walked in the rollup, beside the RFCs the profile lists as
-`Absent`.
+`Absent`. A stem holds one state: an `Absent` RFC whose text is in
+`rfc/full/` is also a node the closure can reach, and it is then one row at
+its own level, with its path, rendered absent at 0%, one gap in `./le rfc
+next`, and one count in the rollup, as absent and never also as not walked.
 
 `./le rfc tree` prints one row per node, roots to leaves: level, cycle
 members, aggregate, `builds-on` and `updated-by` edges, both figures (or `not
@@ -1072,7 +1079,8 @@ walked`, `no summary`, or 0% for an absent RFC) and the use-case profiles
 whose closure holds it. Without `profile` it covers every text and summary,
 with the nodes a release profile reaches first. `profile <name>` limits it to
 one closure, adds why each RFC is in it (`route-server: rfc7947 builds-on
-rfc4271`) and the rollup, and lists the absent RFCs last. A level is printed
+rfc4271`) and the rollup, and lists last the absent RFCs the closure does not
+reach. A level is printed
 `L?` for a summary whose text is not in the repository.
 
 `./le rfc next` names the next gap the owner rule orders, across every release

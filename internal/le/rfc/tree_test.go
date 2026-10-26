@@ -184,3 +184,68 @@ func TestStatusPageOrdersByLevel(t *testing.T) {
 		t.Error("placeRows with no graph ordered the page by number alone")
 	}
 }
+
+// TestAbsentRFCTheClosureReachesHoldsOneState holds the one-state rule: an
+// RFC a profile lists under Absent whose text is in rfc/full/ is also reached
+// through the graph, and it is one row, one gap and one count, absent at 0%,
+// never also "no summary" and never also not walked. Method: profile loop
+// roots at rfc5, whose cycle partner rfc6 has a text and no summary, and
+// lists RFC 6 under Absent.
+func TestAbsentRFCTheClosureReachesHoldsOneState(t *testing.T) {
+	corpus := priorityFixture(t, map[string]bool{"RFC1-1-1": true, "RFC1-2-1": true, "RFC2-1-1": true,
+		"RFC2-1-2": true, "RFC4-1-1": true})
+	corpus.profiles.UseCases["loop"] = UseCase{Name: "loop", Roots: []string{"rfc5"}, Absent: []int{6}}
+
+	report, err := corpus.tree("loop")
+	if err != nil {
+		t.Fatalf("tree loop: %v", err)
+	}
+	var sixes []*TreeRow
+	for _, row := range report.Rows {
+		if row.Stem == "rfc6" {
+			sixes = append(sixes, row)
+		}
+	}
+	if len(sixes) != 1 {
+		t.Fatalf("rfc6 has %d rows, want 1", len(sixes))
+	}
+	six := sixes[0]
+	if !six.Absent || six.Level == nil || *six.Level != 2 || six.Path != "loop: rfc5 builds-on rfc6" {
+		t.Errorf("rfc6 row absent %v level %v path %q, want absent at level 2 via rfc5", six.Absent, six.Level, six.Path)
+	}
+	if mandatory, _ := six.Cells(); mandatory != absentCell {
+		t.Errorf("rfc6 mandatory cell %q, want %q", mandatory, absentCell)
+	}
+	rollup := report.Rollup
+	if rollup.RFCs != 5 || rollup.Absent != 1 || rollup.NotWalked != 0 || rollup.MandatoryComplete {
+		t.Errorf("rollup %+v, want 5 RFCs, 1 absent, 0 not walked, incomplete", rollup)
+	}
+	text := report.Text()
+	if strings.Contains(text, "no summary") {
+		t.Errorf("tree text renders rfc6 as no summary:\n%s", text)
+	}
+
+	next, err := corpus.next("loop")
+	if err != nil {
+		t.Fatalf("next loop: %v", err)
+	}
+	if next.Level == nil || *next.Level != 2 || len(next.Gaps) != 2 || next.Gaps[1].Stem != "rfc6" {
+		t.Fatalf("next loop level %v gaps %+v, want rfc5 and rfc6 at level 2", next.Level, next.Gaps)
+	}
+	if gap := next.Gaps[1]; !gap.Absent || gap.Path != "loop: rfc5 builds-on rfc6" {
+		t.Errorf("rfc6 gap absent %v path %q, want absent via rfc5", gap.Absent, gap.Path)
+	}
+	if next.Rollup.RFCs != 5 || next.Rollup.Absent != 1 || next.Rollup.NotWalked != 0 {
+		t.Errorf("next rollup %+v, want 5 RFCs, 1 absent, 0 not walked", next.Rollup)
+	}
+	nextText := next.Text()
+	for _, want := range []string{"mandatory gap at", "absent from the corpus at 0%: write rfc/short/rfc6.md",
+		"serves loop; via loop: rfc5 builds-on rfc6"} {
+		if !strings.Contains(nextText, want) {
+			t.Errorf("next text lacks %q:\n%s", want, nextText)
+		}
+	}
+	if strings.Contains(nextText, "no summary") {
+		t.Errorf("next text renders rfc6 as no summary:\n%s", nextText)
+	}
+}

@@ -31,9 +31,10 @@ func coverageFixture() ([]Requirement, []DiscriminationVerdict) {
 		row("RFC1-1-2", levelMust, ""),                      // tagged, no record
 		row("RFC1-1-3", levelMust, ""),                      // stale record
 		row("RFC1-1-4", levelMust, ""),                      // no-break escape
-		row("RFC1-1-5", levelMust, AnnotationNotApplicable), // stays in the denominator
+		row("RFC1-1-5", levelMust, AnnotationNotApplicable), // denominator only, its record proves nothing
 		row("RFC1-1-6", levelMust, AnnotationRollup),        // out of both
 		row("RFC1-1-7", levelMust, AnnotationGap),           // a record cannot prove a gap
+		row("RFC1-1-8", levelMust, AnnotationLowerLayer),    // denominator only, its record proves nothing
 		row("RFC1-2-1", levelShould, ""),                    // optional, proven
 		row("RFC1-2-2", "MAY", ""),                          // optional, unproven
 		{RFC: "rfc2", RID: "RFC2-1-1", Level: levelMust},
@@ -45,8 +46,10 @@ func coverageFixture() ([]Requirement, []DiscriminationVerdict) {
 		verdict("RFC1-1-1", RouteRevert, ProofVerified),
 		verdict("RFC1-1-3", RouteRevert, "producer-changed"),
 		verdict("RFC1-1-4", RouteNoBreak, ProofVerified),
+		verdict("RFC1-1-5", RouteRevert, ProofVerified),
 		verdict("RFC1-1-6", RouteRevert, ProofVerified),
 		verdict("RFC1-1-7", RouteRevert, ProofVerified),
+		verdict("RFC1-1-8", RouteRevert, ProofVerified),
 		verdict("RFC1-2-1", RouteMutant, ProofVerified),
 		verdict("RFC2-1-1", RouteRevert, ProofVerified),
 	}
@@ -60,13 +63,13 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts))
 
 	one := figures["rfc1"]
-	if one.Mandatory != (Figure{Proven: 1, Total: 6}) {
-		t.Errorf("mandatory = %+v, want 1 proven of 6 owed", one.Mandatory)
+	if one.Mandatory != (Figure{Proven: 1, Total: 7}) {
+		t.Errorf("mandatory = %+v, want 1 proven of 7 owed", one.Mandatory)
 	}
 	if one.Optional != (Figure{Proven: 1, Total: 2}) {
 		t.Errorf("optional = %+v, want 1 proven of 2 owed", one.Optional)
 	}
-	if got := one.mandatoryCell(); got != "1 of 6 (16.7%)" {
+	if got := one.mandatoryCell(); got != "1 of 7 (14.3%)" {
 		t.Errorf("mandatory cell = %q", got)
 	}
 
@@ -91,7 +94,7 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 
 	rollup := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3"}, []int{7948, 8212})
 	want := Rollup{RFCs: 5, NotWalked: 1, Absent: 2,
-		Mandatory: Figure{Proven: 1, Total: 6}, Optional: Figure{Proven: 1, Total: 2}}
+		Mandatory: Figure{Proven: 1, Total: 7}, Optional: Figure{Proven: 1, Total: 2}}
 	if rollup != want {
 		t.Errorf("rollup = %+v, want %+v", rollup, want)
 	}

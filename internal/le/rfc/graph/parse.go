@@ -69,8 +69,12 @@ var (
 	proseLinkRE = regexp.MustCompile(`(?i)\b(?:this|the present)\s+(?:memo|document|RFC|specification)\s+` +
 		`(obsoletes|updates|supersedes)\s+((?:RFCs?[\s-]*\d+(?:\s*\[[^\]]*\])?(?:\s*,\s*|\s*,?\s*and\s+)?)+)`)
 	// normativeHeadingRE and combinedHeadingRE are the two reference headings.
-	normativeHeadingRE = regexp.MustCompile(`(?i)\bnormative\s+references\b`)
-	combinedHeadingRE  = regexp.MustCompile(`(?i)^(?:(?:appendix\s+)?[0-9a-z]{1,3}(?:\.[0-9]+)*\.?\s+)?` +
+	// nonNormativeHeadingRE is the heading the first also matches and that
+	// lists what a text does NOT build on: a word boundary sits between
+	// `Non-` and `Normative`, and RE2 has no lookbehind to exclude it.
+	normativeHeadingRE    = regexp.MustCompile(`(?i)\bnormative\s+references\b`)
+	nonNormativeHeadingRE = regexp.MustCompile(`(?i)\bnon[\s-]*normative\s+references\b`)
+	combinedHeadingRE     = regexp.MustCompile(`(?i)^(?:(?:appendix\s+)?[0-9a-z]{1,3}(?:\.[0-9]+)*\.?\s+)?` +
 		`(?:references|bibliography|references\s+and\s+bibliography)\s*$`)
 	// pageFooterRE and pageHeaderRE are the page furniture at column 0 that
 	// is not a heading.
@@ -201,7 +205,7 @@ func referenceSection(lines []string) (string, bool) {
 	inNormative, inCombined := false, false
 	for _, line := range lines {
 		if isHeading(line) {
-			inNormative = normativeHeadingRE.MatchString(line)
+			inNormative = normativeHeadingRE.MatchString(line) && !nonNormativeHeadingRE.MatchString(line)
 			// A combined section runs on through its own subsections, which
 			// all name references; any other heading ends it.
 			inCombined = combinedHeadingRE.MatchString(strings.TrimSpace(line)) ||

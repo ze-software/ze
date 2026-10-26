@@ -115,11 +115,15 @@ func absentFigures(number int) StemFigures {
 // zero totals. walked is the stems carrying a valid extraction sign-off.
 // proven is provenRequirements over the tree's verdicts.
 //
-// Which rows count, by annotation:
-//   - `{rollup}` is out of both sides: it carries no obligation of its own
-//     (provenshare.go, owner ruling 2026-09-02).
-//   - `{not-applicable}` and `{lower-layer}` stay in the denominator and are
-//     never proven by Ze: annotating a row may not raise its figure.
+// Which rows count, by annotation, is the rule ProvenShareOf applies
+// (provenshare.go, owner ruling 2026-09-02):
+//   - `{rollup}` is out of both sides: it carries no obligation of its own.
+//   - `{single-polarity}` is the one annotation that can be proven: its
+//     annotation records why the other side has no input, and the row is
+//     proven when a recorded break proves its one side.
+//   - `{not-applicable}`, `{lower-layer}` and `{feature-declined}` stay in
+//     the denominator and are never proven by Ze, whatever records their
+//     tags carry: annotating a row may not raise its figure.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
 //     whatever records their tags carry: the summary itself says the
 //     obligation is unmet. A test demonstrating a gap, or the half of a
@@ -164,10 +168,10 @@ func rowCounts(requirement *Requirement, proven map[string]bool) (owed, met bool
 	switch requirement.Annotation.Kind {
 	case AnnotationRollup:
 		return false, false
-	case AnnotationGap, AnnotationPartial:
-		return true, false
+	case AnnotationSinglePolarity:
+		return true, proven[requirement.RID]
 	}
-	return true, proven[requirement.RID]
+	return true, false
 }
 
 // Rollup is the figures of a set of RFCs: a profile's closure, or an
@@ -179,7 +183,8 @@ type Rollup struct {
 	// are stated beside the figures, because a set whose figure reads 100%
 	// while members are unwalked or absent is not complete. A member with a
 	// text and no summary (a node `./le rfc tree` reaches through the graph)
-	// has no walked list either, so it counts not walked.
+	// has no walked list either, so it counts not walked, unless the profile
+	// lists it under Absent: then it counts absent, and only there.
 	NotWalked int    `json:"not-walked"`
 	Absent    int    `json:"absent"`
 	Mandatory Figure `json:"mandatory"`
@@ -189,9 +194,21 @@ type Rollup struct {
 // rollupOf sums the figures of members, adding absent RFCs a profile lists.
 // Only walked members contribute rows: an unwalked list is unbounded, so its
 // rows would make the figure a measurement of the list.
+//
+// A stem holds one state, so it is counted once. An absent RFC whose text is
+// in rfc/full/ is also a member when the closure reaches it through the
+// graph; it counts as absent, never also as not walked, and it is one RFC.
 func rollupOf(figures map[string]StemFigures, members []string, absent []int) Rollup {
-	out := Rollup{RFCs: len(members) + len(absent), Absent: len(absent)}
+	absentStems := make(map[string]bool, len(absent))
+	for _, number := range absent {
+		absentStems[absentFigures(number).Stem] = true
+	}
+	out := Rollup{RFCs: len(absentStems), Absent: len(absentStems)}
 	for _, stem := range members {
+		if absentStems[stem] {
+			continue
+		}
+		out.RFCs++
 		one := figures[stem]
 		if !one.Walked {
 			out.NotWalked++

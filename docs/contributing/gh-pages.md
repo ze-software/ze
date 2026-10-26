@@ -409,11 +409,17 @@ machine-readable form and is linked from the page.
 `../gh-pages/quality/rfc-compliance/profiles/` is the priority tree in public:
 one page per file under `rfc/profiles/`, each use-case profile and each
 technology aggregate, and an index listing them with the release profiles
-first, then the other use cases, then the aggregates. A page carries both
+first, then the other use cases, then the aggregates. Each index row carries
+both figures, the RFC, not-walked and absent counts, and whether the
+mandatory register is complete, so a 100% bar beside an absent RFC cannot
+read as done. A page carries both
 coverage figures of its rollup, the not-walked and absent counts, and its RFCs
 grouped by DAG level, roots first, each with a bar for the mandatory and the
 optional figure. An RFC that is not walked, or a text with no summary, keeps
-an empty dashed bar and says so in words; an absent RFC is a bar at 0%. A use
+an empty dashed bar and says so in words; an absent RFC is a bar at 0%, under
+its own level when the closure reaches its text and under "Absent from the
+corpus" when it does not. The figure cards name the keywords each figure
+counts from `rfc.MandatoryKeywords` and `rfc.OptionalKeywords`. A use
 case's rows also say why each RFC is in its closure. The `rfc-profiles`
 producer reads the `profiles` of the published requirement ledger, which
 `rfc.PriorityOf` fills, so a page counts what `./le rfc tree profile <name>`

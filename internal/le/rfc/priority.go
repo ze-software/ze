@@ -140,8 +140,9 @@ func (c *priorityCorpus) closure(roots []string) map[string]closureStep {
 
 // scope answers one named profile: a use-case profile's closure over the
 // graph, or a technology aggregate's members, each a root of its own. A name
-// with no rfc/profiles/ file is refused naming every valid one.
-func (c *priorityCorpus) scope(name string) (profileScope, error) {
+// with no rfc/profiles/ file is refused naming every valid one, and its
+// example names verb, the action the user ran (`tree` or `next`).
+func (c *priorityCorpus) scope(name, verb string) (profileScope, error) {
 	if useCase, held := c.profiles.UseCases[name]; held {
 		return c.useCaseScope(&useCase), nil
 	}
@@ -159,7 +160,7 @@ func (c *priorityCorpus) scope(name string) (profileScope, error) {
 		Str("/, so there is nothing to order. Name one of: ").
 		Str(strings.Join(sortedKeysOf(c.profiles.UseCases), ", ")).Str(" (use cases); ").
 		Str(strings.Join(sortedKeysOf(c.profiles.Aggregates), ", ")).
-		Str(" (aggregates). Example: ./le rfc tree profile route-server")
+		Str(" (aggregates). Example: ./le rfc ").Str(verb).Str(" profile route-server")
 	return profileScope{}, parseErr(&tb)
 }
 
@@ -232,6 +233,17 @@ func absentStems(scopes []profileScope) []string {
 	out := make([]string, 0, len(numbers))
 	for _, number := range numbers {
 		out = append(out, absentFigures(number).Stem)
+	}
+	return out
+}
+
+// absentStemSet answers the stems of the absent RFCs of every scope, as a
+// set: a closure can reach an absent RFC whose text is in rfc/full/, and the
+// row, the gap and the rollup then read its one state, absent.
+func absentStemSet(scopes []profileScope) map[string]bool {
+	out := map[string]bool{}
+	for _, stem := range absentStems(scopes) {
+		out[stem] = true
 	}
 	return out
 }

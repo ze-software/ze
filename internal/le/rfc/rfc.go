@@ -115,6 +115,15 @@ func gatedLevelNames() []string { return sortedKeys(gatedLevels) }
 // advisoryLevelNames answers the SHOULD-level keyword set, sorted.
 func advisoryLevelNames() []string { return sortedKeys(advisoryLevels) }
 
+// MandatoryKeywords answers the keywords whose rows count in the mandatory
+// figure, sorted. It is exported so the site's profile cards name the set the
+// figure counts rather than a copy of it.
+func MandatoryKeywords() []string { return gatedLevelNames() }
+
+// OptionalKeywords answers the keywords whose rows count in the optional
+// figure, sorted: every level a row may carry that does not gate.
+func OptionalKeywords() []string { return advisoryLevelNames() }
+
 // The two directions a tag can prove: that the code does what the requirement
 // demands, and that it refuses what the requirement forbids.
 const (

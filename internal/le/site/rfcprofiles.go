@@ -186,23 +186,38 @@ type rfcProfileCard struct {
 
 // rfcProfileCards answers the grid: both figures first, then the counts of
 // members that add no rows, which say how far the figures can be trusted.
+// The keywords each figure counts are the rfc package's own sets, so the
+// card cannot name a keyword the figure does not count.
 func rfcProfileCards(rollup *rfc.ScopeRollup) []rfcProfileCard {
-	complete := "not complete"
-	if rollup.MandatoryComplete {
-		complete = "complete"
-	}
 	return []rfcProfileCard{
 		{"Mandatory", rfcProfilePercent(rollup.Mandatory), rollup.Mandatory.String(),
-			"MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED rows of the walked RFCs that a recorded test break proves."},
+			rfcKeywordSeries(rfc.MandatoryKeywords()) + " rows of the walked RFCs that a recorded test break proves."},
 		{"Optional", rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
-			"SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED, MAY and OPTIONAL rows, counted the same way."},
+			rfcKeywordSeries(rfc.OptionalKeywords()) + " rows, counted the same way."},
 		{"Not walked", strconv.Itoa(rollup.NotWalked), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
 			"RFCs with no valid extraction sign-off or no summary: their rows count in neither figure."},
 		{"Absent", strconv.Itoa(rollup.Absent), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
 			"RFCs the profile needs that the corpus holds no summary of, each at 0%."},
-		{"Mandatory register", complete, "every row proven, none unwalked or absent",
+		{"Mandatory register", rfcProfileComplete(rollup), "every row proven, none unwalked or absent",
 			"A profile is complete only when nothing it reaches is unwalked or absent."},
 	}
+}
+
+// rfcProfileComplete answers the mandatory register's state in words, the
+// cell the card and the index both print.
+func rfcProfileComplete(rollup *rfc.ScopeRollup) string {
+	if rollup.MandatoryComplete {
+		return "complete"
+	}
+	return "not complete"
+}
+
+// rfcKeywordSeries joins keywords as prose: `A, B and C`.
+func rfcKeywordSeries(keywords []string) string {
+	if len(keywords) < 2 {
+		return strings.Join(keywords, "")
+	}
+	return strings.Join(keywords[:len(keywords)-1], ", ") + " and " + keywords[len(keywords)-1]
 }
 
 // rfcProfilePercent answers a figure's share, and says so when there are no rows:
@@ -317,15 +332,17 @@ func rfcProfileLevels(rows []*rfc.TreeRow) []rfcProfileLevel {
 	return levels
 }
 
-// rfcProfileLevelLabel names the heading one row falls under.
+// rfcProfileLevelLabel names the heading one row falls under. An absent RFC
+// the closure reaches through its text keeps its level, so it sits among its
+// level's rows rather than splitting that level's heading in two.
 func rfcProfileLevelLabel(row *rfc.TreeRow) string {
+	if row.Level != nil {
+		return "Level " + strconv.Itoa(*row.Level)
+	}
 	if row.Absent {
 		return "Absent from the corpus"
 	}
-	if row.Level == nil {
-		return "No level: the corpus holds no text of the RFC"
-	}
-	return "Level " + strconv.Itoa(*row.Level)
+	return "No level: the corpus holds no text of the RFC"
 }
 
 // rfcProfileStemHTML names one row's RFC, linked to its ledger page where it
@@ -414,7 +431,7 @@ func rfcProfilesIndexBody(profiles []*rfc.TreeReport) string {
 				rfcProfileRollupBarHTML(report.Rollup.Mandatory),
 				rfcProfileRollupBarHTML(report.Rollup.Optional),
 				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
-				strconv.Itoa(report.Rollup.Absent)))
+				strconv.Itoa(report.Rollup.Absent), rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {
 			continue
@@ -439,7 +456,7 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 			rows.Str(rfcMirrorRow("["+rfcMirrorCell(rfcProfileTitle(report))+"]("+report.Profile+"/)",
 				report.Rollup.Mandatory.String(), report.Rollup.Optional.String(),
 				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
-				strconv.Itoa(report.Rollup.Absent)))
+				strconv.Itoa(report.Rollup.Absent), rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {
 			continue
@@ -474,7 +491,7 @@ const rfcProfilesLead = "Each use case Ze serves and each technology it implemen
 	"before release, every mandatory requirement of every RFC they reach must be proven."
 
 // rfcProfilesIndexColumns are the index tables' columns.
-var rfcProfilesIndexColumns = []string{"Profile", "Mandatory", "Optional", "RFCs", "Not walked", "Absent"}
+var rfcProfilesIndexColumns = []string{"Profile", "Mandatory", "Optional", "RFCs", "Not walked", "Absent", "Mandatory register"}
 
 // rfcProfileRollupBarHTML renders a rollup figure as a bar and its cell.
 func rfcProfileRollupBarHTML(figure rfc.Figure) string {
