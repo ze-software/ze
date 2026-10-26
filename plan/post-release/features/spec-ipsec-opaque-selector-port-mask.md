@@ -493,7 +493,7 @@ accepted a wrong mode silently, and only a read-back caught it.
 
 The package already carries `//go:build integration && linux` files, so these are
 auto-enrolled in `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`) and run under
-`./le test qemu run command "./le test qemu all-tests"`. **No new make target is needed.** The VM installs
+`./le test qemu run command "./le test qemu all"`. **No new make target is needed.** The VM installs
 `iproute2` (`internal/le/integration/gates.go`), so `ip xfrm policy show` is available as an
 independent oracle beside the netlink read-back.
 
@@ -534,7 +534,7 @@ on the existing unit-tier tags.
 - `rfc/short/rfc7296.md` - no new row. Section 3.13.1 rows stay as they are
 - `docs/features/rfc-status.md` - the Remaining cell for RFC 7296 names the OPAQUE
   platform limit. That disclosure must go when the limit goes
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc index-update`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc update`
 
 ## Files to Create
 - `internal/component/ike/dataplane/xfrm_opaque_integration_linux_test.go` - the four QEMU
@@ -624,7 +624,7 @@ on the existing unit-tier tags.
    - Verify: the commit accepts `port opaque`, and a peer proposing OPAQUE is answered. This
      phase is last on purpose (R-5)
 7. **Phase: The other backend, the tags, and the disclosure**
-   - Tests: `TestVPPBackendHandlesOpaquePort`, `./le rfc check`, `./le doc check verify`
+   - Tests: `TestVPPBackendHandlesOpaquePort`, `./le rfc check`, `./le doc check all`
    - Files: `internal/component/ike/dataplane/vpp.go`,
      `internal/component/ike/engine/ts_narrow_test.go`,
      `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
@@ -662,14 +662,14 @@ on the existing unit-tier tags.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The kernel holds an exact port-0 mask | `./le test qemu run command "./le test qemu all-tests"` passes |
+| The kernel holds an exact port-0 mask | `./le test qemu run command "./le test qemu all"` passes |
 | The exact form is distinguishable from any-port | `TestXFRMOpaquePortIsDistinctFromAnyPort` passes |
 | The matching behavior is proven | `TestXFRMOpaquePortMatchesOnlyPortZero` passes |
 | The refusals are gone | `grep -n 'cannot be programmed' internal/component/ike/ipsec/traffic_selector.go` returns nothing |
 | The public disclosure is gone | `grep -c 'OPAQUE ports' docs/features/rfc-status.md` returns 0 |
 | The vendor patch cannot be silently lost | `TestNetlinkPortMaskPatchPresent` passes, and it fails on a fresh `go mod vendor`. Route 1 only |
 | The upstream patch exists and was sent | The patch file exists, and the learned summary records the URL and the outcome |
-| The RFC tags describe reality | `./le rfc index-update` produces no diff, and the tag comments say the form is programmed |
+| The RFC tags describe reality | `./le rfc update` produces no diff, and the tag comments say the form is programmed |
 
 ### Security Review Checklist
 

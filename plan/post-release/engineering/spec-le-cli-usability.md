@@ -213,7 +213,7 @@ and R-2.
 | Rename map | 126 rows in `internal/le/doc/check/retirednames.go` | Every rename adds its row; `le doc check retired-commands` then names file and line of every tracked old form, including Go argv literals (`runLE(nil, ...)`) |
 | Hooks | 14 `le ai hooks` calls in `.claude/settings.json` | grep of `.claude/settings.json` and `.claude/hooks/README.md` |
 | Agent instructions | `le ` citations in 237 files under `ai/`, 17 under `.claude/`, plus `.agents/skills` and `.codex/skills` | grep, and the planned citation resolver (`TestNoCitationNamesAVerbTheRegistryDoesNotHold`, carried from one-verb) |
-| Docs | 392 files under `docs/` | grep plus `le doc check verify` |
+| Docs | 392 files under `docs/` | grep plus `le doc check all` |
 | Specs and journal | 821 files under `plan/` | grep; live specs only, history stays |
 | Functional tests | 1613 files under `test/` cite `le test <name>`: `le test fixture` 1398 times, `le test peer` 975, `le test rtr-mock` 60, `le test engine-steps` 31, `le test plugin-external` 22, `le test irr` 19, others fewer | grep over `test/`; these are the mocks and spawned helpers D-3 moves out of `test` |
 | Go code | 5581 files under `internal/` and 102 under `cmd/` mention `le <word>` | `retired-commands` covers argv literals; the rest by grep per renamed word |
@@ -669,7 +669,7 @@ its commit (R-18).
 | AC-28 | a usage error in any area, an unknown command, a namespace non-member (carried one-verb AC-4) | exit 2 |
 | AC-29 | `le rfc check` with its corpus unreadable, and with a real violation (carried one-verb AC-5) | 3 and 1 respectively |
 | AC-30 | the same mistake through `leroot.RefuseArgument` and `leaction.refuseValue` (carried one-verb AC-7) | both exit 2; after D-P3-refuseargument `RefuseArgument` is gone, and every stray-word refusal of every area comes from the table with exit 2 |
-| AC-31 | `le commit review-check` not clean | exit 1 |
+| AC-31 | `le commit check` not clean | exit 1 |
 | AC-32 | `le ai hooks <name>` blocking, a forwarding area's program failing, `le test fixture <name>` failing | 2 for the hook; the program's own code for the others; each exemption is listed by `le help ai exit-codes` |
 | AC-33 | bash at a pty after `eval "$(./le completion bash)"` | `./le sp` Tab gives `./le spec `; `./le spec cl` Tab gives `claim`; `./le commit create ` Tab offers live keywords and none of the retired three; `subject` is not offered again once used; an enum keyword's values complete; the same for the word `le` when on PATH |
 | AC-34 | zsh at a pty after loading `le completion zsh` | the same four completions as AC-33 |
@@ -904,7 +904,7 @@ DESIGN additions and resolutions:
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | le's command inventory: `ai/INDEX.md` table and the manifest; no ze plugin inventory changes |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/post-release/engineering/spec-le-cli-usability.md` at DESIGN named six: `docs/architecture/config/environment.md`, `docs/architecture/system-architecture.md`, `docs/architecture/testing/interop.md`, `docs/contributing/claude-code-cheatsheet.md`, `docs/features/ai-first.md`, `docs/features/introspection.md` (Files to Modify); re-run at each phase for its new files |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every `./le` example in the Consumer surface; verified by `le doc check retired-commands` and `le doc check verify` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every `./le` example in the Consumer surface; verified by `le doc check retired-commands` and `le doc check all` |
 
 ### Discovery (repo-maintenance mechanical checklist)
 | Question | Answer |

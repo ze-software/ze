@@ -38,7 +38,7 @@ O-1: the Go build cache gets a size cap that every `./le` run enforces. Backgrou
 (`plan/handover/17-exabgp-6-linux-continue.md`, "Owner decisions" row 1): the
 Mac disk filled three times on 2026-10-21/22, because the checkout, shared and
 ambient Go caches regrew to about 85 GB within hours while many sessions built,
-and the safe `./le scratch cache-clean` cannot free young entries by design.
+and the safe `./le scratch clean` cannot free young entries by design.
 
 A cap already half exists, and this spec closes the gap between it and O-1
 rather than building a second one (`ai/rules/no-layering.md`). Today le starts a
@@ -94,7 +94,7 @@ N-A: tooling, no protocol.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/scratch/storetrim.go` (689L) - `storeTrimBeforeDispatch` is registered from `register.go` via `leroot.RegisterBeforeDispatch`; `startTrimWhenDue` reads `tmp/store-trim/stamp`, and when it is older than `trimInterval` (1h) takes `stamp.lock`, re-reads it, writes it, and spawns `le scratch store-trim background` detached (`detachedTrim`). `trimStoresScanning` resolves the per-user target and the ambient path (one `go env GOCACHE` fork), builds a `cachePass{floor: cacheEntryAgeFloor}`, calls `trimCaches`, then the liveness stores and `test-temp`. Budget keys `ze.le.store.go-cache-budget` (40G) and `ze.le.store.lint-cache-budget` (10G), parsed by `parseBudget`. `trimReport`, `BudgetTrim{Key, Budget, SizeBefore, SizeAfter, EntriesRemoved, Unmet, Refused, Error}`, `StoreTrim`.
+- [ ] `internal/le/scratch/storetrim.go` (689L) - `storeTrimBeforeDispatch` is registered from `register.go` via `leroot.RegisterBeforeDispatch`; `startTrimWhenDue` reads `tmp/store-trim/stamp`, and when it is older than `trimInterval` (1h) takes `stamp.lock`, re-reads it, writes it, and spawns `le scratch trim background` detached (`detachedTrim`). `trimStoresScanning` resolves the per-user target and the ambient path (one `go env GOCACHE` fork), builds a `cachePass{floor: cacheEntryAgeFloor}`, calls `trimCaches`, then the liveness stores and `test-temp`. Budget keys `ze.le.store.go-cache-budget` (40G) and `ze.le.store.lint-cache-budget` (10G), parsed by `parseBudget`. `trimReport`, `BudgetTrim{Key, Budget, SizeBefore, SizeAfter, EntriesRemoved, Unmet, Refused, Error}`, `StoreTrim`.
 - [ ] `internal/le/scratch/cachetrim.go` (454L) - `cacheEntryAgeFloor = 3h`; `trimCaches` skips `notTrimmed` targets with `machineCacheSkip` ("left to Go's own five-day trim"); `collectGroup` walks each cache's 256 subdirectories (`walkGoFormatCache`); `removeOldest` sorts by mtime, removes oldest first until at budget, stops at the first entry younger than the floor and sets `Unmet` from `youngerThanFloor`. It removes by the mtime the walk saw; it does not re-stat before removal. ENOENT counts as freed, ENOTEMPTY as contended.
 - [ ] `internal/le/scratch/cacheclean.go` (765L) - `cleanTargets` is the one store list (checkout, shared, ambient with budget `notTrimmed`, bootstrap, lint), with `holdsKernel` and same-directory skips; `cleanOldCacheEntries` is the safe `cache-clean` default over the same `cachePass` floor; `measureClean` reads free space with `diskspace.Free`; `ambientGoCache` forks `go env GOCACHE` with GOCACHE removed from the environment.
 - [ ] `internal/le/scratch/cacheuse.go` (151L) - `cacheReaders` (go, compile, link, vet, asm, cgo, cover, staticcheck, golangci-lint) plus compiled `*.test` binaries plus job-registry holders form `cacheUsers`, used only by the `cache-clean all` refusal. gopls is deliberately not a reader.
@@ -123,7 +123,7 @@ N-A: tooling, no protocol.
 
 ### Entry Point
 - Every `le` (or `ze le`) invocation, hooks included, through le's root handler calling every registered before-dispatch hook; the store trim's is `storeTrimBeforeDispatch`.
-- `./le scratch store-trim` (foreground), `./le scratch store-trim background` (the detached child), `./le scratch cache-clean` (safe default).
+- `./le scratch trim` (foreground), `./le scratch trim background` (the detached child), `./le scratch clean` (safe default).
 
 ### Transformation Path
 1. Per-run due check (in the invoking process, under a millisecond): read `ze.le.store.trim`; read `tmp/store-trim/stamp` (exists today); read `tmp/store-trim/ledger.json` (new, at most a few KB); for each distinct device the ledger names, one `diskspace.Free` call on the recorded path; compute each budget group's growth bound; decide due or not.
@@ -196,8 +196,8 @@ N-A: tooling, no protocol.
 |-------------|---|--------------|------|
 | Any `le` invocation (before-dispatch) with a ledger over budget, stamp under an hour old | → | `startTrimWhenDue` early-start branch | `TestLeInvocationSpawnsTrimWhenLedgerIsOverBudget` in `internal/le/scratch/storetrim_wiring_test.go` |
 | The built `le` binary, a cheap command, inside the hour | → | per-run check, detached child, ledger | `test/ui/le-store-trim-cap.ci` |
-| `./le scratch store-trim` foreground | → | cutoff from the process table, ambient budget, unmet line | `test/ui/le-store-trim-cap.ci` |
-| `./le scratch cache-clean` (safe default) | → | `cleanOldCacheEntries` with the cutoff instant | `TestCacheCleanDefaultUsesTheCutoffNotAFixedFloor` in `internal/le/scratch/cacheclean_safe_test.go` |
+| `./le scratch trim` foreground | → | cutoff from the process table, ambient budget, unmet line | `test/ui/le-store-trim-cap.ci` |
+| `./le scratch clean` (safe default) | → | `cleanOldCacheEntries` with the cutoff instant | `TestCacheCleanDefaultUsesTheCutoffNotAFixedFloor` in `internal/le/scratch/cacheclean_safe_test.go` |
 
 ## Acceptance Criteria
 
@@ -214,10 +214,10 @@ N-A: tooling, no protocol.
 | AC-9 | Cache users counted for the cutoff | The `cacheReaders` programs, compiled `*.test` binaries, job-registry holders, le and ze-le processes, and `qemu-system-*` processes, excluding the trim process itself; `cache-clean all`'s refusal set is unchanged |
 | AC-10 | `ze.le.store.ambient-cache-budget` unset | The ambient cache is trimmed to the default `20G`, oldest first, past the cutoff, as its own group, never mixed with the union; its row reports sizes like the others |
 | AC-11 | `ze.le.store.ambient-cache-budget` set to a value `parseBudget` refuses (`20`, `0G`, `1048577G`) | The ambient row is refused by key and value; every other cache is still trimmed; exit 1 |
-| AC-12 | A group still over budget after every entry older than the cutoff is gone | The budget line reads, in one line: the size, the budget and its key, the bytes kept, the cutoff instant, the holder (pid, command line shortened, job label when it holds one, age), and the fix: wait for that process, raise the key, or `./le scratch cache-clean all` when no build runs. Exit 0 |
+| AC-12 | A group still over budget after every entry older than the cutoff is gone | The budget line reads, in one line: the size, the budget and its key, the bytes kept, the cutoff instant, the holder (pid, command line shortened, job label when it holds one, age), and the fix: wait for that process, raise the key, or `./le scratch clean all` when no build runs. Exit 0 |
 | AC-13 | AC-12 happened in the background child | The ledger records the unmet group with the holder; `last.log` carries the same line; the next invocation after ten minutes starts a trim again (AC-1) |
 | AC-14 | The kernel cache or a path holding it resolves as the ambient cache | The ambient row is a kernel-cache skip, as today; nothing in it is removed |
-| AC-15 | `ze.le.store.trim=off` | No early start and no hourly start; a foreground `./le scratch store-trim` still trims |
+| AC-15 | `ze.le.store.trim=off` | No early start and no hourly start; a foreground `./le scratch trim` still trims |
 
 ## 🧪 TDD Test Plan
 
@@ -255,7 +255,7 @@ The existing tests that assert the fixed floor (`TestTrimGoCacheRespectsAgeFloor
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `le-store-trim-cap` | `test/ui/le-store-trim-cap.ci` + `internal/test/fixture/ui_fixture_le_store_trim_cap.go` | Through the built le: (1) a first cheap command under budget `1G` writes the stamp and the ledger; (2) inside the hour the fixture lowers `ze.le.store.go-cache-budget` to `1M`, waits past ten minutes by backdating the stamp file, runs a cheap command, and the child trims (AC-1, AC-4); (3) the fixture starts its own long-lived process named `go` (a copied `sleep`), seeds entries aged 10h, 5h, 2h, 30m and 0 in the checkout, shared and ambient (through `GOENV`, A-5) caches, runs `le scratch store-trim | json`, and asserts: every entry with mtime at or after the reported cutoff remains, the reported cutoff is no later than the fake reader's start minus 65 minutes, older entries went oldest first, the ambient row has its own budget line, and the unmet line names a holder, the key and `cache-clean all`; exit 0 | |
+| `le-store-trim-cap` | `test/ui/le-store-trim-cap.ci` + `internal/test/fixture/ui_fixture_le_store_trim_cap.go` | Through the built le: (1) a first cheap command under budget `1G` writes the stamp and the ledger; (2) inside the hour the fixture lowers `ze.le.store.go-cache-budget` to `1M`, waits past ten minutes by backdating the stamp file, runs a cheap command, and the child trims (AC-1, AC-4); (3) the fixture starts its own long-lived process named `go` (a copied `sleep`), seeds entries aged 10h, 5h, 2h, 30m and 0 in the checkout, shared and ambient (through `GOENV`, A-5) caches, runs `le scratch trim | json`, and asserts: every entry with mtime at or after the reported cutoff remains, the reported cutoff is no later than the fake reader's start minus 65 minutes, older entries went oldest first, the ambient row has its own budget line, and the unmet line names a holder, the key and `cache-clean all`; exit 0 | |
 | `le-store-trim-answers` (existing) | `test/ui/le-store-trim-answers.ci` | Unchanged scenario still passes; its header names the 3h floor and is reworded to the cutoff | |
 
 Discrimination (`ai/rules/interop-and-goal-validation.md`): with the per-run check reverted, step 2 sees no trim; with the fixed floor restored, the report carries no cutoff or holder and step 3 fails; with the ambient row back to `notTrimmed`, its budget line is absent. Each is forced once and recorded in the spec at implementation.
@@ -357,7 +357,7 @@ The unmet line, as a text sample (the implementer may reword within AC-12):
     go-caches  61.2G against ze.le.store.go-cache-budget 40G: 21.2G is newer than the cutoff 2026-10-22 08:09:00,
                set by pid 4242 (go test -tags ... ./..., job unit-all), running 1h12m, which may still read any
                entry it looked up. Fix: wait for pid 4242 to end (a trim starts within 10 minutes after), raise
-               ze.le.store.go-cache-budget, or run ./le scratch cache-clean all once no build runs.
+               ze.le.store.go-cache-budget, or run ./le scratch clean all once no build runs.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -377,7 +377,7 @@ The unmet line, as a text sample (the implementer may reword within AC-12):
 | Ambient budget registered | `./le env list` with private keys, or grep `ambient-cache-budget` in `storetrim.go` |
 | Per-run cost | `BenchmarkPerRunCapCheck` output pasted |
 | Real-path proof | `./le test ui` subset running `le-store-trim-cap` green, and the three forced reds recorded |
-| Docs | `./le doc check verify` |
+| Docs | `./le doc check all` |
 
 ### Security Review Checklist
 | Check | What to look for |

@@ -70,7 +70,7 @@ Goals.
 - [ ] `docs/architecture/appliance/kernel-profiles.md` - profile registry (`internal/appliance/kernelreg.go`)
   → Decision: a profile is discovered from `<profile>.config` + `<profile>.require`; `# ze-base: <profile>` stacks one base. D-5: Ze's Docker-host kernel IS the `runtime` profile, with Docker's options added to it; no new profile.
 - [ ] `docs/architecture/testing/qemu-integration.md` - `./le test qemu run kernel <vmlinuz> packages ...` boots Alpine on Ze's kernel under KVM or HVF
-- [ ] `docs/architecture/testing/ci-workflows.md` - `evidence-nightly.yml` runs `interop`, `interop-ipsec`, `docker-l2tp-ppp-test`, `docker-pppoe-accel-test` on `ubuntu-latest`
+- [ ] `docs/architecture/testing/ci-workflows.md` - `evidence-nightly.yml` runs `interop`, `interop-ipsec`, and the jobs `l2tp-interop` and `pppoe-interop`, which run `./le test deployment docker-l2tp-ppp` and `docker-pppoe-accel` inside `./le test qemu docker-lab`, on `ubuntu-latest`
 - [ ] `ai/rules/platform-linux.md` - its sentence "the Alpine QEMU VM has no Docker" becomes false under the nightly route and is edited in the same change
 
 **Key insights:**

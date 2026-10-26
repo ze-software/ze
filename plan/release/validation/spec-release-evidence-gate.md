@@ -49,7 +49,7 @@ the unmet state observed on 2026-07-27, before the current native QEMU runner:
 | `test/static/static-show.ci`, `test/static/static-table-interface.ci` | both carry `option=needs-linux` |
 | `internal/test/runner/record_parse.go` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
 | `internal/le/functional/suites.go` (`all_suites`) | no `static`, so `./le verify current mode full` never runs it |
-| `internal/le/qemu/alltests.go` (`fsuite` lines) | no `static`, so `./le test qemu run command "./le test qemu all-tests"` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
+| `internal/le/qemu/alltests.go` (`fsuite` lines) | no `static`, so `./le test qemu run command "./le test qemu all"` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
 | `internal/le/functional/suites.go`, `internal/le/evidence/evidence.go` | the suite's only two invocation sites tree-wide, and `ze-evidence-release-verify` is invoked by no workflow |
 
 The inherited requirement was to put `static` on an automated Linux execution path
@@ -57,7 +57,7 @@ and declare `caps=net-admin` for the two tests that create interfaces.
 
 Source reconciliation on 2026-09-19: `vmSuites` in
 `internal/le/qemu/alltests.go` now includes `static`, serially in the guest-root
-namespace. `.github/workflows/qemu-nightly.yml` schedules `le test qemu all-tests`
+namespace. `.github/workflows/qemu-nightly.yml` schedules `le test qemu all`
 with the Linux-only selection and skips only `web`. Both named `.ci` files now
 declare `option=needs-linux:caps=net-admin`. Those changes satisfy the missing
 caller and declaration portions of the inherited item. Execution evidence still
@@ -162,7 +162,7 @@ The historical Make dry-runs below remain dated evidence of the retired runner.
 | AC-6 | Matrix action with no QEMU | QEMU category is skipped explicitly, others still run |
 | AC-7 | Native action help | Shows the matrix entry point, preflight and perf evidence actions with their exact invocation syntax |
 | AC-8 | All categories pass | Summary shows all green, exit code 0 |
-| AC-9 | Scheduled `.github/workflows/qemu-nightly.yml` Linux run | `le test qemu all-tests` reaches the `static` suite, including `static-show.ci` and `static-table-interface.ci`, and records executed outcomes rather than silently omitting them |
+| AC-9 | Scheduled `.github/workflows/qemu-nightly.yml` Linux run | `le test qemu all` reaches the `static` suite, including `static-show.ci` and `static-table-interface.ci`, and records executed outcomes rather than silently omitting them |
 | AC-10 | Static fixtures that create interfaces run on Linux without CAP_NET_ADMIN | Their `needs-linux:caps=net-admin` declarations produce an explicit capability skip; the privileged QEMU run executes them |
 
 ## 🧪 TDD Test Plan
@@ -207,11 +207,11 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | 3 | fuzz | `ze-fuzz-test` | None |
 | 4 | interop | `./le test integration interop` | Docker |
 | 5 | ipsec-interop | `./le test integration interop-ipsec` | Docker+privileged |
-| 6 | l2tp-interop | `./le test deployment docker-l2tp-ppp-test` | Docker |
+| 6 | l2tp-interop | `./le test deployment docker-l2tp-ppp` | Docker |
 | 7 | functional-extra | static + traffic + vpp + l2tp-wire | Platform deps |
 | 8 | perf | `ze-evidence-perf-record` | Docker |
 | 9 | qemu | `ze-qemu-integration-test` | QEMU |
-| 10 | vpp-deployment | `./le test deployment vpp-test` | Docker+privileged |
+| 10 | vpp-deployment | `./le test deployment vpp` | Docker+privileged |
 | 11 | live | `ze-live-test` | Docker+internet |
 
 ### Phase 1: Native matrix wiring
@@ -322,7 +322,7 @@ Additional post-wave corrections:
   (./le arch tier check, ze-iface-resolution-check, ./le plugin boundary check,
   ./le config ports check, ze-platform-vet, ./le cli grammar, ...).
 - The evidence matrix categories predate wave-added heavy suites; the re-run should
-  fold in `./le test deployment vpp-iface-test` (`internal/le/integration/gates.go`) and the new
+  fold in `./le test deployment vpp-iface` (`internal/le/integration/gates.go`) and the new
   functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
   test/traffic 020-026) via their existing category targets.
 

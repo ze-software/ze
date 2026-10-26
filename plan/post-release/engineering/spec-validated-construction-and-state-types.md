@@ -464,9 +464,9 @@ These steps are contingent on owner approval. Each package migration is complete
 | Complete source-based migration record | Reconciled type-aware census and LSP references across the declared build population, retained in this spec at implementation |
 | Restricted APIs with valid behavior | Positive and negative compiler probes through the Go toolchain under the same module/tags; expected diagnostic recorded |
 | Boundary/update/lifetime enforcement | Named unit tests through native `./le test unit all` and affected entry-point functional suites |
-| Preserved IPsec operation | `./le test functional ipsec`; kernel-dependent coverage through `./le test qemu netns-test suites ipsec` where required |
+| Preserved IPsec operation | `./le test functional ipsec`; kernel-dependent coverage through `./le test qemu netns suites ipsec` where required |
 | No avoidable allocation regression | Named before/after benchmarks with `-benchmem` under the same native toolchain/build and ownership/lifetime tests |
-| Build populations and docs | `./le go lint run`, `./le go staticcheck check`, `./le doc check verify`, `./le verify worktree`; parent records exercised scope, failures and skips |
+| Build populations and docs | `./le go lint run`, `./le go staticcheck check`, `./le doc check all`, `./le verify worktree`; parent records exercised scope, failures and skips |
 
 ### Security Review Checklist
 
@@ -917,7 +917,7 @@ Each goal is a Phase 1 scope row. The tests were run at the close, at HEAD `7689
 | Drop `internal/le/vendorpatch/patches/goyang-enum-negative.patch` once a goyang release holds the fix | Waits on upstream (openconfig/goyang PR 317); the patch's leading text and the 2026-10-10 row of `plan/journal/zero-value-as-valid-answer.md` carry it |
 | Independent review of Phase 1 | Done: Review Gate below, round 3 clean, I5 resolved |
 
-`./le commit audit base origin/main` reports a WEAKENED finding for each owner-approved RFC-tagged edit in `180df07922`, `eaff5d644b` and `7c25971594`, because `auditDiff` (`internal/le/test/weakened/audit.go`) never reads `RFC-approved:` trailers. Recorded in `plan/journal/check-cannot-see-the-change-it-looks-for.md` (2026-10-11).
+`./le test weakened check base origin/main` reports a WEAKENED finding for each owner-approved RFC-tagged edit in `180df07922`, `eaff5d644b` and `7c25971594`, because `auditDiff` (`internal/le/test/weakened/audit.go`) never reads `RFC-approved:` trailers. Recorded in `plan/journal/check-cannot-see-the-change-it-looks-for.md` (2026-10-11).
 
 #### Work not done in Phase 1
 

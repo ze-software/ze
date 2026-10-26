@@ -48,7 +48,7 @@ The sign-off half of this spec is done and the test half is not. Closure was
 attempted and refused. Every figure below is read from the tree on 2026-09-05,
 not carried from the tables further down.
 
-**Where the counts stand.** `./le rfc extraction-status` reads `signed: 57`,
+**Where the counts stand.** `./le rfc extraction report` reads `signed: 57`,
 `backlog: 125`, `enrolled: 182`. AC-1 wanted 52 and is MET. Every Class B stem
 carries an artifact, so the AC-4 artifact clause is met. `checkSupportedSignoff`
 exists in `internal/le/rfc/check_status.go` and `Answer`
@@ -99,7 +99,7 @@ completed proof is claimed here.
 
 ## Session progress, 2026-08-30
 
-`./le rfc extraction-status` reads `signed: 15`, `backlog: 156`, against `signed: 6`
+`./le rfc extraction report` reads `signed: 15`, `backlog: 156`, against `signed: 6`
 and `backlog: 165` when the session opened.
 
 **Landed this session (9):** `rfc2759`, `rfc2865`, `rfc3948`, `rfc4760`, `rfc5492`,
@@ -150,9 +150,9 @@ tree rather than retyped from a previous run:
 | Measurement | Value | Derived from |
 |---|---|---|
 | Enrolled RFC stems | 171 | data rows of `rfc/enrolled.txt` |
-| Stems with a valid sign-off | 6 | `./le rfc extraction-status`, field `signed` |
+| Stems with a valid sign-off | 6 | `./le rfc extraction report`, field `signed` |
 | Sign-off files on disk | 7 | `rfc/extraction/*.json`; `rfc1035` is signed but not enrolled, so it earns no drain credit |
-| Backlog | 165 | `./le rfc extraction-status`, field `backlog` |
+| Backlog | 165 | `./le rfc extraction report`, field `backlog` |
 | Drain rate forcing a sign-off | 0 per month since 2026-07-29 | `rfc/drain-budget.txt`, owner decision D5 |
 
 3.5% of the enrolled corpus has a bounded checklist, and `check_drain_floor` is inert by
@@ -250,7 +250,7 @@ wrong, and that is the one sitting under a public promise.
 
 **Key insights:** (minimal context to resume after compaction)
 - The deliverable per stem is a VALID sign-off the check accepts, never a skeleton.
-  `./le rfc extraction-create STEM=<stem>` writes only unclassified dispositions.
+  `./le rfc extraction create STEM=<stem>` writes only unclassified dispositions.
 - 46 stems are in scope. 39 have a summary and a source and need a walk. 7 have neither
   and need enrolment first.
 - A walk that finds an unmet MUST produces an ASK to Thomas, not a `{gap}`.
@@ -442,7 +442,7 @@ text, or `checkUnprovenSupport` refuses it.
    `unsourced-ids`), and re-reads every relocation claim through `relocationErrors`.
 3. `Answer` (`internal/le/rfc/check.go`) folds that verdict together with the status
    checks and `checkExtractionRatchet`.
-4. `./le rfc index-update` regenerates `ai/RFC-REQUIREMENTS.md` and
+4. `./le rfc update` regenerates `ai/RFC-REQUIREMENTS.md` and
    `rfc/requirements/<stem>.md`, publishing the per-RFC exclusion ratio and the relocated
    subset.
 
@@ -478,13 +478,13 @@ text, or `checkUnprovenSupport` refuses it.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The in-scope set is 46 stems, from 50 support-claiming rows less 4 signed | re-derived 2026-08-31 by parsing the Status cell of all 152 data rows in the eight RFC tables of `docs/features/rfc-status.md` and testing each stem for `rfc/extraction/<stem>.json`, `rfc/short/<stem>.md`, `rfc/full/<stem>.txt` and a row in `rfc/enrolled.txt` | the tier tables and every count-bearing AC shift | done. Class A is 39 and its set is unchanged. Class B is 7, not 10: the commit subject `fix(rfc): three public support claims that name the wrong RFC` (2026-08-30 22:06) landed AFTER the original derivation and lowered `rfc7607` and `rfc4762` to `Unsupported` and replaced the `rfc8516` row with `draft-walton-bgp-hostname-capability` in the out-of-scope drafts table. `TestSupportedRowsHaveDerivableScope` re-checks the 50/37/12/1 split mechanically | **broken and corrected** |
-| A-2 | The commissioning brief's figures (213 enrolled, 46 Supported, 2 signed, 44 in scope) are a MISCOUNT of this spec's boundary, not a different boundary | `rfc/enrolled.txt` has 213 LINES and 171 data rows, so the brief counted lines; `./le rfc extraction-status` reports `signed: 6` over 7 artifacts, and `credited` (`internal/le/rfc/signoff.go`) intersects the valid set with the enrolled set, which is why `rfc1035` earns no credit; four support-claiming rows carry sign-offs, not two | if the brief's boundary was intended, stems leave scope | put to Thomas 2026-08-31 with the derivation beside it, stating the reading taken. No boundary in the brief reproduces 46/2/44 from any tree state, so this spec proceeds on the re-derivation and Thomas may overrule | **reading stated to the owner; proceeding on the derived boundary** |
+| A-2 | The commissioning brief's figures (213 enrolled, 46 Supported, 2 signed, 44 in scope) are a MISCOUNT of this spec's boundary, not a different boundary | `rfc/enrolled.txt` has 213 LINES and 171 data rows, so the brief counted lines; `./le rfc extraction report` reports `signed: 6` over 7 artifacts, and `credited` (`internal/le/rfc/signoff.go`) intersects the valid set with the enrolled set, which is why `rfc1035` earns no credit; four support-claiming rows carry sign-offs, not two | if the brief's boundary was intended, stems leave scope | put to Thomas 2026-08-31 with the derivation beside it, stating the reading taken. No boundary in the brief reproduces 46/2/44 from any tree state, so this spec proceeds on the re-derivation and Thomas may overrule | **reading stated to the owner; proceeding on the derived boundary** |
 | A-3 | Every Class B stem's RFC text is retrievable from the RFC Editor | the other 184 sources in `rfc/full/` were retrieved the same way | a stem cannot be enrolled and its ledger row is a claim nothing can check | fetch all seven before any Class B walk starts | unvalidated |
 | A-4 | A walk of the 39 Class A stems finds at least one unextracted MUST Ze does not meet | five such defects were found on 2026-08-30, all in unsigned RFCs | the ask-Thomas path is never exercised and the spec is pure bookkeeping | the phase report records found-and-unmet obligations per tier, zero included | unvalidated |
 | A-5 | Adding `checkSupportedSignoff` after the 46 land leaves the gate green | the check's population is exactly the 46 plus the 4 already signed, PROVIDED the check uses its own narrow predicate | the gate reds on landing and blocks unrelated commits | land the check in the final phase only, and run `./le verify worktree` on the commit that adds it | **conditional, and the condition was nearly missed** |
 | A-6 | The new check MUST NOT reuse `statusIsSupportClaim` | read 2026-08-31 at the producer: `statusIsSupportClaim` (`internal/le/rfc/check_status.go`) returns true for every status except the literals `Unsupported` and `Future`, so it passes `Partial` (64 rows), `Experimental` (29) and `Not supported` (1) -- 144 of 152 rows, not 50 | reusing it makes the check's population 144, the gate reds on ~143 rows at landing, and A-5 is false | a second predicate with a distinct name beside it, and `TestCheckSupportedSignoffIgnoresUnsupportedAndFuture` asserts `Partial` and `Experimental` produce nothing, which a test covering only the two literals would not catch | **confirmed; Files to Modify corrected** |
 | A-7 | `./le rfc check` reaching exit 0 is not the only gate the new check must satisfy | `runRealTreeSelftest` (`internal/le/rfc/selftest_core.go`) asserts `code == 0` from `Check` over the ACTUAL checkout, so a check wired into `check()` before its data lands reds `./le rfc selftest` as well | wiring the check early blocks every session committing in this shared checkout | Phase 1 writes the check and tests it LEAF-DIRECTLY with hand-built maps, and does not call it from `check()`. Phase 8 wires it | **confirmed** |
-| A-8 | `rfc2918` and `rfc4760` are delivered by another live spec, not by this one | `spec-fixit-rfc-drain-quota-never-armed` (session `rfc-drain`) is signing `rfc1877`, `rfc2918`, `rfc4760`, `rfc5880`; three artifacts are already on disk untracked and `./le rfc extraction-status` backlog moved 165 -> 162 | a second walk over a signed stem trips the exclusion ratchet and costs a `resign-reason` | this spec walks 44 stems; Tier 4 and Phase 5 name the two exclusions. Re-confirm at closure that both are signed | **confirmed by direct message and by `rfc/extraction/` on disk** |
+| A-8 | `rfc2918` and `rfc4760` are delivered by another live spec, not by this one | `spec-fixit-rfc-drain-quota-never-armed` (session `rfc-drain`) is signing `rfc1877`, `rfc2918`, `rfc4760`, `rfc5880`; three artifacts are already on disk untracked and `./le rfc extraction report` backlog moved 165 -> 162 | a second walk over a signed stem trips the exclusion ratchet and costs a `resign-reason` | this spec walks 44 stems; Tier 4 and Phase 5 name the two exclusions. Re-confirm at closure that both are signed | **confirmed by direct message and by `rfc/extraction/` on disk** |
 | A-10 | The scope is a ROW count, and the check's population is a STEM map; they are not the same number | measured 2026-08-31 by `TestSupportedRowsHaveDerivableScope`, which asserts both: 50 support-promising ROWS in the eight RFC tables (37 exact, 12 qualified, 1 `Yes`), and 53 support-promising STEMS in the whole keyed map. `53 = 50 - 1 + 4`: minus `rfc2759`, whose promise a later `Partial` row overwrites, plus the four promises in the ninth table | a count-bearing AC states the wrong denominator and the Phase 8 population is a surprise | both numbers are asserted mechanically by that test, so neither can drift unnoticed | **confirmed; AC-11 and AC-12 added** |
 | A-11 | The seventh planned unit test would be a third copy of a fact the package already declares twice | `TestCreditIsScopedToTheEnrolledSet` (`internal/le/rfc/extraction_test.go`) drives `credited` with hand-built maps and asserts an enrolled stem counts while an unenrolled one does not; `TestACompletedSignOffIsNeverSilentlyUncounted` (`internal/le/rfc/extraction_create_test.go`) pins the six-versus-seven discrepancy by name and asserts `credited` and `uncredited` partition the valid set. Both verified present 2026-08-31 | a third declaration of one fact, which `ai/rules/principles.md` bans: every fact is declared once and every other surface derives from it | the TDD row now points at the two existing tests instead of naming a new one | **confirmed; TDD plan corrected** |
 | A-9 | `rate 0` holds in `rfc/drain-budget.txt` for the life of this spec | AC-9 asserts it | `spec-fixit-rfc-drain-quota-never-armed` exists to ARM that rate and is awaiting Thomas's answer. If he arms it, AC-9 becomes false through no act of this spec | AC-9 is rewritten to say this spec does not CHANGE the rate, rather than that the rate is 0 | **at risk from the concurrent spec** |
@@ -536,14 +536,14 @@ tables above, so this note records the delta and changes no count in place.
 | `./le rfc check` over a tree where a `Supported` ledger row's stem has no sign-off | → | `checkSupportedSignoff` (`internal/le/rfc/check_status.go`) | `TestCheckSupportedSignoffRefusesUnsignedSupportedRow` |
 | `./le rfc check` over a tree where every support-claiming row's stem carries a valid sign-off | → | `checkSupportedSignoff` via `Answer` (`internal/le/rfc/check.go`) | `TestCheckSupportedSignoffPassesWhenEverySupportedRowIsSigned` |
 | `./le rfc check` over a tree where a `Supported` row names an RFC with no summary at all | → | `checkSupportedSignoff` (`internal/le/rfc/check_status.go`) | `TestCheckSupportedSignoffRefusesSupportedRowWithNoSummary` |
-| `./le rfc extraction-status` after a tier lands | → | `credited`, `registerCounts` (`internal/le/rfc/signoff.go`) | `TestExtractionStatusCountsTierSignoffs` |
+| `./le rfc extraction report` after a tier lands | → | `credited`, `registerCounts` (`internal/le/rfc/signoff.go`) | `TestExtractionStatusCountsTierSignoffs` |
 | A landed sign-off whose file is later deleted | → | `checkExtractionRatchetAgainst` (`internal/le/rfc/check_extraction.go`) | existing `internal/le/rfc/extraction_test.go` ratchet cases, extended with an in-scope stem |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le rfc extraction-status` is run after the last phase | Meet the original signed floor of 52 (the 2026-08-31 baseline of 6 plus the then-scoped 46), subject to an explicit owner-recorded scope amendment. Reconcile credited membership from the current enrolled set; this historical floor alone cannot establish completion |
+| AC-1 | `./le rfc extraction report` is run after the last phase | Meet the original signed floor of 52 (the 2026-08-31 baseline of 6 plus the then-scoped 46), subject to an explicit owner-recorded scope amendment. Reconcile credited membership from the current enrolled set; this historical floor alone cannot establish completion |
 | AC-2 | `./le rfc check` is run over the closing tree | It reports no violation naming any retained in-scope stem, including every original Class A/Class B stem unless Thomas explicitly changes its owner or scope; no extraction, enrolment, proof or public-status debt for that population is silently omitted |
 | AC-3 | Each of the 39 Class A stems is inspected | `rfc/extraction/<stem>.json` exists, every entry in `sites[]` carries a `disposition` of `mapped` or `excluded` and no `null`, every entry in `sections[]` carries `walked` or `skipped`, and `signed-off`, `reviewer` and (for `manual-walk`) `register-reason` are present |
 | AC-4 | Each of the 7 Class B stems is inspected | `rfc/full/<stem>.txt`, `rfc/short/<stem>.md` and `rfc/extraction/<stem>.json` all exist, the stem appears in exactly one of `rfc/enrolled.txt` and `rfc/not-enrolled.txt`, and its `docs/features/rfc-status.md` row states a coverage note tied to source anchors |
@@ -568,7 +568,7 @@ updating this row.
 | 1 | An operator reads `docs/features/rfc-status.md` and sees `Supported` for RFC 2865 | ledger row → `rfc/short/rfc2865.md` checklist → `rfc/extraction/rfc2865.json` bounding that checklist against `rfc/full/rfc2865.txt` | `TestCheckSupportedSignoffPassesWhenEverySupportedRowIsSigned` plus `./le rfc check` green |
 | 2 | A contributor adds a new `Supported` row for an RFC with no sign-off | `./le rfc check` → `checkSupportedSignoff` → violation naming the stem | `TestCheckSupportedSignoffRefusesUnsignedSupportedRow` |
 | 3 | A contributor deletes a landed sign-off to make a red go green | `./le rfc check` → `checkExtractionRatchetAgainst` reads the HEAD blob → violation | existing ratchet cases in `internal/le/rfc/extraction_test.go` |
-| 4 | A reviewer asks how much of RFC 5176 the checklist actually bounds | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` per-RFC exclusion ratio | `TestExtractionStatusCountsTierSignoffs` and the regenerated ledger |
+| 4 | A reviewer asks how much of RFC 5176 the checklist actually bounds | `./le rfc update` → `ai/RFC-REQUIREMENTS.md` per-RFC exclusion ratio | `TestExtractionStatusCountsTierSignoffs` and the regenerated ledger |
 
 ## 🧪 TDD Test Plan
 
@@ -619,7 +619,7 @@ updating this row.
 - `docs/features/rfc-status.md` - the RFC 1997 Status cell, and coverage and remaining
   prose for the ten Class B rows
 - `ai/RFC-REQUIREMENTS.md`, `rfc/requirements/*.md` - regenerated by
-  `./le rfc index-update`
+  `./le rfc update`
 - `rfc/extraction/README.md` - a paragraph on what a `Supported` row now owes
 - `docs/architecture/core-design.md` - declared by the `// Design:` header of every file
   in `internal/le/rfc/`. Named here as unaffected: the doc describes the rfc area as one
@@ -738,7 +738,7 @@ updating this row.
    - Files: `internal/le/rfc/check.go`, `test/plugin/rfc-supported-signoff-*.ci`,
      `rfc/extraction/README.md`, `ai/rules/rfc-compliance.md`, `docs/functional-tests.md`
    - Verify: this is the last commit because the check is red until every phase above has
-     landed (A-5). Run `./le rfc index-update` here and read the per-RFC exclusion ratio
+     landed (A-5). Run `./le rfc update` here and read the per-RFC exclusion ratio
      for all 46 new sign-offs (R-4)
 
 ### Critical Review Checklist
@@ -757,14 +757,14 @@ updating this row.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| 46 accepted sign-offs | `./le rfc extraction-status` reports `signed` at 52 or more |
+| 46 accepted sign-offs | `./le rfc extraction report` reports `signed` at 52 or more |
 | No violation for an in-scope stem | `./le rfc check` output contains none of the 46 stems |
 | Every artifact fully classified | no `"disposition": null` in any file under `rfc/extraction/` |
 | Class B enrolled or dispositioned | each of the ten stems appears exactly once across `rfc/enrolled.txt` and `rfc/not-enrolled.txt` |
 | RFC 1997 status corrected | its Status cell reads `Supported` |
 | The check is wired | `grep -n checkSupportedSignoff internal/le/rfc/check.go` returns a call site |
 | Quota untouched | `git diff rfc/drain-budget.txt` is empty for this spec's commits |
-| Ledger regenerated | `./le rfc index-update` produces no diff on a second run |
+| Ledger regenerated | `./le rfc update` produces no diff on a second run |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -779,7 +779,7 @@ updating this row.
 |---------|----------|
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
-| `./le rfc check` reds on a derived field mismatch | The artifact edited a derived field. Regenerate with `./le rfc extraction-create` and re-apply the authored dispositions only |
+| `./le rfc check` reds on a derived field mismatch | The artifact edited a derived field. Regenerate with `./le rfc extraction create` and re-apply the authored dispositions only |
 | `./le rfc check` reds on `check_coverage_ratchet` after an enrolment | R-3: the stem enrolled without its tests. Land the tests or take the stem back out of `rfc/enrolled.txt` |
 | A walk finds an obligation Ze does not meet | AC-8: ask Thomas the same session, quoting the id, the sentence and the producing function. Do not annotate |
 | A tier is too large for one agent | R-5: report the size to the main thread and let it re-cut by stem. Do not trim the tier |
@@ -951,7 +951,7 @@ measurement comes from.
 The artifacts are committed at `plan/rfcgate-6-partial-walks/`. Each carries the id, the
 whole RFC sentence and the producing function for every finding, so this section names what
 changes a decision and does not copy them. The two Python replay scripts that stood beside
-them were removed on 2026-09-05 on the owner's word, once `./le rfc extraction-classify`
+them were removed on 2026-09-05 on the owner's word, once `./le rfc extraction classify`
 gave the walk a native way to apply its decisions; git history holds them, and
 `plan/release/validation/spec-rfc3748-undeclared-met-obligations.md` carries the fourteen RFC 3748
 residual findings whole.

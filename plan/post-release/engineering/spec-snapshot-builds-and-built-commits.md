@@ -71,7 +71,7 @@ Verified at the producer on 2026-10-23.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-`./le commit create`, `./le verify current` and `worktree`, `./le commit debt-clear`, `./le rfc discriminate-record`, `./le test qemu docker-lab`, `./le test integration interop*`, and the `./le` launcher.
+`./le commit create`, `./le verify current` and `worktree`, `./le commit debt-clear`, `./le rfc record`, `./le test qemu docker-lab`, `./le test integration interop*`, and the `./le` launcher.
 
 ### Transformation Path
 1. The caller names the paths it owns (the same `file` vocabulary as `./le commit create`), or none for HEAD alone.
@@ -121,7 +121,7 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | AC-1 | a build or gate that judges code (labs, verify, discrimination, lint planning, functional runs that build) | runs on a snapshot; an unrelated dirty or untracked file in the checkout cannot change its verdict |
 | AC-2 | `./le commit create` with a consumer whose producer is not in the commit | refuses before writing the script, naming the missing symbol |
 | AC-3 | the commit create gates (weakened, RFC, closure) | judge the same blobs the script commits, not a second read of the working tree |
-| AC-4 | `./le verify worktree`, `debt-clear`, `discriminate-record` | run the le built from the commit or snapshot they judge |
+| AC-4 | `./le verify worktree`, `debt-clear`, `rfc record` | run the le built from the commit or snapshot they judge |
 | AC-5 | `./le <action>` with `bin/le` built from sources whose committed digest differs from HEAD's | refuses and names `./le --update` (subject to A-3); never a silent run of the old code |
 | AC-6 | the verify failure index | records the tree id it judged; `structuralGateReds` refuses a missing, unparsable or mismatched index instead of reading it as clean |
 | AC-7 | the runtime-kernel cache key, the golangci-lint cache, the terminal-demo renderer image tag, job admission's share key | each is derived from the builder's declared input set (`kernelbuilder` files, ruleguard rules, the Dockerfile, every parameter); the nightly workflow takes its key from `./le`, not a hand list |

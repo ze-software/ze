@@ -43,7 +43,7 @@ and every gate consumes it; each private proxy is deleted when its gate moves.
 **Prefer deletion.** A gate whose only population is a hand list kept beside a
 registry is replaced by a read of the registry, and the list is deleted. A check
 that exists to keep two private populations agreeing (`TestReservedPeerNamesSyncWithRPCs`,
-the carrier-vs-unit mismatch between `./le commit audit` and `./le commit create`)
+the carrier-vs-unit mismatch between `./le test weakened check` and `./le commit create`)
 is deleted once both read the shared answer.
 
 ## Required Reading
@@ -89,7 +89,7 @@ is deleted once both read the shared answer.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- every gate, hook and runner listed in "Owned journal rows": `./le commit create`, `./le commit audit`, `./le rfc check`, `./le rfc discriminate-record`, `./le doc check verify`, `./le doc wiring`, `./le repo check`, `./le go lint run`, `./le job run`, `./le test qemu`, the `pretool-bash` and `pretool-writeedit` hooks
+- every gate, hook and runner listed in "Owned journal rows": `./le commit create`, `./le test weakened check`, `./le rfc check`, `./le rfc record`, `./le doc check all`, `./le doc wiring`, `./le repo check`, `./le go lint run`, `./le job run`, `./le test qemu`, the `pretool-bash` and `pretool-writeedit` hooks
 
 ### Transformation Path
 1. The gate names the population question it asks (P1 to P4 below)
@@ -150,21 +150,21 @@ with the reason, instead of being matched or missed by a pattern.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le commit audit` over a commit editing an untagged function in a file that holds an RFC-tagged test | → | P1 unit diff in `auditDiff` | `test/ui/le-commit-audit-unit-granular.ci` |
+| `./le test weakened check` over a commit editing an untagged function in a file that holds an RFC-tagged test | → | P1 unit diff in `auditDiff` | `test/ui/le-commit-audit-unit-granular.ci` |
 | `pretool-writeedit` hook on a Write of a new untracked RFC-tagged test | → | P4 baseline in `Proposed` | `test/ui/le-hook-new-tagged-test-not-guarded.ci` |
-| `./le rfc discriminate-record` on a carrier under `integration && linux` | → | P2 tags in `observationRunner.argv` | `test/ui/le-discriminate-carrier-tags.ci` |
+| `./le rfc record` on a carrier under `integration && linux` | → | P2 tags in `observationRunner.argv` | `test/ui/le-discriminate-carrier-tags.ci` |
 | `pretool-bash` hook on `cd plan && cat > x` | → | parsed write target | `test/ui/le-hook-cd-write-refused.ci` |
-| `./le doc check verify` with a local handler registered outside the nine directories | → | P3 registry read in yangcontract | `TestLocalHandlersReadFromRegistry` |
+| `./le doc check all` with a local handler registered outside the nine directories | → | P3 registry read in yangcontract | `TestLocalHandlersReadFromRegistry` |
 
 ## Acceptance Criteria
 
 | AC | Given | Then |
 |----|-------|------|
-| AC-1 | a test file holding an RFC-tagged unit where only an untagged unit changes | `./le commit audit` and `./le commit create` both report nothing RFC-tagged; both name the same unit identity when a tagged unit does change |
+| AC-1 | a test file holding an RFC-tagged unit where only an untagged unit changes | `./le test weakened check` and `./le commit create` both report nothing RFC-tagged; both name the same unit identity when a tagged unit does change |
 | AC-2 | a tagged unit whose body contains `//` inside a string literal, edited after it | the change is seen; `dropGoLineComments` no longer exists |
-| AC-3 | a commit carrying an owner `RFC-approved:` trailer for a unit | `./le commit audit` reports that unit as approved, not WEAKENED |
+| AC-3 | a commit carrying an owner `RFC-approved:` trailer for a unit | `./le test weakened check` reports that unit as approved, not WEAKENED |
 | AC-4 | a Write of a test file absent from HEAD | the RFC-tagged-test guard does not apply; an Edit of a file present at HEAD still does |
-| AC-5 | any `go test` run started by `./le job run`, `./le rfc discriminate-record`, `./le test qemu` or a deployment build | its `-tags` come from P2 for the target, including the carrier's own constraint; the feature-test rows owned here go green through `./le job run` with no file-level workaround |
+| AC-5 | any `go test` run started by `./le job run`, `./le rfc record`, `./le test qemu` or a deployment build | its `-tags` come from P2 for the target, including the carrier's own constraint; the feature-test rows owned here go green through `./le job run` with no file-level workaround |
 | AC-6 | a gate whose population was a hand list | reads P3; the hand list is deleted; adding a registered item with no edit to the gate puts it in the gate's population (one test per converted gate) |
 | AC-7 | a shell command writing into `plan/` or `ai/rules/` through `cd`, a variable, `$(...)`, or an interpreter running a script | the hook refuses it with the reason and the accepted static form |
 | AC-8 | `git merge-base` and other verbs that share a prefix with a banned verb | the hook allows them; the check matches whole argv words |

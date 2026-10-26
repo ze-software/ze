@@ -97,7 +97,7 @@ reach are the reason this programme re-observes every `revert` record it upgrade
 | Verified proofs | 1643 proven (mutant 73, revert 1570), 2 escaped, 6 orphans removable | `./le rfc check`; `ai/RFC-REQUIREMENTS.md` "Claim discrimination" |
 | Unproven backlog | 4206 of 5738 tagged units on a gated requirement of an enrolled RFC | "Claim discrimination" |
 | Tagged units added since origin/main without a proof | 511 | `./le rfc check` |
-| Extraction sign-offs | 174 enrolled, 174 signed, backlog 0; register rfc2119 98, prose 73, manual-walk 3 | `./le rfc extraction-status` |
+| Extraction sign-offs | 174 enrolled, 174 signed, backlog 0; register rfc2119 98, prose 73, manual-walk 3 | `./le rfc extraction report` |
 | Signed walks uncounted because the stem is not enrolled | 13 | `./le rfc check`, `extraction:` line |
 | `unsourced-ids` entries in enrolled prose-register walks | 731, in 71 of the 72 prose stems the ledger lists as enrolled | `jq` over `rfc/extraction/*.json` joined to the enrolled rows |
 | `unsourced-ids` entries in enrolled rfc2119-register walks | 794, in 87 of 98 stems | same |
@@ -224,8 +224,8 @@ measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 ### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 #### Entry Point
-- `./le rfc discriminate-record` writes `rfc/discrimination/<stem>.json`; `./le rfc extraction-classify` writes `rfc/extraction/<stem>.json`; authors write `rfc/short/<stem>.md`
-- `./le rfc check` reads all three plus the tags in test files, and prints the summary lines; `./le rfc index-update` renders `ai/RFC-REQUIREMENTS.md`
+- `./le rfc record` writes `rfc/discrimination/<stem>.json`; `./le rfc extraction classify` writes `rfc/extraction/<stem>.json`; authors write `rfc/short/<stem>.md`
+- `./le rfc check` reads all three plus the tags in test files, and prints the summary lines; `./le rfc update` renders `ai/RFC-REQUIREMENTS.md`
 
 #### Transformation Path
 1. `Collect` parses summaries and tags
@@ -257,7 +257,7 @@ measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 #### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The generated `ai/RFC-REQUIREMENTS.md` matches the tree today | `./le rfc check` reports the same 4068 and 174, and its freshness check did not fire | the 257 and 8 figures are stale | child 3 re-derives both from `./le rfc index-update` output before it starts | unvalidated |
+| A-1 | The generated `ai/RFC-REQUIREMENTS.md` matches the tree today | `./le rfc check` reports the same 4068 and 174, and its freshness check did not fire | the 257 and 8 figures are stale | child 3 re-derives both from `./le rfc update` output before it starts | unvalidated |
 | A-2 | Most revert producers are gomu-mutatable | 245 of 251 producer files carry no build constraint and none sits under a `.gomuignore` path | child 2's backlog is smaller than 1559 and the rest need D-3 | child 1 AC-7 publishes the exact figure | unvalidated |
 
 #### Risks

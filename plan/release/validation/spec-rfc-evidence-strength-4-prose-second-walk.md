@@ -25,7 +25,7 @@ The original criterion ids are retained below for this file’s slice only. Cros
 |-------|-------------------|-------------------|
 | AC-1 | a changed artifact names an unsourced row whose quote is absent from its section of `rfc/full/<stem>.txt` | `./le rfc check` refuses it, naming the stem, the section, the row and the first 70 characters of the quote |
 | AC-2 | an unchanged artifact with bare `unsourced-ids` | still passes; `./le rfc check` counts it in an "unquoted unsourced" backlog figure |
-| AC-3 | `./le rfc extraction-create stem <stem> blind` on a signed stem | writes a skeleton to scratch with every site and section unclassified, even where a decision would carry forward |
+| AC-3 | `./le rfc extraction create stem <stem> blind` on a signed stem | writes a skeleton to scratch with every site and section unclassified, even where a decision would carry forward |
 | AC-4 | `./le rfc extraction-compare` on two walks | prints, per stem: sites where both agree, sites where the disposition differs, sites where the mapped id differs, gated rows sourced by only one walk, and rows neither walk could source |
 | AC-5 | a gated row neither walk can tie to a sentence | reported as "no source sentence"; handled under D-5 in the same commit as the second-walk record |
 | AC-6 | each of the 73 prose stems | its artifact carries a second-walk record: walker, date, agreement counts, and one adjudication line for each disagreement; every unsourced row carries a verified quote |
@@ -53,7 +53,7 @@ The original design, Task, criteria, implementation plan, decisions and dated ev
 
 ### Task
 
-`./le rfc extraction-status` reports 174 enrolled stems, all signed: 98 in the `rfc2119`
+`./le rfc extraction report` reports 174 enrolled stems, all signed: 98 in the `rfc2119`
 register, 73 in `prose`, 3 in `manual-walk`. A `prose` register means the document states
 its gated obligations without capitalised RFC 2119 keywords, so the extractor's
 keyword-visible sites cannot bound the requirement list. `ai/rules/rfc-compliance.md`
@@ -127,9 +127,9 @@ The 794 unsourced entries in rfc2119-register walks are D-6 and are outside this
 ### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 #### Entry Point
-- `./le rfc extraction-create stem <stem> blind` writes an unclassified skeleton to scratch
+- `./le rfc extraction create stem <stem> blind` writes an unclassified skeleton to scratch
 - the second walker writes a decisions file; `./le rfc extraction-compare stem <stem> decisions <path>` compares it with `rfc/extraction/<stem>.json`
-- the adjudicated result is applied with `./le rfc extraction-classify`
+- the adjudicated result is applied with `./le rfc extraction classify`
 
 #### Transformation Path
 1. skeleton without carried-forward decisions
@@ -187,7 +187,7 @@ The 794 unsourced entries in rfc2119-register walks are D-6 and are outside this
 |-------------|---|--------------|------|
 | `./le rfc check` over a fixture whose changed artifact lists an unsourced row with a quote absent from the RFC | → | quote check in `signoff.go` | `TestSignoffRefusesUnsourcedQuoteAbsentFromSection` in `internal/le/rfc/extraction_test.go` |
 | `./le rfc extraction-compare stem <stem> decisions <path>` | → | comparison | `TestExtractionCompareCountsAgreementPerSiteAndRow` |
-| `./le rfc extraction-create stem <stem> blind` | → | skeleton without carried decisions | `TestExtractionCreateBlindCarriesNoDecision` in `internal/le/rfc/extraction_create_test.go` |
+| `./le rfc extraction create stem <stem> blind` | → | skeleton without carried decisions | `TestExtractionCreateBlindCarriesNoDecision` in `internal/le/rfc/extraction_create_test.go` |
 | `./le rfc check` summary | → | second-walk figures | `TestCheckPrintsSecondWalkFigures` in `internal/le/rfc/check_test.go` |
 
 ### Acceptance Criteria
@@ -196,7 +196,7 @@ The 794 unsourced entries in rfc2119-register walks are D-6 and are outside this
 |-------|-------------------|-------------------|
 | AC-1 | a changed artifact names an unsourced row whose quote is absent from its section of `rfc/full/<stem>.txt` | `./le rfc check` refuses it, naming the stem, the section, the row and the first 70 characters of the quote |
 | AC-2 | an unchanged artifact with bare `unsourced-ids` | still passes; `./le rfc check` counts it in an "unquoted unsourced" backlog figure |
-| AC-3 | `./le rfc extraction-create stem <stem> blind` on a signed stem | writes a skeleton to scratch with every site and section unclassified, even where a decision would carry forward |
+| AC-3 | `./le rfc extraction create stem <stem> blind` on a signed stem | writes a skeleton to scratch with every site and section unclassified, even where a decision would carry forward |
 | AC-4 | `./le rfc extraction-compare` on two walks | prints, per stem: sites where both agree, sites where the disposition differs, sites where the mapped id differs, gated rows sourced by only one walk, and rows neither walk could source |
 | AC-5 | a gated row neither walk can tie to a sentence | reported as "no source sentence"; handled under D-5 in the same commit as the second-walk record |
 | AC-6 | each of the 73 prose stems | its artifact carries a second-walk record: walker, date, agreement counts, and one adjudication line for each disagreement; every unsourced row carries a verified quote |
@@ -300,7 +300,7 @@ The 794 unsourced entries in rfc2119-register walks are D-6 and are outside this
 #### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| 73 second walks | `./le rfc check` second-walk figure equals the prose count from `./le rfc extraction-status` |
+| 73 second walks | `./le rfc check` second-walk figure equals the prose count from `./le rfc extraction report` |
 | No unquoted unsourced row in a prose stem | the "unquoted unsourced" figure for the prose register reads 0 |
 
 #### Security Review Checklist

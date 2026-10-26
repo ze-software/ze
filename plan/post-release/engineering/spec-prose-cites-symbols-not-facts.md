@@ -84,7 +84,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 - [ ] `docs/guide/configuration.md` - 10 config lines still annotate with `//`, which the tokenizer does not accept
 
 **Behavior to preserve:**
-- `./le doc check links`, `./le doc check verify`, `./le spec citation`, `./le doc wiring` keep their current verdicts for every claim they already judge correctly
+- `./le doc check links`, `./le doc check all`, `./le spec citation`, `./le doc wiring` keep their current verdicts for every claim they already judge correctly
 - The verbatim row-quote rule in `./le rfc check` and its refusals
 - `<!-- source: -->` anchor syntax and `// Design:` headers stay valid citation forms
 
@@ -94,7 +94,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 
 ### Entry Point
 - `./le commit create` over the index of the commit under construction (paths and Go symbols removed or renamed, producer inputs changed)
-- `./le doc check verify` over the tracked tree (the full claim corpus)
+- `./le doc check all` over the tracked tree (the full claim corpus)
 
 ### Transformation Path
 1. Collect claims: anchors, `// Design:` headers, fenced blocks with an info string, inline command spans, RFC quotes in comments, count and list sentences in sections bound to a registry, recorded verdicts with input digests
@@ -105,7 +105,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 ### Boundaries Crossed
 | Boundary | How |
 |----------|-----|
-| `le` to the `ze` binary | config parsing and the command registry are read from a `ze` built with the full feature set (the same build `./le doc check verify` already uses for published surfaces) |
+| `le` to the `ze` binary | config parsing and the command registry are read from a `ze` built with the full feature set (the same build `./le doc check all` already uses for published surfaces) |
 | Commit index to working tree | none: the commit-time half reads the index only |
 
 ### Integration Points
@@ -122,9 +122,9 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 
 | Shape | Rows | Mechanism today | Fix at the source | Check that stops it coming back |
 |-------|------|-----------------|-------------------|---------------------------------|
-| F1 Copied lists and counts | counts in prose and pinned in tests, hand tables (`rfc/README.md`, carrier table, `repo-facts.json`, site goldens pinned to gh-pages) | a human retypes what a registry or generator holds | delete the copy; where the reader needs it, render a generated block from the producer; a test asserts the derivation, never a literal count | `./le doc check verify` refuses a numeral-plus-noun sentence inside a page section bound to a registry, and a test literal compared to a registry length |
+| F1 Copied lists and counts | counts in prose and pinned in tests, hand tables (`rfc/README.md`, carrier table, `repo-facts.json`, site goldens pinned to gh-pages) | a human retypes what a registry or generator holds | delete the copy; where the reader needs it, render a generated block from the producer; a test asserts the derivation, never a literal count | `./le doc check all` refuses a numeral-plus-noun sentence inside a page section bound to a registry, and a test literal compared to a registry length |
 | F2 Citations | dangling paths, renamed symbols, `// Design:` headers, discrimination records naming deleted units, line numbers, journal row line citations, rebased SHAs | citers are checked by a tree-wide sweep nobody runs at the moment of deletion | citation grammar is file plus symbol, never a line number; a journal row is cited by class and date; a SHA must be reachable from HEAD | `./le commit create` resolves every citer of each path or symbol the commit removes or renames, over the index, and refuses until each is repaired in the same commit |
-| F3 Parseable examples | config blocks and command spans in `docs/`, skills, `ai/`, generated `CLAUDE.md`, interop and deployment scenario configs | fenced blocks are skipped; scenario configs are parsed only when the scenario runs | every fence in a tracked page carries an info string; `ze-config` fences and scenario configs parse with the real config parser; `ze-cli` and `le` command spans resolve against the registries | `./le doc check verify` refuses an untagged fence, a `ze-config` block the parser refuses (with the parser's own error), and a command span no registry holds |
+| F3 Parseable examples | config blocks and command spans in `docs/`, skills, `ai/`, generated `CLAUDE.md`, interop and deployment scenario configs | fenced blocks are skipped; scenario configs are parsed only when the scenario runs | every fence in a tracked page carries an info string; `ze-config` fences and scenario configs parse with the real config parser; `ze-cli` and `le` command spans resolve against the registries | `./le doc check all` refuses an untagged fence, a `ze-config` block the parser refuses (with the parser's own error), and a command span no registry holds |
 | F4 Behaviour claims | pages and cross-file comments describing a function, `rfc/short/` annotations judging code, RFC section quotes in comments | the reference is checked, the content never | each such claim carries an anchor; the anchor stores the cited unit's body fingerprint (from the T3 unit library); an RFC quote in a comment must be a verbatim span of the cited section | the commit that changes a cited unit's fingerprint must touch the citing paragraph or re-seal the anchor with a reviewed reason (a `plan/doc-reviewed/` row, which exists today); `./le rfc check` applies the row-quote matcher to RFC quote comments added from today |
 | F5 Derived artifacts and recorded verdicts | `rfc/requirements/*`, `ai/RFC-REQUIREMENTS.md`, discrimination and audit records, web captures, templ output, published catalogs, spec evidence | a generated file is committed and regenerated by whoever next notices it red | a derived file is either untracked and generated on demand, or regenerated by `./le commit create` from the index whenever its producer input is in the commit; a recorded verdict stores the digest of its inputs | `./le commit create` refuses a commit whose producer inputs changed while a tracked derived file did not; a verdict whose input digest moved reads STALE, never current |
 
@@ -142,7 +142,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 |------|-----------|
 | The first run lights up hundreds of claims across the tree | land each check with its owned rows repaired in the same phase; no baseline that hides a finding |
 | A large function (`runYANGConfig`) binds many pages, so every edit re-seals them | the unit-size problem is owned by the T3 spec; until it lands, a re-seal names the paragraph, not the page |
-| A commit-time citer search is slow | the citer index is built once per `./le doc check verify` run and read by commit create |
+| A commit-time citer search is slow | the citer index is built once per `./le doc check all` run and read by commit create |
 
 ## Blast Radius
 
@@ -153,7 +153,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le commit create` removing a cited spec | → | commit-time citer resolution in `internal/le/commit` | `test/ui/le-commit-refuses-dangling-citer.ci` |
-| `./le doc check verify` over a page with a refused `ze-config` fence | → | F3 fence parser | `test/ui/le-doc-config-fence-refused.ci` |
+| `./le doc check all` over a page with a refused `ze-config` fence | → | F3 fence parser | `test/ui/le-doc-config-fence-refused.ci` |
 | `./le commit create` changing a cited function body | → | F4 fingerprint re-judge | `test/ui/le-commit-refuses-unsealed-behaviour-claim.ci` |
 | `./le commit create` changing an RFC producer without its shard | → | F5 derived regeneration | `test/ui/le-commit-regenerates-rfc-shards.ci` |
 
@@ -163,7 +163,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 |----|-------|------|
 | AC-1 | a commit that removes a file cited by any tracked file (`// Design:`, anchor, spec link, record) | `./le commit create` refuses, naming each citer and the removed path, and passes once the citers are repaired in the same commit |
 | AC-2 | a commit that renames or deletes a Go symbol an anchor names | refused the same way, naming the anchor and the symbol |
-| AC-3 | an anchor `X.Y` where the anchored file declares `Y` on another receiver, or only mentions `X.Y` in a comment | `./le doc check verify` refuses it; `claimAppearsAsWord` no longer exists |
+| AC-3 | an anchor `X.Y` where the anchored file declares `Y` on another receiver, or only mentions `X.Y` in a comment | `./le doc check all` refuses it; `claimAppearsAsWord` no longer exists |
 | AC-4 | a tracked page with a fence that has no info string | refused with the file, the fence, and the info strings accepted |
 | AC-5 | a `ze-config` fence or a scenario config the parser refuses | refused with the parser's own error; `docs/architecture/api/update-syntax.md` passes after its repair |
 | AC-6 | a `ze` or `./le` command span in a page, skill, rule or generated instruction that no registry holds | refused, naming the nearest registered command |
@@ -213,7 +213,7 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema | N-A | tooling only |
-| CLI commands/flags | No | checks join existing `./le doc check verify`, `./le rfc check`, `./le commit create` |
+| CLI commands/flags | No | checks join existing `./le doc check all`, `./le rfc check`, `./le commit create` |
 | Functional test | Yes | `test/ui/*.ci` named in Wiring Test |
 | Env var, doctor, metrics, BGP family | N-A | tooling only |
 
