@@ -5,7 +5,7 @@
 | Status | design |
 | Priority | P0 |
 | Release reason | Implement the owner-selected repair for ignored remote-access authentication and pool configuration. |
-| Depends | - (was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
+| Depends | `plan/release/fixes/spec-ike-virtual-ip-assignment.md` (owns all Configuration-payload work since 2026-10-26; was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
 | Phase | - |
 | Updated | 2026-07-31 |
 
@@ -88,6 +88,25 @@ narrowing, both refusal notifications, optional-attribute decisions, operational
 visibility, and tagged/functional/strongSwan evidence. None of AC-1..AC-28 is
 dropped by consolidation, and address assignment alone does not deliver
 road-warrior admission.
+
+**Ownership decided 2026-10-26 (design pass of the sibling).** The sibling
+`plan/release/fixes/spec-ike-virtual-ip-assignment.md` is now the SINGLE owner of
+the Configuration-payload work: codec hardening, the lease registry and pool
+selection, CP receive sites, reply ordering, both refusal notifications, selector
+substitution, lease lifetime, optional attributes, visibility and the tagged and
+strongSwan evidence. Basis: the fix/feature split rule in `ai/META-DECISIONS.md`
+(the RFC 3948 Section 5.1 MUST is a fix reachable without admission) and the
+transfer outcome this section names. The sibling's "Ownership" section maps every
+shared criterion: AC-7..AC-10, AC-15 and AC-16..AC-28 of this spec, the security
+list items, the Section 3.15.4 obligation and `RFC7296-2.20-1`. None is dropped.
+The CP phases A to G and phase 3 of this spec are therefore NOT implemented here;
+they are prerequisites delivered by the sibling. This spec keeps AC-1..AC-6,
+AC-11, AC-12, AC-13 and AC-14 (admission, per-user credentials, session reaping,
+`ra.Auth` checks, the road-warrior strongSwan scenario), and its CP owner items
+are answered there: OI-1 by the owner ruling of 2026-08-31 (IRAS yes, IRAC no),
+OI-2 by RFC 7296 Section 3.15.1 ("An implementation of this specification MAY
+ignore CFG_SET payloads."), OI-3 by answering SUPPORTED_ATTRIBUTES. Admission
+must reuse the sibling's lease registry, passing the EAP identity as the owner key.
 
 ## RFC 7296 Rows Homed Here (owner split, 2026-07-31)
 
