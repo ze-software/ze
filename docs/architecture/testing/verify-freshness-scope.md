@@ -280,6 +280,7 @@ The declared-group protocol is available to EVERY stage, not only `./le doc wiri
 ### Structural stages
 
 No stage is marked structural any more. The mark (`structural(...)`, `verifyengine.Structural`) existed so that `./le commit create` refused a commit for a broken tree, and a red now prevents a release, never a commit (`ai/META-DECISIONS.md`, "Ze is pre-release"). Every stage's red is owed at Thomas's release check, whatever kind of check produced it.
+<!-- source: internal/le/verify/engine/stages.go -- stage, fullStages -->
 
 ### The scoped run and its record
 
@@ -355,7 +356,6 @@ That query is not a certificate and MUST NOT be read as one. It answers about PA
 <!-- source: internal/le/verify/green.go -- recordPart, partsComplete -->
 <!-- source: internal/le/verify/engine/artifacts.go -- writeRunArtifacts, DeclaredGroups -->
 <!-- source: internal/le/verify/reds.go -- readReds, verdictOf -->
-<!-- source: internal/le/verify/engine/stages.go -- Structural -->
 
 ## Producer contract
 

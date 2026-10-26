@@ -3,8 +3,8 @@
 // stays red until a run reaches the stage again, and a stage nobody judged
 // stays unjudged rather than being called red.
 // PREVENTS: a piece of a cut run, or a fast run, erasing a known structural red
-// by replacing the index that recorded it; and the opposite over-refusal, where
-// every stage a run did not hold was charged as red.
+// by replacing the index that recorded it; and the opposite error, where every
+// stage a run did not hold was recorded as red.
 package verifyengine
 
 import (

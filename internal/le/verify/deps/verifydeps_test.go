@@ -680,7 +680,7 @@ func TestARedTestStageNamesThePackagesThatFailed(t *testing.T) {
 
 // VALIDATES: a green stage and a red one that named nothing each declare no
 // group.
-// PREVENTS: a group on a pass, which would charge a red nobody has, and an
+// PREVENTS: a group on a pass, which would name a red nobody has, and an
 // invented attribution for a failure the scanner could not place.
 func TestOnlyARedStageThatNamedAPackageDeclaresAGroup(t *testing.T) {
 	for name, report := range map[string]Report{

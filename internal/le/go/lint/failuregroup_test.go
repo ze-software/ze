@@ -74,8 +74,8 @@ func TestALintRedNamesTheFilesItFailedAbout(t *testing.T) {
 }
 
 // TestAGreenLintDeclaresNoGroup keeps the emitter honest. A group announces a
-// failure, so a passing stage that declared one would charge a red to the
-// commits whose files it named.
+// failure, so a passing stage that declared one would name a red for the files
+// it named.
 func TestAGreenLintDeclaresNoGroup(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, _ := fixtureOps(root, tracked)

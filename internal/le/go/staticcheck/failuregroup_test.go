@@ -66,8 +66,8 @@ func TestARunThatDiedBeforeDiagnosingStillSaysWhy(t *testing.T) {
 }
 
 // TestAPassingRunDeclaresNoGroup keeps the emitter honest. A group announces a
-// failure, so a green run that declared one would charge a red to the commits
-// whose files it named.
+// failure, so a green run that declared one would name a red for the files it
+// named.
 func TestAPassingRunDeclaresNoGroup(t *testing.T) {
 	text := Verdict{Part: 1, Parts: 1, Rows: 2, Names: []string{"all_features", "core_only"}, Passed: true}.Text()
 

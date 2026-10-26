@@ -101,8 +101,8 @@ type Verdict struct {
 // dispatch, which hands leroot.Run a capturing writer). A run that failed
 // before producing a diagnostic used to render nothing at all, so its stage log
 // was empty: the red said neither what broke nor which files it was about, and
-// internal/le/commit/verification.go charges a red with no paths to every commit
-// in the checkout.
+// a red with no paths leaves `./le verify reds file <path>` undetermined for
+// every path (internal/le/verify/reds.go, readReds).
 func (v Verdict) Text() string {
 	var tb textbuf.Buffer
 	for _, line := range v.Diagnostics {

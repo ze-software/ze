@@ -280,7 +280,8 @@ N-A: tooling, no protocol peer.
 - Forced red (before the deletion): `TestCreateIsNotRefusedForARedInTheIndex` failed all three cases with `deterministic structural gate(s) block this commit` (owned, blind+unreached) and the index text in the verify detail (unparsable); `TestTheRetiredRedAdmissionsNameTheBody` failed with `create accepted "structural-red-ok"`. Both green after.
 - Test judge (`ze-test-judge`, separate agent): 24 units approved in batch one (16 deleted commit tests, 7 edited, runner `verify-scope-wiring-attribution`), 3 in batch two (engine Structural tests); rows in the session's weakening approval file.
 - `TestDispatchStopsACanceledStageWithSIGTERM` (`internal/le/verify/dispatch`) is red alone and repeatably (`stage was not given SIGTERM: ""`); this work does not touch that package (last changed by 140c318edd, another session's).
-- After D1 the JSON failure index has no in-tree program reader: `./le verify reds` reads stage logs, and people read the text index. The engine keeps writing it (D4: the release check is unchanged). Whether the JSON copy should go is a separate question for the owner, not this spec's.
+- After D1 no commit-side program reads the JSON failure index, but the engine does, so it stays (D4). `writeFailureIndex` reads the checkout's earlier index through `readEarlierIndex` to carry forward the verdict of every stage a run did not hold (`carryForward`), and `PublishFailureIndex` (`internal/le/verify/engine/artifacts.go`, called from `run` in `internal/le/verify/lifecycle.go`) reads a worktree run's index to merge it into the checkout's. `./le verify reds` reads stage logs, not the index (`scanStages`, `internal/le/verify/reds.go`).
+  → Decision (closure): the JSON index keeps its writer; removing it would delete the carry-forward and worktree publication, which D4 keeps.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -338,3 +339,144 @@ N-A: tooling, no protocol peer.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- 8bbde623e1: `structuralGateReds` and every helper only it used are deleted from `internal/le/commit/verification.go`; `checkVerificationGates` (`prepare.go`) reports the certificate and reads no failure index; `Options.StructuralRedOK`/`BrokenHeadFix`, their keywords, trailers, `declaredTrailers` rows and `createPolicy` entries are gone; `structural-red-ok` and `broken-head-fix` are `Retired` rows naming `redsInTheBody` (`actions.go`); `Stage.Structural`, `Structural(mode)` and `structural(...)` are deleted from `internal/le/verify/engine/stages.go`.
+- `test/runner/commit-not-refused-for-a-red.ci` with `commitNotRefusedForARedDriver` replaces `verify-scope-wiring-attribution`.
+- Closure (commit A): stale comments in `internal/le/verify/lifecycle.go` (`run`) and `internal/le/go/staticcheck/report.go` (`Verdict.Text`), six test doc comments, the git-safety rule point, a dangling anchor in `verify-freshness-scope.md`, `plan/known-failures/README.md`, and the owned journal row marked `fixed:`.
+
+### Bugs Found/Fixed
+- None in product code. The closure findings are stale comments, docs and a rule sentence (Review Gate below).
+
+### Documentation Updates
+- In 8bbde623e1: `docs/contributing/committing.md` (attest row, admission table, "No admission exists for a red", hunks bullet), `docs/architecture/testing/verify-freshness-scope.md`, `docs/contributing/running-commands.md`, `docs/architecture/testing/tracked-build-gate.md`, `.claude/hooks/README.md`, `ai/INDEX.md`, rule point `verification-debt-is-not-defect-debt.md` + `ai/rules/completion.md`; `docs/functional-tests.md` row landed in da69c61bdb.
+- In closure: `verify-freshness-scope.md` anchor `stages.go -- Structural` repointed to `stages.go -- stage, fullStages` under "Structural stages"; git-safety point `never-defer-a-shared-file-to-an-absent-session.md` drops "The structural gate", `ai/rules/git-safety.md` and `ai/rules/CORE.md` regenerated (`./le ai rules update render`, `condensed`, `index`); `plan/known-failures/README.md` no longer claims `prepare.go` refuses for a structural red.
+- `./le --name session doc check verify`: exit 0.
+
+### Deviations from Plan
+- None in scope. The spec's open question on the JSON failure index is answered from source (Design Insights, Decision): the engine reads it, so it stays.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation's comment and doc sweep stopped at the files the spec listed | Two shipped-code comments, six test comments, a rule point, an anchor and `plan/known-failures/README.md` still described the deleted gate | Closure grep for `charge`, `structural gate`, `structuralGateReds` over the whole tree | Fixed in commit A; no new rule (`ai/rules/stale-comments.md` already requires it) |
+| assumption | Design Insight said the JSON index had no in-tree program reader | `writeFailureIndex` reads it through `readEarlierIndex`, and `PublishFailureIndex` reads a worktree's copy | Closure grep for `FailuresJSONPath` | Insight corrected, Decision recorded |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1 gate deleted, no index read | Done | `internal/le/commit/verification.go` `verificationState`; `prepare.go` `checkVerificationGates` | no `ze-verify-failures` outside tests in `internal/le/commit` |
+| D2 admissions retired | Done | `internal/le/commit/actions.go` `createParameters` Retired rows, `redsInTheBody` | |
+| D3 non-red gates unchanged | Done | `prepare.go`, `review.go`, `rfcchange.go` untouched by the gate deletion | package tests green |
+| D4 release check, push derivation, engine index unchanged | Done | `owed.go` `deriveDebt`; `engine/artifacts.go` `writeFailureIndex` | |
+| D5 no session-start reds line | Done | nothing added | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCreateIsNotRefusedForARedInTheIndex` "a red naming the committed file"; runner marker `owned-red-not-refused` | |
+| AC-2 | Done | same test, "a red naming no path and a stage not reached"; markers `blind-red-not-refused`, `unreached-red-not-refused` | |
+| AC-3 | Done | same test, "an index that does not parse" (asserts no index text in `Verify.Detail`) | |
+| AC-4 | Done | `TestTheRetiredRedAdmissionsNameTheBody`; marker `retired-red-admissions-name-the-body`; live refusal exit 2 | |
+| AC-5 | Done | `TestCommitCreateHelpRendersEveryLiveKeyword`; `le commit create --help` holds neither keyword | |
+| AC-6 | Done | `TestMessageRefusesDeclaredTrailerInBody` (keys left `declaredTrailers`) | |
+| AC-7 | Done | `go test -race ./internal/le/commit/` green | |
+| AC-8 | Done | grep over `internal docs ai .claude cmd test`: only the Retired rows, their tests, the fixture and history sentences in docs | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCreateIsNotRefusedForARedInTheIndex` | Done | `internal/le/commit/commit_test.go` | red before, green after (Design Insights) |
+| `TestTheRetiredRedAdmissionsNameTheBody` | Done | `internal/le/commit/actions_test.go` | |
+| edited and deleted tests | Done | `internal/le/commit`, `internal/le/verify/engine` | judged by ze-test-judge; `Weakening-approved:` trailers on 8bbde623e1 |
+| `commit-not-refused-for-a-red` | Done | `test/runner/commit-not-refused-for-a-red.ci` | PASS at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify, Create, Delete | Done | 8bbde623e1 stat (43 files); `docs/functional-tests.md` via da69c61bdb |
+
+### Audit Summary
+- **Total items:** 5 requirements, 8 ACs, 4 test rows, 1 file row
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No gate refuses a commit for a red, owned, blind, unreached or unreadable | functional + unit | `./le test runner commit-not-refused-for-a-red`: `PASS 3 commit-not-refused-for-a-red` (real `le commit create` in a scratch checkout, three indexes); `TestCreateIsNotRefusedForARedInTheIndex` went red against the old gate and green after |
+| A habit-typed retired admission teaches the replacement | functional | `le commit create subject s file a structural-red-ok "x"` exits 2: `no longer takes "structural-red-ok": use body "<each red you know of and its cause>"` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every agreed item is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/structural-gate-charges-owned-reds-b8e3721e-66b0-4a06-9363-b20f131aeb0f.md` |
+| `./le spec review check` | clean (8 code files, hashes match) |
+| Rounds | 2 |
+| Reviewer lenses used | wiring + removed-behavior + docs drift (run 1, full diff of 8bbde623e1 and a tree-wide grep for the removed mechanism); the fixes only (run 2) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Comment says commit preparation charges structural reds from the index | `internal/le/verify/lifecycle.go` `run` | names the `writeFailureIndex` carry-forward |
+| 2 | ISSUE | Comment says `commit/verification.go` charges a pathless red to every commit | `internal/le/go/staticcheck/report.go` `Verdict.Text` | names `readReds` answering undetermined |
+| 3 | ISSUE | Rule says "the structural gate" still judges the working-tree file | `ai/rules/points/git-safety/directives/never-defer-a-shared-file-to-an-absent-session.md` | sentence fixed; `git-safety.md`, `CORE.md` regenerated |
+| 4 | ISSUE | Test doc comments: a stray group "would charge a red to the commits" | six `failuregroup`/`verifydeps`/`carry` test files | comment-only rewording; no assertion changed |
+| 5 | ISSUE | Source anchor names deleted `Structural` | `docs/architecture/testing/verify-freshness-scope.md` | `stage, fullStages`, moved under "Structural stages" |
+| 6 | ISSUE | Page claims `prepare.go` refuses while a structural gate is red | `plan/known-failures/README.md` | states no commit gate enforces it |
+| 7 | ISSUE | Owned row left `open:`; removing the spec would orphan it | `plan/journal/stale-artifact-reused.md` 2026-09-13 | `fixed:` naming 8bbde623e1 and the test |
+
+NOTEs (not fixed): `ai/rules/completion.md` calls `./le doc wiring` a "structural stage"; `ai/INDEX.md` keeps the keyword "attributing a structural red". Both read as descriptions, not as the deleted mechanism.
+
+Run 2 (the seven fixes): 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/runner/commit-not-refused-for-a-red.ci` | yes | `git show --stat 8bbde623e1` lists it (+17); runner ran it |
+| `internal/le/commit/clearing_test.go`, `verification_interrupted_test.go`, `test/runner/verify-scope-wiring-attribution.ci` | removed | deleted in 8bbde623e1 (-116, -157, -14) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3, AC-6, AC-7 | create succeeds over any index red | `go test -race -count=1 ./internal/le/commit/`: `ok 43.048s` (closure run) |
+| AC-4 | retired refusal names body | live `le --name session commit create ... structural-red-ok "x"`: exit 2, `use body "<each red you know of and its cause>"` |
+| AC-5 | help holds neither keyword | `le --name session commit create --help`: 0 matches |
+| AC-8 | nothing else names the gate | grep answers only the `createParameters` Retired rows, `TestTheRetiredRedAdmissionsNameTheBody`, `TestCommitCreateHelpRendersEveryLiveKeyword`, `TestCreateIsNotRefusedForARedInTheIndex`, `commitNotRefusedForARedDriver`, and history sentences in `committing.md`, `tracked-build-gate.md` and `verify-freshness-scope.md` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le commit create ... file mine.go` over three indexes | `test/runner/commit-not-refused-for-a-red.ci` | read: driver writes each index, runs the real binary with no admission, prints each marker on exit 0; PASS |
+| `le commit create ... structural-red-ok` / `broken-head-fix` | same | driver asserts non-zero exit, quoted keyword and `use body`; PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | grep for `StructuralRedOK`, `BrokenHeadFix`, `structuralStages`, `verifyengine.Structural` over `internal cmd test`: none; package builds green |
+| A-2 | confirmed | `go test -race ./internal/le/verify/engine/`: ok 173.5s (carry and interrupted tests kept) |
+| A-3 | confirmed | `TestTheRetiredRedAdmissionsNameTheBody` green; live refusal names the keyword |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI reference: `committing.md` admissions | `actions.go` `createParameters`, `redsInTheBody` | yes |
+| Test infrastructure: `verify-freshness-scope.md`, `running-commands.md`, `tracked-build-gate.md` | `engine/artifacts.go` `writeFailureIndex`, `carryForward`; `reds.go` `readReds`, `verdictOf`, `attributionOf` | yes; `./le doc check verify` exit 0 |
+| Source anchors on changed files | the only dangling one (`stages.go -- Structural`) repointed | yes |

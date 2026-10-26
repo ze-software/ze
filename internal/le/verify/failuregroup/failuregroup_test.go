@@ -37,8 +37,8 @@ func TestBothToolchainDiagnosticShapesAreRead(t *testing.T) {
 }
 
 // TestProseThatNamesNoFileYieldsNothing stops the scanner inventing an
-// attribution from a failure it cannot place, which would charge a red to a
-// commit that did not cause it.
+// attribution from a failure it cannot place, which would name a red for a
+// path that did not cause it.
 func TestProseThatNamesNoFileYieldsNothing(t *testing.T) {
 	for name, text := range map[string]string{
 		"a config error": "level=error cannot load config: no such file\n",
@@ -172,7 +172,7 @@ func TestAPackageNameIsNotReadOffATestName(t *testing.T) {
 
 // TestAnUnknownModulePathAttributesNothing keeps the unattributed answer
 // honest. Guessing a directory from an import path this checkout does not own
-// would charge a red to a file the stage never ran.
+// would name a red for a file the stage never ran.
 func TestAnUnknownModulePathAttributesNothing(t *testing.T) {
 	text := "FAIL\tgithub.com/ze-software/ze/internal/le/site\t1.000s\n"
 	if got := Packages(text, ""); got != nil {

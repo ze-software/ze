@@ -477,7 +477,8 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// The failure index follows the certificate to the checkout, and follows
 	// the log save, because a red run's index is rewritten to name the saved
 	// copy of the logs rather than the worktree that is about to be removed.
-	// Commit preparation charges structural reds from this file, so a run
+	// The checkout's next verify run carries forward from this file the
+	// verdict of every stage it does not hold (writeFailureIndex), so a run
 	// that cannot publish it is defeated like one that cannot publish its
 	// certificate.
 	switch publishErr := verifyengine.PublishFailureIndex(path, root, relativeLogs(root, report.Logs)); {

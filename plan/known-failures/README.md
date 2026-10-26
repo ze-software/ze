@@ -29,9 +29,9 @@ Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commit
 structural gates (`./le go lint run`, `./le repo changed scope`, `./le arch tier check`, `ze-evidence-vet`,
 `./le plugin boundary check`, `ze-iface-resolution-check`, `./le repo generated-check`,
 `./le doc wiring`) are NEVER logged here -- a red means the tree is
-structurally broken; fix it at the source. the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`) enforces
-this by refusing `--unverified` while a structural gate is red (see
-`ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
+structurally broken; fix it at the source. No commit gate enforces this: a red
+prevents a release, never a commit (`ai/META-DECISIONS.md`, "Ze is
+pre-release"), so name the red in the commit body until its fix lands.
 
 **Host load is a mechanism, so it does not belong here either**
 (`ai/rules/completion.md`, owner directive 2026-07-26). Once you can say
