@@ -131,3 +131,37 @@ func TestSuccessorPanicsOnAChainThatNeverSettles(t *testing.T) {
 	got := growing.successor(growing.rows[0], []string{"a"})
 	t.Errorf("a growing map answered %q instead of panicking", got)
 }
+
+// VALIDATES: a real row whose successor re-opens its own old words, typed with
+// many more of them than the hop bound, is followed to its end: every hop
+// shortens the line by one word, so the chain is as long as the caller made
+// it. `test harness` then 100 `harness` answers `test`, `rollback newest` then
+// 100 `newest` answers `rollback`, and `spec claim spec` then 100 `spec`
+// answers `spec claim`.
+// PREVENTS: a fixed hop bound reached by a line the user typed, which panicked
+// the le with a BUG that blames the declaration for the caller's input.
+func TestSuccessorFollowsAShorteningChainLongerThanTheBound(t *testing.T) {
+	cases := []struct {
+		typed  []string
+		repeat string
+		want   []string
+	}{
+		{typed: []string{"test", "harness"}, repeat: "harness", want: []string{"test"}},
+		{typed: []string{"rollback", "newest"}, repeat: "newest", want: []string{"rollback"}},
+		{typed: []string{"spec", "claim", "spec"}, repeat: "spec", want: []string{"spec", "claim"}},
+	}
+	for _, tc := range cases {
+		line := slices.Clone(tc.typed)
+		for range 100 {
+			line = append(line, tc.repeat)
+		}
+		row, ok := Match(line)
+		if !ok {
+			t.Fatalf("`le %s ...` names no row of the real map", strings.Join(tc.typed, " "))
+		}
+		if got := row.Successor(line); !slices.Equal(got, tc.want) {
+			t.Errorf("the successor of `le %s` then 100 `%s` is %q, want %q",
+				strings.Join(tc.typed, " "), tc.repeat, got, tc.want)
+		}
+	}
+}

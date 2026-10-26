@@ -362,24 +362,33 @@ func (r Rename) Successor(words []string) []string {
 	return table.successor(r, words)
 }
 
-// successorHopsMax bounds the hops successor follows after a row's own. The
-// row count is no bound: a chain may reuse a row while the caller's trailing
-// words grow (a->b, b->a q, then b q q->z takes six hops over three rows), so
-// a chain that ends can be longer than the map. The declared map's chains are
-// a few hops long, and TestSuccessorIsNeverARetiredLine walks every row of it
-// with tails derived from the map, so a declaration whose chain outgrew this
-// bound panics in that test before it reaches a session's le.
+// successorHopsMax bounds the hops successor follows that do not shorten the
+// line. A hop that shortens it needs no bound of its own: the line keeps at
+// least one word, so shortening hops run out once they have removed every word
+// the caller typed and every word the counted hops added, and a caller may type
+// as many as they like (`test harness harness ...` shortens one word a hop).
+// The row count is no bound on the counted hops either: a chain may reuse a
+// row while the caller's trailing words grow (a->b, b->a q, then b q q->z takes
+// six hops over three rows), so a chain that ends can be longer than the map.
+// The declared map's chains hold a few such hops, and
+// TestSuccessorIsNeverARetiredLine walks every row of it with tails derived
+// from the map, so a declaration whose chain outgrew this bound panics in that
+// test before it reaches a session's le.
 const successorHopsMax = 64
 
 // successor is Successor over this table.
 func (t renameTable) successor(r Rename, words []string) []string {
 	line := append(r.New(), words[len(r.Old()):]...)
-	// Each hop applies one row of the map. A line met twice is a cycle, and a
-	// line that never repeats yet stays retired past successorHopsMax grows
-	// without end (a row whose new words re-open its own old ones). Only a Ze
-	// defect in the declaration above makes either, so both are BUG panics.
-	seen := make([][]string, 0, successorHopsMax)
-	for range successorHopsMax {
+	// Each hop applies one row of the map, and every line is checked for a
+	// repeat before the bound, so a cycle met late still panics as a cycle. A
+	// line met twice is a cycle; a line that never repeats yet keeps or grows
+	// its length for successorHopsMax hops grows without end (a row whose new
+	// words re-open its own old ones). What a caller types decides only how
+	// many shortening hops there are, which the bound does not count, so only
+	// a Ze defect in the declaration above reaches either BUG panic.
+	var seen [][]string
+	kept := 0
+	for {
 		next, retired := t.match(line)
 		if !retired {
 			return line
@@ -389,14 +398,17 @@ func (t renameTable) successor(r Rename, words []string) []string {
 				panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
 			}
 		}
+		if kept == successorHopsMax {
+			panic("BUG: leretired: the rename of `" + strings.Join(words, " ") + "` did not settle within " +
+				strconv.Itoa(successorHopsMax) + " hops, at `" + strings.Join(line, " ") + "`")
+		}
 		seen = append(seen, line)
-		line = append(next.New(), line[len(next.Old()):]...)
+		after := append(next.New(), line[len(next.Old()):]...)
+		if len(after) >= len(line) {
+			kept++
+		}
+		line = after
 	}
-	if _, retired := t.match(line); !retired {
-		return line
-	}
-	panic("BUG: leretired: the rename of `" + strings.Join(words, " ") + "` did not settle within " +
-		strconv.Itoa(successorHopsMax) + " hops, at `" + strings.Join(line, " ") + "`")
 }
 
 // RetiredKind says what sort of name a Retirement retires. The zero value is

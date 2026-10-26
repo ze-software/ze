@@ -321,3 +321,23 @@ func TestSpecIsANamespace(t *testing.T) {
 		t.Errorf("`le spec nope` was not refused as a namespace member:\n%s", stderr)
 	}
 }
+
+// VALIDATES: a retired spelling whose successor re-opens its own old words,
+// typed with a hundred more of them, is refused through Dispatch like any
+// other: exit 2 and one line naming `le test`, the line every hop leads to.
+// PREVENTS: the successor walk's hop bound reached by what a user typed, which
+// panicked `le test harness harness ...` with a BUG instead of refusing it.
+func TestRetiredSpellingTypedPastTheHopBoundIsRefused(t *testing.T) {
+	line := []string{"test", "harness"}
+	for range 100 {
+		line = append(line, "harness")
+	}
+	code := 0
+	_, stderr := streams(t, func() { code = leroot.Dispatch("le", line) })
+	if code != 2 {
+		t.Errorf("`le test harness` then 100 `harness` answered %d, want 2", code)
+	}
+	if want := "error: le test harness was renamed: run le test\n"; stderr != want {
+		t.Errorf("stderr is\n%q\nwant\n%q", stderr, want)
+	}
+}
