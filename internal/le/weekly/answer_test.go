@@ -266,7 +266,7 @@ const testPostsDir = "/default/dir"
 // parseOptions reads the operator's words through the table and turns them
 // into the options, as answerUpdate does, and publishes nothing.
 func parseOptions(args []string) (Options, error) {
-	parsed, err := actions.Parse(updateVerb, args)
+	parsed, err := actions.Parse(publishVerb, args)
 	if err != nil {
 		return Options{}, err
 	}

@@ -329,7 +329,7 @@ type runPlan struct {
 
 // planRun answers the run list for the checkout at root, and runs nothing.
 //
-// `le test functional select` prints this plan and runGating executes it, so the
+// `le test functional preview` prints this plan and runGating executes it, so the
 // answer an operator reads is the run's own decision rather than a second
 // derivation of it.
 func planRun(root string) (runPlan, error) {

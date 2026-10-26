@@ -151,7 +151,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	if listing.stderr != "" {
 		return fmt.Errorf("FAIL: `le web vendor` wrote stderr: %q", listing.stderr)
 	}
-	for _, wanted := range []string{actionCheck, "sync", "update-report", wordWrites, fieldChecks} {
+	for _, wanted := range []string{actionCheck, "update", "report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, wanted) {
 			return fmt.Errorf("FAIL: the listing does not name %q:\n%s", wanted, listing.stdout)
 		}
@@ -198,19 +198,19 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	synced := make([]leVendorWebResult, 0, len(trees))
 	for _, tree := range trees {
-		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{envRepoRoot: tree}), binary, "web", "vendor", "sync")
+		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{envRepoRoot: tree}), binary, "web", "vendor", "update")
 		if err != nil {
 			return err
 		}
 		if result.code != 0 {
-			return fmt.Errorf("FAIL: `le web vendor sync` for %s exited %d\nstdout:\n%sstderr:\n%s", tree, result.code, result.stdout, result.stderr)
+			return fmt.Errorf("FAIL: `le web vendor update` for %s exited %d\nstdout:\n%sstderr:\n%s", tree, result.code, result.stdout, result.stderr)
 		}
 		if result.stderr != "" {
-			return fmt.Errorf("FAIL: `le web vendor sync` for %s wrote stderr: %q", tree, result.stderr)
+			return fmt.Errorf("FAIL: `le web vendor update` for %s wrote stderr: %q", tree, result.stderr)
 		}
 		wantOutput := "synced: <root>/" + leVendorWebCorrupted + "\n"
 		if got := leVendorWebNormalize(result.stdout, tree); got != wantOutput {
-			return fmt.Errorf("FAIL: `le web vendor sync` output differs\ngot:  %q\nwant: %q", got, wantOutput)
+			return fmt.Errorf("FAIL: `le web vendor update` output differs\ngot:  %q\nwant: %q", got, wantOutput)
 		}
 		synced = append(synced, result)
 	}

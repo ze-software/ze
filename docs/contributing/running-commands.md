@@ -420,7 +420,7 @@ gap: they re-run the same non-equivalent launch.
 
 | Want | Use |
 |------|-----|
-| A whole suite | `./le test functional plugin` (`./le test functional list` names every suite, and `./le test functional select` says which ones a gating run would start) |
+| A whole suite | `./le test functional plugin` (`./le test functional list` names every suite, and `./le test functional preview` says which ones a gating run would start) |
 | One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le test functional <suite>` |
 | A kernel-dependent suite in the VM | `./le test qemu netns-test suites <comma-separated-suites>` |
 
@@ -433,10 +433,10 @@ functional suite checks the host first, before it builds or runs anything:
 
 | Command | When it checks |
 |---------|----------------|
-| `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp-test` | Always |
+| `./le test functional gating`, `./le test functional <suite>`, `./le test functional exabgp` | Always |
 | `./le verify worktree`, `./le verify current` (Thomas's release check) | When the population holds a functional stage |
 | `./le verify worktree all of <m>` (Thomas's release check) | When a piece the sweep will run holds a functional stage, for every such piece before the first starts |
-| `./le feature record-run feature <id>`, `./le feature record-run due <days>`, `./le site build refresh` | When a feature's real-path tests hold a `.ci` that runs on this host, before its first test runs. A Go test, an editor test and a `.ci` whose home is the QEMU guest bind none of the addresses. Each due or stale feature is judged on its own, so every one is refused and none runs |
+| `./le feature run feature <id>`, `./le feature run due <days>`, `./le site build refresh` | When a feature's real-path tests hold a `.ci` that runs on this host, before its first test runs. A Go test, an editor test and a `.ci` whose home is the QEMU guest bind none of the addresses. Each due or stale feature is judged on its own, so every one is refused and none runs |
 | `./le rfc record` | When the tagged unit's carrier is a functional `.ci`, before the break is built. An escape (`route no-break`) runs nothing and is not checked, and neither is `./le rfc discriminate`, which only reads records |
 
 A missing address refuses the run with a non-zero exit. The refusal names each

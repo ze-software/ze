@@ -588,7 +588,7 @@ The scanner includes command tests under `cmd/`, including tests of daemon liste
 |---------|------|-------------|------|
 | `*_test.go` outside `internal/le/` | `unit` | `./le test unit all` | `verify`, on every push |
 | `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le test functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
-| `test/exabgp-compat/*.ci` | `functional` | `./le test functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
+| `test/exabgp-compat/*.ci` | `functional` | `./le test functional exabgp` | `verify`, through the full verifier's separate ExaBGP stage |
 | `test/editor/*.et` | `editor` | `./le test functional editor` | `verify`, on the same earned-per-suite basis |
 | `internal/le/interoplab/bgp/*.go` | `interop` | `./le test integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
 | `internal/le/interoplab/ipsec/*.go` | `interop` | `./le test integration interop-ipsec` | same derivation |

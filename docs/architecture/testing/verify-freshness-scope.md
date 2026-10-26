@@ -150,7 +150,7 @@ The touched-package test is deliberately per-package rather than per-tree. The s
 
 ### Reading the run list before the run
 
-`le test functional select` prints the run list a gating run would start for this checkout, and runs nothing. It is what an operator reads when a run started fewer suites than they expected, and it is the run's own decision rather than a second derivation of one: `planRun` (`internal/le/test/functional/suitemap.go`) produces the plan, `le test functional select` prints it, and `runGating` executes it.
+`le test functional preview` prints the run list a gating run would start for this checkout, and runs nothing. It is what an operator reads when a run started fewer suites than they expected, and it is the run's own decision rather than a second derivation of one: `planRun` (`internal/le/test/functional/suitemap.go`) produces the plan, `le test functional preview` prints it, and `runGating` executes it.
 
 The answer places every gating suite in exactly one of three states, so a suite cannot go missing unnoticed.
 

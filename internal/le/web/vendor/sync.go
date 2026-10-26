@@ -5,7 +5,7 @@
 // //go:embed cannot reach outside its own package. check.go is the read-only
 // twin that gates the result.
 //
-// `./le web vendor sync` is the sole first-party producer for consumer copies.
+// `./le web vendor update` is the sole first-party producer for consumer copies.
 // Check and sync therefore share this implementation and cannot drift across
 // separate helpers.
 //

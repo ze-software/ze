@@ -40,7 +40,7 @@ const (
 
 // SourceBumpCommand is the command that moves a pin to upstream's latest
 // commit; the refusal of a stale pin prints it with the Dockerfile path.
-const SourceBumpCommand = "./le lab pin bump dockerfile "
+const SourceBumpCommand = "./le lab pin update dockerfile "
 
 // sourceGitTimeout bounds one git command against a local checkout. A fetch
 // over a slow link is the longest of them.

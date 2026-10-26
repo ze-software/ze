@@ -35,7 +35,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "check", Summary: "compare every lab peer pin with upstream", Why: "list every lab peer pin the tree holds (image tags, go install versions, git tags, source commits)" +
 		" and compare each with upstream's latest stable release, over the network; a report, never a commit gate",
 		Answer: runCheck},
-	leaction.Action{Verb: "bump", Writes: true,
+	leaction.Action{Verb: "update", Writes: true,
 		Summary: "move a source-built peer to upstream's latest commit",
 		Why: "move a source-built peer's ZE_SOURCE_COMMIT and ZE_SOURCE_DATE to upstream's latest default-branch commit;" +
 			" the next image build proves the source still builds and any Ze patch still applies",

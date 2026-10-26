@@ -201,7 +201,7 @@ Run a full suite:
 ./le test functional encode
 ./le test functional plugin
 ./le test functional gating
-./le test functional exabgp-test
+./le test functional exabgp
 ```
 
 ### Mutation tests (gomu)

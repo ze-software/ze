@@ -9,7 +9,7 @@
 // `refresh` (StaleSupported, RefreshStale). No workflow can write a record back
 // to the repository (.github/workflows/evidence-nightly.yml holds
 // `contents: read` and commits nothing), so the refresh runs on a maintainer's
-// machine, through the site build or `record-run due <days>`.
+// machine, through the site build or `feature run due <days>`.
 
 package feature
 
@@ -19,14 +19,14 @@ import (
 	"time"
 )
 
-// DueRun is one feature `record-run due` re-recorded, or tried to.
+// DueRun is one feature `feature run due` re-recorded, or tried to.
 type DueRun struct {
 	Feature string `json:"feature"`
 	// OldestRun is the date of the feature's oldest recorded run, the one that
 	// made it due.
 	OldestRun string `json:"oldest-run"`
 	Recorded  bool   `json:"recorded"`
-	// Refusal is why record-run wrote nothing; empty when Recorded.
+	// Refusal is why feature run wrote nothing; empty when Recorded.
 	Refusal string `json:"refusal,omitempty"`
 }
 
@@ -54,10 +54,10 @@ func RecordDue(tree string, days int) ([]DueRun, bool, error) {
 // due feature still runs: one failing test does not leave the others to age.
 func recordDue(tree string, days int, today time.Time, record func(id string) error) ([]DueRun, error) {
 	if days < 0 {
-		return nil, errors.New("record-run due " + strconv.Itoa(days) + ": a day count is never negative")
+		return nil, errors.New("feature run due " + strconv.Itoa(days) + ": a day count is never negative")
 	}
 	if days > runAgeDaysMax {
-		return nil, errors.New("record-run due " + strconv.Itoa(days) + ": a run older than " +
+		return nil, errors.New("feature run due " + strconv.Itoa(days) + ": a run older than " +
 			strconv.Itoa(runAgeDaysMax) + " days is already stale, so a bound above " +
 			strconv.Itoa(runAgeDaysMax) + " would skip it")
 	}

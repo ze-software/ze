@@ -126,4 +126,4 @@ Sysctl is not here: it is
 | `./le cli ownership`, `./le cli dispatch check` | One owner per command, and every command string the tree sends still routes |
 | `./le doc yang-contract command-contract` | Every YANG command node has a handler, and every handler a node |
 | `./le repo feature-tags check` | The files derived from `feature-gates.txt` are current |
-| `./le test functional dhcp`, `static`, `firewall`, `exabgp-test` | The functional suites for this area. `exabgp-test` runs every ExaBGP compatibility case |
+| `./le test functional dhcp`, `static`, `firewall`, `exabgp` | The functional suites for this area. `exabgp` runs every ExaBGP compatibility case |

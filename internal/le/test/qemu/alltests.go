@@ -225,7 +225,7 @@ var vmSuites = []vmSuite{
 		Why: "the teardown test reads the whole XFRM state and policy table, which is one table" +
 			" for the VM; several tests here also share one local address and one IKE port",
 	},
-	{Name: "install", Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "installer", Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "ldp", Args: []string{"ldp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "rsvpte", Args: []string{"rsvpte", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
@@ -452,7 +452,7 @@ type allTestsRun struct {
 	LinuxOnly bool
 	// Test narrows the run to one .ci, named by its repository path: the VM
 	// suite that walks its directory runs it alone, and no other suite or
-	// phase runs. `le feature record-run` reaches a capability-gated test this
+	// phase runs. `le feature run` reaches a capability-gated test this
 	// way, because outside the guest the runner skips it.
 	Test string
 	// Parallel is the concurrency a scaled suite takes, and Timeout the

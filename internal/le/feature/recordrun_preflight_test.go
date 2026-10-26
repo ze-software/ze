@@ -1,5 +1,5 @@
-// VALIDATES: record-run refuses on a host that cannot run its .ci, before any item runs.
-// PREVENTS: a record-run that builds and runs every Go test before the first .ci fails on a missing loopback address.
+// VALIDATES: feature run refuses on a host that cannot run its .ci, before any item runs.
+// PREVENTS: a feature run that builds and runs every Go test before the first .ci fails on a missing loopback address.
 
 package feature
 

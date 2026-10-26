@@ -116,7 +116,7 @@ work against the device that runs the previous image.
 
 | Command | Judges |
 |---------|--------|
-| `./le test functional appliance`, `./le test functional install` | The appliance CLI (build, iso, list, serial login) and the installer `.ci` files |
+| `./le test functional appliance`, `./le test functional installer` | The appliance CLI (build, iso, list, serial login) and the installer `.ci` files |
 | `./le test unit installer` | The initrd logic behind the `ze_installer` tag |
 | `./le test qemu install-test`, `./le test qemu install-iso-test`, `./le test qemu install-scenarios-test` | A real install in a VM, the ISO, panic recovery and NIC pinning |
 | `./le test qemu all-tests` | The whole functional population inside the QEMU Linux VM |

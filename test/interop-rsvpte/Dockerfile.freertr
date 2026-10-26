@@ -3,7 +3,7 @@
 # freeRouter publishes no stable release, so the build follows a pinned master
 # commit (ai/META-DECISIONS.md). Docker.Build refuses this file once the commit
 # is more than one month old (internal/le/interoplab/sourcepin.go), and
-# `./le lab pin bump dockerfile test/interop-rsvpte/Dockerfile.freertr` moves
+# `./le lab pin update dockerfile test/interop-rsvpte/Dockerfile.freertr` moves
 # ZE_SOURCE_COMMIT and ZE_SOURCE_DATE to upstream's latest master commit; the
 # build then proves freertr/ze-interop-resv.patch still applies.
 #

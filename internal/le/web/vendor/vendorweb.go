@@ -3,11 +3,11 @@
 // Package webvendor is the two halves of one contract. third_party/web/ is the
 // source of truth for every vendored web asset, and each consumer package keeps
 // its own copy because //go:embed cannot reach outside its own package. The
-// sync writes those copies; the check gates them.
+// update writes those copies; the check gates them.
 //
 // Three commands come out of it, one per gate the Python le declares:
-// vendor-web-sync writes, vendor-web-check compares, and
-// vendor-web-update-report asks the npm registry what is newer. register.go
+// update writes, check compares, and report asks the npm registry what is
+// newer. register.go
 // wires all three.
 //
 // This file holds what the comparison reads: which directories under

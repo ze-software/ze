@@ -403,7 +403,7 @@ disagree, the manifest is right and the row is stale.
 | `./le verify` | `internal/le/verify.Answer` | the full pre-commit gate against a fixed commit in a detached worktree |
 | `./le web assets` | `internal/le/web/assets.Answer` | the per-page web asset sets derived from the markup each page renders: check them, write them, or print them |
 | `./le web htmx` | `internal/le/web/htmx.Answer` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |
-| `./le web vendor` | `internal/le/web/vendor.Answer` | the vendored web assets: check every consumer copy against third_party/web/, sync them, or ask npm what is newer |
+| `./le web vendor` | `internal/le/web/vendor.Answer` | the vendored web assets: check every consumer copy against third_party/web/, update them from it, or ask npm what is newer |
 | `./le weekly` | `internal/le/weekly.Answer` | publish the weekly update to Discord; the bare command shows what would be sent |
 | `./le worktree` | `internal/le/worktree.Answer` | bring a linked git worktree up to date with main, stashing and restoring its uncommitted work |
 | `./le yang glue` | `internal/le/yang/glue.Answer` | the generated YANG glue: check that every embed.go and register.go agrees with the .yang files beside it, or write them |
@@ -602,7 +602,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | payload-predicate waits, sleep elimination, ci-sleep ratchet, ci-sleep justification, engine-step predicates (`matches=`, `absent=`, `json=`) | `docs/functional-tests.md` ("Payload-predicate waits"), `docs/architecture/testing/ci-format.md` ("Engine Steps"), `ai/rules/testing.md`, `internal/test/runner/engine_steps.go` |
 | poll loop, wait loop, waiting for a background command, watcher, waiting for QEMU boot | `ai/rules/commands.md`, `ai/rules/repo-maintenance.md` (poll-loop), `internal/le/hookruntime/bash.go` |
 | netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `features/netdata-compatible-os-telemetry.md`, `ai/digests/observation-telemetry.md` |
-| feature maturity, feature status, declare a feature, supported, experimental, partial, feature level, site feature card | `docs/contributing/feature-maturity.md`, `features/<id>.md`, `./le feature check`, `./le feature report`, `./le feature record-run` |
+| feature maturity, feature status, declare a feature, supported, experimental, partial, feature level, site feature card | `docs/contributing/feature-maturity.md`, `features/<id>.md`, `./le feature check`, `./le feature report`, `./le feature run` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |
 | AS112, anycast DNS, EMPTY.AS112.ARPA, reverse DNS sink, RFC 7534, RFC 7535 | `internal/plugins/as112/` (plugin), `internal/core/dnsserver/` (shared DNS harness), `internal/component/iface/address_owner.go` (address-ownership registry), `ze-as112-conf.yang`, `docs/guide/as112.md` |

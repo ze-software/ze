@@ -890,7 +890,7 @@ expect=exit:code=0
 | Decoding | `test/decode/` | `le test bgp decode` |
 | Config parsing | `test/parse/` | `le test bgp parse` |
 | Plugin behavior | `test/plugin/` | `le test bgp plugin` |
-| ExaBGP compat | `test/exabgp/` | `./le test functional exabgp-test` |
+| ExaBGP compat | `test/exabgp/` | `./le test functional exabgp` |
 | Integration | `test/integration/` | `./le test functional gating` |
 | Unit tests | `internal/**/*_test.go` | `./le test unit bgp` and the other native groups |
 | Fuzz tests | Various | `./le test fuzz run` |
@@ -905,7 +905,7 @@ expect=exit:code=0
 | `./le test functional gating` | All release-gate `.ci` suites |
 | `./le go lint run` | golangci-lint over every Go build flavor |
 | `./le test fuzz run` | Every discovered Go fuzz target |
-| `./le test functional exabgp-test` | ExaBGP compatibility suite |
+| `./le test functional exabgp` | ExaBGP compatibility suite |
 | `./le chaos selftest unit` | Chaos simulator unit tests |
 
 Full verification runs `./le verify deps vulnerability` before its unit stage.

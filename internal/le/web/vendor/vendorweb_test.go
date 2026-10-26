@@ -614,7 +614,7 @@ func TestSyncFailsClosedWhenNoVendoredAssetIsReadable(t *testing.T) {
 
 // VALIDATES: a destination the run cannot write is an error, because the run
 // was told to write it. It is not a warning it carries on past.
-// PREVENTS: `./le web vendor sync` exiting 0 after failing to write a file,
+// PREVENTS: `./le web vendor update` exiting 0 after failing to write a file,
 // which leaves the drift gate to report it one commit later.
 func TestSyncFailsWhenADestinationCannotBeWritten(t *testing.T) {
 	const blocked = "internal/component/web/assets/htmx.min.js"
@@ -690,7 +690,7 @@ func TestTheListingSaysWhichActionWrites(t *testing.T) {
 		}
 	}
 
-	want := map[string]bool{"check": false, "sync": true, "update-report": false}
+	want := map[string]bool{"check": false, "update": true, "report": false}
 	for verb, writes := range want {
 		got, held := writers[verb]
 		if !held {
@@ -703,7 +703,7 @@ func TestTheListingSaysWhichActionWrites(t *testing.T) {
 	}
 
 	text := list.Text()
-	if !strings.Contains(text, "sync") || !strings.Contains(text, "writes") {
+	if !strings.Contains(text, "update") || !strings.Contains(text, "writes") {
 		t.Errorf("the listing does not mark the writing action:\n%s", text)
 	}
 	for line := range strings.SplitSeq(text, "\n") {

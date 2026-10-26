@@ -77,7 +77,7 @@ type runItem func(item string) (observation, error)
 // finish.
 type runScenario func(item string) (interoplab.SuiteReport, error)
 
-// runners is what record-run runs items with: one runner per item kind, and
+// runners is what feature run runs items with: one runner per item kind, and
 // the host preflight that judges the real-path items before the first runs.
 type runners struct {
 	item      runItem
@@ -453,7 +453,7 @@ func (r *repoRunner) runInGuest(file string) (observation, error) {
 		return observation{}, errors.New("the QEMU guest route (`le test qemu run`): " + err.Error())
 	}
 	if !seen.exited {
-		seen.output = "record-run: " + file + " is skipped on this host (option=needs-linux), so it ran in " +
+		seen.output = "feature run: " + file + " is skipped on this host (option=needs-linux), so it ran in " +
 			"the QEMU guest through `le test qemu run`; that route failed, and a failure before the guest " +
 			"booted means the route is unavailable on this host\n" + seen.output
 	}

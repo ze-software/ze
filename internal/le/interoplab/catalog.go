@@ -7,7 +7,7 @@
 // same Discover call and checker map its runner uses, so the names a feature
 // cites are the names the runner runs and no second list exists. The catalog
 // also declares how to run ONE of those scenarios through the suite's own
-// runner, which is how `./le feature record-run` records an interop green run
+// runner, which is how `./le feature run` records an interop green run
 // without a second resolver. Last, it declares where the suite lives and how
 // the repository runs it: `./le rfc` maps an `RFC requirement:` tag on a
 // checker to its suite through Package and Action, and `./le rfc

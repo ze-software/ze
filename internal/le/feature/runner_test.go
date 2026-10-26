@@ -1,6 +1,6 @@
 // VALIDATES: a real-path test file counts exactly when a runner of the
 // repository runs it, answered by each runner's own declaration (A-7), and
-// record-run selects and observes it the way that runner does.
+// feature run selects and observes it the way that runner does.
 // PREVENTS: an .et, a `le test bgp` directory or a registered `le test <dir>`
 // suite being refused although it runs, or a file nothing runs being accepted.
 
@@ -81,7 +81,7 @@ func editorTree(t *testing.T) string {
 const editorItem = "test/editor/mode/widget.et"
 
 // TestCheckAcceptsAnEditorTest: an .et the editor runner walks is a real-path
-// test, and record-run records it from the editor runner's PASS line, which
+// test, and feature run records it from the editor runner's PASS line, which
 // names the file by its path.
 func TestCheckAcceptsAnEditorTest(t *testing.T) {
 	tree := editorTree(t)

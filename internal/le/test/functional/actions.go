@@ -36,18 +36,18 @@ const listVerb = "list"
 // from that same table (catalog.go).
 const gatingVerb = "gating"
 
-// selectVerb prints the run list a gating run would start for this checkout and
+// previewVerb prints the run list a gating run would start for this checkout and
 // runs nothing. An operator whose run started fewer suites than they expected
 // reads here which suites the suite map ruled out and why, and a run that
 // widened says which package it could not answer for.
-const selectVerb = "select"
+const previewVerb = "preview"
 
 // session is one invocation of the functional area. It holds the checkout and
 // the toolchain it derives at most once, and the isolated binary set it builds
 // at most once.
 //
 // Each is derived on first use rather than before dispatch, because three of
-// this area's actions need neither. `list` reads the suite table, and `select`
+// this area's actions need neither. `list` reads the suite table, and `preview`
 // reads the checkout and answers which suites a gating run would start. An
 // operator asking either question waits on no Go toolchain probe.
 type session struct {
@@ -139,19 +139,19 @@ func (s *session) release() {
 // refusal prints named the 32 suites and left these three out.
 //
 // Each names the whole area, so each is declared Alone: `gating` is 24 suites
-// and `list` and `select` are the catalog and the run list. A line naming one
+// and `list` and `preview` are the catalog and the run list. A line naming one
 // of them beside a suite is refused, which is what the area answered before
 // they were rows.
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
 		{Verb: listVerb, Summary: "list every functional suite and its budget", Why: "every suite and its budget", Alone: true, Answer: s.runList},
-		{Verb: gatingVerb, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
+		{Verb: gatingVerb, Does: "run", Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
 			Answer: s.runGating},
-		{Verb: selectVerb,
+		{Verb: previewVerb,
 			Summary: "list the suites a gating run would start",
 			Why:     "the suites a gating run would start for this checkout, and why the rest are absent",
 			Alone:   true,
-			Answer:  s.runSelect},
+			Answer:  s.runPreview},
 	}
 }
 
@@ -159,10 +159,10 @@ func areaActions(s *session) []leaction.Action {
 // toolchain to do it.
 func (s *session) runList() (any, int) { return Catalog(), 0 }
 
-// runSelect answers the run list a gating run would start for this checkout,
+// runPreview answers the run list a gating run would start for this checkout,
 // and runs nothing. An operator whose run started fewer suites than they
 // expected reads here which suites the suite map ruled out and why.
-func (s *session) runSelect() (any, int) {
+func (s *session) runPreview() (any, int) {
 	root, err := s.checkout()
 	if err != nil {
 		leaction.ReportError(err)
@@ -210,13 +210,15 @@ func table(s *session) leaction.Area {
 	for _, suite := range Suites {
 		rows = append(rows, leaction.Action{
 			Verb:    suite.Name,
+			Does:    "run",
 			Summary: suite.Summary,
 			Why:     suite.Why,
 			Answer:  s.suiteRunner(suite),
 		})
 	}
 	rows = append(rows, leaction.Action{
-		Verb:    "exabgp-test",
+		Verb:    "exabgp",
+		Does:    "run",
 		Summary: "run every ExaBGP compatibility case",
 		Why:     "build the isolated ze and le test subjects and run every ExaBGP compatibility case",
 		Answer:  s.runExaBGP,
@@ -291,7 +293,7 @@ func Subs() string {
 	for _, action := range areaActions(&session{}) {
 		tb.Str(action.Verb).Str(" (").Str(action.Why).Str(") | ")
 	}
-	return tb.Str("<suite>-test | exabgp-test").String()
+	return tb.Str("<suite> | exabgp").String()
 }
 
 // Answer is the `le test functional` command.

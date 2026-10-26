@@ -1,5 +1,5 @@
 // Design: docs/contributing/feature-maturity.md -- which real-path tests count, and who runs them
-// Related: recordrun.go -- record-run runs each item through the runner answered here
+// Related: recordrun.go -- feature run runs each item through the runner answered here
 // Related: check.go -- testItem refuses an item no runner runs
 //
 // A real-path test file counts only when a runner of the repository runs it,

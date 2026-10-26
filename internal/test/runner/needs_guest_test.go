@@ -10,7 +10,7 @@ import (
 // VALIDATES: NeedsGuest answers the runner's own skip decision for a
 // capability-gated .ci: true exactly when this host would skip it, false for a
 // test that declares no needs-linux gate.
-// PREVENTS: `le feature record-run` observing a host skip of a test whose home
+// PREVENTS: `le feature run` observing a host skip of a test whose home
 // is the QEMU guest, which records nothing and says nothing about why.
 func TestNeedsGuestAnswersTheRunnersOwnSkip(t *testing.T) {
 	dir := t.TempDir()

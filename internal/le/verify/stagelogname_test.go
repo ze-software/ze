@@ -43,7 +43,7 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"go staticcheck/check/part/1/of/6":        "go-staticcheck-check-part-1-of-6.log",
 		"verify deps/unit-cached":                 "verify-deps-unit-cached.log",
 		"doc wiring":                              "doc-wiring.log",
-		"doc check/all":                        "doc-check-all.log",
+		"doc check/all":                           "doc-check-all.log",
 		"repo compiles/check":                     "repo-compiles-check.log",
 		"repo/tree-check":                         "repo-tree-check.log",
 		"arch tier/check":                         "arch-tier-check.log",
@@ -58,7 +58,7 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"test sensitivity/check":                  "test-sensitivity-check.log",
 		"test health/check":                       "test-health-check.log",
 		"test functional/gating":                  "test-functional-gating.log",
-		"test functional/exabgp-test":             "test-functional-exabgp-test.log",
+		"test functional/exabgp":                  "test-functional-exabgp.log",
 	}
 
 	seen := 0

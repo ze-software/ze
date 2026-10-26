@@ -27,7 +27,7 @@ var migratedRefusalsBatchB = []migratedRefusal{
 	{"go extract", []string{"a.go"}, 2},                          // parser: 1 before
 	{"go extract", []string{"source", "a.go", "dest"}, 2},        // parser: 1 before
 	{"go extract", []string{"source", "a.go", "symbol", "X"}, 2}, // the Required dest is missing, refused at parse (D-P2-required): 1 before
-	{"weekly", []string{"publish"}, 2},                           // parser: 1 before
+	{"weekly", []string{"announce"}, 2},                          // parser: 1 before
 	{"weekly", []string{"resume-from", "-1"}, 2},                 // parser: 1 before
 	{"weekly", []string{"channel", "general"}, 2},                // a value outside the enum, refused at parse (D-Q8): 1 before
 	{"weekly", []string{"confirm", "force"}, 1},

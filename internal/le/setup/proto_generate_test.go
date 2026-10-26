@@ -12,7 +12,7 @@ import (
 func TestProtoGenerateActionIsRegisteredAsWriting(t *testing.T) {
 	found := 0
 	for _, action := range Actions().Actions {
-		if action.Verb != protoGenerateVerb {
+		if action.Verb != protoVerb {
 			continue
 		}
 		found++

@@ -14,9 +14,9 @@
 //	check            probe only, change nothing, and fail on a required tool
 //	tools            install as above and do not change vendor/
 //	claude-server    provision the pinned Ubuntu development server
-//	proto-generate   regenerate both protobuf Go files
+//	proto            regenerate both protobuf Go files
 //	proto-json-tags  apply explicit proto json_name options to generated Go
-//	web-test         initialize an isolated config and run the local web server
+//	web              initialize an isolated config and run the local web server
 //	appliance-modules  download every gokrazy instance's modules into gokrazy/modcache
 
 // THE BARE COMMAND LISTS THE ACTIONS AND RUNS NOTHING. `setup install` is the
@@ -42,9 +42,9 @@ const (
 	checkVerb         = "check"
 	toolsVerb         = "tools"
 	claudeServerVerb  = "claude-server"
-	protoGenerateVerb = "proto-generate"
+	protoVerb         = "proto"
 	protoJSONTagsVerb = "proto-json-tags"
-	webTestVerb       = "web-test"
+	webVerb           = "web"
 	modulesVerb       = "appliance-modules"
 )
 
@@ -68,6 +68,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    toolsVerb,
+		Does:    "install",
 		Writes:  true,
 		Summary: "install every dev tool, leaving vendor/ alone",
 		Why:     "install as `install` does, and leave vendor/ alone",
@@ -75,6 +76,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    claudeServerVerb,
+		Does:    "install",
 		Writes:  true,
 		Summary: "provision the Ubuntu Claude development server",
 		Why:     "provision the pinned Ubuntu Claude development server",
@@ -87,7 +89,8 @@ var actions = leaction.New(area,
 		AnswerArgs: runClaudeServer,
 	},
 	leaction.Action{
-		Verb:    protoGenerateVerb,
+		Verb:    protoVerb,
+		Does:    "update",
 		Writes:  true,
 		Summary: "regenerate the protobuf Go files",
 		Why:     "regenerate the checked-in protobuf Go files with pinned native plugins",
@@ -95,13 +98,15 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    protoJSONTagsVerb,
+		Does:    "update",
 		Writes:  true,
 		Summary: "apply proto json_name options to generated tags",
 		Why:     "apply explicit proto json_name options to generated Go tags",
 		Answer:  runProtoJSONTags,
 	},
 	leaction.Action{
-		Verb:    webTestVerb,
+		Verb:    webVerb,
+		Does:    "start",
 		Writes:  true,
 		Summary: "run the local web server on an isolated config",
 		Why:     "initialize an isolated config and run the local web server on port 3443",
@@ -109,6 +114,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    modulesVerb,
+		Does:    "install",
 		Writes:  true,
 		Summary: "download the gokrazy builddir modules",
 		Why:     "download every module each gokrazy/*/builddir needs into gokrazy/modcache, so an image build under GOPROXY=off finds it",

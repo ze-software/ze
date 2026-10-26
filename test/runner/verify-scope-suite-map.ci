@@ -1,4 +1,4 @@
-# One recorded suite map, and the run list `le test functional select` answers from it.
+# One recorded suite map, and the run list `le test functional preview` answers from it.
 #
 # The functional stage asks two questions before it builds anything: which
 # packages this change set reaches, and which packages each suite reached when

@@ -321,7 +321,7 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 // runGating runs every gating suite the operator and the suite map leave in,
 // in order, under its own budget.
 //
-// The run list is the plan `le test functional select` prints, so an operator who
+// The run list is the plan `le test functional preview` prints, so an operator who
 // asked which suites would run reads the decision this loop then takes
 // (planRun, suitemap.go).
 //

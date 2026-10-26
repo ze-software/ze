@@ -43,7 +43,7 @@ runs. `./le feature check` resolves a feature's Interop entry
 `<suite>/<scenario>` this way, and names the registered suites when it refuses
 one it does not know. The catalog also declares `RunScenario`, which runs ONE
 scenario through the lab's own `RunAt` with the name as its selector, winning
-over the lab's selector variable. `./le feature record-run` records an interop
+over the lab's selector variable. `./le feature run` records an interop
 green run through it, against the scenario directory's git tree id, so a
 feature's Supported claim needs a current green run of each scenario it counts
 (`docs/contributing/feature-maturity.md`, "Recorded runs").
@@ -2775,7 +2775,7 @@ also reads:
 
 - A pinned commit more than one calendar month old refuses the build. The
   refusal names the Dockerfile, the commit, its date and age, and the command
-  that moves it: `./le lab pin bump dockerfile <Dockerfile>`. Bump asks the
+  that moves it: `./le lab pin update dockerfile <Dockerfile>`. Bump asks the
   GitHub API for the newest commit of the default branch and rewrites
   `ZE_SOURCE_COMMIT` and `ZE_SOURCE_DATE`. The next image build is the proof
   that the new source still builds and that a Ze patch, such as
@@ -3025,7 +3025,7 @@ Coverage includes:
 ### Running
 
 ```bash
-./le test functional exabgp-test
+./le test functional exabgp
 ```
 
 ExaBGP compatibility is part of the offline precommit gate.
@@ -3038,7 +3038,7 @@ ExaBGP compatibility is part of the offline precommit gate.
 | Offline precommit gate | No | Yes | No |
 | Standard functional sweep | No | Yes | No |
 | `./le test integration interop` | Yes | No | Yes |
-| `./le test functional exabgp-test` | No | Yes | No |
+| `./le test functional exabgp` | No | Yes | No |
 
 Interop tests are intentionally separate from the pre-commit gate because they require
 Docker and take longer to run. ExaBGP wire compatibility tests run as part of the

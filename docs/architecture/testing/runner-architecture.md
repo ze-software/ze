@@ -133,7 +133,7 @@ signal root. A step bounded from `context.Background()` (a kernel check, an
 image build, a scenario) ignores the Ctrl-C and runs to its bound. The kernel
 checks of `./le verify evidence release-candidate`, `./le setup docker kernel`,
 the deployment proofs and the terminal demos, and the scenarios `./le feature
-record-run` drives, each run under that root, and so does the daemon
+run` drives, each run under that root, and so does the daemon
 cross-compile of the signal-rooted deployment proofs (`l2tp-test`, `vpp-test`,
 `vpp-iface-test`). `gokrazy-l2tp-ppp-test` runs its whole appliance path under
 the root: the host driver's compile, the runtime-kernel query, the child le

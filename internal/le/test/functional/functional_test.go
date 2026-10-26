@@ -728,7 +728,7 @@ func TestARunListVerbRefusesToRunBesideASuite(t *testing.T) {
 	for _, line := range [][]string{
 		{gatingVerb, "encode"},
 		{"encode", gatingVerb},
-		{listVerb, selectVerb},
+		{listVerb, previewVerb},
 	} {
 		payload, code := Answer(line)
 		if code != 2 {

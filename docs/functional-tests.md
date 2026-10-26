@@ -9,7 +9,7 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 ```bash
 # Quick start
 ./le test functional gating             # Run all release-gate suites
-./le test functional select             # Which suites a gating run would start, and why
+./le test functional preview             # Which suites a gating run would start, and why
 ./le test functional encode             # Encoding tests only
 ./le test functional plugin             # Plugin tests only
 ./le test functional reload             # Reload tests only
@@ -102,7 +102,7 @@ checkout. The full rule and the reason for each branch are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 <!-- source: internal/le/test/functional/suitemap.go -- suiteMap, selectSuites, suitesFor -->
 
-`./le test functional select` prints the run list a gating run would start for this
+`./le test functional preview` prints the run list a gating run would start for this
 checkout, and runs nothing. It names the suites that run, the suites the map
 ruled out, and the suites `ZE_SKIP_SUITES` left out, and it says which package
 it could not answer for when the run widened.
@@ -2161,7 +2161,7 @@ kernel, initrd, and ISO actions. The kernel builder is native Go in
 driver.
 
 ```bash
-./le test functional install
+./le test functional installer
 ./le test qemu install-test
 ./le test qemu install-iso-test
 ./le test qemu install-scenarios-test
@@ -3321,7 +3321,7 @@ Usage: `le mock dns --port 53`
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`./le test functional exabgp-test`) use OS-assigned
+ExaBGP compatibility tests (`./le test functional exabgp`) use OS-assigned
 dynamic ports. The compiled `le test interop-bgp exabgp-server` personality
 binds port 0 and prints `PORT <N>`. The Go runner passes that port to the
 migrated Ze client. Use `--server ID --port N` and `--client ID --port N` for
@@ -3438,7 +3438,7 @@ The compatibility runner is integrated into `le test`, so it uses the same
 summary format as the other functional suites. The public action is:
 
 ```bash
-./le test functional exabgp-test
+./le test functional exabgp
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
@@ -3520,7 +3520,7 @@ allowance does not cover it. A case carrying only one of the two lines is
 refused. The allowance describes how ze differs, so under `--dut exabgp` it is
 not read and the case is judged on its own run.
 
-The `exabgp-test` stage runs both populations once, under the last pin's
+The `exabgp` stage runs both populations once, under the last pin's
 environment, since their helpers import no ExaBGP. The mock is `le`
 itself, so a run after an edit to it names a session build,
 `./le --name <name> test exabgp old-4.2 --all`, or it runs the stale shared

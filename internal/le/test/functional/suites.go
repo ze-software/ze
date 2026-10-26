@@ -91,7 +91,7 @@ const (
 	suiteOspf      = "ospf"
 	suiteOspfv3    = "ospfv3"
 	suiteWeb       = "web"
-	suiteInstall   = "install"
+	suiteInstall   = "installer"
 	suiteAppliance = "appliance"
 	// gosec reads "l2tp-wire" as a credential because the name ends in a word
 	// its heuristic watches for. It is a suite name.

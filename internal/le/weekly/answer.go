@@ -49,8 +49,8 @@ const ArchiveDirRel = "website/changes/discord"
 // in the wrong public place.
 var channels = [...]string{"ze-news", "ze-test"}
 
-// updateVerb is the one action: publishing the weekly update.
-const updateVerb = "update"
+// publishVerb is the one action: publishing the weekly update.
+const publishVerb = "publish"
 
 // The keywords the update takes.
 const (
@@ -67,7 +67,7 @@ const (
 // actions is the whole command surface, declared once, so the listing, the
 // usage, the help pages and the parse read one grammar (internal/le/le/action).
 var actions = leaction.New("weekly", leaction.Action{
-	Verb:    updateVerb,
+	Verb:    publishVerb,
 	Summary: "publish the weekly update to Discord",
 	Why: "publish the weekly update to Discord; without confirm it answers what would be published" +
 		" and posts nothing",
@@ -111,7 +111,7 @@ func Answer(args []string) (any, int) {
 	if len(args) > 0 && actions.Holds(args[0]) {
 		return actions.Answer(args)
 	}
-	return actions.Answer(append([]string{updateVerb}, args...))
+	return actions.Answer(append([]string{publishVerb}, args...))
 }
 
 // answerUpdate publishes, or plans, the update one parsed line names.

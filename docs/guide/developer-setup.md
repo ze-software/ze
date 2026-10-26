@@ -291,7 +291,7 @@ Regenerate the checked-in protobuf Go files after you change
 `api/proto/ze.proto` or the module path:
 
 ```bash
-./le setup proto-generate
+./le setup proto
 ```
 
 The action builds both protoc plugins from the vendored module versions, runs

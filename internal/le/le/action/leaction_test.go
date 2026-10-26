@@ -491,8 +491,8 @@ func (u unterminatedAnswer) Text() string { return u.line }
 // area invoked with no pipe operator.
 //
 // It exists because a native action holds its cause in SweepRow.Answer and
-// streams nothing: `./le test functional exabgp-test` answered 127 with "Failed:
-// exabgp-test" and no reason, while the report named the child that could not
+// streams nothing: `./le test functional exabgp` answered 127 with "Failed:
+// exabgp" and no reason, while the report named the child that could not
 // start (plan/journal/failing-gate-prints-no-cause.md).
 func TestSweepTextNamesTheCauseAFailingReportHolds(t *testing.T) {
 	area := New("probe",

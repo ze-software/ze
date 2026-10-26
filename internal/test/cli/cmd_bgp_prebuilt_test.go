@@ -16,7 +16,7 @@ import (
 //
 // VALIDATES: `le test bgp chaos-web <test>` and `le test bgp chaos <test>` reach
 // the test under LE_TEST_NO_BUILD, which is how `le test functional` and
-// `le feature record-run` freeze a run against their isolated binary set. A
+// `le feature run` freeze a run against their isolated binary set. A
 // `.ci` `le` head runs the runner's own executable, so a chaos suite needs no
 // binary beyond the set's ze and le.
 // PREVENTS: the chaos suites asking the runner to build a second le that no

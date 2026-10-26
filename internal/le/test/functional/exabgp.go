@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	exaBGPAction          = "functional/exabgp-test"
+	exaBGPAction          = "functional/exabgp"
 	exaBGPTimeoutKey      = "ze.functional.exabgp.timeout"
 	exaBGPTimeoutAlias    = "ZE_EXABGP_TIMEOUT"
 	exaBGPTimeoutDefault  = "180"
@@ -91,7 +91,7 @@ var exaBGPPins = [...]exaBGPPin{
 //
 // Until 2026-09-05 this stage ran `encoding` and nothing else, and
 // zeTestExabgpMain refused every other name with "only predecessor encoding
-// tests are available". So `exabgp-test` was 42 config-to-wire cases and the
+// tests are available". So `exabgp-test` (now `exabgp`) was 42 config-to-wire cases and the
 // ExaBGP API line protocol had no gate at all, which is how 46 run scripts
 // came to sit in the tree with no runner.
 var exaBGPSuites = [...]string{"encoding", "api"}
@@ -175,7 +175,7 @@ type ExaBGPCleanup struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// exaBGPReport is the structured answer from `le test functional exabgp-test`.
+// exaBGPReport is the structured answer from `le test functional exabgp`.
 type exaBGPReport struct {
 	Action    string              `json:"action"`
 	Root      string              `json:"root"`

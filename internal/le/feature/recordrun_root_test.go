@@ -14,7 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// VALIDATES: a SIGINT while record-run drives an Interop scenario cancels the
+// VALIDATES: a SIGINT while feature run drives an Interop scenario cancels the
 // context the scenario runs under, and the run answers the interruption, not
 // a timeout and not a verdict.
 // METHOD: the test holds its own subscription to SIGINT, so a root that does

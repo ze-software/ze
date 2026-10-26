@@ -146,15 +146,15 @@ func leFunctionalAnswers(ctx context.Context) error {
 	// The gating set is DERIVED, never counted here. A literal beside a registry
 	// is the drift this repository records (ai/rules/principles.md): three suites
 	// earned their own names (bfd, dhcp, vrrp) and a hand-written 24 went red for
-	// the tree being right. `le test functional select` publishes the run list a
+	// the tree being right. `le test functional preview` publishes the run list a
 	// gating run would start, so the two surfaces are cross-checked against each
 	// other, which catches a name moving between them and not only a count.
-	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "select", "|", "json")
+	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "preview", "|", "json")
 	if err != nil {
 		return err
 	}
 	if plan.exitCode != 0 {
-		return uiLeFunctionalAnswersFailf("`le test functional select | json` exited %d", plan.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test functional preview | json` exited %d", plan.exitCode)
 	}
 	var selection struct {
 		Running  []string `json:"running"`
@@ -162,7 +162,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		Skipped  []string `json:"skipped"`
 	}
 	if err := json.Unmarshal([]byte(plan.stdout), &selection); err != nil {
-		return uiLeFunctionalAnswersFailf("`le test functional select | json` returned invalid JSON: %v", err)
+		return uiLeFunctionalAnswersFailf("`le test functional preview | json` returned invalid JSON: %v", err)
 	}
 	planned := slices.Concat(selection.Running, selection.RuledOut, selection.Skipped)
 	slices.Sort(planned)

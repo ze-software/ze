@@ -183,7 +183,7 @@ func (r *RenameReport) Text() string {
 		for _, row := range r.Regenerate {
 			fmt.Fprintf(&out, "  %s\n", row.Path)
 		}
-		out.Str("  ./le setup proto-generate\n")
+		out.Str("  ./le setup proto\n")
 	}
 	if len(r.Resealed) > 0 {
 		out.Str("re-sealed RFC audit verdicts:\n")

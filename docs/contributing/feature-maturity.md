@@ -117,7 +117,7 @@ against `stale: older than 30 days (recorded <date>)`. The age bound exists
 because the id covers the test file and nothing it reads: a run outlived a
 fixture change in f02d58da88, and keying the id on every package a test imports
 would stale most runs on every commit. Ages are counted in UTC calendar days,
-the day `record-run` dates a run with; a run dated after today refuses its
+the day `feature run` dates a run with; a run dated after today refuses its
 record, because it would never age out. Only passes are recorded.
 
 Both ids are computed over the working tree, so a run recorded before a commit
@@ -127,7 +127,7 @@ untracked but never ignored, each hashed as it is on disk; on a clean checkout
 it equals `git rev-parse HEAD:<dir>`. A record written before interop runs were
 recorded has no `interop` key and reads as no scenario run.
 
-`./le feature record-run feature <id>` is the writer. It runs each real-path
+`./le feature run feature <id>` is the writer. It runs each real-path
 item through the repository's own runner, `go test -run ^Name$ -v` for a Go test
 and the runner `runnerOf` answers for a `.ci` or `.et`, over an isolated binary
 set, and writes the record only when every item was observed passing. The exit
@@ -137,7 +137,7 @@ the repository path for an `.et`), because a `-run` pattern that matched
 nothing exits 0. A skip is never a pass. A `.ci` that declares
 `option=needs-linux`, with or without `caps=`, and that this host would skip
 (`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway QEMU
-guest instead: record-run cross-builds `ze` and `ze-stripped` for the guest
+guest instead: feature run cross-builds `ze` and `ze-stripped` for the guest
 under `tmp/qemu/feature-record-run/`, then runs `le test qemu run ... command
 '<guest le> test qemu all-tests test <path>'`, which runs that one test through
 the suite `all-tests` gives its directory, network-namespace preparation
@@ -145,7 +145,7 @@ included. The guest runner's own PASS line is still the observation. When the
 guest route cannot run here (no QEMU, no KVM access, no image), the refusal
 says the test skips on this host and quotes the route's own error. A
 `test/pppoe/` test declares `option=netns-link` and skips outside `./le test
-qemu pppoe-test`, which record-run does not drive, so it observes a skip and
+qemu pppoe-test`, which feature run does not drive, so it observes a skip and
 records nothing. The chaos-web suite runs under the isolated set like any other:
 its `le chaos run` step is the set's own `le`. A failure, a missing PASS line,
 or a test file that changed during the run writes nothing.
@@ -160,7 +160,7 @@ code 0. A failed scenario, a report of another scenario or of none, a run that
 outlasts its two-hour deadline, or a scenario directory that changed during the
 run writes nothing.
 
-`./le feature record-run due <days>` re-records, one feature at a time, every
+`./le feature run due <days>` re-records, one feature at a time, every
 feature holding a recorded run older than `<days>` days, and reports each with
 its oldest run's date and whether it recorded; one refused feature does not
 stop the others, and any refusal exits 1. `<days>` is at most 30, since a bound
@@ -171,10 +171,10 @@ not due, because a first record is a decision, not a refresh.
 `stale-supported` in its report, every feature `HEAD` holds at Supported that
 carries a stale run, one line per run, and says how to re-record them.
 `./le site build refresh` re-records each of those features through
-`record-run` first, reports under `refreshed` which ones recorded, and warns
+`feature run` first, reports under `refreshed` which ones recorded, and warns
 only for what is still stale. The refresh is a keyword and never a prompt,
 because the build runs in scripts and agents; it is never the default, because
-`record-run` runs real tests, some of which need Docker or a QEMU guest. A
+`feature run` runs real tests, some of which need Docker or a QEMU guest. A
 refresh that records nothing leaves the level standing and the warning in
 place. The records it writes are committed like any other. No workflow
 re-records: `.github/workflows/evidence-nightly.yml` holds `contents: read`

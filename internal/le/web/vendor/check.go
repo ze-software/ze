@@ -5,7 +5,7 @@
 //
 // The comparison needs NO network, which is what lets it gate a commit in an
 // airgapped checkout. The registry query is a separate ACTION over the same
-// code (`le web vendor update-report`), and it is the only part that reaches
+// code (`le web vendor report`), and it is the only part that reaches
 // out.
 
 package webvendor
@@ -183,8 +183,8 @@ func checkVersion(pkg, current string) PackageVersion {
 }
 
 // checkUpdates reports newer releases of the vendored packages. This is the one
-// part of this package that uses the network, and only the update-report
-// command runs it.
+// part of this package that uses the network, and only the report
+// action runs it.
 func checkUpdates(root string) (UpdateReport, error) {
 	manifestPath := filepath.Join(root, vendorDir, "MANIFEST.md")
 	manifestBytes, err := os.ReadFile(manifestPath) //nolint:gosec // the path is under the checkout lepath.Root resolved
@@ -303,13 +303,13 @@ func Check(root string, updates bool) (CheckReport, error) {
 	}
 
 	if len(report.Problems) > 0 {
-		return report, fmt.Errorf("%d consumer asset copy problem(s); run `./le web vendor sync` and commit the result", len(report.Problems))
+		return report, fmt.Errorf("%d consumer asset copy problem(s); run `./le web vendor update` and commit the result", len(report.Problems))
 	}
 
 	return report, nil
 }
 
-// runCheck is the `check` and `update-report` actions. updates adds the npm
+// runCheck is the `check` and `report` actions. updates adds the npm
 // registry query, which is the only part of either that uses the network.
 func runCheck(updates bool) (any, int) {
 	root, err := lepath.Root()

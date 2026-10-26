@@ -86,8 +86,8 @@ var portedProducers = []portedProducer{
 	{Target: "ze-feature-tags-check", Area: "repo feature-tags", Verb: "check"},
 	{Target: "ze-web-assets-check", Area: "web assets", Verb: "check"},
 	{Target: "ze-vendor-web-check", Area: "web vendor", Verb: "check"},
-	{Target: "ze-vendor-web-sync", Area: "web vendor", Verb: "sync"},
-	{Target: "ze-vendor-web-update-report", Area: "web vendor", Verb: "update-report"},
+	{Target: "ze-vendor-web-sync", Area: "web vendor", Verb: "update"},
+	{Target: "ze-vendor-web-update-report", Area: "web vendor", Verb: "report"},
 	{Target: "ze-htmx-upgrade-check", Area: "web htmx", Verb: "check"},
 	{Target: "ze-htmx-upgrade-report", Area: "web htmx", Verb: "report"},
 	{Target: "ze-arch-map-check", Area: "repo arch-map", Verb: "check"},
@@ -96,7 +96,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-ai-skills-sync", Area: "ai sync", Verb: "update"},
 	{Target: "ze-ai-sync-check", Area: "ai sync", Verb: "check"},
 	{Target: "ze-ai-instructions-generate", Area: "ai sync", Verb: "update", Note: "ai sync update writes CLAUDE.md and AGENTS.md from ai/INSTRUCTIONS.md"},
-	{Target: "ze-proto-generate", Area: "setup", Verb: "proto-generate"},
+	{Target: "ze-proto-generate", Area: "setup", Verb: "proto"},
 
 	// CLI and documentation gates.
 	{Target: "ze-cli-grammar-check", Area: "cli grammar", Verb: "check"},
@@ -204,7 +204,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-functional-ospf-test", Area: "test functional", Verb: "ospf"},
 	{Target: "ze-functional-ospfv3-test", Area: "test functional", Verb: "ospfv3"},
 	{Target: "ze-functional-web-test", Area: "test functional", Verb: "web"},
-	{Target: "ze-functional-install-test", Area: "test functional", Verb: "install"},
+	{Target: "ze-functional-install-test", Area: "test functional", Verb: "installer"},
 	{Target: "ze-functional-appliance-test", Area: "test functional", Verb: "appliance"},
 	{Target: "ze-functional-l2tp-wire-test", Area: "test functional", Verb: "l2tp-wire"},
 	{Target: "ze-functional-isis-wire-test", Area: "test functional", Verb: "isis-wire"},
@@ -215,7 +215,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-functional-flow-export-test", Area: "test functional", Verb: "flow-export"},
 	{Target: "ze-functional-vpp-test", Area: "test functional", Verb: "vpp"},
 	{Target: "ze-functional-vrrp-test", Area: "test functional", Verb: "vrrp"},
-	{Target: "ze-functional-exabgp-test", Area: "test functional", Verb: "exabgp-test"},
+	{Target: "ze-functional-exabgp-test", Area: "test functional", Verb: "exabgp"},
 
 	// Integration, interop, stress and live proofs.
 	{Target: "ze-interop-test", Area: "test integration", Verb: "interop"},

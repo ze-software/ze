@@ -1,6 +1,6 @@
 // Related: runrecord.go -- the age bound a recorded run is judged against
 // Related: held.go -- the Supported level HEAD already holds, which a stale run never lowers
-// Related: due.go -- `record-run due`, which re-records a run before it ages out
+// Related: due.go -- `feature run due`, which re-records a run before it ages out
 //
 // VALIDATES: the owner decisions on run staleness. A recorded green run,
 // real-path or interop, is current while its content id matches AND it is at
@@ -9,7 +9,7 @@
 // accepts it and names the stale run as a warning, distinct by cause; a
 // promotion to Supported still needs every counted run current (2026-10-08).
 // Each case judges one fixture tree on day 30 (current) and day 31 (stale), so
-// the bound has an observed green beside an observed red. `record-run due`
+// the bound has an observed green beside an observed red. `feature run due`
 // re-records exactly the features holding a run older than its bound.
 // PREVENTS: a supported feature dropping off the page because nobody re-ran
 // its tests within a month, and a promotion standing on a run that no longer

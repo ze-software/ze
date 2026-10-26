@@ -12,7 +12,7 @@
 //
 // A .ci the host's runner skips (`option=needs-linux:caps=...` on a host that
 // lacks the capability) runs in the same guest through `le test qemu all-tests
-// test <path>`, the one-.ci narrowing `le feature record-run` already drives,
+// test <path>`, the one-.ci narrowing `le feature run` already drives,
 // against daemons cross-built on the host under the overlay.
 package rfc
 

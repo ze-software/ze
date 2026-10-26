@@ -101,7 +101,7 @@ func init() {
 			return interoplab.Discover(filepath.Join(root, "test", "interop-fixture", "scenarios"), "",
 				map[string]interoplab.Checker{"widget-peer": func(context.Context, *interoplab.CheckContext) error { return nil }})
 		},
-		// The check never runs a scenario; record-run tests pass their own runner.
+		// The check never runs a scenario; feature run tests pass their own runner.
 		RunScenario: func(context.Context, string, string) interoplab.SuiteReport {
 			return interoplab.SuiteReport{SetupError: "the fixture suite runs nothing", Code: 1}
 		},
@@ -140,7 +140,7 @@ func TestCheckRefusesUnreadableReleaseFixInventory(t *testing.T) {
 
 // recordGreenRuns writes a run record holding a green run of each test item at
 // the item's present content and of each fixture-suite scenario at its
-// directory's present content, which is what `record-run` writes after a pass.
+// directory's present content, which is what `feature run` writes after a pass.
 func recordGreenRuns(t *testing.T, tree, id string, scenarios []string, items ...string) {
 	t.Helper()
 	record := RunRecord{Feature: id}

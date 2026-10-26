@@ -242,6 +242,23 @@ var renames = []Rename{
 	{Retired: "commit audit", Command: "test weakened", Action: "check"},
 	// `review-check` embedded the verb in the action word.
 	{Retired: "commit review-check", Command: "commit", Action: "check"},
+	// It prints what a gating run would start, which is the verb `preview`.
+	{Retired: "test functional select", Command: "test functional", Action: "preview"},
+	// A suite spelled as the vocabulary verb `install`.
+	{Retired: "test functional install", Command: "test functional", Action: "installer"},
+	// `*-test` words are nouns to restructure (owner ruling).
+	{Retired: "test functional exabgp-test", Command: "test functional", Action: "exabgp"},
+	{Retired: "setup web-test", Command: "setup", Action: "web"},
+	// It posts to Discord; `update` regenerates a committed artifact.
+	{Retired: "weekly update", Command: "weekly", Action: "publish"},
+	// `bump` and `sync` rewrite a committed copy from upstream, which is `update`.
+	{Retired: "lab pin bump", Command: "lab pin", Action: "update"},
+	{Retired: "web vendor sync", Command: "web vendor", Action: "update"},
+	// Compound words: the verb is the whole action word, or the name embeds a
+	// retired verb.
+	{Retired: "web vendor update-report", Command: "web vendor", Action: "report"},
+	{Retired: "feature record-run", Command: "feature", Action: "run"},
+	{Retired: "setup proto-generate", Command: "setup", Action: "proto"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

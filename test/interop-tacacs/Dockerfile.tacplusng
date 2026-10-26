@@ -5,7 +5,7 @@
 # Upstream publishes no stable release, so the build follows a pinned master
 # commit (ai/META-DECISIONS.md). Docker.Build refuses this file once the commit
 # is more than one month old (internal/le/interoplab/sourcepin.go), and
-# `./le lab pin bump dockerfile test/interop-tacacs/Dockerfile.tacplusng`
+# `./le lab pin update dockerfile test/interop-tacacs/Dockerfile.tacplusng`
 # moves the ZE_SOURCE_COMMIT and ZE_SOURCE_DATE lines to upstream's latest
 # master commit.
 FROM alpine:3.24.3 AS build

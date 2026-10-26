@@ -390,7 +390,7 @@ func TestExaBGPReportTextNamesTheChildThatCouldNotStart(t *testing.T) {
 	}
 	text := report.Text()
 	for _, want := range []string{
-		"functional/exabgp-test: stage version-5.0.15 exited 127",
+		"functional/exabgp: stage version-5.0.15 exited 127",
 		`exec: "uv": executable file not found in $PATH`,
 	} {
 		if !strings.Contains(text, want) {
@@ -413,9 +413,9 @@ func TestExaBGPReportTextSaysSomethingWhenEveryChildPassed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
-	want := "functional/exabgp-test: pin 5.0.15 ran ExaBGP 5.0.15\n" +
-		"functional/exabgp-test: pin main ran ExaBGP main\n" +
-		"functional/exabgp-test: 10 children passed\n"
+	want := "functional/exabgp: pin 5.0.15 ran ExaBGP 5.0.15\n" +
+		"functional/exabgp: pin main ran ExaBGP main\n" +
+		"functional/exabgp: 10 children passed\n"
 	if report.Text() != want {
 		t.Errorf("text = %q, want %q", report.Text(), want)
 	}

@@ -130,7 +130,7 @@ encoding and RIB", load-bearing invariants, unless another source is named.
 | Command | It judges |
 |---------|-----------|
 | `./le test functional encode`, `decode`, `parse`, `plugin` (one test: `./le test bgp encode <n>`) | Wire output, decoding, config parsing and plugin paths through the real daemon (`docs/functional-tests.md`) |
-| `./le test functional exabgp-test` | ExaBGP compatibility of the encoding |
+| `./le test functional exabgp` | ExaBGP compatibility of the encoding |
 | `./le test integration interop` | Ze against other BGP daemons in Docker. Any wire-visible change owes it, and it is long, so name it rather than run it in a short context |
 | `./le rfc check` | RFC requirement rows, tags, and discrimination records |
 | `./le arch tier check`, `./le plugin boundary check` | Import direction, and in-process calls that break when a plugin runs external |

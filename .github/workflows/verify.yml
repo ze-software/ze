@@ -114,7 +114,7 @@ jobs:
           CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      # functional/exabgp-test runs the compatibility suite through
+      # functional/exabgp runs the compatibility suite through
       # `uv run --with paramiko`, so a runner without uv answers 127 before the
       # first case. The installer is the route uv documents; it writes to
       # ~/.local/bin, which is not on the runner's PATH by default.

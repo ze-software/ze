@@ -36,7 +36,7 @@ const staticcheckParts = 6
 // import path (verifydeps.dealRacePackages), so three pieces each race about a
 // third of the tree. The three stages are consecutive and follow unit-cached,
 // so a six-shard round robin puts each on a shard of its own, none beside the
-// cached pass. The tail after them is ordered exabgp-test, gating, alloc so the
+// cached pass. The tail after them is ordered exabgp, gating, alloc so the
 // short alloc stage, not a functional suite, is the one that wraps onto
 // unit-cached's shard. Coverage does not depend on any of this, only balance.
 const raceParts = 3
@@ -259,7 +259,7 @@ func fullStages() []Stage {
 		stage("verify deps", "vulnerability"),
 		stage("verify deps", "unit-cached"),
 	), raceStages(), whole(
-		stage(FunctionalCommand, "exabgp-test"),
+		stage(FunctionalCommand, "exabgp"),
 	), []Stage{
 		stage(FunctionalCommand, "gating"),
 	}, whole(

@@ -1,4 +1,4 @@
-// VALIDATES: record-run writes a run record only for an observed pass (D-6).
+// VALIDATES: feature run writes a run record only for an observed pass (D-6).
 // PREVENTS: a failing, unselected, or mid-run-edited test reaching Supported.
 
 package feature
@@ -32,7 +32,7 @@ func fakeRunner(outputs map[string]string, failing ...string) runItem {
 }
 
 // recordedTree is the check fixture with its run record removed, which is the
-// state record-run starts from for a feature nothing has run.
+// state feature run starts from for a feature nothing has run.
 func recordedTree(t *testing.T) string {
 	t.Helper()
 	return recordedTreeOf(t, same)

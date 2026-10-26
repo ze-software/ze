@@ -69,7 +69,7 @@ line per test plus periodic progress.
 | `test/flow-export/` | `./le test flow-export [--all|--start N|N...]` | `./le test functional flow-export` |
 | `test/vpp/` | `./le test vpp [--all|--start N|N...]` | `./le test functional vpp` |
 | `test/l2tp-wire/` | `./le test wire l2tp [--all|--start N|N...]` | `./le test functional l2tp-wire` |
-| `test/exabgp-compat/` | `./le test exabgp [--all|--start N|N...]` | `./le test functional exabgp-test` |
+| `test/exabgp-compat/` | `./le test exabgp [--all|--start N|N...]` | `./le test functional exabgp` |
 
 Gated suites (in `./le test functional gating`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites

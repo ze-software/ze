@@ -329,7 +329,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	out = append(out, Carrier{
 		Name: "functional-exabgp", Kind: kindFunctional, Tier: tierVerify,
 		Prefix: "test/exabgp-compat/", Suffix: ciSuffix, Reader: "ci",
-		Runner:   "./le test functional exabgp-test",
+		Runner:   "./le test functional exabgp",
 		Pipeline: "./le verify current (exabgp stage)",
 	}, Carrier{
 		Name: "functional-unrun", Kind: kindFunctional, Tier: tierUnrun, Prefix: "",

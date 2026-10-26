@@ -29,7 +29,7 @@ var actions = leaction.New(area,
 			{Keyword: keyFeature, Kind: leaction.KindLabel, Help: "one feature id to report", Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
-	leaction.Action{Verb: "record-run", Summary: "run one feature's real-path tests and interop", Why: "run every real-path test and every counted interop scenario of one feature " +
+	leaction.Action{Verb: "run", Summary: "run one feature's real-path tests and interop", Why: "run every real-path test and every counted interop scenario of one feature " +
 		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
 		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
 		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +
@@ -99,18 +99,18 @@ func recordRunAnswer(args leaction.Arguments) (any, int) {
 	}
 	if args.Has(keyDue) {
 		if args.Has(keyFeature) {
-			leaction.ReportError(errors.New("feature record-run: give feature <id> or due <days>, not both"))
+			leaction.ReportError(errors.New("feature run: give feature <id> or due <days>, not both"))
 			return nil, 2
 		}
 		return recordDueAnswer(tree, args.One(keyDue))
 	}
 	if !args.Has(keyFeature) {
-		leaction.ReportError(errors.New("feature record-run: give feature <id> or due <days>"))
+		leaction.ReportError(errors.New("feature run: give feature <id> or due <days>"))
 		return nil, 2
 	}
 	id := args.One(keyFeature)
 	if id == "" {
-		leaction.ReportError(errors.New("feature record-run feature <id>: the id is empty"))
+		leaction.ReportError(errors.New("feature run feature <id>: the id is empty"))
 		return nil, 2
 	}
 	record, err := RecordRun(tree, id)
@@ -124,7 +124,7 @@ func recordRunAnswer(args leaction.Arguments) (any, int) {
 func recordDueAnswer(tree, value string) (any, int) {
 	days, err := strconv.Atoi(value)
 	if err != nil {
-		leaction.ReportError(errors.New("feature record-run due <days>: '" + value + "' is not a whole number of days"))
+		leaction.ReportError(errors.New("feature run due <days>: '" + value + "' is not a whole number of days"))
 		return nil, 2
 	}
 	due, allRecorded, err := RecordDue(tree, days)

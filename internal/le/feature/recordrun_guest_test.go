@@ -13,11 +13,11 @@ import (
 // VALIDATES: a .ci the runner says this host skips (runner.NeedsGuest) is run
 // in the QEMU guest through `le test qemu run ... all-tests test <path>`, and a
 // .ci it does not skip still runs through its host runner.
-// PREVENTS: record-run observing a host SKIP of a capability-gated test and
+// PREVENTS: feature run observing a host SKIP of a capability-gated test and
 // recording nothing, with no route to the place the test really runs.
 //
 // Method: the set's le is a script that prints its own argv and a PASS line,
-// so the test reads which command record-run chose; the guest daemons count as
+// so the test reads which command feature run chose; the guest daemons count as
 // built, so nothing compiles.
 func TestAGuestOnlyTestRunsInTheQEMUGuest(t *testing.T) {
 	toolchain, err := gotoolchain.New(filepath.Join("..", "..", ".."))
@@ -40,7 +40,7 @@ func TestAGuestOnlyTestRunsInTheQEMUGuest(t *testing.T) {
 		inGuest := strings.Contains(seen.output, "argv: test qemu run ") &&
 			strings.Contains(seen.output, " test qemu all-tests test test/policy/gated.ci")
 		if inGuest != guest {
-			t.Fatalf("guest=%v: the command record-run chose was:\n%s", guest, seen.output)
+			t.Fatalf("guest=%v: the command feature run chose was:\n%s", guest, seen.output)
 		}
 		if problem := observedPass("test/policy/gated.ci", seen); problem != "" {
 			t.Fatalf("guest=%v: the test's own PASS line was not read: %s", guest, problem)

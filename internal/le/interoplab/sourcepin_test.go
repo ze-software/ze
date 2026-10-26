@@ -60,7 +60,7 @@ func TestBuildRefusesAStaleSourcePin(t *testing.T) {
 			if err == nil {
 				t.Fatal("a stale pin was not refused")
 			}
-			for _, want := range []string{path, "ed3c66a89d5c", "MarcJHuber/event-driven-servers", "days ago", "less than one month old", "Fix: ./le lab pin bump dockerfile " + path} {
+			for _, want := range []string{path, "ed3c66a89d5c", "MarcJHuber/event-driven-servers", "days ago", "less than one month old", "Fix: ./le lab pin update dockerfile " + path} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("refusal %q does not name %q", err, want)
 				}
@@ -79,7 +79,7 @@ func TestBuildRunsNoDockerForAStalePin(t *testing.T) {
 	runner := &recordingRunner{}
 	docker := newDocker(runner)
 	_, err := docker.Build(context.Background(), ImageBuild{Tag: "ze-test:peer", Dockerfile: path, Context: filepath.Dir(path)})
-	if err == nil || !strings.Contains(err.Error(), "lab pin bump") {
+	if err == nil || !strings.Contains(err.Error(), "lab pin update") {
 		t.Fatalf("Build answered %v, want the stale-pin refusal", err)
 	}
 	if len(runner.commands) != 0 {

@@ -62,10 +62,10 @@ so both upgrade actions remain offline and deterministic.
 ## Sync
 
 ```bash
-./le web vendor sync           # copy from third_party/web/ to every consumer
+./le web vendor update         # copy from third_party/web/ to every consumer
 ./le repo update       # runs the same sync, with the other generators
 ./le web vendor check          # gate: each consumer copy matches its source
-./le web vendor update-report  # ask the npm registry for newer versions
+./le web vendor report         # ask the npm registry for newer versions
 ./le web htmx check        # gate: no unexplained htmx 4 upgrade issue
 ./le web htmx report       # print every htmx 4 upgrade issue
 ```
@@ -78,7 +78,7 @@ holds, so a build that runs no generator must find them.
 prerequisite of `./le repo check generated`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.
 
-`./le web vendor update-report` reads EVERY npm dist-tag and answers the newest
+`./le web vendor report` reads EVERY npm dist-tag and answers the newest
 release among them, prereleases excluded. htmx is why: 4.0.0 shipped under the
 `next` tag and `latest` stayed on 2.0.10, so a query for `latest` alone reports
 the release this tree already holds as a downgrade.

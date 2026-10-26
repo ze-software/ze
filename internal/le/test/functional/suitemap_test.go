@@ -637,7 +637,7 @@ func TestStaleMapTreatsTouchedPackagesAsUnknown(t *testing.T) {
 }
 
 // TestOperatorSkipStillWins drives the whole plan, which is what the gating run
-// executes and what `le test functional select` prints. An operator's skip outranks
+// executes and what `le test functional preview` prints. An operator's skip outranks
 // the map: a suite the map selected is still left out, and the map cannot add
 // back a suite the operator removed.
 //
