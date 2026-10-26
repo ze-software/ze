@@ -620,7 +620,8 @@ func addPathClientPaths(t *testing.T, client *lowLivePeer, prefix netip.Prefix) 
 // its own identifier, in arrival order, and C owes nothing, so no election
 // runs.
 //
-// VALIDATES: oweAnnouncement leaves an ADD-PATH destination to forwarding
+// VALIDATES: an ADD-PATH client receives each source's path under its own
+// identifier, in arrival order, and owes no election for the prefix
 // (RFC 7947 Section 2.3.2.2).
 // PREVENTS: an ADD-PATH client given only the elected path.
 //

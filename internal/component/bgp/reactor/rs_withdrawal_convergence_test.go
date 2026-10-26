@@ -290,19 +290,46 @@ func dispatchRIBCommand(r *Reactor, command string, args ...string) (json.RawMes
 // bgp-rs runs departure recovery. bgp-rs already sends a departure in batches
 // of 500 (withdrawalBatchSize), and the reactor waits on each batch's records,
 // so that path alone never hands one round more than 500 keys.
-// "withdrawal-burst" makes the reactor's own bound the one that decides: A
+// "withdrawal-burst" makes the reactor's own bounds the ones that decide: A
 // withdraws all 2000 in three UPDATEs while C's first lookup is held, so the
-// next round snapshots more than 500 owed keys at once.
+// next round snapshots more than 500 owed keys at once. Both run on
+// lowLiveRouter and judge the lookups against recoveryLookupKeysMax itself,
+// so a raised constant keeps them green.
+// "withdrawal-burst-cap" runs the burst on rsLiveRouter's explicit 1 GiB
+// budget, which the reactor never re-sizes and which lends far more than 500
+// buffers, so the cap alone sizes a chunk (recoveryChunkKeys): the largest
+// lookup MUST hold exactly ac21LookupKeys, the literal 500, so raising or
+// removing recoveryLookupKeysMax turns this subtest red.
 //
 // VALIDATES: AC-21, a bounded lookup per request and an unbounded owed set.
 // PREVENTS: one unbounded RIB document per round, or keys left undecided past
 // the first chunk.
 func TestOwedKeyLookupChunked(t *testing.T) {
-	t.Run("departure", func(t *testing.T) { lookupChunked(t, false) })
-	t.Run("withdrawal-burst", func(t *testing.T) { lookupChunked(t, true) })
+	t.Run("departure", func(t *testing.T) { lookupChunked(t, lookupChunkedCase{router: lowLiveRouter}) })
+	t.Run("withdrawal-burst", func(t *testing.T) {
+		lookupChunked(t, lookupChunkedCase{router: lowLiveRouter, burst: true})
+	})
+	t.Run("withdrawal-burst-cap", func(t *testing.T) {
+		lookupChunked(t, lookupChunkedCase{router: rsLiveRouter, burst: true, capDecides: true})
+	})
 }
 
-func lookupChunked(t *testing.T, burst bool) {
+// ac21LookupKeys is AC-21's bound on the keys of one RIB lookup, stated
+// apart from recoveryLookupKeysMax so a change to the constant is caught.
+const ac21LookupKeys = 500
+
+// lookupChunkedCase is one TestOwedKeyLookupChunked scenario: the router
+// whose read pool the recovery draws on, whether A withdraws (burst) or
+// departs, and whether the pool lends enough that the cap alone sizes a
+// chunk (capDecides), which the scenario then asserts exactly.
+type lookupChunkedCase struct {
+	router     func(*testing.T, ...*PeerSettings) []*lowLivePeer
+	burst      bool
+	capDecides bool
+}
+
+func lookupChunked(t *testing.T, scenario lookupChunkedCase) {
+	burst := scenario.burst
 	const keys = 2000
 	settings := []*PeerSettings{
 		lowLiveSettings("192.0.2.1", 65000, 65002),
@@ -312,7 +339,7 @@ func lookupChunked(t *testing.T, burst bool) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
-	peers := lowLiveRouter(t, settings...)
+	peers := scenario.router(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	attrsA := firstASAttrs(4, 65002)
 	attrsB := firstASAttrs(4, 65003, 65003)
@@ -389,6 +416,16 @@ func lookupChunked(t *testing.T, burst bool) {
 	}
 	if requests < keys/recoveryLookupKeysMax {
 		t.Errorf("C's keys reached bgp-rib in %d requests, want at least %d", requests, keys/recoveryLookupKeysMax)
+	}
+	if !scenario.capDecides {
+		return
+	}
+	// The pool lends more than the cap, so a full chunk holds the cap.
+	if largest != ac21LookupKeys {
+		t.Errorf("largest lookup for C held %d keys, want exactly %d (AC-21's cap)", largest, ac21LookupKeys)
+	}
+	if requests < keys/ac21LookupKeys {
+		t.Errorf("C's keys reached bgp-rib in %d requests, want at least %d", requests, keys/ac21LookupKeys)
 	}
 }
 
@@ -1172,8 +1209,9 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 	}
 	waitOwnedBy(t, c.peer, a.peer, keys)
 
-	// The pool is grown first, so the buffers returned to the seventh round
-	// decide its whole first chunk.
+	// The pool is grown first, so the buffers returned after the seventh
+	// round's one-key first chunk let its second chunk be sized over them
+	// (recoveryChunkKeys) rather than over a pool still at its floor.
 	growReadPool(t, 4*recoveryLookupKeysMax)
 	step := &lookupStepper{destination: c.peer.Settings().Address,
 		arrived: make(chan int), proceed: make(chan struct{}), free: make(chan struct{})}

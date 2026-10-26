@@ -561,7 +561,7 @@ func TestOwedKeyOwnerGoneAfterOweRetires(t *testing.T) {
 // replacement holds one of its buffers until its write completes. Method:
 // a held round on one key lets 100 more keys become owed; the pool is capped
 // at one more block and drained until it can lend exactly 40 buffers; the
-// next round's lookup holds at most 40 keys, and every key is still decided
+// next round's lookup holds exactly 40 keys, and every key is still decided
 // once the buffers come back.
 //
 // VALIDATES: recoveryChunkKeys sizes a chunk from BufMux.lendable.
@@ -606,6 +606,8 @@ func TestRecoveryChunkSizedFromLendableBuffers(t *testing.T) {
 	request := rail.request(t)
 	require.LessOrEqual(t, len(request.Keys), lendable,
 		"the lookup asks about no more keys than the pool can lend")
+	require.Equal(t, lendable, len(request.Keys),
+		"the lookup asks about exactly the keys the pool can lend, while more are owed")
 	rail.release <- nil
 	lowEventually(t, func() bool { return len(rail.owed()) <= keys-len(request.Keys) },
 		"the sized chunk was decided whole")
