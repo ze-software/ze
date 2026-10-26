@@ -376,10 +376,15 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		tb.Reset().Str(prefix).Str(name).Byte(' ')
 		writeListAddress(&tb, addressTokens)
 		entryPath := tb.String()
+		start := b.Len()
 		emitStructuralNop(b, entry, entryPath)
 		emitAddressLine(b, entry, addressTokens, entryPath)
 		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		serializeSetNode(b, entry, view, entryPrefix)
+		// An entry without emitted children still has to exist after replay.
+		if b.Len() == start {
+			b.Str("set ").Str(entryPath).Byte('\n')
+		}
 	}
 }
 
@@ -906,11 +911,16 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		tb.Reset().Str(prefix).Str(name).Byte(' ')
 		writeListAddress(&tb, addressTokens)
 		entryPath := tb.String()
+		start := b.Len()
 		emitStructuralNop(b, entry, entryPath)
 		emitAddressLine(b, entry, addressTokens, entryPath)
 		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		entryMeta := metaListEntry(meta, name, key)
 		serializeSetMetaNode(b, entry, entryMeta, view, entryPrefix)
+		// Structural markers or children already preserve nonempty entries.
+		if b.Len() == start {
+			b.Str("set ").Str(entryPath).Byte('\n')
+		}
 	}
 }
 

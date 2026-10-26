@@ -845,6 +845,7 @@ func serializeAnnotatedSetList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 		tb.Reset().Str(path).Byte(' ')
 		writeListAddress(&tb, addressTokens)
 		entryPath := tb.String()
+		start := b.Len()
 		if entry.IsInactive() {
 			writeEmptyAnnotatedGutter(b, columns)
 			b.Str("nop ")
@@ -858,6 +859,10 @@ func serializeAnnotatedSetList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 		entryMeta := metaListEntry(meta, name, key)
 		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		serializeAnnotatedSetNode(b, entry, entryMeta, view, columns, entryPrefix)
+		if b.Len() == start {
+			writeEmptyAnnotatedGutter(b, columns)
+			b.Str("set ").Str(entryPath).Byte('\n')
+		}
 	}
 }
 

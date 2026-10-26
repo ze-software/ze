@@ -217,6 +217,17 @@ writes each key as one quoted token. A rename or copy of an entry of a keyless
 list, or of an entry under one, is refused. A list whose key names one leaf
 keeps its key exactly as written.
 
+An empty single-key entry is still configuration. For example,
+`interface { dummy zetrk1 {} }` saves as `set interface dummy zetrk1`,
+and parsing that line recreates the entry. Plain and metadata-bearing set
+files preserve it without requiring a description or another placeholder
+leaf. A nonempty single-key entry needs no extra address-only line: its
+children already recreate it. An inactive empty entry uses `nop` instead
+of `set`, preserving its inactive state. Annotated set displays use the same
+entry lines with their metadata gutter.
+<!-- source: internal/component/config/serialize_set.go -- serializeSetList, serializeSetMetaList -->
+<!-- source: internal/component/config/serialize_annotated.go -- serializeAnnotatedSetList -->
+
 The web editor addresses the entry by its address as path segments
 (`/show/bfd/single-hop-session/fe80::b/interface/zbl1/`); its list table heads
 the key column with the first key leaf and links each row to its own segments,
