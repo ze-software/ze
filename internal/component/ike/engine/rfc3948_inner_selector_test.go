@@ -11,11 +11,14 @@ package engine
 
 import (
 	"errors"
+	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -336,6 +339,7 @@ func TestInnerSelectorDistinctIfIDNoConflict(t *testing.T) {
 // one inner address before either installs. The second install is refused before any
 // dataplane call, with an error wrapping errTSUnacceptable (AC-10, R-2).
 func TestInnerSelectorInstallBackstopRefusesSecond(t *testing.T) {
+	// RFC requirement: RFC3948-5.1-1 negative -- two unbound tunnel peers that both passed narrowing for inner address 10.1.2.3/32 (TSr 0.0.0.0/0) before either installed: the second peer's install (createFirstChildSA) is answered TS_UNACCEPTABLE, its logged fix is the inner-selector conflict fix, and its dataplane receives no state or policy.
 	reg := newInnerSelectorRegistry()
 	a := innerPeerSA(t, reg, "a", "198.18.0.7")
 	b := innerPeerSA(t, reg, "b", "198.18.0.9")
@@ -530,6 +534,7 @@ func TestRFC3948LeaseVersusUnboundPeerFirstComeWins(t *testing.T) {
 // the initiator, from a responder's answer, is refused by the backstop before any
 // dataplane call when another peer holds the selectors (R-6).
 func TestInnerSelectorInitiatorInstallRefusedInstallsNothing(t *testing.T) {
+	// RFC requirement: RFC3948-5.1-1 negative -- an install this node makes as initiator (createFirstChildSA) from an adopted answer of local 192.0.2.0/24 and remote 10.1.2.3/32, while another peer's live Child SA holds inner address 10.1.2.3/32, is answered TS_UNACCEPTABLE and its dataplane receives no state or policy.
 	reg := newInnerSelectorRegistry()
 	mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), &mockDP{}, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
 	ini := innerPeerSA(t, reg, "spoke", "198.18.0.11")
@@ -541,6 +546,182 @@ func TestInnerSelectorInitiatorInstallRefusedInstallsNothing(t *testing.T) {
 	mustInnerRefused(t, err, "initiator install")
 	if len(dp.sas) != 0 || len(dp.policies) != 0 {
 		t.Fatalf("refused initiator install reached the dataplane: %d states, %d policies", len(dp.sas), len(dp.policies))
+	}
+}
+
+// failingRemoveDP answers every policy removal with err, as a kernel whose netlink delete
+// fails (EIO) or finds nothing (ENOENT) does.
+type failingRemoveDP struct {
+	mockDP
+	err error
+}
+
+func (f *failingRemoveDP) RemovePolicyParams(dataplane.SPParams) error { return f.err }
+
+// TestRFC3948FailedPolicyRemovalKeepsRecord: the record outlives the kernel policy. Method:
+// peer a installs inner address 10.1.2.3/32 on a dataplane whose policy removal answers
+// err, removeChildSA ends it, and peer b then proposes the same address. A failed removal
+// (EIO) leaves a's policy in the kernel, so a's record must stay and b must be refused; a
+// removal the kernel answers ENOENT leaves nothing, so the record goes and b is served.
+func TestRFC3948FailedPolicyRemovalKeepsRecord(t *testing.T) {
+	// RFC requirement: RFC3948-5.1-1 negative -- peer a's Child SA for inner address 10.1.2.3/32 (TSr 0.0.0.0/0) is removed by removeChildSA on a dataplane whose policy removal fails with EIO: the registry still holds one record, and peer b proposing 10.1.2.3/32 is answered TS_UNACCEPTABLE with no state or policy on its dataplane; when the removal answers ENOENT the registry holds none and peer b is served.
+	log := slogutil.DiscardLogger()
+	cases := []struct {
+		name string
+		err  error
+		kept bool
+	}{
+		{name: "removal fails", err: syscall.EIO, kept: true},
+		{name: "policy already gone", err: syscall.ENOENT, kept: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := newInnerSelectorRegistry()
+			dp := &failingRemoveDP{err: tc.err}
+			child := mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), dp, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
+			// A failed removal stays in the process-wide SPD ledger (spd_left.go); a
+			// successful one drops it, so the next test starts from an empty ledger.
+			leftover := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
+			t.Cleanup(func() {
+				for i := range leftover {
+					spdLeft.record(&leftover[i], nil)
+				}
+			})
+			removeChildSA(child, dp, log)
+			want := 0
+			if tc.kept {
+				want = 1
+			}
+			if got := reg.holdings(); got != want {
+				t.Fatalf("registry holds %d Child SAs after a removal answered %v, want %d", got, tc.err, want)
+			}
+			dpB := &mockDP{}
+			_, err := innerAuthChild(t, innerPeerSA(t, reg, "b", "198.18.0.9"), dpB, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
+			if !tc.kept {
+				if err != nil {
+					t.Fatalf("peer b after a removal answered ENOENT: %v", err)
+				}
+				return
+			}
+			mustInnerRefused(t, err, "peer b while a's policy is still installed")
+			if len(dpB.sas) != 0 || len(dpB.policies) != 0 {
+				t.Fatalf("refused peer b reached its dataplane: %d states, %d policies", len(dpB.sas), len(dpB.policies))
+			}
+		})
+	}
+}
+
+// TestInnerSelectorPairsOfNoSelectorsMatchesPolicy: a Child SA with no negotiated pairs is
+// recorded as the policy childPolicies installs from TSLocal and TSRemote, not reversed.
+// Method: compare the recorded outbound policy with the installed one, and check the
+// remote half the operator configured is classified operator-fixed.
+func TestInnerSelectorPairsOfNoSelectorsMatchesPolicy(t *testing.T) {
+	remote := mustNet(t, "10.1.2.3/32")
+	child := &ChildSA{
+		Owner: "a", Mode: modeTunnel, TSLocal: mustNet(t, "192.0.2.0/24"), TSRemote: remote,
+		innerGuard: innerSelectorGuard{configuredRemote: []tsSelector{{Net: remote}}},
+	}
+	pairs := innerSelectorPairsOf(child)
+	if len(pairs) != 1 {
+		t.Fatalf("recorded %d pairs, want 1", len(pairs))
+	}
+	installed := childPolicies(child, dataplane.SADirOut)[0]
+	if !reflect.DeepEqual(pairs[0].policy, installed) {
+		t.Fatalf("recorded policy %v -> %v, installed %v -> %v", pairs[0].policy.Src, pairs[0].policy.Dst,
+			installed.Src, installed.Dst)
+	}
+	if !pairs[0].operatorFixed {
+		t.Fatal("the configured remote half 10.1.2.3/32 was not classified operator-fixed")
+	}
+}
+
+// TestInnerSelectorDeclinedTransportRequestFiltered: a transport request this node
+// declines installs a tunnel, so the narrowing filter runs for it. Method: peer a holds
+// 10.1.2.3/32; peer b, configured for tunnel mode, requests transport mode for the same
+// address; narrowChildSelectors alone must answer TS_UNACCEPTABLE.
+func TestInnerSelectorDeclinedTransportRequestFiltered(t *testing.T) {
+	reg := newInnerSelectorRegistry()
+	mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), &mockDP{}, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
+	b := innerPeerSA(t, reg, "b", "198.18.0.9")
+	b.PeerRequestedTransport = true
+	decideResponderTransportMode(b)
+	if b.UseTransportMode {
+		t.Fatal("setup: a tunnel-mode peer's transport request was accepted")
+	}
+	err := narrowChildSelectors(b, tsPayload(t, wire.PayloadTypeTSi, "10.1.2.3/32"),
+		tsPayload(t, wire.PayloadTypeTSr, "192.0.2.10/32"), nil)
+	mustInnerRefused(t, err, "peer b's declined transport request at narrowing")
+}
+
+// TestInnerSelectorNilDataplaneRecorded: with no dataplane, a Child SA is still recorded,
+// so the control plane never holds two peers' Child SAs for one inner address. Method:
+// peer a and then peer b negotiate 10.1.2.3/32 with a nil dataplane; b must be refused,
+// and removing a must release the record.
+func TestInnerSelectorNilDataplaneRecorded(t *testing.T) {
+	reg := newInnerSelectorRegistry()
+	child := mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), nil, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
+	if got := reg.holdings(); got != 1 {
+		t.Fatalf("registry holds %d Child SAs with no dataplane, want 1", got)
+	}
+	_, err := innerAuthChild(t, innerPeerSA(t, reg, "b", "198.18.0.9"), nil, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
+	mustInnerRefused(t, err, "peer b with no dataplane")
+	removeChildSA(child, nil, slogutil.DiscardLogger())
+	if got := reg.holdings(); got != 0 {
+		t.Fatalf("registry holds %d Child SAs after removal, want 0", got)
+	}
+}
+
+// TestInnerSelectorInitiatorRefusalKeepsIKESA: a first Child SA this node refuses as the
+// IKE_AUTH initiator, because another peer holds an overlapping tunnel, costs the Child
+// SA only. Method: establish an initiator SA against a stand-in responder, record another
+// peer holding the negotiated selectors, run runEstablished; it must return cleanly with
+// no Child SA and no state installed, the IKE SA established, and an ESP Delete for this
+// node's inbound SPI sent to the peer (RFC 7296 Section 2.21.2).
+func TestInnerSelectorInitiatorRefusalKeepsIKESA(t *testing.T) {
+	quiet := slogutil.DiscardLogger()
+	dp := &mockDP{}
+	loadFailClosedBackend(t, dp)
+	peerTr, myTr := encapNATTPeerLink(t)
+	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "inner-refusal-initiator")
+	iniPeer.LocalAddress, iniPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
+	ini, resp, table := encapSAInit(t, iniPeer, respPeer)
+	respNATT, _ := bindNATT(t, resp)
+	bindNATT(t, ini)
+	respPS := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
+	respPS.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, respNATT, encapPeerAt(encapTestPeerPort), quiet)
+	dp.sas = nil
+	handleInbound(ini, transport.Packet{Data: resp.LastSentMsg, RemoteAddr: nttPeerAddr(t, peerTr), NATT: true}, table, myTr, quiet)
+	if ini.State != StateEstablished || ini.IKEAuthChildless {
+		t.Fatalf("setup: initiator state %v childless=%v, want established with a Child SA", ini.State, ini.IKEAuthChildless)
+	}
+
+	reg := newInnerSelectorRegistry()
+	ini.innerSelectors = reg
+	ifID, err := resolveIfID(&iniPeer)
+	if err != nil {
+		t.Fatalf("resolveIfID: %v", err)
+	}
+	holder := &ChildSA{
+		Owner: "other", Mode: modeTunnel, IfID: ifID, PolicyPriority: iniPeer.PolicyPriority,
+		Selectors: ini.NegotiatedPairs, SelectorsLocalIsTSi: true,
+	}
+	if err := reg.claim(holder, "other", innerSelectorPairsOf(holder)); err != nil {
+		t.Fatalf("setup: record the other peer: %v", err)
+	}
+
+	ps := &PeerSession{peerName: "ze", peerCfg: iniPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
+	encapRunEstablished(t, ps, ini, table, myTr)
+	if len(dp.sas) != 0 {
+		t.Errorf("%d states installed, want none", len(dp.sas))
+	}
+	if ps.getChildSA() != nil {
+		t.Error("the refused Child SA was adopted")
+	}
+	if ini.State != StateEstablished {
+		t.Errorf("the IKE SA is %v, want established", ini.State)
+	}
+	if !deleteListsSPI(t, resp, peerTr, ini.ChildInboundSPI) {
+		t.Errorf("no ESP Delete listing ze's inbound SPI %#x reached the peer", ini.ChildInboundSPI)
 	}
 }
 

@@ -661,7 +661,13 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	// here, before closedSubset cuts the answer, so the closed subset is cut from pairs
 	// this node can grant. Transport mode is refused by the dataplane instead (RFC 3948
 	// Section 5.2, policyOwners.claim).
-	if !transportSelectorsInPlay(sa) {
+	//
+	// The gate is the mode this node DECIDED (decideResponderTransportMode), never the
+	// peer's request: a transport request this node declines still installs a tunnel
+	// (RFC 7296 Section 1.3.1), which innerSelectorGuard.claim records, so the filter
+	// must run for it too. A Child SA rekey inherits the retired Child SA's mode, and its
+	// claim (installChildSA) stays the backstop whatever this gate answers.
+	if !sa.UseTransportMode {
 		narrowed, err = dropForeignInnerOverlaps(sa, narrowed)
 		if err != nil {
 			return err

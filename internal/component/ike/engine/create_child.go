@@ -694,6 +694,10 @@ const (
 // derived from the cause err carries.
 func childResponseRefusedFix(err error) string {
 	switch {
+	// First: an install-time conflict also wraps errChildInstall, whose fix blames the
+	// kernel (inner_selectors.go).
+	case errors.Is(err, errInnerSelectorConflict):
+		return childResponseFixInnerSelector
 	case errors.Is(err, errChildTransportDeclined):
 		return childResponseFixTransport
 	case errors.Is(err, errChildEncapPort):

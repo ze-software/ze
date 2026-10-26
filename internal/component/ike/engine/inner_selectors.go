@@ -97,6 +97,12 @@ func innerSelectorPairOf(child *ChildSA, pair tsPair, configuredRemote []tsSelec
 	if !ok {
 		return innerSelectorPair{}, false
 	}
+	return classifyInnerPair(child, pp, remote, configuredRemote), true
+}
+
+// classifyInnerPair builds the outbound policy of pp, a pair already in this node's
+// orientation whose remote half is remote, and classifies it (innerSelectorPairOf).
+func classifyInnerPair(child *ChildSA, pp policyPair, remote tsSelector, configuredRemote []tsSelector) innerSelectorPair {
 	fixed := false
 	for _, c := range configuredRemote {
 		if sameInnerSelector(c, remote) {
@@ -108,7 +114,7 @@ func innerSelectorPairOf(child *ChildSA, pair tsPair, configuredRemote []tsSelec
 		policy:        childPairPolicy(child, dataplane.SADirOut, pp),
 		operatorFixed: fixed,
 		text:          innerPairText(pp),
-	}, true
+	}
 }
 
 // sameInnerSelector reports whether two selectors match exactly the same packets on
@@ -194,13 +200,13 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair) ([]tsPair, error) {
 // installs them.
 func innerSelectorPairsOf(child *ChildSA) []innerSelectorPair {
 	configured := child.innerGuard.configuredRemote
+	// A Child SA with no negotiated pairs installs one policy from TSLocal and TSRemote,
+	// already in this node's orientation (childPolicies). The pair is built the same
+	// way here: routed through innerSelectorPairOf, a tsPair with no orientation flag
+	// read TSLocal as the remote half and recorded the policy reversed.
 	if len(child.Selectors) == 0 {
-		p, ok := innerSelectorPairOf(child, tsPair{I: tsSelector{Net: child.TSLocal}, R: tsSelector{Net: child.TSRemote}},
-			configured)
-		if !ok {
-			return nil
-		}
-		return []innerSelectorPair{p}
+		pp := policyPair{local: child.TSLocal, remote: child.TSRemote}
+		return []innerSelectorPair{classifyInnerPair(child, pp, tsSelector{Net: child.TSRemote}, configured)}
 	}
 	out := make([]innerSelectorPair, 0, len(child.Selectors))
 	for _, pair := range child.Selectors {
@@ -346,6 +352,17 @@ const childRefusedFixResponderInnerSelector = "another peer already holds a tunn
 	"to a virtual-IP pool with set vpn ipsec site-to-site peer <name> virtual-ip-pool <pool>, or, where " +
 	"both peers' configured remote prefixes overlap on purpose, give one of them a different priority " +
 	"with set vpn ipsec site-to-site peer <name> policy-priority <n>, then commit"
+
+// childResponseFixInnerSelector is the fix logged when this node, as the Child SA
+// initiator, refuses the answered tunnel because another peer holds an overlapping one.
+// It names only what the initiator's own configuration controls: a virtual-IP pool is
+// a responder's lease, so it is not offered here.
+const childResponseFixInnerSelector = "another peer already holds a tunnel one packet could also be " +
+	"sent into (RFC 3948 Section 5.1), so this Child SA was deleted and the IKE SA kept with no Child SA, " +
+	"asking again on its creation schedule; configure disjoint remote prefixes for the two peers with " +
+	"set vpn ipsec site-to-site peer <name> traffic-selector <n> remote prefix <prefix>, or, where both " +
+	"peers' configured remote prefixes overlap on purpose, give one of them a different priority with " +
+	"set vpn ipsec site-to-site peer <name> policy-priority <n>, then commit"
 
 // release forgets child in its registry. Safe on a Child SA never recorded.
 func (g innerSelectorGuard) release(child *ChildSA) {

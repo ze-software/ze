@@ -120,6 +120,20 @@ func (ps *PeerSession) runEstablished(
 				"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort)
 			child = nil
 			ps.childCreate.start(time.Now())
+		case errors.Is(err, errInnerSelectorConflict):
+			// The peer answered IKE_AUTH and installed its half of the pair, and this
+			// node refused to install a tunnel another peer's live tunnel overlaps.
+			// The refusal is about this Child SA alone, so its peer half is deleted and
+			// the IKE SA is kept as a childless one that asks again on the creation
+			// schedule, by which time the other tunnel may be gone.
+			// RFC 7296 Section 2.21.2: "This failure does not automatically cause the
+			// IKE SA to be deleted."
+			// RFC 3948 Section 5.1
+			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
+			log.Warn("ike: child SA refused, another peer holds an overlapping tunnel, deleting the pair and keeping the IKE SA",
+				"peer", ps.peerName, "error", err, "fix", childResponseFixInnerSelector)
+			child = nil
+			ps.childCreate.start(time.Now())
 		case err != nil:
 			log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
 			return err
