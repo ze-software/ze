@@ -32,7 +32,7 @@ names a row that does not and exits non-zero, so prose in one of these files
 must not contain a `|`.
 
 A row is one line of symptom and fix, at most 600 characters. The detail goes
-in the fix commit, a spec, or `ai/rationale/`. `./le spec journal validate`
+in the fix commit, a spec, or `ai/rationale/`. `./le spec journal check`
 names a longer row that is added or rewritten against HEAD (`row-too-long`).
 The post-write hook runs it on every class file written through Write or Edit
 and warns, and `./le commit create` runs it on every class file it commits and
