@@ -1,19 +1,19 @@
 {
-  "note": "Section 2.20's method: TestRFC7296InformationalVersionRequestDrawsNoCP sends the product INFORMATIONAL handler (handleInformationalOwned, MOBIKE enabled so mobikeResponsePayloads builds the answer) a post-auth CP(CFG_REQUEST, empty APPLICATION_VERSION) and asserts the response the peer decrypts carries no CP; TestRFC7296InformationalVersionRequestReflectsNoVersionString pushes toward reflection with a non-empty version string and asserts no CP and no non-empty APPLICATION_VERSION. IKE_AUTH path: TestRFC7296ResponderAnswersAVersionRequestWithNoCP. Sweep: TestZeDeclinesApplicationVersion. Ze supports no CP, so the no-CP arm is the one that binds.",
+  "note": "Re-judged 2026-10-26 against HEAD c8584247bb (independent judge, clean clone). Downgraded from enforced. Section 2.20: \"An IKE implementation MAY decline to give out version information prior to authentication or even after authentication in case some implementation is known to have some security weakness.  In that case, it MUST either return an empty string or no CP payload if CP is not supported.\" The old note rested on 'Ze supports no CP'; since a965d7c0d4 Ze answers a pool-bound peer's CFG_REQUEST (buildCFGReply, cp.go), and there it declines with the first form, an APPLICATION_VERSION attribute of zero length. The tagged carriers cover only the no-CP arm: TestRFC7296ResponderAnswersAVersionRequestWithNoCP (unbound peer, IKE_AUTH), TestRFC7296InformationalVersionRequestDrawsNoCP / ReflectsNoVersionString (MOBIKE INFORMATIONAL), and TestZeDeclinesApplicationVersion, whose builtCPSweep (5c2cb2199f, 961c2c2565) walks only messages that answer no CFG_REQUEST, so it never reaches buildCFGReply. A break of buildCFGReply that answered a version string (Value: []byte(\"ze\")) turns no tagged unit of this row red; only the untagged-for-this-row assertion in cp_test.go::TestSupportedAttributesDerived (tagged RFC7296-3.15.1-9, 'want one empty value') would catch it. The positive claim of TestZeDeclinesApplicationVersion says 'A granted IKE_AUTH CFG_REQUEST that asks the version is answered with the empty string, the first form (buildCFGReply in cp.go)', which its body does not check: a claim wider than its assertion. All four carriers PASS at HEAD and their records (mobikeResponsePayloads, ReadFrom, handleAuthRequest) are current, so the no-CP arm stays proven. Fix: tag a pool-bound carrier RFC7296-2.20-1 (TestSupportedAttributesDerived's empty-APPLICATION_VERSION assertion, or a dedicated test asking only APPLICATION_VERSION) with a discrimination record on buildCFGReply's appVersion append, and narrow the TestZeDeclinesApplicationVersion claim to what the sweep checks. Stale comment: rfc7296_cp_version_test.go header ('Ze, which supports no Configuration payload') and its t.Fatalf text ('Ze supports no CP') are now false; the true statement is that an unbound peer gets no CP.",
   "requirement_sha": "ce57bff15d289ceb",
   "tests": {
-    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "38bdb8cdc7d2fb80",
-    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "dc914273c9510daf",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "dc914273c9510daf",
     "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "607e73a674d6bbf3",
     "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "607e73a674d6bbf3",
     "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "303ae8064814af34"
   },
   "units": {
-    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "086ac4931ee14b25",
-    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "3586c5956a7a9156",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "3586c5956a7a9156",
     "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "ec1d2b188532ce5c",
     "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "4d7081a558a69c99",
     "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "09950db7f424210c"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }
