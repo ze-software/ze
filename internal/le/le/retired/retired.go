@@ -303,21 +303,44 @@ func Renames() []Rename {
 	return slices.Clone(renames)
 }
 
+// renameTable is a rename map with each row's old words split once, so the
+// Match that every dispatch and every Tab runs allocates nothing per row.
+type renameTable struct {
+	rows []Rename
+	old  [][]string
+}
+
+// newRenameTable splits the old words of every row of rows.
+func newRenameTable(rows []Rename) renameTable {
+	table := renameTable{rows: rows, old: make([][]string, len(rows))}
+	for index, row := range rows {
+		table.old[index] = row.Old()
+	}
+	return table
+}
+
+// table is the rename map Match and Successor read.
+var table = newRenameTable(renames)
+
 // Match answers the row a typed line names, and whether one does. A row
 // matches when its old words open the line; the longest such row wins, so
 // `spec session claim` answers its own row and not the bare `spec session`
 // one. words is the line le was given, its own words only (no pipe).
 func Match(words []string) (Rename, bool) {
+	return table.match(words)
+}
+
+// match is Match over this table.
+func (t renameTable) match(words []string) (Rename, bool) {
 	best := -1
-	for index, row := range renames {
-		old := row.Old()
+	for index, old := range t.old {
 		if len(old) > len(words) {
 			continue
 		}
 		if !slices.Equal(words[:len(old)], old) {
 			continue
 		}
-		if best >= 0 && len(old) <= len(renames[best].Old()) {
+		if best >= 0 && len(old) <= len(t.old[best]) {
 			continue
 		}
 		best = index
@@ -325,7 +348,7 @@ func Match(words []string) (Rename, bool) {
 	if best < 0 {
 		return Rename{}, false
 	}
-	return renames[best], true
+	return t.rows[best], true
 }
 
 // Successor answers the line a caller types now in place of words, which row
@@ -335,15 +358,26 @@ func Match(words []string) (Rename, bool) {
 // spec x` answers `spec claim x` and never the retired `spec claim spec x`:
 // a refusal that names a retired line refuses its reader twice.
 func (r Rename) Successor(words []string) []string {
+	return table.successor(r, words)
+}
+
+// successor is Successor over this table.
+func (t renameTable) successor(r Rename, words []string) []string {
 	line := append(r.New(), words[len(r.Old()):]...)
-	// Each hop applies one row of the map, so a chain longer than the map is a
-	// cycle in it, which only a Ze defect in the declaration above can make.
-	for range renames {
-		next, retired := Match(line)
+	// Each hop applies one row of the map. After r's own hop the loop allows
+	// one more hop per row, and checks the line before each one and once after
+	// the last, so a chain of that full length still answers. A line still
+	// retired then is taken for a cycle in the map, which only a Ze defect in
+	// the declaration above can make.
+	for range t.rows {
+		next, retired := t.match(line)
 		if !retired {
 			return line
 		}
 		line = append(next.New(), line[len(next.Old()):]...)
+	}
+	if _, retired := t.match(line); !retired {
+		return line
 	}
 	panic("BUG: leretired: the rename map holds a cycle through `" + strings.Join(line, " ") + "`")
 }
