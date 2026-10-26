@@ -184,6 +184,11 @@ The file is keyed on the main thread's commit namespace (`./le commit session`
 in the main thread), not on the agent that makes the edit or the judge that
 records the verdict, so a subagent's edit sees an approval the judge recorded
 under the same main thread.
+
+The edit hook judges only files inside the checkout. A path outside it after
+symlinks are resolved, such as the user's `~/.claude/CLAUDE.md` or another
+checkout's test, passes unjudged, because no test of this repository lives
+there.
 <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
 ### A row is used once

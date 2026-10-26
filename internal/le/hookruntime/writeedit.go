@@ -479,9 +479,16 @@ func writeFilePatterns(ctx context) *verdict {
 // ze point: testing/rfc-tagged-tests-blocking/never-edit-an-rfc-tagged-test-to-match-the-code
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
 // ze point: testing/fix-code-not-tests/fix-the-code-when-a-test-fails-not-the-test
-// writeWeakening refuses a proposed edit that lowers what a test proves.
+// writeWeakening refuses a proposed edit that lowers what a test proves. It
+// guards this checkout's tests, so a file outside the checkout after symlinks
+// are resolved (the user's ~/.claude/CLAUDE.md, a scratch probe, another
+// checkout) is not its business and passes unjudged, as writeDesignDoorsRead
+// treats it.
 func writeWeakening(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") || strings.Contains(filepath.ToSlash(ctx.path), "test/draft/") {
+		return nil
+	}
+	if _, inside := checkoutPath(ctx); !inside {
 		return nil
 	}
 	request := testweakened.ProposedRequest{Path: ctx.path, Tool: ctx.tool, ToolInput: testweakened.ProposedToolInput{

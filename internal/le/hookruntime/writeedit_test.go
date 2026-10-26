@@ -359,3 +359,34 @@ func TestWeakeningApprovalReachesASubagentEdit(t *testing.T) {
 		t.Fatalf("the main thread's approval did not reach the subagent's edit: %#v", admitted)
 	}
 }
+
+// TestWeakeningPassesAFileOutsideTheCheckout proves the weakening check leaves
+// a file outside the checkout alone, while a sibling file inside it is still
+// judged.
+//
+// VALIDATES: an Edit to a path outside the checkout root (the user's
+// ~/.claude/CLAUDE.md, another checkout's test) exits 0 with no message.
+// PREVENTS: the check failing closed with "proposed path is outside the
+// checkout" and blocking every edit to the user's global configuration.
+func TestWeakeningPassesAFileOutsideTheCheckout(t *testing.T) {
+	root := t.TempDir()
+	derivedDebtGit(t, root, "init", "-q")
+	outside := filepath.Join(t.TempDir(), "pkg", "a_test.go")
+	if err := os.MkdirAll(filepath.Dir(outside), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := "package pkg\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n"
+	if err := os.WriteFile(outside, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{outside, filepath.Join(t.TempDir(), ".claude", "CLAUDE.md")} {
+		edit := context{
+			root: root, tool: "Edit", path: path,
+			input:   map[string]any{"file_path": path, "old_string": "\trequire.NoError(t, err)\n", "new_string": ""},
+			payload: Payload{SessionID: "parent-sid"},
+		}
+		if verdict := writeWeakening(edit); verdict != nil {
+			t.Fatalf("an edit outside the checkout to %s = %#v, want it passed unjudged", path, verdict)
+		}
+	}
+}
