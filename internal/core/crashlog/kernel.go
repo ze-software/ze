@@ -29,6 +29,9 @@ const (
 	KindPanic = "panic"
 	// KindKernel is a kernel panic recovered from the reserved region.
 	KindKernel = "kernel"
+	// KindRecovered is a Go panic a task boundary recovered while the process
+	// kept running (RecordRecoveredPanic).
+	KindRecovered = "recovered"
 )
 
 // ReserveRegionName is the name the appliance build gives the reserved memory

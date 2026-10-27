@@ -287,6 +287,18 @@ diff nd.txt ze.txt
 
 Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.
 
+### Contained Panics
+<!-- source: internal/core/taskguard/guard.go -- MetricName, Guard.SetMetricsRegistry, Guard.Task -->
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_task_panics_total` | counter | `component`, `task` | Panics recovered at a network-input task boundary. Each one ended one unit (a session, a neighbor, a request, a connection) while Ze kept running |
+
+Any value above zero is a Ze defect. The ERROR log line of each panic names the
+unit and the stack, and `ze show crashes` lists its crash record with kind
+`recovered`: attach that record to the bug report. A component's tasks appear
+at zero from the moment the component has a metrics registry.
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 

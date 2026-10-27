@@ -11,7 +11,9 @@ import (
 
 // CrashSummary describes one crash file for CLI display. Kind names what
 // produced it: KindPanic for a Go panic this daemon caught, KindKernel for a
-// kernel fault recovered from the reserved region on the following boot.
+// kernel fault recovered from the reserved region on the following boot, and
+// KindRecovered for a panic a task boundary recovered while the daemon kept
+// running.
 type CrashSummary struct {
 	Name string
 	Size int64
@@ -95,11 +97,14 @@ func CrashListFields() []map[string]any {
 }
 
 // CrashKind names what produced the artifact called name. The kind is derived
-// from the name rather than stored beside it, so one directory holds both kinds
+// from the name rather than stored beside it, so one directory holds every kind
 // and one listing tells them apart.
 func CrashKind(name string) string {
 	if strings.HasSuffix(name, kernelFileSuffix) {
 		return KindKernel
+	}
+	if isRecoveredFile(name) {
+		return KindRecovered
 	}
 	return KindPanic
 }

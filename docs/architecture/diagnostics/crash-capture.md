@@ -133,6 +133,51 @@ to descriptor 2 is not, because descriptor 2 is the real stderr.
 **`env.Get` caches `os.Environ()` on first access.** A test that calls
 `t.Setenv` must call `env.ResetCache()`, or the cache never sees the new value.
 
+## Recovered panics
+
+A peer must not be able to end the daemon (`docs/contributing/ze-go-style.md`,
+"Assertions, in a language that has none"). A task that handles network input
+(a BGP session read loop, a protocol receive goroutine, a request handler)
+therefore defers one boundary at its entry, `taskguard.Task.Contain`. A panic
+below that boundary ends only the unit the input belongs to (the session, the
+neighbor, the request, the connection), and the process keeps running.
+
+<!-- source: internal/core/taskguard/guard.go -- Guard, Task.Contain, record -->
+<!-- source: internal/core/crashlog/recovered.go -- RecordRecoveredPanic, rotateRecoveredFiles -->
+
+**A recovered panic is never silent.** The boundary does three things before it
+hands control back to the task:
+
+| Output | What it carries |
+|--------|-----------------|
+| One ERROR log line | `component`, `task`, `unit`, `message-type` when the task tracks one, `panic`, `restart` (what brings the unit back), `next` (the `ze show crashes name <file>` command), `stack` |
+| `ze_task_panics_total{component,task}` | One increment. The peer or client is in the log line, not a label, so the series count stays bounded |
+| A crash record | Written by `crashlog.RecordRecoveredPanic`, named `crash-<time>-recovered.log`, listed by `show crashes` with kind `recovered` |
+
+When no record can be written (no crash directory, a failed write), the log
+line carries `crash-record-error` with the reason instead of the `show crashes`
+command, so it never points at a file that does not exist.
+
+**The boundary goes at the task entry, never in a decode function.** One
+deferred call per session, goroutine or dispatched event costs nothing
+measurable; one per message inside a read loop would. The boundary starts no
+goroutine and restarts nothing: the caller's end function tears the unit down
+through its existing path, and the component's own backoff restarts it.
+
+**Recovered records rotate apart from process crashes**, each kept to the
+`ze.crash.keep` count. A peer that triggers the same contained panic on every
+reconnect can fill the recovered records, but cannot evict the report of the
+crash that last ended the process.
+
+**The record names carry nanoseconds.** A crashing process writes one report,
+but a running one can recover two panics in the same second, and a
+second-resolution name would overwrite the first.
+
+**The guard hands the record its panic value already printed.**
+`crashlog` spells a string or an error and writes `<unknown panic value>` for
+anything else, so the guard formats the value first and a panic with an integer
+or a struct keeps its value in the record.
+
 ## The kernel half
 
 Everything above captures a Go panic, which is a fault Ze survives long enough to

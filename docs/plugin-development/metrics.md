@@ -102,6 +102,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 
 | Metric Name | Type | Labels | Owner |
 |-------------|------|--------|-------|
+| `ze_task_panics_total` | CounterVec | component, task | every component with a network-input task, through its `taskguard.Guard`: one per panic recovered at the task boundary |
 | `ze_rib_routes_in_total` | Gauge | | bgp-rib |
 | `ze_rib_routes_out_total` | Gauge | | bgp-rib |
 | `ze_rib_routes_in` | GaugeVec | peer | bgp-rib |
@@ -417,6 +418,28 @@ where `ConfigureMetrics` is never called at all (plugin loaded without a metrics
 registry).
 
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
+
+## The Task Panic Counter
+
+A plugin with a task that handles network input (a receive goroutine, a
+session read loop, a request handler) guards it with `internal/core/taskguard`,
+and the guard owns `ze_task_panics_total{component,task}`. The plugin does not
+declare the metric itself:
+
+1. Build one `taskguard.Guard` per component with `taskguard.New(component, log)`,
+   and declare each task once with `Guard.Task(name, restart)`. `restart` says in
+   plain words what brings the unit back.
+2. Call `Guard.SetMetricsRegistry(reg)` from `ConfigureMetrics`. A panic
+   recovered before the registry arrived is added then, so none is lost.
+3. Defer `task.Contain(describe, end)` directly at the top of the task. It logs,
+   counts and writes the crash record, then calls `end` to tear the unit down.
+
+The name and labels are one declaration (`taskguard.MetricName`), so every
+component registering it shares one vector. The log line and the crash record
+are described in `docs/architecture/diagnostics/crash-capture.md`, "Recovered
+panics".
+
+<!-- source: internal/core/taskguard/guard.go -- New, Guard.Task, Guard.SetMetricsRegistry, Task.Contain -->
 
 ## Which Plugins Need Metrics
 

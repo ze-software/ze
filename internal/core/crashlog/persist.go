@@ -104,17 +104,29 @@ func parseCrashKeep() int {
 
 func writeCrashFile(dir string, keep int, report string) {
 	ts := time.Now().UTC().Format("20060102-150405")
-	path := filepath.Join(dir, crashFilePrefix+ts+crashFileSuffix)
-
-	if err := os.WriteFile(path, []byte(report), 0o600); err != nil {
+	if err := writeCrashFileNamed(dir, crashFilePrefix+ts+crashFileSuffix, report); err != nil {
 		return
 	}
 
 	rotateCrashFiles(dir, keep)
 }
 
+// writeCrashFileNamed writes report to dir/name, readable by the owner only.
+func writeCrashFileNamed(dir, name, report string) error {
+	return os.WriteFile(filepath.Join(dir, name), []byte(report), 0o600)
+}
+
+// rotateCrashFiles keeps the newest keep process crash and kernel records. The
+// records of recovered panics are left out of the count and out of the removal:
+// rotateRecoveredFiles rotates them apart, so contained panics cannot evict the
+// report of the crash that last ended the process.
 func rotateCrashFiles(dir string, keep int) {
-	files := listCrashFileNames(dir)
+	var files []string
+	for _, name := range listCrashFileNames(dir) {
+		if !isRecoveredFile(name) {
+			files = append(files, name)
+		}
+	}
 	if len(files) <= keep {
 		return
 	}
