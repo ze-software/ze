@@ -170,6 +170,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `fixture-encodes-an-impossible-state` | 2026-08-29 | looking glass golden capture |
 | `format-cannot-hold-a-state-the-tree-holds` | 2026-10-11 | `emitValueOrArrayNop` |
 | `format-cannot-hold-a-state-the-tree-holds` | 2026-10-21 | `tokenize` |
+| `format-cannot-hold-a-state-the-tree-holds` | 2026-10-27 | `SerializeSetWithMeta` writers drop comments |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-13 | leaf-list builders `yang_schema.go` |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-03 | web editor rollback |
 | `help-answers-unknown-for-its-own-command` | 2026-09-07 | `ze plugin command help` |
