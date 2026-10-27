@@ -62,7 +62,7 @@
     "claim-sha": "5529faca3d1a1c65",
     "route": "revert",
     "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
-    "producer-sha": "eb47efaab47a740a",
-    "break": "body of respondIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "83938513561c78aa",
+    "break": "body of respondIKERekey replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
