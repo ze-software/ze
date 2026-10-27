@@ -7,8 +7,8 @@
     "claim-sha": "7ea2251fac1cc899",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "02c7706e79bf4197",
-    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2347-x-3",
@@ -18,8 +18,8 @@
     "claim-sha": "3b804dbb8970d2c8",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "02c7706e79bf4197",
-    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2347-x-3",
@@ -29,8 +29,8 @@
     "claim-sha": "9f9c092b73b02ce7",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "02c7706e79bf4197",
-    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2347-x-3",
@@ -40,7 +40,7 @@
     "claim-sha": "61405ed777c2bff3",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "02c7706e79bf4197",
-    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
