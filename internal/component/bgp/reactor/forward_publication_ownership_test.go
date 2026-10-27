@@ -16,15 +16,14 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // TestRecoveryWaitsForFilteredReceivedPublication runs actual Peer.runOnce
 // sessions over net.Pipe, including their delivery workers and registered RIB.
 // A departs; B's filtered withdrawal must publish and apply before recovery
-// can elect a replacement for A. When B's delivery worker fails instead, B is
-// torn down with Cease / Out of Resources, the destination is NOT retired, and
+// can elect a replacement for A. When B's delivery worker panics instead, B is
+// torn down with Cease / Unspecific, the destination is NOT retired, and
 // every lookup of a round that captured B's failed publication runs with B in
 // every key's excluded-source set, so the destination receives the withdrawal
 // and never B's withdrawn route. A later round, once B reconnected, captures
@@ -172,17 +171,10 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 				if excludedLookups.Load() == 0 {
 					t.Fatal("the lookup never ran with the failed source excluded")
 				}
-				lowEventually(t, func() bool {
-					b.mu.Lock()
-					defer b.mu.Unlock()
-					for _, frame := range b.frames {
-						if frame[18] == byte(msgtype.TypeNOTIFICATION) && len(frame) >= message.HeaderLen+2 &&
-							frame[19] == byte(message.NotifyCease) && frame[20] == message.NotifyCeaseOutOfResources {
-							return true
-						}
-					}
-					return false
-				}, "failed publication sends its source Cease Out of Resources")
+				// RFC 4271 Section 4.5: a panic has no defined subcode, so
+				// Cease (6) carries Unspecific (0).
+				lowEventually(t, func() bool { return ceaseSent(b, message.NotifyCeaseUnspecific) },
+					"failed publication sends its source Cease Unspecific")
 				if session.tearingDown.Load() {
 					t.Fatal("a source's failed publication retired the destination session")
 				}

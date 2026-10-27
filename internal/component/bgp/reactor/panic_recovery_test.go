@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
+	"net/netip"
 	"os"
 	"sync/atomic"
 	"syscall"
@@ -14,9 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-
-	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/crashlog"
 )
 
 // panicDialer is a Dialer that panics on DialContext, simulating
@@ -26,16 +26,6 @@ type panicDialer struct{}
 func (d panicDialer) DialContext(_ context.Context, _, _ string) (net.Conn, error) {
 	panic("simulated dial panic")
 }
-
-// panicReceiver is a MessageReceiver that panics on batch delivery,
-// simulating a bug in message processing.
-type panicReceiver struct{}
-
-func (r panicReceiver) OnMessageReceived(_ *plugin.PeerInfo, _ any) int { return 0 }
-func (r panicReceiver) OnMessageBatchReceived(_ *plugin.PeerInfo, _ []any) []int {
-	panic("simulated receiver panic")
-}
-func (r panicReceiver) OnMessageSent(_ *plugin.PeerInfo, _ any) {}
 
 // TestPeerRunRecoversPanic verifies that a panic inside runOnce (via the dialer)
 // is caught by safeRunOnce, logged, and the peer reconnects with backoff instead
@@ -72,57 +62,44 @@ func TestPeerRunRecoversPanic(t *testing.T) {
 	require.NoError(t, waitErr, "peer should stop cleanly after panic recovery")
 }
 
-// TestPeerDeliveryRecoversPanic verifies the delivery goroutine's recovery pattern.
+// TestDeliveryPanicSendsCeaseUnspecific proves the delivery worker's guard
+// through the real session: a live peer over net.Pipe whose delivery worker
+// receives a panicking receiver (the sessionEndHooks seam), then one UPDATE.
+// It replaces a test that copied the worker's old recover pattern into the
+// test body and so never ran production code.
 //
-// The production delivery goroutine in runOnce() uses:
-//
-//	defer close(deliveryDone)
-//	defer func() { if r := recover(); r != nil { ... } }()
-//	for first := range deliverChan { ... }
-//
-// This test replicates that exact pattern with a panicking receiver to prove:
-// (1) the panic is caught, (2) deliveryDone closes, (3) shutdown isn't blocked.
-//
-// Note: the production goroutine is local to runOnce() and cannot be tested
-// without a full session. This pattern test validates the recovery mechanism.
-//
-// VALIDATES: AC-2 — delivery goroutine panic doesn't block peer shutdown.
-// PREVENTS: Hung shutdown when delivery processing panics.
-func TestPeerDeliveryRecoversPanic(t *testing.T) {
-	// Replicate the production delivery goroutine structure from peer.go runOnce().
-	deliverChan := make(chan deliveryItem, 1)
-	deliveryDone := make(chan struct{})
+// VALIDATES: AC-5 (the Cease carries Unspecific, never Out of Resources; the
+// session leaves Established and its down arrives, so the worker's teardown
+// did not hang), AC-2 (one panic counted on task "delivery", one recovered
+// crash record listed).
+// PREVENTS: a delivery panic answered with Out of Resources, or left silent.
+func TestDeliveryPanicSendsCeaseUnspecific(t *testing.T) {
+	restore := crashlog.SetCrashDirForTest(t.TempDir())
+	t.Cleanup(restore)
 
-	var panicked atomic.Bool
-	receiver := panicReceiver{}
+	v := lowLiveRouter(t, lowLiveSettings("10.0.0.1", 65000, 65002))[0]
+	observer := &downOrderObserver{downAdded: make(chan struct{}, 1)}
+	v.peer.reactor.addPeerObserver(observer)
+	v.peer.sessionEndHooks.Store(&sessionEndHooks{deliveryReceiver: func(prior MessageReceiver) MessageReceiver {
+		return publicationPanicReceiver{MessageReceiver: prior}
+	}})
+	t.Cleanup(func() { v.peer.sessionEndHooks.Store(nil) })
+	panicsBefore, _ := bgpPanics().guard.Panics("delivery")
 
-	go func() {
-		defer close(deliveryDone)
-		defer func() {
-			if r := recover(); r != nil {
-				panicked.Store(true)
-			}
-		}()
-		for first := range deliverChan {
-			// Mirrors production: call receiver.OnMessageBatchReceived.
-			msgs := []any{first.msg}
-			receiver.OnMessageBatchReceived(&first.peerInfo, msgs)
-		}
-	}()
+	ownershipLiveSend(t, v, nil, firstASAttrs(4, 65002), netip.MustParsePrefix("10.20.0.0/24")) // RFC 4271 Section 4.3.
 
-	// Send an item that triggers the panic in OnMessageBatchReceived.
-	deliverChan <- deliveryItem{
-		peerInfo: plugin.PeerInfo{Address: mustParseAddr("192.0.2.1")},
-		msg:      bgptypes.RawMessage{},
-	}
+	// RFC 4271 Section 4.5: no subcode is defined for a Ze defect, so Cease (6)
+	// carries Unspecific (0).
+	lowEventually(t, func() bool { return ceaseSent(v, message.NotifyCeaseUnspecific) }, "AC-5: Cease / Unspecific on the wire")
+	require.False(t, ceaseSent(v, message.NotifyCeaseOutOfResources), "AC-5: a delivery panic is not Out of Resources")
+	lowEventually(t, func() bool { return v.peer.State() != PeerStateEstablished }, "AC-5: the session left Established")
+	lowEventually(t, func() bool { return len(observer.records()) == 1 }, "AC-5: the session's down arrived")
 
-	// deliveryDone must close — proves the defer chain works.
-	select {
-	case <-deliveryDone:
-		assert.True(t, panicked.Load(), "recovery should have caught the panic")
-	case <-time.After(time.Second):
-		t.Fatal("deliveryDone channel not closed after delivery panic — shutdown would hang")
-	}
+	panicsAfter, _ := bgpPanics().guard.Panics("delivery")
+	require.Equal(t, panicsBefore+1, panicsAfter, "AC-2: one contained delivery panic counted")
+	crashes := crashlog.ListCrashes()
+	require.Len(t, crashes, 1, "AC-2: one crash record written")
+	require.Equal(t, crashlog.KindRecovered, crashes[0].Kind, "AC-2: the record is listed as a recovered panic")
 }
 
 // TestListenerHandlerRecoversPanic verifies that a panic in a connection handler

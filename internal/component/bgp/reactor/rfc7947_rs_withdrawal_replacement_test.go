@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -316,7 +317,7 @@ func TestRSOwnerWithdrawalLookupFailureRetiresDestination(t *testing.T) {
 	ownershipLiveSend(t, a, []netip.Prefix{prefix}, nil) // RFC 4271 Section 4.3.
 
 	// RFC 4486 Section 4: Cease (6) with subcode Out of Resources (8).
-	lowEventually(t, func() bool { return publicationCeaseSent(c) }, "Cease / Out of Resources to C")
+	lowEventually(t, func() bool { return ceaseSent(c, message.NotifyCeaseOutOfResources) }, "Cease / Out of Resources to C")
 	lowEventually(t, func() bool { return c.peer.State() != PeerStateEstablished }, "C left Established")
 	if failed.Load() == 0 {
 		t.Fatal("C's recovery lookup was never asked")

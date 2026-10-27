@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -29,13 +28,16 @@ func (publicationPanicReceiver) OnMessageBatchReceived(*plugin.PeerInfo, []bgpty
 }
 
 // TestOwedKeyPublicationFailureTearsDownSource is the Phase 2b teardown half:
-// a receive publication that fails, through a panicking receiver or a nil
-// one, ends the source's session with Cease / Out of Resources, and the
-// session's down still arrives. The delivery worker calls the teardown
-// itself, so a teardown that waited on the worker would hang until the
-// deadline (A-11). The GR-capable half lands with D1's reason producer.
+// a receive publication that fails ends the source's session with a Cease,
+// and the session's down still arrives. A panicking receiver is a Ze defect
+// with no defined subcode, so its Cease carries Unspecific (RFC 4271 Section
+// 4.5); a nil receiver is a missing resource and carries Out of Resources. The
+// delivery worker calls the teardown itself, so a teardown that waited on the
+// worker would hang until the deadline (A-11). The GR-capable half lands with
+// D1's reason producer.
 //
-// VALIDATES: AC-17 teardown, A-11 (no wait on deliveryDone).
+// VALIDATES: AC-17 teardown, A-11 (no wait on deliveryDone), and the subcode
+// each failure carries (spec-improve-5-panic-boundaries D-4).
 // PREVENTS: a source left Established while its UPDATEs never reach the plugins.
 func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 	// The worker's seam hands it the failing receiver; the read goroutine
@@ -43,11 +45,12 @@ func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 	cases := []struct {
 		name     string
 		receiver func(MessageReceiver) MessageReceiver
+		subcode  uint8
 	}{
 		{"panicking receiver", func(prior MessageReceiver) MessageReceiver {
 			return publicationPanicReceiver{MessageReceiver: prior}
-		}},
-		{"nil receiver", func(MessageReceiver) MessageReceiver { return nil }},
+		}, message.NotifyCeaseUnspecific},
+		{"nil receiver", func(MessageReceiver) MessageReceiver { return nil }, message.NotifyCeaseOutOfResources},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,8 +66,8 @@ func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 			attrs := firstASAttrs(4, 65002)                                            // RFC 6793 Section 3.
 			ownershipLiveSend(t, v, nil, attrs, netip.MustParsePrefix("10.20.0.0/24")) // RFC 4271 Section 4.3.
 
-			// RFC 4486 Section 4: Cease (6) with subcode Out of Resources (8).
-			lowEventually(t, func() bool { return publicationCeaseSent(v) }, "Cease / Out of Resources on the wire")
+			// RFC 4486 Section 4: Cease (6) with the case's subcode.
+			lowEventually(t, func() bool { return ceaseSent(v, tc.subcode) }, "Cease with the case's subcode on the wire")
 			lowEventually(t, func() bool { return p.State() != PeerStateEstablished }, "source left Established")
 			lowEventually(t, func() bool { return len(observer.records()) == 1 }, "the source's down")
 			if !publication.failed.Load() {
@@ -72,30 +75,6 @@ func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 			}
 		})
 	}
-}
-
-// publicationCeaseSent reports whether the remote received a NOTIFICATION
-// Cease / Out of Resources.
-//
-// RFC 4271 Section 4.5: the NOTIFICATION body is Error code (1 octet), Error
-// subcode (1 octet), Data (variable).
-//
-//	Byte offset: | 0..15 Marker | 16..17 Length | 18 Type | 19 Error code | 20 Error subcode |
-func publicationCeaseSent(v *lowLivePeer) bool {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	for _, frame := range v.frames {
-		if len(frame) < message.HeaderLen+2 {
-			continue
-		}
-		if frame[18] != byte(msgtype.TypeNOTIFICATION) {
-			continue
-		}
-		if frame[19] == byte(message.NotifyCease) && frame[20] == message.NotifyCeaseOutOfResources {
-			return true
-		}
-	}
-	return false
 }
 
 // owedSurvivorMessage is owedSurvivor with the survivor's received message ID

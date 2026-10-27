@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -60,9 +61,12 @@ func (receiver lateFailureReceiver) OnMessageBatchReceived(*plugin.PeerInfo, []b
 // peer observer receives is recorded with its reason.
 //
 // VALIDATES: Cease delivered: rpc.ReasonNotification. Cease unsent:
-// rpc.ReasonAdjRIBInInvalid, never "notification". Late failures (the worker
-// fails after a transport loss ended the session; the read goroutine panics
-// before the hand-off): rpc.ReasonAdjRIBInInvalid. Each forbids retention
+// rpc.ReasonAdjRIBInInvalid, never "notification". Late failure (the worker
+// fails after a transport loss ended the session): rpc.ReasonAdjRIBInInvalid.
+// The read goroutine panicking before the hand-off: its guard writes Cease /
+// Unspecific before the session ends (spec-improve-5-panic-boundaries AC-1),
+// so the down is rpc.ReasonNotification, which forbids retention as well.
+// Each forbids retention
 // (rpc.ReasonForbidsRetention), and the history row carries the same reason.
 // PREVENTS: a GR helper keeping, for a restart time, routes from an Adj-RIB-In
 // ze knows to be invalid.
@@ -74,7 +78,8 @@ func TestOwedKeyPublicationFailureForbidsRetention(t *testing.T) {
 }
 
 // publicationFailureCeaseDelivered: the worker's receiver panics and its
-// teardown writes Cease / Out of Resources.
+// teardown writes Cease / Unspecific (RFC 4271 Section 4.5: a panic has no
+// defined subcode).
 func publicationFailureCeaseDelivered(t *testing.T) {
 	v, observer := publicationFailureSession(t)
 	v.peer.sessionEndHooks.Store(&sessionEndHooks{deliveryReceiver: func(prior MessageReceiver) MessageReceiver {
@@ -83,8 +88,8 @@ func publicationFailureCeaseDelivered(t *testing.T) {
 	t.Cleanup(func() { v.peer.sessionEndHooks.Store(nil) })
 	publicationFailureSend(t, v)
 
-	// RFC 4486 Section 4: Cease (6) with subcode Out of Resources (8).
-	lowEventually(t, func() bool { return publicationCeaseSent(v) }, "Cease / Out of Resources on the wire")
+	// RFC 4271 Section 4.5: Cease (6) with subcode Unspecific (0).
+	lowEventually(t, func() bool { return ceaseSent(v, message.NotifyCeaseUnspecific) }, "Cease / Unspecific on the wire")
 	publicationFailureDown(t, v.peer, observer, rpc.ReasonNotification)
 }
 
@@ -101,7 +106,8 @@ func publicationFailureCeaseUnsent(t *testing.T) {
 	publicationFailureSend(t, v)
 
 	publicationFailureDown(t, v.peer, observer, rpc.ReasonAdjRIBInInvalid)
-	if publicationCeaseSent(v) {
+	// The receiver panics, so the Cease its teardown builds is Unspecific.
+	if ceaseSent(v, message.NotifyCeaseUnspecific) {
 		t.Fatal("the Cease reached the wire although the session's writer had failed")
 	}
 }
@@ -149,7 +155,12 @@ func publicationFailureReadPanic(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("no down after the read goroutine panicked")
 	}
-	publicationFailureDown(t, c.p, c.observer, rpc.ReasonAdjRIBInInvalid)
+	// The read guard writes Cease / Unspecific before the session ends
+	// (spec-improve-5-panic-boundaries AC-1), so a NOTIFICATION was exchanged.
+	if !ceaseSent(c.v, message.NotifyCeaseUnspecific) {
+		t.Fatal("the read guard sent no Cease / Unspecific")
+	}
+	publicationFailureDown(t, c.p, c.observer, rpc.ReasonNotification)
 }
 
 // publicationFailureSession starts one live session and records its downs.
