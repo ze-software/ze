@@ -108,6 +108,39 @@ are not pinned in a manifest.
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
 
+## VPN Kernel Proof
+
+`./le test qemu vpn-kernel-test` boots Ze's docker-host image with its own
+kernel and base, on the host's native architecture. It uses the shared
+Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
+foreign-architecture emulation. This is a manual kernel proof, not a check
+of the default appliance image's packaged config.
+<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+
+The action runs AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
+NULL/SHA256 against strongSwan. The IPsec checks require installed SAs and
+received tunnel traffic. A separate pair of Linux WireGuard peers must
+complete a handshake and pass a ping, with received bytes at both ends.
+<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
+<!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- verifyESPDirectionsToward -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+
+Before services start, the disposable guest disables module loading,
+refuses any preloaded module, and removes its `/sbin/modprobe` helper.
+The shipped image and any existing Docker host are unchanged. The host
+checks the emitted kernel config against both requirement manifests;
+the WireGuard step checks the guest root again, not the container root.
+<!-- source: internal/le/test/qemu/vpnproof.go -- vpnGuestPreparation, vpnKernelConfig -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabGuest.cidataFiles -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+
+The WireGuard step proves kernel traffic, not Ze's configuration-commit
+path. An amd64 run does not replace the required arm64/HVF run, and no
+result is implied by the command's presence.
+<!-- source: internal/le/test/deployment/vpnproof.go -- vpnKernelReport -->
+
 ## L2TP Kernel Support
 
 Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime

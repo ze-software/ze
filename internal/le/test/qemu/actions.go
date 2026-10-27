@@ -159,6 +159,17 @@ var actions = leaction.New(area,
 		AnswerArgs: runIPsecMOBIKEHere,
 	},
 	leaction.Action{
+		Verb:    "vpn-kernel-test",
+		Summary: "prove five ESP transforms and WireGuard on Ze's guest kernel",
+		Why: "boot Ze's native docker-host image, check its emitted kernel config, disable module loading" +
+			" in the disposable guest and remove its modprobe helper before testing five negotiated ESP" +
+			" transforms against strongSwan and a WireGuard handshake with received ping traffic",
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
+		},
+		AnswerArgs: runVPNKernelHere,
+	},
+	leaction.Action{
 		Verb:    dockerLabVerb,
 		Does:    "run",
 		Summary: "run a Docker lab on the docker-host image in QEMU",

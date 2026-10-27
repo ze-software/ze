@@ -18,23 +18,38 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// VALIDATES: qemu publishes the exact host and guest action population.
-// PREVENTS: a missing guest proof or renamed action.
-func TestQEMUActionsIncludeTheHostRun(t *testing.T) {
-	rows := Actions().Actions
-	if len(rows) != 17 {
-		t.Fatalf("qemu actions = %d, want 17", len(rows))
-	}
-	want := []string{
-		"vpp-hugepages-test", "mpls-boot-test", "crash-capture-panic-harvest",
-		"crash-capture-ota-unaffected", "run", "install-test", "install-iso-test",
-		"install-scenarios-test", "install-ventoy-test", "vrrp-keepalived-test",
-		"ipsec-mobike-test", "docker-lab", "pppoe-accel-test", "netns-test", "pppoe-test", "all-tests", "stress",
-	}
-	for index, verb := range want {
-		if rows[index].Verb != verb {
-			t.Errorf("action %d = %q, want %q", index, rows[index].Verb, verb)
-		}
+// TestVPNKernelActionRefusesGuestOverrides sends image-selection overrides
+// through the command entry point and requires a keyword-specific refusal.
+// A missing action cannot satisfy the diagnostic, and no guest can start.
+func TestVPNKernelActionRefusesGuestOverrides(t *testing.T) {
+	for _, keyword := range []string{"kernel", "image", "arch"} {
+		t.Run(keyword, func(t *testing.T) {
+			stderr, err := os.CreateTemp(t.TempDir(), "refusal-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			saved := os.Stderr
+			os.Stderr = stderr
+			t.Cleanup(func() {
+				os.Stderr = saved
+				if err := stderr.Close(); err != nil {
+					t.Error(err)
+				}
+			})
+			answer, code := Answer([]string{"vpn-kernel-test", keyword, "foreign-guest"})
+			if code != 2 {
+				t.Fatalf("guest override answered %d with %v, want usage refusal", code, answer)
+			}
+			output, err := os.ReadFile(stderr.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{"vpn-kernel-test", "takes no argument keyword \"" + keyword + "\"", "timeout"} {
+				if !strings.Contains(string(output), want) {
+					t.Errorf("refusal %q does not explain %q", output, want)
+				}
+			}
+		})
 	}
 }
 

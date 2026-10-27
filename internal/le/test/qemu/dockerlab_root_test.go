@@ -85,6 +85,9 @@ func commitTree(t *testing.T, tree string) {
 		{"commit", "--quiet", "-m", "fixture"},
 	} {
 		command := exec.CommandContext(t.Context(), "git", args...)
+		// This private fixture must not inherit the operator's signing key or
+		// hooks. It is not a commit to the development checkout.
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		command.Dir = tree
 		if out, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v in the scratch tree: %v\n%s", args, err, out)
@@ -110,7 +113,7 @@ func TestDockerLabBuildsUnderTheVerbRoot(t *testing.T) {
 		run  func(ctx context.Context, tree string) bool
 	}{
 		{"verb", func(ctx context.Context, tree string) bool {
-			_, code := runDockerLab(ctx, tree, leaction.Arguments{})
+			_, code := runDockerLab(ctx, tree, leaction.Arguments{}, "")
 			return code != 0
 		}},
 		{"guest-le", func(ctx context.Context, tree string) bool {

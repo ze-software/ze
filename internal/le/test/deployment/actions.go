@@ -75,6 +75,14 @@ var actions = leaction.New(area,
 		" Docker lab. Needs PPPoE support in the Docker host kernel",
 		Answer: signalRooted(runDockerPPPoEAt)},
 	leaction.Action{
+		Verb:    "vpn-kernel-test",
+		Summary: "prove five ESP transforms and WireGuard on the Docker host",
+		Why: "run AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and NULL/SHA256 against" +
+			" strongSwan, plus a WireGuard ping and guest module-loading assertions." +
+			" Use test qemu vpn-kernel-test for Ze guest provenance and isolated preparation",
+		Answer: signalRooted(runVPNKernelAt),
+	},
+	leaction.Action{
 		Verb:    "ipsec-mobike",
 		Does:    "run",
 		Summary: "test MOBIKE movement against strongSwan",

@@ -547,6 +547,30 @@ prove the image boots, its Docker answers over the forwarded socket and the
 kernel passes.
 <!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabEnvironment -->
 
+### VPN facilities without module loading
+
+`./le test qemu vpn-kernel-test timeout 30m` uses the native-architecture
+docker-host image and the shared hardware-accelerated guest runner. It accepts
+no image, kernel or architecture override. Before boot, it checks the emitted
+config from the image's runtime-kernel cache resolver against both requirement
+manifests.
+
+Guest preparation disables module loading, refuses an already-loaded module,
+and removes `/sbin/modprobe` in the disposable snapshot before Docker starts.
+It does not modify the cached image or the parent host. The inner
+`test deployment vpn-kernel-test` runs the five ESP combinations against
+strongSwan and a two-peer WireGuard handshake/received-traffic proof.
+The WireGuard checker also reads the guest host's module state through its
+read-only root mount. A scenario or resource-cleanup failure fails the
+aggregate verdict.
+
+This is not proof about the default appliance image, and an amd64/KVM run is
+not arm64/HVF evidence. Read those provenance claims from the outer guest
+report and the separate appliance-image check.
+<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere, vpnKernelConfig, vpnGuestPreparation -->
+<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- runWireGuardProof -->
+
 ## Stopping a guest command
 
 A Ctrl-C on a run that has reached its guest command (`run`,

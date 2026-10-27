@@ -79,10 +79,16 @@ func (r Report) Text() string {
 		if scenario.Passed {
 			out.Str("  ").Colored(color.BrightGreen).Str("✓ PASS").
 				Colored(color.Reset).Str("\n\n")
-			continue
+		} else {
+			out.Str("  ").Colored(color.BoldRed).Str("✗ FAIL: ").Str(scenario.Error).
+				Colored(color.Reset).Str("\n\n")
 		}
-		out.Str("  ").Colored(color.BoldRed).Str("✗ FAIL: ").Str(scenario.Error).
-			Colored(color.Reset).Str("\n\n")
+		for _, cleanup := range scenario.CleanupErrors {
+			out.Str("  cleanup: ").Str(cleanup).Byte('\n')
+		}
+	}
+	for _, cleanup := range r.CleanupErrors {
+		out.Str("  image cleanup: ").Str(cleanup).Byte('\n')
 	}
 	out.Str("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	if r.Code == 0 {

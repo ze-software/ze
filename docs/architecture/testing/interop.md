@@ -1864,6 +1864,25 @@ without changing the negotiation, kernel-state or received-traffic assertions.
 <!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
 
+### ESP transform kernel proof
+
+`esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one
+ESP combination to strongSwan. `checkESPKernel` requires the negotiated
+encryption and both kernels' installed transforms in both directions, then
+lossless traffic and increasing receiver counters. The IKE SA stays on
+AES-GCM/SHA256; the legacy 3DES/SHA1 choice applies only to ESP.
+
+`test deployment vpn-kernel-test` selects these scenarios alongside the
+existing GCM and NULL scenarios, then runs the WireGuard kernel proof.
+`test qemu vpn-kernel-test` supplies the disposable Ze-system guest.
+The external scenarios exercise Ze-initiator establishment and bidirectional
+traffic, not both roles' rekey exchanges.
+Cleanup is part of the verdict: a scenario or image cleanup failure makes the
+VPN proof fail even when traffic passed. The report keeps the original Docker
+cleanup error beside that failure, rather than reporting traffic as a clean pass.
+<!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
+<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
+
 ### The FreeRADIUS admin-login suite
 
 `internal/le/interoplab/radius/` runs ze's operator login against a real

@@ -106,6 +106,9 @@ type dockerLabGuest struct {
 	// publicKey is the one authorized key, the run's own.
 	publicKey string
 	shares    []dockerLabShare
+	// bootPreparation is an optional, compiled-in preparation for this disposable
+	// proof VM. It runs before dockerd, never against an existing Docker host.
+	bootPreparation string
 }
 
 // cidataFiles answers Lima's file set for the guest: lima.env, meta-data,
@@ -130,8 +133,12 @@ func (g dockerLabGuest) cidataFiles() []cidataFile {
 	}
 	user.Str("users:\n  - name: ").Str(strconv.Quote(dockerLabUser)).
 		Str("\n    ssh-authorized-keys:\n      - ").Str(strconv.Quote(g.publicKey)).Byte('\n')
+	bootScript := dockerLabBootScript
+	if g.bootPreparation != "" {
+		bootScript = "#!/bin/sh\nset -eu\n" + g.bootPreparation + "\n" + bootScript
+	}
 	return []cidataFile{
-		{name: "boot.sh", body: []byte(dockerLabBootScript)},
+		{name: "boot.sh", body: []byte(bootScript)},
 		{name: "lima.env", body: []byte(limaEnv.String())},
 		{name: "meta-data", body: []byte(meta.String())},
 		{name: "user-data", body: []byte(user.String())},
@@ -194,10 +201,11 @@ func (vm dockerLabVM) argv() []string {
 // dockerLabRequest is one docker-lab run: the image, the linux ze the kernel
 // check probes with, and the lab with its environment, empty for none.
 type dockerLabRequest struct {
-	image       string
-	linuxZe     string
-	lab         []string
-	environment []string
+	image           string
+	linuxZe         string
+	lab             []string
+	environment     []string
+	bootPreparation string
 }
 
 // DockerLabReport is what a docker-lab run answers.
@@ -224,12 +232,12 @@ func runDockerLabHere(args leaction.Arguments) (any, int) {
 	ctx, cancel := guestContext()
 	defer cancel()
 
-	return runDockerLab(ctx, root, args)
+	return runDockerLab(ctx, root, args, "")
 }
 
 // runDockerLab is the verb over the checkout at root, under its signal root
 // ctx.
-func runDockerLab(ctx context.Context, root string, args leaction.Arguments) (any, int) {
+func runDockerLab(ctx context.Context, root string, args leaction.Arguments, bootPreparation string) (any, int) {
 	goarch := GuestArch()
 	lab := strings.Fields(args.One(keywordLab))
 	environment, err := dockerLabEnvironment(args.One(keywordEnv), len(lab) > 0)
@@ -261,6 +269,7 @@ func runDockerLab(ctx context.Context, root string, args leaction.Arguments) (an
 
 	report, err := NewRun(root, options).dockerLab(ctx, dockerLabRequest{
 		image: image, linuxZe: linuxZe, lab: lab, environment: environment,
+		bootPreparation: bootPreparation,
 	})
 	if err != nil {
 		leaction.ReportError(err)
@@ -323,7 +332,7 @@ func dockerLabEnviron(environ []string, socket string) []string {
 // exit statuses are report data.
 func (r *Run) dockerLab(ctx context.Context, request dockerLabRequest) (DockerLabReport, error) {
 	report := DockerLabReport{Image: request.image}
-	vm, dir, err := r.dockerLabPrepare(ctx, request.image)
+	vm, dir, err := r.dockerLabPrepare(ctx, request.image, request.bootPreparation)
 	if dir != "" {
 		defer os.RemoveAll(dir) //nolint:errcheck // a per-run directory; the next run makes its own
 	}
@@ -376,7 +385,7 @@ func (r *Run) dockerLab(ctx context.Context, request dockerLabRequest) (DockerLa
 // checkout's tmp/qemu, holding the run's ssh key, the cidata volume, the
 // forwarded socket and QEMU's diagnostics. The caller MUST remove the
 // directory when it is not empty, error or not.
-func (r *Run) dockerLabPrepare(ctx context.Context, image string) (dockerLabVM, string, error) {
+func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation string) (dockerLabVM, string, error) {
 	vm := dockerLabVM{goarch: r.ops.GOARCH, image: image, memory: r.Options.Memory, cpus: r.Options.CPUs}
 	if _, err := r.ops.Look(runQEMUBinary(vm.goarch)); err != nil {
 		return vm, "", fmt.Errorf("missing required command %s: install QEMU (brew install qemu, apt-get install qemu-system): %w",
@@ -430,6 +439,7 @@ func (r *Run) dockerLabPrepare(ctx context.Context, image string) (dockerLabVM, 
 	guest := dockerLabGuest{
 		instanceID: id.Str("docker-lab-").Int(int64(os.Getpid())).Byte('-').Int(r.ops.Now().Unix()).String(),
 		publicKey:  strings.TrimSpace(string(public)), shares: vm.shares,
+		bootPreparation: bootPreparation,
 	}
 	vm.cidata = filepath.Join(dir, "cidata.iso")
 	if err := writeCidataISO(vm.cidata, guest.cidataFiles()); err != nil {

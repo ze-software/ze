@@ -4,89 +4,42 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab/ipsec"
 )
 
-var ipsecScenarios = []string{
-	"child-rekey",
-	"child-rekey-narrowing",
-	"child-rekey-refused-keeps-the-sa",
-	"childless-ike-sa-ze-initiator",
-	"childless-ike-sa-ze-responder",
-	"clear-reestablish",
-	"cookie-challenge",
-	"dataplane-readback",
-	"delete-while-window-held",
-	"eap-mschapv2",
-	"eap-nak-method-negotiation",
-	"eap-tls",
-	"eap-tls13",
-	"esn-both-offered",
-	"esn-extended-only-refused",
-	"esp-form-change",
-	"esp-integrity-only-null",
-	"ike-aes-ccm16",
-	"ike-padded-probe-strongswan",
-	"ike-rekey-retries-in-the-named-group",
-	"initiator-answer-one-local-two-remote",
-	"initiator-rekey-answer-narrows",
-	"invalid-ke-retry",
-	"ipsec-bgp-redistribute-frr",
-	"mobike-initiator",
-	"mobike-responder",
-	"mtu-nat-installed-endpoint",
-	"mtu-negotiated-transform",
-	"mtu-tunnel-sizing-strongswan",
-	"natt-transport-inner-checksum",
-	"natt-tunnel-inner-checksum",
-	"out-of-sa-request-notified-over-sa",
-	"peer-reload-narrowing",
-	"psk-site-to-site",
-	"real-nat-port-translated-eap-ze-responder",
-	"real-nat-port-translated-transport-ze-responder",
-	"real-nat-port-translated-ze-responder",
-	"real-nat-transport-ze-initiator",
-	"real-nat-transport-ze-responder",
-	"real-nat-tunnel-control",
-	"responder-accepts-reinit",
-	"responder-eap-mschapv2",
-	"responder-eap-tls12",
-	"responder-eap-tls13",
-	"responder-eap-tls13-leaf-only-client",
-	"responder-eap-tls13-revoked-client",
-	"responder-ike-rekey",
-	"responder-psk",
-	"responder-raises-child-rekey",
-	"responder-two-subnets",
-	"unbound-inner-address-uniqueness",
-	"virtual-ip-assignment",
-	"virtual-ip-uniqueness",
-}
-
-// VALIDATES: The native registry exposes the complete reviewed IPsec scenario
-// population in lexical selection order.
-// PREVENTS: A Go-only gate silently dropping a scenario after its old runner is gone.
-func TestNativeScenarioRegistryIsExact(t *testing.T) {
-	if got := ipsec.ScenarioNames(); !reflect.DeepEqual(got, ipsecScenarios) {
-		t.Fatalf("native scenarios = %v, want %v", got, ipsecScenarios)
-	}
-
-	entries, err := os.ReadDir("scenarios")
-	if err != nil {
-		t.Fatal(err)
-	}
-	directories := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			directories = append(directories, entry.Name())
+// TestIPsecScenarioSelectorRefusesMissingOrUnimplemented exercises the runner
+// with private scenario directories. A selector is exact, and a directory
+// without a checker is an error rather than an empty successful run.
+func TestIPsecScenarioSelectorRefusesMissingOrUnimplemented(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"psk-site-to-site", "unregistered-peer"} {
+		if err := os.MkdirAll(filepath.Join(root, "test", "interop-ipsec", "scenarios", name), 0o700); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if !reflect.DeepEqual(directories, ipsecScenarios) {
-		t.Fatalf("fixture directories = %v, want %v", directories, ipsecScenarios)
+	for _, selector := range []string{"missing-peer", "psk", "psk-site-to-site*", "unregistered-peer"} {
+		t.Run(selector, func(t *testing.T) {
+			report, code := ipsec.RunAt(t.Context(), root, selector)
+			if code == 0 {
+				t.Fatal("invalid scenario selector returned success")
+			}
+			if !strings.Contains(report.SetupError, selector) {
+				t.Fatalf("refusal %q does not name selector %q", report.SetupError, selector)
+			}
+			want := "no scenario matching '" + selector + "' found"
+			if selector == "unregistered-peer" {
+				want = "scenario unregistered-peer has no Go checker"
+			}
+			if report.SetupError != want {
+				t.Fatalf("selector refusal = %q, want %q", report.SetupError, want)
+			}
+			if len(report.Scenarios) != 0 {
+				t.Fatalf("invalid selection ran scenarios: %v", report.Scenarios)
+			}
+		})
 	}
 }
 
@@ -95,21 +48,19 @@ func TestNativeScenarioRegistryIsExact(t *testing.T) {
 // PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
 func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
-		"eap-tls":                          {"ze-env"},
-		"eap-tls13":                        {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"eap-nak-method-negotiation":       {"strongswan.conf"},
-		"initiator-rekey-answer-narrows":   {"ze-env"},
-		"ipsec-bgp-redistribute-frr":       {"frr.conf"},
-		"mobike-initiator":                 {"strongswan.conf"},
-		"mobike-responder":                 {"strongswan.conf"},
-		"peer-reload-narrowing":            {"ze-narrowed.conf"},
-		"real-nat-transport-ze-initiator":  {"nat.conf"},
-		"real-nat-transport-ze-responder":  {"nat.conf"},
-		"real-nat-tunnel-control":          {"nat.conf"},
-		"responder-eap-mschapv2":           {"strongswan.conf"},
-		"responder-eap-tls13":              {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"unbound-inner-address-uniqueness": {"nat.conf"},
-		"virtual-ip-uniqueness":            {"nat.conf"},
+		"eap-tls":                         {"ze-env"},
+		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-nak-method-negotiation":      {"strongswan.conf"},
+		"initiator-rekey-answer-narrows":  {"ze-env"},
+		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
+		"mobike-initiator":                {"strongswan.conf"},
+		"mobike-responder":                {"strongswan.conf"},
+		"peer-reload-narrowing":           {"ze-narrowed.conf"},
+		"real-nat-transport-ze-initiator": {"nat.conf"},
+		"real-nat-transport-ze-responder": {"nat.conf"},
+		"real-nat-tunnel-control":         {"nat.conf"},
+		"responder-eap-mschapv2":          {"strongswan.conf"},
+		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)

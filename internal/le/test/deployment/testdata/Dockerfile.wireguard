@@ -1,0 +1,4 @@
+# Peer tools only: the QEMU guest kernel and base come from Ze's docker-host image.
+FROM alpine:3.24.3
+RUN apk add --no-cache iproute2 iputils wireguard-tools
+ENTRYPOINT ["sleep", "infinity"]
