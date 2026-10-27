@@ -707,35 +707,61 @@ scripts can parse the output while the interactive CLI renders them.
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 
+The terminal lab starts with an established FRR BGP peer and no BFD binding.
+It loads the profile and peer opt-in through one live SSH candidate, then
+checks Up, packet exchange and unchanged connection counts on both Ze and
+FRR. FRR's counters also detect a reconnect hidden by recreating Ze's peer
+object. Cutting `frr0` exercises the detection-expired diagnostic and BGP's BFD notification
+before its negotiated hold timer. The lab also checks released-session
+retirement and restores the link without replacing the shown Ze process.
+<!-- source: internal/le/site/terminaldemo/validate_topic_bfd.go -- checkTopicBFD -->
+
 ### Demo: Let BFD protect a live BGP session
 
-Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
+Commit BFD onto an established FRR BGP peer, cut the link, inspect diagnostics and peer history, then restore both sessions without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=84174694fb) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=3399c81481)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a37cfae7d2) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 1 minute 49 seconds.
+Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 33 seconds.
 
 ```console
-An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
+BFD live opt-in and link-failure walkthrough
 
-$ ze config show demos/terminal/bfd-failover/ze.conf bfd
-$ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer connection
-$ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer timer
-The daemon configuration shows the 300 ms BFD profile, multiplier 3, single-hop binding, and 300-second BGP hold time.
+Lab: one running Ze router and its established FRR BGP peer at 172.29.0.2.
+$ ze-demo card topic-bfd overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show bfd sessions | no-more'
+$ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
 
-$ ze cli -c 'show bfd sessions'
-The running control plane shows the complete Up BFD session.
+Load: profile fast and peer frr BFD binding, section by section in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
+ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# show | compare
+ze# commit now
 
-$ date -u +%T; ip link set bfd-p down
-$ ze cli -c 'show bfd sessions'
-$ ze cli -c 'show bgp peer list'
-After the kernel link is cut, BFD leaves Up and BGP leaves Established. BGP releases its BFD session, which Ze keeps in AdminDown for the retention window RFC 5880 Section 6.8.1 requires and then retires, so by the time the command runs the session list is empty.
+Proof: show bfd sessions/profile/session and BGP detail expose Up, real packet counts and the negotiated hold timer.
+$ ze-demo card topic-bfd proof
+$ ze cli -c 'show bfd profile name fast | no-more'
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
 
-$ ip link set bfd-p up
-$ ze cli -c 'show bgp peer list'
-The same peer returns to Established after the link is restored.
+Failure: bring frr0 down; inspect detection-expired transition, BFD Down notification and BGP history before hold expiry.
+$ ze-demo card topic-bfd failure
+$ ze-demo run showcase-lab control frr down
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 history | no-more'
 
-Every protocol result comes directly from `ze cli`; the lab helper is used only to create and reset the isolated FRR peer.
+Fix: observe released-session retirement, restore frr0, require BFD Up and BGP Established, and print the same shown PID.
+$ ze-demo card topic-bfd fix
+$ ze cli -c 'show bfd sessions | no-more'
+$ ze-demo run showcase-lab control frr up
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-bfd recap
 ```
 
 

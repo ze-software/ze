@@ -684,30 +684,67 @@ show ospf border-routers
 
 The runtime can be reset without reconfiguring via `clear ospf process all` (tear down every adjacency and re-run SPF), `clear ospf neighbor all` (re-form every adjacency; `clear ospf neighbor` and `clear ospf process` alone are refused, because everything is never the default), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
 
-### Demo: Diagnose a missing OSPF route
+The terminal lab adds area 0 and `frr0` to an already-running Ze router.
+It follows the FRR neighbor to Full, finds that router's Router-LSA, and
+checks the route to `10.255.1.2/32`. A live change to Hello interval 20
+deliberately disagrees with FRR's interval 10. Inspect the current timers
+with `show ospf interface detail` and the actual rejection reason with
+`show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval`.
+Restoring interval 10 must restore the adjacency and route in the same process.
+<!-- source: internal/le/site/terminaldemo/validate_topic_ospf.go -- checkTopicOSPF -->
 
-Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
+### Demo: Enable OSPF and diagnose a Hello mismatch
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=ed9a433602) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
+Commit OSPF live, follow a Full neighbor through the router database to its loopback route, then diagnose and repair mismatched Hello timers.
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 52 seconds.
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=6b38530780) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
+
+Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 57 seconds.
 
 ```console
-An operator is investigating why 10.255.0.3/32 is missing.
+OSPF live adjacency and Hello-mismatch walkthrough
 
-$ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
-The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
+Lab: Ze on frr0, FRR neighbor 172.29.0.2 and loopback 10.255.1.2/32.
+$ ze-demo card topic-ospf overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show ospf neighbor | no-more'
 
-$ ze cli -c 'show ospf neighbor detail'
-The live FRR neighbor at 172.31.0.3 is Full.
+Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
+ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# show | compare
+ze# commit now
 
-$ ze cli -c 'show ospf database router'
-The live link-state database contains FRR's Router-LSA.
+Proof: show ospf neighbor detail, database router and route connect Full to the Router-LSA and loopback next hop.
+$ ze-demo card topic-ospf proof
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf interface detail | no-more'
+$ ze cli -c 'show ospf database router | no-more'
+$ ze cli -c 'show ospf route | no-more'
 
-$ ze cli -c 'show ospf route'
-The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
+Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
+$ ze-demo card topic-ospf failure
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf interface detail | no-more'
+$ ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'
+$ ze cli -c 'show ospf route | no-more'
 
-The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.
+Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.
+$ ze-demo card topic-ospf fix
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf database router | no-more'
+$ ze cli -c 'show ospf route | no-more'
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-ospf recap
 ```
 
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->

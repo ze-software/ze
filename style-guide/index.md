@@ -347,7 +347,7 @@ Feature search combines category and maturity filters. The command reference com
 
 ### Product screenshots
 
-The homepage groups authentic interfaces with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. Keep one shared media ratio and reserve the tallest caption so switching views never moves the hero. Inactive panels are invisible and inert. All panels remain visible when JavaScript is unavailable. Distinguish Web configuration from the CLI editor; the web tab carries a genuine recording with controls and a transcript and pauses when another tab is selected. Static CLI captures contain no player controls or play button.
+The homepage groups authentic interfaces as WebP screenshots with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. Keep one shared media ratio and reserve the tallest caption so switching views never moves the hero. Inactive panels are invisible and inert. All panels remain visible when JavaScript is unavailable. Distinguish Web configuration from the CLI editor; the web tab shows the actual captured configuration after its hostname commit, with full-size and transcript links. Static CLI captures contain no player controls or play button. Keep the full terminal replay and SSH walkthrough as lightweight playback of their captured terminal events, with their transcripts and player controls.
 
 ### .status-panel / .status-table
 

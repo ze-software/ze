@@ -427,34 +427,70 @@ A few consequences of this mechanism are worth knowing:
 State changes are logged as `vrrp: state change` with `from`, `to`, and a
 `reason`, so a failover leaves a record of what triggered it.
 
-### Demo: Keep the gateway reachable while Ze stops
+The terminal lab keeps the shown Ze process running throughout two failures.
+First, losing `zetrk1` lowers its priority from 200 to 50, below keepalived's
+100. Then stopping only keepalived lets Ze take the VIP even at priority 50:
+tracking changes preference, not eligibility. Restarting keepalived hands
+the VIP back; restoring the tracked uplink lets Ze preempt at 200. The lab
+checks exclusive VIP ownership, the VRID 12 virtual MAC and reachability
+through each transition.
+<!-- source: internal/le/site/terminaldemo/validate_topic_vrrp.go -- checkTopicVRRPTracking -->
 
-Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
+### Demo: Track an uplink and fail over without stopping Ze
 
-[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=bbefea73ad) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0405f1f484)
+Commit VRRP and uplink tracking live, observe priority reduction and backup demotion, then prove master failover and recovery while the shown Ze stays running.
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 1 minute 49 seconds.
+[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=d55609ce3e) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
+
+Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 50 seconds.
 
 ```console
-An operator needs to stop the active router without changing the default gateway on every host.
+VRRP tracking and peer-failover walkthrough
 
-$ ze config show demos/terminal/vrrp-failover/ze.conf interface ethernet eth0 unit 0 ipv4 vrrp group gateway
-The daemon configuration shows VRID 10, VIP 192.0.2.1, priority 200, and the advertisement interval.
+Lab: VIP 203.0.113.1, VRID 12; shown Ze priority 200 and keepalived priority 100.
+$ ze-demo card topic-vrrp overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show vrrp | no-more'
 
-$ grep -E 'interface|virtual_router_id|priority|192.0.2.1' /src/demos/terminal/vrrp-failover/keepalived.conf
-The peer is configured as BACKUP on the same interface, VRID, and VIP with a lower priority of 100.
+Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# show | compare
+ze# commit now
 
-$ ze cli -c 'show vrrp' | ze pipe yaml
-The complete live state shows Ze is master.
+Proof: show vrrp, kernel VIP ownership, virtual MAC and a real reachability probe.
+$ ze-demo card topic-vrrp proof
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -br address show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
 
-$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
-The kernel shows the VIP on Ze's RFC virtual-MAC interface.
+Failure: uplink down makes Ze Backup at 50; stopping only keepalived makes Ze Master at 50.
+$ ze-demo card topic-vrrp failure
+$ ze-demo run showcase-lab control tracked-uplink down
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip link show zetrk1
+$ ip -n showcase-vrrp -br address show
+$ ping -I zeptrk0 -c 3 -W 2 203.0.113.1
+$ ze-demo card topic-vrrp takeover
+$ ze-demo run showcase-lab control keepalived stop
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -br address show
+$ ip -n showcase-vrrp -br address show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
 
-$ ze-demo run vrrp-failover proof-show
-$ ze-demo run vrrp-failover proof
-The recording runs the compiled proof that stops Ze, removes its namespace, inspects the VIP on keepalived, and sends two probes.
-
-The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.
+Fix: restart keepalived (Ze Backup 50), restore uplink (Ze Master 200), inspect statistics and reachability with the same shown PID.
+$ ze-demo card topic-vrrp fix
+$ ze-demo run showcase-lab control keepalived start
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -n showcase-vrrp -br address show
+$ ze-demo run showcase-lab control tracked-uplink up
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze cli -c 'show vrrp statistics | no-more'
+$ ip -br link show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-vrrp recap
 ```
 
 

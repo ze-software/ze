@@ -231,12 +231,27 @@ ze cli -c 'show traffic usage name eth0'
 <code>| json</code>, <code>| table</code>, <code>| yaml</code> or <code>| ndjson</code> to select another one, and the full
 set of pipe operators applies.</p>
 <!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage -->
+<p>The terminal lab enables accounting on <code>traffic0</code> through a live SSH commit.
+Real ICMP and HTTP requests establish a baseline for source <code>10.77.0.2</code>
+and TCP destination port <code>8080</code>. A heavier burst must increase those
+specific byte totals, not merely create more map entries. The validator also
+requires positive exported metrics filtered to that source, TCP/8080 and
+ICMP/0. The lab sizes both finite send counts for the recording container's
+one-hour budget: ICMP runs at 10 requests per second with a matching wall-time
+bound, and HTTP at no more than 20 requests per second with a two-second limit
+per request. The visible stop control terminates only the owned sender PIDs,
+leaving the HTTP server and Ze running; lab cleanup also owns those senders.
+After the stop, the validator requires a stable two-second window within ten
+seconds. The totals remain cumulative: stopping traffic does not reset them to
+zero.</p>
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- startShowcaseTraffic -->
+<!-- source: internal/le/site/terminaldemo/validate_topic_traffic.go -- checkTopicTrafficUsage -->
 <figure class="terminal-demo" data-terminal-demo="traffic-anomaly">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <span class="terminal-demo__eyebrow">Ze terminal lab</span>
       <h3>Attribute a live traffic burst</h3>
-      <p>Attach Ze&#39;s pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.</p>
+      <p>Enable eBPF accounting on the running router, attribute an unexpected ICMP and HTTP burst to its source and port, stop the sender, and observe recovery.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -249,7 +264,7 @@ set of pipe operators applies.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=6e21005fe9"
+      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=5bfc138dad"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -257,30 +272,53 @@ set of pipe operators applies.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=6e21005fe9">Download the asciicast</a> or
-      <a href="../../assets/demos/traffic-anomaly.txt?v=ebe3635e22">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=5bfc138dad">Download the asciicast</a> or
+      <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>1 minute 27 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/traffic-anomaly.txt?v=ebe3635e22">Plain-text transcript</a>
+    <span>Ze 26.10.27</span><span>3 minutes 11 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
+    <pre><code>Traffic usage live attribution walkthrough
 
-$ ze config show demos/terminal/traffic-anomaly/ze.conf traffic usage
-The daemon configuration shows eBPF accounting enabled on `traffic0`, with per-IP tracking and bounded maps.
+Lab: traffic0 at 10.77.0.1, real sender 10.77.0.2 and HTTP server port 8080.
+$ ze-demo card topic-traffic overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c &#39;show traffic usage | no-more&#39;
 
-$ ze cli -c &#39;show traffic usage name traffic0&#39;
-The complete baseline snapshot is displayed.
+Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
+ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# show | compare
+ze# commit now
 
-$ ip netns exec traffic-peer ping -c 4 10.77.0.1
-$ ip netns exec traffic-peer curl -s -o /dev/null http://10.77.0.1:8080/payload.txt
-The isolated workload sends ICMP and HTTP traffic.
+Proof: real ping and curl populate source, ICMP and TCP/8080 byte totals.
+Long shell commands below quote their first painted-row prefix, not invented output.
+$ ze-demo card topic-traffic proof
+$ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
+$ ip netns exec traffic-peer curl --fail --silent --show-error --max-time 5
+$ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
 
-$ ze cli -c &#39;show traffic usage name traffic0&#39;
-The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP destination port 8080, and reports map occupancy. The accounting path observes traffic only and never modifies or drops packets.</code></pre>
+Failure: bounded heavier senders increase those specific totals in successive snapshots; filtered metrics identify the source.
+$ ze-demo card topic-traffic failure
+$ ze-demo run showcase-lab control traffic burst
+$ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
+$ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
+$ ze cli -c &#39;show metrics name ze_traffic_usage_ingress_bytes_total label interface traffic0 label src_ip 10.77.0.2 | no-more&#39;
+$ ze cli -c &#39;show metrics name ze_traffic_usage_ingress_port_bytes_total label interface traffic0 label dst_port 8080 label protocol tcp
+$ ze cli -c &#39;show metrics name ze_traffic_usage_ingress_port_bytes_total label interface traffic0 label dst_port 0 label protocol icmp
+
+Fix: stop the senders and require cumulative totals to settle for two seconds within ten seconds, without resetting counters or replacing Ze.
+$ ze-demo card topic-traffic fix
+$ ze-demo run showcase-lab control traffic stop
+$ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
+$ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-traffic recap</code></pre>
   </details>
 </figure>
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>

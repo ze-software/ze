@@ -534,37 +534,85 @@ confirmed` needs config history. An editor without one, such as
 `ze config edit -f` on a file whose folder holds no store, refuses before it
 writes the file and names `ze init`; `commit now` still works there.
 
-### Demo: Watch an unconfirmed change roll back
+The demonstration uses the running daemon's SSH editor, not file mode. It
+load-merges a trial hostname and uses `commit confirmed 8`. After the
+unaccepted window expires, it checks the restored `edge-original` hostname
+and an empty `show | compare`, followed by `show | changes` reporting no
+pending changes. A second change uses `commit accept` and stays
+`edge-confirmed` beyond the same deadline. After leaving the editor, it runs
+`ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"`
+to read the running lab's stored revisions. History is a local read and
+resolves the supplied file's folder: a bare `ze.conf` selects the shell's
+current folder, even when `ZE_CONFIG_DIR` points at the daemon's store.
+The explicit path selects that store without creating another one. The
+live validator reads the same history as JSON and requires at least two
+stored revisions after the automatic rollback, before testing acceptance.
+<!-- source: demos/terminal/topics/commit-confirmed/configure.tape -- live eight-second probation -->
+<!-- source: demos/terminal/topics/commit-confirmed/show.tape -- rollback, acceptance and history -->
+<!-- source: internal/le/site/terminaldemo/validate_commit_confirmed.go -- checkTopicCommitConfirmed -->
 
-Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=5adf8bca47) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+### Demo: Protect live SSH commits with rollback
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
+Load a risky hostname change over SSH, observe automatic rollback, then accept a second change and prove it persists on the same running router.
+
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=ada9d531b2) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=cc3b9170bf)
+
+Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 1 minute 38 seconds.
 
 ```console
-$ ze config edit -f ze.conf
+Commit confirmed: rollback and acceptance on the running router
+
+Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
+Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
+unlike Junos commit confirmed, whose timeout is in minutes.
+
+$ ze-demo card topic-commit-confirmed lab
+$ ze-demo card topic-commit-confirmed overview
+$ sshpass -e ssh ze-demo
 ze# show system host
-host edge-original
-ze# set system host edge-trial
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
 ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use 'confirm' or 'confirm abort'.
-ze# show system host
-host edge-trial
-Timeout: configuration automatically rolled back.
-ze# show system host
-host edge-original
 
-ze# set system host edge-confirmed
+Show the active edge-trial value, then deliberately leave the change
+unaccepted. Wait for the actual automatic rollback notice. Inspect show
+system host for edge-original, the empty show | compare view, and
+show | changes for the explicit No pending changes response.
+
+ze# show system host
+
+After the automatic rollback:
+ze# show system host
+ze# show | compare
+ze# show | changes
+
+Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+deadline and inspect edge-confirmed again. The accepted value must remain.
+
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# show | compare
 ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use 'confirm' or 'confirm abort'.
-ze# confirm
-Configuration confirmed and saved permanently.
-ze# show system host
-host edge-confirmed
+ze# commit accept
 
-The first change is left unconfirmed and rolls back. The second receives `confirm`; after waiting beyond the same deadline, the editor still reports edge-confirmed.
+After waiting beyond the deadline:
+ze# show system host
+
+Leave the editor and run:
+ze# exit
+ze> exit
+$ ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+The explicit config folder selects the running lab's stored revisions.
+History is a local read: a bare ze.conf selects the shell's current folder,
+not ZE_CONFIG_DIR. Both outcomes use the running daemon's session editor,
+never an offline file editor or a router restart.
+
+$ ze-demo card topic-commit-confirmed recap
+
+These are the authored walkthrough steps. Runtime validation and recording
+must succeed before this source is published as a recording.
 ```
 
 

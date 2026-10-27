@@ -1,0 +1,177 @@
+One running router, eight live configuration topics
+
+0. Migrate an actual ExaBGP neighbor configuration:
+   ze exabgp migrate /src/demos/terminal/showcase/exabgp.conf
+   Read the resulting bgp group and peer, remote address and AS numbers.
+   This previews migration; it does not replace the lab's active configuration.
+
+1. Connect to the base lab over SSH. Exit configuration mode, open monitor bgp,
+   press s to sort by ASN, then q to return to the operational prompt.
+   The transit and FRR peers are established before any feature is committed.
+
+2. RPKI: add cache and validation binding live. Compare Valid, NotFound and
+   Invalid routes; explain the ROA, stop the cache, diagnose and restore it.
+3. IRR: query a local test server, bind AS-TEST and import filtering live.
+   Prove accepted and refused routes; diagnose a wrong AS-SET and restore it.
+4. BFD: add a profile and opt-in to the established FRR BGP peer. Cut its link,
+   show BFD diagnostics and BGP history, restore the link and the sessions.
+5. OSPF: add the area and interface. Follow Full adjacency through the router
+   database to the loopback route. Diagnose a Hello mismatch and restore it.
+6. IPsec: load IKE, ESP, authenticated peer/selectors and XFRM route in one
+   candidate. Prove negotiated and kernel SPIs with protected-host traffic.
+   Mismatch ESP alone, diagnose NO_PROPOSAL_CHOSEN without calling IKE down,
+   restore the matching ESP group, clear the peer SAs and prove traffic again.
+7. VRRP: add the gateway and uplink tracking. Observe master, tracked-link
+   demotion and reduced priority; stop the companion master to show failover
+   while the shown Ze stays running. Restore the companion and tracked link.
+8. Traffic usage: attach accounting live, identify the heavy source and port,
+   stop the burst, and observe recovery without changing forwarding.
+9. Commit confirmed: leave a risky hostname change unconfirmed, observe its
+   automatic rollback, then explicitly accept the next change and prove it stays.
+10. Recap: the same daemon received each live commit, diagnostic and recovery.
+
+Every topic uses its standalone recording's configure.tape and show.tape.
+The showcase is recorded as one continuous session, not assembled from casts.
+See each topic transcript for the commands, topology and vendor references.
+BGP vendor mapping: FRR show bgp summary displays session state; Ze's monitor bgp
+adds the interactive live view used here.
+https://docs.frrouting.org/en/latest/bgp.html#clicmd-show-ip-bgp-all-summary-wide-json
+
+Ordered visible commands from the continuous tape and its shared topic fragments:
+
+$ ze-demo card showcase intro
+$ ze exabgp migrate /src/demos/terminal/showcase/exabgp.conf
+$ ze-demo card showcase bgp
+$ sshpass -e ssh ze-demo
+ze# exit
+ze> monitor bgp
+ze> exit
+
+RPKI live configuration, outage diagnosis and recovery:
+$ ze-demo card topic-rpki lab
+ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+$ ze cli -c 'show bgp adj-rib-in | yaml | no-more'
+$ ze-demo run showcase-lab control rtr-cache stop
+$ ze cli -c 'show log recent component bgp.rpki level warn count 3 | yaml | no-more'
+$ ze-demo run showcase-lab control rtr-cache start
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+
+IRR live configuration, wrong AS-SET and repaired route decisions:
+$ ze-demo card topic-irr lab
+ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
+ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# commit now
+$ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# commit now
+$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze-demo run showcase-lab control customer reannounce
+$ ze cli -c 'show bgp adj-rib-in | no-more'
+
+BFD opt-in, link failure and session recovery:
+$ ze-demo card topic-bfd overview
+ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
+ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze-demo run showcase-lab control frr down
+$ ze cli -c 'show bgp peer 172.29.0.2 history | no-more'
+$ ze-demo run showcase-lab control frr up
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+
+OSPF adjacency, Hello mismatch diagnosis and recovery:
+$ ze-demo card topic-ospf overview
+ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
+ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf route | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# commit now
+$ ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf route | no-more'
+
+IPsec live tunnel, proposal mismatch and protected traffic recovery:
+$ ze-demo card topic-ipsec lab
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+$ ze-demo run showcase-lab control vpn ping
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# commit now
+$ ze cli -c 'show vpn ipsec peer name responder | no-more'
+$ ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# commit now
+$ ze cli -c 'clear vpn ipsec sa peer responder | no-more'
+$ ze-demo run showcase-lab control vpn ping
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+
+VRRP tracked preference, reduced-priority takeover and recovery:
+$ ze-demo card topic-vrrp overview
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze-demo run showcase-lab control tracked-uplink down
+$ ip link show zetrk1
+$ ze-demo run showcase-lab control keepalived stop
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze-demo run showcase-lab control keepalived start
+$ ze-demo run showcase-lab control tracked-uplink up
+$ ze cli -c 'show vrrp statistics | no-more'
+
+Traffic accounting, heavier senders and settled counters:
+$ ze-demo card topic-traffic overview
+ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
+ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# show | compare
+ze# commit now
+$ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ ze-demo run showcase-lab control traffic burst
+$ ze cli -c 'show metrics name ze_traffic_usage_ingress_bytes_total label interface traffic0 label src_ip 10.77.0.2 | no-more'
+$ ze-demo run showcase-lab control traffic stop
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+
+Confirmed commit rollback and explicit acceptance:
+$ ze-demo card topic-commit-confirmed lab
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# show | compare
+ze# commit confirmed 8
+ze# show system host
+ze# show system host
+ze# show | compare
+ze# show | changes
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# show | compare
+ze# commit confirmed 8
+ze# commit accept
+ze# show system host
+ze# exit
+ze> exit
+$ ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+$ ze-demo card topic-commit-confirmed recap
+$ ze-demo card showcase recap

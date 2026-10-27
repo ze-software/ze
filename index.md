@@ -11,7 +11,13 @@ Ze speaks [**BGP**](https://ze-software.net/guides/bgp-peering/), [**ISIS**](htt
 
 It is built on a configuration and protocol engine that runs as a [**daemon**](https://ze-software.net/architecture/) or [**immutable appliance**](https://ze-software.net/guides/appliance/).
 
- [Watch the demos](https://ze-software.net/demos/terminal/) [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) **Ze / Looking glass**[Open full size ↗](https://ze-software.net/assets/product-routes.png) [![Ze looking glass with prefix, AS path and community filters, a route graph and route table](https://ze-software.net/assets/product-routes.png)](https://ze-software.net/assets/product-routes.png) **Follow a route through the network.**
+ [Watch the demos](https://ze-software.net/demos/terminal/) [Try the BGP quickstart](https://ze-software.net/guides/quickstart/)
+
+## Watch Ze at work.
+
+Follow a real terminal lab, with its transcript alongside it. Explore the individual interfaces below.
+
+**One running router, eight live configuration topics** Replayable Ze terminal lab [Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **Ze / Looking glass**[Open full size ↗](https://ze-software.net/assets/product-routes.webp) [![Ze looking glass with prefix, AS path and community filters, a route graph and route table](https://ze-software.net/assets/product-routes.webp)](https://ze-software.net/assets/product-routes.webp) **Follow a route through the network.**
 
 Inspect prefixes, AS paths and peers through a read-only BGP interface.
 
@@ -19,15 +25,15 @@ Inspect prefixes, AS paths and peers through a read-only BGP interface.
 
 Captured for the June 2026 LINX talk.
 
-**Ze / Web configuration**[Open full size ↗](https://ze-software.net/assets/demos/web-config.png?v=0562bbf22f) [Download the browser recording](https://ze-software.net/assets/demos/web-config.webm?v=e49e84d93c). **Configure Ze in your browser.**
+**Ze / Web configuration**[Open full size ↗](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c) [![Ze web configuration showing the system identity form with the committed hostname edge-demo](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c)](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c) **Configure Ze in your browser.**
 
 Edit a setting, review its diff, commit the draft and verify the active value.
 
  [Explore the web interface →](https://ze-software.net/features/web-interface/#browser-configuration-workflow)
 
-A real session with an isolated local Ze lab. [Read the transcript.](https://ze-software.net/assets/demos/web-config.txt?v=a614767cf2)
+Captured after the hostname commit in an isolated local Ze lab. [Read the transcript.](https://ze-software.net/assets/demos/web-config.txt?v=a614767cf2)
 
-**Ze / CLI configuration editor**[Open full size ↗](https://ze-software.net/assets/product-editor.jpg) [![Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions](https://ze-software.net/assets/product-editor.jpg)](https://ze-software.net/assets/product-editor.jpg) **Edit the configuration with context.**
+**Ze / CLI configuration editor**[Open full size ↗](https://ze-software.net/assets/product-editor.webp) [![Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions](https://ze-software.net/assets/product-editor.webp)](https://ze-software.net/assets/product-editor.webp) **Edit the configuration with context.**
 
 Review the pending change and explore the settings available at the current configuration path.
 
@@ -35,13 +41,13 @@ Review the pending change and explore the settings available at the current conf
 
 Captured from a local build on 23 October 2026 with an isolated lab configuration. The illustrated edit was not committed.
 
-**Ze / CLI dashboard**[Open full size ↗](https://ze-software.net/assets/product-dashboard.png) [![Ze terminal dashboard showing three established BGP peers, uptime and message counters](https://ze-software.net/assets/product-dashboard.png)](https://ze-software.net/assets/product-dashboard.png) **Keep the peers in view.**
+**Ze / CLI dashboard**[Open full size ↗](https://ze-software.net/assets/product-dashboard.webp) [![Ze terminal dashboard showing three established BGP peers, uptime and message counters](https://ze-software.net/assets/product-dashboard.webp)](https://ze-software.net/assets/product-dashboard.webp) **Keep the peers in view.**
 
 Inspect BGP sessions from Ze’s own CLI.
 
  [Explore CLI interaction →](https://ze-software.net/features/cli-commands/)
 
-A frame from the published terminal recording. Replay the demonstration below.
+A frame from the published terminal recording. Explore the recordings in the demo gallery.
 
  [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/features/web-interface/#browser-configuration-workflow) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
@@ -245,12 +251,6 @@ Ze runs on any existing Linux distro, managed by systemd or your chosen process 
 A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
 
 `gokrazy image` `Read-only root filesystem` Install guide PXE, ISO, or Ventoy
-
-## Watch Ze at work.
-
-The screenshots introduce the interfaces. This recording shows the terminal in use, with its transcript available alongside it.
-
-**Operate BGP from the live dashboard** Replayable Ze terminal lab [Read transcript](https://ze-software.net/features/cli-commands/#runtime-interaction)
 
 ## Safe ways to try Ze before the first release.
 

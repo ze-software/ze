@@ -608,24 +608,98 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 | 1, 4, 7, 10... | %3 == 1 | Invalid | 10.0.1.0/24 |
 | 2, 5, 8, 11... | %3 == 2 | NotFound | 11.0.1.0/24 |
 
-### Demo: Accept valid routes and reject RPKI-invalid ones
+The demonstration adds the cache, policy and transit receive binding through
+one live SSH candidate. Transit negotiates Route Refresh at boot, before it
+announces the three routes. Its base RIB binding can send routes; no RPKI
+binding is present until the live commit. The validator checks all three
+retained routes and their validation states. It also requires exactly one
+connection in the external transit fixture's log, which a replaced Ze peer
+cannot reset. The wrong-origin VRP explains why the Invalid route is ineligible.
+<!-- source: demos/terminal/topics/rpki/configure.tape -- live sections -->
+<!-- source: internal/le/site/terminaldemo/scenarios_routing.go -- checkTopicRPKI, requireRPKITransit -->
 
-Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
+The outage captures a pre-stop log boundary, then stops only the local RTR
+service. Ze polls and closes its RTR transport, so `idle` alone does not prove
+failure. A warning newer than that boundary diagnoses this outage, beside
+cache and status output. Cached VRPs remain usable until their lease expires.
+After restart, the validator requires `rtr: sync complete` newer than this
+outage's recorded failed poll, not merely unchanged cached data or an old
+failure/recovery pair. Equal whole-second log timestamps do not prove order;
+the check waits for a strictly newer event.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.poll, syncOnce, Snapshot -->
+<!-- source: demos/terminal/topics/rpki/show.tape -- cache outage and recovery -->
+<!-- source: internal/le/site/terminaldemo/validate_policy_evidence.go -- beginRPKIOutage, rpkiCycleEvent, checkTransitConnectionLog -->
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=d3a77e3773) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8c6b7276d5)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 34 seconds.
+### Demo: Enable RPKI live and diagnose a cache outage
+
+Commit the RTR cache and validation binding live, distinguish Valid, NotFound and ineligible Invalid routes, diagnose a stopped cache, and restore synchronization.
+
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=a3e919d818) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
+
+Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 35 seconds.
 
 ```console
-$ ze cli -c 'show bgp rpki status | no-more'
-sessions: 1
-vrp-count-ipv4: 171
-$ ze cli -c 'show bgp adj-rib-in | no-more'
-ipv4/unicast:9.43.0.0/24   ineligible: false  validation-state: 1
-ipv4/unicast:10.43.0.0/24  ineligible: true   validation-state: 3
-ipv4/unicast:11.43.0.0/24  ineligible: false  validation-state: 2
+RPKI: live policy, failure diagnosis and recovery
 
-The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. Ze keeps the Invalid prefix in Adj-RIB-In with its received attributes, marked ineligible, so the decision process never selects it.
+The lab has one running Ze, transit AS 65001 and a local test RTR cache.
+Before the change, inspect show bgp rpki status and the retained transit routes.
+Transit negotiated Route Refresh at boot; no RPKI topic binding was preloaded.
+
+$ ze-demo card topic-rpki lab
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+$ ze cli -c 'show bgp adj-rib-in | no-more'
+
+In the SSH editor, load the cache, validation policy and transit binding sections:
+$ ze-demo card topic-rpki overview
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# show | compare
+ze# commit now
+ze# exit
+ze> exit
+
+Inspect show bgp rpki status, show bgp rpki summary and show bgp adj-rib-in.
+The expected states are Valid for 9.43.0.0/24, NotFound for 11.43.0.0/24,
+and Invalid for 10.43.0.0/24. Invalid remains visible but ineligible.
+show bgp rpki roa 10.43.0.0/24 explains the origin mismatch: the VRP names
+AS 65099 while transit announces AS 65001.
+
+$ ze-demo card topic-rpki proof
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+$ ze cli -c 'show bgp rpki summary | yaml | no-more'
+$ ze cli -c 'show bgp adj-rib-in | yaml | no-more'
+$ ze-demo card topic-rpki origin
+$ ze cli -c 'show bgp rpki roa 10.43.0.0/24 | yaml | no-more'
+
+Capture this outage's log boundary, then stop only the RTR service with
+ze-demo run showcase-lab control rtr-cache stop.
+Use show log recent component bgp.rpki, show bgp rpki cache and status to
+diagnose a failed poll newer than that boundary. Idle is the state between polls, not
+proof of an outage. The last complete VRP set remains valid until expiry.
+
+$ ze-demo card topic-rpki failure
+$ ze-demo run showcase-lab control rtr-cache stop
+$ ze cli -c 'show log recent component bgp.rpki level warn count 3 | yaml | no-more'
+$ ze cli -c 'show bgp rpki cache | yaml | no-more'
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+
+Restart the cache with ze-demo run showcase-lab control rtr-cache start.
+Require a sync-complete log strictly newer than this outage's failed poll and
+recheck the route states. show bgp peer detail transit exposes its counter;
+the external fixture must also have accepted exactly one connection over the
+whole chapter, so replacing a Ze Peer cannot hide a reconnect.
+
+$ ze-demo card topic-rpki recovery
+$ ze-demo run showcase-lab control rtr-cache start
+$ ze cli -c 'show log recent component bgp.rpki count 4 | yaml | no-more'
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+$ ze cli -c 'show bgp peer detail transit | yaml | match connections-established | no-more'
+
+These are the authored walkthrough steps. Runtime validation and recording
+must succeed before this source is published as a recording.
 ```
 
 
