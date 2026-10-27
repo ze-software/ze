@@ -254,7 +254,7 @@ separate feature. It needs its own spec before it can be an obligation.
 |------|-------|------|
 | spec-bcp194-1-communities, closed (`plan/learned/039-bcp194-communities.md`) | RFC 7454 §11 and all of RFC 8195 | C1 to C7, L1, L2 |
 | `plan/post-release/features/spec-bcp194-2-role-policy.md` | role-derived policy | P4, P5, P6, P9 |
-| `plan/release/fixes/spec-bcp194-3-session.md` | RFC 7454 §4 and §5 | S1, S2 |
+| spec-bcp194-3-session, closed (`plan/learned/041-bcp194-session-protection.md`) | RFC 7454 §4 and §5 | S1, S2 |
 | `plan/post-release/features/spec-bcp194-4-prefix.md` | RFC 7454 §6.1 and §8 | P1, P2, P3, P8 |
 | `plan/proposals/spec-bcp194-5-damping.md` | RFC 7454 §7 | P7 |
 | spec-bcp194-6-blackhole (CLOSED 2026-08-13) | RFC 7999 §3.3 and §4 | B2, delivered. RFC 7999 is enrolled and every MUST-level row carries both polarities: `rfc/short/rfc7999.md`, `rfc/enrolled.txt` |
