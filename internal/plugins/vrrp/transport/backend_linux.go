@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 )
 
@@ -350,14 +351,46 @@ func (li *linuxInstance) stopped() bool {
 	}
 }
 
-// readLoop dispatches to the family-specific receive loop.
+// readLoop runs the instance's receive task until the instance closes. The task
+// is entered again after a contained panic: a Ze defect met while reading one
+// datagram costs that datagram, never the socket, so the virtual router keeps
+// hearing its peers.
 func (li *linuxInstance) readLoop() {
 	defer close(li.done)
+	for li.receive() {
+		// The pass ended on a contained panic; the next one reads on.
+	}
+}
+
+// taskReceive is the task label of the socket reader in
+// ze_task_panics_total{component="vrrp"}, and receiveRestart what follows its
+// contained panic, in the words the guard's log line gives the operator.
+const (
+	taskReceive    = "receive"
+	receiveRestart = "the socket reader resumes with the next advertisement; " +
+		"the datagram it was reading is dropped and the virtual router's state is unchanged"
+)
+
+// receive is the receive task: it runs the family-specific receive loop until
+// the instance closes, answering false, or until a panic ends the pass,
+// answering true.
+func (li *linuxInstance) receive() (again bool) {
+	defer receiveGuard.Task(taskReceive, receiveRestart).Contain(li.describeReceive, func(*taskguard.Panic) {
+		again = true
+	})
+
 	if li.family == packet.V6 {
 		li.readLoopV6()
-		return
+		return false
 	}
 	li.readLoopV4()
+	return false
+}
+
+// describeReceive names the virtual router whose socket a contained receive
+// panic hit: the parent interface, the VRID and the address family.
+func (li *linuxInstance) describeReceive() taskguard.Context {
+	return taskguard.Context{Unit: li.spec.key().String()}
 }
 
 // readLoopV4 reads proto-112 datagrams (WITH the IPv4 header, raw AF_INET),

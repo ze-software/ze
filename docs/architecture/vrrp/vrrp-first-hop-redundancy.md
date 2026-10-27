@@ -280,6 +280,37 @@ rather than accepted and ignored: a group that reports tracking in `show
 configuration` and never lowers its priority reads to an operator as a failover
 that silently never happens.
 
+### A panic costs one advertisement or one virtual router
+
+<!-- source: internal/plugins/vrrp/transport/backend_linux.go -- linuxInstance.receive -->
+<!-- source: internal/plugins/vrrp/transport/panic_guard.go -- receiveGuard -->
+<!-- source: internal/plugins/vrrp/panic_guard.go -- rxLoop, serveAdvertisements, restartAfterDefect -->
+
+Advertisements are input a peer controls, and two goroutines handle them. Each
+runs its work as a task under a `taskguard` boundary, so a panic there, which
+is always a Ze defect, is logged at ERROR with the virtual router it hit,
+counted in `ze_task_panics_total{component="vrrp"}`, crash-recorded, and the
+goroutine enters its task again. The process keeps running.
+
+| Task | Goroutine | What the panic costs |
+|------|-----------|----------------------|
+| `receive` | Each instance's socket reader (`linuxInstance.readLoop`) | The datagram being read. The reader takes the next one, and the virtual router's state is unchanged, since the reader holds none |
+| `advertisement` | The plugin's one dispatcher (`rxLoop`), which decodes and runs the FSM | The virtual router whose advertisement it was: Shutdown, then Startup |
+
+The dispatcher is shared by every virtual router, so before the guard a defect
+in one advertisement stopped all of them hearing their peers. The restart uses
+the instance's own Shutdown and Startup, the pair it already runs when its
+parent device goes away and comes back. The state the defect interrupted can
+no longer be trusted, and RFC 9568 Section 6.4.3 makes Shutdown an exit that
+leaves nothing behind: an Active router sends its Priority 0 advertisement, so
+its Backups take over at once, and a Backup cancels its Active_Down_Timer.
+Startup then enters the router as Backup, or as Active when it owns the
+address. Every other virtual router is untouched. `onPacket` releases the
+instance's lock by a deferred unlock, so it is free when the restart runs.
+
+The timer and link-event goroutine of each instance (`instance.run`) carries no
+boundary: it reads no network input.
+
 ### Not implemented in this design
 
 No VRRPv2 authentication: auth type 0 only, since RFC 9568 deprecates the others.

@@ -329,6 +329,10 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
 | `bfd` | `express` | The BFD session the loop was serving, when it was serving one: it goes Down with diagnostic 0 (No Diagnostic) and comes back Up through the three-way handshake; every other session on the loop keeps running |
 <!-- source: internal/component/bfd/engine/panic_guard.go -- expressGuard, endServedSession -->
+| `vrrp` | `receive` | One received advertisement, dropped: the virtual router's socket reader reads the next one, and its state is unchanged |
+<!-- source: internal/plugins/vrrp/transport/panic_guard.go -- receiveGuard -->
+| `vrrp` | `advertisement` | One virtual router: it runs Shutdown (an Active router resigns with Priority 0) and Startup, re-entering as Backup, or as Active when it owns the address; every other virtual router is untouched |
+<!-- source: internal/plugins/vrrp/panic_guard.go -- advertGuard, restartAfterDefect -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->

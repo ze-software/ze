@@ -112,6 +112,10 @@ func registerVRRP() {
 			// pair above. Without this the ze_vrrp_* transport series stay on the
 			// no-op registry and never reach Prometheus (spec-vrrp-4 AC-12).
 			sharedTransport.SetMetrics(reg)
+			// ze_task_panics_total{component="vrrp"}: the receive and
+			// advertisement tasks' panic boundaries.
+			transport.SetPanicMetrics(reg)
+			advertGuard.SetMetricsRegistry(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
@@ -236,7 +240,7 @@ func runVRRPEngine(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(context.Context) error {
-		go rxLoop(eng)
+		go rxLoop(eng, sharedTransport.Receive())
 		return nil
 	})
 
@@ -356,14 +360,6 @@ func parseAndVerify(sections []configSection) ([]GroupSpec, error) {
 		return nil, err
 	}
 	return specs, nil
-}
-
-// rxLoop feeds transport datagrams to the engine. One long-lived goroutine for
-// the plugin's lifetime (ai/rules/goroutine-lifecycle.md), not one per packet.
-func rxLoop(eng *engine) {
-	for item := range sharedTransport.Receive() {
-		eng.dispatchRx(item)
-	}
 }
 
 // sharedTransport is the process-wide transport. One per plugin: it owns the

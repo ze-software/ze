@@ -20,6 +20,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -114,6 +115,12 @@ type InstanceKey struct {
 	Interface string
 	VRID      uint8
 	Family    uint8
+}
+
+// String names the virtual router for the operator, as a log line does:
+// "vrid 7 ipv4 on eth0".
+func (k InstanceKey) String() string {
+	return "vrid " + strconv.Itoa(int(k.VRID)) + " " + familyLabel(k.Family) + " on " + k.Interface
 }
 
 // AdvertParams are the FSM-driven advertisement parameters (spec-vrrp-2). VRID and
