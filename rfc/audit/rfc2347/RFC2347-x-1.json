@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "402f4bee572c1a29",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "402f4bee572c1a29",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "ed641cc88f895378",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "ed641cc88f895378"
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "9c9445e6280941e1",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "9c9445e6280941e1"
   },
   "units": {
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "6468196a176bd648",

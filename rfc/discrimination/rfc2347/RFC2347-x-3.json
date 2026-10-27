@@ -37,10 +37,10 @@
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption",
     "unit-sha": "08c49b66269b6eb1",
-    "claim-sha": "61405ed777c2bff3",
+    "claim-sha": "e285f4840d7070c1",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "cddf22c402fd4ea2",
-    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
+    "producer-sha": "c57ca9490619cabf",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

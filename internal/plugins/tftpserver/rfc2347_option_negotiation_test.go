@@ -102,9 +102,9 @@ func TestRFC2347ServerOACKOnlyRequestedOptions(t *testing.T) {
 
 // RFC requirement: RFC2347-x-3 positive -- an option the server does not
 // acknowledge is ignored as if never requested: an RRQ requesting the unsupported
-// windowsize option gets an OACK that omits windowsize entirely, and the server
-// falls back to lockstep (internal/plugins/tftpserver/handler.go:276) instead of
-// erroring.
+// windowsize option beside the supported blksize is answered with an OACK, not
+// an ERROR, and that OACK omits windowsize entirely (producer sendOACKAndWait assembles oackOpts from blksize
+// and tsize only, internal/plugins/tftpserver/handler.go).
 // RFC requirement: RFC2347-x-3 negative -- the ignore is specific to unacknowledged
 // options: a requested AND supported option (blksize) in the same RRQ IS
 // acknowledged in the OACK, so the server does not blanket-drop every option.

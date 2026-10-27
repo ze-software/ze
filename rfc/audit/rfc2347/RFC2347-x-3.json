@@ -1,17 +1,17 @@
 {
-  "note": "Server half: TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK. windowsize 4 beside blksize 1024: windowsize absent from the OACK and no block 2 within 1 s before ACK 1 (red on a windowed send); declined blksize 7 and 65465 are absent and block 1 is the default 512 (red on using the declined size). Negative: the acked blksize 1024 is used (block 1 = 1024), so the ignore is not a blanket drop. The client half binds a TFTP client, which Ze does not have.",
+  "note": "Re-judged after the x-3 positive claim was narrowed following a refused audit. RFC 2347 Negotiation: 'An option not acknowledged by the server must be ignored by the client and server as if it were never requested.' Server half, as-if-never-requested read at two boundaries. (1) TestRFC2347ServerIgnoresUnacknowledgedOption: RRQ blksize 1200 + windowsize 4 (windowsize the only unsupported option, blksize valid, so nothing else can trip). readServerOACKOptions Fatalf's unless the first reply is an OACK, so an ERROR on the unsupported option is red (recorded: revert of sendOACKAndWait, observed 'first response opcode = 5, want OACK (6)'); the exact-key check on opts[windowsize] is red on any OACK that carries it (a one-line append in sendOACKAndWait, where oackOpts is built from blksize and tsize only) - this clause has no record of its own and is judged by reading. Negative: blksize stays acknowledged, so the ignore is not a blanket drop. The claim states exactly these two clauses and no more. (2) TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK: windowsize absent and no block 2 before ACK 1 (red on a windowed send); declined blksize 7 and 65465 absent and block 1 is 512; acked blksize 1024 is used. The client half binds a TFTP client, which Ze does not have (x-4). Stronger single record for the negotiation-test positive: a mutant appending windowsize to oackOpts, since the revert also reddens a copy of the test with its windowsize assertion removed.",
   "requirement_sha": "e4b9f0ce82cbdb63",
   "tests": {
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "402f4bee572c1a29",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "402f4bee572c1a29",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "ed641cc88f895378",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "ed641cc88f895378"
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "9c9445e6280941e1",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "9c9445e6280941e1"
   },
   "units": {
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "38d351c54dba5606",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "38d351c54dba5606",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "218d5a2faf690f7d",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "218d5a2faf690f7d"
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "86706d6754f730cf",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "86706d6754f730cf"
   },
   "verdict": "enforced"
 }
