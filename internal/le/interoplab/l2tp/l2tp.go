@@ -25,10 +25,11 @@ const (
 	peerFRR    = "frr"
 	peerRadius = "radius"
 
-	scenarioPPPIPv4         = "01-ppp-ipv4"
-	scenarioBGPRedistribute = "02-ppp-bgp-redistribute-frr"
-	scenarioInitiator       = "03-ze-lac-xl2tpd-lns"
-	scenarioRadiusAttrs     = "04-radius-acct-attrs"
+	scenarioPPPIPv4             = "01-ppp-ipv4"
+	scenarioBGPRedistribute     = "02-ppp-bgp-redistribute-frr"
+	scenarioInitiator           = "03-ze-lac-xl2tpd-lns"
+	scenarioRadiusAttrs         = "04-radius-acct-attrs"
+	scenarioUnknownMandatoryAVP = "l2tp-unknown-mandatory-avp-xl2tpd"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -45,10 +46,11 @@ const (
 
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		scenarioPPPIPv4:         checker(checkPPPIPv4, timeout, peerZe, peerLAC),
-		scenarioBGPRedistribute: checker(checkBGPRedistribute, timeout, peerZe, peerLAC, peerFRR),
-		scenarioInitiator:       checker(checkInitiator, timeout, peerZe, peerLAC),
-		scenarioRadiusAttrs:     checker(checkRadiusAttributes, timeout, peerZe, peerLAC, peerRadius),
+		scenarioPPPIPv4:             checker(checkPPPIPv4, timeout, peerZe, peerLAC),
+		scenarioBGPRedistribute:     checker(checkBGPRedistribute, timeout, peerZe, peerLAC, peerFRR),
+		scenarioInitiator:           checker(checkInitiator, timeout, peerZe, peerLAC),
+		scenarioRadiusAttrs:         checker(checkRadiusAttributes, timeout, peerZe, peerLAC, peerRadius),
+		scenarioUnknownMandatoryAVP: checker(checkUnknownMandatoryAVP, timeout, peerZe, peerLAC, peerAVPRelay),
 	}
 }
 
@@ -147,6 +149,7 @@ func scenarioPlan(root string, source interoplab.ScenarioSource, environment int
 		tb.Reset().Str("ze-l2tp-lac-").Str(environment.Suffix).String(),
 		tb.Reset().Str("ze-l2tp-frr-").Str(environment.Suffix).String(),
 		tb.Reset().Str("ze-l2tp-radius-").Str(environment.Suffix).String(),
+		tb.Reset().Str("ze-l2tp-avp-relay-").Str(environment.Suffix).String(),
 	}
 	plan := interoplab.ScenarioPlan{
 		Source: source,
@@ -194,6 +197,12 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		peers = []interoplab.PeerConfig{lac, ze}
 	case scenarioRadiusAttrs:
 		peers = []interoplab.PeerConfig{radiusPeer(environment.Suffix), ze, lac}
+	case scenarioUnknownMandatoryAVP:
+		relay, err := avpRelayPeer(environment.Suffix, network)
+		if err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		peers = []interoplab.PeerConfig{ze, relay, lac}
 	default:
 		if cleanup != nil {
 			_ = cleanup()
@@ -334,9 +343,11 @@ func LabBinaries() []interoplab.LabBinary {
 func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) []interoplab.ImageBuild {
 	needFRR := false
 	needRadius := false
+	needAVPRelay := false
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
 		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs
+		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP
 	}
 	labRoot := filepath.Join(root, "test", "interop-l2tp")
 	builds := []interoplab.ImageBuild{
@@ -348,6 +359,12 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	}
 	if needRadius {
 		builds = append(builds, interoplab.ImageBuild{Name: "radius", Tag: "ze-l2tp-radius", Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "radiusmock", "Dockerfile"), Context: root, Required: true})
+	}
+	if needAVPRelay {
+		builds = append(builds, interoplab.ImageBuild{
+			Name: "avp-relay", Tag: "ze-l2tp-avp-relay", Required: true, Context: root,
+			Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "avprelay", "Dockerfile"),
+		})
 	}
 	return builds
 }

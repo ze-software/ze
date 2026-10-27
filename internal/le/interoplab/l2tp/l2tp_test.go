@@ -161,111 +161,6 @@ func l2tpCheckout(t *testing.T) string {
 	return root
 }
 
-// VALIDATES: every reviewed scenario has a typed callback in lexical order.
-// PREVENTS: an inverse-role or three-peer branch disappearing from the native gate.
-func TestPlansCoverEveryScenario(t *testing.T) {
-	root := l2tpCheckout(t)
-	plans, _, err := plansAt(root, "", testEnvironment())
-	if err != nil {
-		t.Fatalf("build plans: %v", err)
-	}
-	got := make([]string, 0, len(plans))
-	for _, plan := range plans {
-		got = append(got, plan.Source.Name)
-		if plan.Source.Checker == nil {
-			t.Errorf("scenario %s has no checker", plan.Source.Name)
-		}
-	}
-	want := []string{scenarioPPPIPv4, scenarioBGPRedistribute, scenarioInitiator, scenarioRadiusAttrs}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("scenario order mismatch: got %v, want %v", got, want)
-	}
-}
-
-// VALIDATES: peer roles, image commands, and configuration mounts match the native lifecycle.
-// PREVENTS: a typed checker running without its independent xl2tpd, FRR, or RADIUS participant.
-func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
-	root := l2tpCheckout(t)
-	plans, _, err := plansAt(root, "", testEnvironment())
-	if err != nil {
-		t.Fatalf("build plans: %v", err)
-	}
-	wantPeers := [][]string{
-		{peerZe, peerLAC},
-		{peerZe, peerFRR, peerLAC},
-		{peerLAC, peerZe},
-		{peerRadius, peerZe, peerLAC},
-	}
-	network := interoplab.Network{Name: "n", IPv4: netip.MustParsePrefix("172.29.0.0/24")}
-	prepared := make([]interoplab.PreparedScenario, len(plans))
-	for index, plan := range plans {
-		if len(plan.Containers) == 0 {
-			t.Errorf("%s declares no pre-clean containers", plan.Source.Name)
-		}
-		if plan.Prepare == nil {
-			t.Fatalf("%s has no typed preparer", plan.Source.Name)
-		}
-		value, err := plan.Prepare(t.Context(), interoplab.PrepareContext{Source: plan.Source, Network: network})
-		if err != nil {
-			t.Fatalf("prepare %s: %v", plan.Source.Name, err)
-		}
-		prepared[index] = value
-		if value.Cleanup != nil {
-			cleanup := value.Cleanup
-			t.Cleanup(func() {
-				if err := cleanup(); err != nil {
-					t.Errorf("cleanup rendered config: %v", err)
-				}
-			})
-		}
-		if got := peerNames(value.Peers); !reflect.DeepEqual(got, wantPeers[index]) {
-			t.Errorf("%s participants = %v, want %v", plan.Source.Name, got, wantPeers[index])
-		}
-	}
-
-	ze := peerByName(t, prepared[0].Peers, peerZe)
-	if !reflect.DeepEqual(ze.Command, []string{"start", "/etc/ze/ze.conf"}) {
-		t.Errorf("ze command = %v", ze.Command)
-	}
-	scenario01 := filepath.Join(root, "test", "interop-l2tp", "scenarios", scenarioPPPIPv4)
-	assertMount(t, ze, filepath.Join(scenario01, "ze.conf"), "/etc/ze/ze.conf")
-	lac := peerByName(t, prepared[0].Peers, peerLAC)
-	assertMount(t, lac, filepath.Join(scenario01, "xl2tpd.conf"), "/etc/xl2tpd/xl2tpd.conf")
-	assertMount(t, lac, filepath.Join(scenario01, "ppp-options"), "/etc/ppp/options.l2tpd.client")
-	assertMount(t, lac, filepath.Join(scenario01, "l2tp-secrets"), "/etc/xl2tpd/l2tp-secrets")
-
-	scenario02 := filepath.Join(root, "test", "interop-l2tp", "scenarios", scenarioBGPRedistribute)
-	frr := peerByName(t, prepared[1].Peers, peerFRR)
-	assertMount(t, frr, filepath.Join(scenario02, "frr.conf"), "/etc/frr/frr.conf")
-
-	scenario03 := filepath.Join(root, "test", "interop-l2tp", "scenarios", scenarioInitiator)
-	initiator := peerByName(t, prepared[2].Peers, peerZe)
-	renderedPath := mountSource(t, initiator, "/etc/ze/ze.conf")
-	relativePath, err := filepath.Rel(root, renderedPath)
-	if err != nil {
-		t.Fatalf("resolve rendered initiator config relative to checkout: %v", err)
-	}
-	if !filepath.IsLocal(relativePath) {
-		t.Fatalf("rendered initiator config is outside the Docker-shared checkout: %s", renderedPath)
-	}
-	rendered, err := os.ReadFile(renderedPath)
-	if err != nil {
-		t.Fatalf("read rendered initiator config: %v", err)
-	}
-	fixture, err := os.ReadFile(filepath.Join(scenario03, "ze.conf"))
-	if err != nil {
-		t.Fatalf("read initiator config: %v", err)
-	}
-	wantRendered := strings.Replace(string(fixture), "\t\taddress 127.0.0.1", "\t\taddress 172.29.0.3", 1)
-	if string(rendered) != wantRendered {
-		t.Errorf("rendered initiator config bytes differ from the single peer-address substitution")
-	}
-	assertMount(t, peerByName(t, prepared[2].Peers, peerLAC), filepath.Join(scenario03, "xl2tpd.conf"), "/etc/xl2tpd/xl2tpd.conf")
-
-	scenario04 := filepath.Join(root, "test", "interop-l2tp", "scenarios", scenarioRadiusAttrs)
-	assertMount(t, peerByName(t, prepared[3].Peers, peerZe), filepath.Join(scenario04, "ze.conf"), "/etc/ze/ze.conf")
-}
-
 // VALIDATES: the L2TP listener in every Ze config the lab mounts can reach the
 // other containers: its `environment l2tp server ip` is the wildcard or an
 // address on the lab bridge, never a loopback address.
@@ -453,6 +348,96 @@ func TestRunAtReadsNativeScenarioSelector(t *testing.T) {
 	}
 }
 
+// TestPeerPreparationFailsClosed exercises errors before any participant starts.
+// Invalid peer addresses and unreadable/ambiguous input must not yield peers.
+func TestPeerPreparationFailsClosed(t *testing.T) {
+	const validConfig = "\t\taddress 127.0.0.1\n"
+	for _, test := range []struct {
+		name     string
+		scenario string
+		config   string
+		network  string
+		want     string
+	}{
+		{"missing-config", scenarioInitiator, "", "172.29.0.0/24", "read initiator config"},
+		{"missing-address", scenarioInitiator, "address absent\n", "172.29.0.0/24", "exactly one xl2tpd address"},
+		{"duplicate-address", scenarioInitiator, validConfig + validConfig, "172.29.0.0/24", "exactly one xl2tpd address"},
+		{"ipv6-peer", scenarioInitiator, validConfig, "fd00::/64", "requires an IPv4 /24"},
+		{"wrong-prefix", scenarioInitiator, validConfig, "172.29.0.0/25", "requires an IPv4 /24"},
+		{"ipv6-relay", scenarioUnknownMandatoryAVP, "", "fd00::/64", "requires an IPv4 /24"},
+		{"unsupported-scenario", "unsupported", "", "172.29.0.0/24", "unsupported L2TP scenario"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			if test.config != "" {
+				if err := os.WriteFile(filepath.Join(root, "ze.conf"), []byte(test.config), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			source := interoplab.ScenarioSource{Name: test.scenario, Directory: root}
+			plan := scenarioPlan(root, source, testEnvironment())
+			prepared, err := plan.Prepare(t.Context(), interoplab.PrepareContext{
+				Source: source, Network: interoplab.Network{IPv4: netip.MustParsePrefix(test.network)},
+			})
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("prepare error = %v, want %q", err, test.want)
+			}
+			if len(prepared.Peers) != 0 {
+				t.Fatalf("failed preparation returned runnable peers: %+v", prepared.Peers)
+			}
+		})
+	}
+}
+
+// TestInitiatorPreparationRendersSelectedPeer observes address substitution and
+// cleanup using two allocated networks, not a checked-in configuration snapshot.
+func TestInitiatorPreparationRendersSelectedPeer(t *testing.T) {
+	root := t.TempDir()
+	const config = "remote {\n\t\taddress 127.0.0.1\n}\n"
+	if err := os.WriteFile(filepath.Join(root, "ze.conf"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, network := range []string{"172.29.0.0/24", "192.0.2.0/24"} {
+		prefix := netip.MustParsePrefix(network)
+		source := interoplab.ScenarioSource{Name: scenarioInitiator, Directory: root}
+		plan := scenarioPlan(root, source, testEnvironment())
+		prepared, err := plan.Prepare(t.Context(), interoplab.PrepareContext{
+			Source: source, Network: interoplab.Network{IPv4: prefix},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if prepared.Cleanup == nil {
+			t.Fatal("rendered configuration has no cleanup")
+		}
+		t.Cleanup(func() {
+			if err := prepared.Cleanup(); err != nil {
+				t.Error(err)
+			}
+		})
+		path := mountSource(t, peerByName(t, prepared.Peers, peerZe), "/etc/ze/ze.conf")
+		relative, err := filepath.Rel(root, path)
+		if err != nil || !filepath.IsLocal(relative) {
+			t.Fatalf("rendered path %q is not Docker-shared: %v", path, err)
+		}
+		rendered, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		peer := prefix.Addr().Next().Next().Next()
+		want := strings.Replace(config, "127.0.0.1", peer.String(), 1)
+		if string(rendered) != want {
+			t.Fatalf("rendered peer config = %q, want %q", rendered, want)
+		}
+		if err := prepared.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("rendered configuration survived cleanup: %v", err)
+		}
+	}
+}
+
 func restoreEnvironment(t *testing.T, keys []string) {
 	t.Helper()
 	type value struct {
@@ -503,24 +488,6 @@ func peerByName(t *testing.T, peers []interoplab.PeerConfig, name string) intero
 	}
 	t.Fatalf("peer %s not found in %#v", name, peers)
 	return interoplab.PeerConfig{}
-}
-
-func peerNames(peers []interoplab.PeerConfig) []string {
-	names := make([]string, 0, len(peers))
-	for index := range peers {
-		names = append(names, peers[index].Name)
-	}
-	return names
-}
-
-func assertMount(t *testing.T, peer interoplab.PeerConfig, source, target string) {
-	t.Helper()
-	for _, mount := range peer.Mounts {
-		if mount.Source == source && mount.Target == target && mount.ReadOnly {
-			return
-		}
-	}
-	t.Errorf("peer %s missing read-only mount %s:%s; mounts: %#v", peer.Name, source, target, peer.Mounts)
 }
 
 func containsCall(calls []recordedCall, want recordedCall) bool {

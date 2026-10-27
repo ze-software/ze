@@ -1885,6 +1885,17 @@ cleanup error beside that failure, rather than reporting traffic as a clean pass
 
 ### L2TP and PPPoE lifecycle fault scenarios
 
+`l2tp-unknown-mandatory-avp-xl2tpd` relays xl2tpd's exchange without
+originating messages. An unknown optional AVP on SCCCN must permit PPP traffic.
+The relay then appends the same AVP with M=1 to a real HELLO. The checker
+requires a matching StopCCN with Result Code 2 and Error Code 8, route
+withdrawal and removal of both peers' PPP and kernel tunnel state.
+The native log retains the original and forwarded control datagrams.
+The native scenario passed, failed when a private build omitted HELLO AVP
+validation (no matching StopCCN 2/8), then passed after a normal rebuild.
+<!-- source: internal/le/interoplab/l2tp/mandatory_avp.go -- checkUnknownMandatoryAVP -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/main.go -- run, inject -->
+
 `pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
 exchanges after working IPCP traffic, checks each CHAP Response's Identifier
 and digest, and requires the session and connectivity to survive.

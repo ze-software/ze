@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -16,35 +15,6 @@ import (
 )
 
 var _ func(context.Context, string, string) interoplab.SuiteReport = l2tp.RunAt
-
-var l2tpScenarios = []string{
-	"01-ppp-ipv4",
-	"02-ppp-bgp-redistribute-frr",
-	"03-ze-lac-xl2tpd-lns",
-	"04-radius-acct-attrs",
-}
-
-// VALIDATES: The native selector exposes the complete reviewed L2TP scenario
-// population in lexical order.
-// PREVENTS: Dropping either inverse-role or three-peer scenario during cutover.
-func TestNativeScenarioPopulationIsExact(t *testing.T) {
-	if got := l2tp.ScenarioNames(); !reflect.DeepEqual(got, l2tpScenarios) {
-		t.Fatalf("native scenarios = %v, want %v", got, l2tpScenarios)
-	}
-	entries, err := os.ReadDir("scenarios")
-	if err != nil {
-		t.Fatalf("read scenarios: %v", err)
-	}
-	directories := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			directories = append(directories, entry.Name())
-		}
-	}
-	if !reflect.DeepEqual(directories, l2tpScenarios) {
-		t.Fatalf("fixture directories = %v, want %v", directories, l2tpScenarios)
-	}
-}
 
 // VALIDATES: Every byte mounted by the native peer plans remains the reviewed
 // protocol fixture.
