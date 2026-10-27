@@ -12,8 +12,9 @@
 //
 // The table's terms name the peer by the IPv4 header the error QUOTES, never
 // by the error's own source (spec-gtsm-related-icmp-quoted-destination AC-1).
-// So the rendered ruleset carries the peer's address in no dotted form. nft
-// prints the quoted read as a raw transport payload compare
+// So the only rule carrying the peer's address in dotted form is the listen
+// rule, which drops a SYN from the peer below the floor and reads the outer
+// source by design (checkGTSMRuleset). nft prints the quoted read as a raw transport payload compare
 // (`@th,192,32 0xc0000202`). quotedDestinationRead renders the same form from
 // the peer's address, for the poll and the .ci to assert on.
 
@@ -62,8 +63,8 @@ func gtsmRelatedICMP(ctx context.Context, _ []string) error {
 	}) {
 		return fmt.Errorf("CONFIGURED: %s table never carried a term reading the quoted destination %s (%s):\n%s", gtsmTableName, gtsmPeerAddress, quoted, table)
 	}
-	if strings.Contains(table, "ip saddr") {
-		return fmt.Errorf("CONFIGURED: %s table reads the error's own source, and the association is by the quoted header alone:\n%s", gtsmTableName, table)
+	if err := checkGTSMRuleset(table, gtsmPeerAddress, quoted); err != nil {
+		return fmt.Errorf("CONFIGURED: %w:\n%s", err, table)
 	}
 	fmt.Print(table)
 	fmt.Fprintln(os.Stderr, "CONFIGURED: table present")
@@ -102,6 +103,70 @@ func gtsmRelatedICMP(ctx context.Context, _ []string) error {
 	fmt.Fprintln(os.Stderr, "RELOADED: route withdrawn")
 
 	return signalProcess(pid, syscall.SIGTERM)
+}
+
+// gtsmRelatedICMPRuleCount is the number of related-ICMP terms the GTSM
+// component publishes for one IPv4 peer (peerTerms,
+// internal/component/gtsm/gtsm.go): each carries the quoted-destination read.
+const gtsmRelatedICMPRuleCount = 10
+
+// checkGTSMRuleset judges the rendered ze_gtsm table of one IPv4 peer. The
+// table holds two kinds of rule, and each is recognized by its own shape,
+// never by the absence of the other's:
+//
+//   - the listen rule reads the outer source on purpose, because a SYN's source
+//     is the peer: `saddr <peer>`, `tcp dport 179`, a TTL compare, and no
+//     `@th,` read. Exactly one line has that shape.
+//   - every related-ICMP rule names the peer by the quoted header alone. Exactly
+//     gtsmRelatedICMPRuleCount lines carry the quoted read.
+//
+// A `saddr` (ip or ip6) on any line other than the listen rule is refused, so
+// an ICMP rule keyed on the error's own source fails here whether or not it
+// also carries the quoted read, and at whatever offset it reads.
+func checkGTSMRuleset(table, peer, quoted string) error {
+	listenRules := 0
+	relatedRules := 0
+	for line := range strings.SplitSeq(table, "\n") {
+		if strings.Contains(line, quoted) {
+			relatedRules++
+		}
+		if isGTSMListenRule(line, peer) {
+			listenRules++
+			continue
+		}
+		if strings.Contains(line, "saddr") {
+			return fmt.Errorf("%s table has a rule other than the listen rule that reads the packet's own source, and a related ICMP error is associated by the quoted header alone: %q", gtsmTableName, strings.TrimSpace(line))
+		}
+	}
+	if listenRules != 1 {
+		return fmt.Errorf("%s table holds %d listen rules for %s (saddr, tcp dport 179, a ttl compare, no @th read), want exactly 1", gtsmTableName, listenRules, peer)
+	}
+	if relatedRules != gtsmRelatedICMPRuleCount {
+		return fmt.Errorf("%s table holds %d rules reading the quoted destination %s, want exactly %d", gtsmTableName, relatedRules, quoted, gtsmRelatedICMPRuleCount)
+	}
+	return nil
+}
+
+// isGTSMListenRule answers whether one rendered rule line has the listen
+// rule's shape for peer: it reads `saddr <peer>` and `dport 179` as whole
+// tokens, compares the TTL (`ttl <`), and reads no raw transport payload.
+func isGTSMListenRule(line, peer string) bool {
+	if strings.Contains(line, "@th,") {
+		return false
+	}
+	tokens := strings.Fields(line)
+	return hasTokenPair(tokens, "saddr", peer) && hasTokenPair(tokens, "tcp", "dport") &&
+		hasTokenPair(tokens, "dport", "179") && hasTokenPair(tokens, "ttl", "<")
+}
+
+// hasTokenPair answers whether first is immediately followed by second.
+func hasTokenPair(tokens []string, first, second string) bool {
+	for i := range len(tokens) - 1 {
+		if tokens[i] == first && tokens[i+1] == second {
+			return true
+		}
+	}
+	return false
 }
 
 // quotedDestinationRead renders the term nft prints for the quoted-destination

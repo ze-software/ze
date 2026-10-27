@@ -5,7 +5,6 @@ package reactor
 
 import (
 	"net/netip"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,15 +19,56 @@ import (
 // derives without a kernel to publish it to.
 func captureGTSMPeers(t *testing.T) *[]gtsm.Peer {
 	t.Helper()
+	return &captureGTSMSet(t).peers
+}
 
-	var published []gtsm.Peer
+// gtsmSet is one publication the reactor handed the gtsm component.
+type gtsmSet struct {
+	peers  []gtsm.Peer
+	ranges []gtsm.Range
+}
+
+// captureGTSMSet redirects the reconcile entry point and keeps both halves of
+// the last publication.
+func captureGTSMSet(t *testing.T) *gtsmSet {
+	t.Helper()
+
+	published := &gtsmSet{}
 	previous := setGTSMPeers
-	setGTSMPeers = func(peers []gtsm.Peer) error {
-		published = peers
+	setGTSMPeers = func(peers []gtsm.Peer, ranges []gtsm.Range) error {
+		published.peers = peers
+		published.ranges = ranges
 		return nil
 	}
 	t.Cleanup(func() { setGTSMPeers = previous })
-	return &published
+	return published
+}
+
+// TestListenTermsDynamicRange is AC-16 at the reactor: a dynamic group whose
+// template carries `ttl max 1` publishes its range with the template's floor
+// and listen port, the gtsm tables then drop a below-floor SYN from inside
+// the range, and a group without GTSM publishes nothing.
+func TestListenTermsDynamicRange(t *testing.T) {
+	published := captureGTSMSet(t)
+	r := New(&Config{Port: 179})
+
+	template := NewPeerSettings(netip.Addr{}, 65000, 0, 0x01010101)
+	template.OutTTL = 255
+	template.MinTTL = 255
+	plain := NewPeerSettings(netip.Addr{}, 65000, 0, 0x01010101)
+	gtsmRange := netip.MustParsePrefix("10.1.0.0/16")
+	r.SetDynamicGroups([]*DynamicGroupConfig{
+		{GroupName: "ixp", Ranges: []netip.Prefix{gtsmRange}, Settings: template},
+		{GroupName: "plain", Ranges: []netip.Prefix{netip.MustParsePrefix("10.2.0.0/16")}, Settings: plain},
+	})
+
+	r.publishGTSMKernelState()
+
+	require.Equal(t, []gtsm.Range{{Prefix: gtsmRange, Port: 179, Floor: 255}}, published.ranges)
+	tables := gtsm.FilterTables(published.peers, published.ranges)
+	require.Len(t, tables, 1)
+	member := gtsm.Peer{Addr: netip.MustParseAddr("10.1.2.3"), Port: 179, Floor: 255}
+	assert.True(t, hasListenPortDropFrom(tables[0].Chains[0].Terms, gtsmRange, member), "no term drops a below-floor SYN from the range")
 }
 
 // noopJournal is the rollback journal the config apply hands the reconcile.
@@ -191,7 +231,7 @@ func TestListenerMinTTLWiring(t *testing.T) {
 	require.NoError(t, adapter.reconcilePeersJournaled(settings, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
 	require.Len(t, *published, 2, "both GTSM peers reach the gtsm component")
 
-	tables := gtsm.FilterTables(*published)
+	tables := gtsm.FilterTables(*published, nil)
 	require.Len(t, tables, 1, "one ze_gtsm table carries every peer's terms")
 	require.Len(t, tables[0].Chains, 1)
 	terms := tables[0].Chains[0].Terms
@@ -205,7 +245,12 @@ func TestListenerMinTTLWiring(t *testing.T) {
 // peer's address, whose destination port is the peer's Ze listen port, and
 // whose TTL (IPv4) or hop limit (IPv6) is below the peer's floor.
 func hasListenPortDrop(terms []firewall.Term, peer gtsm.Peer) bool {
-	host := netip.PrefixFrom(peer.Addr, peer.Addr.BitLen())
+	return hasListenPortDropFrom(terms, netip.PrefixFrom(peer.Addr, peer.Addr.BitLen()), peer)
+}
+
+// hasListenPortDropFrom is hasListenPortDrop with the term's source named:
+// the peer's host prefix, or the dynamic group range the peer falls in.
+func hasListenPortDropFrom(terms []firewall.Term, host netip.Prefix, peer gtsm.Peer) bool {
 	for _, term := range terms {
 		source, tcp, toPort, belowFloor := false, false, false, false
 		for _, match := range term.Matches {
@@ -237,19 +282,16 @@ func hasListenPortDrop(terms []firewall.Term, peer gtsm.Peer) bool {
 }
 
 // floorMatchFor reports whether match is the below-floor match for the peer's
-// family at the peer's floor: firewall.MatchIPv4TTLBelow for IPv4, and the
-// IPv6 hop-limit match (spec-bcp194-3-session D-3, MatchIPv6HopLimitBelow) for
-// IPv6. The IPv6 type does not exist until Phase 2 adds it, so it is read by
-// name and its Floor field here; Phase 2 replaces this with a type switch.
+// family at the peer's floor: firewall.MatchIPv4TTLBelow for IPv4, and
+// firewall.MatchIPv6HopLimitBelow for IPv6 (spec-bcp194-3-session D-3). A
+// match of the other family's type answers false, so an IPv6 peer guarded by
+// an IPv4 TTL read is a red, not a pass.
 func floorMatchFor(match firewall.Match, peer gtsm.Peer) bool {
-	if peer.Addr.Is4() {
-		m, ok := match.(firewall.MatchIPv4TTLBelow)
-		return ok && m.Floor == peer.Floor
+	switch m := match.(type) {
+	case firewall.MatchIPv4TTLBelow:
+		return peer.Addr.Is4() && m.Floor == peer.Floor
+	case firewall.MatchIPv6HopLimitBelow:
+		return peer.Addr.Is6() && m.Floor == peer.Floor
 	}
-	value := reflect.ValueOf(match)
-	if value.Kind() != reflect.Struct || value.Type().Name() != "MatchIPv6HopLimitBelow" {
-		return false
-	}
-	floor := value.FieldByName("Floor")
-	return floor.IsValid() && floor.Kind() == reflect.Uint8 && floor.Uint() == uint64(peer.Floor)
+	return false
 }

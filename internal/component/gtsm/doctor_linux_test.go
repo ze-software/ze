@@ -86,7 +86,7 @@ func ipv6Peer() Peer {
 func TestGTSMDoctorReportsAPublishedPeerWhoseRouteIsMissing(t *testing.T) {
 	p := gtsmPeer()
 	publishedInThisProcess(t, p)
-	standInKernel(t, &kernelStandIn{tables: FilterTables([]Peer{p})})
+	standInKernel(t, &kernelStandIn{tables: FilterTables([]Peer{p}, nil)})
 
 	diags := registeredKernelStateCheck(t).Check(diagnostic.DoctorCheckContext{Tree: bgpTree()})
 	if len(diags) != 1 {
@@ -130,7 +130,7 @@ func TestGTSMDoctorReportsAPublishedPeerWhoseTableIsMissing(t *testing.T) {
 func TestGTSMDoctorIsSilentWhenTheKernelHoldsWhatWasPublished(t *testing.T) {
 	p := gtsmPeer()
 	publishedInThisProcess(t, p)
-	kernel := &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tables: FilterTables([]Peer{p})}
+	kernel := &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tables: FilterTables([]Peer{p}, nil)}
 	standInKernel(t, kernel)
 
 	check := registeredKernelStateCheck(t)
@@ -149,11 +149,16 @@ func TestGTSMDoctorIsSilentWhenTheKernelHoldsWhatWasPublished(t *testing.T) {
 // footprint the same as SetPeers': an IPv6 peer owes no table, so the
 // firewall backend is not asked for one.
 //
+// An IPv6 peer with a floor owes its listen-port term since the listen floor
+// (spec-bcp194-3-session D-3), so the set that owes no table is a peer with no
+// floor: GTSM on transmit only.
+//
 // VALIDATES: the table reader is not called, and a present route is silent.
 // PREVENTS: a "no firewall backend" warning on a box whose GTSM peers never
 // loaded one.
-func TestGTSMDoctorNeverReadsTheFirewallForAnIPv6OnlySet(t *testing.T) {
+func TestGTSMDoctorNeverReadsTheFirewallForASetThatOwesNoTerm(t *testing.T) {
 	p := ipv6Peer()
+	p.Floor = 0
 	publishedInThisProcess(t, p)
 	kernel := &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tablesErr: errors.New("must not be read")}
 	standInKernel(t, kernel)
@@ -164,6 +169,35 @@ func TestGTSMDoctorNeverReadsTheFirewallForAnIPv6OnlySet(t *testing.T) {
 	}
 	if kernel.tableReads != 0 {
 		t.Fatalf("the firewall was read %d times for a peer that owes no table", kernel.tableReads)
+	}
+}
+
+// TestGTSMDoctorNamesMissingListenTerm is AC-15's GTSM half: a published IPv6
+// peer whose route is present but whose listen-port term the kernel does not
+// hold is reported with that term's name and the command that restores it,
+// and a kernel holding the term is silent.
+//
+// VALIDATES: the expected term comes from FilterTables, the producer, and is
+// compared by name against the kernel's ze_gtsm table.
+// PREVENTS: a silent doctor on a router whose below-floor SYNs reach BGP
+// because the listen-port rule was flushed.
+func TestGTSMDoctorNamesMissingListenTerm(t *testing.T) {
+	p := ipv6Peer()
+	publishedInThisProcess(t, p)
+	standInKernel(t, &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}})
+
+	diags := registeredKernelStateCheck(t).Check(diagnostic.DoctorCheckContext{Tree: bgpTree()})
+	if len(diags) != 1 {
+		t.Fatalf("diagnostics = %+v, want one for the missing listen-port term", diags)
+	}
+	want := listenTermName(netip.PrefixFrom(p.Addr, 128))
+	if !strings.Contains(diags[0].Message, want) || !strings.Contains(diags[0].Message, "ze signal restart") {
+		t.Errorf("message %q names neither the term %q nor the command that restores it", diags[0].Message, want)
+	}
+
+	standInKernel(t, &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tables: FilterTables([]Peer{p}, nil)})
+	if diags := registeredKernelStateCheck(t).Check(diagnostic.DoctorCheckContext{Tree: bgpTree()}); len(diags) != 0 {
+		t.Errorf("diagnostics = %+v with the term installed, want none", diags)
 	}
 }
 

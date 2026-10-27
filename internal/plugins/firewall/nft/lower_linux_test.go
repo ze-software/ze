@@ -2179,3 +2179,44 @@ func assertPayloadCmp(t *testing.T, exprs []expr.Any, at int, base expr.PayloadB
 		t.Fatalf("expression %d = %#v, want equality with %x", at+1, exprs[at+1], want)
 	}
 }
+
+// TestLowerIPv6HopLimitBelow proves the hop-limit floor GTSM puts on an IPv6
+// peer's listen port lowers to `ip6 hoplimit < floor`: the IPv6 nfproto guard
+// in an inet table, a one-byte read at network-header offset 7, and a
+// strictly-less-than compare against the floor.
+//
+// VALIDATES: spec-bcp194-3-session A-4, through lowerMatch, the entry point
+// lowerTerm calls; floor 0 refused rather than lowered to a rule that never
+// fires.
+// PREVENTS: the read landing on offset 8 (the IPv6 source address) or the
+// compare admitting the floor itself, either of which drops a Trusted SYN or
+// passes a Dangerous one.
+func TestLowerIPv6HopLimitBelow(t *testing.T) {
+	exprs, err := lowerMatch(inetCtx(nil), firewall.MatchIPv6HopLimitBelow{Floor: 253})
+	if err != nil {
+		t.Fatalf("lowerMatch: %v", err)
+	}
+	rest := nfprotoGuardRest(t, exprs, unix.NFPROTO_IPV6)
+	if len(rest) != 2 {
+		t.Fatalf("expressions after the guard = %d, want 2 (payload, cmp)", len(rest))
+	}
+	payload, ok := rest[0].(*expr.Payload)
+	if !ok {
+		t.Fatalf("expression after the guard = %T, want *expr.Payload", rest[0])
+	}
+	if payload.Base != expr.PayloadBaseNetworkHeader || payload.Offset != 7 || payload.Len != 1 {
+		t.Errorf("payload = base %v offset %d len %d, want network header offset 7 len 1 (IPv6 Hop Limit)",
+			payload.Base, payload.Offset, payload.Len)
+	}
+	cmp, ok := rest[1].(*expr.Cmp)
+	if !ok {
+		t.Fatalf("expression after the payload = %T, want *expr.Cmp", rest[1])
+	}
+	if cmp.Op != expr.CmpOpLt || len(cmp.Data) != 1 || cmp.Data[0] != 253 {
+		t.Errorf("cmp = op %v data %v, want CmpOpLt [253]", cmp.Op, cmp.Data)
+	}
+
+	if _, err := lowerMatch(inetCtx(nil), firewall.MatchIPv6HopLimitBelow{Floor: 0}); err == nil {
+		t.Error("floor 0 lowered; want a refusal")
+	}
+}

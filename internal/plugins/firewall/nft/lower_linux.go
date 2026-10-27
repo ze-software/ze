@@ -54,6 +54,7 @@ var (
 	errNatPortRangeRequiresALower                   = errors.New("NAT port range requires a lower bound")
 	errInvalidNatAddress                            = errors.New("invalid NAT address")
 	errTtlBelowFloorIsZero                          = errors.New("ttl-below floor is 0, which no TTL can be below")
+	errHopLimitBelowFloorIsZero                     = errors.New("hop-limit-below floor is 0, which no hop limit can be below")
 	errIcmpQuotedTcpPortNamesNoSide                 = errors.New("icmp-quoted-tcp-port names no side")
 	errIcmpQuotedTcpPortIsZero                      = errors.New("icmp-quoted-tcp-port is 0, which no TCP session carries")
 	errIcmpQuotedDestinationNamesNoIPv4Address      = errors.New("icmp-quoted-destination names no IPv4 address")
@@ -515,6 +516,8 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerTCPFlagsMatch(v.Flags, v.Mask)
 	case firewall.MatchIPv4TTLBelow:
 		return lowerIPv4TTLBelowMatch(ctx.tableFamily(), v.Floor)
+	case firewall.MatchIPv6HopLimitBelow:
+		return lowerIPv6HopLimitBelowMatch(ctx.tableFamily(), v.Floor)
 	case firewall.MatchICMPErrorQuotedTCPPort:
 		return lowerICMPErrorQuotedTCPPortMatch(ctx.tableFamily(), v.Port, v.Side)
 	case firewall.MatchICMPErrorQuotedDestination:
@@ -941,6 +944,31 @@ func lowerIPv4TTLBelowMatch(family nftables.TableFamily, floor uint8) ([]expr.An
 	}
 	return append(nfprotoGuard(family, unix.NFPROTO_IPV4),
 		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 8, Len: 1},
+		&expr.Cmp{Op: expr.CmpOpLt, Register: 1, Data: []byte{floor}},
+	), nil
+}
+
+// lowerIPv6HopLimitBelowMatch matches an IPv6 packet whose Hop Limit is
+// strictly below floor. The Hop Limit byte is at offset 7 of the IPv6 header
+// (RFC 8200 Section 3):
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|Version| Traffic Class |           Flow Label                  |  0
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|         Payload Length        |  Next Header  |   Hop Limit   |  4
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// In an inet table the same offset is the IPv4 header's fragment-offset low
+// byte, so the read carries the nfproto guard, as lowerIPv4TTLBelowMatch's
+// does, and validateMatch refuses the match in a family with no guard.
+func lowerIPv6HopLimitBelowMatch(family nftables.TableFamily, floor uint8) ([]expr.Any, error) {
+	if floor == 0 {
+		return nil, errHopLimitBelowFloorIsZero
+	}
+	return append(nfprotoGuard(family, unix.NFPROTO_IPV6),
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 7, Len: 1},
 		&expr.Cmp{Op: expr.CmpOpLt, Register: 1, Data: []byte{floor}},
 	), nil
 }

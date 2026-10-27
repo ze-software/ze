@@ -443,7 +443,7 @@ func publishGTSMFilter(t *testing.T) {
 	t.Helper()
 
 	peer := Peer{Addr: peerV4, Port: bgpPort, HopLimit: 255, Floor: 255}
-	if err := SetPeers([]Peer{peer}); err != nil {
+	if err := SetPeers([]Peer{peer}, nil); err != nil {
 		t.Fatalf("SetPeers: %v", err)
 	}
 	t.Cleanup(func() {
@@ -556,7 +556,7 @@ func (b *testbed) awaitOutgoingSYN(t *testing.T) (uint16, uint32) {
 // ---------------------------------------------------------------------------
 
 // The counter ze programs on each rule sits at the term's match/action
-// boundary, after the matches and ahead of the verdict (applyChain,
+// boundary, after the matches and ahead of the verdict (addChainRules,
 // internal/plugins/firewall/nft/backend_linux.go). nftables stops evaluating a
 // rule at its first match that fails, so a rule's counter counts the packets
 // the term MATCHED and nothing else. A packet no term matches therefore leaves

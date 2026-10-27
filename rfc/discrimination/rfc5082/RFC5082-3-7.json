@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5082-3-7",
+    "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNBelowFloorDropped",
+    "unit-sha": "3b691175e040592d",
+    "claim-sha": "f631859c9fc358fb",
+    "route": "mutant",
+    "producer": "internal/component/gtsm/gtsm.go::peerTerms",
+    "producer-sha": "dcb7cbca78167b26",
+    "break": "line 315: \"terms = append(terms, listen)\" -\u003e \"_ = listen\""
+  },
+  {
+    "rid": "RFC5082-3-7",
+    "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNBelowFloorDroppedIPv6",
+    "unit-sha": "a1d60f6571e2565c",
+    "claim-sha": "931e369059512693",
+    "route": "mutant",
+    "producer": "internal/component/gtsm/gtsm.go::peerTerms",
+    "producer-sha": "dcb7cbca78167b26",
+    "break": "line 311: \"return []firewall.Term{listen}\" -\u003e \"return nil\""
+  }
+]

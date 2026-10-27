@@ -157,13 +157,25 @@ with the configuration that asked for it.
 
 One example: a BGP peer configured
 with `connection { ttl { max N; } }` (RFC 5082 GTSM) gets `ze_gtsm`, an input
-chain that drops an ICMP error which quotes that peer's BGP session and arrives
-below the peer's TTL floor. The chain names the session by the header the error
-quotes (the peer as the quoted destination, and the BGP port), whoever sent the
-error. Its terms therefore read the quoted header as a raw payload compare
+chain with two kinds of term for that peer.
+
+| Term | Matches | Why |
+|------|---------|-----|
+| `dangerous-<peer>-listen` | TCP from the peer to Ze's listen port with a TTL (IPv4) or hop limit (IPv6) below the peer's floor, then drop | The SYN reaches the listener before the accepted socket carries its own floor, so a spoofed SYN would otherwise cost a SYN-ACK and a request socket |
+| `dangerous-<peer>-type<N>-quoted-<side>` (IPv4 only) | An ICMP error which quotes that peer's BGP session and arrives below the floor | The related messages RFC 5082 Section 6.1 covers |
+
+A GTSM dynamic group gets one listen term per range, named
+`dangerous-<address>-<length>-listen`, with the range as its source and the
+group template's floor. A SYN to the listen port from any other source, or
+from the peer to any other port, matches no term: RFC 5082 Section 3 forbids
+dropping a packet GTSM classifies as Unknown.
+
+The ICMP terms name the session by the header the error quotes (the peer as
+the quoted destination, and the BGP port), whoever sent the error. They
+therefore read the quoted header as a raw payload compare
 (`@th,192,32 0xc0000202` is 192.0.2.2) and carry no `ip saddr`.
-`show firewall ruleset gtsm` lists it, and removing
-the peer's `ttl` block removes it. The full list of table owners is in
+`show firewall ruleset gtsm` lists the table, and removing the peer's `ttl`
+block removes its terms; the table goes with the last GTSM peer. The full list of table owners is in
 [table ownership](../architecture/firewall/table-ownership-and-shutdown-flush.md).
 <!-- source: internal/component/gtsm/gtsm.go -- FilterTables, peerTerms -->
 

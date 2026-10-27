@@ -13,6 +13,39 @@
   {
     "rid": "RFC5082-3-4",
     "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNAtFloorAccepted",
+    "unit-sha": "2bdda30c524ac717",
+    "claim-sha": "cb9561a2a0d64d9a",
+    "route": "mutant",
+    "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv4TTLBelowMatch",
+    "producer-sha": "80ea7dd1c4d5c4f7",
+    "break": "line 947: \"expr.CmpOpLt\" -\u003e \"expr.CmpOpLte\""
+  },
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNAtFloorAcceptedIPv6",
+    "unit-sha": "09651af894ce04a6",
+    "claim-sha": "9b698e1dbd15bdcf",
+    "route": "mutant",
+    "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv6HopLimitBelowMatch",
+    "producer-sha": "be80445df48ac191",
+    "break": "line 972: \"expr.CmpOpLt\" -\u003e \"expr.CmpOpLte\""
+  },
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerUnknownNotDropped",
+    "unit-sha": "43cd103133593f2c",
+    "claim-sha": "582633f61c93f8ee",
+    "route": "mutant",
+    "producer": "internal/component/gtsm/gtsm.go::listenPortTerm",
+    "producer-sha": "51605d6b456af3d1",
+    "break": "line 374: \"firewall.MatchSourceAddress{Prefix: source},\" -\u003e \"\""
+  },
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "positive",
     "unit": "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket",
     "unit-sha": "902369bf8e5f7fcc",
     "claim-sha": "042102514bd25eb8",

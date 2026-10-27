@@ -402,16 +402,29 @@ type MatchInSet struct {
 // Floor. It reads the TTL of the packet in front of the kernel, never a TTL
 // quoted inside a payload.
 //
-// IPv4 only, because the byte it reads is at IPv4 network-header offset 8. An
-// IPv6 hop limit sits at offset 7, and no caller needs it: the IPv6 half of
-// GTSM's related-message check is performed by the kernel against
-// IPV6_MINHOPCOUNT (rfc/short/rfc5082.md).
+// IPv4 only, because the byte it reads is at IPv4 network-header offset 8. The
+// IPv6 hop limit sits at offset 7 and is MatchIPv6HopLimitBelow.
 //
 // Floor 0 matches nothing, and validateMatch refuses it: a TTL cannot be below
 // zero, so a term built from an unset floor would be a rule that never fires.
 //
 // Daemon-only. No config leaf produces it, so an operator cannot write it.
 type MatchIPv4TTLBelow struct{ Floor uint8 }
+
+// MatchIPv6HopLimitBelow matches an IPv6 packet whose Hop Limit byte is
+// strictly below Floor. It is the IPv6 sibling of MatchIPv4TTLBelow: it reads
+// the hop limit of the packet in front of the kernel, at IPv6 network-header
+// offset 7 (RFC 8200 Section 3).
+//
+// GTSM needs it for the main protocol packets: a SYN reaches the listener
+// before any accepted socket carries IPV6_MINHOPCOUNT, so the floor that
+// guards the handshake is a rule at the input hook (internal/component/gtsm).
+//
+// Floor 0 matches nothing, and validateMatch refuses it, for the reason
+// MatchIPv4TTLBelow gives.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchIPv6HopLimitBelow struct{ Floor uint8 }
 
 // QuotedPortSide names which port of the TCP header quoted inside an ICMPv4
 // error a MatchICMPErrorQuotedTCPPort compares. Zero is Unspecified so the Go
@@ -558,6 +571,7 @@ func (MatchTCPFlags) matchMarker()           {}
 func (MatchUnicast) matchMarker()            {}
 
 func (MatchIPv4TTLBelow) matchMarker()           {}
+func (MatchIPv6HopLimitBelow) matchMarker()      {}
 func (MatchICMPErrorQuotedTCPPort) matchMarker() {}
 
 func (MatchICMPErrorQuotedDestination) matchMarker() {}

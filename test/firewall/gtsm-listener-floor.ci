@@ -1,0 +1,134 @@
+# Test: A BGP peer with `connection ttl max 1` gets a `ze_gtsm` rule that drops
+#       TCP from the peer to Ze's listen port below the floor, in both
+#       families, and removing the block withdraws it.
+# VALIDATES: spec-bcp194-3-session AC-1, AC-2 -- the reactor publishes each
+#            GTSM peer to internal/component/gtsm, whose listen-port term the
+#            nft backend renders as `saddr <peer> ... dport 179 ... ttl < 255
+#            ... drop` for IPv4 and `... hoplimit < 255 ... drop` for IPv6.
+#            AC-6 -- a reload without the IPv4 peer's `ttl` block removes its
+#            rule alone, and a reload without the last block withdraws the
+#            table.
+# PREVENTS: a below-floor SYN reaching the listener because the floor exists
+#           only on the accepted socket; an IPv6 peer left without the rule; a
+#           rule that outlives the configuration that asked for it.
+#
+# The peers never connect: the rule is derived from the configuration, and RFC
+# 5082 Section 3 wants it in place before the first SYN. The two netns links
+# give the test namespace the peers' subnets, so the kernel resolves the
+# routes the GTSM host routes copy their nexthop from. The kernel proof that
+# the rule drops a real SYN is TestGTSMListenerSYNBelowFloorDropped
+# (internal/component/gtsm/rfc5082_listener_integration_linux_test.go).
+
+option=needs-linux:caps=net-admin
+option=netns-link:name=zegtsm0:address=192.0.2.1/24
+option=netns-link:name=zegtsm1:address=2001:db8::1/64
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer4 {
+		connection {
+			remote { ip 192.0.2.2; }
+			local  { ip 192.0.2.1; }
+			ttl { max 1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+	peer peer6 {
+		connection {
+			remote { ip 2001:db8::2; }
+			local  { ip 2001:db8::1; }
+			ttl { max 1; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			router-id 192.0.2.1;
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer4 {
+		connection {
+			remote { ip 192.0.2.2; }
+			local  { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+	peer peer6 {
+		connection {
+			remote { ip 2001:db8::2; }
+			local  { ip 2001:db8::1; }
+			ttl { max 1; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			router-id 192.0.2.1;
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+bgp {
+	peer peer4 {
+		connection {
+			remote { ip 192.0.2.2; }
+			local  { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+	peer peer6 {
+		connection {
+			remote { ip 2001:db8::2; }
+			local  { ip 2001:db8::1; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			router-id 192.0.2.1;
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF3
+
+option=env:var=ze.log.gtsm:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture firewall/gtsm-listener-floor:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_gtsm
+expect=stdout:contains=saddr 192.0.2.2
+expect=stdout:contains=saddr 2001:db8::2
+expect=stdout:contains=hoplimit < 255
+expect=stderr:contains=CONFIGURED: IPv4 listen rule present
+expect=stderr:contains=CONFIGURED: IPv6 listen rule present
+expect=stderr:contains=RELOADED: IPv4 listen rule withdrawn, IPv6 kept
+expect=stderr:contains=RELOADED: table withdrawn with the last GTSM peer

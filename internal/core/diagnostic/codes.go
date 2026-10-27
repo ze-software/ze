@@ -1213,7 +1213,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-gtsm-kernel-state",
 		Title:       "GTSM peer kernel state missing",
-		Description: "A BGP peer configured with `connection ttl` (RFC 5082 GTSM) is short of the kernel state that protects its related ICMP messages: the host route to the peer carrying hop limit 255, or the ze_gtsm nftables table that drops an ICMP error arriving below the peer's TTL floor. Inside the daemon (show doctor) the check reads what the kernel holds against what the daemon published; the usual cause is a peer whose interface was down at config apply, and the next peer reconcile installs it. In `ze doctor`, before a start, the check reports a peer the kernel resolves no route to, because that route install will fail at apply.",
+		Description: "A BGP peer or dynamic group range configured with `connection ttl` (RFC 5082 GTSM) is short of the kernel state that protects it: the host route to the peer carrying hop limit 255, or a term of the ze_gtsm nftables table, either the one that drops TCP from the peer to Ze's listen port below its TTL or hop-limit floor, or one that drops an ICMP error arriving below the floor. Inside the daemon (show doctor) the check reads what the kernel holds against what the daemon published and names each missing term; the usual cause is a peer whose interface was down at config apply, or a table removed by hand. Run `ze signal restart` to republish the state: a reload leaves an unchanged peer set alone. In `ze doctor`, before a start, the check reports a peer the kernel resolves no route to, because that route install will fail at apply.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-gtsm-kernel-state"},
 	},
 	{

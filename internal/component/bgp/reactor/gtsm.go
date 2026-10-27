@@ -3,11 +3,14 @@
 // Related: session_connection.go -- tuneTCPConnectionForSettings, the per-connection half of GTSM
 //
 // The socket options a GTSM peer needs are per connection and are installed
-// when the connection is made. Two other pieces of kernel state are per PEER
-// and outlive any one connection: the route metric that gives a locally
+// when the connection is made. Other pieces of kernel state are per PEER and
+// outlive any one connection: the route metric that gives a locally
 // generated ICMP error its TTL, and the input filter that refuses an ICMP
-// error arriving below the peer's floor. This file publishes the peer set
-// those two are derived from, once for each peer reconcile.
+// error, or a TCP segment to the peer's listen port, arriving below the
+// peer's floor. A dynamic group's range carries the listen-port rule too,
+// because its members' SYNs arrive before any member exists. This file
+// publishes the peer set and the ranges those are derived from, once for each
+// peer reconcile.
 
 package reactor
 
@@ -24,15 +27,38 @@ import (
 // related ICMP messages. The error names each peer whose route the kernel
 // refused, and the next reconcile tries again (gtsm.SetPeers).
 func (r *Reactor) publishGTSMKernelState() {
-	if err := setGTSMPeers(r.gtsmPeers()); err != nil {
+	// RFC 5082 Section 3: the set names every GTSM-enabled session, so the
+	// gtsm component can tell a Dangerous packet from an Unknown one.
+	if err := setGTSMPeers(r.gtsmPeers(), r.gtsmRanges()); err != nil {
 		reactorLogger().Warn("GTSM kernel state not published", "error", err)
 	}
 }
 
 // setGTSMPeers is the gtsm component's reconcile entry point. It is a var so a
-// test can read the peer set this reactor derives without a kernel to publish
-// it to.
+// test can read the set this reactor derives without a kernel to publish it
+// to.
 var setGTSMPeers = gtsm.SetPeers
+
+// gtsmRanges is each GTSM-enabled dynamic group's ranges, with the floor and
+// the listen port of the group's template. A member exists only after its SYN
+// has been accepted, so the listen-port rule that judges that SYN names the
+// range (spec-bcp194-3-session AC-16).
+func (r *Reactor) gtsmRanges() []gtsm.Range {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var ranges []gtsm.Range
+	for _, group := range r.dynamicGroups {
+		template, enabled := gtsmPeerOf(group.Settings, r.config.Port)
+		if !enabled {
+			continue
+		}
+		for _, prefix := range group.Ranges {
+			ranges = append(ranges, gtsm.Range{Prefix: prefix, Port: template.Port, Floor: template.Floor})
+		}
+	}
+	return ranges
+}
 
 // gtsmPeers is the peer set with GTSM enabled, as the gtsm component reads it.
 //

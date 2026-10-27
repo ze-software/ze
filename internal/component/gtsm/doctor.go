@@ -28,7 +28,6 @@ package gtsm
 
 import (
 	"errors"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -103,9 +102,9 @@ func checkKernelState(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 		return nil
 	}
 
-	peers, inDaemon := publishedPeers()
+	peers, ranges, inDaemon := publishedPeers()
 	if inDaemon {
-		return installedStateDiagnostics(peers)
+		return installedStateDiagnostics(peers, ranges)
 	}
 
 	peers, err := peersFromConfigTree(tree)
@@ -144,19 +143,23 @@ func peersFromConfigTree(tree *config.Tree) ([]Peer, error) {
 var errNoPeerDerivation = errors.New("no BGP engine in this binary derives the GTSM peer set")
 
 // installedStateDiagnostics is the in-daemon answer: one diagnostic for each
-// published peer whose kernel state is short of what SetPeers asked for.
+// published peer or range whose kernel state is short of what SetPeers asked
+// for.
 //
-// The table is read once for the whole set, and only when a peer owes terms,
-// so a deployment whose GTSM peers are all IPv6 never touches the firewall
-// backend here, exactly as SetPeers never loads one for it. A table read that
-// fails is reported once, and no peer is then also reported as missing the
-// table, because nothing was learned about it.
-func installedStateDiagnostics(peers []Peer) []diagnostic.Diagnostic {
+// What the kernel should hold is derived from the producer: the terms
+// FilterTables builds for the published set, compared by name with the terms
+// the kernel's ze_gtsm table carries. No term list is written here.
+//
+// The table is read once for the whole set, and only when the set owes terms,
+// exactly as SetPeers loads the firewall backend only then. A table read that
+// fails is reported once, and no term is then also reported as missing,
+// because nothing was learned about it.
+func installedStateDiagnostics(peers []Peer, ranges []Range) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
-	tableKnown := false
-	tablePresent := false
-	if FilterTables(peers) != nil {
+	termsKnown := false
+	var installed map[string]bool
+	if FilterTables(peers, ranges) != nil {
 		tables, err := readKernelTables()
 		if err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
@@ -165,8 +168,8 @@ func installedStateDiagnostics(peers []Peer) []diagnostic.Diagnostic {
 				Message:  "gtsm: the kernel firewall tables could not be read: " + err.Error(),
 			})
 		} else {
-			tableKnown = true
-			tablePresent = kernelHoldsFilterTable(tables)
+			termsKnown = true
+			installed = kernelFilterTermNames(tables)
 		}
 	}
 
@@ -177,26 +180,65 @@ func installedStateDiagnostics(peers []Peer) []diagnostic.Diagnostic {
 				missing = append(missing, reason)
 			}
 		}
-		if tableKnown && !tablePresent && len(peerTerms(p)) > 0 {
-			missing = append(missing, "the "+filterTableName+" table")
+		if termsKnown {
+			missing = append(missing, missingTerms(peerTerms(p), installed)...)
 		}
 		if len(missing) == 0 {
 			continue
 		}
-		diags = append(diags, missingStateDiagnostic(p.Addr, missing))
+		diags = append(diags, missingStateDiagnostic(textbuf.StringAddr(p.Addr), missing))
+	}
+
+	for _, r := range ranges {
+		if !termsKnown {
+			break
+		}
+		term, owed := listenPortTerm(r.Prefix, r.Port, r.Floor)
+		if !owed {
+			continue
+		}
+		missing := missingTerms([]firewall.Term{term}, installed)
+		if len(missing) == 0 {
+			continue
+		}
+		diags = append(diags, missingStateDiagnostic(r.Prefix.String(), missing))
 	}
 	return diags
 }
 
-// kernelHoldsFilterTable reports whether the kernel's ze-owned tables include
-// this package's table, in the family it is published in.
-func kernelHoldsFilterTable(tables []firewall.Table) bool {
+// kernelFilterTermNames answers the names of the terms the kernel's ze_gtsm
+// table carries, in the family it is published in. The nft read-back keeps a
+// term's name (its rule user data) and not its body, so a name is what a
+// check can compare. A kernel without the table answers an empty set, which
+// reports every term missing.
+func kernelFilterTermNames(tables []firewall.Table) map[string]bool {
+	names := map[string]bool{}
 	for i := range tables {
-		if tables[i].Name == filterTableName && tables[i].Family == firewall.FamilyInet {
-			return true
+		if tables[i].Name != filterTableName {
+			continue
+		}
+		if tables[i].Family != firewall.FamilyInet {
+			continue
+		}
+		for _, chain := range tables[i].Chains {
+			for _, term := range chain.Terms {
+				names[term.Name] = true
+			}
 		}
 	}
-	return false
+	return names
+}
+
+// missingTerms names each term of want the kernel does not hold.
+func missingTerms(want []firewall.Term, installed map[string]bool) []string {
+	var missing []string
+	for _, term := range want {
+		if installed[term.Name] {
+			continue
+		}
+		missing = append(missing, "the "+filterTableName+" term "+term.Name)
+	}
+	return missing
 }
 
 // hopLimitRouteMissing answers what to say about a peer whose route is not
@@ -213,17 +255,20 @@ func hopLimitRouteMissing(p Peer) (string, bool) {
 	return "the host route carrying hop limit " + textbuf.StringUint8(p.HopLimit), true
 }
 
-// missingStateDiagnostic names the peer and each half of its state that the
-// kernel does not hold.
-func missingStateDiagnostic(addr netip.Addr, missing []string) diagnostic.Diagnostic {
+// missingStateDiagnostic names the peer or range, each piece of its state the
+// kernel does not hold, and the command that republishes it. A reload does
+// not: SetPeers leaves an unchanged set alone. A restart starts a process
+// whose published set is empty, so its first reconcile installs everything.
+func missingStateDiagnostic(source string, missing []string) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
-	tb.Str("gtsm: peer ").Addr(addr).Str(": the kernel does not hold ").Join(missing, " or ").
-		Str(", so its related ICMP messages are not protected until the next peer reconcile installs it")
+	tb.Str("gtsm: ").Str(source).Str(": the kernel does not hold ").Join(missing, " and ").
+		Str(", so a packet below its TTL floor is not dropped before it reaches BGP;").
+		Str(" run `ze signal restart` to republish the GTSM kernel state")
 	return diagnostic.Diagnostic{
 		Code:     doctorKernelStateCode,
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.String(),
-		Path:     textbuf.StringAddr(addr),
+		Path:     source,
 	}
 }
 

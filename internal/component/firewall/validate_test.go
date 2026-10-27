@@ -68,6 +68,49 @@ func TestValidateICMPTypeFamily(t *testing.T) {
 	}
 }
 
+// TestValidateMatchIPv6HopLimitBelow proves the hop-limit floor GTSM builds
+// for an IPv6 peer is refused where it would read the wrong byte or match
+// nothing, and accepted at both ends of its range.
+//
+// VALIDATES: floor 0 refused; floors 1 and 255 accepted in ip6 and inet; the
+// match refused in an ip table, where offset 7 is the IPv4 protocol byte's
+// neighbor rather than a hop limit.
+// PREVENTS: a GTSM listen-port term built from an unset floor, which would be
+// a rule that never fires and protects nothing.
+func TestValidateMatchIPv6HopLimitBelow(t *testing.T) {
+	tests := []struct {
+		name    string
+		floor   uint8
+		family  TableFamily
+		wantErr string // empty = must accept
+	}{
+		{"floor 1 in inet", 1, FamilyInet, ""},
+		{"floor 255 in inet", 255, FamilyInet, ""},
+		{"floor 255 in ip6", 255, FamilyIP6, ""},
+		{"floor 0 refused", 0, FamilyInet, "hop-limit-below floor is 0"},
+		{"ip table refused", 255, FamilyIP, "hop-limit-below match is IPv6-only"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := makeTable(tt.family)
+			tbl.Chains[0].Terms[0].Matches = []Match{MatchIPv6HopLimitBelow{Floor: tt.floor}}
+			err := ValidateTables([]Table{tbl})
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected accept, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 // VALIDATES: ISSUE #2 -- an empty interface name (e.g. from
 // `input-interface "*"` which strips to Name="" + Wildcard=true) is
 // rejected at verify so `ze config validate` surfaces it offline.

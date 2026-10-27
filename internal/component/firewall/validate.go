@@ -176,6 +176,19 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return fmt.Errorf("table %q chain %q term %q: ttl-below floor is 0, which no TTL can be below",
 				tbl.Name, ch.Name, term.Name)
 		}
+	case MatchIPv6HopLimitBelow:
+		// The hop limit is at IPv6 network-header offset 7, so the read is
+		// IPv6-only, and inet is accepted because lowerIPv6HopLimitBelowMatch
+		// (internal/plugins/firewall/nft/lower_linux.go) emits the
+		// `meta nfproto ipv6` guard ahead of it.
+		if tbl.Family != FamilyIP6 && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: hop-limit-below match is IPv6-only; move to a table with family ip6 or inet (got %s)",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		if v.Floor == 0 {
+			return fmt.Errorf("table %q chain %q term %q: hop-limit-below floor is 0, which no hop limit can be below",
+				tbl.Name, ch.Name, term.Name)
+		}
 	case MatchICMPErrorQuotedTCPPort:
 		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
 			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-tcp-port match is IPv4-only; move to a table with family ip or inet (got %s)",

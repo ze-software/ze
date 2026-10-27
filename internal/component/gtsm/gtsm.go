@@ -22,8 +22,18 @@
 // option cannot gate the error's own TTL. An nftables input rule does, and
 // this package builds it.
 //
-// Receive, IPv6: nothing here. The kernel compares the ICMPv6 error's own hop
-// limit against IPV6_MINHOPCOUNT, which network.SetIPMinTTL already installs.
+// Receive, IPv6 related messages: nothing here. The kernel compares the
+// ICMPv6 error's own hop limit against IPV6_MINHOPCOUNT, which
+// network.SetIPMinTTL already installs.
+//
+// Receive, the main protocol packets before accept, both families: the socket
+// floor sits on the accepted connection, so a SYN from a GTSM peer's address
+// below the peer's floor would still cost a request socket and a SYN-ACK. A
+// listener-wide floor cannot replace it, because one listener serves GTSM
+// peers, multihop peers and unconfigured sources alike, and RFC 5082 Section 3
+// forbids dropping the last two. So each GTSM peer, and each GTSM dynamic
+// group's range, gets an input rule that names its source and its listen
+// port. The per-connection floor stays as the second check.
 //
 // Safe for concurrent use: SetPeers serializes on a package mutex.
 package gtsm
@@ -89,9 +99,25 @@ type Peer struct {
 	Floor    uint8
 }
 
+// Range is one GTSM-enabled dynamic group's address range, as the caller's
+// configuration defines it. A member of the group exists only once it has
+// connected, and the SYN that creates it arrives before then, so the
+// listen-port rule names the range rather than a member.
+//
+// Port is the listen port the group's sessions use and Floor the lowest TTL
+// or hop limit they accept. A zero in either means the group asked for no
+// GTSM, and the range then carries no rule.
+type Range struct {
+	Prefix netip.Prefix
+	Port   uint16
+	Floor  uint8
+}
+
 var (
 	mu      sync.Mutex
 	current []Peer
+	// currentRanges is the dynamic-group half of the set current holds.
+	currentRanges []Range
 	// routeMissing says the last reconcile left a peer without its host
 	// route, most often because the peer's interface was not up yet. It makes
 	// the next reconcile run even when it names the same peers, which is what
@@ -104,9 +130,11 @@ var (
 	published bool
 )
 
-// SetPeers reconciles the kernel to the GTSM peer set it is given. The caller
-// passes the WHOLE set on every call: a peer absent from it has its host route
-// and its filter terms withdrawn, and an empty set withdraws everything.
+// SetPeers reconciles the kernel to the GTSM peer set and the GTSM dynamic
+// group ranges it is given. The caller passes the WHOLE set on every call: a
+// peer or a range absent from it has its host route and its filter terms
+// withdrawn, and two empty sets withdraw everything. A range carries no host
+// route, only its listen-port term.
 //
 // It is synchronous. The caller's config apply is what waits, and that is
 // deliberate: a filter published after the session it protects is the window
@@ -117,13 +145,14 @@ var (
 // protected in one direction rather than neither. The reconcile that follows
 // retries the route, even when it names the same peers, because nothing in
 // the configuration changes when the peer's interface comes up.
-func SetPeers(peers []Peer) error {
+func SetPeers(peers []Peer, ranges []Range) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	published = true
 	wanted := sortedPeers(peers)
-	if slices.Equal(wanted, current) && !routeMissing {
+	wantedRanges := sortedRanges(ranges)
+	if slices.Equal(wanted, current) && slices.Equal(wantedRanges, currentRanges) && !routeMissing {
 		return nil
 	}
 
@@ -131,22 +160,43 @@ func SetPeers(peers []Peer) error {
 	// a later reconcile can still reach.
 	routeErr := applyRoutes(wanted, current)
 	routeMissing = routeErr != nil
-	if err := publishFilter(FilterTables(wanted)); err != nil {
+	if err := publishFilter(FilterTables(wanted, wantedRanges)); err != nil {
 		// current stays as it was, so the next reconcile republishes.
 		return errors.Join(routeErr, fmt.Errorf("gtsm filter: %w", err))
 	}
 
 	current = wanted
+	currentRanges = wantedRanges
 	return routeErr
 }
 
-// publishedPeers answers the set this process last asked the kernel for, and
-// whether it ever asked. The slice is a copy, so a caller reads it outside
-// the lock.
-func publishedPeers() ([]Peer, bool) {
+// publishedPeers answers the peers and ranges this process last asked the
+// kernel for, and whether it ever asked. The slices are copies, so a caller
+// reads them outside the lock.
+func publishedPeers() ([]Peer, []Range, bool) {
 	mu.Lock()
 	defer mu.Unlock()
-	return slices.Clone(current), published
+	return slices.Clone(current), slices.Clone(currentRanges), published
+}
+
+// sortedRanges copies the caller's ranges, drops an invalid prefix, masks each
+// prefix to its network, and sorts them, for the reason sortedPeers gives.
+func sortedRanges(ranges []Range) []Range {
+	wanted := make([]Range, 0, len(ranges))
+	for _, r := range ranges {
+		if !r.Prefix.IsValid() {
+			continue
+		}
+		r.Prefix = r.Prefix.Masked()
+		wanted = append(wanted, r)
+	}
+	slices.SortFunc(wanted, func(a, b Range) int {
+		if c := a.Prefix.Addr().Compare(b.Prefix.Addr()); c != 0 {
+			return c
+		}
+		return a.Prefix.Bits() - b.Prefix.Bits()
+	})
+	return slices.Compact(wanted)
 }
 
 // sortedPeers copies the caller's slice and sorts it by address, so the kernel
@@ -179,22 +229,30 @@ var publishFilter = func(tables []firewall.Table) error {
 	return firewall.ApplyAll()
 }
 
-// FilterTables builds the nftables table that drops a Dangerous related ICMP
-// message, which RFC 5082 Section 3 permits: "MAY drop packets classified as
-// Dangerous". Ze already drops a Dangerous main packet, through the IP_MINTTL
-// floor, so the related message takes the same answer.
+// FilterTables builds the nftables table that drops a Dangerous packet of a
+// GTSM-enabled session, which RFC 5082 Section 3 permits: "MAY drop packets
+// classified as Dangerous." Two kinds of packet are named: a related ICMP
+// message (peerTerms), and a TCP segment to the session's listen port that
+// arrives below the floor before any accepted socket carries one
+// (listenPortTerm), for each peer and for each dynamic group range.
 //
-// It returns no table when no peer owes terms, so the last peer to lose its
-// GTSM configuration withdraws the kernel table rather than leaving an empty
-// one behind. A deployment with no GTSM peer never loads the firewall backend.
+// It returns no table when no peer and no range owes terms, so the last one to
+// lose its GTSM configuration withdraws the kernel table rather than leaving
+// an empty one behind. A deployment with no GTSM session never loads the
+// firewall backend.
 //
-// It is exported so a publisher of the peer set (the BGP reactor) can prove,
+// It is exported so a publisher of the set (the BGP reactor) can prove,
 // without a kernel, which tables the set it publishes yields; SetPeers is the
 // only caller that installs them.
-func FilterTables(peers []Peer) []firewall.Table {
-	terms := make([]firewall.Term, 0, len(peers)*len(relatedICMPTypes)*len(quotedPortSides))
+func FilterTables(peers []Peer, ranges []Range) []firewall.Table {
+	terms := make([]firewall.Term, 0, len(peers)*(len(relatedICMPTypes)*len(quotedPortSides)+1)+len(ranges))
 	for _, p := range peers {
 		terms = append(terms, peerTerms(p)...)
+	}
+	for _, r := range ranges {
+		if term, ok := listenPortTerm(r.Prefix, r.Port, r.Floor); ok {
+			terms = append(terms, term)
+		}
 	}
 	if len(terms) == 0 {
 		return nil
@@ -221,10 +279,11 @@ func FilterTables(peers []Peer) []firewall.Table {
 	}}
 }
 
-// peerTerms builds one peer's drop terms: one for each related ICMP type, for
-// each side of the quoted TCP header.
+// peerTerms builds one peer's drop terms: its listen-port term, then, for an
+// IPv4 peer, one related-ICMP term for each related ICMP type, for each side
+// of the quoted TCP header.
 //
-// Every term requires the error to QUOTE an IPv4 header whose destination is
+// Every ICMP term requires the error to QUOTE an IPv4 header whose destination is
 // this peer and a TCP header carrying this peer's BGP port. The quoted header
 // is what associates the message with the GTSM-enabled session. An ICMP error
 // is generated by whichever router met the problem, and the kernel delivers
@@ -234,18 +293,26 @@ func FilterTables(peers []Peer) []firewall.Table {
 // and implementations "MUST NOT drop (as part of GTSM processing) packets
 // classified as Trusted or Unknown".
 //
-// The term count is 10 for each peer that enables GTSM, bounded by the peer
-// count the operator configured and never by anything a peer sends.
+// The term count is 11 for each IPv4 peer that enables GTSM and 1 for each
+// IPv6 one, bounded by the peer count the operator configured and never by
+// anything a peer sends.
 //
-// IPv4 only. The IPv6 half of the receive rule is performed by the kernel
-// against the IPV6_MINHOPCOUNT that network.SetIPMinTTL installs, so a rule
-// here would be a second answer to a question already answered.
+// The ICMP terms are IPv4 only. The IPv6 half of the related-message rule is
+// performed by the kernel against the IPV6_MINHOPCOUNT that
+// network.SetIPMinTTL installs, so a rule here would be a second answer to a
+// question already answered.
 func peerTerms(p Peer) []firewall.Term {
-	if !p.Addr.Is4() || p.Floor == 0 || p.Port == 0 {
+	listen, ok := listenPortTerm(netip.PrefixFrom(p.Addr, p.Addr.BitLen()), p.Port, p.Floor)
+	// refuse-by-default: guards FilterTables -- a peer with no floor or port asked for no GTSM (A-5), so it owes no term, and a set of such peers withdraws ze_gtsm
+	if !ok {
 		return nil
 	}
+	if !p.Addr.Is4() {
+		return []firewall.Term{listen}
+	}
 
-	terms := make([]firewall.Term, 0, len(relatedICMPTypes)*len(quotedPortSides))
+	terms := make([]firewall.Term, 0, 1+len(relatedICMPTypes)*len(quotedPortSides))
+	terms = append(terms, listen)
 	for _, icmpType := range relatedICMPTypes {
 		for _, side := range quotedPortSides {
 			terms = append(terms, firewall.Term{
@@ -263,6 +330,82 @@ func peerTerms(p Peer) []firewall.Term {
 	return terms
 }
 
+// listenPortTerm builds the term that drops a TCP segment from source to the
+// session's Ze listen port whose TTL (IPv4) or hop limit (IPv6) is below
+// floor. It answers false for a zero port or floor, which is a session that
+// asked for no GTSM (A-5): a term built from either would match nothing.
+//
+// RFC 5082 Section 3: "MAY drop packets classified as Dangerous."
+//
+// The source, the protocol and the destination port are what classify the
+// segment. RFC 5082 Section 3 calls Dangerous "packets that have been
+// identified as belonging to one of the GTSM-enabled sessions, but their TTL
+// values are NOT within the expected range, and hence GTSM believes there is
+// a risk that these packets have been spoofed." A segment from any other
+// source, or to any other port, belongs to no GTSM-enabled session, and
+// implementations "MUST NOT drop (as part of GTSM processing) packets
+// classified as Trusted or Unknown." So the term never matches on the TTL
+// alone, and a below-floor segment from a non-GTSM peer or an unconfigured
+// source still reaches the TCP stack.
+//
+// The rule sits at the input hook because RFC 5082 Section 2.2 says: "For
+// maximal protection, ingress filtering should be applied before the packet
+// goes through the scarce resource." The accepted socket's own floor
+// (network.SetIPMinTTL) comes after the handshake has already cost a request
+// socket and a SYN-ACK.
+func listenPortTerm(source netip.Prefix, port uint16, floor uint8) (firewall.Term, bool) {
+	if !source.IsValid() {
+		return firewall.Term{}, false
+	}
+	if port == 0 {
+		return firewall.Term{}, false
+	}
+	if floor == 0 {
+		return firewall.Term{}, false
+	}
+
+	var belowFloor firewall.Match = firewall.MatchIPv4TTLBelow{Floor: floor}
+	if source.Addr().Is6() {
+		belowFloor = firewall.MatchIPv6HopLimitBelow{Floor: floor}
+	}
+	return firewall.Term{
+		Name: listenTermName(source),
+		Matches: []firewall.Match{
+			firewall.MatchSourceAddress{Prefix: source},
+			firewall.MatchProtocol{Protocol: "tcp"},
+			firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: port, Hi: port}}},
+			belowFloor,
+		},
+		Actions: []firewall.Action{firewall.Drop{}},
+	}, true
+}
+
+// listenTermName names a listen-port drop rule after its source: a host
+// prefix by its address, a range by its address and its length. The name is
+// stable across reloads, so the doctor check can name the rule it misses.
+func listenTermName(source netip.Prefix) string {
+	var tb textbuf.Buffer
+	tb.Str("dangerous-")
+	writeNameSafe(&tb, textbuf.StringAddr(source.Addr()))
+	if !source.IsSingleIP() {
+		tb.Byte('-').Uint(uint64(source.Bits()))
+	}
+	tb.Str("-listen")
+	return tb.String()
+}
+
+// writeNameSafe writes an address's text with its dots and colons turned into
+// hyphens, the characters a firewall name refuses (firewall.ValidateName).
+func writeNameSafe(tb *textbuf.Buffer, text string) {
+	for i := range len(text) {
+		c := text[i]
+		if c == '.' || c == ':' {
+			c = '-'
+		}
+		tb.Byte(c)
+	}
+}
+
 // termName names one drop rule. A firewall name accepts letters, digits, '-',
 // '_' and '.', and refuses a leading '-' or '.' (firewall.ValidateName), so
 // the dots of an address become hyphens and the name opens with a letter.
@@ -271,13 +414,7 @@ func termName(addr netip.Addr, icmpType uint8, side firewall.QuotedPortSide) str
 
 	var tb textbuf.Buffer
 	tb.Str("dangerous-")
-	for i := range len(text) {
-		c := text[i]
-		if c == '.' || c == ':' {
-			c = '-'
-		}
-		tb.Byte(c)
-	}
+	writeNameSafe(&tb, text)
 	tb.Str("-type").Uint(uint64(icmpType))
 	if side == firewall.QuotedPortSource {
 		tb.Str("-quoted-source")
