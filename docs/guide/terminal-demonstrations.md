@@ -15,9 +15,10 @@ Each demo also appears beside the documentation for the feature it exercises. Th
 ## Continuous live configuration showcase
 
 One independently recorded session starts with ExaBGP migration and the live BGP
-dashboard. It then loads, proves, diagnoses and repairs eight features on the
-same running Ze daemon. Each topic below uses the same configuration and
-demonstration fragments as this continuous recording.
+dashboard. The migration preserves the neighbour's identity, local and remote
+AS numbers, and configured hold time. The session then loads, proves, diagnoses
+and repairs eight features on the same running Ze daemon. Each topic below uses
+the same configuration and demonstration fragments as this continuous recording.
 <!-- source: demos/terminal/showcase/demo.tape -- authored chapter order -->
 <!-- source: internal/le/site/terminaldemo/validate_showcase_topics.go -- validateShowcase -->
 
