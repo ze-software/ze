@@ -11,6 +11,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-explore <topic>` | Find and read all files related to a topic |
 | `/ze-spec` | Create or resume a spec (design document for a task) |
 | `/ze-design` | Stress-test a design through structured decisions |
+| `/ze-disposition [stem\|stale]` | Before picking up an old spec: does it still belong in `main`? One verdict per spec, recorded in it |
 | `/ze-audit` | Pre-implementation: what code already exists for this spec? |
 | `/ze-implement` | Implement a spec end-to-end (TDD, review loops, docs) |
 | `/ze-verify` | Run the targeted tests or `./le verify changed` and report results; a full verification is only named for Thomas |
