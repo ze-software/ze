@@ -317,6 +317,9 @@ at zero from the moment the component has a metrics registry.
 | `ospf` | `interface-read` | One OSPFv2 interface's socket reader: the interface leaves OSPF, its neighbors go Down, and the 30-second rescan reopens it |
 | `ospf` | `interface-fan-in` | The same interface, when the transport's per-interface fan-in panicked: same recovery |
 <!-- source: internal/plugins/ospf/transport/panic_guard.go -- receivePanics -->
+| `ospfv3` | `interface-read` | One OSPFv3 interface's socket reader: the interface leaves OSPFv3, its neighbors go Down, and the 30-second rescan reopens it |
+| `ospfv3` | `interface-fan-in` | The same interface, when the OSPFv3 transport's per-interface fan-in panicked: same recovery |
+<!-- source: internal/plugins/ospf/v3/transport/panic_guard.go -- receivePanics -->
 | `ospf` | `consumer` | One call into a callback another package registered with the OSPF engine (an opaque LSA consumer, a Router Information TLV builder, an Extended Link or Prefix sub-TLV codec): its contribution to that one LSA or origination is dropped, its own error counter rises, and it is called again on the next one |
 | `ospf` | `show-decode` | One LSA body decoded or rendered for a `show ospf database` command: that row is shown undecoded |
 <!-- source: internal/plugins/ospf/panic_guard.go -- enginePanics -->

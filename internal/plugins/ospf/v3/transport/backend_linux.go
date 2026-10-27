@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 const (
@@ -304,6 +305,11 @@ func (li *linuxInterface) Close() error {
 	return err
 }
 
+// describeRead names the interface whose socket reader a contained panic ended.
+func (li *linuxInterface) describeRead() taskguard.Context {
+	return taskguard.Context{Unit: "interface " + li.ifi.Name}
+}
+
 func (li *linuxInterface) stopped() bool {
 	select {
 	case <-li.stop:
@@ -313,8 +319,14 @@ func (li *linuxInterface) stopped() bool {
 	}
 }
 
+// readLoop is the socket reader task of one interface. Its guard is deferred
+// after the close so it runs first: the panic is logged and recorded before
+// close(li.recvCh) tells rxLoop that the reader ended, which takes the
+// interface down (receiveEnded).
 func (li *linuxInterface) readLoop() {
 	defer close(li.recvCh)
+	defer receivePanics().read.Contain(li.describeRead, nil)
+
 	buf := make([]byte, rxBufLen)
 	for {
 		if li.stopped() {

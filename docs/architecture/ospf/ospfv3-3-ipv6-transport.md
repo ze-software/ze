@@ -40,6 +40,21 @@ it finalizes the address-bound checksum on transmit.
   get-or-create by name, so the two transports share one series and the
   `interface` label distinguishes the traffic.
   <!-- source: internal/plugins/ospf/v3/transport/metrics.go -- metrics -->
+- **A panic in an interface's receive path ends that interface, never the
+  process.** As in OSPFv2, each interface has two receive tasks: the backend's
+  socket reader (`linuxInterface.readLoop`, task `interface-read`) and the
+  transport's fan-in (`Transport.rxLoop`, task `interface-fan-in`). Each defers
+  the shared `taskguard` boundary at its top, so the panic is logged at ERROR,
+  counted in `ze_task_panics_total{component="ospfv3",task}` and written as a
+  crash record that `ze show crashes` lists. The component label is `ospfv3`,
+  not `ospf`, because one interface can run both transports and the operator
+  needs to know which reader failed. The interface then leaves OSPFv3 through
+  its ordinary link-down path (its neighbors go Down), and the 30-second rescan
+  reopens it; the other interfaces keep receiving. A reader that ends for any
+  other reason takes the same path (`receiveEnded`).
+  <!-- source: internal/plugins/ospf/v3/transport/panic_guard.go -- receivePanics, receiveEnded -->
+  <!-- source: internal/plugins/ospf/v3/transport/backend_linux.go -- readLoop -->
+  <!-- source: internal/plugins/ospf/v3/transport/transport.go -- rxLoop, linkDown -->
 
 ## Traps
 
