@@ -10,11 +10,38 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxPort is the largest UDP port number. --port is refused above it rather
 // than handed to the kernel, so an author reads the range instead of an errno.
 const maxPort = 65535
+
+// delayMsMax bounds --delay: a minute is past every resolver timeout a test
+// configures, so a larger value is a typo, not a scenario.
+const delayMsMax = 60000
+
+// parseDelay reads one --delay value, <name>=<ms>.
+func parseDelay(value string) (string, time.Duration, error) {
+	name, ms, found := strings.Cut(value, "=")
+	if !found {
+		return "", 0, errors.New("no '=': write --delay <name>=<ms>, as --delay slow.test=800")
+	}
+	if name == "" {
+		return "", 0, errors.New("an empty name: write --delay <name>=<ms>, as --delay slow.test=800")
+	}
+	n, err := strconv.ParseUint(ms, 10, 32)
+	if err != nil {
+		return "", 0, fmt.Errorf("milliseconds %q are not a whole number: write --delay %s=800", ms, name)
+	}
+	if n > delayMsMax {
+		return "", 0, fmt.Errorf("%d ms is above the %d ms bound: give a delay up to one minute", n, delayMsMax)
+	}
+	return name, time.Duration(n) * time.Millisecond, nil
+}
 
 // Run serves the default zone until the process is killed. It is the form a
 // `.ci` file starts with `cmd=background:exec=le mock dns --port 53`; a fixture
@@ -33,6 +60,26 @@ func Run(args []string) int {
 	// No backquotes in the usage string: the flag package reads a backquoted
 	// word as the argument's NAME and prints it after -port.
 	fs.IntVar(&port, "port", 0, "UDP listen port (0 = auto; 53 is the port a daemon's system name-server leaf reaches)")
+
+	var logQueries bool
+	fs.BoolVar(&logQueries, "log-queries", false, "write \"le mock dns: query <name> <type>\" to stderr for every question received")
+	delays := make(map[string]time.Duration)
+	fs.Func("delay", "<name>=<ms>: hold every answer for name back by ms milliseconds (repeatable)", func(value string) error {
+		name, delay, err := parseDelay(value)
+		if err != nil {
+			return err
+		}
+		delays[name] = delay
+		return nil
+	})
+	var drops []string
+	fs.Func("drop", "<name>: read every query for name and never answer it (repeatable)", func(value string) error {
+		if value == "" {
+			return errors.New("an empty name: give the name whose queries go unanswered, as --drop slow.test")
+		}
+		drops = append(drops, value)
+		return nil
+	})
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le mock dns [flags]
@@ -54,6 +101,11 @@ lookup reaches this server rather than the cache.
 a daemon at this stub runs it on port 53 and declares
 option=needs-linux:caps=net-bind.
 
+--log-queries, --delay and --drop shape what a resolver under test meets: a
+log line per question proves how many queries reached the stub, a delay makes
+one name slow, and a dropped name is never answered, so the resolver times
+out. le mock dns help prints this text.
+
 Flags:
 `, zoneUsage(defaultZone()))
 		fs.PrintDefaults()
@@ -68,6 +120,19 @@ Flags:
 		return 1
 	}
 
+	// The flags are the whole interface, so the one word accepted after them
+	// is help, which `le help mock dns` names as the way to reach this text.
+	if fs.NArg() > 0 {
+		if fs.NArg() == 1 && fs.Arg(0) == "help" {
+			fs.Usage()
+			return 0
+		}
+		_ = textbuf.New().Str("error: le mock dns takes flags only, and \"").Str(fs.Arg(0)).
+			Str("\" is not one: the flags are --port, --log-queries, --delay <name>=<ms> and --drop <name>; run le mock dns help\n").
+			StdErr() //nolint:errcheck // exiting with the code; stderr is the last channel
+		return 1
+	}
+
 	if port < 0 || port > maxPort {
 		fmt.Fprintf(os.Stderr, "error: port %d is outside the range 0-%d\n", port, maxPort)
 		return 1
@@ -79,7 +144,18 @@ Flags:
 		return 1
 	}
 
-	fmt.Fprintf(os.Stderr, "le mock dns: listening on port %d\n", server.Addr().Port())
+	if logQueries {
+		server.LogQueries(os.Stderr)
+	}
+	for name, delay := range delays {
+		server.Delay(name, delay)
+	}
+	for _, name := range drops {
+		server.Drop(name)
+	}
+
+	_ = textbuf.New().Str("le mock dns: listening on port ").Uint(uint64(server.Addr().Port())).Byte('\n').
+		StdErr() //nolint:errcheck // a test reads the line; nothing else can report its loss
 
 	if err := server.Wait(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: serve: %v\n", err)

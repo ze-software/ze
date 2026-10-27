@@ -8,11 +8,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"sync"
+	"time"
 
 	mdns "github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Server answers DNS queries from a zone a test controls.
@@ -24,6 +28,13 @@ import (
 type Server struct {
 	mu   sync.RWMutex
 	zone map[string]Name
+	// queryLog receives one line per question when set (LogQueries). nil is
+	// the default: the stub logs nothing.
+	queryLog io.Writer
+	// delays and drops hold the canonical names a test made slow or silent
+	// (Delay, Drop). A name in neither is answered at once.
+	delays map[string]time.Duration
+	drops  map[string]bool
 
 	server *mdns.Server
 	addr   netip.AddrPort
@@ -144,10 +155,54 @@ func (s *Server) answerFor(name string, qtype uint16) (int, Answer, bool) {
 	return entry.Rcode, answer, carries
 }
 
+// LogQueries writes one line per question received to w,
+// "le mock dns: query <name> <type>", before the stub answers or drops it.
+// A nil w stops the log. Safe for concurrent use.
+func (s *Server) LogQueries(w io.Writer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queryLog = w
+}
+
+// Delay holds every answer for name back by d before it is sent; a d of zero
+// removes the delay. Safe for concurrent use.
+func (s *Server) Delay(name string, d time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.delays == nil {
+		s.delays = make(map[string]time.Duration)
+	}
+	if d <= 0 {
+		delete(s.delays, canonical(name))
+		return
+	}
+	s.delays[canonical(name)] = d
+}
+
+// Drop makes the stub read every query for name and send nothing back, so
+// the asking resolver meets a timeout. Safe for concurrent use.
+func (s *Server) Drop(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.drops == nil {
+		s.drops = make(map[string]bool)
+	}
+	s.drops[canonical(name)] = true
+}
+
+// behaviorFor reads, under one lock, what LogQueries, Delay and Drop set for
+// name.
+func (s *Server) behaviorFor(name string) (io.Writer, time.Duration, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	key := canonical(name)
+	return s.queryLog, s.delays[key], s.drops[key]
+}
+
 // handle answers one query. A message it cannot answer is REFUSED rather than
 // dropped, the way handleCymruDNS (internal/test/mock/cymru/cymru.go) answers
 // one: a silent drop reaches the caller as a timeout, which reads like a stub
-// that never started.
+// that never started. The one silent drop is the one a test asked for (Drop).
 func (s *Server) handle(w mdns.ResponseWriter, query *mdns.Msg) {
 	reply := new(mdns.Msg)
 	reply.SetReply(query)
@@ -160,6 +215,22 @@ func (s *Server) handle(w mdns.ResponseWriter, query *mdns.Msg) {
 	}
 
 	question := query.Question[0]
+	queryLog, delay, drop := s.behaviorFor(question.Name)
+	if queryLog != nil {
+		line := textbuf.New().Str("le mock dns: query ").Str(canonical(question.Name)).
+			Byte(' ').Str(mdns.TypeToString[question.Qtype]).Byte('\n')
+		_, _ = queryLog.Write(line.Bytes()) //nolint:errcheck // a log line that cannot be written must not change the answer
+	}
+	if drop {
+		// Drop: the test asked for silence, so the caller meets a timeout.
+		return
+	}
+	if delay > 0 {
+		// The library serves each UDP datagram on its own goroutine, so a
+		// slow name never holds back another name's answer.
+		time.Sleep(delay)
+	}
+
 	rcode, answer, carries := s.answerFor(question.Name, question.Qtype)
 	reply.Rcode = rcode
 

@@ -98,6 +98,50 @@ func TestHelpPrintsTheZone(t *testing.T) {
 	}
 }
 
+// TestHelpWordAndStrayArgument proves `le mock dns help` prints the usage and
+// returns, as `le help mock dns` promises, rather than starting the stub and
+// serving until killed; and that any other word is refused naming the flags.
+// Method: Run in process, so a stub that started would block the test.
+func TestHelpWordAndStrayArgument(t *testing.T) {
+	code, stderr := runCapturingStderr(t, "help")
+	if code != 0 {
+		t.Fatalf("Run help returned %d, want 0", code)
+	}
+	if !strings.Contains(stderr, "Usage: le mock dns") {
+		t.Fatalf("Run help printed %q, want the usage", stderr)
+	}
+	if strings.Contains(stderr, "listening on port") {
+		t.Fatal("Run help started the stub")
+	}
+
+	code, stderr = runCapturingStderr(t, "--port", "0", "serve")
+	if code != 1 {
+		t.Fatalf("Run serve returned %d, want 1", code)
+	}
+	for _, flag := range []string{"--port", "--log-queries", "--delay", "--drop", "le mock dns help"} {
+		if !strings.Contains(stderr, flag) {
+			t.Errorf("the refusal of a stray word %q does not name %s", stderr, flag)
+		}
+	}
+}
+
+// TestDelayFlagRefusals proves a malformed --delay is refused before the stub
+// starts, each with the form to write instead.
+func TestDelayFlagRefusals(t *testing.T) {
+	for _, value := range []string{"slow.test", "=800", "slow.test=fast", "slow.test=60001"} {
+		code, stderr := runCapturingStderr(t, "--delay", value)
+		if code != 1 {
+			t.Errorf("--delay %s returned %d, want 1", value, code)
+		}
+		if strings.Contains(stderr, "listening on port") {
+			t.Errorf("--delay %s started the stub", value)
+		}
+	}
+	if code, _ := runCapturingStderr(t, "--drop", ""); code != 1 {
+		t.Errorf("--drop with an empty name returned %d, want 1", code)
+	}
+}
+
 func TestUsageListsEveryZoneName(t *testing.T) {
 	usage := zoneUsage(defaultZone())
 

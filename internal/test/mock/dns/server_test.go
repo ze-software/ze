@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -213,3 +214,66 @@ func (w *recordingWriter) RemoteAddr() net.Addr {
 }
 
 func (w *recordingWriter) Write([]byte) (int, error) { return 0, errors.New("not supported") }
+
+// lockedLog is a query log the stub writes from its serving goroutines while
+// the test reads it.
+type lockedLog struct {
+	mu    sync.Mutex
+	lines strings.Builder
+}
+
+func (l *lockedLog) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.lines.Write(p)
+}
+
+func (l *lockedLog) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.lines.String()
+}
+
+// TestMockLogAndDelay proves the three behaviors a resolver test drives the
+// stub with: LogQueries writes one line per question, Delay holds one name's
+// answer back while other names answer at once, and Drop leaves one name
+// unanswered. Method: a real UDP stub on an ephemeral port, timed with the
+// wall clock against a 300 ms delay.
+func TestMockLogAndDelay(t *testing.T) {
+	server := startForTest(t)
+	log := &lockedLog{}
+	server.LogQueries(log)
+
+	ask(t, server, "web.example.test", mdns.TypeA)
+	ask(t, server, "WEB.example.test", mdns.TypeAAAA)
+	want := "le mock dns: query web.example.test. A\nle mock dns: query web.example.test. AAAA\n"
+	if got := log.String(); got != want {
+		t.Fatalf("query log %q, want %q", got, want)
+	}
+
+	server.Delay("web.example.test", 300*time.Millisecond)
+	start := time.Now()
+	ask(t, server, "web.example.test", mdns.TypeA)
+	if took := time.Since(start); took < 300*time.Millisecond {
+		t.Fatalf("delayed name answered after %v, want at least 300ms", took)
+	}
+	start = time.Now()
+	ask(t, server, "missing.example.test", mdns.TypeA)
+	if took := time.Since(start); took >= 300*time.Millisecond {
+		t.Fatalf("an undelayed name answered after %v: the delay leaked to it", took)
+	}
+	server.Delay("web.example.test", 0)
+
+	server.Drop("web.example.test")
+	client := &mdns.Client{Net: "udp", Timeout: 200 * time.Millisecond}
+	query := new(mdns.Msg)
+	query.SetQuestion("web.example.test.", mdns.TypeA)
+	if reply, _, err := client.Exchange(query, server.Addr().String()); err == nil {
+		t.Fatalf("dropped name answered %v, want a timeout", reply)
+	}
+	// The first, the delayed and the dropped question: a dropped query is
+	// still logged, so a test can tell "never sent" from "sent, unanswered".
+	if got := strings.Count(log.String(), "query web.example.test. A\n"); got != 3 {
+		t.Fatalf("query log counted %d A questions for the name, want 3", got)
+	}
+}

@@ -3319,11 +3319,23 @@ and declares `option=needs-linux:caps=net-bind` plus
 `le mock cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
 from the queried ASN and shares no answer with this zone.
 
-Usage: `le mock dns --port 53`
+Three flags shape what a resolver under test meets, and each has an in-process
+twin on `Server`:
 
-<!-- source: internal/test/mock/dns/dns.go -- le mock dns subcommand -->
+| Flag | Method | Effect |
+|------|--------|--------|
+| `--log-queries` | `LogQueries(w)` | One stderr line per question received, `le mock dns: query <name> <type>`, the name lowercased and fully qualified. A dropped question is logged too, so a test tells "never sent" from "sent, unanswered" |
+| `--delay <name>=<ms>` | `Delay(name, d)` | Every answer for the name waits that long, up to 60000 ms. Other names answer at once. Repeatable |
+| `--drop <name>` | `Drop(name)` | Every query for the name is read and never answered, so the resolver times out. Repeatable |
+
+`le mock dns help` prints the usage and exits 0, the same as `--help`. Any
+other word after the flags is refused with the flag list.
+
+Usage: `le mock dns --port 53 [--log-queries] [--delay <name>=<ms>]... [--drop <name>]...`
+
+<!-- source: internal/test/mock/dns/dns.go -- le mock dns subcommand, parseDelay -->
 <!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
-<!-- source: internal/test/mock/dns/server.go -- Start, Set, Close -->
+<!-- source: internal/test/mock/dns/server.go -- Start, Set, Close, LogQueries, Delay, Drop -->
 
 ### le dns query
 
