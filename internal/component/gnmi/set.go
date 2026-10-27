@@ -50,6 +50,14 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		s.recordError("Set", codes.Internal)
 		return nil, status.Errorf(codes.Internal, "create config session: %v", err)
 	}
+	// Every way out but a commit discards the draft, a contained panic
+	// included (panic_guard.go), so no failed Set leaves its edits behind.
+	committed := false
+	defer func() {
+		if !committed {
+			s.discardSession(ctx, sessionID)
+		}
+	}()
 
 	results := make([]*gpb.UpdateResult, 0, total)
 
@@ -57,18 +65,15 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		segments, pathErr := pathToSegments(schema, del)
 		if pathErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			s.discardSession(ctx, sessionID)
 			return nil, status.Errorf(codes.InvalidArgument, "delete path: %v", pathErr)
 		}
 		if len(segments) == 0 {
 			s.recordError("Set", codes.InvalidArgument)
-			s.discardSession(ctx, sessionID)
 			return nil, status.Error(codes.InvalidArgument, "empty delete path")
 		}
 		deleteErr := s.sessions.DeleteSegments(gnmiUsername, sessionID, segments)
 		if deleteErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			s.discardSession(ctx, sessionID)
 			return nil, status.Errorf(codes.InvalidArgument, "delete %s: %v", pathString(segments), deleteErr)
 		}
 		results = append(results, &gpb.UpdateResult{
@@ -80,7 +85,6 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	for _, replace := range req.GetReplace() {
 		if replaceErr := s.applyUpdate(schema, sessionID, replace); replaceErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			s.discardSession(ctx, sessionID)
 			return nil, replaceErr
 		}
 		results = append(results, &gpb.UpdateResult{
@@ -92,7 +96,6 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	for _, update := range req.GetUpdate() {
 		if updateErr := s.applyUpdate(schema, sessionID, update); updateErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			s.discardSession(ctx, sessionID)
 			return nil, updateErr
 		}
 		results = append(results, &gpb.UpdateResult{
@@ -107,9 +110,9 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	})
 	if commitErr != nil {
 		s.recordError("Set", codes.Aborted)
-		s.discardSession(ctx, sessionID)
 		return nil, status.Errorf(codes.Aborted, "commit: %v", commitErr)
 	}
+	committed = true
 
 	ts := time.Now().UnixNano()
 	if s.notifier != nil {

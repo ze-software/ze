@@ -131,23 +131,30 @@ func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessi
 	}
 }
 
-// SetMetricsRegistry enables Prometheus instrumentation for gNMI RPCs.
+// SetMetricsRegistry enables Prometheus instrumentation for gNMI RPCs and
+// publishes the RPC panic boundary's ze_task_panics_total{component="gnmi"}.
 // Must be called before Serve. Nil registry disables metrics.
 func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	if reg != nil {
 		s.metrics = initGNMIMetrics(reg)
+		rpcGuard.SetMetricsRegistry(reg)
 	}
 }
 
 // Serve starts the gNMI gRPC server on the configured address.
 func (s *Server) Serve(ctx context.Context) error {
-	var opts []grpc.ServerOption
-
+	// One chain per kind, the panic boundary first: grpc-go runs a chain's
+	// first interceptor outermost, and places a plain UnaryInterceptor outside
+	// any chain, so a separate option would leave auth unguarded.
+	unary := []grpc.UnaryServerInterceptor{s.containUnaryPanic}
+	stream := []grpc.StreamServerInterceptor{s.containStreamPanic}
 	if s.config.Token != "" {
-		opts = append(opts,
-			grpc.UnaryInterceptor(s.authUnaryInterceptor),
-			grpc.StreamInterceptor(s.authStreamInterceptor),
-		)
+		unary = append(unary, s.authUnaryInterceptor)
+		stream = append(stream, s.authStreamInterceptor)
+	}
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unary...),
+		grpc.ChainStreamInterceptor(stream...),
 	}
 
 	if len(s.config.CertPEM) > 0 && len(s.config.KeyPEM) > 0 {

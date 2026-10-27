@@ -372,6 +372,8 @@ at zero from the moment the component has a metrics registry.
 | `ssh` | `session` | One SSH session, interactive or exec: its user is told on the session that an internal defect ended it and which `ze show crashes` command finds the record, and it exits with status 1; the listener and every other session keep running |
 | `ssh` | `auth` | One login attempt, refused: the client sees an authentication failure and can try again; every other login and session keeps running |
 <!-- source: internal/component/ssh/panic_guard.go -- sessionTask, authTask, endSessionAfterPanic -->
+| `gnmi` | `rpc` | One gNMI call (Capabilities, Get, Set) or one Subscribe stream: it ends with status `Internal` and a plain message naming the `ze show crashes` command, and a Set's uncommitted edits are discarded; the listener and every other call and stream keep running |
+<!-- source: internal/component/gnmi/panic_guard.go -- rpcTask, endRPCAfterPanic -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->

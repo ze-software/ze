@@ -1854,6 +1854,10 @@ Subscribe STREAM delivers change notifications from both gNMI Set operations and
 
 Prometheus counters: `ze_gnmi_requests_total{rpc}`, `ze_gnmi_subscribe_active`, `ze_gnmi_errors_total{rpc,code}`.
 
+`Serve` installs one unary and one stream interceptor chain, and the panic boundary is the first link of each, outside the token check: grpc-go recovers nothing, and a plain `grpc.UnaryInterceptor` would sit outside any chain. A Ze defect met in one call or stream ends that call with `Internal` and a plain message; the panic is logged, counted in `ze_task_panics_total{component="gnmi",task="rpc"}` and crash-recorded, and the listener and every other call keep running. Every Subscribe mode runs on the stream handler's goroutine, so the boundary covers the whole stream. Set discards its config session on every way out but a commit, the contained panic included.
+<!-- source: internal/component/gnmi/panic_guard.go -- containUnaryPanic, containStreamPanic -->
+<!-- source: internal/component/gnmi/server.go -- Serve -->
+
 CLI: when `ze_gnmi` is compiled in, `show gnmi` returns server status (enabled, listen address, auth, TLS, active subscribers).
 <!-- source: internal/component/gnmi/show.go -- handleShowGNMI -->
 
