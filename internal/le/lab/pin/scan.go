@@ -29,7 +29,8 @@ const (
 	KindUnspecified Kind = iota
 	// KindImage is a container image tag, answered by its registry's tag list.
 	KindImage
-	// KindGoModule is a `go install path@version`, answered by proxy.golang.org.
+	// KindGoModule is a `go install path@version` or a `go mod download
+	// path@version`, answered by proxy.golang.org.
 	KindGoModule
 	// KindGitTag is a GitHub tag a build clones or downloads, answered by the
 	// repository's latest release.
@@ -75,9 +76,12 @@ var (
 	// and literalPins reads it only on a line that says image (officialContext).
 	officialLiteral = regexp.MustCompile(`"([a-z][a-z0-9-]*):(\d+\.\d+[A-Za-z0-9._-]*)(?:@sha256:[0-9a-f]{64})?"`)
 	imageBare       = regexp.MustCompile(`^((?:[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?/)?[a-z0-9._-]+(?:/[a-z0-9._-]+)*):([A-Za-z0-9._-]+)(?:@sha256:[0-9a-f]{64})?$`)
-	goInstall       = regexp.MustCompile(`go install\s+(?:-[^\s]+\s+)*([a-z0-9.-]+\.[a-z]+/[^\s@]+)@(v[0-9][^\s;&|]*)`)
-	gitBranch       = regexp.MustCompile(`git clone[^\n]*--branch[ =]+([^\s]+)[^\n]*?https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?(?:\s|$)`)
-	codeloadTag     = regexp.MustCompile(`https://(?:codeload\.)?github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:tar\.gz|archive)/(?:refs/tags/)?(v?[0-9]+\.[0-9][A-Za-z0-9._-]*?)(?:\.tar\.gz)?(?:["\s]|$)`)
+	// goInstall also reads `go mod download path@version`, the form a build
+	// uses when it patches the release source before compiling it
+	// (test/interop/Dockerfile.stayrtr): that pin is the same proxy version.
+	goInstall   = regexp.MustCompile(`go (?:install|mod download)\s+(?:-[^\s]+\s+)*([a-z0-9.-]+\.[a-z]+/[^\s@]+)@(v[0-9][^\s;&|]*)`)
+	gitBranch   = regexp.MustCompile(`git clone[^\n]*--branch[ =]+([^\s]+)[^\n]*?https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?(?:\s|$)`)
+	codeloadTag = regexp.MustCompile(`https://(?:codeload\.)?github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:tar\.gz|archive)/(?:refs/tags/)?(v?[0-9]+\.[0-9][A-Za-z0-9._-]*?)(?:\.tar\.gz)?(?:["\s]|$)`)
 )
 
 // skippedDirectories are never walked: vendored code pins nothing a lab runs,

@@ -50,13 +50,14 @@ func upstreamFixture() recorded {
 		"https://proxy.golang.org/github.com/osrg/gobgp/v3/@latest":                 ok(`{"Version":"v3.37.0"}`),
 		"https://proxy.golang.org/github.com/osrg/gobgp/v4/@latest":                 ok(`{"Version":"v4.10.0"}`),
 		"https://api.github.com/repos/lance0/rustbgpd/releases/latest":              ok(`{"tag_name":"v0.79.0"}`),
+		"https://proxy.golang.org/github.com/bgp/stayrtr/@latest":                   ok(`{"Version":"v0.6.4"}`),
 		"https://api.github.com/repos/mc36/freeRtr/commits?per_page=1": ok(`[{"sha":"96368b02da1030148d44fc1821e844deeba0a2f0",` +
 			`"commit":{"committer":{"date":"2026-10-22T08:41:13Z"}}}]`),
 	}
 }
 
 // VALIDATES: the pins are derived from the files (FROM images but not stage
-// names or scratch, go install, git --branch, a source commit, Go string
+// names or scratch, go install, go mod download of patched source, git --branch, a source commit, Go string
 // literals, a scenario image file), and each is judged against upstream's
 // latest stable release in the pin's own shape, including a Go major version
 // the pinned path's @latest never names. An official image literal with no
@@ -73,6 +74,7 @@ func TestCheckFindsEveryPinBehind(t *testing.T) {
 	want := map[string][3]string{
 		"golang 1.25-alpine":                         {"image", "1.27-alpine", StateBehind},
 		"github.com/osrg/gobgp/v3/cmd/gobgp v3.31.0": {"go-module", "v4.10.0", StateBehind},
+		"github.com/bgp/stayrtr v0.6.3":              {"go-module", "v0.6.4", StateBehind},
 		"lance0/rustbgpd v0.7.0":                     {"git-tag", "v0.79.0", StateBehind},
 		"alpine 3.21.3":                              {"image", "3.24.3", StateBehind},
 		"alpine 3.24.3":                              {"image", "3.24.3", StateCurrent},
@@ -103,8 +105,8 @@ func TestCheckFindsEveryPinBehind(t *testing.T) {
 			t.Errorf("pin %s was not found", key)
 		}
 	}
-	if result.Behind != 7 {
-		t.Errorf("behind %d, want 7", result.Behind)
+	if result.Behind != 8 {
+		t.Errorf("behind %d, want 8", result.Behind)
 	}
 	text := result.Text()
 	if !strings.Contains(text, "[behind] test/interop/Dockerfile.gobgp:2 go-module") || !strings.Contains(text, "Fix: ") {

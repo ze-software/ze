@@ -7,7 +7,7 @@
 | Release reason | Cache preference and source isolation must prevent one cache withdrawal corrupting another cache's validation data. |
 | Scope | protocol |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
 | Updated | 2026-10-27 |
 
@@ -105,7 +105,7 @@ this spec (Key Design Decisions, "Owner decision, 2026-10-27").
 - [ ] `internal/component/bgp/plugins/rpki/yang/ze-rpki.yang` - `leaf preference`, uint8, default 100, description "Lower values are tried first."
 - [ ] `internal/le/interoplab/bgp/prepare.go` - StayRTR peer started when the scenario holds `vrps.json`, host 12
 - [ ] `internal/le/interoplab/bgp/check_rpki_reload.go` - the `rtr-stayrtr` checker, the model for the new one
-- [ ] `test/interop/Dockerfile.stayrtr` - StayRTR v0.6.4, `-refresh 10`, `-protocol 1`
+- [ ] `test/interop/Dockerfile.stayrtr` - StayRTR v0.6.4, `-refresh 10` (VRP file reload), `-rtr.refresh 10 -rtr.retry 10` (RTR timers sent to Ze), `-protocol 1`
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - One holder at a time; a switch replaces the set at End of Data and never merges (`TestRTRCacheSwitchKeepsSerialBasesSeparate`).
@@ -167,11 +167,11 @@ this spec (Key Design Decisions, "Owner decision, 2026-10-27").
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `startSessions` builds one `cacheGroup` over all servers, sorted by preference | `rpki.go` `startSessions` at HEAD, commit `c594e072b7` | the whole spec | read at HEAD 2026-10-27 | validated |
-| A-2 | A Cache Reset from the holder makes `poll` try the next, less-preferred cache | `poll` has no branch for `errRtrCacheResetReceivedWillDo`; `syncOnce` special-cases only the version downgrade | gap 1 would not exist and AC-1 would pass on HEAD | read at HEAD; Phase 1's first test must go red on HEAD before the fix | validated by reading, red owed |
+| A-2 | A Cache Reset from the holder makes `poll` try the next, less-preferred cache | `poll` has no branch for `errRtrCacheResetReceivedWillDo`; `syncOnce` special-cases only the version downgrade | gap 1 would not exist and AC-1 would pass on HEAD | read at HEAD; Phase 1's first test must go red on HEAD before the fix | confirmed: `TestCacheGroupCacheResetFromPreferredReloadsIt` red on the old `poll`, green after (624a1eda88); record `rfc/discrimination/rfc8210/RFC8210-8.3-1.json` |
 | A-3 | The stores never hold two caches' data: non-holders always full-sync, End of Data replaces | `poll` calls `startFullSync` for every non-holder; End of Data line `if fullSync { Replace }`; lease generation check before a delta | source marking would need a per-record field | `TestRTRCacheSwitchKeepsSerialBasesSeparate` audit verdict `enforced` | validated |
-| A-4 | Fail-back waits for the holder's Refresh Interval | `poll` returns `s.pollDelay(true)` of the holder | AC-2 would pass on HEAD | read at HEAD; Phase 1 test red owed | validated by reading, red owed |
+| A-4 | Fail-back waits for the holder's Refresh Interval | `poll` returns `s.pollDelay(true)` of the holder | AC-2 would pass on HEAD | read at HEAD; Phase 1 test red owed | confirmed: `TestCacheGroupFailsBackAtPreferredRetryInterval` red on the old `poll`, green after (624a1eda88) |
 | A-5 | The lab can run two StayRTR containers | `prepare.go` starts StayRTR from `vrps.json` at host 12; host 14 is unused; `opStop`/`opStart` exist in `check_engine.go` | Phase 3 needs a different second cache | grep of `Host:` values in `prepare.go` | validated |
-| A-6 | StayRTR's 10-second refresh makes failover observable inside a checker timeout | `test/interop/Dockerfile.stayrtr` CMD `-refresh 10` | checker waits would need minutes | Dockerfile read | validated |
+| A-6 | StayRTR's RTR timers of 10 seconds make failover observable inside a checker timeout | `test/interop/Dockerfile.stayrtr` CMD `-rtr.refresh 10 -rtr.retry 10` (StayRTR v0.6.4 `cmd/stayrtr/stayrtr.go` flags `rtr.refresh`, `rtr.retry`, defaults 3600 and 600, sent to Ze in End of Data). `-refresh 10` only sets how often StayRTR re-reads its VRP file | checker waits would need minutes | Dockerfile read; originally validated against `-refresh 10`, which was wrong (Ze received 3600/600); corrected when phase 3 added the `-rtr.*` flags | validated (corrected) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -257,7 +257,7 @@ this spec (Key Design Decisions, "Owner decision, 2026-10-27").
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rpki-cache-preference-failover` | `test/plugin/rpki-cache-preference-failover.ci` | Config lists the standby `le mock rtr` (preference 20, VRP authorising the route) first and the preferred one (preference 10) on a port with no listener; `show bgp rpki status` reports the standby as synced and the preferred one not, and the route validates against the standby's VRP | |
+| `rpki-cache-preference-failover` | `test/plugin/rpki-cache-preference-failover.ci` | Two `le mock rtr` caches on `$PORT2`: preferred 127.0.0.1 (preference 10, VRP 10.0.0.0/8 maxlen 24 AS 65001, Refresh 1 s, Retry 1 s) and standby 127.0.0.2 (preference 20, same prefix for AS 65999, Refresh 3600 s, Retry 1 s), the standby listed first in the config. The observer fixture `plugin/rpki-cache-preference-failover` checks, at each step, the validation state and eligibility of 10.0.1.0/24 from AS 65001 in adj-rib-in and that `show bgp rpki status` names exactly one synced cache: (1) Valid on 127.0.0.1; (2) after it writes `rpki-preferred.down` (the preferred mock stops listening) Invalid and ineligible on 127.0.0.2 (`invalid reject`); (3) after `rpki-preferred.up` (it listens again) Valid on 127.0.0.1, reached only by the probe at the preferred cache's Retry Interval because the standby's Refresh is 3600 s | green; 80/80 under stress-repro any-failure; red with the fail-back probe disabled (step 3: 127.0.0.2 stays synced) and red with the preference sort disabled (step 1: 127.0.0.2 synced) |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -408,7 +408,7 @@ Each phase is sized at about 60 tool calls.
 
 - The source mark is per store, not per record: only the holder writes, and the lease generation a session carries says whether its serial base is the live one. RFC 8210 Section 10 asks that "later updates MUST affect the correct data"; a delta from a session whose generation is stale is turned into a full sync before End of Data applies it.
 - ROA and ASPA stores are replaced one after the other at End of Data, so for an instant ROAs come from the new cache and ASPAs from the old. No update is applied to the other cache's data, and Section 10 forbids distinguishing sources during validation ("implementations MUST NOT distinguish between data sources when performing validation of BGP announcements"), so this is not a source-marking breach (R-4).
-- `syncOnce` closes the connection after each round, so Ze notices a dead holder only at the next round. Failover latency is therefore the holder's Refresh Interval (10 seconds in the StayRTR lab). That is the poll model Ze already ships and is not changed here.
+- `syncOnce` closes the connection after each round, so Ze notices a dead holder only at the next round. Failover latency is therefore the holder's Refresh Interval, the value the cache sends in End of Data (10 seconds in the StayRTR lab, set by StayRTR's `-rtr.refresh 10`; its `-refresh 10` only sets how often StayRTR re-reads its VRP file). That is the poll model Ze already ships and is not changed here.
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
@@ -434,13 +434,13 @@ Each phase is sized at about 60 tool calls.
 
 ## Goal Validation
 
-| Goal (from Task) | Evidence owed |
-|------------------|---------------|
-| The preferred cache supplies the data, and a less-preferred one only while it cannot | `rtr-stayrtr-preference` against two StayRTR caches, with BIRD's export as the observed effect, plus its recorded red run |
-| A Cache Reset never hands the load to a less-preferred cache | `TestCacheGroupCacheResetFromPreferredReloadsIt` with its `./le rfc record` red |
-| Fail-back happens within the preferred cache's Retry Interval | `TestCacheGroupFailsBackAtPreferredRetryInterval` and the restart step of `rtr-stayrtr-preference` |
-| A withdraw only ever hits its own cache's data | `TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData` and the `RFC8210-10-2` record |
-| The operator can see which cache is in use | `rpki-cache-preference-failover.ci` and the status steps of `rtr-stayrtr-preference` |
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The preferred cache supplies the data, and a less-preferred one only while it cannot | interop | `rtr-stayrtr-preference` against two StayRTR v0.6.4 caches, observed at BIRD's export: 10 of 10 passes at 1b90051587; red in phase 1 with the sort reversed (rerun 2026-10-27 at 1b90051587, `redwalk1`: "show bgp rpki status names 172.30.0.14 as the cache in use, want 172.30.0.12", Ze log holds no "read header: EOF" and no refusal); red in phase 3 with fail-back disabled |
+| A Cache Reset never hands the load to a less-preferred cache | unit, recorded red | `TestCacheGroupCacheResetFromPreferredReloadsIt`, `rfc/discrimination/rfc8210/RFC8210-8.3-1.json` (revert of `cacheGroup.load`) |
+| Fail-back happens within the preferred cache's Retry Interval | unit, functional, interop | `TestCacheGroupFailsBackAtPreferredRetryInterval`; `test/plugin/rpki-cache-preference-failover.ci` with the standby's Refresh at 3600 s, red with `nextProbe` disabled; phase 3 of `rtr-stayrtr-preference` |
+| A withdraw only ever hits its own cache's data | unit, recorded red, audit | `TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`, `RFC8210-10-2.json` record, `rfc/audit/rfc8210/RFC8210-10-2.json` re-judged `enforced` at closure |
+| The operator can see which cache is in use | functional, interop | `rpki-cache-preference-failover.ci` checks `show bgp rpki status` before the route at each step; every phase of `rtr-stayrtr-preference` requires exactly one synced cache |
 
 ## Disposition
 
@@ -509,3 +509,163 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/bgp/plugins/rpki/rtr_session.go`: `cacheGroup` gains `retryAt` per session. `load` sends one Reset Query to the same cache after a Cache Reset (RFC 8210 Section 8.3) and fails the attempt on a second one. `poll` passes over a cache still inside its Retry Interval (Section 6). `nextProbe` and `probe` ask the caches ahead of the holder at their own Retry Interval and never the holder (Sections 6 and 10). `Run` drives the two clocks (624a1eda88, 71091f8b74).
+- `rpki_config.go`: `parseRPKIConfig` reads the cache list with `configorder.Entries`, `sortCachesByPreference` sorts it stably, `cache-server` is `ordered-by user` (1922768d10).
+- `yang/ze-rpki.yang`: preference help and description state the order, ties, failover and fail-back.
+- Tests: new units in `rfc8210_rtr_preference_test.go`, `TestStatusNamesTheCacheWhoseDataIsInUse`, `TestPreferenceHelpStatesOrder`, `TestRFC8210EqualPreferenceCachesKeepConfigOrder`; `.ci` `rpki-cache-preference-failover` (a8051a23c3) with the `le mock rtr` address, interval and outage flags (42d9862a44, e80f3056af) and its observer fixture (5d779df0e4, 12792ee03a).
+- Interop: `rtr-stayrtr-preference` with a second StayRTR at 172.30.0.14 (acd40eb4e3, 0afbc87b24); StayRTR built from v0.6.4 source with a patch applied at build time, and a readiness probe that waits for RTR (1b90051587).
+- Closure: `le lab pin` reads `go mod download path@version`, so the StayRTR pin is compared with upstream again (`internal/le/lab/pin/scan.go`); `RFC8210-3-1` and `RFC8210-4-1` records re-taken, `RFC8210-10-2` audit re-judged, the config-order test file marked untagged.
+
+### Bugs Found/Fixed
+- Cache Reset from the holder loaded a less-preferred cache: `TestCacheGroupCacheResetFromPreferredReloadsIt`.
+- Fail-back waited for the holder's Refresh Interval: `TestCacheGroupFailsBackAtPreferredRetryInterval`.
+- A full round asked a failed cache before its Retry Interval: `TestCacheGroupFullRoundWaitsForRetryInterval`.
+- Equal-preference caches came out in Go map order: `TestRFC8210EqualPreferenceCachesKeepConfigOrder`.
+- The functional runner ran `le mock` servers in the repository root, so a mock never saw the observer's trigger files (6f40621f73): `TestMockServerRunsBesideItsObserver`.
+- StayRTR v0.6.4 sometimes dropped the Error Report refusing Ze's version 2 query, and the lab's readiness probe answered before RTR was served (1b90051587): `prepare_stayrtr_test.go` for the probe; the patch is proven by 10 of 10 green runs.
+- The lab pin scanner stopped reading the StayRTR pin once the Dockerfile moved from `go install` to `go mod download`: `TestCheckFindsEveryPinBehind` now holds a `go mod download` fixture.
+
+### Documentation Updates
+- `docs/guide/rpki.md`: RTR Poll Timing (Cache Reset, fail-back, Retry Interval skip), multi-server paragraph, Testing Cache Failover flags. Closure corrected "StayRTR sends 10 seconds" to the lab's `-rtr.refresh 10` (default 3600).
+- `docs/architecture/testing/interop.md`: StayRTR daemon row and paragraph, address and sidecar rows, "RTR cache preference, failover and fail-back" section, inventory row 59. Closure replaced the "cause not yet found" results with the diagnosed cause, the 10 of 10 green and the clean phase-1 red, and added `go mod download` to the lab pin table.
+- `docs/architecture/testing/runner-architecture.md` (6f40621f73).
+- `./le doc check all`: three failing source anchors, all in pages this spec did not touch (`core-design.md`, `ipsec-9-ikev2-eap-nat.md`, `ci-workflows.md`).
+
+### Deviations from Plan
+- The checker registers in `register_rpki_preference.go` (registry pattern), not `check_special.go`.
+- The interop red walk reversed the sort instead of making it a no-op: before 1922768d10 the no-op passed whenever map order happened to put the preferred cache first.
+- `poll` gained the Retry Interval skip (71091f8b74), which the plan did not name; RFC 8210 Section 6 requires it once `probe` exists. Two RFC-tagged tests changed pacing under `ze-test-judge` approval (5632e65c3b).
+- The StayRTR image is built from patched source rather than installed (1b90051587).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-6 read `-refresh 10` as the RTR Refresh Interval StayRTR sends | `-refresh` is the VRP file reload; Ze received 3600/600 until phase 3 added `-rtr.refresh 10 -rtr.retry 10`. The guide repeated it as "StayRTR sends 10 seconds" until closure | phase 3 reading StayRTR's `cmd/stayrtr/stayrtr.go` | A-6, Design Insight and guide corrected |
+| approach | The failover `.ci` stayed Valid after "failover"; the session suspected a product defect in re-validation | `internal/test/runner/runner.go` `repositoryAnchoredBinary` ran `le mock` in the repository root, so the mock never saw the observer's files and the preferred cache never went down | debug log showed 127.0.0.1 synced every second | 6f40621f73 fixed the runner; `rpki-revalidate-late-sync.ci` turned green with it |
+| approach | A phase report claimed "status switched to 127.0.0.2" | Never checked: the fixture checked the route before status, and status had not switched | the runner diagnosis above | 12792ee03a checks status first |
+| assumption | The decision row "Equal preferences keep config order" relied on the stable sort | `parseRPKIConfig` ranged over a Go map, so no config order reached the sort; the no-op interop break passed for that reason | interop red walk red1 passed | 1922768d10 reads `configorder.Entries`; its test changes landed before the judge saw them, and an independent `ze-test-judge` then approved both |
+| approach | `rtr-stayrtr-preference` failed 2 of 5 unmodified runs in phase 1 | StayRTR v0.6.4's `sendLoop` drops the queued Error Report on cancel, so Ze waited the 600-second default Retry Interval (RFC 8210 Section 6, as BIRD and rtrlib do); the readiness probe answered before RTR was bound | full container log capture of parallel runs | 1b90051587 patches StayRTR at build time and probes RTR; 10 of 10 green |
+| approach | Moving the StayRTR build to `go mod download` hid the pin from `le lab pin check` | the scanner read only `go install path@version` | closure ran `le lab pin check` and found no StayRTR row | scanner and its fixture extended at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Gap 1: Cache Reset reloads the same cache | Done | `rtr_session.go` `cacheGroup.load` | RFC 8210 Section 8.3 quote above the branch |
+| Gap 2: fail-back at the preferred cache's Retry Interval | Done | `rtr_session.go` `cacheGroup.Run`, `nextProbe`, `probe` | holder never polled early |
+| Gap 3: two-cache interop scenario | Done | `test/interop/scenarios/rtr-stayrtr-preference/`, `check_rpki_preference.go` | |
+| Tags and records for 4-1, 10-2, 8.4-2, 10-3, 10-4 | Done | `rfc/discrimination/rfc8210/` | `./le rfc check` reports nothing for rfc8210 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCacheGroupCacheResetFromPreferredReloadsIt` | through `startSessions` |
+| AC-2 | Done | `TestCacheGroupRepeatedCacheResetMovesOn` | |
+| AC-3 | Done | `TestCacheGroupFailsBackAtPreferredRetryInterval`, `rpki-cache-preference-failover.ci` | |
+| AC-4 | Done | `TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData` | ROA and ASPA |
+| AC-5 | Done | `TestNoDataAvailableMovesToNextCacheInPreferenceOrder` | |
+| AC-6 | Done | `./le rfc check`: no rfc8210 line | 3-1 and 4-1 re-recorded at closure after 1922768d10 moved their producers |
+| AC-7 | Done | `TestStatusNamesTheCacheWhoseDataIsInUse`, the `.ci`, the interop phases | |
+| AC-8 | Done | `TestPreferenceHelpStatesOrder`, `docs/guide/rpki.md` RTR Poll Timing | |
+| AC-9 | Done | `rtr-stayrtr-preference` | green 10/10, two reds recorded in `interop.md` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the `rfc8210_rtr_preference_test.go` units | Done | `internal/component/bgp/plugins/rpki/` | plus `TestCacheGroupFullRoundWaitsForRetryInterval` |
+| `TestStatusNamesTheCacheWhoseDataIsInUse` | Done | `rpki_status_test.go` | |
+| `TestPreferenceHelpStatesOrder` | Done | `rpki_config_test.go` | |
+| `rpki-cache-preference-failover` | Done | `test/plugin/` | 80/80 under stress-repro |
+| `rtr-stayrtr-preference` | Done | `test/interop/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rtr_session.go`, `ze-rpki.yang`, the three test files | Done | |
+| `prepare.go`, `names.go`, `check_rpki_preference.go`, scenario files | Done | |
+| `check_special.go` | Changed | registration in `register_rpki_preference.go` |
+| `rfc/short/rfc8210.md`, records, audits, `docs/guide/rpki.md`, `interop.md` | Done | |
+
+### Audit Summary
+- **Total items:** 22
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (registration file, in Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC and goal is met | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rpki-cache-preference-and-source-marking-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md` (12 files, `interop.md` by its own hunks) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring of `cacheGroup` (two clocks, retryAt, holder), RFC 8210 Sections 4, 6, 8.3, 8.4, 10 against the FRR/rtrlib single-holder model, docs against code, lab third-party patch and pin, RFC proof records, style pass |
+
+Independent closer, who wrote none of this spec's code or tests. The judge record: 1922768d10 landed before its test changes were judged; an independent `ze-test-judge` then approved both changes. `RFC8210-10-2` was re-judged here, `enforced`.
+
+Style pass over the changed Go (`rtr_session.go`, `rpki_config.go`, `scan.go`): no `panic`, no discarded error, guards split, comments are sentences, `cacheGroup` states its concurrency contract. No peer-reachable panic.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `le lab pin check` no longer saw the StayRTR pin after the build moved to `go mod download`, so "StayRTR runs its latest release" had no gate behind it | `internal/le/lab/pin/scan.go` `goInstall` | regex reads `go install` and `go mod download`; fixture `testdata/tree/test/interop/Dockerfile.stayrtr`, `TestCheckFindsEveryPinBehind`; `interop.md` pin table |
+| 2 | ISSUE | `./le rfc check`: `RFC8210-3-1` negative and `RFC8210-4-1` records producer-changed by 1922768d10; `RFC8210-10-2` audit stale; `rfc8210_cache_config_order_test.go` named for rfc8210 with no tag | `rfc/discrimination/rfc8210/`, `rfc/audit/rfc8210/RFC8210-10-2.json`, the test file | `./le rfc record` (observed red), `./le rfc audit-stamp ... mode rejudge`, `// RFC naming: untagged` with its reason |
+| 3 | ISSUE | `docs/guide/rpki.md` said "StayRTR sends 10 seconds"; StayRTR's default is 3600, the lab sets `-rtr.refresh 10` | RTR Poll Timing | sentence corrected |
+| 4 | ISSUE | `interop.md` still reported the unmodified failures as "cause not yet found" and the no-op break's map-order pass as current | RTR cache preference section, inventory row 59 | results table and row rewritten |
+
+NOTE (not blocking): the guide's two-mock example gives the standby `--refresh 1`, so fail-back there also follows the full round; the `.ci` uses 3600 so only the probe can fail back.
+
+Run 2 over the four fixes: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/bgp/check_rpki_preference.go` | yes | `ls` at closure |
+| `test/interop/scenarios/rtr-stayrtr-preference/` | yes | `bird.conf frr.conf vrps.json vrps-standby.json ze.conf` |
+| `test/plugin/rpki-cache-preference-failover.ci` | yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-7, AC-8 | the unit tests pass | `./le job run ... go test -tags ze_bgp -run ... ./internal/component/bgp/plugins/rpki/`: 12 named tests PASS, `ok 13.094s` |
+| AC-6 | records verified | `./le rfc check` prints no rfc8210 line after the closure records |
+| AC-9 | interop green and red | 10 of 10 green at 1b90051587; `redwalk1` red in phase 1 naming .14, no transport error in its Ze log |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| two `cache-server` entries, preferred down then back, `show bgp rpki status` | `test/plugin/rpki-cache-preference-failover.ci` | read: the config lists 127.0.0.2 first, the preferred mock carries the outage files, the standby runs at Refresh 3600 |
+| interop lab | `rtr-stayrtr-preference` | `checkRPKICachePreference` drives stop and start of the preferred StayRTR |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3, A-5 | confirmed | read at HEAD; second StayRTR at host 14 runs |
+| A-2, A-4 | confirmed | red on the old `poll` (624a1eda88) |
+| A-6 | broken, corrected | Mistake Log row 1 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide: Cache Reset, fail-back, Retry Interval skip | `cacheGroup.load`, `probe`, `poll` | yes |
+| guide and YANG: equal values keep configuration order | `parseRPKIConfig` `configorder.Entries`, `sortCachesByPreference` | yes |
+| interop.md lab pin table | `scan.go` `goInstall` | yes |
+| interop.md StayRTR patch | `test/interop/Dockerfile.stayrtr` heredoc patch, `patch -p1` at build | yes |
+
+## Core Insight
+A third-party peer's silent failure (a dropped Error Report) reads as Ze's defect from the outside, and a Retry Interval measured in minutes turns it into a timeout. Capturing every container's full log in parallel runs found it; the harness's log tail could not.

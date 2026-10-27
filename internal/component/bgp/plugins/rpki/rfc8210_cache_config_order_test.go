@@ -17,6 +17,8 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
+// RFC naming: untagged -- RFC 8210 Section 10 permits a non-unique preference and names no order among equal values, so the tie order proven here is Ze's configuration contract, not a requirement row.
+
 // VALIDATES: caches that share a preference are tried in the order the operator
 // wrote them, through the whole production path from config text to the order
 // startSessions opens the RTR sessions in.

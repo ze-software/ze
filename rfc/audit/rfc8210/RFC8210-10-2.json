@@ -1,11 +1,15 @@
 {
-  "note": "Forbidden by RFC 8210 Section 10, 'A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data.': an update from one cache applied to another cache's data. TestRTRCacheSwitchKeepsSerialBasesSeparate changed under a ze-test-judge approval only in pacing: both caches now announce a 1s Retry Interval and each round sleeps until the failed preferred cache may be asked, as Section 6 requires. Assertions unchanged: both caches share Session ID and serial; after switching 2 to 3 to 2 the query sequence must be Reset, Serial, Reset (cache 3), Reset (cache 2), so cache 2 is never Serial-queried against cache 3's base, and each round only the selected cache's prefix and ASPA provider validate (roas.Validate, aspas.isProvider per candidate), so a merge or reuse goes red.",
+  "note": "Forbidden by RFC 8210 Section 10, 'A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data.': an update from one cache applied to another cache's data. Two units. TestRTRCacheSwitchKeepsSerialBasesSeparate: both caches share Session ID and serial; after switching 2 to 3 to 2 the query sequence must be Reset, Serial, Reset (cache 3), Reset (cache 2), so cache 2 is never Serial-queried against cache 3's base, and each round only the selected cache's prefix and ASPA provider validate, so a merge or reuse goes red. TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData (re-judged 2026-10-27 by the closer, who wrote none of its tests): feeds two sessions of one cacheGroup through handlePDU; the new cache's staged withdraw of the old cache's VRP and ASPA leaves the old set intact (require after every PDU, ROA count 2), its End of Data leaves exactly its own VRP and ASPA (count 1, both old ASPAs gone), and a later delta withdraw from the old cache ends in errRtrDataExpired with the new cache's VRP still Valid. The source mark is the shared rtrDataLease generation; a stale-generation delta reaching the store, a merge at End of Data, or a staged PDU reaching the store each fail an assertion.",
   "requirement_sha": "106112228a6dabf0",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "9fb00f8591af5e2a",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "9fb00f8591af5e2a"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData#2": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "84e094fc76ebba35"
   },
   "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData": "b5c3d66409fba0c2",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData#2": "b5c3d66409fba0c2",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "f5823e2864ade2b4",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "f5823e2864ade2b4"
   },

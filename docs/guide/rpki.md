@@ -359,8 +359,9 @@ its Refresh Interval. `show bgp rpki status` reports `synced` true for exactly
 the cache whose set validation uses.
 
 No poll asks a failed cache again before its own Retry Interval runs out. A
-round at the holder's Refresh Interval, which can be much shorter (StayRTR
-sends 10 seconds), passes over such a cache and moves to the next one in
+round at the holder's Refresh Interval, which can be much shorter (the
+interop lab's StayRTR is started with `-rtr.refresh 10` and sends 10 seconds;
+StayRTR's default is 3600), passes over such a cache and moves to the next one in
 preference order. When no cache answers, the next round runs when the first
 of them may be asked again.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.poll, cacheGroup.probe, cacheGroup.load -->

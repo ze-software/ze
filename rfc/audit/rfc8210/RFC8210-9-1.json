@@ -2,7 +2,7 @@
   "note": "Single-polarity positive (row annotation). TestRTRUnprotectedTCPFromConfig parses a trusted-network cache-server with no port to 323, starts the plugin's sessions from that entry (port moved to the listener, 323 being privileged), the cache reads a clear-text v2 Reset Query, the plugin syncs, and the served VRP validates Valid.",
   "requirement_sha": "c36afe55d7037dc6",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "319687478affdfab",
+    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "d7d78d3e4e9294b5",
     "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83"
   },
   "units": {

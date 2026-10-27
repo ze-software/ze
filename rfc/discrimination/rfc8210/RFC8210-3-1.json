@@ -18,7 +18,7 @@
     "claim-sha": "e23e8c13af182c10",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig",
-    "producer-sha": "e2df66b49b6dd700",
-    "break": "body of parseRPKIConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fedc9f6d6c879e5e",
+    "break": "body of parseRPKIConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

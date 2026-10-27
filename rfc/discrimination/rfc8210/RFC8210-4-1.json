@@ -29,7 +29,7 @@
     "claim-sha": "6c079f0a1a443b78",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rpki.go::startSessions",
-    "producer-sha": "459a79bca9377272",
+    "producer-sha": "e8e1b860d5ef795e",
     "break": "body of startSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "b7efe09b070c7c3f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rpki.go::startSessions",
-    "producer-sha": "459a79bca9377272",
+    "producer-sha": "e8e1b860d5ef795e",
     "break": "body of startSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

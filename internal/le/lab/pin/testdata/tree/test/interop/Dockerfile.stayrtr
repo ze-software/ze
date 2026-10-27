@@ -1,0 +1,3 @@
+RUN set -eu; \
+    module=$(go mod download -json github.com/bgp/stayrtr@v0.6.3 | sed -n 's/^.*"Dir": "\(.*\)",$/\1/p'); \
+    cp -R "$module" /src
