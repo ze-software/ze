@@ -1,0 +1,68 @@
+# Test: the first forward server is silent and the second answers: the LAN
+#       resolver tries them in order and answers from the second within its
+#       timeout.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-17
+# VALIDATES: the forward loop (internal/plugins/dnsresolver/resolve.go,
+#            forward) gives each server a share of the time left, moves to the
+#            next server when one times out, and returns that server's answer:
+#            NOERROR with the address the second stub serves.
+# PREVENTS: a resolver that asks only its first upstream, so one dead server
+#           takes the LAN's name service down while a second one is healthy.
+#
+# Two `le mock dns` stubs share $PORT2 on two loopback addresses (Linux answers
+# the whole of 127.0.0.0/8 on lo). The first, on 127.0.0.2, drops every
+# question for web.example.test and logs what it reads; the second, on
+# 127.0.0.3, answers and logs nothing. So every log line is the first
+# server's, and the line for web.example.test proves the resolver asked it
+# before it asked the second.
+#
+# `timeout 1` and not more: each `le dns query` attempt waits two seconds, so
+# the answer must arrive inside that window. The resolver gives the first
+# server half of the second and the second server what is left.
+#
+# DISCRIMINATION: a resolver that asks only its first server (a temporary
+# `pol.forward[:1]` in forward) answers seq=5 SERVFAIL, red.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go).
+option=timeout:value=40s
+
+stdin=ze-dns:terminator=EOF_CONF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.0.2 {
+				port $PORT2
+			}
+			server 127.0.0.3 {
+				port $PORT2
+			}
+		}
+		timeout 1
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --address 127.0.0.2 --port $PORT2 --log-queries --drop web.example.test:ready=listening on port
+# A background span runs to the end of the test, so this reads the line seq=5
+# caused at the first server. The '.' after "dns" stands for the colon, which
+# a needle cannot hold.
+expect=stderr:pattern=mock dns. query web\.example\.test\. A
+cmd=background:seq=2:exec=le mock dns --address 127.0.0.3 --port $PORT2:ready=listening on port
+cmd=background:seq=3:exec=ze -:stdin=ze-dns
+
+# A name the first server answers, retried until the listener is bound.
+cmd=foreground:seq=4:exec=le dns query --server 127.0.0.1:$PORT --name v4only.example.test --type A --rd --wait 25s
+expect=stdout:contains=rcode NOERROR
+
+# The first server drops the question; the second answers it.
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name web.example.test --type A --rd
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=203.0.113.10

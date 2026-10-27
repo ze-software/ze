@@ -11,7 +11,7 @@
 | Scope gaps | forwarding only: no recursion from the root (spec-dns-resolver-recursion), no DNSSEC validation (spec-dns-resolver-dnssec-validation), no DoT or DoH listener, no DNS interop scenario yet |
 | Level | experimental |
 | Components | internal/plugins/dnsresolver |
-| Real-path tests | test/plugin/dns-resolver-config-refused.ci, test/plugin/dns-resolver-listener-conflict.ci, test/plugin/dns-resolver-forward.ci, test/plugin/dns-resolver-acl-refused.ci, test/plugin/dns-resolver-timeout.ci, test/plugin/dns-resolver-show.ci, test/reload/dns-resolver-reload.ci |
+| Real-path tests | test/plugin/dns-resolver-config-refused.ci, test/plugin/dns-resolver-listener-conflict.ci, test/plugin/dns-resolver-forward.ci, test/plugin/dns-resolver-acl-refused.ci, test/plugin/dns-resolver-timeout.ci, test/plugin/dns-resolver-timeout-recovers.ci, test/plugin/dns-resolver-failover.ci, test/plugin/dns-resolver-show.ci, test/reload/dns-resolver-reload.ci |
 | RFCs | rfc1035, rfc2181, rfc4035 |
 | Docs | docs/guide/dns-resolver.md, docs/architecture/dns/lan-resolver.md |
 | Doc review | 2026-10-27: checked every claim against internal/plugins/dnsresolver (server.go answer, resolve.go forward and absorb, cache.go, limit.go, doctor.go); the quick-start config passes ze config validate |

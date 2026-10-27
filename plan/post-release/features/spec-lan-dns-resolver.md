@@ -321,7 +321,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | AC-14 | UDP query of 1220 octets or more (EDNS) | Read whole and answered (listener `UDPSize` 1232) |
 | AC-15 | Upstream answer carries TC=1 | The resolver repeats the query over TCP and answers with the whole RRset |
 | AC-16 | All upstreams unreachable or silent | SERVFAIL within `timeout`; nothing cached as negative; the next query retries upstream. → Test: `test/plugin/dns-resolver-timeout.ci`, `TestFailoverAndTimeout` |
-| AC-17 | First upstream silent, second answers | Answer from the second within `timeout`; `upstream_queries_total{result="timeout"}` +1 |
+| AC-17 | First upstream silent, second answers | Answer from the second within `timeout`; `upstream_queries_total{result="timeout"}` +1. → Test: `test/plugin/dns-resolver-failover.ci` (answer from the second, first asked first), `TestFailoverAndTimeout` (the timeout counter +1) |
 | AC-18 | Reply from upstream with a mismatched ID, a mismatched question name, class or type, or from another source address or port | Ignored; the resolver keeps waiting or times out (RFC 5452 Section 9.1 matching) |
 | AC-19 | Upstream answer carrying records outside the queried zone's bailiwick | Those records are neither cached nor returned |
 | AC-20 | Answer with an A record in the answer section and a different A for the same name in an earlier reply's additional section | The answer-section RRset wins and is what a later query returns; additional-section data is never returned as an answer (RFC2181-5.4.1-3) |
@@ -391,7 +391,9 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `dns-resolver-acl-refused` | `test/plugin/dns-resolver-acl-refused.ci` | query with `--source` outside `allow-from` refused; RD=0 refused; mock logs nothing | |
 | `dns-resolver-config-refused` | `test/plugin/dns-resolver-config-refused.ci` | wildcard listener, empty allow-from, empty forward list refused, each naming the fix | |
 | `dns-resolver-listener-conflict` | `test/plugin/dns-resolver-listener-conflict.ci` | same address and port as geodns refused | |
-| `dns-resolver-timeout` | `test/plugin/dns-resolver-timeout.ci` | mock `--drop` on one name: SERVFAIL within timeout, then answered once the mock serves it | |
+| `dns-resolver-timeout` | `test/plugin/dns-resolver-timeout.ci` | mock `--drop` on one name: SERVFAIL within timeout, then answered once the mock serves it. → Decision: the "then answered" half is `dns-resolver-timeout-recovers` (mock `--drop-first`) | |
+| `dns-resolver-timeout-recovers` | `test/plugin/dns-resolver-timeout-recovers.ci` | mock `--drop-first web.example.test=1`: SERVFAIL within timeout, then NOERROR from the upstream on the next query (mock logs two questions) | |
+| `dns-resolver-failover` | `test/plugin/dns-resolver-failover.ci` | AC-17: two mocks on one port (`--address 127.0.0.2`, `127.0.0.3`); the first drops the name and logs it, the second answers: NOERROR within timeout | |
 | `dns-resolver-show` | `test/plugin/dns-resolver-show.ci` | `show dns-resolver` and `clear dns-resolver cache all` | |
 | `dns-resolver-reload` | `test/reload/dns-resolver-reload.ci` | allow-from change applies without rebinding | |
 
