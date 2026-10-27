@@ -330,6 +330,8 @@ at zero from the moment the component has a metrics registry.
 | `isis` | `interface-read` | One IS-IS circuit's socket reader: the circuit leaves IS-IS, its adjacencies go Down, and the 30-second rescan reopens it |
 | `isis` | `interface-fan-in` | The same circuit, when the transport's per-circuit fan-in panicked: same recovery |
 <!-- source: internal/plugins/isis/transport/panic_guard.go -- receivePanics -->
+| `isis` | `receive` | One received IS-IS PDU: it is dropped and the adjacencies of the neighbor that sent it, on that circuit only, go Down; its next Hello brings them back, and every other adjacency keeps its state |
+<!-- source: internal/plugins/isis/panic_guard.go -- enginePanics -->
 | `l2tp` | `control` | One L2TP tunnel: it is cleared with a StopCCN (Result Code 1, General request to clear control connection), its sessions end, the LAC sets it up again, and the other tunnels keep running |
 | `l2tp` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
 | `l2tp` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |

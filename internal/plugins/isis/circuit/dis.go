@@ -280,10 +280,17 @@ func (c *Circuit) RunElection(level adjacency.Level, localPriority uint8, damp t
 		return ElectionResult{} // P2P, or a level this circuit does not form.
 	}
 	cands := c.candidates(level, localPriority)
+	return c.elect(st, cands, damp, now)
+}
+
+// elect runs st's election under c.mu, released by defer: the candidates come
+// from received Hellos, so a panic inside Elect is contained by the engine's
+// receive boundary, and the circuit's lock MUST NOT stay held behind it (every
+// later Hello, event and teardown on the circuit takes c.mu).
+func (c *Circuit) elect(st *DISState, cands []Candidate, damp time.Duration, now time.Time) ElectionResult {
 	c.mu.Lock()
-	res := st.Elect(cands, damp, now)
-	c.mu.Unlock()
-	return res
+	defer c.mu.Unlock()
+	return st.Elect(cands, damp, now)
 }
 
 // LocalIsDIS reports whether the local node is the committed DIS for level on

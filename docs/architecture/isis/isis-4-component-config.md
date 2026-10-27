@@ -88,6 +88,31 @@ holds no protocol switch.
 
 <!-- source: internal/plugins/isis/server.go -- the PDU-type dispatcher and the engine circuit lifecycle -->
 
+## Decision: a panic in the receive worker takes down only the sender's adjacencies
+
+The receive worker (`startReceiveLoop`, body `receiveWorker`) runs passes of
+`receivePDUs`, each deferring the engine guard's `receive` task once, never once
+per PDU. A panic while one PDU is handled is logged, counted in
+`ze_task_panics_total{component="isis",task="receive"}` and crash-recorded with
+the PDU's ifindex and source MAC. `endReceivePanic` then finds the circuit by the
+frame's ifindex and calls `Circuit.TeardownNeighbor` with the source MAC: only the
+adjacencies learned from that SNPA on that circuit go Down, as when a holding
+timer expires (ISO/IEC 10589 Section 10.6), with nothing sent first. The worker
+starts its next pass at once, every other adjacency on every circuit keeps its
+state, and the neighbor's next Hello brings its adjacency back.
+
+The purge takes the circuit's lock, so every hold of that lock on the receive
+path is released by `defer`: the DIS election's hold, which runs over
+Hello-derived candidates, moved into `Circuit.elect` for that reason. A panic
+inside the election would otherwise leave the lock held and wedge every later
+Hello, event and teardown on the circuit. The guard is one per plugin, so its
+registry is set by `setMetricsRegistry`, not per engine.
+
+<!-- source: internal/plugins/isis/panic_guard.go -- receivePDUs, endReceivePanic, describeReceivePanic -->
+<!-- source: internal/plugins/isis/circuit/runtime.go -- TeardownNeighbor, teardownMatching -->
+<!-- source: internal/plugins/isis/circuit/dis.go -- elect -->
+<!-- source: internal/plugins/isis/register.go -- setMetricsRegistry -->
+
 ## Decision: the system ID is derived from the NET
 
 When no explicit `system-id` leaf is given, the system ID is the first NET's 6

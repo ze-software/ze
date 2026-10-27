@@ -490,9 +490,31 @@ func (c *Circuit) Sweep() int {
 // Called by the engine when the iface EventBus reports the link down or IS-IS is
 // disabled on the interface. Session events fire after the lock is released.
 func (c *Circuit) Teardown() {
+	c.teardownMatching(func(*adjacency.Adjacency) bool { return true })
+}
+
+// TeardownNeighbor forces Down only the adjacencies learned from snpa, the
+// neighbor's source MAC, exactly as Teardown does for the whole circuit, and
+// answers how many it found. Every other adjacency on the circuit keeps its
+// state. The engine calls it when a PDU from that neighbor panicked its receive
+// worker, so the neighbor's possibly half-updated adjacency is purged as if its
+// holding timer had expired.
+func (c *Circuit) TeardownNeighbor(snpa adjacency.SNPA) int {
+	return c.teardownMatching(func(a *adjacency.Adjacency) bool { return a.SNPA == snpa })
+}
+
+// teardownMatching forces Down every adjacency match selects, emits the
+// session-down events after the table lock is released, and answers how many
+// adjacencies match selected.
+func (c *Circuit) teardownMatching(match func(*adjacency.Adjacency) bool) int {
 	now := c.now()
 	var events []downEvent
+	matched := 0
 	c.table.Each(func(a *adjacency.Adjacency) {
+		if !match(a) {
+			return
+		}
+		matched++
 		tr := adjacency.Down(a, now, c.grace)
 		if tr.SessionDown {
 			events = append(events, downEvent{tr: tr, snap: a.Snapshot()})
@@ -501,4 +523,5 @@ func (c *Circuit) Teardown() {
 	for _, e := range events {
 		c.fireEvents(e.tr, e.snap)
 	}
+	return matched
 }

@@ -606,19 +606,17 @@ func (e *engine) openCircuit(ic InterfaceConfig) error {
 // dispatcher (Shared Contracts "Transport <-> PDU dispatcher").
 func (e *engine) startReceiveLoop() {
 	recv := e.transport.Receive()
-	e.wg.Go(func() {
-		for {
-			select {
-			case <-e.ctx.Done():
-				return
-			case rf, ok := <-recv:
-				if !ok {
-					return
-				}
-				e.dispatch.dispatch(rf)
-			}
-		}
-	})
+	e.wg.Go(func() { e.receiveWorker(recv) })
+}
+
+// receiveWorker is the receive goroutine's body. It runs until the engine is
+// canceled or recv closes; a contained panic ends only the current pass of
+// receivePDUs (panic_guard.go), and the worker starts the next pass.
+func (e *engine) receiveWorker(recv <-chan transport.RawFrame) {
+	resume := true
+	for resume {
+		resume = e.receivePDUs(recv)
+	}
 }
 
 // subscribeIfaceEvents wires the iface EventBus through the transport so a

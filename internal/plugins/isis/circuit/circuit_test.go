@@ -62,6 +62,13 @@ func (r *recordSink) SessionDown(s adjacency.NeighborSnapshot) {
 // and a TLV 6 listing the supplied echoed SNPAs.
 func buildPeerLANHello(t *testing.T, echoed [][packet.SNPALen]byte) []byte {
 	t.Helper()
+	return buildLANHelloFrom(t, types.SystemID{0, 0, 0, 0, 0, 2}, echoed)
+}
+
+// buildLANHelloFrom encodes the Level-1 LAN IIH of buildPeerLANHello from sys, so
+// one circuit can hold several neighbors (the table keys adjacencies by System ID).
+func buildLANHelloFrom(t *testing.T, sys types.SystemID, echoed [][packet.SNPALen]byte) []byte {
+	t.Helper()
 	area, _ := types.AreaIDFromBytes([]byte{0x49, 0x00, 0x01})
 	areaVal := []byte{byte(area.Len())}
 	areaVal = append(areaVal, area.Bytes()...)
@@ -75,7 +82,7 @@ func buildPeerLANHello(t *testing.T, echoed [][packet.SNPALen]byte) []byte {
 	h := packet.LANHello{
 		PDUType:     packet.PDUTypeL1LANHello,
 		CircuitType: packet.CircuitL1,
-		SystemID:    types.SystemID{0, 0, 0, 0, 0, 2},
+		SystemID:    sys,
 		HoldingTime: types.HoldingTime(30),
 		Priority:    64,
 		TLVs: []packet.TLV{
