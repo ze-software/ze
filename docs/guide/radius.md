@@ -396,6 +396,15 @@ bcrypt user accepted the credentials.
   apart from an unreachable server. The series appears once telemetry is
   enabled.
 <!-- source: internal/component/radius/metrics.go -- bindRadiusMetrics, countUnsignedEAPDiscard -->
+- `ze_task_panics_total{component="radius",task="read"}` -- answers whose
+  handling met a Ze defect (a Go panic). The client's answer reader recovers
+  it, logs it at ERROR with the server's address and the stack, writes a crash
+  record that `ze show crashes` lists, and reads on. The answer is dropped as a
+  silently discarded packet is, so its request retransmits and fails over as
+  on a timeout, and every other request on the client is answered as before.
+  Any value above zero is a Ze defect to report with the crash record.
+<!-- source: internal/component/radius/panic_guard.go -- readTask -->
+<!-- source: internal/component/radius/client.go -- Client.readAnswers -->
 
 ## Operational notes
 

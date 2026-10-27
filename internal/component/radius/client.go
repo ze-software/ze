@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // Server holds configuration for a single RADIUS server.
@@ -397,13 +399,39 @@ func setAcctDelayTime(pkt *Packet, elapsed time.Duration) {
 	pkt.Attrs = append(pkt.Attrs, Attr{Type: AttrAcctDelayTime, Value: value})
 }
 
+// readLoop is the client's answer reader: one goroutine for the client's
+// lifetime, started by NewClient and ended by Close, which closes the socket and
+// waits for done. The reading is the read task (readAnswers), entered again after
+// a contained panic, so a Ze defect met in one answer drops that answer and
+// never stops the client hearing its servers.
 func (c *Client) readLoop() {
 	defer close(c.done)
 	buf := make([]byte, MaxPacketLen)
+	for c.readAnswers(buf) {
+		// The pass ended on a contained panic; the next one reads on.
+	}
+}
+
+// readAnswers is the read task: it dispatches answers until the socket closes,
+// answering false, or until a panic ends the pass, answering true. The answer
+// being dispatched is then lost, as a silently discarded packet is, and its
+// waiter retransmits on its timer. dispatchResponse holds c.mu only under defer,
+// so the unwind leaves it free.
+func (c *Client) readAnswers(buf []byte) (again bool) {
+	var server string // the server whose answer is being dispatched
+	describe := func() taskguard.Context {
+		return taskguard.Context{Unit: "answer from server " + server}
+	}
+	// RFC 2865 Section 1.2: "The implementation SHOULD provide the capability of
+	// logging the error, including the contents of the silently discarded packet,
+	// and SHOULD record the event in a statistics counter." The guard logs the
+	// panic and counts it in ze_task_panics_total.
+	defer readTask.Contain(describe, func(*taskguard.Panic) { again = true })
+
 	for {
 		n, from, err := c.conn.ReadFromUDP(buf)
 		if err != nil {
-			return
+			return false
 		}
 		if n < MinPacketLen {
 			continue
@@ -412,7 +440,8 @@ func (c *Client) readLoop() {
 		if pktLen < MinPacketLen || pktLen > n || pktLen > MaxPacketLen {
 			continue
 		}
-		c.dispatchResponse(responseKey{server: from.String(), id: buf[1]}, buf[:pktLen])
+		server = from.String()
+		c.dispatchResponse(responseKey{server: server, id: buf[1]}, buf[:pktLen])
 	}
 }
 

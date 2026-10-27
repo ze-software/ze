@@ -38,12 +38,14 @@ func registerRadiusMetrics() {
 	registry.InjectPluginMetrics(metricsHookName, bindRadiusMetrics)
 }
 
-// bindRadiusMetrics publishes the RADIUS client counters into reg. It is the
-// hook registerRadiusMetrics hands to the registry.
+// bindRadiusMetrics publishes the RADIUS client counters into reg, the read
+// task's ze_task_panics_total series included. It is the hook
+// registerRadiusMetrics hands to the registry.
 func bindRadiusMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	readGuard.SetMetricsRegistry(reg)
 	radiusMetricsPtr.Store(&radiusMetrics{
 		unsignedEAPDiscardsTotal: reg.Counter("ze_radius_unsigned_eap_discards_total",
 			"RADIUS answers carrying an EAP-Message and no Message-Authenticator, discarded under RFC 3579 Section 3.1."),

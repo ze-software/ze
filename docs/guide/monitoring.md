@@ -339,6 +339,8 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/plugins/vrrp/transport/panic_guard.go -- receiveGuard -->
 | `vrrp` | `advertisement` | One virtual router: it runs Shutdown (an Active router resigns with Priority 0) and Startup, re-entering as Backup, or as Active when it owns the address; every other virtual router is untouched |
 <!-- source: internal/plugins/vrrp/panic_guard.go -- advertGuard, restartAfterDefect -->
+| `radius` | `read` | One answer from a RADIUS server, dropped: the client's reader reads the next one, and the request it answered retransmits and fails over as on a timeout |
+<!-- source: internal/component/radius/panic_guard.go -- readTask -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
