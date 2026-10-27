@@ -131,7 +131,7 @@ The first admitted paths keep their slots. Ze does not select the best paths or 
 Named transactions retain separate path IDs for one prefix. They emit routes in deterministic identity order, with ascending path IDs for the same prefix. A lower ID does not displace a path admitted earlier on the connection.
 
 The deliberate `send ... raw message` diagnostic command sends exact bytes outside normal route admission. PATHS-LIMIT does not filter this command.
-<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitFamily, pathsLimitSection, filterPathsLimit -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitAdmission, pathsLimitFamily, admitPath, filter -->
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- path-aware transaction identity and ordering -->
 
 ## How It Works

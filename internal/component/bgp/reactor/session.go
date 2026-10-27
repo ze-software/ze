@@ -356,7 +356,7 @@ type Session struct {
 	writePending bool
 
 	// Negotiated sender limits and final write totals, owned by writeMu.
-	pathsLimit       map[capability.Family]*pathsLimitFamily
+	pathsLimit       pathsLimitAdmission
 	updateSendTotals updateSendCounts
 
 	// Error channel for timer callbacks to signal errors.

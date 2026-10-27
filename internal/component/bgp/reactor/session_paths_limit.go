@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -17,65 +18,169 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-var errPathsLimitNLRI = errors.New("PATHS-LIMIT: cannot identify outbound NLRI")
+var errPathsLimitNLRI = errors.New("PATHS-LIMIT: cannot identify NLRI")
+
+// pathsLimitAdmission is the per-direction admission state of one connection:
+// the send bound under the peer's limit and the receive ceiling under Ze's own
+// share it, so the section filter, the body rewrite and the rollback journal
+// are declared once. A nil admission admits everything. The owner serializes
+// every access: Session.writeMu for send, the session read loop for receive.
+type pathsLimitAdmission map[family.Family]*pathsLimitFamily
 
 // pathsLimitFamily tracks only paths admitted on this connection. Its bound is
-// the peer's limit times the number of distinct advertised prefixes. Withdrawals
-// remove entries; a new Session starts empty. Session.writeMu owns every access.
-// Suppressed paths are not a second route queue: a later announcement can retry.
+// the limit times the number of distinct admitted prefixes. Withdrawals remove
+// entries; a new Session starts empty. Suppressed paths are not a second route
+// queue: a later announcement can retry.
 type pathsLimitFamily struct {
+	family        family.Family
 	limit         uint16
 	split         nlrisplit.Splitter
 	withdrawSplit nlrisplit.Splitter
 	key           nlrisplit.PrefixKeyFunc
 	keyScratch    [nlrisplit.PrefixKeyScratchSize]byte
 	prefixes      map[string]*pathsLimitPrefix
+	// auditRefusals is set on the receive side only: a refused identifier is
+	// then journaled, so it can be counted, warned about once and tracked.
+	auditRefusals bool
 }
 
+// pathsLimitPrefix holds the admitted identifiers of one route, and on the
+// receive side up to pathsLimitRefusedHeadroom refused ones. A non-empty
+// refused set is the warned marker: the first refusal into an empty set warns.
 type pathsLimitPrefix struct {
-	key string
-	ids map[uint32]struct{}
+	key            string
+	ids            map[uint32]struct{}
+	refused        [pathsLimitRefusedHeadroom]uint32
+	refusedEntries uint8
 }
 
-// Changes are undone if the UPDATE cannot be written. The input body owns the
-// wire bytes, but these entries reference owned prefix keys, not pooled input.
+// pathsLimitChangeKind names what one journal entry did, so rollback can undo
+// it and the receive side can report it. The zero value is never journaled.
+type pathsLimitChangeKind uint8
+
+const (
+	pathsLimitChangeUnspecified pathsLimitChangeKind = iota
+	// pathsLimitAdmitted counted a new identifier against the limit.
+	pathsLimitAdmitted
+	// pathsLimitAdmittedRefused counted an identifier that was tracked as
+	// refused, and released its tracking slot in the same step.
+	pathsLimitAdmittedRefused
+	// pathsLimitReleased removed an admitted identifier on withdrawal.
+	pathsLimitReleased
+	// pathsLimitRefusalTracked refused an identifier and tracked it.
+	pathsLimitRefusalTracked
+	// pathsLimitRefusalCounted refused an identifier already tracked, or one
+	// the full tracking set had no slot for. It changes no state.
+	pathsLimitRefusalCounted
+	// pathsLimitRefusalReleased removed a tracked refused identifier on
+	// withdrawal, which frees its slot and clears the warned marker.
+	pathsLimitRefusalReleased
+)
+
+// Changes are undone if the UPDATE cannot be written or delivered. The input
+// body owns the wire bytes, but these entries reference owned prefix keys,
+// not pooled input.
 type pathsLimitChange struct {
 	family *pathsLimitFamily
 	prefix *pathsLimitPrefix
 	id     uint32
-	added  bool
+	kind   pathsLimitChangeKind
+	// warn marks the refusal that made an empty refused set non-empty.
+	warn bool
 }
 
-// Even the smallest ADD-PATH NLRI needs five octets. One extended UPDATE cannot
-// change more entries than this. The scratch belongs to a write, not a session.
+// Even the smallest ADD-PATH NLRI needs five octets, and one NLRI journals at
+// most one entry. One extended UPDATE cannot change more entries than this.
+// The scratch belongs to one message, not a session.
 const pathsLimitChangesMax = message.ExtMsgLen / 5
 
 type pathsLimitChanges struct {
 	entries [pathsLimitChangesMax]pathsLimitChange
 	n       int
+	// refusals counts the refusal entries, so a message that refused nothing
+	// is reported without walking the journal.
+	refusals int
 }
 
 var pathsLimitScratch = sync.Pool{New: func() any { return new(pathsLimitChanges) }}
 
+// journal records one change. A full journal is an error the caller returns,
+// never a change applied without its undo.
+func (c *pathsLimitChanges) journal(change pathsLimitChange) bool {
+	if c.n == len(c.entries) {
+		return false
+	}
+	c.entries[c.n] = change
+	c.n++
+	if change.kind == pathsLimitRefusalTracked {
+		c.refusals++
+	}
+	if change.kind == pathsLimitRefusalCounted {
+		c.refusals++
+	}
+	return true
+}
+
 func (c *pathsLimitChanges) rollback() {
 	for i := c.n - 1; i >= 0; i-- {
 		change := &c.entries[i]
-		if change.added {
+		switch change.kind {
+		case pathsLimitAdmitted, pathsLimitAdmittedRefused:
 			delete(change.prefix.ids, change.id)
+			if change.kind == pathsLimitAdmittedRefused {
+				change.prefix.trackRefused(change.id)
+			}
 			if len(change.prefix.ids) == 0 {
 				delete(change.family.prefixes, change.prefix.key)
 			}
-			continue
+		case pathsLimitReleased:
+			change.family.prefixes[change.prefix.key] = change.prefix
+			change.prefix.ids[change.id] = struct{}{}
+		case pathsLimitRefusalTracked:
+			change.prefix.releaseRefused(change.id)
+		case pathsLimitRefusalCounted:
+			// Counting changed no state.
+		case pathsLimitRefusalReleased:
+			change.prefix.trackRefused(change.id)
+		case pathsLimitChangeUnspecified:
+			panic("BUG: PATHS-LIMIT journal holds an unspecified change")
 		}
-		change.family.prefixes[change.prefix.key] = change.prefix
-		change.prefix.ids[change.id] = struct{}{}
 	}
 }
 
 func (c *pathsLimitChanges) release() {
 	clear(c.entries[:c.n])
 	c.n = 0
+	c.refusals = 0
 	pathsLimitScratch.Put(c)
+}
+
+// newPathsLimitAdmission builds the admission for one direction from the
+// negotiated limits. A limit applies only where ADD-PATH is negotiated in that
+// direction; nil means no family is limited, and nothing is filtered.
+func newPathsLimitAdmission(limits map[family.Family]uint16, modes map[family.Family]capability.AddPathMode, direction capability.AddPathMode) pathsLimitAdmission {
+	var admission pathsLimitAdmission
+	for fam, limit := range limits {
+		if limit == 0 {
+			continue
+		}
+		if modes[fam]&direction == 0 {
+			continue
+		}
+		if admission == nil {
+			admission = make(pathsLimitAdmission)
+		}
+		admission[fam] = &pathsLimitFamily{
+			family:        fam,
+			limit:         limit,
+			split:         nlrisplit.Get(fam),
+			withdrawSplit: nlrisplit.GetWithdraw(fam),
+			key:           nlrisplit.GetPrefixKey(fam),
+			prefixes:      make(map[string]*pathsLimitPrefix),
+			auditRefusals: direction == capability.AddPathReceive,
+		}
+	}
+	return admission
 }
 
 // initPathsLimit runs once during OPEN negotiation, with writeMu held. Only the
@@ -86,28 +191,21 @@ func (s *Session) initPathsLimit(encoding *capability.EncodingCaps) {
 	if encoding == nil {
 		return
 	}
-	for fam, limit := range encoding.PathsLimitSend {
-		if limit == 0 || encoding.AddPathMode[fam]&capability.AddPathSend == 0 {
-			continue
-		}
-		if s.pathsLimit == nil {
-			s.pathsLimit = make(map[family.Family]*pathsLimitFamily)
-		}
-		s.pathsLimit[fam] = &pathsLimitFamily{
-			limit:         limit,
-			split:         nlrisplit.Get(fam),
-			withdrawSplit: nlrisplit.GetWithdraw(fam),
-			key:           nlrisplit.GetPrefixKey(fam),
-			prefixes:      make(map[string]*pathsLimitPrefix),
-		}
-	}
+	s.pathsLimit = newPathsLimitAdmission(encoding.PathsLimitSend, encoding.AddPathMode, capability.AddPathSend)
 }
 
-// pathsLimitSection copies accepted NLRIs into dst. Withdrawals always pass,
-// including unknown identifiers; only a NEW path consumes a slot. Replacing
-// attributes on an existing identifier therefore works even at the limit.
-func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdraw bool, changes *pathsLimitChanges) (int, int, error) {
-	state := s.pathsLimit[fam]
+// section copies accepted NLRIs into dst. Withdrawals always pass, including
+// unknown identifiers; only a NEW path consumes a slot. Replacing attributes on
+// an existing identifier therefore works even at the limit.
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3: "A sender advertising
+// multiple paths for the same prefix SHOULD send only the specified maximum
+// number of paths indicated in the PATHS-LIMIT capability."
+// draft-abraitis-idr-addpath-paths-limit Section 3: "An implementation SHOULD
+// provide a configuration knob to specify the maximum number of paths to
+// accept from a sender."
+func (a pathsLimitAdmission) section(dst, data []byte, fam family.Family, withdraw bool, changes *pathsLimitChanges) (int, int, error) {
+	state := a[fam]
 	if state == nil || len(data) == 0 {
 		return copy(dst, data), 0, nil
 	}
@@ -134,34 +232,14 @@ func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdra
 			return true
 		}
 		id := binary.BigEndian.Uint32(raw)
-		prefix := state.prefixes[string(key)]
-		held := false
-		if prefix != nil {
-			_, held = prefix.ids[id]
-		}
-		if !withdraw && !held && prefix != nil && len(prefix.ids) >= int(state.limit) {
-			dropped++
+		pass, journaled := state.admitPath(state.prefixes[string(key)], key, id, withdraw, changes)
+		if !journaled {
+			keyErr = errPathsLimitNLRI
 			return true
 		}
-		if withdraw == held {
-			if changes.n == len(changes.entries) {
-				keyErr = errPathsLimitNLRI
-				return true
-			}
-			if prefix == nil {
-				prefix = &pathsLimitPrefix{key: string(key), ids: make(map[uint32]struct{})}
-				state.prefixes[prefix.key] = prefix
-			}
-			changes.entries[changes.n] = pathsLimitChange{family: state, prefix: prefix, id: id, added: !withdraw}
-			changes.n++
-			if withdraw {
-				delete(prefix.ids, id)
-				if len(prefix.ids) == 0 {
-					delete(state.prefixes, prefix.key)
-				}
-			} else {
-				prefix.ids[id] = struct{}{}
-			}
+		if !pass {
+			dropped++
+			return true
 		}
 		if dst != nil {
 			n += copy(dst[n:], raw)
@@ -172,6 +250,107 @@ func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdra
 		return 0, 0, err
 	}
 	return n, dropped, keyErr
+}
+
+// admitPath applies one NLRI to the state and journals the change. pass says
+// whether the NLRI stays in the message: every withdrawal does, and an
+// announcement does when its identifier is held or a slot is free. journaled
+// is false only when the journal is full, before any state changed.
+func (f *pathsLimitFamily) admitPath(prefix *pathsLimitPrefix, key []byte, id uint32, withdraw bool, changes *pathsLimitChanges) (pass, journaled bool) {
+	held := false
+	if prefix != nil {
+		_, held = prefix.ids[id]
+	}
+	if withdraw {
+		if held {
+			if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitReleased}) {
+				return true, false
+			}
+			delete(prefix.ids, id)
+			if len(prefix.ids) == 0 {
+				delete(f.prefixes, prefix.key)
+			}
+			return true, true
+		}
+		// A withdrawal of an identifier never admitted frees no admitted slot.
+		if prefix == nil {
+			return true, true
+		}
+		if !prefix.refusedHolds(id) {
+			return true, true
+		}
+		if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitRefusalReleased}) {
+			return true, false
+		}
+		prefix.releaseRefused(id)
+		return true, true
+	}
+	if held {
+		return true, true
+	}
+	if prefix != nil && len(prefix.ids) >= int(f.limit) {
+		return false, f.refusePath(prefix, id, changes)
+	}
+	kind := pathsLimitAdmitted
+	if prefix != nil && prefix.refusedHolds(id) {
+		kind = pathsLimitAdmittedRefused
+	}
+	if prefix == nil {
+		prefix = &pathsLimitPrefix{key: string(key), ids: make(map[uint32]struct{})}
+	}
+	if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: kind}) {
+		return false, false
+	}
+	f.prefixes[prefix.key] = prefix
+	prefix.ids[id] = struct{}{}
+	if kind == pathsLimitAdmittedRefused {
+		prefix.releaseRefused(id)
+	}
+	return true, true
+}
+
+// refusePath records one identifier refused at the limit. The send side
+// journals nothing: its writer reports only the dropped count.
+func (f *pathsLimitFamily) refusePath(prefix *pathsLimitPrefix, id uint32, changes *pathsLimitChanges) bool {
+	if !f.auditRefusals {
+		return true
+	}
+	counted := pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitRefusalCounted}
+	if prefix.refusedHolds(id) {
+		return changes.journal(counted)
+	}
+	if int(prefix.refusedEntries) == len(prefix.refused) {
+		return changes.journal(counted)
+	}
+	warn := prefix.refusedEntries == 0
+	if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitRefusalTracked, warn: warn}) {
+		return false
+	}
+	prefix.trackRefused(id)
+	return true
+}
+
+func (p *pathsLimitPrefix) refusedHolds(id uint32) bool {
+	return slices.Contains(p.refused[:p.refusedEntries], id)
+}
+
+// trackRefused MUST be called only when the set has a free slot and does not
+// hold id; refusePath and rollback are its only callers and establish both.
+func (p *pathsLimitPrefix) trackRefused(id uint32) {
+	p.refused[p.refusedEntries] = id
+	p.refusedEntries++
+}
+
+func (p *pathsLimitPrefix) releaseRefused(id uint32) {
+	for i, refused := range p.refused[:p.refusedEntries] {
+		if refused != id {
+			continue
+		}
+		last := int(p.refusedEntries) - 1
+		p.refused[i] = p.refused[last]
+		p.refusedEntries--
+		return
+	}
 }
 
 // pathsLimitMP reads the NLRI offset without decoding attributes or routes.
@@ -193,11 +372,12 @@ func pathsLimitMP(value []byte, reach bool) (family.Family, int, error) {
 	return fam, off, nil
 }
 
-// filterPathsLimit rewrites into a distinct pooled buffer. This is needed even
-// for same-context forwarding: mutating the shared input would drop paths for
-// other peers. Lengths and callbacks describe the filtered message, never the
-// offered batch. A zero length means all announcements were withheld, not EOR.
-func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges) (int, int, error) {
+// filter rewrites into a distinct pooled buffer. This is needed even for
+// same-context forwarding: mutating the shared input would drop paths for other
+// peers. Lengths and callbacks describe the filtered message, never the offered
+// batch. A zero length means all announcements were withheld, not EOR. Only
+// whole NLRIs are removed and lengths fixed; attributes are untouched.
+func (a pathsLimitAdmission) filter(dst, body []byte, changes *pathsLimitChanges) (int, int, error) {
 	sections, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		return 0, 0, err
@@ -207,7 +387,7 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 	}
 	withdrawn := sections.Withdrawn(body)
 	attrs := sections.Attrs(body)
-	n, _, err := s.pathsLimitSection(dst[2:], withdrawn, family.IPv4Unicast, true, changes)
+	n, _, err := a.section(dst[2:], withdrawn, family.IPv4Unicast, true, changes)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -229,7 +409,7 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 			return 0, 0, cause
 		}
 		withdrawSignal = true
-		if _, _, cause = s.pathsLimitSection(nil, value[off:], fam, true, changes); cause != nil {
+		if _, _, cause = a.section(nil, value[off:], fam, true, changes); cause != nil {
 			return 0, 0, cause
 		}
 	}
@@ -255,7 +435,7 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 		headerLen := end - start - len(value)
 		outStart := n
 		n += copy(dst[n:], attrs[start:start+headerLen+off])
-		count, removed, cause := s.pathsLimitSection(dst[n:], value[off:], fam, false, changes)
+		count, removed, cause := a.section(dst[n:], value[off:], fam, false, changes)
 		if cause != nil {
 			return 0, 0, cause
 		}
@@ -276,7 +456,7 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 		start = end
 	}
 	binary.BigEndian.PutUint16(dst[attrLengthOffset:], uint16(n-attrLengthOffset-2))
-	count, removed, err := s.pathsLimitSection(dst[n:], sections.NLRI(body), family.IPv4Unicast, false, changes)
+	count, removed, err := a.section(dst[n:], sections.NLRI(body), family.IPv4Unicast, false, changes)
 	if err != nil {
 		return 0, 0, err
 	}

@@ -737,7 +737,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 			}
 			changes.release()
 		}()
-		n, dropped, err := s.filterPathsLimit(handle.Buf, body, changes)
+		n, dropped, err := s.pathsLimit.filter(handle.Buf, body, changes)
 		if err != nil {
 			return false, err
 		}

@@ -168,6 +168,9 @@ type reactorMetrics struct {
 	prefixExceededTotal   metrics.CounterVec // Times this family exceeded maximum
 	prefixTeardownTotal   metrics.CounterVec // Times session torn down for prefix limit (per peer)
 	prefixStale           metrics.GaugeVec   // 1 if prefix updated timestamp is older than 6 months (per peer)
+
+	// PATHS-LIMIT receive ceiling (labeled by peer + family)
+	pathsLimitRefused metrics.CounterVec // Received paths refused over Ze's advertised limit
 }
 
 // initReactorMetrics creates reactor-level metrics from the registry.
@@ -279,6 +282,9 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{metricLabelPeer, metricLabelFamily}),
 		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{metricLabelPeer}),
 		prefixStale:           reg.GaugeVec("ze_bgp_prefix_stale", "1 if prefix data is older than 6 months.", []string{metricLabelPeer}),
+
+		// draft-abraitis-idr-addpath-paths-limit Section 3: the receive ceiling
+		pathsLimitRefused: reg.CounterVec("ze_bgp_paths_limit_refused_total", "Received paths refused over the PATHS-LIMIT Ze advertised.", []string{metricLabelPeer, metricLabelFamily}),
 	}
 }
 

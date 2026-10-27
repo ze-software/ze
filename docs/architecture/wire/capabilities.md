@@ -471,7 +471,7 @@ Ze does not queue suppressed announcements. A later re-announcement can retry af
 
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct, PathsLimitEntry -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- negotiatePathsLimit, negotiatePathsLimitDirection -->
-<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- initPathsLimit, pathsLimitSection, filterPathsLimit -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- initPathsLimit, newPathsLimitAdmission, admitPath, filter -->
 
 ---
 

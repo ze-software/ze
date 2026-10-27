@@ -608,7 +608,7 @@ option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
 | `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
 | `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
 | `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
-| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `Session.filterPathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `pathsLimitAdmission.filter` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
 | `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
 | `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
 

@@ -74,7 +74,7 @@ Variable length: sequence of 5-byte entries. Each entry specifies the maximum nu
 - OPEN producer: `coalescePathsLimit()` in `session_negotiate.go` combines configuration and plugin declarations into one capability before encoding.
 - Negotiation: `Negotiate()` processes after ADD-PATH, stores in `EncodingCaps.PathsLimitSend/Recv`
 - Context: `EncodingContext.PathsLimit(family)` returns direction-specific limit
-- Enforcement: `Session.filterPathsLimit()` and `pathsLimitSection()` share per-connection, per-family, per-prefix admitted-path state across normal UPDATE sends and forwarding. Existing path replacements pass at capacity; withdrawals free slots; a new connection starts empty.
+- Enforcement: `pathsLimitAdmission.filter()` and `pathsLimitAdmission.section()` share per-connection, per-family, per-prefix admitted-path state across normal UPDATE sends and forwarding. Existing path replacements pass at capacity; withdrawals free slots; a new connection starts empty.
 - RS fast-path: advertises PATHS-LIMIT normally and shares the session's outbound admission state for raw and re-encoded forwarding. The deliberate raw-message diagnostic command remains outside normal route admission.
 - Config: `session > capability > add-path > limit` sets the default receive request; `family > limit` overrides it for one family. Both leaves accept 1..65535. Omit the family leaf to inherit the default. Disabled/refused families advertise no limit. These knobs request sender behavior; they do not enforce a local receive-side cap.
 
