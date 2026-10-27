@@ -133,6 +133,14 @@ type Loop struct {
 
 	rawCapture atomic.Pointer[RawCaptureRing]
 
+	// serving is the session the express loop is changing now, nil while no
+	// session is selected, and servingWork what it is doing (workControl,
+	// workEcho, workTimers). The guard reads both after a contained panic to
+	// name the unit and to take that session Down (endServedSession). Written
+	// and read only on the express-loop goroutine, so they need no lock.
+	serving     *sessionEntry
+	servingWork string
+
 	stopCh  chan struct{}
 	doneCh  chan struct{}
 	started atomic.Bool

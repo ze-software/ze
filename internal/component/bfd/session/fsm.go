@@ -304,6 +304,29 @@ func (m *Machine) AdminEnable() {
 	m.onStateChange(prev)
 }
 
+// DefectDown takes the session Down after a Ze defect interrupted the engine
+// while it was changing this session's state: the engine's panic boundary calls
+// it (engine.Loop.endServedSession). The state can no longer be trusted, and
+// Down is where the three-way handshake with the peer rebuilds it, so the peer
+// and every client learn of the loss the way they learn of any other.
+//
+// Idempotent: a session already in Down or AdminDown is left alone, so an
+// operator's AdminDown survives.
+func (m *Machine) DefectDown() {
+	if m.vars.SessionState != packet.StateInit && m.vars.SessionState != packet.StateUp {
+		return
+	}
+	prev := m.vars.SessionState
+	// RFC 5880 Section 4.1: "A diagnostic code specifying the local system's
+	// reason for the last change in session state." No code the RFC defines
+	// names a local software defect, and Forwarding Plane Reset (4) would tell
+	// the peer's operator the forwarding state failed when it did not, so the
+	// reason is "0 -- No Diagnostic".
+	m.vars.LocalDiag = packet.DiagNone
+	m.vars.SessionState = packet.StateDown
+	m.onStateChange(prev)
+}
+
 // Build fills c with the next outgoing Control packet for this session.
 //
 // The caller is the express-loop goroutine; Build is called either when

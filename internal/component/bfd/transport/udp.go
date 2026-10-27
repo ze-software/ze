@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -479,46 +480,90 @@ func (u *UDP) RX() <-chan Inbound { return u.rx }
 // into pre-existing slices; Inbound carries a pre-built release closure
 // picked by slot index. The oob buffer is parsed via parseReceivedTTL
 // and discarded per packet -- no allocation.
+//
+// The reading itself is the receive task (receive), entered again after a
+// contained panic: a Ze defect met while reading one packet costs that packet,
+// never the socket, so no session on it loses its receive path.
 func (u *UDP) readLoop() {
 	defer u.wg.Done()
 	defer close(u.rx)
 
-	// One contiguous backing array sliced into rxPoolSize independent
-	// buffers, similar to the ze peerPool pattern. Each
-	// ReadMsgUDPAddrPort targets one slice; the slice is released via
-	// Inbound.Release when the engine has consumed it.
-	const rxPoolSize = 16
-	const rxBufLen = 128 // enough for 24 + 28 (SHA1) + future TLVs
-	backing := make([]byte, rxPoolSize*rxBufLen)
-	oobBacking := make([]byte, rxPoolSize*oobBufLen)
-	freeCh := make(chan int, rxPoolSize)
-	releases := make([]func(), rxPoolSize)
-	for i := range rxPoolSize {
-		freeCh <- i
-		slot := i // capture per iteration so each closure binds its own slot
-		releases[i] = func() { freeCh <- slot }
+	slots := newRxSlots()
+	for u.receive(slots) {
+		// The pass ended on a contained panic; the next one reads on.
 	}
+}
+
+// rxPoolSize is the number of receive buffers one socket reader owns, and
+// rxBufLen the size of each: enough for 24 + 28 (SHA1) + future TLVs.
+const (
+	rxPoolSize = 16
+	rxBufLen   = 128
+)
+
+// rxSlots is a socket reader's buffer pool: one contiguous backing array
+// sliced into rxPoolSize independent buffers, similar to the ze peerPool
+// pattern. Each ReadMsgUDPAddrPort targets one slice; the slice is released via
+// Inbound.Release when the engine has consumed it. Owned by the reader
+// goroutine; free is the only part another goroutine (the engine) touches.
+type rxSlots struct {
+	backing    []byte
+	oobBacking []byte
+	free       chan int
+	releases   []func()
+}
+
+// newRxSlots builds the pool with every slot free.
+func newRxSlots() *rxSlots {
+	s := &rxSlots{
+		backing:    make([]byte, rxPoolSize*rxBufLen),
+		oobBacking: make([]byte, rxPoolSize*oobBufLen),
+		free:       make(chan int, rxPoolSize),
+		releases:   make([]func(), rxPoolSize),
+	}
+	for i := range rxPoolSize {
+		s.free <- i
+		slot := i // capture per iteration so each closure binds its own slot
+		s.releases[i] = func() { s.free <- slot }
+	}
+	return s
+}
+
+// receive is the receive task: it reads datagrams into slots and hands them to
+// the engine until the transport stops, answering false, or until a panic ends
+// the pass, answering true. The guard then returns the slot the panicking
+// packet held, so the pool never shrinks. A loop with no bound of its own: it
+// runs for the life of the socket.
+func (u *UDP) receive(slots *rxSlots) (again bool) {
+	held := -1 // the slot read into and not yet handed to the engine
+	defer receiveGuard.Task(taskReceive, receiveRestart).Contain(u.describeReceive, func(*taskguard.Panic) {
+		if held >= 0 {
+			slots.free <- held
+		}
+		again = true
+	})
 
 	for {
 		// Acquire a free slot; block until the engine releases one.
-		var idx int
 		select {
-		case idx = <-freeCh:
+		case held = <-slots.free:
 		case <-u.stop:
-			return
+			return false
 		}
 
-		buf := backing[idx*rxBufLen : (idx+1)*rxBufLen]
-		oob := oobBacking[idx*oobBufLen : (idx+1)*oobBufLen]
+		idx := held
+		buf := slots.backing[idx*rxBufLen : (idx+1)*rxBufLen]
+		oob := slots.oobBacking[idx*oobBufLen : (idx+1)*oobBufLen]
 		n, oobn, flags, raddr, err := u.conn.ReadMsgUDPAddrPort(buf, oob)
 		if err != nil {
 			// Return the slot; Conn closed or stopping.
-			freeCh <- idx
+			held = -1
+			slots.free <- idx
 			u.mu.Lock()
 			closed := u.closed
 			u.mu.Unlock()
 			if closed {
-				return
+				return false
 			}
 			continue
 		}
@@ -554,15 +599,26 @@ func (u *UDP) readLoop() {
 			Mode:      u.Mode,
 			TTL:       ttl,
 			Bytes:     buf[:n],
-			release:   releases[idx], // pre-built once; no per-packet alloc
+			release:   slots.releases[idx], // pre-built once; no per-packet alloc
 		}
 		select {
 		case u.rx <- in:
+			held = -1
 		case <-u.stop:
-			freeCh <- idx
-			return
+			held = -1
+			slots.free <- idx
+			return false
 		}
 	}
+}
+
+// describeReceive names the socket a contained receive panic hit: the hop
+// mode, the VRF and the address the socket is bound to, which together identify
+// one BFD socket. It reads the socket's own address rather than u.Bind, which
+// can ask for port 0. The reader runs only between Start and Stop, so conn is
+// set.
+func (u *UDP) describeReceive() taskguard.Context {
+	return taskguard.Context{Unit: u.Mode.String() + " socket " + u.conn.LocalAddr().String() + " in vrf " + u.VRF}
 }
 
 // now reads the transport's time source, defaulting to the real clock so a

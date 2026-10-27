@@ -325,6 +325,10 @@ at zero from the moment the component has a metrics registry.
 | `pppoe` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
 | `pppoe` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
 <!-- source: internal/component/l2tp/pppoe/panic_guard.go -- newPPPoEPanicTasks, endAdmissionAfterPanic -->
+| `bfd` | `receive` | One received BFD packet, dropped: the socket reader reads the next one, and no session changes state |
+<!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
+| `bfd` | `express` | The BFD session the loop was serving, when it was serving one: it goes Down with diagnostic 0 (No Diagnostic) and comes back Up through the three-way handshake; every other session on the loop keeps running |
+<!-- source: internal/component/bfd/engine/panic_guard.go -- expressGuard, endServedSession -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->

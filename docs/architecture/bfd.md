@@ -66,6 +66,38 @@ session-driving thread.
 <!-- source: internal/component/bfd/engine/loop.go -- run, tick, handleInbound -->
 <!-- source: internal/component/bfd/engine/engine.go -- Loop type -->
 
+### Panic containment
+
+BFD reads packets a peer controls on two goroutines, and each one runs its
+work as a task under a `taskguard` boundary. A panic there is a Ze defect: it
+is logged at ERROR with the unit it hit, counted in
+`ze_task_panics_total{component="bfd"}`, crash-recorded, and the goroutine
+enters its task again. The process and every other session keep running.
+
+| Task | Goroutine | Unit named in the log | What the panic costs |
+|------|-----------|-----------------------|----------------------|
+| `receive` | `UDP.readLoop`, one per socket | The socket: mode, local address, VRF | The packet being read. Its pool slot goes back to the free list, so a repeated defect cannot drain the pool |
+| `express` | `Loop.run`, the express loop | The session being served, and the work (`control`, `echo`, `timers`) | That session goes Down with diagnostic 0 and comes back through the three-way handshake |
+
+The express loop records which session it is serving (`Loop.serving`) before
+it touches it, so the boundary knows whose state a defect left half changed.
+`Machine.DefectDown` takes that session Down with diagnostic 0, No Diagnostic:
+RFC 5880 defines no code for a local defect, and Forwarding Plane Reset (4)
+would send the peer's operator looking at a forwarding plane that never
+reset. A panic while no session is selected ends no session. The loop's own
+locks are released by deferred unlocks, so they are free when the task is
+entered again.
+
+`trySendStateChange` keeps its own `recover`: it covers a subscriber closing
+its channel during a send, a benign race between two healthy goroutines, and
+the guard would instead take a healthy session Down.
+
+<!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
+<!-- source: internal/component/bfd/transport/udp.go -- UDP.receive -->
+<!-- source: internal/component/bfd/engine/panic_guard.go -- expressGuard, endServedSession -->
+<!-- source: internal/component/bfd/engine/loop.go -- serve -->
+<!-- source: internal/component/bfd/session/fsm.go -- Machine.DefectDown -->
+
 ### Session lookup
 
 Two indexes:

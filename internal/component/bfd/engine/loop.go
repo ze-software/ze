@@ -13,7 +13,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // engineLog is the lazy logger for the BFD engine express-loop. Send
@@ -28,6 +30,10 @@ var engineLog = slogutil.LazyLogger("bfd.engine")
 // The loop alternates between draining one batch of received packets and
 // running one timer-tick pass. The poll interval is PollInterval; ticker
 // fires drive both the detection-time check and the periodic-TX check.
+//
+// The draining itself is the express task (serve), entered again after a
+// contained panic: a Ze defect met while serving one session takes that
+// session Down and never the loop, so every other session keeps running.
 func (l *Loop) run() {
 	defer close(l.doneCh)
 	rx := l.transport.RX()
@@ -38,27 +44,53 @@ func (l *Loop) run() {
 	ticker := l.clk.NewTicker(PollInterval)
 	defer ticker.Stop()
 
+	for l.serve(rx, &echoRx, ticker) {
+		// The pass ended on a contained panic; the next one serves on.
+	}
+}
+
+// The work the express loop names in a contained panic's message-type field.
+const (
+	workControl = "control"
+	workEcho    = "echo"
+	workTimers  = "timers"
+)
+
+// serve is the express task: it drains received packets and fires timers until
+// the loop stops, answering false, or until a panic ends the pass, answering
+// true. The guard then takes the session being served Down (endServedSession).
+// echoRx is the caller's, so a closed echo half stays closed across passes. A
+// loop with no bound of its own: it runs for the life of the Loop.
+func (l *Loop) serve(rx <-chan transport.Inbound, echoRx *<-chan transport.Inbound, ticker clock.Ticker) (again bool) {
+	defer expressGuard.Task(taskExpress, expressRestart).Contain(l.describeExpress, func(*taskguard.Panic) {
+		l.endServedSession()
+		again = true
+	})
+
 	for {
 		select {
 		case <-l.stopCh:
-			return
+			return false
 		case in, ok := <-rx:
 			if !ok {
-				return
+				return false
 			}
+			l.serving, l.servingWork = nil, workControl
 			l.handleInbound(in)
-		case in, ok := <-echoRx:
+		case in, ok := <-*echoRx:
 			if !ok {
 				// A nil channel blocks forever so this
 				// branch only fires when the echo transport
 				// has actively closed its RX. Treat it as a
 				// clean shutdown of the echo half without
 				// disturbing the Control path.
-				echoRx = nil
+				*echoRx = nil
 				continue
 			}
+			l.serving, l.servingWork = nil, workEcho
 			l.handleEchoInbound(in)
 		case <-ticker.C():
+			l.serving, l.servingWork = nil, workTimers
 			l.tick()
 		}
 	}
@@ -115,6 +147,7 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 	if entry == nil {
 		return
 	}
+	l.serving = entry
 
 	// Apply RFC 5881 Section 5's single-hop gate and the local multi-hop
 	// MinTTL policy before feeding packets to the FSM. The check runs after
@@ -203,6 +236,7 @@ func (l *Loop) tick() {
 	defer l.mu.Unlock()
 
 	for key, entry := range l.sessions {
+		l.serving = entry
 		if entry.released {
 			// A released session waits out its Detection Time
 			// (ReleaseSession, RFC 5880 Section 6.8.1) and, in AdminDown,
@@ -236,6 +270,7 @@ func (l *Loop) tick() {
 			entry.machine.AdvanceTxWithJitter(now, reduction)
 		}
 	}
+	l.serving = nil
 
 	l.echoTickLocked(now)
 }

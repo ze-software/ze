@@ -135,12 +135,14 @@ func (l *Loop) handleEchoInbound(in transport.Inbound) {
 
 	if entry := l.byDiscr[e.LocalDiscriminator]; entry != nil {
 		if entry.machine.PeerAddr() == in.From {
+			l.serving = entry
 			l.recordEchoRTTLocked(entry, e, l.clk.Now(), in.Mode.String())
 			return
 		}
 	}
 
 	if entry := l.findSessionByPeerLocked(in.From); entry != nil {
+		l.serving = entry
 		l.reflectEchoLocked(in, entry)
 		return
 	}

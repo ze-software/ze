@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/engine"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/component/bfd/transport"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -80,6 +81,10 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			echoRTTBuckets, []string{labelMode}),
 	}
 	bfdMetricsPtr.Store(m)
+	// ze_task_panics_total{component="bfd"}: the receive and express tasks'
+	// panic boundaries, one per package that owns the task.
+	transport.SetPanicMetrics(reg)
+	engine.SetPanicMetrics(reg)
 }
 
 // metricsHook is the engine.MetricsHook implementation that forwards
