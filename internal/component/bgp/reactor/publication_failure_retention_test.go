@@ -64,7 +64,7 @@ func (receiver lateFailureReceiver) OnMessageBatchReceived(*plugin.PeerInfo, []b
 // rpc.ReasonAdjRIBInInvalid, never "notification". Late failure (the worker
 // fails after a transport loss ended the session): rpc.ReasonAdjRIBInInvalid.
 // The read goroutine panicking before the hand-off: its guard writes Cease /
-// Unspecific before the session ends (spec-improve-5-panic-boundaries AC-1),
+// Unspecific before the session ends (plan/learned/044-panic-boundaries.md),
 // so the down is rpc.ReasonNotification, which forbids retention as well.
 // Each forbids retention
 // (rpc.ReasonForbidsRetention), and the history row carries the same reason.
@@ -156,7 +156,7 @@ func publicationFailureReadPanic(t *testing.T) {
 		t.Fatal("no down after the read goroutine panicked")
 	}
 	// The read guard writes Cease / Unspecific before the session ends
-	// (spec-improve-5-panic-boundaries AC-1), so a NOTIFICATION was exchanged.
+	// (plan/learned/044-panic-boundaries.md), so a NOTIFICATION was exchanged.
 	if !ceaseSent(c.v, message.NotifyCeaseUnspecific) {
 		t.Fatal("the read guard sent no Cease / Unspecific")
 	}

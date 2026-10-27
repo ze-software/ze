@@ -37,7 +37,7 @@ func (publicationPanicReceiver) OnMessageBatchReceived(*plugin.PeerInfo, []bgpty
 // D1's reason producer.
 //
 // VALIDATES: AC-17 teardown, A-11 (no wait on deliveryDone), and the subcode
-// each failure carries (spec-improve-5-panic-boundaries D-4).
+// each failure carries (plan/learned/044-panic-boundaries.md).
 // PREVENTS: a source left Established while its UPDATEs never reach the plugins.
 func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 	// The worker's seam hands it the failing receiver; the read goroutine
