@@ -410,6 +410,18 @@ func (f *pathsLimitFamily) refusePath(prefix *pathsLimitPrefix, route []byte, id
 		// draft-abraitis-idr-addpath-paths-limit Section 1
 		return f.contestPath(prefix, route, id, changes)
 	}
+	// The receive side drops only the excess path and sends no NOTIFICATION.
+	// An over-limit path is no error in the UPDATE, which is well formed, so
+	// RFC 4271 Section 6.3 does not apply: "All errors detected while processing
+	// the UPDATE message MUST be indicated by sending the NOTIFICATION message
+	// with the Error Code UPDATE Message Error." RFC 4486 Section 4 binds Cease
+	// to a prefix count, not a path count per prefix: "If a BGP speaker decides
+	// to terminate its peering with a neighbor because the number of address
+	// prefixes received from the neighbor exceeds a locally configured upper
+	// bound (as described in [BGP-4]), then the speaker MUST send to the
+	// neighbor a NOTIFICATION message with the Error Code Cease and the Error
+	// Subcode "Maximum Number of Prefixes Reached"."
+	// draft-abraitis-idr-addpath-paths-limit Section 3
 	counted := pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitRefusalCounted}
 	if prefix.refusedHolds(id) {
 		return changes.journal(counted)

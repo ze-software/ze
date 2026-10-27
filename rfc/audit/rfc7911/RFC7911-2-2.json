@@ -26,17 +26,17 @@
     "internal/component/bgp/reactor/forward_path_id.go::unframed": "a765f1d1ce318ab9",
     "internal/component/bgp/reactor/forward_provenance.go::prepareFwdProvenance": "55b4a396991dd556",
     "internal/component/bgp/reactor/forward_provenance.go::writePath": "b3c04bff61376267",
-    "internal/component/bgp/reactor/session_ownership.go::allow": "673805a762c340e5",
-    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "8721aa4f55085489",
+    "internal/component/bgp/reactor/session_ownership.go::allow": "bcb63e8c48a718a1",
+    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "2f196d8453e64539",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "92b4c71be9ed5b82",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
     "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "658c1097fd0257ff",
     "internal/component/bgp/reactor/session_ownership.go::recordSection": "54aa01c0b0035812",
     "internal/component/bgp/reactor/session_ownership.go::release": "53a0d11615facbb8",
     "internal/component/bgp/reactor/session_write.go::retireWrite": "730347444d269663",
-    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "9c194c1932da60a9"
+    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "7576a0a8e89ef492"
   },
-  "note": "Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 7911 Section 2: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" The only cited producer that moved is session_ownership.go adjOutWrite.allow: its new adjOutRecovery branch suppresses a departure withdrawal of an ADD-PATH key whose current owner is a newer session spared by the owed record (RFC 4724 Section 4.2 bookkeeping). It runs after bindSourcePath and changes no generated identifier: the speaker-generated Path Identifier on re-advertised routes still comes only from forward_path_id.go, forward_body.go and forward_provenance.go, all byte-identical, as are all 19 tagged units (rfc7911_forward_path_id*_test.go, the growth probe, check_rfc.go checkAddPathReadvertiseCollision and adj-rib-in-replay-addpath-source.ci). The positives still assert the re-advertised identifier differs from the received one and is stable per destination; the negatives (finite namespace, MP generation, stable-across-updates) still fail on a received-id passthrough, each with a verified revert or mutant record. Reactor TestForwardPathID* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.\" The moved producers are session_write.go writeUpdateBody (calls the extracted s.pathsLimit.filter and owes PATHS-LIMIT elections after commit) and session_ownership.go adjOutWrite.allow (a pathsLimitDemotion recovery item may withdraw a current owner's ADD-PATH key). Neither generates an identifier: a survivor the election re-announces goes through the ordinary staged forward rail, whose identifier still comes only from forward_path_id.go, forward_body.go and forward_provenance.go, all byte-identical, as are all 19 tagged units. The positives still assert the re-advertised identifier differs from the received one and is stable per destination; the negatives still fail on a received-id passthrough, each with a verified revert or mutant record. Verdict unchanged: enforced. Earlier judgements are in this file's git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.",
   "requirement_sha": "442640073668ac08",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "c1d64e2399a00d1b",

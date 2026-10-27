@@ -16,7 +16,7 @@
 | Support | drafts |
 | Support area | BGP PATHS-LIMIT |
 | Support status | Supported |
-| Support coverage | Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path. The configuration knob states a request to the peer and does not bound what Ze accepts: a peer that ignores it is not policed. |
+| Support coverage | Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path (`pathsLimitAdmission.section` in `internal/component/bgp/reactor/session_paths_limit.go`). Under the peer's limit Ze sends the paths the bgp-rib election ranks first and withdraws a demoted path before announcing its replacement (`queuePathsLimitElection` in `session_paths_limit_elect.go`). The configuration knob `limit { receive N; }` is advertised and enforced on received paths: an excess path is dropped, counted and warned once per route, and the rest of its UPDATE installs (`receiveCeiling` in `session_paths_limit_recv.go`). |
 | Support remaining | - |
 | Use cases | - |
 | Optional use cases | - |
@@ -74,9 +74,10 @@ Variable length: sequence of 5-byte entries. Each entry specifies the maximum nu
 - OPEN producer: `coalescePathsLimit()` in `session_negotiate.go` combines configuration and plugin declarations into one capability before encoding.
 - Negotiation: `Negotiate()` processes after ADD-PATH, stores in `EncodingCaps.PathsLimitSend/Recv`
 - Context: `EncodingContext.PathsLimit(family)` returns direction-specific limit
-- Enforcement: `pathsLimitAdmission.filter()` and `pathsLimitAdmission.section()` share per-connection, per-family, per-prefix admitted-path state across normal UPDATE sends and forwarding. Existing path replacements pass at capacity; withdrawals free slots; a new connection starts empty.
+- Enforcement: `pathsLimitAdmission.filter()` and `pathsLimitAdmission.section()` share per-connection, per-family, per-prefix admitted-path state across normal UPDATE sends and forwarding. Existing path replacements pass at capacity; withdrawals free slots; a new connection starts empty. A new path refused at the peer's limit marks its route contested, and the destination's recovery worker asks the RIB for at most the limit of survivors in election order (`ribevents.RecoveryRequest.Limit`), staging withdrawals ahead of announcements.
+- Receive: the same admission type, built from `PathsLimitRecv` for families with ADD-PATH receive, runs in `processValidatedMessage` after RFC 7606 handling and before the prefix limits (`receiveCeiling`). A family whose NLRI Ze cannot split refuses a receive limit at config load (`pathsLimitEnforceable`).
 - RS fast-path: advertises PATHS-LIMIT normally and shares the session's outbound admission state for raw and re-encoded forwarding. The deliberate raw-message diagnostic command remains outside normal route admission.
-- Config: `session > capability > add-path > limit` sets the default receive request; `family > limit` overrides it for one family. Both leaves accept 1..65535. Omit the family leaf to inherit the default. Disabled/refused families advertise no limit. These knobs request sender behavior; they do not enforce a local receive-side cap.
+- Config: `session > capability > add-path > limit > receive` sets the default receive limit; `family > limit > receive` overrides it for one family. Both leaves accept 1..65535. Omit the family container to inherit the default. Disabled/refused families advertise no limit. The value is both the number Ze advertises and the ceiling it enforces on received paths. The scalar `limit N` is refused at load.
 
 ## Compliance Checklist
 

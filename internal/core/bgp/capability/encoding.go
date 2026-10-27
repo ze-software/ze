@@ -30,7 +30,8 @@ type EncodingCaps struct {
 
 	// draft-abraitis-idr-addpath-paths-limit: per-family path count limits.
 	// PathsLimitSend holds the remote peer's advertised limits (constrains our send).
-	// PathsLimitRecv holds our advertised limits (constrains peer's send).
+	// PathsLimitRecv holds our advertised limits (constrains peer's send), which
+	// the reactor also enforces on received paths (session_paths_limit_recv.go).
 	PathsLimitSend map[Family]uint16
 	PathsLimitRecv map[Family]uint16
 }

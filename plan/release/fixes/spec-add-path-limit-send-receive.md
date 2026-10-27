@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Enforce advertised receive limits and correct best-path ordering under existing peer limits. |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 8/8 |
 | Handoff | - |
 | Updated | 2026-10-27 |
 
@@ -133,6 +133,9 @@ A later WITHDRAW for a path Ze never kept is accepted and frees no slot, as the 
 | D-11 | The rewritten receive body keeps the session's `ContextID`: only whole NLRIs are removed and lengths fixed, attributes are untouched, so the bytes are still encoded in that context. The cost is one copy for an over-limit message only | `docs/architecture/encoding-context.md`: `ContextID` names the encoding context. Corrects Pre-Split R-2 |
 | D-12 | AC-2 is delivered by the parser's generic refusal of a value on a non-presence container, not by a validator on the deleted leaf | `containerValueFix` (`internal/component/config/parser_diagnostics.go`) already prints `name { child VALUE; }` for the leaf-list case; a per-leaf validator would keep the old spelling alive (`ai/rules/no-layering.md`) |
 | D-13 | The receive-ceiling interop peer is BIRD 3, not FRR | FRR caps its TX at the received limit (D-1 quote), so it can never over-send and a scenario against it has no red phase. BIRD ignores capability 76 and sends every path (D-1) |
+| D-14 (implementation, Phase 6) | A family Ze cannot split path by path (`nlrisplit.Supported` false) is answered by ONE predicate, `pathsLimitEnforceable` (`session_paths_limit.go`), for both advertise and enforce. A receive limit reaching such a family with ADD-PATH receive is REFUSED at config load (`parseAddPathFromTree`, error naming the family and three fixes). A send limit the peer advertises for it is negotiated, not enforced, and `warnPathsLimitUnenforced` logs one warning per session | Draft Section 3: the Paths Limit field "indicates the maximum paths limit the receiver wants to receive from its peer.", so advertising a receive limit Ze cannot hold states a ceiling that does not exist; the system door's exact-or-reject rule refuses that config. Before this spec, a missing splitter made `section` return an error on every UPDATE of the family (receive: whole UPDATE dropped; send: write error), which broke the family entirely; 3-6 is a SHOULD, so the send side names the gap instead of stopping the family |
+| D-15 (implementation, Phase 6) | The owed election is written while the writer still holds the adj-RIB-Out table mutex: `owePathsLimitElections` and `owePathsLimitRoutes` are methods of `*adjOutWrite`, owe into `w.table`, and take no lock. `beginAdjOut` states the window as a MUST on its side | The first build called `table.mu.Lock()` from inside `beginAdjOut`..`release`, a self-deadlock on a non-reentrant mutex with `writeMu` held (every later write and the shutdown notification hung; `paths-limit-live.ci` timed out at 8m30s). Lock order everywhere else is `writeMu` then the table mutex (`pathsLimitHeld`) |
+| D-16 (implementation, Phase 4) | The rewritten receive body is one heap copy (`make(len(payload))`) wrapped in a new `WireUpdate` with the session's ContextID; the original `BufHandle` stays with the caller and the recent-UPDATE cache, unchanged. This departs from R-2's "fresh pooled read buffer" wording | Ownership is the same as the existing ingress rewrites (`collapseASPathFamily`, `applyRFC7606`, `withdrawLegacyAnnouncements`), which also replace `wireUpdate` and leave `buf` alone; a pooled buffer handed onward with the WireUpdate would have no releaser (engine door: pooling a buffer handed back to the caller is a use-after-free). Only an UPDATE that refused a path pays the copy (D-11), named in `docs/architecture/buffer-architecture.md` |
 
 ## Required Reading
 
@@ -258,8 +261,8 @@ A later WITHDRAW for a path Ze never kept is accepted and frees no slot, as the 
 | A-5 | FRR can be made to over-send | FRR `subgrp_announce_addpath_best_selected` caps TX at the received limit | n/a | read FRR master 2026-10-27 | broken: FRR cannot over-send; the receive scenario uses BIRD 3 (D-13) |
 | A-6 | The in-tree scalar consumers are the files listed in Current Behavior | grep of numeric `limit` in add-path contexts over `test/`, `docs/`, `etc/`, `internal/`, 2026-10-27 | a config breaks unseen | the grep in the Deliverables Checklist, rerun in Phase 1 | confirmed |
 | A-7 | Every forwarder that emits multi-path to an ADD-PATH destination has the RIB loaded | `rs/register.go` Dependencies `bgp-rib`; `rr/register.go` Dependencies `bgp-adj-rib-in`, `bgp-rib` | elections fail for those destinations | read 2026-10-27 | confirmed |
-| A-8 | BIRD 3.4.0 with `add paths tx` sends several paths for one prefix when several protocols feed it | `proto/bgp/bgp.c` sets `ra_mode = RA_ANY` when ADD-PATH TX is negotiated; the master table holds one route per source | the BIRD scenario cannot over-send | Phase 8 builds the scenario and observes more than two paths offered (a pcap or BIRD's `show route export`) before asserting Ze's ceiling | unvalidated |
-| A-9 | The RIB can answer a limited ADD-PATH election from `gatherCandidatesLocked` without new storage | the recovery path already gathers candidates per key for non-ADD-PATH destinations | Phase 5 needs a storage change | Phase 5 first step reads `recoverySurvivorsLocked` | unvalidated |
+| A-8 | BIRD 3.4.0 with `add paths tx` sends several paths for one prefix when several protocols feed it | `proto/bgp/bgp.c` sets `ra_mode = RA_ANY` when ADD-PATH TX is negotiated; the master table holds one route per source | the BIRD scenario cannot over-send | Phase 8 builds the scenario and observes more than two paths offered (a pcap or BIRD's `show route export`) before asserting Ze's ceiling | confirmed 2026-10-27 (Phase 8): with the ceiling bypassed by overlay, Ze held 4 paths of 10.70.0.0/24 from BIRD 3.4.0; with it, held 2 and refused 2 (`checkPathsLimitReceive`, `internal/le/interoplab/bgp/check_paths_limit_receive.go`) |
+| A-9 | The RIB can answer a limited ADD-PATH election from `gatherCandidatesLocked` without new storage | the recovery path already gathers candidates per key for non-ADD-PATH destinations | Phase 5 needs a storage change | Phase 5 first step reads `recoverySurvivorsLocked` | confirmed 2026-10-27: `gatherPrefixCandidatesLocked`/`gatherKeyCandidatesLocked` (`rib_commands.go`) return every stored path of every peer for the prefix with `PathID` and `AddPath` set, path id dropped from the key; `recoverySurvivorsLocked` already elects by repeated `SelectBest`; Phase 5 needed no storage change |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -319,7 +322,7 @@ Rows AC-3, AC-4, AC-5, AC-14, the `send` halves of AC-15, AC-16, AC-17 and AC-18
 | 1 | Writes `limit { receive 2; }` and peers with a daemon that ignores capability 76 | config -> OPEN capability 76 -> peer over-sends -> `processMessage` ceiling -> RIB holds 2 | `test/plugin/paths-limit-receive-ceiling.ci`, interop `bgp-paths-limit-receive-bird` |
 | 2 | Migrates an ExaBGP config carrying `ipv4 unicast limit 10` | `migrateAddPathToUnified` -> `limit { receive 10; }` -> OPEN carries 10 | `TestMigrateAddPathLimitBecomesReceiveContainer`, `test/exabgp-compat/encoding/conf-paths-limit.ci` |
 | 3 | Loads a config still carrying `limit 10` | parser refusal naming the replacement | `test/parse/addpath-scalar-limit-refused.ci` |
-| 4 | Runs a route server whose ADD-PATH client advertised limit 2, and the best path arrives last | rs forward -> writer refuses at bound -> election -> withdraw worst, announce best | `test/plugin/paths-limit-outbound-best-path.ci`, interop `bgp-paths-limit-frr` best-path phase |
+| 4 | Runs a route server whose ADD-PATH client advertised limit 2, and the best path arrives last | rs forward -> writer refuses at bound -> election -> withdraw worst, announce best | `test/plugin/paths-limit-outbound-best-path.ci`, interop `bgp-paths-limit-best-path-frr` |
 
 ## 🧪 TDD Test Plan
 
@@ -380,7 +383,8 @@ Rows AC-3, AC-4, AC-5, AC-14, the `send` halves of AC-15, AC-16, AC-17 and AC-18
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-paths-limit-frr` (edit) | `test/interop/scenarios/bgp-paths-limit-frr/` | FRR (lab latest stable) | container spelling negotiates the same; a new phase delivers a better path last and FRR ends with the best two (AC-17-peer, AC-18-peer). Changed expectations of existing phases go to `ze-test-judge` | |
+| `bgp-paths-limit-frr` (edit, spelling only) | `test/interop/scenarios/bgp-paths-limit-frr/` | FRR (lab latest stable) | the container spelling negotiates the same limits; checker `check_paths_limit.go` unchanged. Its routes are API-originated and bypass the RIB, so D-7 pins them and no election can run there | done (Phase 1) |
+| `bgp-paths-limit-best-path-frr` (new, replaces the planned best-path phase above) | `test/interop/scenarios/bgp-paths-limit-best-path-frr/` | FRR (lab latest stable) receiving, BIRD 3 feeding Ze | FRR advertises PATHS-LIMIT 2; BIRD's MED 300/200/100 paths are enabled worst-first; FRR ends holding the two best MEDs, and a path demoted then re-elected returns under its earlier identifier (AC-17-peer, AC-18-peer, D-6). Red: owePathsLimitElections made a no-op, FRR kept MED 300 and 200 after MED 100 | done (Phase 8) |
 | `bgp-paths-limit-receive-bird` | `test/interop/scenarios/bgp-paths-limit-receive-bird/` | BIRD 3.4.0 | BIRD ignores capability 76 and sends four paths for one prefix; Ze with `limit { receive 2; }` holds two, and every other prefix installs (AC-8, AC-21 goal). Red phase: revert the ceiling, rebuild the Ze image, observe four | |
 
 ## Pre-Split Files to Modify (provenance)
@@ -522,9 +526,9 @@ Each phase is sized for one agent in about 60 tool calls. Each phase carries its
 | G-1 The scalar becomes `limit { receive N; }` and the scalar is refused | `TestParseAddPathLimitContainerReceive`, `test/parse/addpath-scalar-limit-refused.ci` |
 | G-2 `receive` bounds what Ze accepts | `paths-limit-receive-ceiling.ci` and interop `bgp-paths-limit-receive-bird`, each with a recorded red; the 3-7 discrimination record |
 | G-4 A migrated ExaBGP config asks for what it asked before | `TestMigrateAddPathLimitBecomesReceiveContainer`, `test/exabgp-compat/encoding/conf-paths-limit.ci` |
-| G-5 The OPEN is unchanged by the restructure | `test/encode/paths-limit.ci`, `bgp-paths-limit-frr` negotiation phase |
+| G-5 The OPEN is unchanged by the restructure | `test/encode/paths-limit.ci`, `bgp-paths-limit-frr` negotiation (spelling-only edit) |
 | G-6 The public ledger stops over-claiming | 3-7 re-judged `enforced` by an independent agent; `docs/features.md` and `docs/guide/add-path.md` updated |
-| G-7 Under a peer limit Ze sends the best paths and withdraws a demoted one | `paths-limit-outbound-best-path.ci` and the `bgp-paths-limit-frr` best-path phase, each with a recorded red |
+| G-7 Under a peer limit Ze sends the best paths and withdraws a demoted one | `paths-limit-outbound-best-path.ci` and interop `bgp-paths-limit-best-path-frr`, each with a recorded red |
 
 ## Design Insights
 
@@ -615,3 +619,169 @@ The goal still holds and none of it has landed. The pre-split design put best-pa
 - [ ] Learned summary written under `plan/learned/`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** remove the spec file only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (3b5941cd0a): YANG `limit { receive N; }` at add-path and family level, scalar leaves deleted; `parseContainer` refuses a value on a non-presence container with `write: limit { receive VALUE; }` (`Parser.containerGivenValue`); `addPathReceiveLimit` in `config_capabilities.go`; every in-tree scalar respelled.
+- Phase 2 (d1972ffb5c): `migrateAddPathToUnified` writes `limit { receive N; }`; `serializeAddPathFamilies` writes family sub-containers.
+- Phase 3 (9b7673180c): direction-neutral `pathsLimitAdmission` (`filter`, `section`, `admitPath`, journal kinds), receive refused set with headroom 1 and warn-once, `ze_bgp_paths_limit_refused_total`.
+- Phase 4 (c7d2faf055): `receiveCeiling`, `settleReceiveCeiling`, `receiveCeilingWithdrawals` wired in `processValidatedMessage` before `checkPrefixLimits` and in both treat-as-withdraw extra loops; `initPathsLimitRecv` in `negotiateWith`.
+- Phase 5 (d5f95d5ab2): `RecoveryRequest.Limit`, `AppendRecoveryArgs`/`ParseRecoveryArgs`, `CheckRecoveryAnswer` refuses survivors over the limit; `recoverySurvivorsLocked` stops at the limit.
+- Phase 6 (5a65ff5ee7): contested marker (`contestPath`), `adjOutWrite.owePathsLimitElections`, `recoveryWorker.decide` limited lookup with Limit-0 fallback, `queuePathsLimitElection`, `planPathsLimitElection`, `pathsLimitWithdrawFirst`, demotion withdrawal in `adjOutWrite.allow`, `ze_bgp_paths_limit_election_failed_total`, `pathsLimitEnforceable` (D-14).
+- Phase 7 (b86d879434, 58f3cc856e): 3-6 records re-taken; 3-7 tagged on the receive ceiling units and `.ci`, recorded both polarities, re-judged `enforced`; recovery fallback and contested-clear tests.
+- Phase 8 (44533b6b89, 787bebf89f, 4a6feae298, 7b7b078cf6, e31f5d0836, fc6a4a554a, ad773c205b, ca0caf1f40, f7309ee807): interop scenarios `bgp-paths-limit-receive-bird` and `bgp-paths-limit-best-path-frr` with checkers, green and red recorded; `interoplab.Wait` keeps the last completed probe's failure.
+
+### Bugs Found/Fixed
+- Self-deadlock in the first election build: the writer re-locked the adj-RIB-Out table mutex inside `beginAdjOut`..`release` (D-15). Covered by `test/plugin/paths-limit-outbound-best-path.ci` and `paths-limit-live.ci`, which hung before.
+- A family with no NLRI splitter made `section` fail every UPDATE of that family on both directions (D-14). Covered by `TestPathsLimitUnsplittableFamilyIsNamedNotEnforced`, `TestParseAddPathLimitRefusesUnenforceableFamily`.
+- BIRD stripped MED on eBGP export in the best-path scenario, and `interoplab.Wait` reported only the cut-short last probe. Fixed in ad773c205b and fc6a4a554a; `TestWaitCancellationPreservesEvidence` covers the harness.
+
+### Documentation Updates
+- `docs/guide/add-path.md` (config, Inbound Enforcement, Best paths under the peer's limit, unenforceable family), `docs/config-reference.md`, `docs/architecture/config/syntax.md`, `docs/guide/configuration.md`, `docs/features/exabgp-compatibility.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/update-building.md`, `docs/architecture/behavior/fsm-established.md`, `docs/architecture/buffer-architecture.md`, `docs/plugin-development/metrics.md`, `docs/architecture/testing/interop.md` rows 56 and 57, `ai/digests/bgp-reactor.md`, YANG descriptions, each with its `<!-- source: -->` anchor.
+- Closure: `rfc/short/draft-abraitis-idr-addpath-paths-limit.md` Support coverage, Enforcement, Receive and Config lines (stated the knob does not police and used the scalar spelling); `features/paths-limit.md` Description, Real-path tests and Interop (stated first admitted paths keep their slots); `capability/encoding.go` `PathsLimitRecv` comment.
+- `./le rfc update` regenerated the derived ledger; `./le spec citation anchors` lists no stale anchor for this spec's files.
+
+### Deviations from Plan
+- Interop: the planned best-path phase of `bgp-paths-limit-frr` became the separate scenario `bgp-paths-limit-best-path-frr`, because that scenario's routes are API-originated and D-7 pins them; `check_paths_limit.go` is unchanged.
+- R-2: the rewritten receive body is a heap copy, not a pooled read buffer (D-16).
+- Security checklist "a family missing a splitter refuses the message": receive refuses the config at load instead, and send warns and does not enforce (D-14).
+- `docs/comparison.md` unchanged: the Paths-Limit row already reads Yes for Ze and FRR, and FRR ranks paths under the limit only in its `addpath-tx-best-selected` mode (`subgrp_announce_addpath_best_selected`, `bgpd/bgp_updgrp_adv.c`), so a "best paths like FRR" note would misstate FRR.
+- Phase 6's change to `TestPathsLimitSectionSharedAdmission` (journal counts 2 to 3 and 4, plus the `pathsLimitContested` entry assertion) was refused once by `ze-test-judge`, strengthened, then approved; the commit gate did not classify it as a weakening, so 5a65ff5ee7 carries no `Weakening-approved:` line.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: FRR could be made to over-send for the receive interop test | FRR caps TX at the received limit (`subgrp_announce_addpath_best_selected`) | read FRR master during the rework | receive scenario moved to BIRD 3 (D-13) |
+| assumption | A-9 was unvalidated: the RIB might need storage for limited ADD-PATH elections | confirmed: `gatherPrefixCandidatesLocked` returns every path with its id | Phase 5 first step | none needed |
+| approach | The pre-split design ranked inside `pathsLimitSection`, which has no candidates and no comparator | ranking lives only in bgp-rib | ze-disposition REWORK at 0723d7d26a | design reworked to ask the RIB (D-2) |
+| approach | The first election owe re-locked the table mutex inside the writer's window | `beginAdjOut` holds it until `release` | the outbound `.ci` hung; bisected with debug lines | D-15; MUST stated on both sides (closure added `beginAdjOut`'s) |
+| escalation | Phase docs left `rfc/short/` and `features/paths-limit.md` claiming the receive knob does not police and that first arrivals keep their slots | both changed in Phases 4 and 6 | closure documentation review | repaired in commit A; the RFC summary's Meta and prose lines are part of the phase that changes the behavior |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Receive-limit enforcement | Done | `session_paths_limit_recv.go::receiveCeiling`, called from `session_read.go::processValidatedMessage` | |
+| Best-path selection and demotion withdrawal under a peer limit | Done | `session_paths_limit_elect.go::queuePathsLimitElection`, `recovery_owed.go::decide` | |
+| Scalar-to-container migration | Done | `internal/exabgp/migration/migrate.go::migrateAddPathToUnified` | |
+| Common selection machinery reusable by the local send cap | Done | `pathsLimitBound`, `RecoveryRequest.Limit` | the local cap is a second input to the bound |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseAddPathLimitContainerReceive`, `test/encode/paths-limit.ci` | OPEN bytes unchanged |
+| AC-2 | Done | `TestContainerGivenValueNamesReplacement`, `test/parse/addpath-scalar-limit-refused.ci` | |
+| AC-3-receive | Done | `TestParseAddPathLimitContainerPerFamilyOverride`, `TestReceiveCeilingAbsentWithoutReceiveDirection` | advertise and enforce halves |
+| AC-6 | Done | `TestPathsLimitUncontestedPrefixNoElection`, `paths-limit-outbound-best-path.ci`, `bgp-paths-limit-best-path-frr` | |
+| AC-7 | Done | `TestPathsLimitNoBoundNoElection`, `paths-limit-live.ci` | |
+| AC-8 | Done | `TestProcessMessageRefusesPathOverReceiveCeiling`, `paths-limit-receive-ceiling.ci`, `bgp-paths-limit-receive-bird` | |
+| AC-9 | Done | `TestReceiveCeilingAcceptsWithdrawOfRefusedPath`, `paths-limit-receive-ceiling.ci` | |
+| AC-10 | Done | `TestReceiveCeilingReadmitsAfterWithdraw`, `paths-limit-receive-ceiling.ci` | |
+| AC-11 | Done | `TestParseAddPathLimitReceiveWithoutReceiveDirection`, `TestReceiveCeilingAbsentWithoutReceiveDirection` | |
+| AC-12 | Done | `TestMigrateAddPathLimitBecomesReceiveContainer`, `conf-paths-limit.ci` | |
+| AC-13 | Done | `TestMigrateAddPathWithoutLimitEmitsNoContainer` | |
+| AC-15-receive | Done | `test/ui/cli-completion-capability-addpath.ci`, `cli-completion-addpath-fields.ci` | `.et` unchanged: it carried no scalar limit |
+| AC-16-receive | Done | `addpath-scalar-limit-refused.ci` (0 and 65536 refused, 1 and 65535 load), `TestParseAddPathLimitRefusesInvalidReceive` | |
+| AC-17-peer | Done | `TestPathsLimitElectionAdmitsBestOrder`, `TestRecoveryLimitedAddPathElectionOrder`, `paths-limit-outbound-best-path.ci`, `bgp-paths-limit-best-path-frr` | |
+| AC-18-peer | Done | `TestPathsLimitElectionWithdrawsDemotedPath`, `TestPathsLimitElectionReusesMintedIdentifier`, `bgp-paths-limit-best-path-frr` step 8 | |
+| AC-19 | Done | `TestReceiveCeilingBoundsTrackedPaths`, `TestReceiveCeilingWarnsOncePerPrefix` | |
+| AC-20 | Done | `TestReceiveCeilingClearsWarnedMarkerOnWithdraw` | |
+| AC-21 | Done | `rfc/discrimination/.../DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7.json` (6 records), `rfc/audit/.../DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7.json` verdict `enforced` | judged by an agent other than the tests' author (58f3cc856e) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| all 30 units of the TDD table | Done | files named in the table; `TestReceiveCeilingAdmitsUpToLimit` and `TestProcessMessageRefusesPathOverReceiveCeiling` moved verbatim to `draft_abraitis_idr_addpath_paths_limit_receive_test.go` | each found by `grep -rln "func <name>("` at closure |
+| added: `TestReceiveCeilingSeesTypedWithdrawExtras`, `TestPathsLimitUnsplittableFamilyIsNamedNotEnforced`, `TestParseAddPathLimitRefusesUnenforceableFamily`, `TestParseAddPathLimitRefusesInvalidReceive`, `TestPathsLimitRecoveryFallsBackOnLookupError`, `TestPathsLimitRecoveryClearsContestedUnderBound`, `TestRecoveryArgsRoundTrip`, `TestCheckRecoveryAnswerRefusesSurvivorsOverLimit`, `TestMigrateAddPathLimitLoadsInZe` | Done | reactor, ribevents, migration | |
+| functional: `paths-limit-receive-ceiling`, `paths-limit-outbound-best-path`, `addpath-scalar-limit-refused`, edits of `paths-limit-live`, `conf-paths-limit`, `paths-limit` encode, completion tests | Done | `test/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every Files to Modify and Files to Create path | Done | `internal/core/bgp/capability/encoding.go` comment written at closure |
+| `internal/le/interoplab/bgp/check_paths_limit.go` | Changed | unchanged by design; best-path proof in a new scenario |
+
+### Audit Summary
+- **Total items:** 19 ACs, 39 units, 7 functional tests, 2 interop scenarios
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 4 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 scalar becomes `limit { receive N; }` and the scalar is refused | functional | `test/parse/addpath-scalar-limit-refused.ci` |
+| G-2 `receive` bounds what Ze accepts | functional + interop | `paths-limit-receive-ceiling.ci` (red with the ceiling call removed, Phase 4); `bgp-paths-limit-receive-bird` green ("interop: 1 passed") and red with the ceiling bypassed ("ze holds 4 paths of 10.70.0.0/24, want the advertised ceiling 2") |
+| G-4 a migrated ExaBGP config asks for what it asked before | functional | `conf-paths-limit.ci` OPEN carries code 76 limit 10; red when the migration wrote no limit |
+| G-5 the OPEN is unchanged by the restructure | functional | `test/encode/paths-limit.ci` OPEN bytes unchanged |
+| G-6 the public ledger stops over-claiming | RFC record | 3-7 `enforced` with six observed-red discrimination records; `rfc/short` Support coverage and `features/paths-limit.md` corrected at closure |
+| G-7 under a peer limit Ze sends the best paths and withdraws a demoted one | functional + interop | `paths-limit-outbound-best-path.ci` (red with the owe disabled and with the withdrawal loop emptied); `bgp-paths-limit-best-path-frr` green twice, red with `owePathsLimitElections` a no-op (FRR kept MED 300 and 200 after MED 100) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Local `send` cap and its surfaces (original AC-3/4/5/14 to 18 send halves) | split out on 2026-10-22 | `plan/post-release/features/spec-add-path-local-send-cap.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | written by `./le spec review record` in this session's state directory; the path is in commit A's body |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | AC-to-test mapping, wiring from config and wire entry points, receive hot path and buffer ownership, election lock order, bounded state, docs against code, RFC proof records, security checklist |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | RFC summary Support coverage, Enforcement and Config lines said the receive knob does not police and used the scalar spelling | `rfc/short/draft-abraitis-idr-addpath-paths-limit.md` | rewritten against `receiveCeiling`, `queuePathsLimitElection`, `pathsLimitEnforceable` |
+| 2 | ISSUE | Feature declaration said first admitted paths keep their slots, and listed neither new `.ci` nor new scenario | `features/paths-limit.md` | Description, Real-path tests, Interop updated |
+| 3 | ISSUE | `beginAdjOut` did not state that its table mutex is held until `release` and MUST NOT be taken in that window (the D-15 contract had a MUST on one side only) | `session_ownership.go::beginAdjOut` | doc paragraph added |
+| 4 | ISSUE | The receive drop carried no comment on why no NOTIFICATION, which the spec's RFC Documentation section required | `session_paths_limit.go::refusePath` | RFC 4271 Section 6.3 and RFC 4486 Section 4 quoted byte-exact |
+| 5 | ISSUE | `PathsLimitRecv` comment did not say Ze enforces it (Files to Modify) | `internal/core/bgp/capability/encoding.go` | comment extended |
+| 6 | ISSUE | Audit verdicts RFC7911-2-1, RFC7911-2-2 (`allow`, `writeUpdateBody`) and RFC8654-5-1 (`negotiateWith`) staled by 9b7673180c, 5a65ff5ee7 and c7d2faf055 | `rfc/audit/rfc7911/`, `rfc/audit/rfc8654/` | re-judged `enforced` with `audit-stamp mode rejudge`; RFC6286-2.1-1 (`config.go::parsePeerSettings`) left alone: `config.go` is unchanged since 68adaa90cf |
+
+NOTEs (do not block): `planPathsLimitElection` reduces the slots for a graceful-restart-retained path and also keeps it if the RIB lists it, which can leave a slot unfilled until the next election (never over the limit); `settled` holds only when the RIB returns fewer survivors than the limit, so a route with exactly limit candidates stays contested and costs one more election; `session_ownership.go` is over 1000 lines (1027 before this spec).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the 13 created files (recv, elect, migrate and capability tests, three `.ci`, two scenario `ze.conf`, two checkers) | Yes | `ls` of the 13 paths at closure counts 13 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-21 | every named test exists | `grep -rln "func <name>("` found all 36 unit names at closure |
+| AC-2 | scalar leaf gone | `grep -c 'leaf limit' ze-bgp-conf.yang` = 0; two `leaf receive` in the add-path and family `limit` containers (the third hit is `receive-hold-time`) |
+| AC-8 | ceiling wired | `session_read.go::processValidatedMessage` calls `receiveCeiling`; `session_negotiate.go::negotiateWith` calls `initPathsLimitRecv` |
+| AC-21 | 3-7 enforced | `rfc/audit/.../DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7.json` `"verdict": "enforced"`; `./le rfc check` reports no finding for the draft |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| peer UPDATE over the receive ceiling | `test/plugin/paths-limit-receive-ceiling.ci` | its two 3-7 tags assert identifiers 3 and 4 never reach the plugin |
+| better path at the peer limit | `test/plugin/paths-limit-outbound-best-path.ci` | promoted from draft in Phase 6, red under both breaks |
+| scalar config | `test/parse/addpath-scalar-limit-refused.ci` | Phase 1 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 to A-4, A-6, A-7 | confirmed | rows above |
+| A-5 | broken | Mistake Log; D-13 |
+| A-8 | confirmed | Phase 8 green and red runs |
+| A-9 | confirmed | Phase 5 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| add-path guide inbound and best-path sections | `receiveCeiling`, `queuePathsLimitElection`, `pathsLimitElectionFailed` fix text | Yes |
+| RFC summary and feature declaration | rewritten at closure against the same producers | Yes |
+| comparison page | FRR `subgrp_announce_addpath_best_selected` read in Phase 6 | No change needed |

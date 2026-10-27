@@ -82,6 +82,11 @@ var adjOutWritePool = sync.Pool{New: func() any {
 // Peer.mu (which precedes Session locks). The table's monotonic Session token
 // additionally prevents an old writer from rebinding a replacement's frontier.
 // Its mutex makes an old session's failure unable to clear replacement state.
+// That table mutex stays held from a successful beginAdjOut until release, so
+// code the writer runs in that window MUST NOT take it again: it reaches the
+// table through the returned write, as owePathsLimitElections does. A
+// sync.Mutex is not reentrant, and a second Lock parks the writer forever with
+// writeMu held.
 func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	if s.writeFailed != nil {
 		return nil, s.writeFailed

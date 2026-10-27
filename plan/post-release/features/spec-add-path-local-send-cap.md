@@ -5,7 +5,7 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | A local outbound path cap is an absent control; enforcement of the existing receive and peer-advertised contracts remains release work. |
-| Depends | `plan/release/fixes/spec-add-path-limit-send-receive.md` |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-22 |
@@ -16,7 +16,7 @@ Implement the optional local `limit { send N; }` control, per-family precedence,
 
 ## Source and Evidence
 
-Split from `plan/release/fixes/spec-add-path-limit-send-receive.md` under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in `plan/release/fixes/spec-add-path-limit-send-receive.md`. Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
+Split from spec-add-path-limit-send-receive (closed) under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in spec-add-path-limit-send-receive, closed 2026-10-27: read it from git history (its commit A), and its summary in `plan/learned/040-add-path-limit-send-receive.md`. The election machinery this spec reuses is `pathsLimitBound` and `RecoveryRequest.Limit` (`docs/guide/add-path.md`, "Best paths under the peer's limit"). Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
 
 ## Acceptance Criteria
 
@@ -37,10 +37,10 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 
 | Work | Implementation owner |
 |------|----------------------|
-| Original AC-1/AC-2/AC-6 to AC-13/AC-19 to AC-21; receive portions of AC-3/AC-15/AC-16; peer-only AC-17/AC-18; common selection and migration | `plan/release/fixes/spec-add-path-limit-send-receive.md` |
+| Original AC-1/AC-2/AC-6 to AC-13/AC-19 to AC-21; receive portions of AC-3/AC-15/AC-16; peer-only AC-17/AC-18; common selection and migration | spec-add-path-limit-send-receive (closed) |
 | Local-send portions of original AC-3/AC-4/AC-5/AC-14 to AC-18; new send setting and surfaces | `plan/post-release/features/spec-add-path-local-send-cap.md` |
 
-Work assigned to `plan/release/fixes/spec-add-path-limit-send-receive.md` is not performed or closed by this spec. Shared mechanisms are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
+Work assigned to spec-add-path-limit-send-receive (closed) is not performed or closed by this spec. Shared mechanisms are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
 
 ## Implementation Ownership
 
