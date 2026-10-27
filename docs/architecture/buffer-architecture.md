@@ -469,6 +469,7 @@ none of them is a defect until this table names the new trigger.
 | An announce becomes a withdrawal | LLGR or a destination withhold gate converts all named routes, retaining existing withdrawals as well as announcements. Legacy NLRI and matching-family MP NLRI move into a new payload; incompatible MP families are refused by this builder | `buildWithdrawalPayload` |
 | The sender's MP attribute trails | RFC 7606 Section 5.1 makes MP_REACH_NLRI or MP_UNREACH_NLRI the very first path attribute. A received UPDATE that puts it elsewhere is relayed with the attributes moved, into a read-pool buffer on the same-context branch and a fresh attribute section on the re-encode branch. A compliant UPDATE is never copied for this | `buildFwdBody`, `fwdReorderMPFirst`, `fwdMPFirstUpdate` |
 | The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several; ordinary policy or next-hop growth is sized again before final writer admission | `SplitWireUpdate`, `fwdSplitParsedUpdate`, `(*Session).writeOrdinaryUpdateBody` |
+| Ingress PATHS-LIMIT refuses a path | A received UPDATE carries more paths for one prefix than Ze advertised it accepts. The refused NLRIs are removed into one fresh copy, keeping the session's `ContextID`; an UPDATE that refuses nothing is not copied | `(*Session).receiveCeiling` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
 | A best change leaves bgp-rib | The winner's attributes cross to subscribers as bytes, because a pool handle points into bgp-rib's pool and a forked subscriber cannot read it. Once per published best change; an unchanged best publishes nothing | `storedAttributes` |
@@ -482,6 +483,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go -- Session.receiveCeiling -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- storedAttributes -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut.owe -->

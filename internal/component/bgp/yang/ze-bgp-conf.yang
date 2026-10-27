@@ -1115,8 +1115,8 @@ module ze-bgp-conf {
                         leaf receive {
                             type uint16 { range "1..65535"; }
                             description "Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH
-                                family whose direction includes receive. A per-family receive overrides it. This
-                                setting does not enforce a local receive-side limit.";
+                                family whose direction includes receive. A per-family receive overrides it. Ze also
+                                enforces it: a path over the limit for one prefix is dropped on arrival.";
                             ze:help "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
                         }
                     }
@@ -1146,8 +1146,8 @@ module ze-bgp-conf {
                                 type uint16 { range "1..65535"; }
                                 description "Use a value from 1 through 65535. Omit this leaf to inherit the container
                                     receive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or
-                                    for one whose direction excludes receive. This is a request to the sender, not
-                                    local receive-side policing.";
+                                    for one whose direction excludes receive. Ze also enforces it on arrival: a path over
+                                    the limit for one prefix is dropped, and the rest of its UPDATE installs.";
                                 ze:help "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
                             }
                         }

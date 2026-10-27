@@ -1,0 +1,87 @@
+# Test: Ze enforces the PATHS-LIMIT it advertises on what it receives.
+# VALIDATES: with `limit { receive 2; }` Ze advertises PATHS-LIMIT 2 for
+# ipv4/unicast and drops a third path identifier for one prefix before any
+# plugin sees it, while the other prefix of the same UPDATE is delivered (AC-8).
+# A later UPDATE withdraws the refused identifier 3 and the admitted identifier
+# 1, then announces 3 and 4: only the withdrawal of 1 frees a slot, so 3 is
+# admitted (AC-10) and 4 is refused, which it would not be had the withdrawal of
+# the never-admitted 3 freed a slot too (AC-9). Both withdrawals still reach the
+# plugin, and the session survives.
+# PREVENTS: a peer that ignores capability 76 growing the Adj-RIB-In without
+# bound; a refused path reaching the RIB; a withdrawal of a refused path
+# freeing a slot it never held.
+# The attached fixture prints one ADDPATH-EVENT line per received ipv4/unicast
+# entry until an UPDATE carrying a withdrawal arrives.
+#
+# draft-abraitis-idr-addpath-paths-limit Section 3: "An implementation SHOULD
+# provide a configuration knob to specify the maximum number of paths to
+# accept from a sender."
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=asn:value=65001
+# ORIGIN IGP, AS_PATH [65001], NEXT_HOP 192.0.2.1;
+# NLRI 10.0.0.0/8 ids 1, 2, 3 and 20.0.0.0/8 id 1.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004302000000144001010040020602010000FDE9400304C000020100000001080A00000002080A00000003080A000000010814
+# Withdrawn 10.0.0.0/8 ids 3 and 1; same attributes; NLRI 10.0.0.0/8 ids 3, 4.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004302000C00000003080A00000001080A00144001010040020602010000FDE9400304C000020100000003080A00000004080A
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external addpath-withdraw-event {
+		run "le test fixture plugin/addpath-withdraw-event"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				add-path {
+					direction receive
+					limit { receive 2; }
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process addpath-withdraw-event {
+			receive [ update-received ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=stderr:contains=ADDPATH-EVENT: add 10.0.0.0/8 path-id 1 10.0.0.0/8 path-id 2 20.0.0.0/8 path-id 1
+expect=stderr:contains=ADDPATH-EVENT: del 10.0.0.0/8 path-id 3 10.0.0.0/8 path-id 1
+expect=stderr:contains=ADDPATH-EVENT: add 10.0.0.0/8 path-id 3
+expect=stderr:contains=PATHS-LIMIT: peer sent more paths for one route than Ze advertised it would accept
+reject=stderr:contains=path-id 4

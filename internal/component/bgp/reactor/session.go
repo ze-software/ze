@@ -359,6 +359,12 @@ type Session struct {
 	pathsLimit       pathsLimitAdmission
 	updateSendTotals updateSendCounts
 
+	// The receive ceiling under Ze's own advertised PATHS-LIMIT. Built at OPEN
+	// negotiation and read only by processValidatedMessage; both run on the
+	// session read goroutine, so it is not safe for concurrent use and needs no
+	// lock.
+	pathsLimitRecv pathsLimitAdmission
+
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
 

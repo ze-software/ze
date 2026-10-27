@@ -297,6 +297,10 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
 	var wireUpdate *wireu.WireUpdate
+	// The receive ceiling's journal for this UPDATE, nil when no family is
+	// limited. Rolled back if the prefix limits drop the UPDATE, reported if it
+	// is delivered, released either way.
+	var pathsLimitAdmitted *pathsLimitChanges
 	if hdr.Type == msgtype.TypeUPDATE {
 		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
@@ -325,6 +329,9 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// Dispatched like the treat-as-withdraw extra bodies below: a fresh heap
 			// body under the noPoolBufID sentinel, so the forward cache finds it and
 			// eviction frees no pool slot.
+			if len(s.pathsLimitRecv) != 0 {
+				s.receiveCeilingWithdrawals(extra)
+			}
 			extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
 			extraWU.SetSourceID(wireUpdate.SourceID())
 			s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
@@ -409,6 +416,9 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// sentinel makes cache eviction's returnReadBuffer a no-op (the body is GC-owned,
 			// not a pool slot), so there is no double-free and no pool slot is consumed (D-7).
 			for _, extra := range bodies[1:] {
+				if len(s.pathsLimitRecv) != 0 {
+					s.receiveCeilingWithdrawals(extra)
+				}
 				if s.onMessageReceived != nil {
 					extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
 					extraWU.SetSourceID(wireUpdate.SourceID())
@@ -455,12 +465,30 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}
+
+		// The receive ceiling runs after error handling and family validation,
+		// so it counts only paths that can install, and before the prefix
+		// limits, so they count the UPDATE without its refused paths.
+		if len(s.pathsLimitRecv) != 0 {
+			var delivered bool
+			// draft-abraitis-idr-addpath-paths-limit Section 3
+			wireUpdate, pathsLimitAdmitted, delivered = s.receiveCeiling(wireUpdate)
+			if !delivered {
+				// Consumed like the prefix-limit drop below, HoldTimer restart
+				// included (RFC 4271 Section 8.2.2 Event 27).
+				s.logFSMEvent(fsm.EventUpdateMsg)
+				return nil, false
+			}
+		}
 	}
 
 	// RFC 4486: Check prefix limits BEFORE delivering to plugins.
 	// Over-limit UPDATEs must not reach the RIB or be forwarded.
 	if hdr.Type == msgtype.TypeUPDATE && wireUpdate != nil {
 		prefixNotif, prefixDrop := s.checkPrefixLimits(wireUpdate)
+		if pathsLimitAdmitted != nil {
+			s.settleReceiveCeiling(pathsLimitAdmitted, prefixNotif != nil || prefixDrop)
+		}
 		if prefixNotif != nil {
 			// teardown=true: send NOTIFICATION and close session.
 			s.mu.RLock()

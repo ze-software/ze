@@ -2,7 +2,7 @@
 
 ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.
 
-PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes.
+PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes, and enforces its own advertised limit on the routes it receives.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 
 ## Configuration
@@ -100,7 +100,7 @@ The `limit { receive N; }` setting advertises a PATHS-LIMIT capability (code 76)
 
 The scalar spelling `limit 10;` was removed. Ze refuses a config that still carries it, and the error names the line to write instead: `limit { receive VALUE; }`.
 
-This local limit is a receiver request, not a guarantee that the peer obeys it. It does not set Ze's outbound limit.
+The peer is asked to honor this limit, and Ze also enforces it on what arrives: see [Inbound Enforcement](#inbound-enforcement). It does not set Ze's outbound limit.
 
 | Setting | Effect |
 |---------|--------|
@@ -113,6 +113,30 @@ This local limit is a receiver request, not a guarantee that the peer obeys it. 
 <!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 
 The peer's nonzero limit applies only when Ze negotiates ADD-PATH send for that family. Ze's local limit applies only to negotiated ADD-PATH receive. An absent limit or an unnegotiated ADD-PATH direction imposes no PATHS-LIMIT restriction.
+
+### Inbound Enforcement
+
+The `receive` limit Ze advertises is also the ceiling it applies to the paths it accepts. A peer that ignores capability 76 (BIRD has no support for it) cannot grow Ze's Adj-RIB-In past the number Ze asked for. Ze counts distinct path IDs for each AFI/SAFI and prefix on the session, with the same route identity as outbound enforcement.
+
+| Event | Effect |
+|-------|--------|
+| New path below the limit | Admit the path and count its ID |
+| New path at the limit | Drop that path only. Every other route in the same UPDATE installs normally |
+| Replacement with an admitted path ID | Accept the replacement without consuming another slot |
+| Withdrawal of an admitted path ID | Remove the ID and free its slot |
+| Withdrawal of a refused path ID | Accept it. It frees no slot, because it never held one |
+| UPDATE whose only paths were all refused | Consume it without delivering anything; the session stays up |
+| Session reconnect | Start with an empty count |
+
+The check runs after RFC 7606 error handling and before the prefix limits (`prefix { maximum N; }`), so a prefix limit counts the UPDATE without its refused paths. When a prefix limit then drops the UPDATE, the path count is restored to what it was before it. The withdrawals RFC 7606 treat-as-withdraw produces free slots like any other withdrawal.
+
+Selection is by arrival order: the first paths admitted keep their slots, and a better path that arrives later is dropped until a withdrawal frees a slot. Ze does not hold a dropped path for later; the peer must announce it again.
+
+Each refused path increments `ze_bgp_paths_limit_refused_total{peer,family}`. The first refusal for a route logs one warning naming the peer, family, limit, route and path ID; further refusals for that route are counted but not logged until the peer withdraws a refused path. Ze tracks at most one refused path ID per route beyond the limit, so a peer cannot decide how much memory this costs.
+
+A limit configured on a family whose ADD-PATH direction does not include receive is neither advertised nor enforced.
+<!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go -- receiveCeiling, settleReceiveCeiling, reportPathsLimitRefusals -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- processValidatedMessage -->
 
 ### Outbound Enforcement
 

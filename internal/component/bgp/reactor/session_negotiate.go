@@ -106,6 +106,7 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	s.retainAdvertisedLLGR(localCaps)
 
 	s.initPathsLimit(s.negotiated.Encoding)
+	s.initPathsLimitRecv(s.negotiated.Encoding)
 	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a
 	// peer only if the BGP Extended Message Capability was received from that peer."
 	s.writeBuf.Resize(s.negotiated.ExtendedMessageSend)

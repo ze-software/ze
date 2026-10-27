@@ -97,7 +97,13 @@ contract rather than an accident:
    7606 never judges ze's own rewrite, and BEFORE every consumer that
    reads an AS path: the ingress filters, the forward cache, the RIB and
    both forward rails.
-4. `validateUpdateFamilies`, then `checkPrefixLimits`.
+4. `validateUpdateFamilies`, then `receiveCeiling`, then `checkPrefixLimits`.
+   The receive ceiling drops each path over the PATHS-LIMIT Ze advertised
+   for its prefix, into one copy only when it drops one, so the prefix
+   limits count the UPDATE without those paths; when they then drop the
+   UPDATE, `settleReceiveCeiling` rolls the path count back. The RFC 7606
+   treat-as-withdraw extra bodies free their slots through
+   `receiveCeilingWithdrawals` before they are dispatched.
 5. `onMessageReceived`, which is handed the socket's own body beside the
    reconciled `WireUpdate`, so an MRT archive and a pcap record the wire
    rather than the reconciliation.
@@ -240,6 +246,7 @@ grants no reprieve to a CPU-congested daemon.
 | Control-message handlers | `internal/component/bgp/reactor/session_handlers.go` | `handleKeepalive`, `handleNotification`, `handleRouteRefresh`, `handleUnknownType` |
 | UPDATE validation, delivery and FSM event | `internal/component/bgp/reactor/session_read.go` | `processMessage` (calls `enforceRFC7606` before delivery) |
 | RFC 6793 AS-path reconciliation at ingest | `internal/component/bgp/reactor/session_read.go` | `collapseASPathFamily` (calls `wireu.CollapseAS4Family`) |
+| PATHS-LIMIT receive ceiling (draft-abraitis-idr-addpath-paths-limit Section 3) | `internal/component/bgp/reactor/session_paths_limit_recv.go` | `receiveCeiling`, `settleReceiveCeiling`, `receiveCeilingWithdrawals` |
 | Prefix-limit enforcement (RFC 4486 / RFC 7607) | `internal/component/bgp/reactor/session_prefix.go` | `checkPrefixLimits` |
 | Hold/keepalive/send-hold timer callbacks | `internal/component/bgp/reactor/session.go` | `NewSession` |
 | State-change callback into peer run loop | `internal/component/bgp/reactor/peer_run.go` | `fsm.SetCallback` closure |
@@ -248,6 +255,7 @@ grants no reprieve to a CPU-congested daemon.
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleNotification, handleRouteRefresh, handleUnknownType -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go — receiveCeiling, settleReceiveCeiling, receiveCeilingWithdrawals -->
 <!-- source: internal/component/bgp/reactor/session_prefix.go — checkPrefixLimits -->
 <!-- source: internal/component/bgp/reactor/session.go — NewSession -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback closure -->
