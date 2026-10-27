@@ -2600,6 +2600,9 @@ container that is still shutting down.
 "MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
 router if that router advertised the SID for the prefix", for a next hop that is
 not the binding's Originator. Ze and two FRRs share one broadcast LAN with SR on.
+Each peer enables `segment-routing on` inside `router ospf`, before configuring
+its SRGB and Prefix-SID. FRR 10.7.1 registers the enable command only in that
+context; placing it at top level leaves SR disabled even when adjacency forms.
 Both FRRs bind index 100 to the anycast `10.255.255.100/32` on `lo` with PHP
 requested: `frr` (router-id 192.0.2.3) at stub cost 1, so it is Ze's only next
 hop, and `frr-sink` (192.0.2.1) at cost 50. Ze reads Extended Prefix LSAs in
