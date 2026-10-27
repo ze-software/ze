@@ -181,8 +181,8 @@ AC-18 was never assigned. The gap is kept rather than renumbered, because commit
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Everyone who runs `ze appliance build` works from a ze checkout with Docker or QEMU available | `resolveBuildParentDir` uses relative `gokrazy`; the guide's end-to-end flow already runs `ze appliance kernel prod` (installer kernel, Docker/QEMU) before `ze appliance build` | operators without a builder cannot build an image on a cold cache; option (a) below becomes necessary | owner confirmation (open question) | validated: owner chose route (b) ("we need to compile our own kernel") and accepted a cached cold build; `ze doctor` warns when neither a cache entry nor a builder exists |
-| A-2 | gokrazy needs nothing from rtr7's package beyond `vmlinuz`, `lib/modules`, `*.dtb`, `overlays`, a `.go` file and `go.mod` (rtr7's `cmdline.txt`, `config.txt` are Raspberry Pi firmware inputs, not read for x86/arm64 VM targets) | `kernelGlobs` in `vendor/.../packer/write.go`; deployment proof images boot with the assembled package | boot partition lacks a file; boot fails | `./le test qemu mpls-boot` and `./le test qemu vpp-hugepages` boot the new default image | validated on arm64 (`mpls-boot-test` PASS, run2 log); amd64 half owed on the Linux host |
-| A-3 | `runtime.config` boots the gokrazy appliance under QEMU and on N100 hardware (drivers, console, virtio, ext4/squashfs) | the L2TP deployment proof boots it under QEMU; no hardware boot recorded | hardware appliance fails to boot or loses NICs | QEMU proofs here; hardware boot recorded by the owner before release | QEMU half validated on arm64 under HVF; amd64 QEMU owed on the Linux host; hardware half owner-deferred ("ignore n100 atm") |
+| A-2 | gokrazy needs nothing from rtr7's package beyond `vmlinuz`, `lib/modules`, `*.dtb`, `overlays`, a `.go` file and `go.mod` (rtr7's `cmdline.txt`, `config.txt` are Raspberry Pi firmware inputs, not read for x86/arm64 VM targets) | `kernelGlobs` in `vendor/.../packer/write.go`; deployment proof images boot with the assembled package | boot partition lacks a file; boot fails | `./le test qemu mpls-boot` and `./le test qemu vpp-hugepages` boot the new default image | validated by historical arm64 boot and fresh native amd64 MPLS/hugepage boot on the POLICE kernel |
+| A-3 | `runtime.config` boots the gokrazy appliance under QEMU and on N100 hardware (drivers, console, virtio, ext4/squashfs) | native QEMU boot evidence below; no hardware boot recorded | hardware appliance fails to boot or loses NICs | QEMU proofs here; hardware boot recorded by the owner before release | QEMU half validated on native amd64 KVM and historical arm64 HVF; hardware half owner-deferred ("ignore n100 atm") |
 | A-4 | an arm64 default image builds once rtr7 is gone (ze's builder supports arm64) | `ze appliance kernel --arch arm64 --builder qemu` documented | arm64 image build fails at gokrazy arch check or boot | one arm64 `ze appliance build` | validated: arm64 `ze appliance build t1` exit 0 (`ze-20261010-140153.img`) and `mpls-boot-test` PASS |
 | A-5 | kernel.org publishes `sha256sums.asc` for 7.x tarballs, so the tracked pin can be taken from it | kernel.org practice | the pin is computed from a download and the provenance is weaker | read the published file when writing the pin | validated: the 7.2.9 digest came from `sha256sums.asc` and matched the download (c9e17d79ea) |
 
@@ -405,7 +405,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] Scoped verification covers this change; full `./le verify worktree` remains the owner's release check, never an agent-run closure gate
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -473,7 +473,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| default image boots ze's own runtime kernel | Partial | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`), `RuntimeKernelTree` (`runtimekernel.go`) | arm64 booted (Goal Validation row 1); amd64 owed on the Linux host (Work Not Done). Set to Partial by round 11 (NOTE 4): "Done" contradicted its own "amd64 owed" |
+| default image boots ze's own runtime kernel | Done | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`), `RuntimeKernelTree` (`runtimekernel.go`) | Historical arm64 boot plus native amd64 default-image readback and KVM boot below; default-appliance L2TP traffic remains separately blocked |
 | rtr7 leaves the build | Done | `TestNoRtr7KernelReference` | |
 | `ze.gok.kernel-package` deleted | Done | `TestRunHasNoKernelOverride` | |
 | build natively, never emulated | Done | `validateRequest`, `qemuArgs` (`kernelbuilder`) | |
@@ -484,9 +484,9 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Partial | arm64: packaged config of the cache entry has `CONFIG_MPLS_ROUTING=y`, `CONFIG_MPLS_IPTUNNEL=y` | amd64 owed on the Linux host |
-| AC-2 | Partial | arm64: all 128 required symbols `=y`; `show host kernel` release `7.2.9-ze` | amd64 owed on the Linux host |
-| AC-3 | Partial | arm64 `mpls-boot-test` PASS (run2 log) | amd64 owed on the Linux host |
+| AC-1 | Done | Native amd64 default-image readback has both MPLS symbols built in; `police-default-readback.json` | Kernel bytes match cache `...-5db21ebf-34cba457` |
+| AC-2 | Done | Same image: 150/150 required built-ins; native boot console identifies `7.2.9-ze` | Includes POLICE; earlier 128/149-symbol results are historical |
+| AC-3 | Done | Native amd64 `mpls-boot` verdict `pass`, KVM, CLI JSON answer `[]`; `police-mpls-boot.log` | Startup and CLI proof, not LDP forwarding traffic |
 | AC-4 | Done | `TestNoRtr7KernelReference` | |
 | AC-5 | Done | `TestPrepareRefusesWithoutKernelPackage` | |
 | AC-6 | Done | `TestRunHasNoKernelOverride` | rewritten to the owner decision |
@@ -513,9 +513,9 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 | `TestColdOfflineCacheNamesRemedy` | Done | `internal/appliance/runtimekernel_test.go` | |
 | `TestRunResolvesRuntimeKernelByDefault` / `TestRunHonorsKernelPackageOverride` | Changed | `internal/le/build/gokrazy/gokrazy_test.go` | override test replaced by `TestRunHasNoKernelOverride` |
 | `TestPrepareRealInstanceCarriesEveryModule`, `TestPreparedModulesResolveIdenticallyToTracked`, `TestNoRtr7KernelReference` | Done | `internal/appliance/instance/prepare_repo_test.go` | |
-| `mpls-boot-test` | Partial | `./le test qemu mpls-boot` | arm64 PASS; amd64 owed |
-| `vpp-hugepages-test` | Partial | `./le test qemu vpp-hugepages` | not run; owed on the Linux host |
-| `gokrazy-l2tp-ppp-test` | Partial | `./le test deployment gokrazy-l2tp-ppp` | not run; owed on the Linux host |
+| `mpls-boot-test` | Done | `./le test qemu mpls-boot` | Historical arm64 PASS; fresh amd64 KVM PASS on the POLICE kernel |
+| `vpp-hugepages-test` | Done | `./le test qemu vpp-hugepages` | Fresh amd64 KVM PASS, 64 two-MiB pages; no VPP traffic claim |
+| `gokrazy-l2tp-ppp-test` | Blocked | `./le test deployment gokrazy-l2tp-ppp` | Actual entry point refused before boot: host root or CAP_NET_ADMIN required |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -532,8 +532,8 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 ### Audit Summary
 - **Total items:** 18 ACs, 7 requirements
-- **Done:** 15 ACs, 6 requirements
-- **Partial:** AC-1, AC-2, AC-3 and the requirement "default image boots ze's own runtime kernel" (amd64 halves owed on the Linux host; no approval needed, the work is not reduced, it waits on that host)
+- **Done:** 18 ACs, 7 requirements, with historical and fresh evidence distinguished below.
+- **Still owed:** default-appliance L2TP deployment proof and scoped verification; this is not spec closure.
 - **Skipped:** none
 - **Changed:** AC-6, assembler location, no skeleton, digest location (Deviations)
 
@@ -541,8 +541,8 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| the default image boots ze's own runtime kernel | functional (QEMU boot) | arm64, the kernel the tree ships (cache entry `...-docker-7c0d8f79-34cba457`, 2026-10-11): `./le --name zek11 test qemu mpls-boot-test` printed `APPLIANCE-MPLS-QEMU: PASS ze started with MPLS in use; \`show ldp neighbor | json\` answered`, exit 0, no kernel build (`scratch/r11close-mpls-boot-arm64.log`); a second run with `ze_vpp_hp_keep=1 ... | json` gave verdict `pass`, accelerator `hvf`, `answer` `[]` for `show ldp neighbor | json` (`scratch/r11close-mpls-boot-arm64-keep.log`); the booted entry's `vmlinuz` banner reads `Linux version 7.2.9-ze (root@65300bbee753) (gcc (Debian 12.2.0-14+deb12u1) 12.2.0 ...`. `show host kernel` was not asked of this boot, so the release is read from the kernel image, not from the running system. Earlier, on the evicted entry `...-d826e25e`: `./le --name zek test qemu mpls-boot-test` printed `APPLIANCE-MPLS-QEMU: PASS ze started with MPLS in use`, exit 0 (`scratch/mpls-boot-arm64-run2.log`); `show host kernel | json` gave `"release": "7.2.9-ze"`. amd64: OWED on the Linux host, never emulated |
-| the kernel is built from the tracked `runtime.config` at the same commit, carrying MPLS | data correctness | arm64 cache entry `...-docker-7c0d8f79-34cba457` (the entry the tree keys, round 11, `scratch/r11/out_symbols.log`), packaged config: all 128 symbols of `kernel.require` + `runtime.require` read `=y`, including `CONFIG_MPLS_ROUTING=y`, `CONFIG_MPLS_IPTUNNEL=y`; amd64 OWED |
+| the default image boots ze's own runtime kernel | functional (QEMU boot) | Historical arm64 HVF evidence is recorded in the Task section. Fresh amd64 KVM `mpls-boot` passed on cache `...-5db21ebf-34cba457`, returning `[]` from the LDP CLI; hugepage boot passed with 64 two-MiB pages. See native amd64 evidence below. Neither run proves forwarding traffic. |
+| the kernel is built from the tracked `runtime.config` at the same commit, carrying MPLS | data correctness | Native amd64 build produced kernel SHA-256 `4910bc4600ba8d76d6250f09aca22c8eaf2c4b4459baadf9f9e52aec27c429b4`; actual default-image kernel bytes match it, with 150/150 required built-ins and both MPLS symbols. `police-default-readback.json` records the image and cache identity. Historical arm64 128-symbol evidence remains in the Task section. |
 | rtr7 leaves the build entirely | unit (tree scan) | `TestNoRtr7KernelReference` PASS 2026-10-10; `gokrazy/ze/builddir/github.com/rtr7` absent |
 | the image honours GPLv2 by pointing at the exact source | data correctness | `/etc/linux-gpl-notice` extracted with `7zz` from the root squashfs of `ze-20261010-140153.img` reads Version 7.2.9, `https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz`, SHA-256 `b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba`, equal to the cache entry's `kernel.version` provenance |
 | a long cold build is acceptable because the cache is never deleted | unit | `TestCleanTargetsNeverReachTheKernelCache`, `TestEvictKeepsNewestPerArchAndTheCurrentEntry` PASS; the arm64 build at 14:01 served `...-7c0d8f79-d826e25e` with no kernel build (that entry, under an older key, was evicted since; keep-newest eviction is AC-15, reclamation never reaches the cache); the 2026-10-11 `mpls-boot-test` served `...-docker-7c0d8f79-34cba457` with no kernel build |
@@ -552,11 +552,8 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| AC-1, AC-2 amd64 (Goal Validation row 2): cold amd64 kernel build through `ze appliance build` (every amd64 cache entry is stale since 590760235b), then the config readback. On the Linux amd64 host: `export ZE_APPLIANCE_DIR=$PWD/tmp/appl-amd64 && ze appliance init t1 && ze appliance build t1`; then `cfg=$(ls -td ~/.cache/ze/runtime-kernel/7.2.9-runtime-amd64-runtime-* \| head -1)/config; grep -E '^CONFIG_MPLS_(ROUTING\|IPTUNNEL)=y' "$cfg"; cat gokrazy/kernel/kernel.require gokrazy/kernel/runtime.require \| grep '^CONFIG_' \| sort -u \| while read s; do grep -qx "$s=y" "$cfg" \|\| echo "not =y: $s"; done` (both MPLS lines print, no "not =y" line) | the owner rules every kernel is built and booted on a host of its own arch; the amd64 kernel needs the Linux host, never emulation | this spec, which stays open until the run on the Linux host |
-| AC-2 version, AC-3 amd64 (Goal Validation row 1, Wiring row 3): `ze_vpp_hp_keep=1 ./le test qemu mpls-boot \| json` on the Linux amd64 host (`sg kvm -c '...'` where the user is not in group kvm): the PASS verdict, the `answer` field (`show ldp neighbor \| json`), and `Linux version 7.2.9-ze` in the kept console under `tmp/appliance-mpls-qemu/run-*/` | needs KVM on an amd64 host | this spec, same Linux-host run |
-| `vpp-hugepages-test` on the new default image (TDD Functional, A-2): `./le test qemu vpp-hugepages` on the Linux amd64 host | needs KVM on an amd64 host | this spec, same Linux-host run |
-| `gokrazy-l2tp-ppp-test` on the new default image (TDD Functional): `./le test deployment gokrazy-l2tp-ppp` on the Linux host | needs the Linux deployment lab | this spec, same Linux-host run |
-| Goal Gate `./le verify worktree` | a whole-tree gate, owed to the main thread or a fresh agent; not run by the editing agent | this spec, before closure |
+| Default-appliance L2TP PPP deployment proof | Actual native entry point refused in host privilege preflight: root or CAP_NET_ADMIN is required for the bridge, TAP and host LAC; `/dev/ppp` is root-only. No guest or traffic verdict was reached. | This spec; owner-run from an already-authorized root shell, preserving the warm cache and reviewing file ownership. Exact command is retained in `scratch/appliance-amd64-proof/l2tp-blocker.txt` under the session named below. |
+| Scoped verification over the landed change | No scoped certificate is claimed. The shared unpublished change set makes the current selector wider than this unit; no whole-tree run was started. | This spec's scoped evidence; `./le verify worktree` is the owner's separate release check, not agent closure work. |
 | N100 hardware boot (A-3 hardware half) | owner-deferred: "ignore n100 atm" | owner-run before release; no spec |
 
 ## Review Gate
@@ -795,22 +792,22 @@ Gates: `go test -race` with the gate tags over `./internal/appliance/... ./inter
 |-------|-------|----------------|
 | AC-4..AC-17, AC-19 | unit tests named in the audit pass | `./le job run label unit-pkg command go test -v -tags "<gate tags>" -run '<30 tests>'` over `internal/appliance`, `.../instance`, `.../kernelbuilder`, `internal/le/build/gokrazy`, `internal/le/scratch`, `internal/le/test/qemu`: 30 `--- PASS`, 0 FAIL, 2026-10-10 |
 | AC-17 | notice in a built image | read back from `ze-20261010-140153.img`, see Goal Validation |
-| AC-1..AC-3 | arm64 boot | `mpls-boot-arm64-run2.log` PASS line; amd64 owed |
+| AC-1..AC-3 | default-image readback and native amd64 KVM boot | `police-default-readback.json`, `police-mpls-boot.log`; historical arm64 evidence retained separately |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `ze appliance build` | `TestResolveBuildParentDirUsesRuntimeKernel`, and a real arm64 build (exit 0) | yes, arm64 |
+| `ze appliance build` | `TestResolveBuildParentDirUsesRuntimeKernel`, historical arm64 build and fresh amd64 default `t2` image/readback | yes; amd64 image assembly reused the newly compiled kernel cache |
 | `./le build gokrazy` | `TestRunResolvesRuntimeKernelByDefault` | unit only |
-| image boot | `./le test qemu mpls-boot` | arm64 PASS; amd64 owed |
+| image boot | `./le test qemu mpls-boot` | historical arm64 PASS; fresh amd64 KVM PASS on the POLICE kernel |
 | `ze doctor` | `test/ui/doctor-appliance-runtime-kernel.ci` | red-proven by mutation in 1927823c9f |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | validated | owner decisions in Task (route b, cached cold build accepted) |
-| A-2 | validated on arm64 | `mpls-boot-test` PASS; amd64 owed |
-| A-3 | QEMU half validated on arm64; hardware owner-deferred | Task decision "ignore n100 atm" |
+| A-2 | validated on native arm64 and amd64 | Historical arm64 boot; fresh amd64 MPLS and hugepage boot logs below |
+| A-3 | QEMU half validated; hardware owner-deferred | Native amd64 KVM and historical arm64 HVF evidence; Task decision "ignore n100 atm" |
 | A-4 | validated | arm64 build exit 0 and boot |
 | A-5 | validated | c9e17d79ea, digest from `sha256sums.asc` |
 
@@ -842,11 +839,37 @@ subscriber upload policing reaches `ingressPolicerFilter` in
 `internal/plugins/traffic/netlink/policer_linux.go`, but `NET_ACT_POLICE`
 was absent from the runtime requirements. The 149-symbol result above remains
 historical evidence for that image, not proof of complete shaping support.
-This spec owns the fragment, manifest and compiled-floor correction and fresh
-image proof; the access spec owns the native CoA scenario. The rebuilt kernel
-must be identified separately. The kernel worker already accepts a job count,
-but the public resolver exposes none; bounded native job-count plumbing is
-needed to build the correction without unbounded compiler fan-out.
+The fragment, manifest and compiled-floor correction landed in `80175d768d`;
+the public bounded job-count plumbing landed in `b7e2ace8ed`. The access spec
+owns the native CoA scenario and the userspace shaping defect it exposed.
+
+### Corrected POLICE kernel and fresh native proofs
+
+The native amd64 kernel build used `--jobs 4` and passed in 1678.19 seconds,
+within the existing two-hour limit. Its cache is
+`7.2.9-runtime-amd64-runtime-docker-5db21ebf-34cba457`.
+Source and build caches were retained. The subsequent default `t2` image build
+passed in 239.15 seconds using that warm kernel cache; this is not a claim
+that a cold kernel build was triggered through the appliance-build entry point.
+
+Actual default-image readback found 150/150 required built-ins, including
+POLICE and both MPLS symbols, with kernel SHA-256
+`4910bc4600ba8d76d6250f09aca22c8eaf2c4b4459baadf9f9e52aec27c429b4`.
+The image's kernel bytes equal the cache bytes, and its GPL notice matches the
+pinned Linux 7.2.9 source URL and digest. Image SHA-256:
+`67905c2940931ac5bf41cc9c64eadb6c17e094256cab415dca81deda4c1443b2`.
+
+Fresh native KVM MPLS boot passed in 365.90 seconds, with CLI answer `[]`.
+Hugepage boot passed in 332.02 seconds, reserving 64 two-MiB pages.
+These prove startup/CLI and reservation, not LDP or VPP traffic.
+The default-appliance L2TP privilege blocker above remains unchanged.
+
+Evidence under the session's `scratch/appliance-amd64-proof/`:
+`police-native-commands.json`, `police-kernel-build.log`,
+`police-default-readback.json`, `police-mpls-boot.log`,
+`police-vpp-hugepages.log` and `police-final-report.json`.
+Original images, kernel/config/notice and logs are retained for review and
+reproduction; extracted partition intermediates were removed by their owner.
 
 ## Owned journal rows
 
