@@ -46,6 +46,17 @@
   {
     "rid": "RFC4271-8.2.2-20",
     "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter",
+    "unit-sha": "69ad1e800bdb71d7",
+    "claim-sha": "7a8a0b892c0bd702",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+    "producer-sha": "1cad4f14d017b739",
+    "break": "line 432: \"start := session.startDamped\" -\u003e \"start := session.startAutomatic\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleRestartKeepsCounter",
     "unit-sha": "c50225a6fadb189c",
     "claim-sha": "c3b44aa4325a4730",
@@ -53,5 +64,27 @@
     "producer": "internal/component/bgp/reactor/session.go::startDamped",
     "producer-sha": "2aef536cf25e561d",
     "break": "body of startDamped replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter",
+    "unit-sha": "c11566179b6f352f",
+    "claim-sha": "2db8de6abba0e809",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+    "producer-sha": "1cad4f14d017b739",
+    "break": "line 435: \"start = session.startAutomatic\" -\u003e \"start = session.startDamped\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271PassiveAutomaticStartReconnectZeroesCounter",
+    "unit-sha": "16fbbfd629674fbb",
+    "claim-sha": "7166bb73daf1148a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+    "producer-sha": "1cad4f14d017b739",
+    "break": "line 435: \"start = session.startAutomatic\" -\u003e \"start = session.startDamped\""
   }
 ]

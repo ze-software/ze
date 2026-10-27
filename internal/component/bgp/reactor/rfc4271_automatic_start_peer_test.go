@@ -324,3 +324,266 @@ func TestRFC4271InboundShortenedBackoffZeroesCounter(t *testing.T) {
 	require.Equal(t, uint32(0), n.peer.ConnectRetryCounter(),
 		"the cycle the inbound connection starts follows an Established session, so it is Event 3")
 }
+
+// startAutomaticStartControlledNeighbor holds only the reconnect wait. Session
+// timers use the Peer's real clock, so a negotiated HoldTimer still expires.
+func startAutomaticStartControlledNeighbor(t *testing.T, mode ConnectionMode) (*automaticStartNeighbor, *triggerClock) {
+	t.Helper()
+	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
+	settings.Connection = mode
+	n := &automaticStartNeighbor{}
+	if mode.IsActive() {
+		ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { ln.Close() }) //nolint:errcheck // Test cleanup.
+		var ok bool
+		n.listener, ok = ln.(*net.TCPListener)
+		require.True(t, ok)
+		addr, ok := ln.Addr().(*net.TCPAddr)
+		require.True(t, ok)
+		settings.Port = uint16(addr.Port) //nolint:gosec // A listener port fits 16 bits.
+	}
+	n.peer = NewPeer(settings)
+	backoff := newTriggerClock()
+	backoff.Clock = n.peer.clock
+	n.peer.SetClock(backoff)
+	n.peer.setReconnectDelay(time.Minute, time.Minute)
+	t.Cleanup(startAndStop(t, n.peer))
+	return n, backoff
+}
+
+// automaticStartAwaitBackoff observes the actual run loop entering its wait,
+// rather than racing the session's counter increment against its cleanup.
+func automaticStartAwaitBackoff(t *testing.T, n *automaticStartNeighbor, backoff *triggerClock) {
+	t.Helper()
+	select {
+	case <-backoff.waiting:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the peer never entered reconnect backoff")
+	}
+	require.Nil(t, n.peer.currentSession(), "backoff begins after the old session is retired")
+	require.Equal(t, uint32(1), n.peer.ConnectRetryCounter(), "the failed cycle increments the real counter")
+}
+
+// automaticStartInbound supplies a real socket after backoff has begun. No
+// timer is released: receiving the OPEN proves inboundNotify woke the run loop.
+func automaticStartInbound(t *testing.T, n *automaticStartNeighbor) {
+	t.Helper()
+	remote, local := collisionProofTCPPair(t)
+	n.peer.setInboundConnection(local)
+	frame, err := core4271ReadMessage(remote)
+	require.NoError(t, err, "inboundNotify did not wake the peer and produce an OPEN")
+	require.Equal(t, byte(1), frame[18], "the inbound socket's first message is OPEN")
+	require.Eventually(t, func() bool {
+		session := n.peer.currentSession()
+		if session == nil {
+			return false
+		}
+		return session.State() == fsm.StateOpenSent
+	}, 5*time.Second, time.Millisecond, "the inbound cycle never reached OpenSent")
+}
+
+// automaticStartInitialEOR finishes the real initial update before a test
+// observes silence or requests teardown. No routes are configured, so the one
+// negotiated IPv4 family owes exactly the empty UPDATE from RFC 4724 Section 2.
+func automaticStartInitialEOR(t *testing.T, peer *Peer, conn net.Conn) {
+	t.Helper()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
+	for range 16 {
+		frame, err := core4271ReadMessage(conn)
+		require.NoError(t, err, "the initial IPv4 End-of-RIB never arrived")
+		if frame[18] == 2 {
+			// RFC 4724 Section 2: IPv4 End-of-RIB is a minimum-length UPDATE.
+			require.Equal(t, eorUpdate(), frame, "the initial UPDATE must be exactly IPv4 End-of-RIB")
+			require.Eventually(t, func() bool {
+				return peer.sendingInitialRoutes.Load() == 0
+			}, 5*time.Second, time.Millisecond, "initial synchronization never released the teardown queue")
+			return
+		}
+		require.Equal(t, byte(4), frame[18], "only KEEPALIVEs precede initial End-of-RIB")
+	}
+	t.Fatal("the neighbor received 16 messages without initial End-of-RIB")
+}
+
+// automaticStartTeardown completes the remote side of the TCP close after
+// receiving Cease. Leaving it open would instead exercise closeConn's bounded
+// read-drain timeout, not the ErrTeardown immediate-reconnect path under test.
+func automaticStartTeardown(t *testing.T, peer *Peer, session *Session, remote net.Conn) {
+	t.Helper()
+	require.NoError(t, remote.SetReadDeadline(time.Now().Add(5*time.Second)))
+	done := make(chan struct{})
+	var frame []byte
+	var readErr error
+	t.Cleanup(func() {
+		remote.Close() //nolint:errcheck // Unblocks the reader even when an assertion terminates the test.
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("the teardown neighbor reader did not stop")
+		}
+	})
+	go func() { // goroutine-lifecycle: one bounded neighbor close exchange, joined below and at cleanup.
+		defer close(done)
+		defer remote.Close() //nolint:errcheck // Answer the local TCP close after receiving its notification.
+		for range 16 {
+			frame, readErr = core4271ReadMessage(remote)
+			if readErr != nil {
+				return
+			}
+			if frame[18] != 4 {
+				return
+			}
+		}
+	}()
+	// RFC 4271 Section 8.2.2, Established + AutomaticStop.
+	require.NoError(t, peer.teardownAutomatic(message.NotifyCeaseOutOfResources, ""))
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the teardown neighbor never received Cease")
+	}
+	require.NoError(t, readErr)
+	require.Len(t, frame, message.HeaderLen+2)
+	require.Equal(t, byte(3), frame[18], "automatic teardown sends NOTIFICATION")
+	require.Equal(t, byte(message.NotifyCease), frame[19])
+	require.Equal(t, byte(message.NotifyCeaseOutOfResources), frame[20])
+	reason := session.closeReason.Load()
+	require.NotNil(t, reason, "the teardown must record its cause")
+	require.ErrorIs(t, *reason, ErrTeardown, "the next cycle must follow ErrTeardown, not an unrelated close")
+}
+
+// automaticStartHoldExpired reads the real timer's NOTIFICATION while leaving
+// TCP open. A socket close or a manually injected FSM event cannot satisfy it.
+func automaticStartHoldExpired(t *testing.T, conn net.Conn) {
+	t.Helper()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(10*time.Second)))
+	for range 16 { // The silent neighbor can receive only KEEPALIVEs before the notification.
+		frame, err := core4271ReadMessage(conn)
+		require.NoError(t, err, "the real HoldTimer never sent its NOTIFICATION")
+		if frame[18] == 3 {
+			require.Len(t, frame, message.HeaderLen+2)
+			require.Equal(t, byte(message.NotifyHoldTimerExpired), frame[19])
+			require.Equal(t, byte(0), frame[20])
+			return
+		}
+		require.Equal(t, byte(4), frame[18], "only KEEPALIVEs precede hold expiry")
+	}
+	t.Fatal("the silent neighbor received 16 messages without HoldTimer expiry")
+}
+
+// TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter proves that an
+// inbound wakeup does not turn a failed OpenSent attempt into an undamped start.
+//
+// MUTATION: in Peer.runOnce, initialize start to session.startAutomatic instead
+// of session.startDamped; the inbound cycle then incorrectly reads zero.
+// RFC requirement: RFC4271-8.2.2-20 negative -- after a real Peer fails in OpenSent without reaching Established, an inbound connection wakes its held backoff and reaches OpenSent with ConnectRetryCounter still 1, not zero.
+func TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter(t *testing.T) {
+	n, backoff := startAutomaticStartControlledNeighbor(t, ConnectionBoth)
+	first := n.accept(t)
+	require.Equal(t, uint32(0), n.peer.ConnectRetryCounter())
+	automaticStartBadMarker(t, first) // RFC 4271 Section 8.2.2, OpenSent.
+	automaticStartAwaitBackoff(t, n, backoff)
+
+	automaticStartInbound(t, n)
+	require.Equal(t, uint32(1), n.peer.ConnectRetryCounter(),
+		"inboundNotify must keep Event 6 after a never-Established attempt")
+}
+
+// TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter covers the other
+// Established error exit combined with an inbound wakeup, not timer release.
+//
+// MUTATION: in Peer.runOnce, choose session.startDamped in the
+// reachedEstablished branch; the inbound cycle then incorrectly keeps 1.
+// RFC requirement: RFC4271-8.2.2-20 positive -- after real negotiated HoldTimer expiry ends an Established Peer session with counter 1, an inbound connection wakes the held backoff and reaches OpenSent with counter 0.
+func TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter(t *testing.T) {
+	n, backoff := startAutomaticStartControlledNeighbor(t, ConnectionBoth)
+	first := n.accept(t)
+	n.establish(t, first, 3)
+	require.Equal(t, uint32(0), n.peer.ConnectRetryCounter())
+	automaticStartInitialEOR(t, n.peer, first)
+	automaticStartHoldExpired(t, first) // RFC 4271 Section 8.2.2, Established.
+	automaticStartAwaitBackoff(t, n, backoff)
+
+	automaticStartInbound(t, n)
+	require.Equal(t, uint32(0), n.peer.ConnectRetryCounter(),
+		"inboundNotify must keep Event 3 after an Established session expires")
+}
+
+// TestRFC4271PassiveAutomaticStartReconnectZeroesCounter observes a passive
+// Peer's next Active session after each Established exit. Ze conflates Events
+// 3/5 as documented in FSM.handleIdle; this does not claim a distinct Event 5.
+//
+// MUTATION: in Peer.runOnce, choose session.startDamped in the
+// reachedEstablished branch; each new Active session then incorrectly keeps 1.
+// RFC requirement: RFC4271-8.2.2-20 positive -- a passive-only real Peer leaving Established after received Cease, real HoldTimer expiry, or automatic teardown reports counter 1 on exit and reaches a new Active session with counter 0 through Ze's conflated Event 3/5 start.
+func TestRFC4271PassiveAutomaticStartReconnectZeroesCounter(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		holdTime uint16
+		teardown bool
+	}{
+		{name: "notification", holdTime: 90},
+		{name: "hold-expiry", holdTime: 3},
+		{name: "teardown", holdTime: 90, teardown: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			n, backoff := startAutomaticStartControlledNeighbor(t, ConnectionPassive)
+			require.Eventually(t, func() bool {
+				return n.peer.receivePublication.Load() != nil
+			}, 5*time.Second, time.Millisecond, "the passive session never reached its receive loop")
+			firstSession := n.peer.currentSession()
+			require.NotNil(t, firstSession)
+			require.Equal(t, fsm.StateActive, firstSession.State())
+			remote, local := collisionProofTCPPair(t)
+			// Only the read assertions need a deadline. The live socket must not
+			// expire before the real HoldTimer on a loaded machine.
+			require.NoError(t, local.SetDeadline(time.Time{}))
+			require.NoError(t, n.peer.acceptConnection(local))
+			open, err := core4271ReadMessage(remote)
+			require.NoError(t, err)
+			require.Equal(t, byte(1), open[18])
+
+			// Capture the real counter synchronously at leave-Established:
+			// ErrTeardown can start the next cycle before a poll sees the 1.
+			left := make(chan uint32, 1)
+			n.peer.SetCallback(func(from, _ PeerState) {
+				if from == PeerStateEstablished {
+					left <- n.peer.ConnectRetryCounter()
+				}
+			})
+			n.establish(t, remote, tc.holdTime)
+			require.Equal(t, uint32(0), n.peer.ConnectRetryCounter())
+			automaticStartInitialEOR(t, n.peer, remote)
+			switch {
+			case tc.teardown:
+				automaticStartTeardown(t, n.peer, firstSession, remote)
+			case tc.holdTime == 3:
+				automaticStartHoldExpired(t, remote) // RFC 4271 Section 8.2.2.
+			default:
+				automaticStartCease(t, remote) // RFC 4271 Section 8.2.2.
+			}
+			select {
+			case counter := <-left:
+				require.Equal(t, uint32(1), counter, "leaving Established increments before restart")
+			case <-time.After(10 * time.Second):
+				t.Fatal("the passive peer never left Established")
+			}
+			if !tc.teardown {
+				automaticStartAwaitBackoff(t, n, backoff)
+				backoff.expire()
+			}
+			require.Eventually(t, func() bool {
+				session := n.peer.currentSession()
+				if session == nil {
+					return false
+				}
+				if session == firstSession {
+					return false
+				}
+				return session.State() == fsm.StateActive
+			}, 5*time.Second, time.Millisecond, "the next passive cycle never reached Active")
+			require.Equal(t, uint32(0), n.peer.ConnectRetryCounter(),
+				"the new passive session must use the zeroing Event 3/5 arm, not Event 6")
+		})
+	}
+}

@@ -7,7 +7,7 @@
 | Release reason | Optional DelayOpen and automatic-start controls are owner-selected follow-up capabilities, not required behavior of the shipped FSM. |
 | Scope | protocol |
 | Depends | - |
-| Phase | 3a/5 — strict-mode DelayOpen sub-states (row 6s) |
+| Phase | 3–4/5 — Event 3 proof recorded; native FRR interop under verification |
 | Handoff | `tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/state/session-state-bgp-fsm-delayopen-and-automatic-start-644a4e78-0122-4eeb-8642-eb50638a1641.md` |
 | Updated | 2026-10-27 |
 
@@ -26,9 +26,9 @@ Row numbers are the numbers the rows had in the parent spec.
 
 | # | Row id | Document, section | Class | What Ze does today |
 |---|--------|-------------------|-------|--------------------|
-| 6 | `RFC4271-8.2.2-13` | RFC 4271 §8.2.2 (Active) | gap: OPTIONAL feature absent, owner IN | No DelayOpen, so Active never holds a connection and the Event 18 action list is reached by no layer |
-| 7 | `RFC4271-8.2.2-20` | RFC 4271 §8.2.2 (Idle) | gap: optional event absent, owner IN | No Event 3; automatic restart is Event 6, which keeps the ConnectRetryCounter |
-| 6s | draft-ietf-idr-bgp-bfd-strict-mode §8.3.5, §8.4.5 (and the sub-state branches of §8.3.1, §8.4.1) | draft, Connect and Active | gap: reachable only with DelayOpen, owner IN | `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` are undeclared, and four comments plus two pages call them unreachable because Ze has no DelayOpenTimer |
+| 6 | `RFC4271-8.2.2-13` | RFC 4271 §8.2.2 (Active) | implemented; live proof incomplete | DelayOpen configuration, timer, held connections and collision handoff are implemented. The original promoted base TIME30 remains unresolved; native FRR proof is still owed. |
+| 7 | `RFC4271-8.2.2-20` | RFC 4271 §8.2.2 (Idle) | implemented; scoped proof recorded | `runOnce` selects Event 3 after an Established cycle and Event 6 after a failed attempt. Real-Peer inbound and passive reconnect proof now has native discrimination records. |
+| 6s | draft-ietf-idr-bgp-bfd-strict-mode §8.3.5, §8.4.5 (and the sub-state branches of §8.3.1, §8.4.1) | draft, Connect and Active | implemented; live integration failure open | Both DelayOpen BFD-pending sub-states landed in `c987777bb8`, with scoped race and draft/stress proof. The promoted strict carrier's TIME30 remains unresolved. |
 
 Row 6s exists because row 6 makes the two strict-mode sub-states reachable: with
 `timer delay-open` set on a peer whose `connection bfd { strict true }` is enabled,
@@ -139,7 +139,7 @@ DelayOpen sub-states remain phase 3a, not part of this implementation.
 
 ### Transformation Path
 1. Config parse of `timer delay-open` into the peer settings.
-2. The reactor's run loop (`peer_run.go`) picks the start event for each cycle (row 7). The predicate is an explicit flag, because the loop keeps no "session ran" outcome (Current Behavior, round-2 B1): a peer-owned `cycleReachedEstablished` (an `atomic.Bool` on `Peer`) is cleared by `runOnce` before it starts the session and set by the FSM state callback in `peer_run.go` in the same branch that publishes `PeerStateEstablished` (`to == fsm.StateEstablished`). `run()` reads it after `safeRunOnce` returns, whatever `err` is, and carries the answer into the next cycle's start-event choice. Per exit: `nil` (peer stopping) ends the loop, no event; `ErrTeardown` after Established, an error after Established (NOTIFICATION received, HoldTimer expiry, read error, a recovered panic), and a backoff cut short by `inboundNotify` after such a cycle each start the next cycle with Event 3; the same exits from a cycle that never reached Established start it with Event 6. The backoff arm the error takes is unchanged by this spec: the flag decides the event, never the delay. Event 1 stays the operator's start.
+2. The reactor's `runOnce` (`peer_run.go`) picks the start event for each cycle (row 7). A peer-owned `cycleReachedEstablished` (`atomic.Bool`) is set by the FSM callback beside publication of `PeerStateEstablished`. The next `runOnce` consumes and clears the previous cycle's answer with `Swap(false)` before choosing its start event, whatever error ended that cycle. `run()` chooses the retry wake-up, not the start event. `ErrTeardown` after Established, an error after Established (NOTIFICATION received, HoldTimer expiry, read error or recovered panic), and an `inboundNotify` wake-up after such a cycle each select Event 3. A cycle that never reached Established selects Event 6. The existing backoff policy is unchanged: the flag decides the event, never the delay. Event 1 stays the operator's first start; stopping the peer starts no next cycle.
 3. The FSM runs the DelayOpenTimer in Connect and Active: on Event 16/17 with DelayOpen TRUE the reactor holds the connection without calling `sendOpen` until Event 20 (peer OPEN) or Event 12 (timer expiry) (row 6).
 4. On Event 20 with `connection bfd { strict true }` negotiated and BFD neither Up nor AdminDown, the reactor sends the OPEN, withholds the KEEPALIVE and the FSM records the Connect or Active DelayOpen sub-state; a BfdUp, BfdAdminDown or BfdDisabled event then sends the KEEPALIVE and moves to OpenConfirm (row 6s). The same `advanceAfterOpen` decision that holds OpenSent today makes the call, so the strict-mode test is declared once.
 
@@ -236,7 +236,11 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 |------|------|-----------|--------|
 | `TestRFC4271DelayOpenHoldsOpen` | `internal/component/bgp/fsm/` | AC-1: OPEN held until peer OPEN or timer expiry; 0 leaves DelayOpen off | |
 | `TestRFC4271ActiveEvent18WithDelayOpen` | `internal/component/bgp/reactor/` | AC-1: Event 18 in Active through a real `Peer`, four actions, both polarities | |
-| `TestRFC4271AutomaticStartEvent3ZeroesCounter` | `internal/component/bgp/reactor/` | AC-2 both polarities through a real `Peer`: an Established session ended by a peer NOTIFICATION, by HoldTimer expiry and by `ErrTeardown` each zero the counter through Event 3 (the first two are error returns, so the test fails against a predicate tied to `runOnce` returning nil); after a failed attempt, and after `inboundNotify` cuts the backoff of a failed attempt, the counter is kept through Event 6; AC-2p passive goes to Active | |
+| `TestRFC4271AutomaticStartEvent3ZeroesCounter` | `internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go` | AC-2: real Established sessions ended by received NOTIFICATION and negotiated HoldTimer expiry reset the counter on reconnect | existing tagged coverage; unchanged |
+| `TestRFC4271FailedCycleRestartKeepsCounter`, `TestRFC4271FailedCycleAfterEstablishedKeepsCounter`, `TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter` | same file | AC-2 negative: ordinary failed retry, a failed cycle after an earlier Established cycle, and inbound-shortened failed backoff retain the counter | new inbound case passed; its wrong-zeroing branch mutation was recorded red |
+| `TestRFC4271AutomaticStopTeardownRestartZeroesCounter`, `TestRFC4271InboundShortenedBackoffZeroesCounter` | same file | AC-2: automatic stop and inbound-shortened backoff after an Established session select the zeroing restart | existing coverage; unchanged |
+| `TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter` | same file | AC-2: real HoldTimer Expired NOTIFICATION, counter 1, then inbound wake-up and counter 0 without releasing the held backoff | scoped race passed; wrong-damped-start mutation recorded red |
+| `TestRFC4271PassiveAutomaticStartReconnectZeroesCounter` | same file | AC-2p: passive reconnect after NOTIFICATION, real hold expiry and `ErrTeardown`; exit counter 1, distinct next session Active, counter 0 | scoped race passed; all three exits failed under the recorded wrong-damped-start mutation |
 | `TestRFC4271DelayOpenEventsConnect`, `TestRFC4271DelayOpenEventsActive` | `internal/component/bgp/fsm/` | AC-1a, AC-1b, AC-1c, AC-1d, AC-1f, AC-1g: one subtest per event, the quoted actions as assertions | |
 | `TestRFC4271DelayOpenHeldConnectionWritesNoOpen` | `internal/component/bgp/reactor/` | AC-1a: no OPEN bytes on the wire while the DelayOpenTimer runs, through a real `Peer` | |
 | `TestRFC4271DelayOpenPreBufferedOpen` | `internal/component/bgp/reactor/` | AC-1h, once per connection mode: through `acceptWithOpen` with DelayOpen TRUE, the wire carries no OPEN before the buffered OPEN is processed, then OPEN and KEEPALIVE, and the state goes Connect to OpenConfirm for `connection both` and Active to OpenConfirm for `connection passive`, with no OpenSent in either; with DelayOpen FALSE the old sequence in both modes | |
@@ -376,9 +380,28 @@ no privileged command is required.
 Main also owns applicable BGP/plugin integration gates, source-anchor index
 maintenance and committed `./le verify changed`.
 This spec stays in progress: base `bgp-delay-open`'s original promoted TIME30
-is unresolved and its carrier is not promoted. Event 3 reconciliation, FRR
-interop and whole-spec ledger/closure obligations remain independent; none is
-certified by the strict-mode evidence above.
+is unresolved and its carrier is not promoted. Event 3's scoped proof is now
+recorded below. FRR interop and whole-spec ledger/closure obligations remain;
+none is certified by the strict-mode evidence above.
+
+**2026-10-27 Event 3 reconciliation:** no production implementation was needed.
+Three new real-Peer units fill the inbound-negative, hold-expiry/inbound and
+passive reconnect gaps. Initial failures exposed test setup errors: observation
+began before the initial EOR, and the teardown peer did not finish its TCP
+close. The repaired setup validates EOR and Cease, closes the remote endpoint,
+and retains the original counter, state and expiry assertions. The repaired
+positive race selection passed in 7.515s; independent review found no issue.
+
+Main recorded three hand-written clause mutations through native `rfc record`.
+Zeroing a failed inbound retry changed the required 1 to 0; damping an
+Established retry changed the required 0 to 1, including all three passive
+exit cases. `rfc/discrimination/rfc4271/RFC4271-8.2.2-20.json` carries these
+records. The focused `rfc discriminate id RFC4271-8.2.2-20` inventory reports
+eight records and no stale or unproven entry. Evidence is retained in the
+session's `scratch/job-event3-*-record-*.log`,
+`scratch/job-event3-record-inventory-51ab73b0.log` and
+`scratch/job-delayopen-event3-positive-repaired-1a9acda3.log`.
+This does not clear either promoted TIME30 or certify the whole RFC ledger.
 
 4. **Phase: interop** -- `bgp-delayopen-frr` with the recorded red.
 5. **Phase: ledger** -- AC-3, discrimination records, `./le rfc check` clean for `rfc4271`.
