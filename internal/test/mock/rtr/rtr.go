@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -107,6 +108,8 @@ func (a *aspaList) Set(s string) error {
 	return nil
 }
 
+// Run serves the cache until the process ends. A lone "help" word prints the flags and returns 0;
+// any other word that is not a flag is refused.
 func Run(args []string) int {
 	var (
 		port  int
@@ -115,6 +118,9 @@ func Run(args []string) int {
 	)
 
 	fs := flag.NewFlagSet("le mock rtr", flag.ExitOnError)
+	// Ze keys a cache-server entry by its address, so two mock caches in one test differ by
+	// address (127.0.0.1 and 127.0.0.2), never by port alone.
+	addressFlag := fs.String("address", "127.0.0.1", "IP address to listen on")
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
@@ -122,38 +128,132 @@ func Run(args []string) int {
 	// The observer releases this barrier only after it sees the initial
 	// NotFound route. Host scheduling cannot move the first sync ahead of it.
 	syncRelease := fs.String("sync-release", "", "wait for this file before answering a query")
+	refresh := fs.Uint("refresh", 3600, "Refresh Interval in seconds, sent in End of Data")
+	retry := fs.Uint("retry", 600, "Retry Interval in seconds, sent in End of Data")
+	// An outage takes the cache down after it answered this many queries: the listener closes,
+	// so the router's next connection is refused, until the outage release file appears.
+	outageAfter := fs.Uint("outage-after", 0, "close the listener after answering this many queries (0 = never)")
+	outageRelease := fs.String("outage-release", "", "listen again once this file exists")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: le mock rtr [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
+		fmt.Fprint(fs.Output(), "Usage: le mock rtr [flags]\n\n"+ //nolint:errcheck // help text: a failed terminal write has no one to report to
+			"Mock RTR cache server for RPKI testing. Every Reset Query and Serial Query is\n"+
+			"answered with the whole set: Cache Response, the --vrp and --aspa records, and\n"+
+			"End of Data carrying --serial, --refresh and --retry.\n\n"+
+			"An outage (--outage-after N --outage-release FILE) closes the listener once N\n"+
+			"queries were answered, so the router's next connection is refused, and listens\n"+
+			"again on the same address and port once FILE exists.\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
-	serial := uint32(*serialFlag) //nolint:gosec // serial number fits uint32
-
-	lc := &net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: listen: %v\n", err)
+	if fs.NArg() == 1 && fs.Arg(0) == "help" {
+		fs.SetOutput(os.Stdout)
+		fs.Usage()
+		return 0
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintln(os.Stderr, "error: le mock rtr takes only flags, got", strings.Join(fs.Args(), " ")+": run le mock rtr help")
 		return 1
 	}
-	defer func() { _ = ln.Close() }()
+	address, err := netip.ParseAddr(*addressFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error: --address", *addressFlag, "is not an IP address:", err)
+		return 1
+	}
+	if *outageAfter > 0 && *outageRelease == "" {
+		fmt.Fprintln(os.Stderr, "error: --outage-after needs --outage-release, the file that ends the outage")
+		return 1
+	}
+	cache := &rtrMockCache{
+		vrps:        vrps,
+		aspas:       aspas,
+		serial:      uint32(*serialFlag), //nolint:gosec // serial number fits uint32
+		refresh:     uint32(*refresh),    //nolint:gosec // an interval in seconds fits uint32
+		retry:       uint32(*retry),      //nolint:gosec // an interval in seconds fits uint32
+		syncRelease: *syncRelease,
+	}
 
-	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "le mock rtr: listening on port %s with %d VRPs, %d ASPAs\n", portStr, len(vrps), len(aspas))
+	ln, err := rtrMockListen(netip.AddrPortFrom(address, uint16(port))) //nolint:gosec // a port flag outside 0-65535 fails to bind
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error: listen:", err)
+		return 1
+	}
+	bound := ln.Addr().String()
+	fmt.Fprintln(os.Stderr, "le mock rtr: listening on", bound, "with", len(vrps), "VRPs,", len(aspas), "ASPAs")
 
+	if *outageAfter > 0 {
+		if ln, err = rtrMockOutage(ln, cache, *outageAfter, *outageRelease); err != nil {
+			fmt.Fprintln(os.Stderr, "error: outage:", err)
+			return 1
+		}
+		fmt.Fprintln(os.Stderr, "le mock rtr: listening again on", bound)
+	}
+
+	rtrMockServe(ln, cache)
+	return 0
+}
+
+// rtrMockOutage serves on ln until the cache answered `after` queries, closes ln, waits for
+// the release file, and answers a new listener on the same address and port. The caller MUST
+// serve or close the listener it returns.
+func rtrMockOutage(ln net.Listener, cache *rtrMockCache, after uint, release string) (net.Listener, error) {
+	bound, err := netip.ParseAddrPort(ln.Addr().String())
+	if err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("listening address %s: %w", ln.Addr(), err)
+	}
+	// Each handler reports one answered query; the buffer holds the reports the outage
+	// counts, and a handler never blocks on a full buffer.
+	cache.answered = make(chan struct{}, after)
+	go rtrMockServe(ln, cache)
+	for range after {
+		<-cache.answered
+	}
+	_ = ln.Close()
+	fmt.Fprintln(os.Stderr, "le mock rtr: down after", after, "answered queries, until", release, "exists")
+	if err := rtrMockWaitRelease(release); err != nil {
+		return nil, fmt.Errorf("wait for the outage release %s: %w", release, err)
+	}
+	again, err := rtrMockListen(bound)
+	if err != nil {
+		return nil, fmt.Errorf("listen again on %s: %w", bound, err)
+	}
+	return again, nil
+}
+
+// rtrMockCache is what the mock answers every query with. Safe for concurrent use: the
+// handlers only read it, and answered is a channel.
+type rtrMockCache struct {
+	vrps        vrpList
+	aspas       aspaList
+	serial      uint32
+	refresh     uint32
+	retry       uint32
+	syncRelease string
+	answered    chan struct{} // nil unless an outage counts the answered queries
+}
+
+func rtrMockListen(addrPort netip.AddrPort) (net.Listener, error) {
+	lc := &net.ListenConfig{}
+	return lc.Listen(context.Background(), "tcp", addrPort.String())
+}
+
+// rtrMockServe accepts connections until the listener closes, then returns. The caller MUST
+// close the listener to stop it.
+func rtrMockServe(ln net.Listener, cache *rtrMockCache) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			return 0
+			return
 		}
-		go rtrMockHandleConn(conn, vrps, aspas, serial, *syncRelease)
+		go rtrMockHandleConn(conn, cache)
 	}
 }
 
-func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, syncRelease string) {
+func rtrMockHandleConn(conn net.Conn, cache *rtrMockCache) {
 	defer func() { _ = conn.Close() }()
 
 	header := make([]byte, rtrMockHeaderLen)
@@ -179,12 +279,18 @@ func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint3
 
 		switch pduType {
 		case rtrMockPDUResetQuery, rtrMockPDUSerialQuery:
-			if err := rtrMockWaitRelease(syncRelease); err != nil {
-				fmt.Fprintf(os.Stderr, "error: wait for RTR sync release: %v\n", err)
+			if err := rtrMockWaitRelease(cache.syncRelease); err != nil {
+				fmt.Fprintln(os.Stderr, "error: wait for RTR sync release:", err)
 				return
 			}
-			if err := rtrMockSendResponse(conn, vrps, aspas, serial, clientVersion); err != nil {
+			if err := rtrMockSendResponse(conn, cache, clientVersion); err != nil {
 				return
+			}
+			if cache.answered != nil {
+				select {
+				case cache.answered <- struct{}{}:
+				default: // The outage has counted every report it waits for.
+				}
 			}
 		default:
 		}
@@ -216,7 +322,8 @@ func rtrMockWaitRelease(path string) error {
 	}
 }
 
-func rtrMockSendResponse(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, version uint8) error {
+func rtrMockSendResponse(conn net.Conn, cache *rtrMockCache, version uint8) error {
+	vrps, aspas, serial := cache.vrps, cache.aspas, cache.serial
 	sessionID := uint16(1)
 
 	cr := make([]byte, rtrMockHeaderLen)
@@ -248,8 +355,8 @@ func rtrMockSendResponse(conn net.Conn, vrps vrpList, aspas aspaList, serial uin
 	binary.BigEndian.PutUint16(eod[2:4], sessionID)
 	binary.BigEndian.PutUint32(eod[4:8], 24)
 	binary.BigEndian.PutUint32(eod[8:12], serial)
-	binary.BigEndian.PutUint32(eod[12:16], 3600)
-	binary.BigEndian.PutUint32(eod[16:20], 600)
+	binary.BigEndian.PutUint32(eod[12:16], cache.refresh)
+	binary.BigEndian.PutUint32(eod[16:20], cache.retry)
 	binary.BigEndian.PutUint32(eod[20:24], 7200)
 	if _, err := conn.Write(eod); err != nil {
 		return err

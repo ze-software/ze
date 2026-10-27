@@ -617,6 +617,31 @@ le mock rtr --port 3323 \
 
 The format is `customer:provider1,provider2,...` (repeatable). When ASPA records are present, the mock server uses RTR v2. Seven functional tests cover ASPA: `rpki-aspa-valid.ci`, `rpki-aspa-invalid.ci`, `rpki-aspa-unknown.ci`, `rpki-aspa-disabled.ci` for verification states, and `rpki-aspa-policy-reject.ci`, `rpki-aspa-policy-logonly.ci`, `rpki-aspa-policy-unknown-reject.ci` for policy enforcement.
 
+### Testing Cache Failover
+
+`le mock rtr` answers every Reset Query and Serial Query with its whole set, so
+two of them stand in for a preferred and a standby cache. Ze keys each
+`cache-server` entry by its address, so the two caches listen on different
+addresses rather than different ports:
+
+```
+le mock rtr --address 127.0.0.1 --port 3323 --vrp 10.0.0.0/8,24,65001 \
+    --refresh 1 --retry 1 --outage-after 1 --outage-release preferred.release
+le mock rtr --address 127.0.0.2 --port 3323 --vrp 10.0.0.0/8,24,65999 \
+    --refresh 1 --retry 1
+```
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--address` | `127.0.0.1` | IP address to listen on |
+| `--refresh`, `--retry` | 3600, 600 | Refresh and Retry Intervals in seconds, sent in End of Data |
+| `--outage-after N` | 0 (never) | Close the listener once N queries were answered, so the router's next connection is refused |
+| `--outage-release FILE` | none | Listen again on the same address and port once FILE exists. Required with `--outage-after` |
+
+Creating the release file ends the outage, and the router fails back to the
+preferred cache at its Retry Interval. `le mock rtr help` prints every flag.
+<!-- source: internal/test/mock/rtr/rtr.go -- Run, rtrMockOutage -->
+
 ## Testing RPKI Locally
 
 The `le mock rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:

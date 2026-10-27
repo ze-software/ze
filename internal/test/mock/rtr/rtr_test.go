@@ -3,8 +3,12 @@ package rtr
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"net"
+	"net/netip"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -40,4 +44,117 @@ func TestRTRMockASPAPDUWireFormat(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestRTRMockRunRefusesWhatItCannotServe checks the words and flags Run answers without
+// serving: a lone help word prints the flags and succeeds, a stray word and an address that
+// is not an IP are refused, and an outage with no release file is refused. Each case returns,
+// so a case that started serving instead would hang the test.
+func TestRTRMockRunRefusesWhatItCannotServe(t *testing.T) {
+	cases := []struct {
+		args []string
+		want int
+	}{
+		{[]string{"help"}, 0},
+		{[]string{"serve"}, 1},
+		{[]string{"--address", "localhost"}, 1},
+		{[]string{"--outage-after", "1"}, 1},
+	}
+	for _, c := range cases {
+		if got := Run(c.args); got != c.want {
+			t.Errorf("Run(%q) = %d, want %d", c.args, got, c.want)
+		}
+	}
+}
+
+// TestRTRMockOutageClosesAndReopensOnTheSameAddress drives one outage: the first query is
+// answered through End of Data, the listener is then closed so a new connection is refused,
+// and once the release file exists the same address and port accept and answer again.
+func TestRTRMockOutageClosesAndReopensOnTheSameAddress(t *testing.T) {
+	t.Parallel()
+	ln, err := rtrMockListen(netip.MustParseAddrPort("127.0.0.1:0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := ln.Addr().String()
+	release := filepath.Join(t.TempDir(), "release")
+	cache := &rtrMockCache{serial: 7, refresh: 1, retry: 1}
+
+	type outcome struct {
+		ln  net.Listener
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		again, outageErr := rtrMockOutage(ln, cache, 1, release)
+		done <- outcome{again, outageErr}
+	}()
+
+	if serial := rtrMockQueryForTest(t, bound); serial != 7 {
+		t.Fatalf("End of Data serial = %d, want 7", serial)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, dialErr := rtrMockDialForTest(t, bound)
+		if dialErr != nil {
+			break
+		}
+		_ = conn.Close()
+		if time.Now().After(deadline) {
+			t.Fatal("the cache still accepts connections after its outage began")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := <-done
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	t.Cleanup(func() { _ = got.ln.Close() })
+	if got.ln.Addr().String() != bound {
+		t.Fatalf("listening again on %s, want %s", got.ln.Addr(), bound)
+	}
+	go rtrMockServe(got.ln, cache)
+	if serial := rtrMockQueryForTest(t, bound); serial != 7 {
+		t.Fatalf("End of Data serial after the outage = %d, want 7", serial)
+	}
+}
+
+// rtrMockDialForTest opens one TCP connection to address, bounded by a second.
+func rtrMockDialForTest(t *testing.T, address string) (net.Conn, error) {
+	t.Helper()
+	dialer := &net.Dialer{Timeout: time.Second}
+	return dialer.DialContext(t.Context(), "tcp", address)
+}
+
+// rtrMockQueryForTest sends one version 1 Reset Query to address, reads the Cache Response
+// and the End of Data that follows (the cache holds no records), and answers its serial.
+func rtrMockQueryForTest(t *testing.T, address string) uint32 {
+	t.Helper()
+	conn, err := rtrMockDialForTest(t, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write([]byte{1, rtrMockPDUResetQuery, 0, 0, 0, 0, 0, 8}); err != nil {
+		t.Fatal(err)
+	}
+	reply := make([]byte, rtrMockHeaderLen+24)
+	if _, err := io.ReadFull(conn, reply); err != nil {
+		t.Fatal(err)
+	}
+	if reply[1] != rtrMockPDUCacheResp {
+		t.Fatalf("first PDU type %d, want Cache Response", reply[1])
+	}
+	eod := reply[rtrMockHeaderLen:]
+	if eod[1] != rtrMockPDUEndOfData {
+		t.Fatalf("second PDU type %d, want End of Data", eod[1])
+	}
+	return binary.BigEndian.Uint32(eod[8:12])
 }
