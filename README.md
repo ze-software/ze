@@ -138,4 +138,6 @@ Bug reports and contributions are welcome through the
 [contribution process](CONTRIBUTING.md). A
 [Contributor License Agreement](CLA.md) applies to contributions.
 
-Ze is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Ze is copyright © 2025-2026 Thomas Mangin, and licensed under the
+[GNU Affero General Public License, version 3 only](LICENSE)
+(`AGPL-3.0-only`). See [NOTICE](NOTICE).

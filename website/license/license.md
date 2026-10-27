@@ -1,7 +1,8 @@
 # License
 
 Ze is free software, licensed under the **GNU Affero General Public License,
-version 3**.
+version 3 only** (`AGPL-3.0-only`). A later version of the license applies only
+if Thomas Mangin, who holds the copyright, publishes Ze under it.
 
 Read the full text in the repository:
 [LICENSE on GitHub](https://github.com/ze-software/ze/blob/main/LICENSE).

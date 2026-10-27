@@ -21,7 +21,8 @@ licences, which are recorded beside them in the repository.
 
 ## Licence
 
-Ze is free software under the GNU Affero General Public License, version 3.
+Ze is free software under the GNU Affero General Public License, version 3
+only.
 The [license page](../license/) explains what that allows, and the
 [full text](https://github.com/ze-software/ze/blob/main/LICENSE) is in the
 repository.

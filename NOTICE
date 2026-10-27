@@ -1,0 +1,12 @@
+Ze
+Copyright (C) 2025-2026 Thomas Mangin
+
+Ze is licensed under the GNU Affero General Public License, version 3 only
+(SPDX: AGPL-3.0-only). The full text is in LICENSE. Later versions of the
+license do not apply unless the copyright holder publishes Ze under them.
+
+Contributors keep the copyright in their own contributions and license them
+to Thomas Mangin under the Contributor License Agreement in CLA.md.
+
+Third-party code under vendor/ and third_party/ keeps its own copyright and
+license, recorded beside it.
