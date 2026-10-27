@@ -871,9 +871,17 @@ Evidence under the session's `scratch/appliance-amd64-proof/`:
 Original images, kernel/config/notice and logs are retained for review and
 reproduction; extracted partition intermediates were removed by their owner.
 
+The runtime POLICE journal occurrence is now resolved: the real
+`radius-coa-disconnect-freeradius` scenario passed on the corrected native Ze
+guest after `0d9da69ff3` repaired userspace TBF units and classless handling.
+The unchanged checker read initial kernel rates of 10M/2M, then 20M/5M after
+CoA, and retained both rates after invalid CoA. A separate HTB kernel readback
+passed. This is shaping-state and connectivity proof, not throughput evidence;
+it does not clear the default-appliance L2TP host-privilege blocker.
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `unwired-feature.md` | 2026-10-27 | Missing runtime POLICE support for subscriber upload shaping |
+| `unwired-feature.md` | 2026-10-27 | Fixed: runtime POLICE requirement and native subscriber CoA rate proof |
 
