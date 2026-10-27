@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	ldpyang "github.com/ze-software/ze/internal/plugins/ldp/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -89,6 +90,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 		bindingsTotal:  reg.Counter("ze_ldp_bindings_total", "Total label bindings received."),
 	}
 	ldpMetricsPtr.Store(m)
+	ldpPanics().guard.SetMetricsRegistry(reg)
 }
 
 type ldpConfig struct {
@@ -766,21 +768,36 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 // cadence. It exits when udpConn is closed or ctx is canceled, closing done on the
 // way out so discoverOnInterface can join it. A 1s read deadline is a backstop so
 // a missed socket close still wakes the loop to re-check ctx (spec A-3).
+//
+// A Ze defect a Hello reaches is contained by readDiscovery's panic guard, which
+// drops that datagram; the loop then reads on, so the socket never stays open
+// with nobody reading it while discoverOnInterface keeps sending Hellos.
 func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency), log *slog.Logger, done chan<- struct{}) {
 	defer close(done)
 	recvBuf := make([]byte, 4096)
+	// Each pass that ends in a contained panic consumed one datagram, so the
+	// loop is bounded by what arrives on the socket.
+	for readDiscovery(ctx, udpConn, recvBuf, lsrID, ifName, adjTable, onAdjHello, log) {
+	}
+}
+
+// readDiscovery reads and applies Hellos until the socket closes or ctx ends,
+// then returns false. It returns true only when its guard contained a panic,
+// once per readDiscoveryLoop pass rather than once per datagram (AC-9).
+func readDiscovery(ctx context.Context, udpConn *net.UDPConn, recvBuf []byte, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency), log *slog.Logger) (contained bool) {
+	defer ldpPanics().discovery.Contain(describeDiscovery(ifName), func(*taskguard.Panic) { contained = true })
 	for {
 		if ctx.Err() != nil {
-			return
+			return false
 		}
 		if err := udpConn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			return // socket closed on shutdown / reload
+			return false // socket closed on shutdown / reload
 		}
 
 		n, _, readErr := udpConn.ReadFromUDP(recvBuf)
 		if readErr != nil {
 			if errors.Is(readErr, net.ErrClosed) {
-				return // socket closed on shutdown / reload
+				return false // socket closed on shutdown / reload
 			}
 			var ne net.Error
 			if errors.As(readErr, &ne) && ne.Timeout() {
@@ -871,9 +888,15 @@ func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfi
 // runSession plays the active role on the connection ze dialed for one adjacency
 // and serves the session until it ends, then calls onDone. up is the SessionUp it
 // publishes when, and only when, the session reaches OPERATIONAL.
+//
+// The session task's panic guard runs first among the defers: a Ze defect the
+// peer's input reaches ends this session alone, with an Internal Error
+// Notification, then Stop closes the transport and onDone runs the same
+// session-down teardown as any other end.
 func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, peerKey string, fib *ldpFIB, up *SessionEvent, onDone func()) {
 	defer onDone()
 	defer sess.Stop()
+	defer ldpPanics().session.Contain(sess.describeSession, sess.notifyInternalError)
 
 	// Ze dialed this connection, so it plays the active role.
 	// RFC 5036 Section 2.5.3: "After the connection is established, if LSR1 is

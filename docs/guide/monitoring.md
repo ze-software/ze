@@ -307,6 +307,9 @@ at zero from the moment the component has a metrics registry.
 | `bgp` | `delivery` | One BGP session whose received UPDATEs could not reach the plugins: Cease / Unspecific |
 | `bgp` | `accept` | One accepted TCP connection: the listener keeps accepting |
 <!-- source: internal/component/bgp/reactor/panic_guard.go -- bgpPanics -->
+| `ldp` | `session` | One LDP session: the peer is sent an Internal Error Notification, the session closes, and the neighbor's next Hello sets it up again |
+| `ldp` | `discovery` | One received Hello, dropped: discovery reads the next one on the same socket |
+<!-- source: internal/plugins/ldp/panic_guard.go -- ldpPanics -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->

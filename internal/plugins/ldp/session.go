@@ -143,6 +143,11 @@ type Session struct {
 	// Buffered to one: a second change before the sender wakes needs no second
 	// token, because the sender re-reads currentKeepalive on every wake.
 	keepaliveChanged chan struct{}
+	// handlingType is the type of the message ReadLoop is applying, zero before
+	// the first one. Only the ReadLoop goroutine writes it, and only the session
+	// task's panic guard on that goroutine reads it (describeSession), so it
+	// needs no lock.
+	handlingType uint16
 }
 
 // addPeerAddresses records interface addresses learned from an Address message.
@@ -505,6 +510,7 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 		if err != nil {
 			return err
 		}
+		s.handlingType = msgHdr.Type
 		msgEnd := off + ldpTLVHdrLen + int(msgHdr.Length)
 		if msgEnd > len(body) {
 			break

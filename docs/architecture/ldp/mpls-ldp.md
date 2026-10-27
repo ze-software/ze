@@ -180,6 +180,32 @@ cancel does not wait for a write already in flight.
 <!-- source: internal/plugins/ldp/session.go -- keepaliveTimerExpired, writePDU, writeLocked, sendNotification -->
 <!-- source: internal/plugins/ldp/wire.go -- statusKeepaliveTimerExpired -->
 
+## Decision: a Ze defect a peer reaches ends one session or drops one Hello
+
+Two LDP tasks read network input, and each defers the shared panic guard
+(`internal/core/taskguard`, `docs/architecture/diagnostics/crash-capture.md`,
+"Recovered panics") once, at its entry, never per message:
+
+| Task | Entry | A contained panic |
+|------|-------|-------------------|
+| `session` | `runSession`, the goroutine `startSessionForAdj` starts for each dialed adjacency | Sends one Notification carrying Internal Error (Status Code 0x80000019, E set), then `runSession`'s deferred `Stop` closes the connection and `onDone` runs the usual session-down teardown: the session leaves the table, its bindings are withdrawn, and SessionDown is published. The neighbor's next Hello sets the session up again, after the setup backoff when it never reached OPERATIONAL |
+| `discovery` | `readDiscoveryLoop` around each `readDiscovery` pass | Drops the Hello being applied. `readDiscoveryLoop` starts the next pass at once on the same socket, so discovery never sends Hellos from a socket nobody reads |
+
+RFC 5036 section 3.5.1.2.7 names the code: "When such a condition prevents an
+implementation from interacting correctly with a peer, the implementation
+should, when capable of doing so, use the Internal Error Status Code to signal
+the peer." The guard's end sends it through `sendNotification`, so the write
+deadline bounds the wait for the write lock as it does for KeepAlive Timer
+expiry, and the frame that panicked cannot hold that lock: every hold is
+released by `defer`. The log line names the peer and the type of the message
+being applied, which `processMessages` records as it reads each message header.
+Each panic counts in `ze_task_panics_total{component="ldp",task}` and writes a
+crash record that `ze show crashes` lists.
+
+<!-- source: internal/plugins/ldp/panic_guard.go -- ldpPanics, describeSession, notifyInternalError, describeDiscovery -->
+<!-- source: internal/plugins/ldp/register.go -- runSession, readDiscoveryLoop, readDiscovery -->
+<!-- source: internal/plugins/ldp/wire.go -- statusInternalError -->
+
 ## Decision: a failed session setup backs off on the Hello cadence
 
 Discovery calls `startSessionForAdj` on every Hello from an adjacency, not on

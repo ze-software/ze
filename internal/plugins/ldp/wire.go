@@ -269,6 +269,12 @@ const (
 	// Status Data 0x00000014.
 	statusKeepaliveTimerExpired           = statusFatalBit | 0x00000014
 	statusSessionRejectedBadKeepaliveTime = statusFatalBit | 0x00000018
+	// RFC 5036 Section 3.5.1.2.7: "When such a condition prevents an
+	// implementation from interacting correctly with a peer, the
+	// implementation should, when capable of doing so, use the Internal
+	// Error Status Code to signal the peer.  This is a fatal error."
+	// Section 3.9 gives it E = 1 and Status Data 0x00000019.
+	statusInternalError = statusFatalBit | 0x00000019
 )
 
 // notificationMessage is an LDP Notification (RFC 5036 Section 3.5.1). Status is
