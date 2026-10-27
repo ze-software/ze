@@ -732,6 +732,18 @@ minutes, the Event-Timestamp window, and only an authenticated request that
 earned a response enters it.
 <!-- source: internal/component/l2tp/plugins/authradius/coa.go -- replayKey, cachedReplay, rememberReplay, coaReplayWindow -->
 
+A request whose handling meets a Ze defect (a Go panic) does not stop the
+listener. When the request had passed every authentication check, Ze answers it
+with a CoA-NAK or Disconnect-NAK carrying Error-Cause 506 (Resources
+Unavailable), and the cache keeps that NAK for a retransmission; any other
+packet is dropped, as one that fails those checks is. The listener then serves
+the next request. The panic is logged at ERROR with the sender's address and
+the stack, counted in `ze_task_panics_total{component="radius-coa",task="request"}`,
+and written as a crash record that `ze show crashes` lists. Any count above zero
+is a Ze defect to report with that record.
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- coaListener.serveRequests -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
+
 The response echoes the request's Proxy-State and State attributes unchanged,
 and Ze never reads their contents.
 

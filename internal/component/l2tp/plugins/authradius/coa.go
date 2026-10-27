@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/component/traffic"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -101,21 +102,65 @@ func (cl *coaListener) Close() error {
 	return err
 }
 
+// serve is the listener's one reader: one goroutine for the listener's
+// lifetime, started by newCoAListener and ended by Close, which closes the
+// socket and waits for done. The serving is the request task (serveRequests),
+// entered again after a contained panic, so a Ze defect met in one request
+// answers that request and never stops the listener.
 func (cl *coaListener) serve() {
 	defer close(cl.done)
 	buf := make([]byte, radius.MaxPacketLen)
-	for {
-		n, from, err := cl.conn.ReadFromUDP(buf)
-		if err != nil {
-			return
-		}
-		cl.handlePacket(buf[:n], from)
+	for cl.serveRequests(buf) {
+		// The pass ended on a contained panic; the next one reads on.
 	}
 }
 
-func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
+// serveRequests is the request task: it answers requests until the socket
+// closes, answering false, or until a panic ends the pass, answering true. A
+// request that passed every authentication check is then answered with a NAK
+// carrying Error-Cause 506 (Resources Unavailable), which the replay cache
+// keeps, so a retransmission gets the same NAK. One that had not passed them
+// cannot be answered under its sender's secret and is dropped, as a packet that
+// fails those checks is. The replay cache's mutex is held only under defer, so
+// the unwind leaves it free.
+func (cl *coaListener) serveRequests(buf []byte) (again bool) {
+	var from *net.UDPAddr       // the sender of the request being served
+	var admitted *radius.Packet // that request, once authenticated
+	describe := func() taskguard.Context {
+		if admitted == nil {
+			return taskguard.Context{Unit: "request from " + from.String()}
+		}
+		return taskguard.Context{Unit: "request from " + from.String(), MessageType: coaCodeName(admitted.Code)}
+	}
+	defer coaRequestTask.Contain(describe, func(*taskguard.Panic) {
+		again = true
+		if admitted == nil {
+			return
+		}
+		// RFC 5176 Section 3.5: "\"Resources Unavailable\" is a fatal error sent
+		// when a CoA or Disconnect-Request could not be honored due to lack of
+		// available NAS resources (memory, non-volatile storage, etc.)."
+		cl.sendResponse(from, admitted, nakCode(admitted.Code), radius.ErrorCauseResourcesUnavailable)
+	})
+
+	for {
+		n, source, err := cl.conn.ReadFromUDP(buf)
+		if err != nil {
+			return false
+		}
+		from, admitted = source, nil
+		admitted = cl.admitRequest(buf[:n], from)
+		if admitted != nil {
+			cl.answerRequest(admitted, from)
+		}
+	}
+}
+
+// admitRequest runs the checks that authenticate a request, and answers the
+// decoded request when every one passed, or nil when the packet was discarded.
+func (cl *coaListener) admitRequest(data []byte, from *net.UDPAddr) *radius.Packet {
 	if len(data) < radius.MinPacketLen {
-		return
+		return nil
 	}
 
 	// RFC 5176 Section 2.3: "The Dynamic Authorization Server MUST use the source
@@ -124,7 +169,7 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	// Authorization Clients: a source with no secret has no way to authenticate.
 	if !cl.isAllowedSource(from.IP) {
 		logger().Debug("coa: source not in allowed list, discarding", "from", from)
-		return
+		return nil
 	}
 
 	// RFC 5176 Section 2.3: "The Request Authenticator is calculated the same way
@@ -133,17 +178,17 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	secret := cl.secretForSource(from.IP)
 	if !radius.VerifyCoARequestAuth(data, secret) {
 		logger().Debug("coa: invalid authenticator, discarding", "from", from)
-		return
+		return nil
 	}
 
 	pkt, err := radius.Decode(data)
 	if err != nil {
 		logger().Warn("coa: decode failed", "from", from, "error", err)
-		return
+		return nil
 	}
 	if pkt.Code != radius.CodeCoARequest && pkt.Code != radius.CodeDisconnectRequest {
 		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
-		return
+		return nil
 	}
 	// RFC 5176 Section 3.4: "The Message-Authenticator Attribute MAY be used to
 	// authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK,
@@ -153,7 +198,7 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	hasMessageAuthenticator := pkt.FindAttr(radius.AttrMessageAuthenticator) != nil
 	if !hasMessageAuthenticator && cl.cfg.RequireMessageAuthenticator {
 		logger().Debug("coa: missing message-authenticator, discarding", "from", from)
-		return
+		return nil
 	}
 
 	// RFC 5176 Section 3.4: "A Dynamic Authorization Server receiving a
@@ -165,8 +210,15 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	// rather than inferred from the verdict.
 	if hasMessageAuthenticator && !radius.VerifyCoAMessageAuthenticator(data, secret) {
 		logger().Debug("coa: invalid message-authenticator, discarding", "from", from)
-		return
+		return nil
 	}
+	return pkt
+}
+
+// answerRequest answers an authenticated request: a replayed copy with its
+// cached response, a refused one with a NAK, an accepted one with the change
+// and its ACK.
+func (cl *coaListener) answerRequest(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// RFC 5176 Section 2.3: "A Dynamic Authorization Server implementing this
 	// specification MUST be capable of detecting a duplicate request if it has

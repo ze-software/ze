@@ -54,6 +54,7 @@ func init() {
 		},
 		ConfigureMetrics: func(reg metrics.Registry) {
 			bindRADIUSMetrics(reg)
+			coaGuard.SetMetricsRegistry(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
 			eventBusMu.Lock()
