@@ -7,7 +7,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Shipped IKEv2 tunnel-mode responder violates an RFC 3948 Section 5.1 MUST for every peer bound to no virtual-IP pool: two peers can hold Child SAs and kernel policies for one inner address |
@@ -15,9 +15,35 @@
 | Depends | - |
 | Phase | 1/5 |
 | Handoff | - |
-| Updated | 2026-10-26 |
+| Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Closure (`/ze-close` step 6, "RFC proof records are fresh") found two audit
+verdicts of stems this spec touched STALE at HEAD. `./le rfc check`, run on
+2026-10-27 in a `git clone --shared` of HEAD fbf0776d17 carrying 0274a6774d's
+records, with `ike_auth_algorithms_test.go` moved aside so `ike/engine`
+compiles (journal row 3f1a944493), printed both; `./le rfc reseal` refuses
+both as `stale-unit`, so each needs an independent `/ze-rfc-audit` rejudge
+(`mode rejudge`), and closure does not write verdicts.
+
+| Verdict | Stamped | What changed after it | Producer of the change |
+|---------|---------|-----------------------|------------------------|
+| `RFC3948-5.1-1` (`rfc/audit/rfc3948/RFC3948-5.1-1.json`, enforced) | 1a5f53cd30, judged at HEAD 5064d6db1f | 690d38f274 rewrote the three tagged units `TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused`, `TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused`, `TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused` (`internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go`, +124 -3) | the verdict was stamped before the tests it cites landed |
+| `RFC4301-5.1-7` (`rfc/audit/rfc4301/RFC4301-5.1-7.json`, unimplemented) | 16ce807d1b, judged at HEAD dfabdcf8bf | the doc comment of `installChildSA` (`internal/component/ike/engine/child.go`) now says the registry records tunnel or transport mode; the function body is byte-identical between dfabdcf8bf and HEAD | bb90bdec23 (AC-13, transport-mode pairs recorded) |
+
+What clears it: `/ze-rfc-audit rfc3948` and `/ze-rfc-audit rfc4301` rejudge
+those two verdicts in a clean clone of HEAD, then `./le rfc check` shows
+neither stale, then `/ze-close` resumes. The rest of the RFC 4301, RFC 3948
+and RFC 7296 records this spec staled are fresh again: 16 `childPolicies`
+records (0274a6774d), `RFC7296-2.18-3` and the two verdicts 91ff2f88f0
+shifted (349d6d6f23).
+
+The open journal row `one-state-held-in-two-fields.md` 2026-10-26 (transport
+Child SA rekey after an IKE SA rekey) is outside RFC 3948 Section 5.1 and is
+now owned by `plan/release/fixes/spec-ike-transport-rekey-nat-state.md`.
 
 ## Task
 
@@ -424,7 +450,6 @@ Carried into the closure template's Goal Validation table by `/ze-close`.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `guard-added-to-one-half-of-a-pair.md` | 2026-10-26 | IKE tunnel inner address: unbound peer keeps any proposed TSi, `claim` checks tunnel overlap never |
-| `one-state-held-in-two-fields.md` | 2026-10-26 | IKE transport Child SA rekey after an IKE SA rekey: no RFC 7296 2.23.1 substitution or single-address check (`transportSelectorsInPlay` reads SA flags `respondChildRekey` never sets) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
