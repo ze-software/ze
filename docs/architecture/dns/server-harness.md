@@ -193,6 +193,33 @@ mirrors the `SO_BINDTODEVICE` split in `internal/plugins/dhcpserver`.
 them on a function-call result does not compile, because the result is not
 addressable. Assign the config to a local variable first.
 
+## What one TCP client can hold
+
+Every plain TCP listener runs with explicit per-connection deadlines: 2 seconds
+to read the first query, 8 seconds idle between queries, 2 seconds to write a
+reply, and at most 128 queries on one connection. These are the miekg/dns
+defaults, set at the call site so a changed library default cannot change Ze.
+
+The deadlines bound how long a connection lives, not how many there are.
+`Options.TCPConnMax` caps how many connections each plain TCP listener holds at
+once. A connection accepted past the cap is closed at once, before any handler
+or ACL runs, and counted in `ze_dns_tcp_connection_refused_total`. Closing it
+rather than leaving it in the kernel backlog tells the client at once, so it
+retries elsewhere instead of timing out. A held connection frees its slot when
+it closes.
+
+Zero means no cap. The authoritative services (as112, geodns) keep zero, so
+their behavior is unchanged: they answer from memory and hold nothing per
+connection beyond the deadlines above. The LAN resolver sets 64
+(`resolverTCPConnMax`), because its ACL is checked per query, after accept, and
+each connection can hold an upstream resolution open. The DoT and DoH
+listeners are not capped by this option.
+
+<!-- source: internal/core/dnsserver/connlimit.go -- connLimitListener, limitedConn, tcpReadTimeout, tcpIdleTimeout, tcpQueriesMax -->
+<!-- source: internal/core/dnsserver/manager.go -- Options.TCPConnMax, Manager.capTCP, Manager.bind -->
+<!-- source: internal/plugins/dnsresolver/server.go -- resolverTCPConnMax, newResolverServer -->
+<!-- test: internal/core/dnsserver/connlimit_test.go -- TestManager_TCPConnMaxRefusesPastTheCap, TestManager_TCPConnMaxZeroIsUncapped -->
+
 ## Vocabulary stays out of core
 
 The matcher entry is `Entry{Prefix, Label}`. geodns calls its own labels

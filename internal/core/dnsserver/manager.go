@@ -79,6 +79,17 @@ type Options struct {
 	// use today. A recursive service passes RecursiveUDPSize, so a client's
 	// EDNS query of up to that size is read whole.
 	UDPSize int
+
+	// TCPConnMax caps how many connections each plain TCP listener holds open
+	// at once; a connection past it is closed at accept and counted in
+	// ze_dns_tcp_connection_refused_total (connlimit.go). The cap is per
+	// listener, so a service bound on two addresses holds up to twice it.
+	//
+	// Zero means no cap: the authoritative services (as112, geodns) keep the
+	// behavior they had, where only the per-connection deadlines bound a
+	// client. The LAN resolver sets one, because each of its connections can
+	// hold an upstream resolution open. A negative value is a caller defect.
+	TCPConnMax int
 }
 
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
@@ -198,7 +209,15 @@ func (m *Manager) bind(ep, addr string) error {
 		return fmt.Errorf("tcp: %w", err)
 	}
 	tcpStarted := make(chan struct{})
-	tcp := &dns.Server{Listener: ln, Handler: m.handler, NotifyStartedFunc: func() { close(tcpStarted) }}
+	tcp := &dns.Server{
+		Listener:          m.capTCP(ln),
+		Handler:           m.handler,
+		ReadTimeout:       tcpReadTimeout,
+		WriteTimeout:      tcpWriteTimeout,
+		IdleTimeout:       func() time.Duration { return tcpIdleTimeout },
+		MaxTCPQueries:     tcpQueriesMax,
+		NotifyStartedFunc: func() { close(tcpStarted) },
+	}
 	m.servers = append(m.servers, udp, tcp)
 	m.boundAddrs = append(m.boundAddrs, addr)
 	// Fire the up-edge here, right after the sockets are BOUND (ListenPacket/
@@ -224,6 +243,18 @@ func (m *Manager) bind(ep, addr string) error {
 	<-udpStarted
 	<-tcpStarted
 	return nil
+}
+
+// capTCP wraps ln in the connection cap when Options.TCPConnMax asks for one.
+func (m *Manager) capTCP(ln net.Listener) net.Listener {
+	if m.opts.TCPConnMax < 0 {
+		panic("BUG: dnsserver: negative Options.TCPConnMax")
+	}
+	// refuse-by-default: guards TCPConnMax -- zero is the documented no-cap choice of the authoritative services
+	if m.opts.TCPConnMax == 0 {
+		return ln
+	}
+	return newConnLimitListener(ln, m.opts.TCPConnMax, m.log)
 }
 
 // serve runs one listener's accept loop until it exits. gen is the Manager's

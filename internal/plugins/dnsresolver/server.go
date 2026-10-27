@@ -86,6 +86,11 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 	return true
 }
 
+// resolverTCPConnMax is how many TCP connections one resolver listener holds
+// at once. LAN clients ask over UDP and fall back to TCP only for a truncated
+// answer, so the cap sits well above that load while bounding a flood.
+const resolverTCPConnMax = 64
+
 // resolverServer owns the resolver's listeners over the shared harness.
 // Not safe for concurrent use: the config transaction calls it under its
 // lock.
@@ -103,10 +108,15 @@ type resolverServer struct {
 // subscriber session is up, and an interface address arrives when iface
 // applies it. Without it the bind fails with EADDRNOTAVAIL, which refuses a
 // reload (BindStrict) and leaves the listener down at boot (BindLenient).
+//
+// TCPConnMax bounds the TCP connections each listener holds, whoever opens
+// them: the ACL is checked per query, after the connection is accepted, so
+// without the cap a source outside the ACL could still hold descriptors.
 func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 	return &resolverServer{mgr: dnsserver.New(log, recursiveHandler(log, res), dnsserver.Options{
-		UDPSize:  dnsserver.RecursiveUDPSize,
-		Freebind: true,
+		UDPSize:    dnsserver.RecursiveUDPSize,
+		Freebind:   true,
+		TCPConnMax: resolverTCPConnMax,
 	})}
 }
 

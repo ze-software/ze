@@ -26,6 +26,10 @@ const (
 // consumer can see it, so the harness counts it.
 type harnessMetrics struct {
 	writeFailures metrics.CounterVec // labels: transport
+	// tcpConnRefused counts TCP connections closed at accept because the
+	// listener already held Options.TCPConnMax: the client never reaches a
+	// handler, so no consumer can count it.
+	tcpConnRefused metrics.Counter
 }
 
 // harnessMetricsPtr is swapped from a lazy Nop default to the host registry's
@@ -40,6 +44,10 @@ func buildMetrics(reg metrics.Registry) *harnessMetrics {
 			"ze_dns_reply_write_failure_total",
 			"DNS replies the transport refused to write, by transport.",
 			[]string{"transport"},
+		),
+		tcpConnRefused: reg.Counter(
+			"ze_dns_tcp_connection_refused_total",
+			"DNS TCP connections closed at accept because the listener held its connection cap.",
 		),
 	}
 }
