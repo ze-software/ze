@@ -1,0 +1,182 @@
+module ze-dns-resolver-conf {
+    namespace "urn:ze:dns-resolver:conf";
+    prefix dnsresolver;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "LAN DNS resolver configuration for Ze: a caching resolver that answers
+         recursive queries from the LAN and subscriber prefixes the operator
+         names, by forwarding to the upstream resolvers the operator names.";
+
+    revision 2026-10-27 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "The container holds the settings of each service Ze runs, and the dns-resolver container under
+            it configures the LAN DNS resolver.";
+        ze:help "Service settings";
+
+        container dns-resolver {
+            description "The LAN DNS resolver answers recursive queries (RD set) from the hosts behind Ze, which learn
+                its address from DHCPv4 option 6, the router advertisement RDNSS option or IPCP. It answers only on
+                the `listener` addresses and only to sources inside an `allow-from` prefix, and it resolves by
+                forwarding to the `forward server` entries in order. It does not validate DNSSEC.";
+            ze:help "LAN DNS resolver: caching, forwarding";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "The default is false, so the resolver binds no listener and answers no query. A true
+                    value binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one
+                    `allow-from` prefix and one `forward server`.";
+                ze:help "Enable the LAN DNS resolver";
+            }
+
+            list listener {
+                key "name";
+                ze:listener;
+                description "UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one
+                    port. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN
+                    side. The ze:listener marking enables config-time port-conflict detection across services.";
+                ze:help "UDP and TCP listen endpoints for the resolver";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                    }
+                    description "The name is the key of the entry and nothing else reads it. Use a name that says
+                        which network the endpoint serves, for example lan or subscribers.";
+                    ze:help "Listener instance name";
+                }
+
+                uses zt:listener {
+                    refine port {
+                        default 53;
+                    }
+                }
+            }
+
+            leaf-list allow-from {
+                type zt:ip-prefix;
+                description "Source prefixes the resolver answers. A query from any other source is refused. An
+                    enabled resolver needs at least one entry: an empty list would refuse every client, and
+                    answering every source would make Ze an open resolver.";
+                ze:help "Client prefixes the resolver answers";
+            }
+
+            leaf mode {
+                type enumeration {
+                    enum forward {
+                        ze:help "Resolve by forwarding to the forward server entries";
+                    }
+                }
+                default forward;
+                description "How the resolver finds an answer it has not cached. forward sends the query to the
+                    `forward server` entries.";
+                ze:help "Resolution mode";
+            }
+
+            container forward {
+                description "The upstream resolvers forward mode sends queries to.";
+                ze:help "Upstream resolvers";
+
+                list server {
+                    key "ip";
+                    ordered-by user;
+                    max-elements 8;
+                    description "One upstream resolver. The resolver tries the entries in the order they are
+                        configured and moves to the next when one does not answer.";
+                    ze:help "Upstream resolver address";
+
+                    leaf ip {
+                        type zt:ip-address;
+                        description "The upstream resolver's address.";
+                        ze:help "Upstream resolver address";
+                    }
+
+                    leaf port {
+                        type zt:port;
+                        default 53;
+                        description "The upstream resolver's port.";
+                        ze:help "Upstream resolver port";
+                    }
+                }
+            }
+
+            container cache {
+                description "Bounds of the answer and negative caches.";
+                ze:help "Resolver cache bounds";
+
+                leaf size {
+                    type uint32 {
+                        range "0..10000000";
+                    }
+                    default 100000;
+                    description "The most entries the cache holds; the least recently used entry is evicted to make
+                        room. 0 disables caching.";
+                    ze:help "Cache entries, 0 disables caching";
+                }
+
+                leaf max-ttl {
+                    type uint32 {
+                        range "0..2147483647";
+                    }
+                    default 86400;
+                    units "seconds";
+                    description "The longest time a positive answer stays cached, whatever TTL the upstream gave.";
+                    ze:help "Positive answer TTL cap in seconds";
+                }
+
+                leaf max-negative-ttl {
+                    type uint32 {
+                        range "0..2147483647";
+                    }
+                    default 3600;
+                    units "seconds";
+                    description "The longest time a name-error or no-data answer stays cached.";
+                    ze:help "Negative answer TTL cap in seconds";
+                }
+            }
+
+            leaf timeout {
+                type uint8 {
+                    range "1..60";
+                }
+                default 10;
+                units "seconds";
+                description "The longest one resolution may take, every upstream attempt included. A query not
+                    resolved in that time is answered SERVFAIL.";
+                ze:help "Whole-resolution deadline in seconds";
+            }
+
+            container limit {
+                description "Bounds on the work clients can ask of the resolver.";
+                ze:help "Resolver work bounds";
+
+                leaf outstanding {
+                    type uint32 {
+                        range "1..65535";
+                    }
+                    default 2048;
+                    description "The most resolutions in flight at once. A new query that needs one beyond it is
+                        dropped, and the client sends it again after its own timeout.";
+                    ze:help "Concurrent resolutions";
+                }
+
+                leaf per-client-rate {
+                    type uint32 {
+                        range "0..1000000";
+                    }
+                    default 0;
+                    units "queries per second";
+                    description "The most queries per second one source address is answered. Beyond it queries are
+                        dropped, one in ten still answered. 0 sets no limit.";
+                    ze:help "Per-source query rate, 0 for none";
+                }
+            }
+        }
+    }
+}

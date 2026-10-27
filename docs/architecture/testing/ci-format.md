@@ -890,7 +890,8 @@ One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
 
 The first word selects the program. `ze` is the daemon under test, and
-`le test <name>` or `le mock <name>` runs the harness, which is the runner's own executable. Any
+`le test <name>`, `le mock <name>` or another harness tool such as `le dns query`
+(`docs/functional-tests.md`, "le dns query") runs the harness, which is the runner's own executable. Any
 other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory

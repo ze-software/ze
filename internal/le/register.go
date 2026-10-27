@@ -49,6 +49,8 @@ import (
 	_ "github.com/ze-software/ze/internal/le/data/asndelegation"
 	_ "github.com/ze-software/ze/internal/le/data/ietfreference"
 	_ "github.com/ze-software/ze/internal/le/data/ipspecialpurpose"
+	_ "github.com/ze-software/ze/internal/le/dns"
+	_ "github.com/ze-software/ze/internal/le/dns/query"
 	_ "github.com/ze-software/ze/internal/le/doc"
 	_ "github.com/ze-software/ze/internal/le/doc/check"
 	_ "github.com/ze-software/ze/internal/le/doc/consistency"

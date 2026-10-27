@@ -201,6 +201,7 @@ recorded nothing is listed as `unknown`.
 | `tftpserver` | Read-only TFTP server for PXE (RFC 2347 option negotiation) |
 | `geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 7871 client-subnet) |
 | `as112` | AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) |
+| `dnsresolver` | LAN DNS resolver (`service dns-resolver`): binds its UDP and TCP listeners and answers every query SERVFAIL; forwarding and caching are not implemented yet <!-- source: internal/plugins/dnsresolver/server.go -- answerQuery --> |
 | `ntp` | NTP time synchronization |
 | `vpp` | VPP lifecycle and telemetry management |
 | `ike` | IKEv2 engine for native IPsec VPN |

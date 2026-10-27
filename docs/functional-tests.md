@@ -3325,6 +3325,55 @@ Usage: `le mock dns --port 53`
 <!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
 <!-- source: internal/test/mock/dns/server.go -- Start, Set, Close -->
 
+### le dns query
+
+DNS client for a functional test that judges a Ze DNS service by its reply
+header, which the daemon's own stub resolver never prints. It sends one query
+with the header bits and OPT its flags name, and prints the reply one field per
+line:
+
+| Line | Holds |
+|------|-------|
+| `rcode <RCODE>` | the reply's RCODE mnemonic (`NOERROR`, `SERVFAIL`, `REFUSED`, ...) |
+| `flags <bits>` | the header bits set, in wire order, from `qr aa tc rd ra ad cd` |
+| `size <n>` | the reply's size on the wire, in octets |
+| `edns size <n> do <0 or 1>` | the reply's OPT, only when it carries one |
+| `question`, `answer`, `authority`, `additional` | one record per line in presentation form, tabs turned to spaces |
+
+No field line holds a colon, so a `.ci` needle can match it whole (the runner
+splits a directive on `:`). A record line still holds one when it carries an
+IPv6 address; match its name and its address in two needles.
+
+| Flag | Meaning |
+|------|---------|
+| `--server <ip>[:port]` | destination, port 53 when absent; IPv6 with a port is `[ip]:port`. Required |
+| `--name <name>`, `--type <mnemonic>` | the question; `--type` defaults to `A`. `--name` is required |
+| `--source <ip>` | the address the query is sent from, for an `allow-from` test. Linux answers the whole of 127.0.0.0/8 on `lo`, so `127.0.0.2` is a second loopback client |
+| `--tcp` | TCP instead of UDP |
+| `--rd`, `--cd`, `--ad` | set RD, CD or AD in the query header |
+| `--do` | set DO in the OPT; refused with `--no-edns` |
+| `--edns <size>` | the UDP payload size the OPT offers, 512 to 65535, default 1232 |
+| `--no-edns` | send no OPT |
+| `--opcode <n>` | the OPCODE, 0 to 15, default 0 (QUERY) |
+| `--wait <duration>` | keep retrying an unanswered query for this long |
+
+Each attempt waits two seconds. `--wait` exists because a `cmd=background`
+daemon does not hold back the next step: the first datagram can reach a port
+the plugin has not bound yet, and `--wait 25s` retries every 100 ms, each time
+with a new ID on a new socket, so a late reply to an earlier attempt is never
+taken for the current one.
+
+The command exits 0 on any reply, whatever its RCODE, so a test asserts the
+RCODE on stdout. It exits 1 with `error: no reply from <server>: <reason>` on
+stderr when no reply arrives within `--wait`, and with `error: <reason>` for a
+command line it refuses. The LAN resolver's functional tests drive it against
+`service dns-resolver`, with `le mock dns` as the upstream.
+
+Usage: `le dns query --server 127.0.0.1:5353 --name web.example.test --rd --wait 25s`
+
+<!-- source: internal/test/dnsquery/query.go -- parseArgs, exchange, writeReply -->
+<!-- source: internal/le/dns/query/register.go -- le dns query registration -->
+
 ### Security
 
 - Path traversal protection on `option:file:` fixture paths
