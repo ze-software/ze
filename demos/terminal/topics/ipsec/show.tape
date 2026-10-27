@@ -68,15 +68,15 @@ Type "ze cli -c 'show vpn ipsec peer name responder | no-more'"
 Enter
 Wait+Screen /established/
 Sleep 3s
-Type "ze cli -c 'show log recent level warn | no-more'"
+Type "ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'"
 Enter
 Wait+Screen /notify: NO_PROPOSAL_CHOSEN/
 Wait+Screen /peer: responder/
 Sleep 4s
-Type "ze cli -c 'show vpn ipsec dataplane sa | no-more'"
+Type "ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'"
 Enter
 Wait+Screen /sas: \[\]/
-Type "ze cli -c 'show vpn ipsec dataplane drift | no-more'"
+Type "ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'"
 Enter
 Wait+Screen /drift: \[\]/
 Sleep 3s

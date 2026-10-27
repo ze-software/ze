@@ -45,9 +45,9 @@ ze> exit
 
 $ ze-demo card topic-ipsec diagnosis
 $ ze cli -c 'show vpn ipsec peer name responder | no-more'
-$ ze cli -c 'show log recent level warn | no-more'
-$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
-$ ze cli -c 'show vpn ipsec dataplane drift | no-more'
+$ ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'
 
 The same log entry carries peer responder and notify NO_PROPOSAL_CHOSEN
 under attributes beside the message that IKE remains established. An empty

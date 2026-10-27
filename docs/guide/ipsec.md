@@ -15,8 +15,10 @@ protected-host ping distinguish installed forwarding from negotiated state.
 
 The failure changes only ESP to a cipher the responder does not offer.
 `show vpn ipsec peer name responder` can still report established IKE with no
-Child SA. `show log recent level warn` carries `notify: NO_PROPOSAL_CHOSEN`
-and `peer: responder` in the same entry's structured attributes. Empty dataplane
+Child SA. `show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml`
+shows the latest refusal with `notify: NO_PROPOSAL_CHOSEN` and `peer: responder`
+in the same entry's structured attributes, without unrelated warnings scrolling
+it out of view. Empty dataplane
 drift means the expected SA identities are present, not that a tunnel exists
 or that every forwarding policy is installed. The repair restores the ESP
 group, clears that peer's SAs and proves protected traffic again.

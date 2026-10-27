@@ -119,7 +119,9 @@ $ ze-demo run showcase-lab control vpn ping
 ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
 ze# commit now
 $ ze cli -c 'show vpn ipsec peer name responder | no-more'
-$ ze cli -c 'show log recent level warn | no-more'
+$ ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'
 ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
 ze# commit now
 $ ze cli -c 'clear vpn ipsec sa peer responder | no-more'
