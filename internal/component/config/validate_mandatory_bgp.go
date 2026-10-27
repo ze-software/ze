@@ -143,16 +143,11 @@ func EverySessionCarries(data map[string]any, missingPath string) bool {
 // session template, so the mandatory check and the resolver agree on which
 // groups are templates.
 func IsDynamicBGPGroup(group map[string]any) bool {
-	connection, ok := group["connection"].(map[string]any)
+	ip, ok := BGPRemoteIP(group)
 	if !ok {
 		return false
 	}
-	remote, ok := connection["remote"].(map[string]any)
-	if !ok {
-		return false
-	}
-	ip, ok := remote["ip"].(string)
-	return ok && ip == "dynamic"
+	return ip == bgpRemoteIPDynamic
 }
 
 // listEntries returns the entries of the list named name in data, the shape

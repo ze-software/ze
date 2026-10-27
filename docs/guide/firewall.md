@@ -165,7 +165,7 @@ error. Its terms therefore read the quoted header as a raw payload compare
 `show firewall ruleset gtsm` lists it, and removing
 the peer's `ttl` block removes it. The full list of table owners is in
 [table ownership](../architecture/firewall/table-ownership-and-shutdown-flush.md).
-<!-- source: internal/component/gtsm/gtsm.go -- filterTables, peerTerms -->
+<!-- source: internal/component/gtsm/gtsm.go -- FilterTables, peerTerms -->
 
 ### Table Families
 

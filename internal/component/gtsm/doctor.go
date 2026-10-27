@@ -156,7 +156,7 @@ func installedStateDiagnostics(peers []Peer) []diagnostic.Diagnostic {
 
 	tableKnown := false
 	tablePresent := false
-	if filterTables(peers) != nil {
+	if FilterTables(peers) != nil {
 		tables, err := readKernelTables()
 		if err != nil {
 			diags = append(diags, diagnostic.Diagnostic{

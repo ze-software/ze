@@ -131,7 +131,7 @@ func SetPeers(peers []Peer) error {
 	// a later reconcile can still reach.
 	routeErr := applyRoutes(wanted, current)
 	routeMissing = routeErr != nil
-	if err := publishFilter(filterTables(wanted)); err != nil {
+	if err := publishFilter(FilterTables(wanted)); err != nil {
 		// current stays as it was, so the next reconcile republishes.
 		return errors.Join(routeErr, fmt.Errorf("gtsm filter: %w", err))
 	}
@@ -179,7 +179,7 @@ var publishFilter = func(tables []firewall.Table) error {
 	return firewall.ApplyAll()
 }
 
-// filterTables builds the nftables table that drops a Dangerous related ICMP
+// FilterTables builds the nftables table that drops a Dangerous related ICMP
 // message, which RFC 5082 Section 3 permits: "MAY drop packets classified as
 // Dangerous". Ze already drops a Dangerous main packet, through the IP_MINTTL
 // floor, so the related message takes the same answer.
@@ -187,7 +187,11 @@ var publishFilter = func(tables []firewall.Table) error {
 // It returns no table when no peer owes terms, so the last peer to lose its
 // GTSM configuration withdraws the kernel table rather than leaving an empty
 // one behind. A deployment with no GTSM peer never loads the firewall backend.
-func filterTables(peers []Peer) []firewall.Table {
+//
+// It is exported so a publisher of the peer set (the BGP reactor) can prove,
+// without a kernel, which tables the set it publishes yields; SetPeers is the
+// only caller that installs them.
+func FilterTables(peers []Peer) []firewall.Table {
 	terms := make([]firewall.Term, 0, len(peers)*len(relatedICMPTypes)*len(quotedPortSides))
 	for _, p := range peers {
 		terms = append(terms, peerTerms(p)...)

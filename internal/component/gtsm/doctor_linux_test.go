@@ -86,7 +86,7 @@ func ipv6Peer() Peer {
 func TestGTSMDoctorReportsAPublishedPeerWhoseRouteIsMissing(t *testing.T) {
 	p := gtsmPeer()
 	publishedInThisProcess(t, p)
-	standInKernel(t, &kernelStandIn{tables: filterTables([]Peer{p})})
+	standInKernel(t, &kernelStandIn{tables: FilterTables([]Peer{p})})
 
 	diags := registeredKernelStateCheck(t).Check(diagnostic.DoctorCheckContext{Tree: bgpTree()})
 	if len(diags) != 1 {
@@ -130,7 +130,7 @@ func TestGTSMDoctorReportsAPublishedPeerWhoseTableIsMissing(t *testing.T) {
 func TestGTSMDoctorIsSilentWhenTheKernelHoldsWhatWasPublished(t *testing.T) {
 	p := gtsmPeer()
 	publishedInThisProcess(t, p)
-	kernel := &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tables: filterTables([]Peer{p})}
+	kernel := &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tables: FilterTables([]Peer{p})}
 	standInKernel(t, kernel)
 
 	check := registeredKernelStateCheck(t)

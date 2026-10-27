@@ -8,10 +8,66 @@ import (
 	"net/netip"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/firewall"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const defaultPort = 179
+
+// parseCoppSections parses the control-plane-protection body coppData and
+// attaches the BGP neighbor sources read from the `bgp` section of the same
+// delivery. The engine delivers the bgp root because copp lists it under
+// ConfigReads: at start, and whole beside control-plane-protection on every
+// reload that changes either root (reloadConfigSections,
+// internal/component/plugin/server/reload_compensation.go).
+//
+// A delivery with no bgp section names no neighbor: the configuration holds
+// no bgp root. A bgp section that does not parse refuses the policy, because
+// a set built from part of it would drop a configured neighbor's SYN.
+//
+// RFC 7454 Section 4: the ACL discards traffic to port 179 "sourced from an
+// address not known or permitted to become a BGP neighbor".
+func parseCoppSections(sections []sdk.ConfigSection, coppData string) (coppPolicy, bool, error) {
+	policy, found, err := parseCoppConfig(coppData)
+	if err != nil {
+		return coppPolicy{}, false, err
+	}
+	if !found {
+		return coppPolicy{}, false, nil
+	}
+	for _, section := range sections {
+		if section.Root != bgpConfigRoot {
+			continue
+		}
+		neighbors, err := parseNeighborSources(section.Data)
+		if err != nil {
+			return coppPolicy{}, false, err
+		}
+		policy.Neighbors = neighbors
+	}
+	return policy, true, nil
+}
+
+// parseNeighborSources reads the neighbor sources from one bgp section body,
+// in the wrapped shape the SDK delivers ({"bgp": {...}}). A body without the
+// bgp key is the root removed, delivered as {}, and names no neighbor.
+func parseNeighborSources(bgpData string) ([]netip.Prefix, error) {
+	var tree map[string]any
+	if err := json.Unmarshal([]byte(bgpData), &tree); err != nil {
+		return nil, fmt.Errorf("copp: unmarshal bgp config: %w", err)
+	}
+	body, ok := tree[bgpConfigRoot].(map[string]any)
+	// refuse-by-default: guards parseCoppSections -- a removed bgp root arrives as {} and configures no neighbor
+	if !ok {
+		return nil, nil
+	}
+	neighbors, err := config.BGPNeighborSources(body)
+	if err != nil {
+		return nil, fmt.Errorf("copp: bgp neighbors: %w", err)
+	}
+	return neighbors, nil
+}
 
 func parseCoppConfig(jsonData string) (coppPolicy, bool, error) {
 	var tree map[string]any

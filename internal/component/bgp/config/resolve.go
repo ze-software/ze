@@ -179,17 +179,21 @@ type DynamicGroupTemplate struct {
 
 // resolveDynamicGroup validates and resolves a dynamic group into a template.
 func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]any) (DynamicGroupTemplate, error) {
-	connMap, ok := groupFields["connection"].(map[string]any)
-	if !ok {
+	if _, ok := groupFields["connection"].(map[string]any); !ok {
 		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: missing connection block", groupName)
 	}
-	remoteMap, ok := connMap["remote"].(map[string]any)
+	remoteMap, ok := config.BGPRemote(groupFields)
 	if !ok {
 		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: missing connection/remote block", groupName)
 	}
 
-	// Validate: range is required when ip is dynamic.
-	rangeVal, hasRange := remoteMap["range"]
+	// Validate: range is required when ip is dynamic. The ranges are read by
+	// the one reader of `connection > remote` (config.BGPRemoteRanges), which
+	// CoPP's neighbor set reads too.
+	ranges, hasRange, err := config.BGPRemoteRanges(remoteMap)
+	if err != nil {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: %w", groupName, err)
+	}
 	if !hasRange {
 		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: ip dynamic requires at least one range", groupName)
 	}
@@ -202,37 +206,6 @@ func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]a
 	}
 	if s, ok := connectVal.(string); ok && s != "false" {
 		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: dynamic group requires connect false", groupName)
-	}
-
-	// Parse ranges.
-	var ranges []netip.Prefix
-	switch v := rangeVal.(type) {
-	case string:
-		p, err := netip.ParsePrefix(v)
-		if err != nil {
-			return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, v, err)
-		}
-		ranges = append(ranges, p)
-	case []string:
-		for _, s := range v {
-			p, err := netip.ParsePrefix(s)
-			if err != nil {
-				return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, s, err)
-			}
-			ranges = append(ranges, p)
-		}
-	case []any:
-		for _, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				continue
-			}
-			p, err := netip.ParsePrefix(s)
-			if err != nil {
-				return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, s, err)
-			}
-			ranges = append(ranges, p)
-		}
 	}
 
 	if len(ranges) == 0 {
@@ -412,16 +385,8 @@ func checkDuplicateRemoteIPs(peerMap map[string]any) error {
 		if !ok {
 			continue
 		}
-		connMap, ok := peer["connection"].(map[string]any)
+		ip, ok := config.BGPRemoteIP(peer)
 		if !ok {
-			continue
-		}
-		remoteMap, ok := connMap["remote"].(map[string]any)
-		if !ok {
-			continue
-		}
-		ip, ok := remoteMap["ip"].(string)
-		if !ok || ip == "" {
 			continue
 		}
 		if firstPeer, exists := seen[ip]; exists {

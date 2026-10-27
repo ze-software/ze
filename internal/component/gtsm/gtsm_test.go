@@ -173,7 +173,7 @@ func TestGTSMEveryDropTermRequiresTheQuotedBGPPort(t *testing.T) {
 // RegisterTables applies. A term this package builds that the component
 // refuses would reach the kernel as nothing at all.
 func TestGTSMTermsAreAcceptedByTheFirewallValidator(t *testing.T) {
-	tables := filterTables([]Peer{gtsmPeer()})
+	tables := FilterTables([]Peer{gtsmPeer()})
 	if len(tables) != 1 {
 		t.Fatalf("built %d tables, want 1", len(tables))
 	}
@@ -274,7 +274,7 @@ func TestGTSMBuildsNoFilterTermsWithoutAFloor(t *testing.T) {
 	if terms := peerTerms(peer); terms != nil {
 		t.Errorf("built %d terms for a peer with no TTL floor, want none", len(terms))
 	}
-	if tables := filterTables([]Peer{peer}); tables != nil {
+	if tables := FilterTables([]Peer{peer}); tables != nil {
 		t.Errorf("built a table with no terms in it: %v", tables)
 	}
 }

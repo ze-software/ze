@@ -55,7 +55,7 @@ rules quietly.
 | gtsm | `ze_gtsm` | `filterTableName` |
 
 <!-- source: internal/component/firewall/registry.go -- RegisterTables -->
-<!-- source: internal/component/gtsm/gtsm.go -- filterTableName, filterTables -->
+<!-- source: internal/component/gtsm/gtsm.go -- filterTableName, FilterTables -->
 <!-- source: internal/plugins/copp/translate.go -- coppTableName -->
 <!-- source: internal/plugins/ddos/local/responder.go -- tableName -->
 <!-- source: internal/plugins/flowspec-firewall/state.go -- tableName -->

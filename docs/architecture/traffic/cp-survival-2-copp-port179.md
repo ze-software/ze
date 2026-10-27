@@ -23,6 +23,29 @@ coexisting on one table set. The rules that keep those owners' tables visible an
 reconciled are in
 [firewall table ownership](../firewall/table-ownership-and-shutdown-flush.md).
 
+### The neighbors come from the bgp root copp reads
+
+<!-- source: internal/plugins/copp/register.go -- bgpConfigRoot, ConfigReads -->
+<!-- source: internal/plugins/copp/config.go -- parseCoppSections -->
+<!-- source: internal/component/config/bgp_neighbor_sources.go -- BGPNeighborSources -->
+
+RFC 7454 Section 4 asks for an ACL that discards traffic to port 179 "sourced
+from an address not known or permitted to become a BGP neighbor". copp learns
+those addresses from the configuration, never from the reactor, so it works the
+same when it runs in another process. It lists `bgp` under `ConfigReads`, not
+`ConfigRoots`: the engine delivers the `bgp` section beside
+`control-plane-protection` at start and whole on every reload that changes
+either root, and a configuration that holds only `bgp` does not load copp, so
+CoPP stays opt-in.
+
+The section is read by `config.BGPNeighborSources`, the one reader of a peer's
+`connection > remote` container, which the BGP config resolve and the
+reactor's peer parse also call. Each static peer becomes a host prefix of its
+remote address, and each dynamic group contributes its `range` entries. A `bgp`
+section the BGP parse would refuse refuses the CoPP policy too, because a set
+built from part of it would drop a configured neighbor. The reader lives in the
+config component because copp (`ze_copp`) does not depend on BGP (`ze_bgp`).
+
 ### The chain policy is always accept
 
 <!-- source: internal/plugins/copp/translate.go -- chain policy, term order -->

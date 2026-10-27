@@ -21,5 +21,9 @@ type coppPolicy struct {
 	Burst          uint32
 	ProtectedPorts []uint16
 	TrustedSources []netip.Prefix
-	OverPolicy     string
+	// Neighbors are the sources a configured BGP neighbor may connect from,
+	// read from the bgp section (config.BGPNeighborSources): each static
+	// peer's address as a host prefix and each dynamic group's ranges.
+	Neighbors  []netip.Prefix
+	OverPolicy string
 }

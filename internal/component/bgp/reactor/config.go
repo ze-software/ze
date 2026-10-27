@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -57,7 +58,6 @@ const (
 // same tree shape.
 func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
 	sessionMap, _ := mapMap(tree, "session")
-	connMap, _ := mapMap(tree, "connection")
 
 	// Remote AS from session > asn > remote (required).
 	var peerAS uint32
@@ -72,14 +72,11 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		return nil, fmt.Errorf("peer %s: missing required session > asn > remote: %w", name, ErrIncompleteConfig)
 	}
 
-	// Remote IP from connection > remote > ip (required).
-	var remoteIPStr string
-	if connMap != nil {
-		if connRemoteMap, ok := mapMap(connMap, "remote"); ok {
-			remoteIPStr, _ = mapString(connRemoteMap, "ip")
-		}
-	}
-	if remoteIPStr == "" {
+	// Remote IP from connection > remote > ip (required), read by the one
+	// reader of that container (config.BGPRemoteIP), which CoPP's neighbor set
+	// reads too.
+	remoteIPStr, hasRemoteIP := config.BGPRemoteIP(tree)
+	if !hasRemoteIP {
 		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip: %w", name, ErrIncompleteConfig)
 	}
 	if remoteIPStr == "dynamic" {

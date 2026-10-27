@@ -20,6 +20,12 @@ import (
 
 const configRoot = "control-plane-protection"
 
+// bgpConfigRoot is the root copp reads, never owns, to learn the configured
+// BGP neighbors. As a read root it reaches copp's verify, apply and the
+// offline validator, and a config that holds only bgp does not load copp, so
+// CoPP stays opt-in.
+const bgpConfigRoot = "bgp"
+
 func init() {
 	reg := registry.Registration{
 		Name:                    "copp",
@@ -27,6 +33,7 @@ func init() {
 		Features:                "yang",
 		YANG:                    coppyang.ZeCoppConfYANG,
 		ConfigRoots:             []string{configRoot},
+		ConfigReads:             []string{bgpConfigRoot},
 		Dependencies:            []string{"firewall"},
 		InProcessConfigVerifier: verifyCoppConfig,
 		RunEngine:               runCoppPlugin,
@@ -61,10 +68,44 @@ func verifyCoppConfig(sections []sdk.ConfigSection) error {
 		if section.Root != configRoot {
 			continue
 		}
-		_, _, err := parseCoppConfig(section.Data)
+		_, _, err := parseCoppSections(sections, section.Data)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// stageVerifiedPolicy is the body of the plugin's OnConfigVerify handler: it
+// parses the delivery's control-plane-protection and bgp sections and stages
+// the candidate for the apply. A delivery without a control-plane-protection
+// section stages nothing, as before copp read the bgp root.
+//
+// It is a named function so the verify-to-apply seam can be driven by a test
+// with the same sections the SDK delivers (TestCoppDropTermWiring).
+//
+// MUST be called with mu unlocked; it takes mu around the stage.
+func stageVerifiedPolicy(sections []sdk.ConfigSection, pending *pendingPolicy, mu *sync.Mutex) error {
+	for _, section := range sections {
+		if section.Root != configRoot {
+			continue
+		}
+		// RFC 7454 Section 4: the neighbor set this candidate carries is read
+		// from the bgp section of the same delivery.
+		policy, found, err := parseCoppSections(sections, section.Data)
+		if err != nil {
+			return err
+		}
+		mu.Lock()
+		if found {
+			pending.stage(&policy)
+		} else {
+			// The operator deleted the section, or left it with no `bgp` body.
+			// Either way there is no policy to install and the table must come
+			// out, so the answer is STAGED rather than left unstaged.
+			pending.stage(nil)
+		}
+		mu.Unlock()
 	}
 	return nil
 }
@@ -135,26 +176,7 @@ func runCoppPlugin(conn net.Conn) int {
 	var pending pendingPolicy
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRoot {
-				continue
-			}
-			policy, found, err := parseCoppConfig(section.Data)
-			if err != nil {
-				return err
-			}
-			mu.Lock()
-			if found {
-				pending.stage(&policy)
-			} else {
-				// The operator deleted the section, or left it with no `bgp` body.
-				// Either way there is no policy to install and the table must come
-				// out, so the answer is STAGED rather than left unstaged.
-				pending.stage(nil)
-			}
-			mu.Unlock()
-		}
-		return nil
+		return stageVerifiedPolicy(sections, &pending, &mu)
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -162,7 +184,7 @@ func runCoppPlugin(conn net.Conn) int {
 			if section.Root != configRoot {
 				continue
 			}
-			policy, found, err := parseCoppConfig(section.Data)
+			policy, found, err := parseCoppSections(sections, section.Data)
 			if err != nil {
 				return err
 			}
