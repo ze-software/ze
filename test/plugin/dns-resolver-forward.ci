@@ -1,0 +1,75 @@
+# Test: a client inside allow-from resolves a name through the LAN resolver,
+#       which forwards to the `le mock dns` upstream.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Wiring Test row 1, AC-1
+# VALIDATES: the path from `service dns-resolver` through the listener the
+#            plugin binds (internal/plugins/dnsresolver/server.go) and
+#            dnsserver.Recursive (internal/core/dnsserver/recursive.go) to the
+#            reply `le dns query` prints: NOERROR with the upstream's record,
+#            QR RD RA set and AA clear. The same question asked again is
+#            answered from the cache (AC-5): the upstream logs one question
+#            for cached.example.test (TTL 300), never two.
+# PREVENTS: a resolver that binds but answers SERVFAIL, or answers in the
+#           authoritative shape (AA set, RA clear), or one that forwards every
+#           query because the answer cache never holds what it was given.
+#
+# DISCRIMINATION: the same file with `cache { size 0 }` (a resolver that keeps
+# no answer) goes red on the last line: the second cached.example.test query
+# reaches the mock, which logs the question twice.
+#
+# `le dns query --wait` retries until the listener answers: the daemon starts
+# without blocking the later steps, so the first datagram can reach a port
+# the plugin has not bound yet.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go), so a short one on the last query
+# would shrink the test to it.
+option=timeout:value=40s
+
+stdin=ze-dns:terminator=EOF_CONF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port $PORT2 --log-queries
+# The mock logs `le mock dns: query <name> <type>` once per question it
+# receives; a background span runs to the end of the test, so this reads the
+# line seq=4 caused. The '.' after "dns" stands for the colon, which a needle
+# cannot hold.
+expect=stderr:pattern=mock dns. query cached\.example\.test\. A
+cmd=background:seq=2:exec=ze -:stdin=ze-dns
+cmd=foreground:seq=3:exec=le dns query --server 127.0.0.1:$PORT --name web.example.test --type A --rd --wait 25s
+
+# No needle may hold a colon: the runner splits a directive on ':'.
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=flags qr rd ra
+expect=stdout:contains=answer web.example.test.
+expect=stdout:contains=203.0.113.10
+
+# cached.example.test is the zone's one name with a non-zero TTL (300): a
+# zero-TTL answer such as web.example.test's is never cached, so the cache is
+# proven on this name. The first query fills the cache, the second is
+# sent only after the first was answered and must not reach the mock. --wait is
+# not needed: the listener answered seq=3.
+cmd=foreground:seq=4:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=203.0.113.20
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=203.0.113.20
+
+# Exactly one question for cached.example.test reached the mock: seq=4's.
+reject=stderr:pattern=(?s)mock dns. query cached\.example\.test\. A.*mock dns. query cached\.example\.test\. A

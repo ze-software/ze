@@ -198,6 +198,7 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| field-carries-two-meanings.md | 2026-10-27 | .ci cmd timeout= replaces option=timeout as the test budget |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | verify changed load reds at e6474aa200 |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | verify changed load reds at 2f36373081 |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | functional ui, web, parse, plugin timeouts at 0723d7d26a |

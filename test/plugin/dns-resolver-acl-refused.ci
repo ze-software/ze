@@ -1,0 +1,66 @@
+# Test: the LAN resolver refuses a client outside allow-from, and a query with
+#       RD clear from an allowed client, and forwards neither upstream.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-2, AC-12
+# VALIDATES: the access check in front of the cache and the forwarder
+#            (internal/plugins/dnsresolver/server.go): a source outside every
+#            allow-from prefix is answered REFUSED with AA clear, an RD=0 query
+#            from an allowed source is answered REFUSED, and neither question
+#            reaches `le mock dns`. An allowed RD=1 query is still answered, so
+#            the refusals are the policy and not a resolver that refuses all.
+# PREVENTS: an open resolver (a LAN-only service answering any source), and an
+#           RD=0 query used to snoop the cache or start a resolution.
+#
+# 127.0.0.2 is a second loopback client: Linux answers the whole of 127.0.0.0/8
+# on lo, and allow-from names 127.0.0.1 alone.
+#
+# DISCRIMINATION: the same file with allow-from 127.0.0.0/8 goes red: seq=3 is
+# answered NOERROR, and its question reaches the mock.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go).
+option=timeout:value=40s
+
+stdin=ze-dns:terminator=EOF_CONF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.1/32
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port $PORT2 --log-queries
+# A background span runs to the end of the test: the allowed query of seq=5
+# reached the mock, so the log is live. The '.' after "dns" stands for the
+# colon, which a needle cannot hold.
+expect=stderr:pattern=mock dns. query v4only\.example\.test\. A
+cmd=background:seq=2:exec=ze -:stdin=ze-dns
+
+# Outside allow-from. --wait retries until the listener answers; REFUSED is an
+# answer, so it returns on the first reply.
+cmd=foreground:seq=3:exec=le dns query --server 127.0.0.1:$PORT --source 127.0.0.2 --name web.example.test --type A --rd --wait 25s
+expect=stdout:contains=rcode REFUSED
+reject=stdout:pattern=flags.* aa
+
+# Inside allow-from, RD clear.
+cmd=foreground:seq=4:exec=le dns query --server 127.0.0.1:$PORT --name web.example.test --type A
+expect=stdout:contains=rcode REFUSED
+reject=stdout:pattern=flags.* aa
+
+# Inside allow-from, RD set: answered.
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name v4only.example.test --type A --rd
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=198.51.100.10
+
+# Neither refused question reached the upstream.
+reject=stderr:pattern=mock dns. query web\.example\.test\.

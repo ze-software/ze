@@ -305,22 +305,22 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `dns-resolver` enabled, `mode forward`, upstream answers A for a name; query RD=1 from an allowed source | NOERROR with the upstream's records; RA=1, AA=0, Z=0, AD=0; answer TTL no greater than the upstream's |
-| AC-2 | Query from a source outside every `allow-from` prefix | REFUSED, AA=0, `ze_dns_resolver_refused_total` +1, and `le mock dns --log-queries` logs no query |
+| AC-1 | `dns-resolver` enabled, `mode forward`, upstream answers A for a name; query RD=1 from an allowed source | NOERROR with the upstream's records; RA=1, AA=0, Z=0, AD=0; answer TTL no greater than the upstream's. → Test: `test/plugin/dns-resolver-forward.ci` |
+| AC-2 | Query from a source outside every `allow-from` prefix | REFUSED, AA=0, `ze_dns_resolver_refused_total` +1, and `le mock dns --log-queries` logs no query. → Test: `test/plugin/dns-resolver-acl-refused.ci` (seq=3), `TestACLRefused` |
 | AC-3 | Commit with a listener `ip` of `0.0.0.0` or `::` | Commit refused; message names the listener, says a wildcard would answer on the WAN, and names the fix (a LAN or loopback address) |
 | AC-4 | Commit with `enabled true` and no `allow-from` entry | Commit refused; message says the resolver would refuse every client and names the leaf to set |
-| AC-5 | Same query repeated within the TTL | Second answer from cache: no upstream query logged, TTL reduced by the elapsed whole seconds |
+| AC-5 | Same query repeated within the TTL | Second answer from cache: no upstream query logged, TTL reduced by the elapsed whole seconds. → Test: `test/plugin/dns-resolver-forward.ci` (seq=4, seq=5: one upstream question), `TestCacheTTLDecrement` (the TTL) |
 | AC-6 | Upstream returns a new RRset for a cached name and type after expiry | Cached RRset replaced whole, never merged with the old records (RFC2181-5.4-1) |
 | AC-7 | Upstream answers NXDOMAIN with an SOA whose TTL is 300 and MINIMUM 60 | NXDOMAIN cached 60 s for every type of that name; NODATA cached per type; `max-negative-ttl` caps a larger value |
 | AC-8 | Query DO=1 | The upstream query carries an OPT with DO=0; the reply carries an OPT, AD=0, and no record the upstream did not return for the question |
 | AC-9 | Query for type RRSIG, DNSKEY or DS | Returned as an ordinary RRset, the entire RRset (RFC2181-5.3.1-2); an RRSIG seen only in an authority or additional section is never returned for an RRSIG query (RFC2181-5.3.1-3/4) |
 | AC-10 | Upstream reply sets AA=1 or AD=1 | Ze's reply has AA=0 and AD=0 |
 | AC-11 | CNAME loop, or a chain longer than 11 restarts, or more than 32 upstream queries needed | SERVFAIL; upstream queries for that client query never exceed 32 |
-| AC-12 | Query with RD=0 from an allowed source | REFUSED, whether or not the name is cached, and no upstream query |
+| AC-12 | Query with RD=0 from an allowed source | REFUSED, whether or not the name is cached, and no upstream query. → Test: `test/plugin/dns-resolver-acl-refused.ci` (seq=4), `TestRDZeroRefused` |
 | AC-13 | UDP query with EDNS buffer 1232 and an answer larger than 1232 octets | Reply carries OPT, is at most 1232 octets and has TC=1 (RFC2181-5.1-1, RFC1035-4.2.1-2); the same query over TCP returns the whole answer |
 | AC-14 | UDP query of 1220 octets or more (EDNS) | Read whole and answered (listener `UDPSize` 1232) |
 | AC-15 | Upstream answer carries TC=1 | The resolver repeats the query over TCP and answers with the whole RRset |
-| AC-16 | All upstreams unreachable or silent | SERVFAIL within `timeout`; nothing cached as negative; the next query retries upstream |
+| AC-16 | All upstreams unreachable or silent | SERVFAIL within `timeout`; nothing cached as negative; the next query retries upstream. → Test: `test/plugin/dns-resolver-timeout.ci`, `TestFailoverAndTimeout` |
 | AC-17 | First upstream silent, second answers | Answer from the second within `timeout`; `upstream_queries_total{result="timeout"}` +1 |
 | AC-18 | Reply from upstream with a mismatched ID, a mismatched question name, class or type, or from another source address or port | Ignored; the resolver keeps waiting or times out (RFC 5452 Section 9.1 matching) |
 | AC-19 | Upstream answer carrying records outside the queried zone's bailiwick | Those records are neither cached nor returned |
@@ -334,8 +334,8 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | AC-27 | Name compared in another case (`WWW.Example.TEST`) | Same cache entry as the lower-case name; the reply's question echoes the query's case (RFC1035-3.1-5) |
 | AC-28 | Resolver listener on an address and port another DNS service binds | Commit refused by the listener conflict check, naming both services |
 | AC-29 | `dns-resolver` absent or `enabled false` | No listener bound; `system name-server` and the stub unchanged |
-| AC-30 | Reload changing only `allow-from`, upstreams or limits | New policy on the next query; listeners not rebound (no serving pause) |
-| AC-31 | `show dns-resolver` | The fields in the Commands table; `clear dns-resolver cache all` empties every cache and the next query goes upstream |
+| AC-30 | Reload changing only `allow-from`, upstreams or limits | New policy on the next query; listeners not rebound (no serving pause). → Test: `TestReloadKeepsListeners` (one socket across the reload), `test/reload/dns-resolver-reload.ci` (allow-from reloaded, next query refused or answered by the new list) |
+| AC-31 | `show dns-resolver` | The fields in the Commands table; `clear dns-resolver cache all` empties every cache and the next query goes upstream. → Test: `test/plugin/dns-resolver-show.ci` |
 | AC-32 | LAN host gets a DHCPv4 lease from Ze with `dns-server` set to the resolver address, then resolves a name with `kdig` against the leased server | Answered |
 | AC-33 | L2TP subscriber gets the resolver address via IPCP from the pool's `dns-primary` and resolves a name | Answered; the subscriber's pool prefix is in `allow-from` |
 
@@ -393,7 +393,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `dns-resolver-listener-conflict` | `test/plugin/dns-resolver-listener-conflict.ci` | same address and port as geodns refused | |
 | `dns-resolver-timeout` | `test/plugin/dns-resolver-timeout.ci` | mock `--drop` on one name: SERVFAIL within timeout, then answered once the mock serves it | |
 | `dns-resolver-show` | `test/plugin/dns-resolver-show.ci` | `show dns-resolver` and `clear dns-resolver cache all` | |
-| `dns-resolver-reload` | `test/plugin/dns-resolver-reload.ci` | allow-from change applies without rebinding | |
+| `dns-resolver-reload` | `test/reload/dns-resolver-reload.ci` | allow-from change applies without rebinding | |
 
 Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 53, as `dns-stub-lookup.ci` does, or an unprivileged port otherwise.
@@ -448,7 +448,7 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 | Functional test for new RPC/API | Yes | `test/plugin/dns-resolver-show.ci` |
 | Pipe completeness | Yes | `show dns-resolver` output through `ApplyPipes` |
 | Env var registration | No | no `environment/` leaf; all config is YANG under `service` |
-| Doctor check for runtime dependencies | Yes | listen port 53: `doctor-dns-resolver-port-unavailable`; no reachable upstream: `doctor-dns-resolver-upstream-unreachable`; codes in `internal/core/diagnostic/codes.go`, unit and functional tests |
+| Doctor check for runtime dependencies | Yes | listen port 53: `doctor-dns-resolver-port-unavailable`; no reachable upstream: `doctor-dns-resolver-upstream-unreachable`; codes in `internal/core/diagnostic/codes.go`, unit and functional tests. → Test: `TestDoctorCodes`, `TestDoctorListenerPortUnavailable`, `TestDoctorUpstreamUnreachable` (`internal/plugins/dnsresolver/doctor_test.go`) |
 | Prometheus counters/metrics | Yes | `ze_dns_resolver_queries_total{transport,rcode}`, `ze_dns_resolver_refused_total{reason=acl|rd-clear}`, `ze_dns_resolver_rate_limited_total`, `ze_dns_resolver_dropped_total`, `ze_dns_resolver_outstanding`, `ze_dns_resolver_cache_entries{cache=answer|negative}`, `ze_dns_resolver_cache_hits_total`, `ze_dns_resolver_upstream_queries_total{result}`, listener gauge via `OnListenerChange` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP change |
 

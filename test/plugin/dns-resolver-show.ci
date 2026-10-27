@@ -1,0 +1,111 @@
+# Test: `show dns-resolver` reports the running resolver's policy and counters,
+#       and `clear dns-resolver cache all` empties the cache, so the next
+#       query goes upstream again.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-31
+# VALIDATES: through the real entry point, the CLI dialing the daemon's SSH
+#            server: ze-dns-resolver-cmd dispatches handleShowDNSResolver and
+#            handleClearDNSResolverCache (internal/plugins/dnsresolver/show.go)
+#            in the plugin that serves the queries. After one miss and one hit
+#            on cached.example.test (the zone's TTL-300 name) the show answer
+#            counts them; clear reports the one entry it removed; and the
+#            same question asked after the clear reaches `le mock dns` again.
+# PREVENTS: a show answered from a copy that is not the query path's state,
+#           and a clear that reports success while the cache still answers.
+#
+# The resolver serves UDP and TCP on $PORT. The mock serves UDP on $PORT2 and
+# the daemon's SSH server listens on TCP $PORT2: one number, two protocols.
+#
+# DISCRIMINATION: (1) the same file with `cache { size 0 }` goes red: seq=6
+# reports no hit and no entry. (2) A clear that empties nothing (a temporary
+# no-op clearCaches) goes red: seq=8 still counts the entry, seq=9 is answered
+# from the cache, and the mock logs cached.example.test once.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go).
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=le mock dns --port $PORT2 --log-queries
+# A background span runs to the end of the test, so this reads the lines seq=4
+# and seq=9 caused: two questions, one before the clear and one after it. The
+# '.' after "dns" stands for the colon, which a needle cannot hold.
+expect=stderr:pattern=(?s)mock dns. query cached\.example\.test\. A.*mock dns. query cached\.example\.test\. A
+cmd=background:seq=3:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# A miss that fills the cache, retried until the listener is bound.
+cmd=foreground:seq=4:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd --wait 25s
+expect=stdout:contains=203.0.113.20
+# A hit.
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
+expect=stdout:contains=203.0.113.20
+
+cmd=foreground:seq=6:exec=ze cli -c "show dns-resolver | json":exit=0
+expect=stdout:contains="running": true
+expect=stdout:contains="enabled": true
+expect=stdout:contains="mode": "forward"
+expect=stdout:contains="name": "lan"
+expect=stdout:contains="allow-from": 1
+expect=stdout:contains="cache-answer-entries": 1
+expect=stdout:contains="cache-hits": 1
+expect=stdout:contains="cache-misses": 1
+expect=stdout:contains="queries": 2
+expect=stdout:contains="refused-acl": 0
+
+cmd=foreground:seq=7:exec=ze cli -c "clear dns-resolver cache all | json":exit=0
+expect=stdout:contains="cleared-answer": 1
+
+cmd=foreground:seq=8:exec=ze cli -c "show dns-resolver | json":exit=0
+expect=stdout:contains="cache-answer-entries": 0
+
+# After the clear the question goes upstream again: the mock's second line.
+cmd=foreground:seq=9:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
+expect=stdout:contains=203.0.113.20
+
+# One question before the clear and one after, never a third.
+reject=stderr:pattern=(?s)(mock dns. query cached\.example\.test\. A.*){3}
+cmd=stop:seq=10:name=daemon:signal=term

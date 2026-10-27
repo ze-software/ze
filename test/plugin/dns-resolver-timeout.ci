@@ -1,0 +1,69 @@
+# Test: a silent upstream makes the LAN resolver answer SERVFAIL within its
+#       timeout, caches nothing, and asks upstream again on the next query.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-16
+# VALIDATES: the forward loop (internal/plugins/dnsresolver/resolve.go,
+#            forward) gives up when `timeout` runs out and answers SERVFAIL
+#            (never NOERROR with no data), and a failed resolution is not
+#            cached: the same question asked again is sent upstream again.
+# PREVENTS: a resolver that holds a client past its own timeout, and one that
+#           turns an unreachable upstream into a cached negative answer the
+#           LAN keeps for minutes after the upstream is back.
+#
+# `le mock dns --drop web.example.test` reads every question for the name and
+# never answers it, and with --log-queries still logs it, so "never sent"
+# is told from "sent, unanswered".
+#
+# `timeout 1` and not more: each `le dns query` attempt waits two seconds, so
+# the resolver's SERVFAIL must arrive inside that window. Neither web query
+# carries --wait, so each sends one question, and the mock's two log lines
+# are the two client queries, not client retries.
+#
+# DISCRIMINATION: (1) `timeout 3`: the SERVFAIL arrives after the client's
+# two-second attempt, seq=4 exits "no reply" and goes red. (2) A resolver that
+# caches the failure as negative (a temporary storeNegative on the SERVFAIL
+# path) answers seq=5 from the cache: the mock logs web.example.test once and
+# seq=5 is not SERVFAIL, both red.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go).
+option=timeout:value=40s
+
+stdin=ze-dns:terminator=EOF_CONF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+		timeout 1
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port $PORT2 --log-queries --drop web.example.test
+# A background span runs to the end of the test, so this reads the lines both
+# web queries caused: two questions, one per client query. The '.' after "dns"
+# stands for the colon, which a needle cannot hold.
+expect=stderr:pattern=(?s)mock dns. query web\.example\.test\. A.*mock dns. query web\.example\.test\. A
+cmd=background:seq=2:exec=ze -:stdin=ze-dns
+
+# A name the mock answers, retried until the listener is bound.
+cmd=foreground:seq=3:exec=le dns query --server 127.0.0.1:$PORT --name v4only.example.test --type A --rd --wait 25s
+expect=stdout:contains=rcode NOERROR
+
+cmd=foreground:seq=4:exec=le dns query --server 127.0.0.1:$PORT --name web.example.test --type A --rd
+expect=stdout:contains=rcode SERVFAIL
+
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name web.example.test --type A --rd
+expect=stdout:contains=rcode SERVFAIL
+
+# One question per web query, never a third.
+reject=stderr:pattern=(?s)(mock dns. query web\.example\.test\. A.*){3}

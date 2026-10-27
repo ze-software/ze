@@ -1,0 +1,86 @@
+# Test: a live edit of service dns-resolver allow-from reaches the running
+#       resolver on the next query.
+# Initial config: allow-from 127.0.0.1/32.
+# After SIGHUP:   allow-from 127.0.0.2/32, nothing else changed.
+# Expected: the reload completes, a query from 127.0.0.1 is refused and a
+#           query from 127.0.0.2 is answered, on the listener the boot config
+#           bound.
+#
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-30
+# VALIDATES: the resolver's verify/apply pair (internal/plugins/dnsresolver/
+#            config_tx.go) publishes the reloaded policy to the query path: a
+#            source the reload removed is refused (RFC-less policy, AC-2's
+#            check) and a source it added is answered through the forwarder.
+# PREVENTS: the acked-and-dropped reload, where the commit succeeds and the
+#           resolver keeps serving the boot allow-from until a restart: a LAN
+#           prefix the operator withdrew keeps its access.
+#
+# That the listeners are not rebound by a policy-only reload is proven in Go
+# by TestReloadKeepsListeners (internal/plugins/dnsresolver/config_tx_test.go):
+# a datagram exchanged on one socket across the reload. Here the same address
+# and port answer before and after it.
+#
+# DISCRIMINATION: client/dns-query asks from 127.0.0.1 until the reply is
+# REFUSED, and only the reloaded allow-from refuses that source. A resolver
+# that kept the boot policy answers NOERROR until the fixture gives up, and
+# seq=5 from 127.0.0.2 is REFUSED: both red. A resolver that refused everyone
+# fails seq=5.
+#
+# The trigger copies config2.conf over ze-bgp.conf and sends SIGHUP once the
+# daemon is ready; the query steps do not wait for it, so the first asks until
+# the reloaded answer arrives.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go), so the daemon's or the last
+# query's would become the reload's whole budget.
+
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.1/32
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT
+		}
+		allow-from 127.0.0.2/32
+		forward {
+			server 127.0.0.1 {
+				port $PORT2
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le mock dns --port $PORT2
+cmd=background:seq=2:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp
+await=stderr:contains=sighup reload complete
+cmd=foreground:seq=4:exec=le test fixture client/dns-query 127.0.0.1:$PORT web.example.test. A REFUSED
+expect=stderr:contains=OK: dns A web.example.test. served REFUSED
+cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --source 127.0.0.2 --name web.example.test --type A --rd
+expect=stdout:contains=rcode NOERROR
+expect=stdout:contains=203.0.113.10
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic
