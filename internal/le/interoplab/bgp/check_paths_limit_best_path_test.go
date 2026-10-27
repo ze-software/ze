@@ -37,7 +37,7 @@ func TestPathsLimitBestPathPredicates(t *testing.T) {
 	}
 	decode := func(t *testing.T, output string) map[uint32]uint32 {
 		t.Helper()
-		held, err := decodeFRRPathsByMED(output, pathsLimitBestPathPrefix, ze)
+		held, err := decodeFRRPathsByMED(output, ze)
 		if err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -76,19 +76,19 @@ func TestPathsLimitBestPathPredicates(t *testing.T) {
 		}
 	})
 	t.Run("unusable answers are refused", func(t *testing.T) {
-		if _, err := decodeFRRPathsByMED(answer("172.30.0.4", map[uint32]uint32{100: 1}), pathsLimitBestPathPrefix, ze); err == nil {
+		if _, err := decodeFRRPathsByMED(answer("172.30.0.4", map[uint32]uint32{100: 1}), ze); err == nil {
 			t.Fatal("a path from another source was read as relayed by Ze")
 		}
-		if _, err := decodeFRRPathsByMED(`{"prefix":"10.72.0.0/24","paths":[{"metric":100,"valid":true,"peer":{"peerId":"172.30.0.2"}}]}`, pathsLimitBestPathPrefix, ze); err == nil {
+		if _, err := decodeFRRPathsByMED(`{"prefix":"10.72.0.0/24","paths":[{"metric":100,"valid":true,"peer":{"peerId":"172.30.0.2"}}]}`, ze); err == nil {
 			t.Fatal("a path with no received identifier was read")
 		}
 		repeated := `{"prefix":"10.72.0.0/24","paths":[` +
 			`{"addpathRxId":1,"metric":100,"valid":true,"peer":{"peerId":"172.30.0.2"}},` +
 			`{"addpathRxId":2,"metric":100,"valid":true,"peer":{"peerId":"172.30.0.2"}}]}`
-		if _, err := decodeFRRPathsByMED(repeated, pathsLimitBestPathPrefix, ze); err == nil {
+		if _, err := decodeFRRPathsByMED(repeated, ze); err == nil {
 			t.Fatal("two paths with one MED were read as one")
 		}
-		if _, err := decodeFRRPathsByMED(`{"prefix":"10.73.0.0/24","paths":[]}`, pathsLimitBestPathPrefix, ze); err == nil {
+		if _, err := decodeFRRPathsByMED(`{"prefix":"10.73.0.0/24","paths":[]}`, ze); err == nil {
 			t.Fatal("an answer for another prefix was read")
 		}
 	})

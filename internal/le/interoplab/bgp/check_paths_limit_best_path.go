@@ -163,7 +163,7 @@ func waitPathsLimitBestPath(ctx context.Context, lab interoplab.CheckerLab, zeAd
 		if err != nil {
 			return pathsLimitBestPathReading{}, err
 		}
-		held, err := decodeFRRPathsByMED(output, pathsLimitBestPathPrefix, zeAddress)
+		held, err := decodeFRRPathsByMED(output, zeAddress)
 		return pathsLimitBestPathReading{held: held}, err
 	}, func(reading pathsLimitBestPathReading) bool {
 		if len(reading.held) > pathsLimitBestPathBound {
@@ -208,12 +208,12 @@ func requirePathsLimitSameID(held map[uint32]uint32, demotedID uint32) error {
 	return nil
 }
 
-// decodeFRRPathsByMED reads FRR's paths for prefix, all received from peer, as
-// MED to received path identifier. FRR answers an absent prefix with an object
-// that names no prefix, which is a table holding nothing. A path from another
+// decodeFRRPathsByMED reads FRR's paths for the scenario prefix, all received
+// from peer, as MED to received path identifier. FRR answers an absent prefix
+// with an object that names no prefix, which is a table holding nothing. A path from another
 // source, without an identifier or MED, invalid, or repeating a MED is refused:
 // every path Ze relays here carries a distinct MED.
-func decodeFRRPathsByMED(output, prefix, peer string) (map[uint32]uint32, error) {
+func decodeFRRPathsByMED(output, peer string) (map[uint32]uint32, error) {
 	var document struct {
 		Prefix string `json:"prefix"`
 		Paths  []struct {
@@ -235,8 +235,8 @@ func decodeFRRPathsByMED(output, prefix, peer string) (map[uint32]uint32, error)
 		}
 		return held, nil
 	}
-	if document.Prefix != prefix {
-		return nil, fmt.Errorf("FRR answered for %q, want %s", document.Prefix, prefix)
+	if document.Prefix != pathsLimitBestPathPrefix {
+		return nil, fmt.Errorf("FRR answered for %q, want %s", document.Prefix, pathsLimitBestPathPrefix)
 	}
 	for _, path := range document.Paths {
 		if path.ID == nil {
