@@ -52,6 +52,7 @@ func bindL2TPMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	l2tpPanics().guard.SetMetricsRegistry(reg)
 	m := &l2tpMetrics{
 		sessionsActive:    reg.Gauge("ze_l2tp_sessions_active", "Number of L2TP sessions in established state."),
 		sessionsStarting:  reg.Gauge("ze_l2tp_sessions_starting", "Number of L2TP sessions in negotiation."),

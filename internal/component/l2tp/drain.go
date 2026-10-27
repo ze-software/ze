@@ -5,12 +5,12 @@
 package l2tp
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -48,7 +48,7 @@ func drainAuth(logger *slog.Logger, ch <-chan ppp.AuthEvent, handler AuthHandler
 			return nil
 		}
 
-		resp := callAuthHandler(logger, handler, req, respond)
+		resp := callAuthHandler(handler, req, respond)
 		if resp.Handled {
 			continue
 		}
@@ -90,7 +90,7 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandl
 			respond := func(accept bool, msg string, blob []byte) error {
 				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
 			}
-			r := callAuthHandler(logger, handler, req, respond)
+			r := callAuthHandler(handler, req, respond)
 			subscriber.RecordAuthResult(subscriber.AccessL2TP, r.Accept)
 			if bus != nil {
 				if _, err := subevents.SessionAuthResult.Emit(bus, &subevents.SessionAuthResultPayload{
@@ -115,17 +115,16 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandl
 	return done
 }
 
-func callAuthHandler(logger *slog.Logger, handler AuthHandler, req ppp.EventAuthRequest, respond AuthRespondFunc) (result AuthResult) {
+func callAuthHandler(handler AuthHandler, req ppp.EventAuthRequest, respond AuthRespondFunc) (result AuthResult) {
 	if handler == nil {
 		return AuthResult{Accept: false, Message: "no auth handler configured"}
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("auth handler panic", "tunnel", req.TunnelID, "session", req.SessionID, "panic", fmt.Sprint(r))
-			result = AuthResult{Accept: false, Message: "internal error"}
-		}
-	}()
+	// The handler task's boundary (panic_guard.go): a panicking handler refuses
+	// this session's authentication, and the drain answers the next request.
+	defer l2tpPanics().auth.Contain(describeHandlerCall(req.TunnelID, req.SessionID), func(*taskguard.Panic) {
+		result = AuthResult{Accept: false, Message: "internal error"}
+	})
 
 	return handler(req, respond)
 }
@@ -139,7 +138,7 @@ func drainPool(logger *slog.Logger, ch <-chan ppp.IPEvent, handler PoolHandler, 
 			continue
 		}
 
-		resp := callPoolHandler(logger, handler, req)
+		resp := callPoolHandler(handler, req)
 		out <- poolDrainResponse{
 			tunnelID:  req.TunnelID,
 			sessionID: req.SessionID,
@@ -165,7 +164,7 @@ func startPoolDrain(logger *slog.Logger, d *ppp.Driver, resolve func() PoolHandl
 			if !ok {
 				continue
 			}
-			r := callPoolHandler(logger, handler, req)
+			r := callPoolHandler(handler, req)
 			if err := d.IPResponse(req.TunnelID, req.SessionID, r); err != nil {
 				logger.Warn("l2tp: pool drain response failed",
 					"tunnel", req.TunnelID, "session", req.SessionID, "error", err)
@@ -175,17 +174,16 @@ func startPoolDrain(logger *slog.Logger, d *ppp.Driver, resolve func() PoolHandl
 	return done
 }
 
-func callPoolHandler(logger *slog.Logger, handler PoolHandler, req ppp.EventIPRequest) (result ppp.IPResponseArgs) {
+func callPoolHandler(handler PoolHandler, req ppp.EventIPRequest) (result ppp.IPResponseArgs) {
 	if handler == nil {
 		return ppp.IPResponseArgs{Accept: false, Reason: "no pool handler"}
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("pool handler panic", "tunnel", req.TunnelID, "session", req.SessionID, "panic", fmt.Sprint(r))
-			result = ppp.IPResponseArgs{Accept: false, Reason: "internal error"}
-		}
-	}()
+	// The handler task's boundary (panic_guard.go): a panicking handler refuses
+	// this session's address request, and the drain answers the next request.
+	defer l2tpPanics().pool.Contain(describeHandlerCall(req.TunnelID, req.SessionID), func(*taskguard.Panic) {
+		result = ppp.IPResponseArgs{Accept: false, Reason: "internal error"}
+	})
 
 	return handler(req)
 }

@@ -37,14 +37,23 @@ var (
 // 2866 Section 5.10 value 6, "Administrator reset the port or session". Both
 // callers are operator clears: Subsystem.TeardownTunnel behind `clear l2tp
 // tunnel id <tid>`, and TeardownAllTunnels behind `clear l2tp tunnel all`. A
-// caller that ends a tunnel for another reason MUST take a cause parameter
-// here rather than inherit this one, the way teardownSessionByID does for the
-// two RADIUS timers.
+// caller that ends a tunnel for another reason calls teardownTunnel with its
+// own Result Code and cause, as clearTunnelAfterPanic does.
+//
+// Caller MUST NOT hold tunnelsMu.
+func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
+	return r.teardownTunnel(localTID, ResultCodeValue{Result: resultAdministrative}, l2tpevents.TerminateCauseAdminReset)
+}
+
+// teardownTunnel sends a StopCCN carrying result for the tunnel with the given
+// local TID, ends its sessions with cause, and drains its kernel resources the
+// way a peer-initiated StopCCN does. Returns ErrTunnelNotFound when the TID is
+// unknown.
 //
 // Caller MUST NOT hold tunnelsMu; this method acquires it internally
 // and releases it before writing to the UDP socket (matching the
 // existing reactor pattern).
-func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
+func (r *l2tpReactor) teardownTunnel(localTID uint16, result ResultCodeValue, cause l2tpevents.TerminateCause) error {
 	if localTID == 0 {
 		return ErrInvalidID
 	}
@@ -55,7 +64,7 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
 	}
 	now := r.params.Clock()
-	outbound := t.teardownStopCCN(now, ResultCodeValue{Result: resultAdministrative}, l2tpevents.TerminateCauseAdminReset)
+	outbound := t.teardownStopCCN(now, result, cause)
 	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
@@ -67,7 +76,7 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 	r.emitSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
-			r.logger.Warn("l2tp: outbound send failed (operator tunnel teardown)",
+			r.logger.Warn("l2tp: outbound send failed (tunnel teardown)",
 				"to", req.to.String(), "error", err.Error())
 		}
 	}

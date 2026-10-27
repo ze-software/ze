@@ -323,8 +323,17 @@ func (r *l2tpReactor) drainOnStop(rx <-chan rxPacket) {
 //
 // The pool slot is released before return. `bytes` MUST NOT be retained
 // past this call.
+//
+// handle is the control task's panic boundary (panic_guard.go): a panic
+// anywhere below it is contained, the tunnel the datagram reached is cleared,
+// and run goes on to the next event. tunnelsMu is released by a deferred
+// check, so a panic inside the locked dispatch never leaves the map locked
+// for the teardown and every other tunnel.
 func (r *l2tpReactor) handle(pkt rxPacket) {
 	defer pkt.release()
+
+	dispatch := controlDispatch{from: pkt.from}
+	defer l2tpPanics().control.Contain(dispatch.describe, r.clearTunnelAfterPanic(&dispatch))
 
 	if len(pkt.bytes) < 6 {
 		r.logger.Debug("l2tp: short datagram dropped", "from", pkt.from.String(), "len", len(pkt.bytes))
@@ -351,6 +360,7 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		return
 	}
 	payload := pkt.bytes[hdr.PayloadOff:int(hdr.Length)]
+	dispatch.messageType = extractMsgType(payload)
 
 	if r.capture != nil {
 		r.capture.appendInbound(hdr.TunnelID, hdr.SessionID, extractMsgType(payload), pkt.from, int(hdr.Length), 0)
@@ -393,8 +403,15 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	// test introspection. We release the lock BEFORE sending outbound
 	// bytes because listener.Send may block on a full kernel TX queue.
 	r.tunnelsMu.Lock()
+	tunnelsHeld := true
+	defer func() {
+		if tunnelsHeld {
+			r.tunnelsMu.Unlock()
+		}
+	}()
 	tunnel, discardTeardowns, discardDowns := r.locateTunnelLocked(pkt.from, hdr, sccrq)
 	if tunnel == nil {
+		tunnelsHeld = false
 		r.tunnelsMu.Unlock()
 		// Even if no tunnel is dispatched (peer lost the tie-breaker), the
 		// loser tunnel may have queued kernel teardowns and session-downs we
@@ -403,6 +420,7 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		r.emitSessionDowns(discardDowns)
 		return
 	}
+	dispatch.localTID = tunnel.localTID
 	tunnel.peerAddr = pkt.from
 	now := r.params.Clock()
 	stateBefore := tunnel.state
@@ -441,6 +459,7 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 	localTID := tunnel.localTID
 	peerAddr := tunnel.peerAddr.String()
 	peerHostName := tunnel.peerHostName
+	tunnelsHeld = false
 	r.tunnelsMu.Unlock()
 
 	// spec-l2tp-9 AC-1: emit tunnel lifecycle events after releasing lock.
