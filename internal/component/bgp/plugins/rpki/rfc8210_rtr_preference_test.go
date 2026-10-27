@@ -520,3 +520,59 @@ func TestCacheGroupFailsBackAtPreferredRetryInterval(t *testing.T) {
 	requireNoQuery(t, standbyQueries, 1500*time.Millisecond,
 		"the standby was polled before its one-hour Refresh Interval")
 }
+
+// TestCacheGroupFullRoundWaitsForRetryInterval runs full polling rounds over two caches, the way
+// Run does at the holder's Refresh Interval. The preference 10 cache loads with a one-second
+// Refresh Interval and a two-second Retry Interval, then drops the next poll. The preference 20
+// cache then holds the load with a ten-second Refresh Interval, StayRTR's default, so a round at
+// the holder's Refresh Interval can fall inside the preference 10 cache's Retry Interval.
+//
+// VALIDATES: RFC 8210 Section 6, "The router SHOULD NOT retry sooner than indicated by this
+// parameter.": a full round inside the preference 10 cache's Retry Interval passes over it and
+// polls the holder, and the first round after that Retry Interval asks it again and takes its set.
+// PREVENTS: a full round retrying a failed more-preferred cache before its own Retry Interval runs
+// out because the holder's Refresh Interval is shorter, which poll did until 2026-10-27.
+func TestCacheGroupFullRoundWaitsForRetryInterval(t *testing.T) {
+	// RFC requirement: RFC8210-6-4 positive -- after the preference 10 cache's query fails, the first full round once its two-second Retry Interval has run out sends it a Reset Query, and its new VRP then validates in place of the standby's.
+	// RFC requirement: RFC8210-6-4 negative -- a full round that runs inside that Retry Interval sends the preference 10 cache no query: the standby answers the round's Serial Query, and the standby's VRP stays the one that validates.
+	preferredPort, preferredQueries := outageRTRCache(t,
+		preferredLoad(2, 5, 1, 2), nil, preferredLoad(3, 9, 3600, 600))
+	standbyPort, standbyQueries := outageRTRCache(t,
+		slices.Concat(cacheResponsePDU(),
+			ipv4AnnouncePDU([4]byte{203, 0, 113, 0}, 64500),
+			endOfDataTimed(5, 10, 600)),
+		slices.Concat(cacheResponsePDU(), endOfDataTimed(6, 10, 600)))
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	t.Cleanup(func() { close(stop) })
+	group := newCacheGroup([]*RTRSession{
+		newTestRTRSession(t, "127.0.0.1", preferredPort, 10, "", roas, aspas, stop),
+		newTestRTRSession(t, "127.0.0.1", standbyPort, 20, "", roas, aspas, stop),
+	}, stop)
+
+	require.Equal(t, time.Second, group.poll(), "the preference 10 cache's load ends the first round")
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, preferredQueries, 1))
+
+	require.Equal(t, 10*time.Second, group.poll(), "the dropped poll hands the load to the standby")
+	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, preferredQueries, 1))
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1))
+	retryEnd := group.retryAt[0]
+
+	require.Equal(t, 10*time.Second, group.poll(), "the standby's incremental answer ends the round")
+	require.True(t, time.Now().Before(retryEnd), "the round outlasted the Retry Interval it tests")
+	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, standbyQueries, 1))
+	requireNoQuery(t, preferredQueries, 100*time.Millisecond,
+		"the preference 10 cache was asked inside its Retry Interval")
+	assert.Equal(t, ValidationValid, roas.Validate("203.0.113.0/24", 64500), "the standby's set is in use")
+	assert.Equal(t, ValidationNotFound, roas.Validate("192.0.2.0/24", 64501),
+		"the preference 10 cache's old set survived the switch")
+
+	time.Sleep(time.Until(retryEnd))
+	require.Equal(t, 3600*time.Second, group.poll(), "the preference 10 cache's reload ends the round")
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, preferredQueries, 1))
+	assert.Equal(t, ValidationValid, roas.Validate("192.0.3.0/24", 64501), "the reload is not in use")
+	assert.Equal(t, ValidationNotFound, roas.Validate("203.0.113.0/24", 64500),
+		"the standby's set survived the fail-back")
+	requireNoQuery(t, standbyQueries, 100*time.Millisecond,
+		"the standby was asked although the preference 10 cache answered")
+}

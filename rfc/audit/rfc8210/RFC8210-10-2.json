@@ -2,8 +2,8 @@
   "note": "Forbidden: an update from one cache applied to another cache's data (unmarked source). TestRTRCacheSwitchKeepsSerialBasesSeparate gives both caches the same Session ID and serial; after switching 2->3->2 it asserts the query sequence ends {2, pduResetQuery} (not a Serial Query against the other cache's base) and that only the selected cache's prefix and ASPA provider validate (roas.Validate / aspas.isProvider per candidate), so a merge or reuse goes red.",
   "requirement_sha": "106112228a6dabf0",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "d430f5c158d7a219",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "d430f5c158d7a219"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "10cf5113e59b2bd7",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "10cf5113e59b2bd7"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "c1679960dc16d025",

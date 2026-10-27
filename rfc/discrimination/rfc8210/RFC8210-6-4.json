@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-6-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupFullRoundWaitsForRetryInterval",
+    "unit-sha": "1f490c15736fe427",
+    "claim-sha": "6d6c5c0ba135f13e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
+    "producer-sha": "4653f79a04e2f0e0",
+    "break": "body of poll replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-6-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupFullRoundWaitsForRetryInterval",
+    "unit-sha": "1f490c15736fe427",
+    "claim-sha": "f7933762928bd5dd",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
+    "producer-sha": "4653f79a04e2f0e0",
+    "break": "body of poll replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

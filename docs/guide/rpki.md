@@ -343,8 +343,9 @@ the Retry Interval. It does not wait for the cache to close its connection.
 
 A cache answering a query with Cache Reset gets one Reset Query at once, in the
 same attempt, and its full answer replaces the working set. Every cache more
-preferred than it has already failed by then, so RFC 8210 Section 8.3 sends the
-reload to that same cache rather than to a less-preferred one. A second Cache
+preferred than it has already failed by then, or is still inside its Retry
+Interval, so RFC 8210 Section 8.3 sends the reload to that same cache rather
+than to a less-preferred one. A second Cache
 Reset in the same attempt counts as a failure, and Ze moves on to the next
 cache in preference order.
 
@@ -354,7 +355,13 @@ holder's Refresh Interval does. The first one that completes a full load takes
 over, and its set replaces the holder's. The holder itself is polled only at
 its Refresh Interval. `show bgp rpki status` reports `synced` true for exactly
 the cache whose set validation uses.
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.probe, cacheGroup.load -->
+
+No poll asks a failed cache again before its own Retry Interval runs out. A
+round at the holder's Refresh Interval, which can be much shorter (StayRTR
+sends 10 seconds), passes over such a cache and moves to the next one in
+preference order. When no cache answers, the next round runs when the first
+of them may be asked again.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.poll, cacheGroup.probe, cacheGroup.load -->
 
 ### AS_PATH Edge Cases
 

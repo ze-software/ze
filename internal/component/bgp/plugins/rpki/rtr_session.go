@@ -144,8 +144,9 @@ type cacheGroup struct {
 	holder *RTRSession
 
 	// retryAt holds, for the session at the same index, when its Retry Interval runs out
-	// after its last failed attempt. The zero time is a session that has not failed. probe
-	// reads it so a more-preferred cache is asked again at its own Retry Interval.
+	// after its last failed attempt. The zero time is a session that has not failed. poll and
+	// probe both read it, so no path asks a cache again before its own Retry Interval runs out,
+	// and probe asks a more-preferred cache again as soon as it does.
 	retryAt []time.Time
 
 	stopCh <-chan struct{}
@@ -170,7 +171,8 @@ func newCacheGroup(sessions []*RTRSession, stopCh <-chan struct{}) *cacheGroup {
 //
 // The loop has no other bound, and that is the decision: a router polls its caches for as long
 // as it runs. Two clocks drive it. A full round (poll) runs when the delay the previous round
-// returned has passed: the holder's Refresh Interval, or a Retry Interval when no cache answered.
+// returned has passed: the holder's Refresh Interval, or, when no cache answered, the time until
+// the first of them may be asked again.
 // In between, while a more-preferred cache than the holder has failed, a probe (probe) asks that
 // cache again when its own Retry Interval runs out, which is the same section's "When a
 // more-preferred cache becomes available, if resources allow, it would be prudent for the client
@@ -209,18 +211,35 @@ func (g *cacheGroup) Run() {
 // poll runs one round over the caches and returns how long to wait before the next one.
 //
 // The first cache that completes a sync ends the round and its Refresh Interval times the next
-// one. When no cache answers, the Retry Interval of the last one tried does, which is RFC 8210
-// Section 6 read over a list rather than over a single server.
+// one. A cache still inside its Retry Interval is passed over as if it had failed, so the round
+// falls through to the next cache: RFC 8210 Section 6, "The router SHOULD NOT retry sooner than
+// indicated by this parameter." The holder's Refresh Interval can be far shorter than another
+// cache's Retry Interval, so without the skip a round would ask a cache that failed early.
+//
+// When no cache answers, the next round runs when the first of them may be asked again: the
+// Retry Interval of a cache that failed in this round, or what is left of the Retry Interval of
+// a cache passed over. Every cache is then either asked in that round or still inside its Retry
+// Interval, so no round passes over a cache that may be asked.
 func (g *cacheGroup) poll() time.Duration {
-	delay := rtrIntervalRetryDefault
+	delay, delaySet := rtrIntervalRetryDefault, false
 	for i, s := range g.sessions {
 		if s.stopped() {
 			return delay
 		}
-		if g.load(i) {
+
+		var wait time.Duration
+		pending := time.Until(g.retryAt[i])
+		switch {
+		case pending > 0:
+			wait = pending
+		case g.load(i):
 			return s.pollDelay(true)
+		default:
+			wait = s.pollDelay(false)
 		}
-		delay = s.pollDelay(false)
+		if !delaySet || wait < delay {
+			delay, delaySet = wait, true
+		}
 	}
 
 	setSessionsActive(0)
