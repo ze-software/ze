@@ -66,11 +66,11 @@ func init() {
 	config.RegisterListenerProtocols(listenerService, config.ProtocolUDP, config.ProtocolTCP)
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
-		WireMethod: "ze-dns-resolver:show-dns-resolver",
+		WireMethod: "ze-dnsresolver:show-dns-resolver",
 		Handler:    handleShowDNSResolver,
 	})
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
-		WireMethod: "ze-dns-resolver:clear-dns-resolver-cache",
+		WireMethod: "ze-dnsresolver:clear-dns-resolver-cache",
 		Handler:    handleClearDNSResolverCache,
 	})
 

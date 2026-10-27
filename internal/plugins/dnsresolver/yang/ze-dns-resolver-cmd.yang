@@ -18,7 +18,7 @@ module ze-dns-resolver-cmd {
 
         container dns-resolver {
             config false;
-            ze:command "ze-dns-resolver:show-dns-resolver";
+            ze:command "ze-dnsresolver:show-dns-resolver";
             description "Enabled, mode, listeners, allow-from count, upstreams, limits, the
 answer and negative cache entry counts, cache hits, misses and hit rate, the queries
 refused (by reason), rate-limited and dropped, and the upstream exchanges by result.";
@@ -41,7 +41,7 @@ answer and the negative cache. Emptying is never the default.";
 
                 container all {
                     config false;
-                    ze:command "ze-dns-resolver:clear-dns-resolver-cache";
+                    ze:command "ze-dnsresolver:clear-dns-resolver-cache";
                     description "Empties the answer and the negative cache, so the next query for any
 name goes upstream. The counters are kept.";
                     ze:help "Empty every LAN DNS resolver cache.";
