@@ -31,6 +31,8 @@ refused (by reason), rate-limited and dropped, and the upstream exchanges by res
 
         container dns-resolver {
             config false;
+            description "Operations that reset the LAN DNS resolver's live state. The one
+operation is cache all, which empties the answer and the negative cache.";
             ze:help "LAN DNS resolver clearing operations.";
 
             container cache {
