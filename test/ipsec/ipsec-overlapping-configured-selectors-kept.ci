@@ -1,5 +1,5 @@
 # Functional test: two peers whose tunnels overlap BY CONFIGURATION both keep them.
-# Spec: plan/release/fixes/spec-ike-unbound-peer-inner-address.md (AC-4, user story 2).
+# Spec: spec-ike-unbound-peer-inner-address (AC-4, user story 2).
 # Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
 #
 # VALIDATES: the operator-fixed exemption of the RFC 3948 Section 5.1 guard. RFC 4301

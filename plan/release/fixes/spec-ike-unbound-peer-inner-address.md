@@ -21,29 +21,32 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
-Closure (`/ze-close` step 6, "RFC proof records are fresh") found two audit
-verdicts of stems this spec touched STALE at HEAD. `./le rfc check`, run on
-2026-10-27 in a `git clone --shared` of HEAD fbf0776d17 carrying 0274a6774d's
-records, with `ike_auth_algorithms_test.go` moved aside so `ike/engine`
-compiles (journal row 3f1a944493), printed both; `./le rfc reseal` refuses
-both as `stale-unit`, so each needs an independent `/ze-rfc-audit` rejudge
-(`mode rejudge`), and closure does not write verdicts.
+The Review Gate cannot be recorded. Nine independent `/ze-review` rounds ran
+over this spec's diff (round 9 clean: 0 BLOCKER, 0 ISSUE), and
+`recordReview` (`internal/le/spec/review.go`) refuses any `rounds` above
+`reviewOwnerRoundCap` without `owner-authorised` ("needs Thomas's
+authorization; a session must not authorize itself"). The rule
+(`ai/rules/points/planning/work-phases/the-round-cap-and-who-authorises-a-sixth-pass.md`)
+forbids an agent setting that keyword unasked, and no record of Thomas's
+words for rounds 6 to 9 was found in the session state or scratch. Without
+the artifact `./le commit create` refuses the closure commit.
 
-| Verdict | Stamped | What changed after it | Producer of the change |
-|---------|---------|-----------------------|------------------------|
-| `RFC3948-5.1-1` (`rfc/audit/rfc3948/RFC3948-5.1-1.json`, enforced) | 1a5f53cd30, judged at HEAD 5064d6db1f | 690d38f274 rewrote the three tagged units `TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused`, `TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused`, `TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused` (`internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go`, +124 -3) | the verdict was stamped before the tests it cites landed |
-| `RFC4301-5.1-7` (`rfc/audit/rfc4301/RFC4301-5.1-7.json`, unimplemented) | 16ce807d1b, judged at HEAD dfabdcf8bf | the doc comment of `installChildSA` (`internal/component/ike/engine/child.go`) now says the registry records tunnel or transport mode; the function body is byte-identical between dfabdcf8bf and HEAD | bb90bdec23 (AC-13, transport-mode pairs recorded) |
+What clears it: Thomas's words authorising rounds 6 to 9, passed to the
+closer, which then runs `./le spec review record spec
+spec-ike-unbound-peer-inner-address verdict CLEAN rounds 9 rounds-reason
+"<below>" owner-authorised "<his words>" file <each commit-A file>`, writes
+the learned summary, and lands commits A and B.
 
-What clears it: `/ze-rfc-audit rfc3948` and `/ze-rfc-audit rfc4301` rejudge
-those two verdicts in a clean clone of HEAD, then `./le rfc check` shows
-neither stale, then `/ze-close` resumes. The rest of the RFC 4301, RFC 3948
-and RFC 7296 records this spec staled are fresh again: 16 `childPolicies`
-records (0274a6774d), `RFC7296-2.18-3` and the two verdicts 91ff2f88f0
-shifted (349d6d6f23).
+Proposed `rounds-reason`, from the fix commits: round 6 found
+`isConfiguredHost` marking a transport peer narrowed to one port
+operator-fixed (fcf2e39dc8); round 7 found `classifyInnerPair` judging the
+remote half alone, not the installed policy pair (b99c6503a4); round 8 found
+`childPolicyPair` returning a pair no caller installs (0308ef4d70, no
+behaviour change, so the main thread confirms round 8's product finding
+before recording).
 
-The open journal row `one-state-held-in-two-fields.md` 2026-10-26 (transport
-Child SA rekey after an IKE SA rekey) is outside RFC 3948 Section 5.1 and is
-now owned by `plan/release/fixes/spec-ike-transport-rekey-nat-state.md`.
+The two audit verdicts the earlier hand-back named are fresh: both were
+rejudged by independent judges and landed in 58a09337f8.
 
 ## Task
 
@@ -524,3 +527,177 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-ike-unbound-peer-inner-address.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Engine-wide inner-selector registry (`innerSelectorRegistry`, `innerSelectorGuard`, `internal/component/ike/engine/inner_selectors.go`, 286bd6e63f): every Child SA, tunnel and transport mode, pool-bound or not, is recorded by owner with its installed policy pairs.
+- Cross-peer filter at narrowing (`dropForeignInnerOverlaps`, called from `narrowChildSelectors` in `ts_narrow.go`): a peer-chosen pair overlapping another owner's live pair is dropped, the first choice kept (RFC 7296 Section 2.9), and an empty answer is TS_UNACCEPTABLE.
+- Check-and-record at install (`installChildSA`, `child.go`, through `innerGuard.claim`, release through `innerGuard.release`): closes the race between peers that pass narrowing together; release on every removal and failed install, kept while a policy removal is stranded (`retryStranded`, 3c8b9e42de, dd20e0aa1a, 000e6fdfea, dc7de8e76f).
+- Operator-ordered exemption: an overlap stands only when both pairs are exactly operator-configured (`classifyInnerPair`, `configuredPairs`, `configuredHostPair`, `samePolicyPair`) AND their `policy-priority` values differ (`operatorOrdered`, f87c1883ac, b99c6503a4, fcf2e39dc8, 4287e22441).
+- Tunnel against transport-mode peers refused in either order (bb90bdec23); two transport-mode pairs stay with `policyOwners.claim` (RFC 3948 Section 5.2).
+- Exported dataplane predicate `PolicySelectorsOverlap` (`internal/component/ike/dataplane/policy_owner.go`).
+- Interop scenario `unbound-inner-address-uniqueness` with checker `checkUnboundInnerAddressUniqueness` (91ff2f88f0, aa18d486d6); two `.ci` tests (9ea5de8246).
+- `rfc/short/rfc3948.md`: `RFC3948-5.1-1` carries no `{partial}`; discrimination records for every tagged unit (b80a2eda36, 635aa08b78, 0274a6774d, 349d6d6f23); audit verdict enforced (1a5f53cd30, rejudged 58a09337f8).
+
+### Bugs Found/Fixed
+- A failed policy removal released the record while the kernel still held the policy: `TestRFC3948FailedPolicyRemovalKeepsRecord` and the stranded-retry tests (3c8b9e42de, dd20e0aa1a).
+- VPP stranded retry lost the SAD id once the SA was removed (dc7de8e76f, `TestVPPRemovalWhileBothSAsLive` 30bf686318).
+- Equal-priority configured overlap was admitted although the kernel then orders by install time: `TestRFC3948ConfiguredOverlapEqualPriorityRefused` (f87c1883ac).
+- A tunnel around a transport-mode peer's address went unrefused: `TestRFC3948TunnelAroundTransportPeerRefused`, `TestRFC3948TunnelAroundTransportPeerInstallBackstop` (bb90bdec23).
+- Operator-fixed was judged on the remote half, so a peer narrowing Ze's local half or one port passed as configured: `TestRFC3948OrderedTransportLocalHalfNarrowedRefused`, `TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused`, `TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused` (b99c6503a4, fcf2e39dc8, 690d38f274).
+
+### Documentation Updates
+- `docs/guide/ipsec.md`, `docs/architecture/ike/ipsec-14-responder.md`, `ipsec-7-ikev2-engine.md`, `ipsec-8-ikev2-child-xfrm.md`, `rfcgate-1b-rfc7296-pilot.md` each carry an anchor on `inner_selectors.go` / `dropForeignInnerOverlaps` / `innerSelectorRegistry` (`git grep -c` 1, 2, 3, 2, 1); `docs/architecture/testing/interop.md:1767` describes the scenario.
+- `./le doc check all` (2026-10-27, `scratch/close-doc-check.log`): exit 1 on three source anchors this spec did not write: `core-design.md:156` (`commandWordsMax`, file modified by another session), `ipsec-9-ikev2-eap-nat.md:292` (`Available`, removed by c8d3e41036 of `spec-ike-virtual-ip-assignment`), `ci-workflows.md:126` (`workflowNestedLe`). Every other step green.
+
+### Deviations from Plan
+- Transport-mode Child SAs are recorded (planned: tunnel only), after the audit of 7d7658dae0 (Key Design Decisions).
+- Both-fixed overlaps need distinct `policy-priority` values (planned: any both-fixed overlap kept), f87c1883ac.
+- Operator-fixed compares the whole installed pair (planned: remote half), b99c6503a4.
+- The install backstop gained the stranded-policy retry (`innerGuard.retryStranded`, `strand`), which the plan did not foresee: a record is kept while a failed removal leaves the policy installed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | the plan recorded tunnel-mode Child SAs only | a tunnel around a transport-mode peer's address is the same Section 5.1 confusion, and `claim` compares transport only with transport | independent audit 7d7658dae0 | fixed in bb90bdec23 |
+| approach | operator-fixed judged on the remote half | the kernel installs the intersection of both halves, so narrowing the local half or a port narrows the policy | review rounds 6 and 7 | fixed in fcf2e39dc8, b99c6503a4 |
+| approach | first interop red proof relied on identical selectors | `policyOwners.claim` refused the second by exact key, so the red proved the wrong guard | reading `scratch/interop-red.log` (NO_PROPOSAL_CHOSEN) | aa18d486d6 made ze-b overlap without equality |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| No two peers hold overlapping tunnel Child SAs unless operator-ordered | Done | `inner_selectors.go` `dropForeignInnerOverlaps`, `conflictLocked`; `child.go` `installChildSA` | |
+| `RFC3948-5.1-1` loses `{partial}`, both polarities proven | Done | `rfc/short/rfc3948.md:227`; `rfc/audit/rfc3948/RFC3948-5.1-1.json` enforced | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused`, `ipsec-unbound-inner-address-unique.ci`, interop `unbound-inner-address-uniqueness` | |
+| AC-2 | Done | `TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed` | |
+| AC-3 | Done | `TestInnerSelectorDisjointLocalSidesNoConflict` | |
+| AC-4 | Done | `TestRFC3948ConfiguredOverlapNarrowedByPeerRefused` | |
+| AC-5 | Done | `TestInnerSelectorConfiguredOverlapNegotiatedWholeAllowed`, `ipsec-overlapping-configured-selectors-kept.ci` | distinct priorities |
+| AC-6 | Done | `TestInnerSelectorPeerChosenOverlapsFixedRefused` | |
+| AC-7 | Done | `TestInnerSelectorFirstChoiceKeptWhenLaterPairConflicts` | |
+| AC-8 | Done | `TestInnerSelectorSamePeerRekeyAllowed`, `rfc3948_inner_selector_rekey_test.go` | |
+| AC-9 | Done | `TestInnerSelectorDistinctIfIDNoConflict` | |
+| AC-10 | Done | `TestInnerSelectorInstallBackstopRefusesSecond`, `TestRFC3948ConcurrentInstallsHoldOneInnerAddress` | |
+| AC-11 | Done | `TestInnerSelectorRegistryEmptyAfterTeardown` | |
+| AC-12 | Done | `TestInnerSelectorRefusalNamesBothPeersAndFix`; `.ci` stderr assertion | |
+| AC-13 | Done | `TestInnerSelectorTransportModeRecordedAndLeftToDataplane`, `TestRFC3948TunnelAroundTransportPeerRefused`, `TestRFC3948TunnelAroundTransportPeerInstallBackstop` | |
+| AC-14 | Done | `TestRFC3948LeaseVersusUnboundPeerFirstComeWins`; interop `virtual-ip-uniqueness` green (`scratch/r2-vip-uniqueness.log`) | |
+| AC-15 | Done | `rfc/short/rfc3948.md:227` without `{partial}`; Support remaining row rewritten (line 21); records in `rfc/discrimination/rfc3948.json` | `./le rfc check` not run here, see Pre-Commit Verification |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| all 24 unit tests of the TDD plan plus `TestRFC3948ConfiguredOverlapEqualPriorityRefused` | Done | `internal/component/ike/engine/rfc3948_inner_selector*_test.go`, `internal/component/ike/dataplane/policy_owner_test.go` | each `func` found by `git grep` at HEAD 58a09337f8 |
+| `ipsec-unbound-inner-address-unique`, `ipsec-overlapping-configured-selectors-kept` | Done | `test/ipsec/` | |
+| interop `unbound-inner-address-uniqueness` | Done | `test/interop-ipsec/scenarios/unbound-inner-address-uniqueness/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `ts_narrow.go`, `child.go`, `table.go`, `reconcile.go`, callers | Done | |
+| `dataplane/policy_owner.go` | Done | `PolicySelectorsOverlap` |
+| `interoplab/ipsec/checkers.go`, `unbound_inner.go` | Done | `checkers.go:95` |
+| `rfc/short/rfc3948.md` | Done | |
+| five doc pages | Done | see Documentation Updates |
+| `plan/learned/035-ike-virtual-ip-assignment.md` | Done in commit A | pointer to the closure |
+| `inner_selectors.go`, test files, `.ci`, scenario files | Done | Files Exist |
+
+### Audit Summary
+- **Total items:** 15 AC, 2 task requirements, 27 planned tests and files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| No two peers hold a tunnel Child SA or kernel policy whose selectors overlap unless the operator configured both at different `policy-priority` values | interop + functional | interop `unbound-inner-address-uniqueness` green (`scratch/r1-interop-green.log`): one policy pair naming 10.1.2.3/32, strongSwan logs TS_UNACCEPTABLE for `ze-b`. Red with the guard's conflict return replaced by `continue` and the image rebuilt: "ze's kernel holds 2 outbound ESP policies to 10.1.2.3/32 (tunnels [172.28.0.9 172.28.0.7]), want exactly one" (`scratch/r1-interop-red.log`). `.ci` red `scratch/ci-unique-red.log`, green `scratch/ci-ipsec-unbound-inner-address-unique-promoted.log` |
+| Operator-configured overlaps keep working | functional | `ipsec-overlapping-configured-selectors-kept.ci` red `scratch/ci-overlap-red.log`, green `scratch/ci-ipsec-overlapping-configured-selectors-kept-promoted.log`; `./le test functional ipsec` 27/27, 7 net-admin skips (`scratch/r2-func-ipsec.log`) |
+| The first client keeps its traffic | interop | checker pings from 10.1.2.3 via child-a to 10.20.0.1 after ze-b's refusal, green in `scratch/r1-interop-green.log` |
+| `RFC3948-5.1-1` loses `{partial}` with both polarities proven | RFC ledger | row at `rfc/short/rfc3948.md:227` has no `{partial}`; audit verdict `enforced` over 34 units (1a5f53cd30, rejudged at HEAD 58ee58c176 in 58a09337f8); discrimination records for the positive and negative units |
+
+(scratch = `tmp/session/2026-10-25-f3ae7c00-09af-4420-914f-39f2f7169980/scratch`)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Transport Child SA rekey after an IKE SA rekey loses RFC 7296 Section 2.23.1 handling (journal `one-state-held-in-two-fields.md`, 2026-10-26) | outside RFC 3948 Section 5.1 | `plan/release/fixes/spec-ike-transport-rekey-nat-state.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | NOT RECORDED: `recordReview` refuses `rounds 9` without `owner-authorised`; see `## Blocker` |
+| `./le spec review check` | not run: no artifact |
+| Rounds | 9; round 9 clean (0 BLOCKER, 0 ISSUE). Product defects that earned rounds 6 to 8: fcf2e39dc8 (round 6), b99c6503a4 (round 7), 0308ef4d70 (round 8, no behaviour change; confirm) |
+| Reviewer lenses used | `/ze-review` full pass incl. step 18 style, independent ze-rfc-audit judges, ze-test-judge for every changed tagged or weakened unit; the three hand-written breaks of 690d38f274 judged genuine |
+
+### Findings fixed
+
+Rows 1 (round 1) and 4 (round 5) name their round in the fix commit; the round and severity of rows 2, 3, 5, 6 and 7 are reconstructed from the fix commits, and the main thread holds the round reports.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | record released while a failed removal left the policy installed | `child.go` removal funnel | 3c8b9e42de |
+| 2 | ISSUE | stranded record never retried | `inner_selectors.go` | dd20e0aa1a |
+| 3 | ISSUE | stranded retry removed live policies; VPP lost the SAD id | `inner_selectors.go`, `dataplane/vpp_policy.go` | 000e6fdfea, dc7de8e76f |
+| 4 | ISSUE | transport peer not ordered by its configured address | `classifyInnerPair` | 4287e22441 |
+| 5 | ISSUE | transport peer narrowed to one port marked operator-fixed | `isConfiguredHost` | fcf2e39dc8 |
+| 6 | ISSUE | operator-fixed judged on the remote half, not the installed pair | `classifyInnerPair` | b99c6503a4 |
+| 7 | ISSUE | `childPolicyPair` returned a pair no caller installs | `childPolicyPair` | 0308ef4d70 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/inner_selectors.go` | yes | `ls -l`: 42225 bytes |
+| `internal/component/ike/engine/rfc3948_inner_selector_test.go` (+ audit_gaps, local_half, ordered_transport, rekey, transport, wiring) | yes | `ls -l`: 38055, 12101, 5843, 10569, 3936, 14121, 17023 bytes |
+| `test/ipsec/ipsec-unbound-inner-address-unique.ci`, `test/ipsec/ipsec-overlapping-configured-selectors-kept.ci` | yes | 6759, 6000 bytes |
+| `test/interop-ipsec/scenarios/unbound-inner-address-uniqueness/{nat,swanctl,ze}.conf` | yes | 584, 1823, 1588 bytes |
+| `internal/le/interoplab/ipsec/unbound_inner.go` | yes | 7859 bytes; registered `checkers.go:95` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-14 | each test exists | `git grep -l "func <Test>("` found all 25 at HEAD 58a09337f8 |
+| AC-1 to AC-14 | tests green | full engine package green `scratch/job-unit-pkg-91a1d19e.log` (2026-10-27 00:30, 217s); a fresh run on 2026-10-27 could not build: the working tree's `inner_selectors.go` carries another session's in-flight edit (mtime 01:34, registry `claim` replaced by `beginInstall`/`finishInstall`), so `rfc3948_inner_selector_test.go:717` `reg.claim` is undefined there; HEAD's engine tests do not compile either (journal row 3f1a944493). Dataplane package green (`scratch/job-close-inner-820606d2.log`) |
+| AC-15 | no `{partial}` | `grep -n 'RFC3948-5.1-1' rfc/short/rfc3948.md`: line 227 `- [ ] [RFC3948-5.1-1] [MUST] ...` with no marker |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| IKE_AUTH from a second unbound peer | `test/ipsec/ipsec-unbound-inner-address-unique.ci` | header names AC-1, AC-12; hub runs two `respond` peers with no pool, red/green logs above |
+| Two configured peers, overlapping prefixes, distinct priorities | `test/ipsec/ipsec-overlapping-configured-selectors-kept.ci` | header names AC-4 and user story 2; red/green logs above |
+| Two strongSwan clients behind NAT | interop `unbound-inner-address-uniqueness` | checker registered `checkers.go:95`; red proven |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | source read; `TestInnerSelectorInstallBackstopRefusesSecond` |
+| A-2 | confirmed | `TestInnerSelectorSamePeerRekeyAllowed` |
+| A-3 | confirmed | `gopls references`; `TestInnerSelectorRegistryEmptyAfterTeardown` |
+| A-4 | confirmed | `scratch/r1-interop-green.log`: strongSwan keeps IKE SA `ze-b` ESTABLISHED, no Child SA |
+| A-5 | confirmed | `./le test functional ipsec` 27/27 (7 net-admin skips, `scratch/r2-func-ipsec.log`); interop `virtual-ip-uniqueness` green (`scratch/r2-vip-uniqueness.log`) |
+| A-6 | confirmed | `TestInnerSelectorOverlapSymmetric` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide and four architecture pages describe the guard | anchors on `inner_selectors.go` / `dropForeignInnerOverlaps` / `innerSelectorRegistry` resolve (`./le doc check all` source-anchor step lists no claim on them) | yes |
+| RFC 3948 support row | `rfc/short/rfc3948.md` Support remaining (line 21) states 5.1 met among IKE peers' Child SAs | yes |
+| test infrastructure | `docs/architecture/testing/interop.md:1767` describes `unbound-inner-address-uniqueness` | yes |
+| `./le rfc check` | not run in this closure: HEAD's `ike/engine` and `ike/crypto` tests do not compile (journal row 3f1a944493), so only a clean clone with the test moved aside can run it; the two stale verdicts were rejudged (58a09337f8) | owed |
+| `./le verify changed` | not run: owed to Thomas; it widens to the full verification after a deleted package (journal row 04dbfa9038) | owed |
+| `./le test functional ipsec` | last 27/27 (7 net-admin skips) in an earlier round; a later attempt was blocked by another session's config build break | owed |

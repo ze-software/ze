@@ -1,5 +1,5 @@
 # Functional test: two peers bound to no pool may not hold one inner address.
-# Spec: plan/release/fixes/spec-ike-unbound-peer-inner-address.md (AC-1, AC-12,
+# Spec: spec-ike-unbound-peer-inner-address (AC-1, AC-12,
 # user stories 1 and 3). Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
 #
 # VALIDATES: RFC 3948 Section 5.1 through the real IKE_AUTH entry point. The hub
