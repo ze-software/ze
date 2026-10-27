@@ -88,7 +88,7 @@ Found during `spec-ike-unbound-peer-inner-address` (journal row in
 - The NAT verdict survives an IKE SA rekey (`inheritSendPath`); only the two mode flags are lost (both successor constructors in `rekey.go`, `applyIKERekeyResponse` and `respondIKERekey`, build `&SA{...}` without them).
 - `narrowChildSelectorsIn` already receives `mode` (only `dropForeignInnerOverlaps` uses it); the substitution and the single-address filter ignore it and call `transportSelectorsInPlay(sa)`.
 - `recordInitiatorSelectors` has no mode argument at all.
-- `UseTransportMode` implies `wantsTransportMode(sa)` at every writer, so `childTransportMode` (`wantsTransportMode || UseTransportMode`) already equals `wantsTransportMode`.
+- `UseTransportMode` implies `wantsTransportMode(sa)` at every writer, so the pre-change `childTransportMode` (`wantsTransportMode || UseTransportMode`) already equalled `wantsTransportMode`; review round 3 (80f71fb698) deleted it, and `childMigrationAvailable` and `rebindRekeyReason` call `wantsTransportMode`.
 - A session holds one live Child SA (`PeerSession.childSA`, `getChildSA`, `reconcile.go`).
 - The engine and crypto test packages compile on HEAD as of 2026-10-27 (`go vet` exit 0 under `./le job run`): the ENCR_3DES / ENCR_CHACHA20_POLY1305 hazard was closed by commit ba03d7c2c7, and `internal/component/ike/` had no uncommitted hunks.
 
@@ -102,7 +102,7 @@ Found during `spec-ike-unbound-peer-inner-address` (journal row in
 - [ ] `internal/component/ike/engine/responder.go` - `handleAuthRequest` sets `sa.PeerRequestedTransport` on the notify and calls `decideResponderTransportMode` in the same function; `selectAuthChildSA` narrows through `narrowChildSelectors` and echoes on `sa.UseTransportMode`; `buildAuthResponse` creates the Child SA through `createFirstChildSA`. `responder_eap.go` narrows through `narrowChildSelectors` on the final IKE_AUTH.
 - [ ] `internal/component/ike/engine/create_child.go` - `respondNewChild` writes `sa.PeerRequestedTransport = req.transport`, calls `decideResponderTransportMode`, `narrowChildSelectors`, builds mode from `sa.UseTransportMode`, echoes on it. The initiator response path calls `recordInitiatorTransportMode` then `recordInitiatorSelectors(sa, ..., nil)` and builds mode from `sa.UseTransportMode`.
 - [ ] `internal/component/ike/engine/child.go` - `createFirstChildSA` takes the mode from `sa.UseTransportMode` (IKE_AUTH carrier, reached from `initiatorFirstChildSA` in `established.go` and from `buildAuthResponse`).
-- [ ] `internal/component/ike/engine/mobike.go` - `childTransportMode` = `wantsTransportMode || UseTransportMode`; `acceptMobikeUpdate` refuses with UNACCEPTABLE_ADDRESSES when `sa.UseTransportMode`. `rebind.go` reads `anchor.Mode` and `childTransportMode`.
+- [ ] `internal/component/ike/engine/mobike.go` - before the change: a helper `childTransportMode` = `wantsTransportMode || UseTransportMode`; `acceptMobikeUpdate` refuses with UNACCEPTABLE_ADDRESSES when `sa.UseTransportMode`. `rebind.go` reads `anchor.Mode` and that helper. The helper no longer exists (deleted in 80f71fb698).
 - [ ] `internal/component/ike/engine/sa.go` - field declarations; `inheritSendPath`.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
@@ -167,7 +167,7 @@ Found during `spec-ike-unbound-peer-inner-address` (journal row in
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every writer of `UseTransportMode` sets it true only when `wantsTransportMode(sa)` | `decideResponderTransportMode` and `recordInitiatorTransportMode` (`transport_mode.go`) are the only writers outside tests | dropping the `UseTransportMode` disjunct from `childTransportMode` changes MOBIKE/rebind | grep of writers in Phase 3; the existing mobike and rebind tests stay green | confirmed 2026-10-27: the only production writers are `handleAuthRequest` (`responder.go`, from `decideResponderTransportMode`) and `adoptAuthResponseNegotiation` (`transport_mode.go`, from `recordInitiatorTransportMode`), and both decisions return transport only under `wantsTransportMode`. The rebind fixture `rbOwner` set `UseTransportMode` on a tunnel-configured peer, a state production cannot reach; its setup is migrated to a transport-configured peer with one host pair (judge-gated, `specA-judge.patch`), after which every mobike and rebind test is green (`job-ike-engine-green-6e6a9b6a.log`) |
+| A-1 | Every writer of `UseTransportMode` sets it true only when `wantsTransportMode(sa)` | `decideResponderTransportMode` and `recordInitiatorTransportMode` (`transport_mode.go`) are the only writers outside tests | dropping the `UseTransportMode` disjunct from the MOBIKE and rebind mode helper (`childTransportMode`, since deleted in 80f71fb698) changes MOBIKE/rebind | grep of writers in Phase 3; the existing mobike and rebind tests stay green | confirmed 2026-10-27: the only production writers are `handleAuthRequest` (`responder.go`, from `decideResponderTransportMode`) and `adoptAuthResponseNegotiation` (`transport_mode.go`, from `recordInitiatorTransportMode`), and both decisions return transport only under `wantsTransportMode`. The rebind fixture `rbOwner` set `UseTransportMode` on a tunnel-configured peer, a state production cannot reach; its setup is migrated to a transport-configured peer with one host pair (judge-gated, `specA-judge.patch`), after which every mobike and rebind test is green (`job-ike-engine-green-6e6a9b6a.log`) |
 | A-2 | A session holds one live Child SA, so `getChildSA` answers the installed mode | `PeerSession.childSA` (`reconcile.go`), `createdChild` replaces nothing on a childless SA (`inbound.go`) | the MOBIKE refusal misses an additional transport Child SA | read `reconcile.go` and `inbound.go` in Phase 3 | confirmed 2026-10-27: `PeerSession.childSA` is one pointer behind `ps.mu` (`setChildSA`, `getChildSA`); `acceptMobikeUpdate`'s only caller is `handleInformationalOwned` (inbound.go), which holds no `ps.mu`, so `getChildSA` is safe there (comment at the call) |
 | A-3 | No existing test asserts substitution or single-address refusal for a DECLINED non-pool transport request | the only such site is `rfc7296_transport_test.go` (`wide` SA with `PeerRequestedTransport` and no decision), which models a request Ze accepts (`transportPeer()` config) | a test encodes the old request-driven gate | run the engine package after Phase 2; route any changed expectation to `ze-test-judge` | confirmed 2026-10-27: the whole engine package is green with no expectation changed for a declined request (`job-ike-engine-green-6e6a9b6a.log`); the `wide` SA of `TestTransportModeUsesExactlyOneAddress` is migrated as an accepted request, with a new setup assertion that the decision returned transport |
 | A-4 | strongSwan, configured `mode = transport`, sends USE_TRANSPORT_MODE in every Child SA rekey request | `initiateChildRekey` comment cites strongSwan 5.9.14 `child_create.c`; RFC 7296 Section 1.3.3 "Usually" | the tunnel-on-no-notify rule would downgrade a strongSwan transport SA at each rekey | the interop scenario asserts `mode transport` on Ze's inbound state AFTER the child rekey | confirmed 2026-10-27: charon's rekey request is `CREATE_CHILD_SA request 0 [ N(REKEY_SA) N(USE_TRANSP) SA No TSi TSr ]`, and `real-nat-transport-rekey-after-ike-rekey` passes its `mode transport` assertion after the child rekey (`scratch/rekeynat-resp-green.log`) |
@@ -255,7 +255,7 @@ Test-setup migration list (setup only, never an expectation): `cp_refusal_fix_te
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `real-nat-transport-rekey-after-ike-rekey` | `test/interop-ipsec/scenarios/` (fixtures from `real-nat-transport-ze-responder`, Child SA `rekey_time = 0` on strongSwan) | strongSwan | Ze responder: after `swanRekeyIKE` and `swanctl --rekey --child ze-child`, the Child SA SPIs changed, Ze's selectors are still `natTransportZeLocal/natTransportZeRemote`, Ze's inbound state is `mode transport`, ESP crosses both directions. Red before the fix: TS_UNACCEPTABLE on the child rekey | green 2026-10-27 (`scratch/rekeynat-resp-green.log` 53s, on the rekey.go and fixtures HEAD holds now; a rerun after the red walk, `scratch/rekeynat-resp-green2.log`, never started the lab: `docker run -d did not finish within 1m0s` at load 32). Red observed: with `respondChildRekey` reading the IKE SA flag again (rekey.go `if old.Mode == modeTransport {` -> `if sa.UseTransportMode {`, `scratch/rekeynat-resp-break.patch`), the scenario fails `strongSwan's Child SA rekey on the successor IKE SA was answered TS_UNACCEPTABLE`, charon logging `parsed CREATE_CHILD_SA response 0 [ N(TS_UNACCEPT) ]` (`scratch/rekeynat-resp-red.log`); restored, `git diff --quiet HEAD -- internal/component/ike/engine/rekey.go` clean |
-| `real-nat-transport-ze-initiator-rekey-after-ike-rekey` | `test/interop-ipsec/scenarios/` (fixtures from `real-nat-transport-ze-initiator`, short Ze esp-group lifetime) | strongSwan | Ze initiator: after `swanRekeyIKE`, Ze's lifetime-driven Child SA rekey succeeds with the same four assertions. Red before the fix: the answer refused as widened (claim disproved, see Status) | green 2026-10-27 (`scratch/rekeynat-init-green.log` 50s; the rerun `scratch/rekeynat-init-green2.log` hit the same Docker timeout). NO red: with `applyChildRekeyResponse` recording the answer as the pre-fix code did (rekey.go `recordInitiatorSelectorsIn(..., old.Mode)` -> `modeTunnel`: no substitution, no one-pair refusal, `scratch/rekeynat-init-break.patch`) the scenario still passes all four assertions (`scratch/rekeynat-init-red.log`, pass 1m7s). charon's answer therefore already names Ze's own addresses, the pair Ze proposed, so the unsubstituted read accepts it and the AC-3 premise ("the peer's answer names the pair in the peer's address space") does not hold for strongSwan. This scenario proves Ze's initiator rekey works over a real NAT after an IKE SA rekey; it does not discriminate the fix, which only `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys` does. Open for the main thread |
+| `real-nat-transport-ze-initiator-rekey-after-ike-rekey` | `test/interop-ipsec/scenarios/` (fixtures from `real-nat-transport-ze-initiator`, short Ze esp-group lifetime) | strongSwan | Ze initiator: after `swanRekeyIKE`, Ze's lifetime-driven Child SA rekey succeeds with the same four assertions. Red before the fix: the answer refused as widened (claim disproved, see Status) | green 2026-10-27 (`scratch/rekeynat-init-green.log` 50s; the rerun `scratch/rekeynat-init-green2.log` hit the same Docker timeout). NO red: with `applyChildRekeyResponse` recording the answer as the pre-fix code did (rekey.go `recordInitiatorSelectorsIn(..., old.Mode)` -> `modeTunnel`: no substitution, no one-pair refusal, `scratch/rekeynat-init-break.patch`) the scenario still passes all four assertions (`scratch/rekeynat-init-red.log`, pass 1m7s). charon's answer therefore already names Ze's own addresses, the pair Ze proposed, so the unsubstituted read accepts it and the AC-3 premise ("the peer's answer names the pair in the peer's address space") does not hold for strongSwan. This scenario proves Ze's initiator rekey works over a real NAT after an IKE SA rekey; it does not discriminate the fix, which only `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys` and `TestTransportChildRekeyAfterIKERekeyThroughSession/ze_rekeys` do. Main-thread decision: the scenario stays as goal validation of the working initiator path, and since 80f71fb698 its checker doc (`checkers.go`), its `ze.conf` and the pilot page name those two unit tests as the discriminating proof |
 
 Both checkers register in `internal/le/interoplab/ipsec/checkers.go` and reuse `checkRealNATTransport`'s assertions. The red phase is recorded per `ai/rules/interop-and-goal-validation.md`: revert the engine change, rebuild the Ze image, observe red, restore, observe green. AC-5 has no interop scenario: a strongSwan transport child always sends the notify (A-4), so only the unit test can send a tunnel rekey for a transport SA.
 
@@ -267,7 +267,7 @@ Both checkers register in `internal/le/interoplab/ipsec/checkers.go` and reuse `
 - `internal/component/ike/engine/responder.go` - local `transportRequested` in `handleAuthRequest`; the decision's return value stored in `sa.UseTransportMode`
 - `internal/component/ike/engine/create_child.go` - `respondNewChild` and the new-child initiator response use a local mode and call `narrowChildSelectorsIn` / `recordInitiatorSelectorsIn` with it; no SA flag written
 - `internal/component/ike/engine/sa.go` - delete `PeerRequestedTransport`; `UseTransportMode` doc comment: the IKE_AUTH exchange's negotiated mode, input to the first Child SA only, never the mode of an installed Child SA (`ChildSA.Mode`)
-- `internal/component/ike/engine/mobike.go` - `acceptMobikeUpdate` reads the installed Child SA's mode via `getChildSA`; `childTransportMode` reads `wantsTransportMode` only (A-1)
+- `internal/component/ike/engine/mobike.go` - `acceptMobikeUpdate` reads the installed Child SA's mode via `getChildSA`; the helper `childTransportMode` is deleted and its callers `childMigrationAvailable` and `rebindRekeyReason` (`rebind.go`) call `wantsTransportMode` (A-1, review round 3, 80f71fb698)
 - `internal/component/ike/engine/child.go` - no edit was needed at the `createFirstChildSA` mode read, which already reads the IKE_AUTH decision only; the one edit is the `inboundStateSelector` comment naming the `*In` producers (review round 2)
 - tests in the migration list above
 - `internal/le/interoplab/ipsec/checkers.go`, `internal/le/interoplab/ipsec/helpers.go` - two checkers, a `swanRekeyChild` helper, a wait for the post-rekey IKE SA
@@ -348,7 +348,7 @@ Gates owed by the main thread after the commits: `./le verify changed`, a scoped
 | Correctness | no remaining reader of `UseTransportMode` outside the IKE_AUTH path; every `recordInitiatorSelectors` / `narrowChildSelectorsIn` caller passes the mode its Child SA installs |
 | Correctness | the respondChildRekey answer's notify, the replacement's `Mode`, and the narrowing gate all derive from the one computed value |
 | RFC | quotes byte-exact; new implementing statements carry `// RFC 7296 Section X.Y: "..."`, callers carry the section reference (`ai/rules/rfc-compliance.md`, functions added from 2026-09-24) |
-| Stale comments | the comments on `transportSelectorsInPlay`, `decidedChildMode`, the `narrowChildSelectorsIn` call in `respondChildRekey`, `keepSingleAddress` gate, `sa.go` fields and `childTransportMode` match the new behavior |
+| Stale comments | the comments on `transportSelectorsInPlay`, `decidedChildMode`, the `narrowChildSelectorsIn` call in `respondChildRekey`, `keepSingleAddress` gate, `sa.go` fields, and the `wantsTransportMode` calls that replaced `childTransportMode` (deleted in 80f71fb698) match the new behavior |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -455,3 +455,157 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-ike-transport-rekey-nat-state.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- 2f36373081 (fix): the exchange's mode is computed once and passed to `narrowChildSelectorsIn` and the new `recordInitiatorSelectorsIn` (`ts_narrow.go`); `substituteResponderSelectors` / `substituteInitiatorSelectors` (`ts_nat_substitute.go`) gate on that mode; `transportSelectorsInPlay` and `SA.PeerRequestedTransport` deleted; `decideResponderTransportMode(sa, requested)` and `recordInitiatorTransportMode` return the mode and write no SA flag (`transport_mode.go`); `respondChildRekey` grants transport only for a transport request on a transport Child SA and `newRekeyedChild` takes that mode (`rekey.go`); `applyChildRekeyResponse` records with `old.Mode`; `acceptMobikeUpdate` refuses on the installed Child SA's mode via `getChildSA` (`mobike.go`); `UseTransportMode` documented as the IKE_AUTH carrier (`sa.go`). New tests, test-setup migration, five IKE pages, records, three owned journal rows marked fixed.
+- 5fc439f278 (review round 1): `adoptAuthResponseNegotiation` calls the `recordInitiatorSelectors` wrapper, which had no production caller; stale producer names in `rekey.go` comments and three pages.
+- 5935713168 (review round 2): the floor, ceiling and one-pair contract moved onto the `*In` forms; `TestTransportChildRekeyAfterIKERekeyThroughSession` drives both rekeys through `handleCreateChildSAOwned`, `handleOwnedInbound` and `adoptRekeyedIKESA`; `TestChildRekeyWithoutTransportNotifyBehindNATIsRefused` (AC-5 behind a NAT); the initiator scenario's `ze.conf` stops claiming a red; scenarios named on `rfcgate-1b` and `interop.md`.
+- 80f71fb698 (review round 3): `childTransportMode` deleted (it only returned `wantsTransportMode`); `rfc/short/rfc3948.md` support sentence; `ipsec-8` NAT no-notify case; the session test enters every datagram through `handleOwnedInbound`.
+- 1d9885ce30, 2f38cc83f6, daa43116dc: the two interop scenarios, `swanRekeyChild`, their checkers, the PFS-group fixture fix, the interop run recorded in the spec.
+- Records and audits: 9e2f1fec91, 027470af14, 907dbe8170, 39cd72b1f1 (discrimination records), d5ae086180, d4d60dbee0 (audit verdicts re-judged).
+
+### Bugs Found/Fixed
+- The two defects of the Task (successor IKE SA loses the mode; the rekey responder installs the retired mode whatever the request carried), covered by `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT`, `TestTransportChildRekeyAfterIKERekeyThroughSession` and `TestChildRekeyWithoutTransportNotifyInstallsTunnel`.
+- `TestChildInstallRollbackFailureIsRecordedInTheSPDLedger` pinned a warning `e2d9c4a62a` reworded; the assertion now reads the text `rollbackChildPolicies` (`child.go`) logs (owned journal row, judge-approved weakening).
+- Interop fixture: strongSwan offered no PFS group while Ze's esp-group runs `pfs enable`, so the first rekey run was answered NO_PROPOSAL_CHOSEN (2f38cc83f6).
+
+### Documentation Updates
+- `docs/architecture/ike/ipsec-7-ikev2-engine.md` (UseTransportMode scope, MOBIKE refusal), `ipsec-8-ikev2-child-xfrm.md` (rekey mode paragraph, cross-peer filter, NAT no-notify case), `rfcgate-1b-rfc7296-pilot.md` (gate definition, entry points, discriminating proof), `ipsec-13-rekey-wire.md`, `ipsec-14-responder.md` (anchor moved from `transportSelectorsInPlay` to `decideResponderTransportMode`), `docs/guide/ipsec.md` (anchors), `docs/architecture/testing/interop.md` (the two scenarios), `rfc/short/rfc3948.md` (support remaining).
+- `./le doc check all` at closure: rc=1 on 3 source-anchor CLAIMs, none on a page or file this spec touched (`core-design.md` naming `commandWordsMax`, `ipsec-9-ikev2-eap-nat.md` naming `Available` in `internal/core/eap/pool.go`, `ci-workflows.md` naming `workflowNestedLe`); every other stage clean (`scratch/close-doccheck.out`).
+
+### Deviations from Plan
+- `recordInitiatorSelectors` kept as the IKE_AUTH wrapper of the new `recordInitiatorSelectorsIn`, mirroring `narrowChildSelectors` / `narrowChildSelectorsIn` (main-thread decision), instead of gaining a `mode` argument.
+- AC-2 revised twice: the rekey floor (RFC 7296 Section 2.9.2) decides a wide transport rekey proposal, so the unit carries only the positive RFC7296-2.23.1-1 claim and the /24 half asserts the floor.
+- AC-3's premise does not hold for strongSwan: the initiator scenario is goal validation only, and the unit `ze_rekeys` subtests are its discriminating proof.
+- AC-5 behind a NAT is refused by the floor (TS_UNACCEPTABLE, transport Child SA kept), added in review round 2.
+- `childTransportMode` deleted in review round 3 rather than narrowed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The AC-2 negative RFC7296-2.23.1-1 tag claimed the single-address gate on the rekey path refuses a wide proposal | the Section 2.9.2 floor answers first, so the gate never decides a rekey; with it replaced by `false` the unit stayed green | the discrimination walk (break observed green) | negative tag removed; the 2.23.1 negative stays on `TestTransportModeUsesExactlyOneAddress` |
+| approach | The RFC7296-1.3.1-2 positive record broke a neighbour of the deletion | the judge ruled it NOT GENUINE | `ze-test-judge` | re-taken with the deletion disabled (39cd72b1f1) |
+| approach | The initiator scenario was planned to go red before the fix | strongSwan answers in Ze's own addresses, so the pre-fix read accepts it | interop red walk passed (`scratch/rekeynat-init-red.log`) | scenario kept as goal validation; unit tests carry the proof |
+| approach | 2f36373081 did not carry its `Weakening-approved: engine.TestChildInstallRollbackFailureIsRecordedInTheSPDLedger` line | the approval was recorded, the trailer was not emitted | closure trailer audit | the line rides in this closure's commit A body |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every exchange judges its selectors in the mode its Child SA installs, computed once and passed | Done | `rekey.go` `respondChildRekey` (one `mode` value feeds the narrowing, `newRekeyedChild` and the echo), `applyChildRekeyResponse` (`old.Mode`), `create_child.go` `respondNewChild`, `applyChildCreateResponse`; gates in `ts_narrow.go` `narrowChildSelectorsIn`, `recordInitiatorSelectorsIn` | |
+| Installed mode only in `ChildSA.Mode`; IKE SA flags not read outside IKE_AUTH; `PeerRequestedTransport` deleted | Done | `mobike.go` `acceptMobikeUpdate`, `transport_mode.go` `adoptAuthResponseNegotiation`, `ts_narrow.go` `recordInitiatorSelectors` (IKE_AUTH wrapper) | AC-10 grep empty |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/peer_rekeys`, `TestTransportChildRekeyAfterIKERekeyThroughSession/peer_rekeys` | |
+| AC-2 | Changed | `TestTransportChildRekeyAfterIKERekeyHoldsOneAddress` | revised wording (Deviations) |
+| AC-3 | Done | `.../SubstitutesBehindNAT/ze_rekeys`, `.../ThroughSession/ze_rekeys` | |
+| AC-4 | Done | `TestTransportChildRekeyAfterIKERekeyRefusesTwoPairAnswer` | |
+| AC-5 | Done | `TestChildRekeyWithoutTransportNotifyInstallsTunnel`, `TestChildRekeyWithoutTransportNotifyBehindNATIsRefused` | |
+| AC-6 | Done | `TestTransportRequestOnTunnelChildRekeyIsDeclined` | |
+| AC-7 | Done | `TestDeclinedTransportRequestNarrowsRealSelectors` | |
+| AC-8 | Done | `TestResponderSubstitutesTransportSelectorsBeforeNarrowing`, `TestInitiatorAdoptsSubstitutedTransportSelectorsBehindNAT`, `TestTransportSelectorRoundTripAcrossTwoNATs`, `TestSubstitutionStillRefusesAWidenedAnswer`, `TestTransportModeUsesExactlyOneAddress` | assertions unchanged; setup changes judge-approved |
+| AC-9 | Done | `TestMobikeUpdateRefusedForTransportChildAfterIKERekey` | |
+| AC-10 | Done | `grep -rn 'transportSelectorsInPlay\|PeerRequestedTransport\|childTransportMode' internal/ docs/` empty | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the nine named unit tests | Done | `rfc7296_transport_nat_rekey_test.go`, `rfc7296_transport_nat_rekey_session_test.go`, `child_rekey_transport_test.go`, `ts_nat_substitute_test.go`, `mobike_test.go` | all PASS at closure |
+| two interop scenarios | Done | `test/interop-ipsec/scenarios/real-nat-transport-rekey-after-ike-rekey/`, `.../real-nat-transport-ze-initiator-rekey-after-ike-rekey/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| engine production files (`ts_nat_substitute.go`, `ts_narrow.go`, `rekey.go`, `transport_mode.go`, `responder.go`, `create_child.go`, `sa.go`, `mobike.go`, `child.go`) | Done | 2f36373081, 5935713168, 80f71fb698 (`rebind.go`, `cp.go`, `inner_selectors.go` comment-level edits too) |
+| `internal/le/interoplab/ipsec/checkers.go`, `helpers.go` | Done | 1d9885ce30 |
+| the IKE and testing pages | Done | Documentation Updates |
+
+### Audit Summary
+- **Total items:** 10 ACs, 2 task requirements, 11 tests, 2 scenarios
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-2 wording, `recordInitiatorSelectors` wrapper, initiator scenario role (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A NATed peer's transport Child SA rekey after an IKE SA rekey is answered with the Section 2.23.1 substitution (Ze responder) | interop + unit | `real-nat-transport-rekey-after-ike-rekey` green (`scratch/rekeynat-resp-green.log`) and red with `respondChildRekey` reading the IKE SA flag again: `strongSwan's Child SA rekey on the successor IKE SA was answered TS_UNACCEPTABLE` (`scratch/rekeynat-resp-red.log`); `TestTransportChildRekeyAfterIKERekeyThroughSession/peer_rekeys` PASS |
+| Ze's own transport Child SA rekey after an IKE SA rekey reads the answer substituted and holds it to one pair (Ze initiator) | unit + interop (working path) | `.../SubstitutesBehindNAT/ze_rekeys`, `.../ThroughSession/ze_rekeys`, `...RefusesTwoPairAnswer` PASS (`scratch/job-ike-close-0b9ae238.log`); `real-nat-transport-ze-initiator-rekey-after-ike-rekey` green, non-discriminating (Interop Tests row) |
+| The replacement installs the mode the rekey negotiated | unit | `TestChildRekeyWithoutTransportNotifyInstallsTunnel`, `TestTransportRequestOnTunnelChildRekeyIsDeclined`; interop responder asserts `mode transport` on Ze's inbound state after the child rekey |
+| The IKE SA flags stop being read outside IKE_AUTH, `PeerRequestedTransport` deleted | source + records | AC-10 grep empty; RFC7296-1.3.1-1/-2 and RFC3948-1-1 records observed red against `responder.go` `handleAuthRequest` and `transport_mode.go` `adoptAuthResponseNegotiation` breaks |
+| MOBIKE refuses an address update for a transport Child SA after an IKE SA rekey | unit | `TestMobikeUpdateRefusedForTransportChildAfterIKERekey` PASS, both polarities |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC and task requirement is implemented | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ike-transport-rekey-nat-state-f3ae7c00-09af-4420-914f-39f2f7169980.md` (`./le spec review record ... verdict CLEAN rounds 4`, over the spec and `plan/learned/042-ike-transport-rekey-nat-state.md`) |
+| `./le spec review check` | clean |
+| Rounds | 4 |
+| Reviewer lenses used | logic and wiring of every caller of the two role entry points, RFC 7296 Sections 1.3.1, 1.3.3, 2.8, 2.23.1 quotes, real entry point of the wiring tests, stale comments and pages, RFC claim and record genuineness, style pass on changed Go |
+
+Round 1 covered 2f36373081 and the interop commits; rounds 2 and 3 covered the previous round's fixes and the docs; round 4 found 0 BLOCKER, 0 ISSUE, 2 NOTE. No round found a product logic defect.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `recordInitiatorSelectors` had no production caller (dead wrapper beside its `*In` form) | `transport_mode.go` `adoptAuthResponseNegotiation` | 5fc439f278 |
+| 2 | ISSUE | the initiator checker claimed a red the walk did not observe | `internal/le/interoplab/ipsec/checkers.go` | 5fc439f278, 5935713168 |
+| 3 | ISSUE | comments and pages named the wrappers as rekey and new-child producers | `rekey.go`, `child.go`, `cp.go`, IKE pages | 5935713168, 80f71fb698 |
+| 4 | ISSUE | the initiator scenario's `ze.conf` claimed a red | scenario `ze.conf` | 5935713168 |
+| 5 | ISSUE | the wiring test did not enter through the session entry point | new `rfc7296_transport_nat_rekey_session_test.go` | 5935713168, 80f71fb698 (through `handleOwnedInbound`) |
+| 6 | ISSUE | the two scenarios were undocumented | `rfcgate-1b-rfc7296-pilot.md`, `interop.md` | 5935713168 |
+| 7 | ISSUE | AC-5 unproven behind a NAT | `TestChildRekeyWithoutTransportNotifyBehindNATIsRefused` | 5935713168 |
+| 8 | ISSUE | the public RFC 3948 support sentence stated the old mode rule | `rfc/short/rfc3948.md` | 80f71fb698 |
+| 9 | ISSUE | `ipsec-8` missed the NAT no-notify case | `ipsec-8-ikev2-child-xfrm.md` | 80f71fb698 |
+| 10 | ISSUE | `childTransportMode` only returned `wantsTransportMode` | `mobike.go`, `rebind.go` | 80f71fb698 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc7296_transport_nat_rekey_test.go`, `rfc7296_transport_nat_rekey_session_test.go`, both scenario directories with `nat.conf`, `swanctl.conf`, `ze.conf` | Yes | `ls` at closure listed all |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-9 | the named tests pass | `./le job run label ike-close ... go test -count=1 -run '...' -v ./internal/component/ike/engine/`: 34 PASS, 0 FAIL, `ok ... 0.940s` (`scratch/job-ike-close-0b9ae238.log`) |
+| AC-10 | names gone | `grep -rn 'transportSelectorsInPlay\|PeerRequestedTransport\|childTransportMode' internal/ docs/`: no output |
+| AC-2 record | discrimination record exists | `grep -c TestTransportChildRekeyAfterIKERekeyHoldsOneAddress rfc/discrimination/rfc7296/RFC7296-2.23.1-1.json`: 1 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| peer's and Ze's CREATE_CHILD_SA rekey on a rekeyed IKE SA | no `.ci` (Functional Tests: no IPsec `.ci` has a NAT); `TestTransportChildRekeyAfterIKERekeyThroughSession` through `handleOwnedInbound` and `handleCreateChildSAOwned` | PASS at closure |
+| strongSwan over the lab NAT, both roles | interop scenarios, both registered in `checkers.go` (`grep -n 'rekey-after-ike-rekey'`) | green runs recorded in the Interop Tests table |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Assumptions table: only two production writers, both under `wantsTransportMode` |
+| A-2 | confirmed | `PeerSession.childSA` one pointer behind `ps.mu` |
+| A-3 | confirmed | engine package green with no declined-request expectation changed |
+| A-4 | confirmed | charon's rekey request carries `N(USE_TRANSP)`; responder scenario asserts `mode transport` after the rekey |
+| A-5 | confirmed | `swanctl --rekey --child ze-child` drives the rekey the responder scenario waits on |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| mode gate and entry points (pilot, ipsec-13, ipsec-14) | `ts_narrow.go` `narrowChildSelectorsIn`, `recordInitiatorSelectorsIn`; `transport_mode.go` `decideResponderTransportMode` | Yes |
+| rekey mode, MOBIKE (ipsec-7, ipsec-8) | `rekey.go` `respondChildRekey`; `mobike.go` `acceptMobikeUpdate` | Yes |
+| RFC status | `rfc/short/rfc3948.md` (80f71fb698); `./le rfc check` at closure: no stale record or verdict on a producer this spec changed; the stale ones sit on `child.go` `childPolicies`/`installChildSA`, `inner_selectors.go` claim, crypto and BGP producers changed by other commits (`scratch/close-rfccheck.out`) | Yes |
