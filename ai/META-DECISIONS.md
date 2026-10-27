@@ -46,7 +46,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
   unclear, the goal is interoperability: Ze must work with BIRD and FRR, so read
-  their source and do what lets Ze interoperate with both. Before a protocol
+  their source and do what lets Ze interoperate with both. freeRtr's source
+  may always be read as a further reference. Before a protocol
   design is approved, read FRR's and BIRD's source and quote the deciding
   function.
 - A logic bug or misbehaviour is fixed, never put to Thomas as a question.
@@ -264,7 +265,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   comes back only with a decision no RFC, agreed design or rule in this file
   answers, and with the finished result.
 - While Thomas is away, a fix spec's design needs no approval from him: the
-  RFC text settles it, and FRR's and BIRD's source where the RFC is silent.
+  RFC text settles it, and FRR's and BIRD's source where the RFC is silent,
+  with freeRtr's source as a further reference.
   The spec moves to ready and is implemented, and any choice only he can make
   waits in a table for his return.
 - A hook checks what a command, path or file is, never how a message is worded.
