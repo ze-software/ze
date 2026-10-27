@@ -55,6 +55,14 @@ video remained in the generated checkout. The README screenshot is 10,788 bytes;
 its image and local player destination resolved. The public site has not been
 updated, so this is local acceptance, not deployment evidence or AC-17 closure.
 
+The source cutover landed as `dead7450b3`. The generated presentation landed
+separately as `65b28095fa` in `../gh-pages`: recordings, transcripts, WebP
+screenshots, their page embeds and the corresponding search entries. Partial
+commits preserved unrelated generated news, statistics, RFC and protocol-page
+changes outside that publication. Obsolete browser video and superseded media
+were removed through the native commit script. Neither commit authorizes a
+push or proves the public site changed.
+
 The terminal-demo package passed its race-enabled checks (10.436 seconds).
 The site package run reached its aggregate ten-minute timeout while processing
 the RFC compliance index; it is not a passing package result. The separately
