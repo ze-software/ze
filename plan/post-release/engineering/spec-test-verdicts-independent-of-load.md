@@ -198,6 +198,7 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| gate-verdict-depends-on-the-machine.md | 2026-10-27 | verify changed load reds at e6474aa200 |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | functional ui, web, parse, plugin timeouts at 0723d7d26a |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | appliance QEMU guest SSH timeouts at 0723d7d26a |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | internal/component/cli package 20m timeout |

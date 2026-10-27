@@ -381,6 +381,7 @@ Gates owed by the main thread after the commits: `./le verify changed`, a scoped
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `published-value-drifts-from-the-behavior-it-describes.md` | 2026-10-27 | TestChildInstallRollbackFailureIsRecordedInTheSPDLedger pins the pre-rekey warning |
 | `one-state-held-in-two-fields.md` | 2026-10-26 | IKE transport Child SA rekey after an IKE SA rekey: no RFC 7296 2.23.1 substitution or single-address check (`transportSelectorsInPlay` reads SA flags `respondChildRekey` never sets) |
 | `derived-flags-overwrite-what-the-wire-carried.md` | 2026-10-27 | IKE Child SA rekey responder installs the retired SA's mode whatever the request carried (`respondChildRekey`, `newRekeyedChild`) |
 

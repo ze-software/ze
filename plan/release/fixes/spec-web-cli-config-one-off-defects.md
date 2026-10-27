@@ -158,6 +158,8 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `parser-refuses-a-form-its-producer-emits` | 2026-10-27 | TestDiscardDeletesNewlyAddedValue unknown `bgp listen` |
+| `package-red-not-reproduced` | 2026-10-27 | cli multi-key rename and batched load session records |
 | `package-red-not-reproduced` | 2026-10-27 | TestEditorManagerRenameListEntry |
 | `command-waits-for-input-it-was-not-given` | 2026-09-07 | `cmdDecode` |
 | `dark-theme-cards-hide-their-text` | 2026-10-04 | generated BFD plugin page |

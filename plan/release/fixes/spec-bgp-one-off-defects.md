@@ -226,6 +226,8 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `assertion-reads-state-the-scheduler-owns` | 2026-10-27 | TestRFC4271DelayOpenBothSidesHold closed-pipe deadline |
+| `clock-bypass` | 2026-10-27 | reactor_connection.go forward write deadline |
 | `retained-entry-still-answers-lookups` | 2026-10-27 | api-peer-create-delete-rib |
 | `package-red-not-reproduced` | 2026-10-27 | api-peer-save reload generation |
 | `guard-keyed-on-a-field-its-consumer-ignores` | 2026-10-26 | `validateOpenPeerAS` reads the ASN4 capability with `asn4 disable` |

@@ -200,6 +200,12 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `command-name-breaks-the-cli-grammar` | 2026-10-27 | readme-carrier and vpn-kernel-test names |
+| `command-name-breaks-the-cli-grammar` | 2026-10-27 | `ze appliance kernel --jobs` undeclared |
+| `hardcoded-count-in-test` | 2026-10-27 | TestActionsCarryTheirContracts |
+| `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at e6474aa200 |
+| `lint-contract-not-applied` | 2026-10-27 | le-placement-answers docker exec in terminaldemo test |
 | `gate-verdict-depends-on-the-machine` | 2026-10-27 | job `InputHash` whole-tree diff killed by `gitTimeout` in the 9p QEMU guest |
 | `gate-excludes-part-of-its-population` | 2026-10-27 | `unitNeedsGuest` keeps a `//go:build linux` CAP_NET_ADMIN unit on a host that cannot unshare a namespace, so `./le rfc record` cannot re-take it there |
 | `bulk-rename-corruption` | 2026-10-27 | le doc index and verify status `write` callers |
