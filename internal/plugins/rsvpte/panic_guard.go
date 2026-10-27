@@ -22,10 +22,18 @@ const (
 )
 
 // signalingRestart and receiveRestart tell the operator what brings the unit
-// back after a contained panic.
+// back after a contained panic. The guard declares one restart text per task,
+// and one message can name LSPs of different roles, so the signaling text names
+// what restarts each role: the upstream's PATH refresh re-creates transit and
+// egress state, while nothing refreshes a head-end's own state from outside:
+// reconcileTunnels alone signals a configured tunnel or bypass, and it runs at
+// startup and on each configuration commit.
 const (
-	signalingRestart = "the LSP the message named loses its state as if it had timed out, the upstream's next PATH refresh sets it up again, and the engine handles the next message at once"
-	receiveRestart   = "the datagram that panicked is dropped and the receiver reads the next one on the same socket at once"
+	signalingRestart = "each LSP the message named loses its state as if it had timed out: " +
+		"a transit or egress LSP is set up again by the upstream's next PATH refresh, " +
+		"a tunnel or bypass this router heads is signaled again only when the configuration is next committed; " +
+		"the engine handles the next message at once"
+	receiveRestart = "the datagram that panicked is dropped and the receiver reads the next one on the same socket at once"
 )
 
 // rsvpPanicTasks is the panic boundary of the RSVP-TE tasks that read network
@@ -64,8 +72,11 @@ func (e *engine) describeHandling() taskguard.Context {
 // their state through tearLSPLocal, the path soft-state expiry takes
 // (cleanupTick): the forwarding entry and label the LSP recorded are
 // released, every admission charge its key holds is released, and lsp-down
-// is emitted. No teardown message is sent, as on expiry; the upstream's next
-// refresh re-creates the state. A label the handler allocated but had not yet
+// is emitted. Only the forwarding entry the LSP's recorded role installed is
+// withdrawn: an LSP the handler created but gave no role yet installed none.
+// No teardown message is sent, as on expiry; the upstream's next refresh
+// re-creates transit and egress state, and the next configuration commit
+// re-signals a head-end (signalingRestart). A label the handler allocated but had not yet
 // recorded on the LSP is not returned to the free list: it is never reused,
 // so it cannot collide, and one is lost per contained panic.
 //
@@ -108,9 +119,4 @@ func handlingKeys(msg *ParsedMessage) []lspKey {
 		}
 	}
 	return keys
-}
-
-// describeReceive names the unit a contained receive panic hit.
-func describeReceive() taskguard.Context {
-	return taskguard.Context{Unit: "one received RSVP datagram"}
 }

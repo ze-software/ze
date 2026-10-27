@@ -314,7 +314,7 @@ at zero from the moment the component has a metrics registry.
 | `ldp` | `session` | One LDP session: the peer is sent an Internal Error Notification, the session closes, and the neighbor's next Hello sets it up again |
 | `ldp` | `discovery` | One received Hello, dropped: discovery reads the next one on the same socket |
 <!-- source: internal/plugins/ldp/panic_guard.go -- ldpPanics -->
-| `rsvp-te` | `signaling` | The LSPs one received RSVP message names: each loses its state as if it had timed out (forwarding entry, label and admission charge released, no teardown message sent), the upstream's next PATH refresh sets it up again, and the engine handles the next message at once |
+| `rsvp-te` | `signaling` | The LSPs one received RSVP message names: each loses its state as if it had timed out (the forwarding entry it installed, its label and admission charge released, no teardown message sent). A transit or egress LSP is set up again by the upstream's next PATH refresh; a tunnel or bypass this router heads is signaled again only when the configuration is next committed. The engine handles the next message at once |
 | `rsvp-te` | `receive` | One received RSVP datagram, dropped: the receiver reads the next one on the same socket |
 <!-- source: internal/plugins/rsvpte/panic_guard.go -- rsvpPanics, endHandling -->
 | `ospf` | `interface-read` | One OSPFv2 interface's socket reader: the interface leaves OSPF, its neighbors go Down, and the 30-second rescan reopens it |

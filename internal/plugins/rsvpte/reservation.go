@@ -136,6 +136,12 @@ func (e *engine) acceptReservation(src netip.Addr, msg *ParsedMessage, descripto
 			noSender = true
 			return
 		}
+		// A role no handler wrote means no PATH was accepted for this sender:
+		// installReservation would otherwise take it for a head-end and push.
+		if lsp.Role == RoleUnspecified {
+			noSender = true
+			return
+		}
 		// Our PATH advertises LIH zero. A returning reservation must name that
 		// exact outgoing handle, not its own unrelated incoming interface index.
 		if msg.Hop.LIH != 0 {

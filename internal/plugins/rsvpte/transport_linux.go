@@ -488,6 +488,12 @@ func (t *rawTransport) readLoop() {
 	}
 }
 
+// describeReceive names the unit a contained receive panic hit. It lives with
+// its only caller, receive, which exists on Linux alone.
+func describeReceive() taskguard.Context {
+	return taskguard.Context{Unit: "one received RSVP datagram"}
+}
+
 // receive reads datagrams into buf and queues each one under the receive
 // task's guard, one defer for the pass rather than one per datagram. It
 // answers false on Close or a permanent socket error, and true after a

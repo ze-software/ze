@@ -49,16 +49,25 @@ func (s lspState) String() string {
 }
 
 // lspRole identifies this node's role for a given LSP.
+//
+// The zero value is RoleUnspecified: the LSP exists in the table but no handler
+// has yet written the role it installed state for. An LSP is created before its
+// role is known (a received PATH is classified egress or transit only after the
+// table holds it), so a zero that read as a real role would make a teardown
+// remove state the LSP never installed.
 type lspRole uint8
 
 const (
-	RoleIngress lspRole = iota
+	RoleUnspecified lspRole = iota
+	RoleIngress
 	RoleTransit
 	RoleEgress
 )
 
 func (r lspRole) String() string {
 	switch r {
+	case RoleUnspecified:
+		return "unspecified"
 	case RoleIngress:
 		return "ingress"
 	case RoleTransit:

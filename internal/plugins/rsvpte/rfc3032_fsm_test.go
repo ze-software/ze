@@ -230,6 +230,7 @@ func TestLSPRoleString(t *testing.T) {
 		role lspRole
 		want string
 	}{
+		{RoleUnspecified, "unspecified"},
 		{RoleIngress, "ingress"},
 		{RoleTransit, "transit"},
 		{RoleEgress, "egress"},

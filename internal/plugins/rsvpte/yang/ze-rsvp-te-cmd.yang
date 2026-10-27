@@ -19,8 +19,8 @@ module ze-rsvp-te-cmd {
             container lsp {
                 config false;
                 ze:command "ze-rsvpte:show-rsvp-te-lsp";
-                description "Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out
-labels for each LSP.";
+                description "Returns state, role (ingress/transit/egress, or unspecified while the message or
+configuration that created the LSP is still being handled), reserved bandwidth, and in/out labels for each LSP.";
                 ze:help "Show RSVP-TE label-switched paths.";
             }
 

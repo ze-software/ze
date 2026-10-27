@@ -1073,6 +1073,8 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 					e.log.Warn("rsvp-te: fib remove pop failed", "lsp", key.String(), "error", err)
 				}
 			}
+		case RoleUnspecified:
+			// No handler recorded a role, so none installed a forwarding entry.
 		default:
 			panic("BUG: rsvpte: invalid LSP role")
 		}
@@ -1205,6 +1207,9 @@ func (e *engine) handleLinkDown(ifaceName string) {
 			}
 		case RoleIngress:
 			e.emitLocalPathErr(key, es)
+		case RoleUnspecified:
+			// No handler recorded a role, so no PATH state was accepted to
+			// report a failure against.
 		default:
 			panic("BUG: rsvpte: invalid LSP role")
 		}
@@ -1235,7 +1240,12 @@ func (e *engine) emitLocalPathErr(key lspKey, es errorSpec) {
 
 // tearLSPLocal removes an LSP and its forwarding/admission state without relaying
 // a teardown (the local link to it failed, so there is nothing to relay over). It
-// mirrors the cleanup half of handlePathTear.
+// mirrors the cleanup half of handlePathTear, and withdraws only the forwarding
+// entry the LSP's recorded role installed: a swap or pop once its in-label is
+// recorded, a head-end push once its reservation is recorded, and nothing for an
+// LSP whose role no handler wrote. The push FEC is the tunnel endpoint's host
+// route, which another LSP to the same endpoint may own, so an entry this LSP
+// never installed is never withdrawn in its name.
 func (e *engine) tearLSPLocal(key lspKey) {
 	lsp := e.table.Remove(key)
 	if lsp == nil {
@@ -1244,6 +1254,7 @@ func (e *engine) tearLSPLocal(key lspKey) {
 	lsp.mu.Lock()
 	role := lsp.Role
 	inLabel := lsp.InLabel
+	reserved := lsp.Reserved
 	admIface := lsp.AdmissionIface
 	isBypass := lsp.IsBypass
 	lsp.mu.Unlock()
@@ -1263,6 +1274,11 @@ func (e *engine) tearLSPLocal(key lspKey) {
 				}
 			}
 		case RoleIngress:
+			// installReservation programs the push before Reserved is
+			// recorded; a head-end still in path-sent installed none.
+			if !reserved {
+				break
+			}
 			fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
 			tableID := uint32(0)
 			if isBypass {
@@ -1271,6 +1287,8 @@ func (e *engine) tearLSPLocal(key lspKey) {
 			if err := e.fib.removePush(fec, tableID); err != nil {
 				e.log.Warn("rsvp-te: fib remove failed on link-down", "lsp", key.String(), "error", err)
 			}
+		case RoleUnspecified:
+			// No handler recorded a role, so none installed a forwarding entry.
 		default:
 			panic("BUG: rsvpte: invalid LSP role")
 		}

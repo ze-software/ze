@@ -67,6 +67,9 @@ func TestHandleLinkDownIngressTornDown(t *testing.T) {
 	lsp.Role = RoleIngress
 	lsp.NextHop = netip.MustParseAddr("10.0.0.2") // downstream first hop
 	lsp.PSB = &pathStateBlock{Session: sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: 1}}
+	// An up head-end got there through handleResv, which records the
+	// reservation once its push is installed.
+	lsp.Reserved = true
 	lsp.setState(LSPStateUp)
 
 	e.handleLinkDown("eth0")

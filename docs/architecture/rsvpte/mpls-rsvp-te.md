@@ -23,11 +23,18 @@ Fast Reroute (RFC 4090) is a separate layer: see
 
 LSP state and role are selected locally, not decoded from signaling messages.
 Their stringers and role dispatch treat unnamed values as internal BUGs.
-The zero values remain Down and Ingress; named output and teardown behavior
-are unchanged.
+The zero state is Down. The zero role is `RoleUnspecified`, shown as
+`unspecified`: an LSP enters the table before its handler knows its role (a
+received PATH is classified egress or transit afterwards), and the handler
+writes the role only with the state it installed. Teardown withdraws nothing
+for an unspecified LSP, and a RESV for one is answered as for an unknown
+sender. A local teardown (`tearLSPLocal`) withdraws a head-end's push only
+once its reservation is recorded.
 
 <!-- source: internal/plugins/rsvpte/fsm.go -- lspState.String, lspRole.String, GetOrCreate -->
 <!-- source: internal/plugins/rsvpte/engine.go -- handlePathTear, handleLinkDown, tearLSPLocal -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePathEgress, handlePathTransit -->
 
 ## Decision: every node refreshes, not only the ingress
 
@@ -390,7 +397,15 @@ hit, counted in `ze_task_panics_total{component="rsvp-te"}`, and written as a
 
 The signaling end sends no teardown message, as on expiry (RFC 2205 Section
 2.4 lets a router initiate teardown as the result of state timeout), and
-relies on refresh to repair the loss (RFC 2205 Section 2.3). It also releases
+relies on refresh to repair the loss (RFC 2205 Section 2.3). What restarts an
+LSP depends on its role, and the logged `restart` field names each: a transit
+or egress LSP is set up again by the upstream's next PATH refresh, while a
+tunnel or bypass this router heads is signaled again only by
+`reconcileTunnels`, which runs at startup and on each configuration commit.
+`tearLSPLocal` withdraws only the forwarding entry the LSP's recorded role
+installed: a panic that hits an LSP the handler created but gave no role yet
+withdraws none, so it cannot remove another LSP's push to the same tunnel
+endpoint. It also releases
 every admission charge the LSP's key holds, because a handler that panicked
 between `reserve` and recording the LSP's admission interface left a charge no
 LSP field names. A label the handler allocated but had not yet recorded is
@@ -404,7 +419,7 @@ paths read no network input and run unguarded.
 <!-- source: internal/plugins/rsvpte/panic_guard.go -- rsvpPanics, endHandling, handlingKeys -->
 <!-- source: internal/plugins/rsvpte/engine.go -- engine.serve -->
 <!-- source: internal/plugins/rsvpte/transport_linux.go -- rawTransport.receive -->
-<!-- source: internal/plugins/rsvpte/panic_guard_test.go -- TestRSVPSignalingPanicContained -->
+<!-- source: internal/plugins/rsvpte/panic_guard_test.go -- TestRSVPSignalingPanicContained, TestRSVPSignalingPanicTearsOnlyInstalledState, TestTearLSPLocalWithdrawsOnlyInstalledPush -->
 <!-- source: internal/plugins/rsvpte/panic_guard_linux_test.go -- TestRSVPReadPanicContained -->
 
 ## Trap: the delivered config shape
