@@ -155,6 +155,64 @@ func listenerAtFloorProof(t *testing.T, ze, peer netip.Addr) {
 	assertNoTermMatched(t)
 }
 
+// TestGTSMListenerMultihopFloorInsideRange is AC-5 for IPv4, and the claim of
+// a narrower session inside a GTSM range. A peer configured `ttl max 3` has
+// floor 253 and sits inside a dynamic group's range whose floor is 255. A SYN
+// at TTL 252 is dropped by the peer's own rule. A SYN at 253, the floor, and
+// one at 254, above it, are both answered: a rule that dropped at any TTL
+// other than below the floor, or a range rule that judged the peer's SYN by
+// the range's floor, turns this test red.
+func TestGTSMListenerMultihopFloorInsideRange(t *testing.T) {
+	multihopFloorProof(t, zeV4, peerV4, 24)
+}
+
+// TestGTSMListenerMultihopFloorInsideRangeIPv6 is the same proof for IPv6,
+// where the floor is read from the Hop Limit.
+func TestGTSMListenerMultihopFloorInsideRangeIPv6(t *testing.T) {
+	multihopFloorProof(t, zeV6, peerV6, 120)
+}
+
+// multihopFloorProof publishes a floor-253 peer inside a floor-255 range, then
+// sends SYNs at 252, 253 and 254 and reads which were answered and which rule
+// matched.
+func multihopFloorProof(t *testing.T, ze, peer netip.Addr, rangeBits int) {
+	bed := newTestbed(t)
+	listenTCP(t, ze, bgpPort)
+	wide := netip.PrefixFrom(peer, rangeBits).Masked()
+	if err := SetPeers([]Peer{{Addr: peer, Port: bgpPort, HopLimit: 255, Floor: 253}}, []Range{{Prefix: wide, Port: bgpPort, Floor: 255}}); err != nil {
+		t.Fatalf("SetPeers: %v", err)
+	}
+	t.Cleanup(func() {
+		current = nil
+		currentRanges = nil
+		if err := firewall.RegisterTables(filterOwner, nil); err != nil {
+			t.Errorf("withdraw the table registration: %v", err)
+		}
+	})
+	peerTerm := listenTermName(netip.PrefixFrom(peer, peer.BitLen()))
+
+	bed.injectTCP(peer, ze, 252, tcpSegment(peer, ze, 40011, bgpPort, 1100, 0, tcpFlagSYN))
+	awaitTermMatched(t, peerTerm)
+	if _, answered := bed.synACK(ze, peer, 40011, noAnswerWait); answered {
+		t.Fatalf("the kernel answered a SYN from %s at 252, below the floor 253", peer)
+	}
+
+	for i, ttl := range []uint8{253, 254} {
+		sourcePort := uint16(40012 + i) //nolint:gosec // i is 0 or 1
+		bed.injectTCP(peer, ze, ttl, tcpSegment(peer, ze, sourcePort, bgpPort, 1200, 0, tcpFlagSYN))
+		if _, answered := bed.synACK(ze, peer, sourcePort, captureWait); !answered {
+			t.Fatalf("the kernel sent no SYN-ACK to a SYN from %s at %d, at or above its floor 253: a Trusted SYN was dropped", peer, ttl)
+		}
+	}
+
+	if got := listenTermPackets(t, peerTerm); got != 1 {
+		t.Fatalf("the peer's listen rule matched %d packets, want only the SYN at 252", got)
+	}
+	if got := listenTermPackets(t, listenTermName(wide)); got != 0 {
+		t.Fatalf("the range's listen rule matched %d packets of the peer's own session, want 0", got)
+	}
+}
+
 // TestGTSMListenerUnknownNotDropped is AC-4. With the listen-port rule
 // published for one GTSM peer, a SYN at TTL 1 from a configured peer that has
 // no GTSM, from an address that is no peer, and from the GTSM peer to a port

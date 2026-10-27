@@ -15,6 +15,8 @@
 package reactor
 
 import (
+	"net/netip"
+
 	"github.com/ze-software/ze/internal/component/gtsm"
 )
 
@@ -24,7 +26,9 @@ import (
 // A failure is reported and not returned. The caller is a config apply or a
 // start, and neither can usefully undo a peer set because of it: the sessions
 // themselves are correct, and what is missing is the protection of their
-// related ICMP messages. The error names each peer whose route the kernel
+// related ICMP messages and of their listen port before accept, which the
+// per-connection floor still backs once a connection exists. The error names
+// each peer whose route the kernel
 // refused, and the next reconcile tries again (gtsm.SetPeers).
 func (r *Reactor) publishGTSMKernelState() {
 	// RFC 5082 Section 3: the set names every GTSM-enabled session, so the
@@ -39,22 +43,56 @@ func (r *Reactor) publishGTSMKernelState() {
 // to.
 var setGTSMPeers = gtsm.SetPeers
 
-// gtsmRanges is each GTSM-enabled dynamic group's ranges, with the floor and
-// the listen port of the group's template. A member exists only after its SYN
-// has been accepted, so the listen-port rule that judges that SYN names the
-// range (spec-bcp194-3-session AC-16).
+// gtsmRanges is each dynamic group's ranges, with the floor and the listen
+// port of the group's template, and the host prefix of each static peer that
+// asked for no GTSM. A member exists only after its SYN has been accepted, so
+// the listen-port rule that judges that SYN names the range.
+//
+// A source with no GTSM is published with a zero floor. It carries no drop:
+// the gtsm component claims it ahead of a wider GTSM range on the same port,
+// because the listener gives its SYN to its own session (gtsm.Range).
+//
+// A prefix is published once, for the session the listener gives it to. The
+// listener tries a static peer before any group (handleConnection), and among
+// groups whose ranges match equally long it keeps the first
+// (findDynamicGroup). So a group's prefix that a static peer's host prefix or
+// an earlier group already holds owns no SYN, and publishing it would let its
+// floor judge another session's SYNs.
 func (r *Reactor) gtsmRanges() []gtsm.Range {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var ranges []gtsm.Range
-	for _, group := range r.dynamicGroups {
-		template, enabled := gtsmPeerOf(group.Settings, r.config.Port)
-		if !enabled {
+	held := make(map[netip.Prefix]bool)
+	for _, p := range r.peers {
+		s := p.Settings()
+		if s.IsDynamic {
 			continue
 		}
+		host := netip.PrefixFrom(s.Address, s.Address.BitLen())
+		held[host] = true
+		if _, enabled := gtsmPeerOf(s, r.config.Port); enabled {
+			continue
+		}
+		port := uint16(listenPortFor(s, r.config.Port)) //nolint:gosec // listenPortFor answers a port, which is a uint16 everywhere it is parsed
+		ranges = append(ranges, gtsm.Range{Prefix: host, Port: port})
+	}
+	for _, group := range r.dynamicGroups {
+		// A group with no template settings has no session, so no source.
+		if group.Settings == nil {
+			continue
+		}
+		source := gtsm.Range{Port: uint16(listenPortFor(group.Settings, r.config.Port))} //nolint:gosec // listenPortFor answers a port, which is a uint16 everywhere it is parsed
+		if template, enabled := gtsmPeerOf(group.Settings, r.config.Port); enabled {
+			source.Floor = template.Floor
+		}
 		for _, prefix := range group.Ranges {
-			ranges = append(ranges, gtsm.Range{Prefix: prefix, Port: template.Port, Floor: template.Floor})
+			if held[prefix.Masked()] {
+				continue
+			}
+			held[prefix.Masked()] = true
+			source.Prefix = prefix
+			ranges = append(ranges, source)
 		}
 	}
 	return ranges

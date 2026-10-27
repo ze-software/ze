@@ -47,7 +47,8 @@ func captureGTSMSet(t *testing.T) *gtsmSet {
 // TestListenTermsDynamicRange is AC-16 at the reactor: a dynamic group whose
 // template carries `ttl max 1` publishes its range with the template's floor
 // and listen port, the gtsm tables then drop a below-floor SYN from inside
-// the range, and a group without GTSM publishes nothing.
+// the range, and a group without GTSM is published with no floor and owes no
+// term while no GTSM range contains it.
 func TestListenTermsDynamicRange(t *testing.T) {
 	published := captureGTSMSet(t)
 	r := New(&Config{Port: 179})
@@ -64,11 +65,81 @@ func TestListenTermsDynamicRange(t *testing.T) {
 
 	r.publishGTSMKernelState()
 
-	require.Equal(t, []gtsm.Range{{Prefix: gtsmRange, Port: 179, Floor: 255}}, published.ranges)
+	require.Equal(t, []gtsm.Range{
+		{Prefix: gtsmRange, Port: 179, Floor: 255},
+		{Prefix: netip.MustParsePrefix("10.2.0.0/16"), Port: 179},
+	}, published.ranges, "the GTSM range with its floor, the plain one with none")
 	tables := gtsm.FilterTables(published.peers, published.ranges)
 	require.Len(t, tables, 1)
+	terms := tables[0].Chains[0].Terms
+	require.Len(t, terms, 1, "the plain range lies in no GTSM range, so it owes no term")
 	member := gtsm.Peer{Addr: netip.MustParseAddr("10.1.2.3"), Port: 179, Floor: 255}
-	assert.True(t, hasListenPortDropFrom(tables[0].Chains[0].Terms, gtsmRange, member), "no term drops a below-floor SYN from the range")
+	assert.True(t, hasListenPortDropFrom(terms, gtsmRange, member), "no term drops a below-floor SYN from the range")
+}
+
+// TestGTSMRangeSparesAPlainStaticPeerInside proves the reactor publishes a
+// static peer without GTSM, and that the gtsm component then claims its
+// address ahead of the GTSM range that contains it. The listener gives that
+// peer's SYN to the peer's own session, which is not GTSM-enabled, so RFC 5082
+// Section 3 forbids the range's rule from dropping it.
+func TestGTSMRangeSparesAPlainStaticPeerInside(t *testing.T) {
+	published := captureGTSMSet(t)
+	r := New(&Config{Port: 179})
+
+	template := NewPeerSettings(netip.Addr{}, 65000, 0, 0x01010101)
+	template.OutTTL = 255
+	template.MinTTL = 255
+	gtsmRange := netip.MustParsePrefix("10.1.0.0/16")
+	r.SetDynamicGroups([]*DynamicGroupConfig{{GroupName: "ixp", Ranges: []netip.Prefix{gtsmRange}, Settings: template}})
+	require.NoError(t, r.AddPeer(NewPeerSettings(mustParseAddr("10.1.9.9"), 65000, 65009, 0x01010101)))
+
+	r.publishGTSMKernelState()
+
+	host := netip.MustParsePrefix("10.1.9.9/32")
+	require.Contains(t, published.ranges, gtsm.Range{Prefix: host, Port: 179}, "the plain static peer is published with no floor")
+	tables := gtsm.FilterTables(published.peers, published.ranges)
+	require.Len(t, tables, 1)
+	terms := tables[0].Chains[0].Terms
+	require.Len(t, terms, 2)
+	assert.Equal(t, []firewall.Match{
+		firewall.MatchSourceAddress{Prefix: host},
+		firewall.MatchProtocol{Protocol: "tcp"},
+		firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 179, Hi: 179}}},
+	}, terms[0].Matches, "the claim names the peer and its listen port")
+	assert.Equal(t, []firewall.Action{firewall.Accept{}}, terms[0].Actions, "the claim ends this chain for the peer's SYN")
+	member := gtsm.Peer{Addr: netip.MustParseAddr("10.1.2.3"), Port: 179, Floor: 255}
+	assert.True(t, hasListenPortDropFrom(terms[1:], gtsmRange, member), "the range's drop comes after the claim")
+}
+
+// TestGTSMRangeEqualLengthFollowsTheListener proves that a prefix held by two
+// sources is published only for the one the listener gives its SYNs to: a
+// static peer before a group's host prefix at its address, and the first of
+// two groups whose ranges are the same prefix (findDynamicGroup). The source
+// the listener never picks would otherwise drop, by its own floor, the SYNs of
+// a session with no GTSM, which RFC 5082 Section 3 forbids.
+func TestGTSMRangeEqualLengthFollowsTheListener(t *testing.T) {
+	published := captureGTSMSet(t)
+	r := New(&Config{Port: 179})
+
+	gtsmTemplate := NewPeerSettings(netip.Addr{}, 65000, 0, 0x01010101)
+	gtsmTemplate.OutTTL = 255
+	gtsmTemplate.MinTTL = 255
+	plain := NewPeerSettings(netip.Addr{}, 65000, 0, 0x01010101)
+	shared := netip.MustParsePrefix("10.3.0.0/24")
+	host := netip.MustParsePrefix("10.4.0.9/32")
+	r.SetDynamicGroups([]*DynamicGroupConfig{
+		{GroupName: "first", Ranges: []netip.Prefix{shared}, Settings: plain},
+		{GroupName: "second", Ranges: []netip.Prefix{shared, host}, Settings: gtsmTemplate},
+	})
+	require.NoError(t, r.AddPeer(NewPeerSettings(host.Addr(), 65000, 65009, 0x01010101)))
+
+	r.publishGTSMKernelState()
+
+	assert.ElementsMatch(t, []gtsm.Range{
+		{Prefix: host, Port: 179},
+		{Prefix: shared, Port: 179},
+	}, published.ranges, "each prefix is published once, for the session the listener picks")
+	assert.Nil(t, gtsm.FilterTables(published.peers, published.ranges), "no source the listener picks asked for GTSM, so no term drops")
 }
 
 // noopJournal is the rollback journal the config apply hands the reconcile.

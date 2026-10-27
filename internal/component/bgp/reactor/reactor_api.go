@@ -1345,7 +1345,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 
 	// The GTSM kernel state is derived from the peer set, so it is republished
 	// once the set has stopped moving: a peer this apply removed takes its host
-	// route and its ICMP filter terms with it (gtsm.go).
+	// route and its ICMP and listen-port filter terms with it (gtsm.go).
 	r.publishGTSMKernelState()
 
 	return nil

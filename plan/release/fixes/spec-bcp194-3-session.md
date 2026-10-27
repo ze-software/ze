@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Repair existing GTSM listener protection and accepted CoPP behavior that fails open. |
 | Scope | protocol |
 | Depends | spec-bcp194-0-umbrella |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
 | Updated | 2026-10-27 |
 
@@ -155,7 +155,7 @@ large separate feature and needs its own spec.
 - `gtsm.Peer` and `peerTerms` - gain the listen-port drop terms; `Peer.Port` already carries `listenPortFor`
 - `firewall.MatchIPv4TTLBelow` - reused; a sibling daemon-only IPv6 hop-limit match is added beside it, with its nft lowering and `validateMatch` case
 - `firewall.Set` + `MatchInSet` - the CoPP neighbor set, one per address family
-- `copp` `registry.Registration.ConfigRoots` - gains `bgp`
+- `copp` `registry.Registration.ConfigReads` - gains `bgp` (a read root, never owned, so a BGP-only config does not load copp; A-2)
 - The one reader of `connection > remote > ip` and `connection > remote > range` - shared by the BGP config parse and CoPP (A-3), never a second parser
 
 ### Architectural Verification
@@ -180,16 +180,16 @@ large separate feature and needs its own spec.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Linux applies a socket's `min_ttl` at the `process:` label of `tcp_v4_rcv` to whatever socket the lookup returned, a LISTEN socket included, so a listener floor is one value for all sources | Linux `net/ipv4/tcp_ipv4.c` `tcp_v4_rcv`, `if (unlikely(iph->ttl < READ_ONCE(inet_sk(sk)->min_ttl)))` after `process:`; same shape in `net/ipv6/tcp_ipv6.c` with `min_hopcount` (kernel.org master, read 2026-10-27) | A per-source listener floor would exist and the nftables term would be redundant | source read | validated |
-| A-2 | The SDK delivers the `bgp` root to a non-BGP plugin that lists it in `ConfigRoots`, on boot and on every reload that changes it | `internal/component/bgp/plugins/rs/register.go` lists `bgp`; `rs/config_tx.go` reads `section.Root == configRootBGP` | CoPP cannot learn neighbors from config; it would need an engine command instead | Phase 1 wiring test `TestCoppDropTermWiring` driven through the plugin's verify and apply with both sections | unvalidated |
-| A-3 | The neighbor addresses can be read from the raw `bgp` section by one function that the BGP config parse also calls, placed where CoPP may import it without pulling in the reactor | `reactor/config.go` reads `connection > remote > ip`; `config/resolve.go` reads `range`; `./le arch tier check` judges placement | A second reader would duplicate the leaf paths (`ai/rules/principles.md`, declare once) | Phase 1: place the function, move both existing reads onto it, run `./le arch tier check` scoped | unvalidated |
-| A-4 | nftables `ip6 hoplimit` is lowerable by the nft backend the same way `ip ttl` is | `internal/plugins/firewall/nft/lower_linux.go` lowers `MatchIPv4TTLBelow` as a network-header payload compare | IPv6 GTSM listener terms cannot be built | Phase 2 Linux lowering test reading the installed rule back | unvalidated |
+| A-2 | The SDK delivers the `bgp` root to a non-BGP plugin that lists it in `ConfigRoots`, on boot and on every reload that changes it | `internal/component/bgp/plugins/rs/register.go` lists `bgp`; `rs/config_tx.go` reads `section.Root == configRootBGP` | CoPP cannot learn neighbors from config; it would need an engine command instead | Phase 1 wiring test `TestCoppDropTermWiring` driven through the plugin's verify and apply with both sections | confirmed, through `ConfigReads` not `ConfigRoots` (Phase 1): read roots are joined into `WantsConfigRoots` (`joinConfigReads`, `plugin/server/startup.go`), delivered at boot (`BuildPluginConfigSections(configTree, reg.WantsConfigRoots)`, `startup.go`) and whole beside the owned root on any reload changing either (`reloadConfigSections`, `plugin/server/reload_compensation.go`), and reach the offline verifier (`ConfigSectionRoots`, `config/plugin_verify.go`). `bgp` under `ConfigRoots` would claim ownership of the root (`buildTxInputs` comment, `reload_tx.go`) and auto-load copp on every BGP config, breaking D-9 |
+| A-3 | The neighbor addresses can be read from the raw `bgp` section by one function that the BGP config parse also calls, placed where CoPP may import it without pulling in the reactor | `reactor/config.go` reads `connection > remote > ip`; `config/resolve.go` reads `range`; `./le arch tier check` judges placement | A second reader would duplicate the leaf paths (`ai/rules/principles.md`, declare once) | Phase 1: place the function, move both existing reads onto it, run `./le arch tier check` scoped | confirmed: `config.BGPRemote`, `BGPRemoteIP`, `BGPRemoteRanges`, `BGPNeighborSources` in `internal/component/config/bgp_neighbor_sources.go`, beside `IsDynamicBGPGroup`, no BGP import (copp is gate `ze_copp`, independent of `ze_bgp`); `resolveDynamicGroup`, `checkDuplicateRemoteIPs`, `IsDynamicBGPGroup` and reactor `parsePeerFromTree` read through it; `./le arch tier check` placement and plugin ownership OK |
+| A-4 | nftables `ip6 hoplimit` is lowerable by the nft backend the same way `ip ttl` is | `internal/plugins/firewall/nft/lower_linux.go` lowers `MatchIPv4TTLBelow` as a network-header payload compare | IPv6 GTSM listener terms cannot be built | Phase 2 Linux lowering test reading the installed rule back | confirmed at the producer (Phase 1): `lowerIPv4TTLBelowMatch` (`nft/lower_linux.go`) is `nfprotoGuard(family, NFPROTO_IPV4)` + network-header `expr.Payload` offset 8 len 1 + `expr.Cmp` `CmpOpLt`; the IPv6 hop limit is the same one-byte network-header field at offset 7 under an `NFPROTO_IPV6` guard (`ip6 hoplimit <`). The readback proof stays owed by Phase 2 (`TestLowerIPv6HopLimitBelow`) |
 | A-5 | A peer with GTSM always has `Port` and `Floor` non-zero in `gtsm.Peer` | `gtsmPeerOf` copies `MinTTL` and `listenPortFor` | A term with port 0 or floor 0 would match nothing; `peerTerms` already skips such peers | existing `peerTerms` guard plus a unit row | validated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The listen-port term drops a Trusted or Unknown packet, which RFC 5082 S3 forbids | AC-4 or AC-5 red | the term matches source address AND destination port AND below-floor; boundary tests at floor and floor-1; Unknown-source test |
-| R-2 | CoPP drops a real peer's SYN after a reload adds the peer, because the `bgp` change does not re-run CoPP | AC-9 red | `bgp` in `ConfigRoots`; reload test adds a peer and asserts the set |
+| R-2 | CoPP drops a real peer's SYN after a reload adds the peer, because the `bgp` change does not re-run CoPP | AC-9 red | `bgp` in `ConfigReads`; reload test adds a peer and asserts the set |
 | R-3 | A dynamic group member is dropped by CoPP | AC-8 red | the group's ranges are in the neighbor set |
 | R-4 | An operator who wrote `rate` and relied on the `accept` default now drops over-limit connections from neighbors | `copp-bgp.ci` diff | pre-release: no deployment consumes `main`; the YANG description and `docs/guide/firewall.md` name the new default; the spelling `accept` keeps the old behaviour |
 | R-5 | The rate limiter is starved by unknown sources | a flood from an unknown source drops neighbor SYNs | the drop of unknown sources sits before the rate term, so only accepted neighbors draw on the bucket (RFC 7454 S4, "rate-limiting MAY be configured for accepted BGP traffic") |
@@ -262,6 +262,7 @@ large separate feature and needs its own spec.
 | `TestPeerTermsListenPortIPv4` | `internal/component/gtsm/gtsm_test.go` | one term per IPv4 peer: source = peer, TCP destination port = `Peer.Port`, TTL below `Floor`, drop + counter; AC-1, AC-5 | |
 | `TestPeerTermsListenPortIPv6` | `internal/component/gtsm/gtsm_test.go` | the IPv6 term with the hop-limit match; AC-2 | |
 | `TestListenTermsDynamicRange` | `internal/component/gtsm/gtsm_test.go` and `internal/component/bgp/reactor/gtsm_test.go` | a GTSM dynamic group's ranges yield listen-port terms with the range as source and the template's floor; AC-16 | |
+| `TestGTSMRangeEqualLengthFollowsTheListener` | `internal/component/bgp/reactor/gtsm_test.go` | a prefix two sources share is published only for the one the listener picks (static peer first, then the first group); added at closure round 3 | |
 | `TestPeerTermsSkipsUnsetFloorOrPort` | `internal/component/gtsm/gtsm_test.go` | a peer with floor 0 or port 0 gets no term (A-5) | |
 | `TestFilterTablesWithdrawsWithLastPeer` | `internal/component/gtsm/gtsm_test.go` | existing withdrawal extended to the new terms; AC-6 | |
 | `TestValidateMatchIPv6HopLimitBelow` | `internal/component/firewall/validate_test.go` | floor 0 refused, 1..255 accepted | |
@@ -305,7 +306,7 @@ large separate feature and needs its own spec.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-session-protection-frr` | `test/interop/scenarios/bgp-session-protection-frr/` | FRR (latest stable, `neighbor ... ttl-security hops 1`) | Ze configured with GTSM and CoPP establishes with FRR and keeps the session (AC-3, AC-8, AC-12); a probe from FRR's address at TTL 254 and a probe from a second, unconfigured address in FRR's container receive no SYN-ACK, read from Ze's `ze_gtsm` and `ze_copp` term counters and from the probe's own capture (AC-1, AC-7, AC-14). Red phase: rebuild Ze's image with the listen-port term and the drop term reverted; both probes must then receive a SYN-ACK | |
+| `bgp-session-protection-frr` | `test/interop/scenarios/bgp-session-protection-frr/` | FRR (latest stable, `neighbor ... ttl-security hops 1`) | Ze configured with GTSM and CoPP establishes with FRR and keeps the session (AC-3, AC-8, AC-12); a probe from FRR's address at TTL 254 and a probe from a second, unconfigured address in FRR's container receive no SYN-ACK, read from Ze's `ze_gtsm` and `ze_copp` term counters and from the probe's own capture (AC-1, AC-7, AC-14). Red phase: rebuild Ze's image with the listen-port term and the drop term reverted; both probes must then receive a SYN-ACK | Built (988cadb511, 50243d28e7; inventory row 58 df8227508a). Checker `checkSessionProtection` (internal/le/interoplab/bgp/check_session_protection.go). Probes are python3 connects in FRR's container (no other tool there sets a socket TTL): FRR address at TTL 254 must time out (assertion 4, ze_gtsm only: FRR is a CoPP neighbor); same address at TTL 255 must connect (assertion 5, control); unconfigured 172.30.0.40 at TTL 255 must time out, not reset (assertion 6, CoPP only); unknown-source-drop counter rises (7); FRR session established/dropped counts and ports unchanged (8). The GTSM half is read at the probe. The listen-port rule does carry a packet counter, which the nft backend adds to every rule without an explicit one (`addChainRules`, shown by `show firewall ruleset gtsm`, asserted by `listenTermPackets` in the kernel proofs); the scenario does not read it. Green 2026-10-27 at 50243d28e7 against FRR 10.7.1 (interoplab.FRRImage). Red 2026-10-27, one producer at a time by `GOFLAGS=-overlay`, image rebuilt by the harness: `peerTerms` without the listen-port term → assertion 4 "a SYN from 172.30.0.3 at TTL 254 got a completed handshake from ze, want no answer"; `translatePolicy` without unknown-source-drop → assertion 6 "a SYN from the unconfigured 172.30.0.40 got a completed handshake from ze, want no answer" |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
@@ -316,7 +317,7 @@ large separate feature and needs its own spec.
 - `internal/component/firewall/model.go`, `internal/component/firewall/validate.go` - daemon-only IPv6 hop-limit-below match; `MatchIPv4TTLBelow` comment no longer says no caller needs IPv6
 - `internal/plugins/firewall/nft/lower_linux.go` - lowering of the IPv6 match
 - `internal/component/bgp/reactor/gtsm.go` - `gtsmPeers` and `gtsmPeersFromResolvedTree` also publish each GTSM dynamic group's ranges with the template's floor and listen port (AC-16); file comment updated
-- `internal/plugins/copp/register.go` - `ConfigRoots` gains `bgp`; verify and apply read both sections
+- `internal/plugins/copp/register.go` - `ConfigReads` gains `bgp`; verify and apply read both sections
 - `internal/plugins/copp/config.go`, `internal/plugins/copp/model.go` - `rate` optional, `over-limit-policy` default drop, the neighbor prefix list in `coppPolicy`
 - `internal/plugins/copp/translate.go` - neighbor sets, term order, final drop
 - `internal/plugins/copp/doctor.go` - names a missing drop term (AC-15)
@@ -391,7 +392,7 @@ commit when its scoped package tests pass.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- both entry points reach their producers; validate A-2 and A-3
    - Tests: `TestListenerMinTTLWiring`, `TestCoppDropTermWiring`, `TestNeighborSourcesFromBGPSection`
-   - Files: `internal/plugins/copp/register.go` (`bgp` in `ConfigRoots`, both sections staged), the shared neighbor-source reader and the two existing reads moved onto it (A-3, `./le arch tier check` scoped), `internal/component/bgp/reactor/gtsm_test.go`
+   - Files: `internal/plugins/copp/register.go` (`bgp` in `ConfigReads`, both sections staged), the shared neighbor-source reader and the two existing reads moved onto it (A-3, `./le arch tier check` scoped), `internal/component/bgp/reactor/gtsm_test.go`
    - Verify: the two wiring tests fail on the missing terms, not on plumbing; the reader test passes; A-2 and A-3 marked validated or the design returns here
    - ACs: none closed; prepares AC-1, AC-2, AC-7, AC-8, AC-9
 2. **Phase: GTSM listen-port floor** -- the `ze_gtsm` terms, both families
@@ -560,3 +561,160 @@ socket, does not fit: one Linux socket floor applies to every source the
 listener serves, and the gtsm component that landed in September already owns
 the per-peer nftables table where a per-source drop belongs. The redesign above
 moves Gap 1 onto that table and settles Gap 2 from RFC 7454 S4.
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (ec94fdce9d): `config.BGPNeighborSources` and the shared `remote ip` / `range` reader; CoPP reads `bgp` through `ConfigReads`; wiring tests.
+- Phase 2 (4575a6044f): `firewall.MatchIPv6HopLimitBelow` and its nft lowering; `gtsm.listenPortTerm` per peer and per GTSM dynamic range (`gtsm.Range`, `Reactor.gtsmRanges`); doctor names a missing listen term; kernel proofs in `rfc5082_listener_integration_linux_test.go`; `gtsm-listener-floor.ci`.
+- Phase 3 (fb376f316f): CoPP ACL in `translatePolicy` (neighbor interval sets, `bgp-neighbor` chain with the optional limiter, counted `unknown-source-drop`); `rate` optional, `over-limit-policy` default `drop`; doctor names a missing table, chain, term or set; nft `applyTable` adds every chain before any rule.
+- Phase 4 (988cadb511, 50243d28e7, df8227508a): interop `bgp-session-protection-frr` against FRR 10.7.1.
+- Guest runner (98d4044094, 519a850761, 3187ac0970): the QEMU runner names the gtsm package and the two gtsm `.ci`; the gtsm fixtures read the runner's port.
+- Closure: `gtsm.claimTerm` and `narrowestFirst`, so a GTSM range never judges a SYN a narrower session owns; `owedRanges` keeps a deployment without GTSM from publishing; `Reactor.gtsmRanges` publishes non-GTSM sources with a zero floor; AC-5 kernel proof at floor 253.
+
+### Bugs Found/Fixed
+- nft forward jump refused (ENOENT) when a chain jumps to a chain listed later: `TestApplyAcceptsAJumpToAChainListedLater`, red in the guest with the one-pass order.
+- GTSM fixtures hardcoded `dport 179`: `netfilter_fixture_gtsm_test.go`.
+- Closure: a GTSM range's listen term dropped SYNs of a static peer without GTSM, or of a narrower range or peer with a lower floor, inside it (RFC 5082 S3 MUST NOT): `TestListenTermsClaimNarrowerSources`, `TestGTSMRangeSparesAPlainStaticPeerInside`, `TestGTSMListenerMultihopFloorInsideRange` and `...IPv6` (guest green, red with the claim disabled).
+- Closure round 3: a prefix shared by a static peer and a group, or by two groups, was published for both, so the source the listener never picks could drop the other's SYNs: `TestGTSMRangeEqualLengthFollowsTheListener` (red against the earlier `gtsmRanges`).
+
+### Documentation Updates
+- `docs/guide/firewall.md`: listen and claim terms, per-rule counters, the CoPP section and a "Changed from earlier builds" table (anchors: `gtsm.go -- claimTerm, narrowestFirst`, `reactor/gtsm.go -- gtsmRanges`, `backend_linux.go -- addChainRules`, `cmd_show.go -- handleShowFirewallRuleset`, `copp/config.go -- parseRateLimit`, `copp/translate.go -- trustedTermName`).
+- `docs/architecture/traffic/cp-survival-2-copp-port179.md`, `docs/guide/flowspec-protected-router.md`, `docs/guide/health-checks.md`, `docs/architecture/testing/interop.md`, `ai/digests/firewall.md`, `rfc/short/rfc5082.md` (phases 1 to 4).
+- `./le doc check all`: see Pre-Commit Verification.
+
+### Deviations from Plan
+- A-2 is met through `ConfigReads`, not `ConfigRoots` (Phase 1).
+- The Linux kernel proofs live in `rfc5082_listener_integration_linux_test.go` (`integration && linux`), not `rfc5082_gtsm_linux_test.go`, so the recorder sends them to the guest.
+- Closure added the claim term, which the design did not foresee (Mistake Log).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec assumed a listener IP_MINTTL (REWORK at e6474aa200) | one Linux socket floor applies to every source of a shared listener (A-1) | disposition read of `tcp_v4_rcv` | redesigned onto the `ze_gtsm` table (D-1) |
+| assumption | The nft backend's chain-by-chain apply was assumed order-safe | a jump to a chain listed later is refused and rolls back the batch | every CoPP `.ci` red in the guest | `applyTable` adds chains first, guest red walk |
+| approach | The gtsm fixtures matched port 179 | the runner moves ze to a test port | netns gate run (t2) | 3187ac0970, fixture unit test |
+| approach | AC-16 published a range term that judged every address in the range | the listener gives a static peer or the longest range its own SYN, so a wider range must not judge it | closure review | `claimTerm`, ordered narrowest first, guest red walk |
+| approach | Every kernel floor proof drove floor 255 only | at 255 no TTL is above the floor, so `<` and `!=` look alike | closure review | floor-253 kernel proof |
+| assumption | A-1 to A-5 | all confirmed (Assumptions Resolved) | phases 1 and 2 | none broken |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Gap 1: below-floor TCP to a GTSM listen port dropped before accept | Done | `internal/component/gtsm/gtsm.go` `listenPortTerm`, `claimTerm` | both families, peers and ranges |
+| Gap 2: CoPP ACL with derived neighbors, final drop, optional rate, drop default | Done | `internal/plugins/copp/translate.go` `translatePolicy`, `config.go` `parseRateLimit` | opt-in kept (D-9) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGTSMListenerSYNBelowFloorDropped` (guest, counter == 1), `gtsm-listener-floor.ci`, interop assertion 4 | counted by the rule's backend counter |
+| AC-2 | Done | `TestGTSMListenerSYNBelowFloorDroppedIPv6` (guest) | |
+| AC-3 | Done | `TestGTSMListenerSYNAtFloorAccepted` and IPv6 (guest), interop assertions 1, 5 | |
+| AC-4 | Done | `TestGTSMListenerUnknownNotDropped` (guest) | |
+| AC-5 | Done | `TestGTSMListenerMultihopFloorInsideRange` and IPv6 (guest), `TestPeerTermsListenPortIPv4` | added at closure |
+| AC-6 | Done | `TestFilterTablesWithdrawsWithLastPeer`, `gtsm-listener-floor.ci` | |
+| AC-7 | Done | `TestCoppDropTermWiring`, `copp-unknown-source-drop.ci` (guest), interop assertions 6, 7 | |
+| AC-8 | Done | `TestCoppUnknownSourceDroppedLinux`, interop assertion 1 | |
+| AC-9 | Done | `TestCoppReloadAddsNeighbor` | |
+| AC-10 | Done | `TestParseCoppConfigOverLimitDefaultDrop`, `copp-over-limit-drop.ci` (guest) | |
+| AC-11 | Done | `TestTranslatePolicyNoRate` | |
+| AC-12 | Done | `TestCoppUnknownSourceDroppedLinux`, `TestCoPPOverLimitDropKeepsAnEstablishedSessionAlive` | |
+| AC-13 | Done | `TestCoPPTrustedSourceBypassesTheLimiter`, `copp-trusted.ci` (guest) | |
+| AC-14 | Done | interop `bgp-session-protection-frr`, green and two reds | |
+| AC-15 | Done | `TestGTSMDoctorNamesMissingListenTerm`, `TestCoppDoctorNamesMissingDropTerm` | |
+| AC-16 | Done | `TestListenTermsDynamicRange` (gtsm and reactor), `TestListenTermsClaimNarrowerSources` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the TDD Test Plan | Done | files named in the plan | `TestGTSMListener*` live in `rfc5082_listener_integration_linux_test.go`; `TestGTSMDoctorNamesMissingListenTerm` in `doctor_linux_test.go` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | `internal/core/network/network.go` unchanged by design (D-1); `docs/comparison.md` unchanged (GTSM row already Yes, no CoPP row) |
+
+### Audit Summary
+- **Total items:** 16 ACs, 2 task requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** A-2 route, kernel test file, closure claim term (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Gap 1: a below-floor SYN from a GTSM peer costs no SYN-ACK, and no Trusted or Unknown SYN is dropped | kernel + interop | guest run `scratch/close-qemu-green.log`: 7 `TestGTSMListener*` PASS on kernel 7.2.9; interop assertion 4 red with the listen term removed |
+| Gap 2: CoPP drops a non-neighbor's connection to port 179 and keeps neighbors | functional + interop | `copp-unknown-source-drop.ci` green in the guest, red with the drop term removed (`UNKNOWN_FAIL ... completed a handshake`); interop assertion 6 red with the drop removed |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Fix the `firewall-reload` fixture, red in the guest and not caused by this spec | its `dport 22 accept` substring has not matched since 7278126c3f put the rule counter between match and verdict; fb376f316f changes only the order of a multi-chain batch, and this table has one chain | `plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` (row in `plan/journal/failing-gate-prints-no-cause.md`, cause added at this closure) |
+| Re-take the two stale RFC5082-3-2 discrimination records | the unit is `//go:build linux`, not integration, so the recorder runs it on this host, where it skips; only Thomas's Mac routes it to a guest | `plan/post-release/engineering/spec-tooling-one-off-defects.md` (journal row in `plan/journal/gate-excludes-part-of-its-population.md`) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bcp194-3-session-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md` (`./le spec review record`, rounds 4) |
+| `./le spec review check` | clean |
+| Rounds | 4 |
+| Reviewer lenses used | RFC 5082 S3 classification against the listener's accept precedence (`findDynamicGroup`, static peers), boundary of the floor compare, fail-open and backend-load side effects, lock and lifecycle of the reactor publish, docs and YANG against code, style pass on every changed Go file |
+
+Round 1 covered the whole diff (ec94fdce9d to 3187ac0970). Round 2 covered only the round 1 fixes and found the missing `owedRanges` (finding 3). Round 3 covered only `owedRanges` and its test, and found that equal-length prefixes did not follow the listener (finding 10). Round 4 covered only that fix: 0 BLOCKER, 0 ISSUE; `TestGTSMRangeEqualLengthFollowsTheListener` red against the round 3 `gtsmRanges` (overlay), green after; an IPv6 /128 and /64 probe and a GTSM static peer behind a plain group's /128 agree with the listener.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A GTSM dynamic range's listen term dropped below-range-floor SYNs of a session that owns them: a static peer without GTSM, a narrower range without GTSM or with a lower floor, a GTSM peer with a lower floor. RFC 5082 S3: "MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown." | `gtsm.FilterTables`, `Reactor.gtsmRanges` | `claimTerm`, `narrowestFirst`; reactor publishes non-GTSM sources with a zero floor; `TestListenTermsClaimNarrowerSources`, `TestGTSMRangeSparesAPlainStaticPeerInside`, `TestGTSMListenerMultihopFloorInsideRange` and IPv6, red with the claim disabled |
+| 2 | ISSUE | AC-5 proven at table level only; every kernel proof used floor 255, where no TTL is above the floor | `rfc5082_listener_integration_linux_test.go` | floor-253 kernel proof: 252 dropped, 253 and 254 answered |
+| 3 | ISSUE | Round 2: publishing non-GTSM sources made a deployment with no GTSM publish an empty table on the first reconcile, loading the firewall backend | `gtsm.SetPeers` | `owedRanges`; `TestSetPeersWithNoGTSMSourcePublishesNothing` |
+| 4 | ISSUE | Stale comments: `publishGTSMKernelState` and the reconcile comment named only the ICMP protection | `reactor/gtsm.go`, `reactor/reactor_api.go` | comments name the listen-port terms |
+| 5 | ISSUE | The three CoPP behaviour changes were documented as current behaviour but not noted as changes; claim terms and listen-term counters undocumented | `docs/guide/firewall.md` | "Changed from earlier builds" table, claim paragraph, counter paragraph |
+| 6 | NOTE | The interop row said the listen term carries no counter; the backend adds one to every rule and the kernel proofs assert it | this spec, interop row | corrected |
+| 7 | NOTE | GTSM drops need no `Counter` action and no Prometheus metric: `addChainRules` counts every rule, `show firewall ruleset gtsm` shows it, and the Integration Checklist set Prometheus to No | `nft/backend_linux.go` | none owed |
+| 8 | NOTE | The floor-253 proofs carry no `RFC requirement:` tag, so they owe no discrimination record; they back AC-5 and the claim | `rfc5082_listener_integration_linux_test.go` | none |
+| 9 | NOTE | FRR 10.7.1 is upstream's latest stable (`gh api repos/FRRouting/frr/releases/latest`: frr-10.7.1, 2026-08-31) | `interoplab.FRRImage` | none owed |
+| 10 | ISSUE | Round 3: a prefix two sources share was published for both, but the listener gives its SYN to a static peer before any group (`findPeerByAddr`) and to the first of equally long group ranges (`findDynamicGroup`), so a GTSM group's floor could drop SYNs of a session without GTSM (RFC 5082 S3 MUST NOT) | `Reactor.gtsmRanges` | static peers hold their host prefix first, a group prefix is published only while unheld; `TestGTSMRangeEqualLengthFollowsTheListener`; one sentence in `docs/guide/firewall.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/firewall/gtsm-listener-floor.ci`, `test/firewall/copp-unknown-source-drop.ci`, `test/interop/scenarios/bgp-session-protection-frr/ze.conf`, `internal/component/config/bgp_neighbor_sources.go` | Yes | `ls` at closure listed all four |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-5, AC-16 | listen-port drop, claim, floors | guest kernel 7.2.9: 7 `TestGTSMListener*` PASS (`scratch/close-qemu-green.log`); claim disabled: both multihop tests FAIL "no SYN-ACK ... at 253" (`scratch/close-qemu-red.log`) |
+| AC-6, AC-15, AC-16 | table shape, withdrawal, doctor | `go test -race ./internal/component/gtsm/` ok; `go test -race -tags ze_bgp -run 'GTSM|MinTTL|Floor|Listen' ./internal/component/bgp/reactor/` ok |
+| AC-7 to AC-13 | CoPP | guest `.ci` run t2: copp-bgp, copp-trusted, copp-over-limit-drop, copp-unknown-source-drop, copp-withdraw PASS |
+| AC-14 | interop | green at 50243d28e7 against FRR 10.7.1, reds at assertions 4 and 6 (Interop Tests table) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| BGP peer `ttl { max 1; }` | `test/firewall/gtsm-listener-floor.ci` | green in the netns guest run after 3187ac0970 |
+| `control-plane-protection bgp` with peers | `test/firewall/copp-unknown-source-drop.ci` | green in the guest, red with the drop term removed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `tcp_v4_rcv` source read (Design Insights) |
+| A-2 | confirmed | via `ConfigReads` (`joinConfigReads`, `reloadConfigSections`) |
+| A-3 | confirmed | `internal/component/config/bgp_neighbor_sources.go`, `./le arch tier check` |
+| A-4 | confirmed | `TestLowerIPv6HopLimitBelow`, red at offset 8 |
+| A-5 | confirmed | `TestPeerTermsSkipsUnsetFloorOrPort` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| GTSM terms, claim, counters; CoPP ACL and its changes | `gtsm.go` `claimTerm`; `backend_linux.go` `addChainRules`; `copp/config.go` `parseRateLimit`; `copp/translate.go` `trustedTermName` | Yes, anchors in `docs/guide/firewall.md` |
+| RFC 5082 status | `rfc/short/rfc5082.md` (phase 2); `./le rfc check`: no RFC 5082 or 7454 finding this spec caused; the two RFC5082-3-2 records are the Work Not Done row | Yes |

@@ -33,7 +33,9 @@
 // peers, multihop peers and unconfigured sources alike, and RFC 5082 Section 3
 // forbids dropping the last two. So each GTSM peer, and each GTSM dynamic
 // group's range, gets an input rule that names its source and its listen
-// port. The per-connection floor stays as the second check.
+// port. A session source inside a wider GTSM range is claimed ahead of the
+// range's rule, so the range never judges a SYN that belongs to another
+// session. The per-connection floor stays as the second check.
 //
 // Safe for concurrent use: SetPeers serializes on a package mutex.
 package gtsm
@@ -105,8 +107,13 @@ type Peer struct {
 // listen-port rule names the range rather than a member.
 //
 // Port is the listen port the group's sessions use and Floor the lowest TTL
-// or hop limit they accept. A zero in either means the group asked for no
-// GTSM, and the range then carries no rule.
+// or hop limit they accept. A zero Port means the range carries no rule.
+//
+// A zero Floor names a session source that asked for no GTSM: a dynamic group
+// without a `ttl` block, or a static peer's host prefix. It carries no drop.
+// It is published because a wider GTSM range on the same port would otherwise
+// judge its SYNs, and those SYNs belong to a session that is not GTSM-enabled
+// (claimTerm).
 type Range struct {
 	Prefix netip.Prefix
 	Port   uint16
@@ -151,7 +158,7 @@ func SetPeers(peers []Peer, ranges []Range) error {
 
 	published = true
 	wanted := sortedPeers(peers)
-	wantedRanges := sortedRanges(ranges)
+	wantedRanges := owedRanges(sortedRanges(ranges))
 	if slices.Equal(wanted, current) && slices.Equal(wantedRanges, currentRanges) && !routeMissing {
 		return nil
 	}
@@ -234,7 +241,9 @@ var publishFilter = func(tables []firewall.Table) error {
 // classified as Dangerous." Two kinds of packet are named: a related ICMP
 // message (peerTerms), and a TCP segment to the session's listen port that
 // arrives below the floor before any accepted socket carries one
-// (listenPortTerm), for each peer and for each dynamic group range.
+// (listenPortTerm), for each peer and for each dynamic group range. A session
+// source inside a wider GTSM range on the same port gets a claim ahead of that
+// range's drop (claimTerm), because its SYNs belong to its own session.
 //
 // It returns no table when no peer and no range owes terms, so the last one to
 // lose its GTSM configuration withdraws the kernel table rather than leaving
@@ -248,10 +257,18 @@ func FilterTables(peers []Peer, ranges []Range) []firewall.Table {
 	terms := make([]firewall.Term, 0, len(peers)*(len(relatedICMPTypes)*len(quotedPortSides)+1)+len(ranges))
 	for _, p := range peers {
 		terms = append(terms, peerTerms(p)...)
+		if claim, ok := claimTerm(netip.PrefixFrom(p.Addr, p.Addr.BitLen()), p.Port, ranges); ok {
+			terms = append(terms, claim)
+		}
 	}
-	for _, r := range ranges {
+	// The narrowest source first: a range inside a wider one owns its
+	// addresses, so its drop and its claim go before the wider range's drop.
+	for _, r := range narrowestFirst(ranges) {
 		if term, ok := listenPortTerm(r.Prefix, r.Port, r.Floor); ok {
 			terms = append(terms, term)
+		}
+		if claim, ok := claimTerm(r.Prefix, r.Port, ranges); ok {
+			terms = append(terms, claim)
 		}
 	}
 	if len(terms) == 0 {
@@ -378,6 +395,109 @@ func listenPortTerm(source netip.Prefix, port uint16, floor uint8) (firewall.Ter
 		},
 		Actions: []firewall.Action{firewall.Drop{}},
 	}, true
+}
+
+// claimTerm builds the term that accepts, within this chain, a TCP segment
+// from source to port, so that a wider GTSM range on the same port never
+// judges it. It answers false when no GTSM range strictly wider than source
+// covers it on that port, which is the common case and owes no term.
+//
+// The BGP listener gives a connection to the static peer at its address, or
+// else to the dynamic group whose range matches it longest
+// (Reactor.findDynamicGroup), so the segment belongs to that session and its
+// floor, never to the wider range's. A session without GTSM is Unknown to
+// GTSM, and one with a lower floor is Trusted at that floor.
+//
+// RFC 5082 Section 3: "MUST NOT drop (as part of GTSM processing) packets
+// classified as Trusted or Unknown."
+//
+// An accept here ends only this chain. A base chain that accepts does not
+// stop another table's base chain at the same hook, so the claim exempts the
+// segment from GTSM and from nothing else.
+func claimTerm(source netip.Prefix, port uint16, ranges []Range) (firewall.Term, bool) {
+	if port == 0 {
+		return firewall.Term{}, false
+	}
+	if !coveredByWiderGTSMRange(source, port, ranges) {
+		return firewall.Term{}, false
+	}
+	return firewall.Term{
+		Name: claimTermName(source),
+		Matches: []firewall.Match{
+			firewall.MatchSourceAddress{Prefix: source},
+			firewall.MatchProtocol{Protocol: "tcp"},
+			firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: port, Hi: port}}},
+		},
+		Actions: []firewall.Action{firewall.Accept{}},
+	}, true
+}
+
+// coveredByWiderGTSMRange reports whether a GTSM range on port, strictly
+// wider than source, contains it.
+func coveredByWiderGTSMRange(source netip.Prefix, port uint16, ranges []Range) bool {
+	for _, r := range ranges {
+		if r.Floor == 0 {
+			continue
+		}
+		if r.Port != port {
+			continue
+		}
+		if r.Prefix.Bits() >= source.Bits() {
+			continue
+		}
+		if r.Prefix.Contains(source.Addr()) {
+			return true
+		}
+	}
+	return false
+}
+
+// owedRanges keeps the ranges that yield a term: each GTSM range, and each
+// source with no GTSM that a wider GTSM range covers. The caller publishes
+// every session source with no GTSM, so without this a deployment with no GTSM
+// session would see its set change, publish an empty table and load the
+// firewall backend; FilterTables answers the same tables either way.
+func owedRanges(ranges []Range) []Range {
+	owed := make([]Range, 0, len(ranges))
+	for _, r := range ranges {
+		if r.Floor > 0 {
+			owed = append(owed, r)
+			continue
+		}
+		if coveredByWiderGTSMRange(r.Prefix, r.Port, ranges) {
+			owed = append(owed, r)
+		}
+	}
+	return owed
+}
+
+// narrowestFirst copies ranges sorted IPv4 before IPv6, then by prefix
+// length, longest first, then in the order sortedRanges gives, so the rule
+// order is stable. Only a prefix of the same family can contain another.
+func narrowestFirst(ranges []Range) []Range {
+	ordered := slices.Clone(ranges)
+	slices.SortStableFunc(ordered, func(a, b Range) int {
+		if a.Prefix.Addr().Is4() != b.Prefix.Addr().Is4() {
+			if a.Prefix.Addr().Is4() {
+				return -1
+			}
+			return 1
+		}
+		return b.Prefix.Bits() - a.Prefix.Bits()
+	})
+	return ordered
+}
+
+// claimTermName names a claim rule after its source, as listenTermName does.
+func claimTermName(source netip.Prefix) string {
+	var tb textbuf.Buffer
+	tb.Str("claimed-")
+	writeNameSafe(&tb, textbuf.StringAddr(source.Addr()))
+	if !source.IsSingleIP() {
+		tb.Byte('-').Uint(uint64(source.Bits()))
+	}
+	tb.Str("-listen")
+	return tb.String()
 }
 
 // listenTermName names a listen-port drop rule after its source: a host

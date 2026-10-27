@@ -12,6 +12,7 @@ import (
 	"errors"
 	"net/netip"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -419,6 +420,78 @@ func TestListenTermsDynamicRange(t *testing.T) {
 	assertListenDrop(t, terms[1], ranges[1].Prefix, 179, firewall.MatchIPv6HopLimitBelow{Floor: 254})
 	if terms[0].Name == terms[1].Name {
 		t.Errorf("two ranges share the term name %q", terms[0].Name)
+	}
+}
+
+// TestListenTermsClaimNarrowerSources proves that a GTSM range never judges a
+// SYN that belongs to another session. The listener gives a connection to a
+// static peer, or to the dynamic group whose range matches longest, so every
+// such source inside a wider GTSM range on the same port must be claimed
+// before that range's drop, with its own drop first when it has a floor. A
+// source outside the range, or on another port, owes no claim.
+func TestListenTermsClaimNarrowerSources(t *testing.T) {
+	wide := Range{Prefix: netip.MustParsePrefix("10.0.0.0/16"), Port: 179, Floor: 255}
+	narrow := Range{Prefix: netip.MustParsePrefix("10.0.1.0/24"), Port: 179, Floor: 253}
+	plain := Range{Prefix: netip.MustParsePrefix("10.0.3.1/32"), Port: 179}
+	elsewhere := Range{Prefix: netip.MustParsePrefix("192.0.2.9/32"), Port: 179}
+	otherPort := Range{Prefix: netip.MustParsePrefix("10.0.4.1/32"), Port: 1790}
+	peer := Peer{Addr: netip.MustParseAddr("2001:db8::5"), Port: 179, HopLimit: 255, Floor: 254}
+	v6wide := Range{Prefix: netip.MustParsePrefix("2001:db8::/64"), Port: 179, Floor: 255}
+
+	tables := FilterTables([]Peer{peer}, sortedRanges([]Range{wide, narrow, plain, elsewhere, otherPort, v6wide}))
+	if len(tables) != 1 {
+		t.Fatalf("tables = %+v, want one", tables)
+	}
+	var names []string
+	for _, term := range tables[0].Chains[0].Terms {
+		names = append(names, term.Name)
+	}
+	want := []string{
+		"dangerous-2001-db8--5-listen", "claimed-2001-db8--5-listen",
+		"claimed-10-0-3-1-listen",
+		"dangerous-10-0-1-0-24-listen", "claimed-10-0-1-0-24-listen",
+		"dangerous-10-0-0-0-16-listen",
+		"dangerous-2001-db8---64-listen",
+	}
+	if !slices.Equal(names, want) {
+		t.Fatalf("terms = %q, want %q", names, want)
+	}
+	claim := tables[0].Chains[0].Terms[2]
+	if len(claim.Actions) != 1 {
+		t.Fatalf("claim actions = %+v, want one accept", claim.Actions)
+	}
+	if _, ok := claim.Actions[0].(firewall.Accept); !ok {
+		t.Fatalf("claim action = %T, want firewall.Accept", claim.Actions[0])
+	}
+	if FilterTables(nil, []Range{plain, elsewhere}) != nil {
+		t.Fatal("sources with no GTSM range published a table")
+	}
+}
+
+// TestSetPeersWithNoGTSMSourcePublishesNothing proves that the session
+// sources the reactor publishes with no floor change nothing for a deployment
+// without GTSM: no table is published, so the firewall backend never loads. A
+// GTSM range arriving later still publishes the claim for the source it covers.
+func TestSetPeersWithNoGTSMSourcePublishesNothing(t *testing.T) {
+	c := captureSeams(t)
+	plain := Range{Prefix: netip.MustParsePrefix("10.1.9.9/32"), Port: 179}
+
+	if err := SetPeers(nil, []Range{plain}); err != nil {
+		t.Fatalf("SetPeers: %v", err)
+	}
+	if len(c.tables) != 0 {
+		t.Fatalf("published %d times for a set with no GTSM source, want 0", len(c.tables))
+	}
+
+	wide := Range{Prefix: netip.MustParsePrefix("10.1.0.0/16"), Port: 179, Floor: 255}
+	if err := SetPeers(nil, []Range{plain, wide}); err != nil {
+		t.Fatalf("SetPeers: %v", err)
+	}
+	if len(c.tables) != 1 || len(c.tables[0]) != 1 {
+		t.Fatalf("published %+v, want one table", c.tables)
+	}
+	if got := c.tables[0][0].Chains[0].Terms[0].Name; got != "claimed-10-1-9-9-listen" {
+		t.Fatalf("first term = %q, want the claim of the plain source", got)
 	}
 }
 

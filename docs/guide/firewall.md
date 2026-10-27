@@ -170,6 +170,26 @@ group template's floor. A SYN to the listen port from any other source, or
 from the peer to any other port, matches no term: RFC 5082 Section 3 forbids
 dropping a packet GTSM classifies as Unknown.
 
+A session source inside a wider GTSM range on the same port (a static peer,
+or a dynamic group whose range is longer) owns its own SYNs, because the
+listener gives the connection to that session. It gets a
+`claimed-<source>-listen` term that accepts its TCP to the listen port, after
+its own drop term when it has a floor and before the wider range's drop, so
+the range never judges it by the range's floor. The accept ends only the
+`ze_gtsm` chain; every other table still sees the packet. A prefix two
+sources share is judged only by the one the listener picks: a static peer
+before a group range of the same address, and the first of two groups whose
+ranges are the same prefix.
+<!-- source: internal/component/gtsm/gtsm.go -- claimTerm, narrowestFirst -->
+<!-- source: internal/component/bgp/reactor/gtsm.go -- gtsmRanges -->
+
+Every term carries a packet counter (the nft backend adds one to each rule),
+so `show firewall ruleset gtsm` shows how many below-floor SYNs each
+`dangerous-...-listen` term dropped.
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules -->
+<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset -->
+
+
 The ICMP terms name the session by the header the error quotes (the peer as
 the quoted destination, and the BGP port), whoever sent the error. They
 therefore read the quoted header as a raw payload compare
@@ -392,6 +412,18 @@ before you enforce it. Neither setting admits an unknown source. Without the
 policy stays `accept`, so SSH, ICMP and every port the table does not name stay
 reachable. `ze doctor` names any part of `ze_copp` the kernel does not hold.
 Design: [CoPP for BGP](../architecture/traffic/cp-survival-2-copp-port179.md).
+
+Changed from earlier builds, for a configuration you carry forward:
+
+| Before | Now |
+|--------|-----|
+| `rate` was mandatory | `rate` is optional; without it the table is the access list alone |
+| `over-limit-policy` defaulted to `accept`, which counted and admitted | it defaults to `drop`; write `accept` to keep the old behaviour |
+| a trusted term's name carried the prefix as written, `trusted-192.0.2.0/24` | it is `trusted-192.0.2.0-24`: `/` and `:` are written `-`, because the firewall's name check refuses both |
+| any source could open a connection to a protected port | only a configured neighbor or a `trusted-source` can |
+<!-- source: internal/plugins/copp/config.go -- parseRateLimit -->
+<!-- source: internal/plugins/copp/translate.go -- trustedTermName -->
+
 
 ## Global Options
 

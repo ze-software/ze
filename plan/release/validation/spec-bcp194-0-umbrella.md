@@ -232,8 +232,8 @@ Every row was verified against the producing function during the audit of
 | P5 | Private ASNs from non-customers can be stripped but not rejected (§9) | `filter_remove_private_as` strips only | child 2 |
 | P6 | Ingress next-hop rewrite to the sending peer absent (§10) | `filter_modify` takes a static IPv4 literal | child 2 |
 | P9 | Per-relationship inbound filtering is not derived from the role (§6.2) | the role has no consumer outside its plugin | child 2 |
-| S1 | No minimum receive TTL on the listen socket (§5.2) | `RealListenerFactory` sets outgoing TTL only | child 3 |
-| S2 | CoPP cannot express the ACL §4 describes, and defaults to accept over limit | `translatePolicy` emits no drop term | child 3 |
+| S1 | No minimum receive TTL on the listen socket (§5.2) | `RealListenerFactory` sets outgoing TTL only | child 3: a per-peer `ze_gtsm` listen-port term (`gtsm.listenPortTerm`) drops a below-floor SYN before the listener; peer-side proof: interop `bgp-session-protection-frr` assertion 4 |
+| S2 | CoPP cannot express the ACL §4 describes, and defaults to accept over limit | `translatePolicy` emits no drop term | child 3: `translatePolicy` builds the neighbor ACL and the counted `unknown-source-drop` term, and `over-limit-policy` defaults to drop; peer-side proof: interop `bgp-session-protection-frr` assertions 6 and 7 |
 | P1 | No shipped special-purpose or bogon lists (§6.1.1) | no list exists in the tree | child 4 |
 | P2 | No maximum prefix length bound (§6.1.3) | only `prefixEntry.le` | child 4 |
 | P3 | RPKI NotFound is accepted at full preference (§6.1.2.2.2) | no local-preference write under the RPKI plugin | child 4 |
