@@ -193,7 +193,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `library-default-left-in-place` | 2026-10-26 | dnsserver UDP listener keeps the 512-octet `UDPSize` default, no EDNS0 (RFC4035-3-1, RFC4035-3-2) |
 | `validate-accepts-what-start-refuses` | 2026-10-27 | firewall `validateAction` self-jump, jump cycle, jump to base chain |
 | `kernel-refuses-what-the-installer-sends` | 2026-10-27 | Ze kernel lacks `CONFIG_NF_FLOW_TABLE`; firewall flowtable refused |
-| `test-against-broken-path` | 2026-10-27 | 11 `firewall-*.ci` assert `firewall config applied` under the fixture cmd |
+| `test-against-broken-path` | 2026-10-27 | 12 `firewall-*.ci` assert `firewall config applied` under the fixture cmd |
 
 ## Rows found already fixed
 
