@@ -1,0 +1,38 @@
+# Test: a resolver listener on the address and port geodns already binds is
+#       refused by the cross-service listener conflict check.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-28, A-2
+# VALIDATES: the resolver's `listener` list joins config.DiscoverListenerServices
+#            through its zt:listener marking alone (no edit to listener.go),
+#            and its UDP and TCP protocols are both registered.
+# PREVENTS: two DNS services racing for one socket.
+
+stdin=config:terminator=EOF_CONF
+service {
+	geodns {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 5353
+		}
+		zone geodns.example.
+		nameserver 82.219.4.22
+	}
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 5353
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 198.51.100.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=listener conflict
+expect=stdout:contains=service-dns-resolver-listener
+expect=stdout:contains=service-geodns-listener

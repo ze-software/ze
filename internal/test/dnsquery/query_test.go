@@ -180,6 +180,25 @@ func TestQueryToolRefusals(t *testing.T) {
 	}
 }
 
+// VALIDATES: a trailing help word and --help both print the usage with
+// every flag and exit 0, sending no query.
+// METHOD: run both forms with no server and read the usage stream.
+// PREVENTS: `le dns query help`, the form le's help page names, being
+// refused as an unexpected argument.
+func TestQueryToolHelp(t *testing.T) {
+	for _, args := range [][]string{{"help"}, {"--help"}, {"--name", "x.test", "help"}} {
+		var out, errOut bytes.Buffer
+		if code := run(args, &out, &errOut); code != 0 {
+			t.Errorf("%v: exit %d, want 0; stderr %q", args, code, errOut.String())
+		}
+		for _, want := range []string{"Usage: le dns query", "-server", "-source", "-tcp", "-wait", "-opcode"} {
+			if !strings.Contains(errOut.String(), want) {
+				t.Errorf("%v: usage lacks %q", args, want)
+			}
+		}
+	}
+}
+
 // loopbackAny is a loopback listen address on a port the system picks.
 const loopbackAny = "127.0.0.1:0"
 

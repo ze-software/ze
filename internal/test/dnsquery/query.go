@@ -135,6 +135,12 @@ func parseArgs(args []string, usage io.Writer) (query, error) {
 	if err := fs.Parse(args); err != nil {
 		return query{}, err
 	}
+	// A trailing help word is how le forwards a help request to a harness
+	// tool (internal/le/test/harnesstool), so it is answered, not refused.
+	if fs.NArg() > 0 && fs.Arg(fs.NArg()-1) == "help" {
+		fs.Usage()
+		return query{}, flag.ErrHelp
+	}
 	if fs.NArg() > 0 {
 		return query{}, fmt.Errorf("unexpected argument %q: every input is a flag (le dns query --help)", fs.Arg(0))
 	}

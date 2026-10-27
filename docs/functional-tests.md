@@ -3369,7 +3369,8 @@ stderr when no reply arrives within `--wait`, and with `error: <reason>` for a
 command line it refuses. The LAN resolver's functional tests drive it against
 `service dns-resolver`, with `le mock dns` as the upstream.
 
-Usage: `le dns query --server 127.0.0.1:5353 --name web.example.test --rd --wait 25s`
+Usage: `le dns query --server 127.0.0.1:5353 --name web.example.test --rd --wait 25s`.
+`le dns query help` (or `--help`) prints the flags.
 
 <!-- source: internal/test/dnsquery/query.go -- parseArgs, exchange, writeReply -->
 <!-- source: internal/le/dns/query/register.go -- le dns query registration -->

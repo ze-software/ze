@@ -1,0 +1,88 @@
+# Test: a resolver config that would answer the WAN side, refuse every client,
+#       or have nowhere to resolve is refused at commit, and each refusal
+#       names the leaf that fixes it.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Wiring Test row 3, AC-3, AC-4
+# VALIDATES: the plugin verifier (parseConfig, internal/plugins/dnsresolver/config.go)
+#            refuses a wildcard listener, an empty allow-from and an empty
+#            forward list through `ze config validate`, which runs the verifier
+#            a commit runs.
+# PREVENTS: an open resolver on 0.0.0.0, or a resolver that silently refuses
+#           every LAN host.
+
+stdin=wildcard:terminator=EOF_WILD
+service {
+	dns-resolver {
+		enabled true
+		listener any {
+			ip 0.0.0.0
+			port 53
+		}
+		allow-from 192.0.2.0/24
+		forward {
+			server 198.51.100.1
+		}
+	}
+}
+EOF_WILD
+
+stdin=no-allow:terminator=EOF_NOALLOW
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		forward {
+			server 198.51.100.1
+		}
+	}
+}
+EOF_NOALLOW
+
+stdin=no-forward:terminator=EOF_NOFWD
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		allow-from 192.0.2.0/24
+	}
+}
+EOF_NOFWD
+
+stdin=good:terminator=EOF_GOOD
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		allow-from 192.0.2.0/24
+		forward {
+			server 198.51.100.1
+		}
+	}
+}
+EOF_GOOD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=wildcard:exit=1
+expect=stdout:contains=wildcard address
+expect=stdout:contains=answer on the WAN side
+expect=stdout:contains=to a LAN or loopback address
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=no-allow:exit=1
+expect=stdout:contains=would refuse every client
+expect=stdout:contains=add `allow-from
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=no-forward:exit=1
+expect=stdout:contains=no forward server
+expect=stdout:contains=add `forward server
+
+# The same config with all three set validates, so the refusals above are
+# the three conditions and not something else in the section.
+cmd=foreground:seq=4:exec=ze config validate -:stdin=good:exit=0
+expect=exit:code=0
