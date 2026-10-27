@@ -66,6 +66,14 @@ scraping terminal prose.
 
 Each diagnostic carries a stable code (e.g., `config-parse`, `config-yang-type`,
 `config-listener-conflict`). Use `ze show diagnostic <code>` to get an explanation.
+The readiness checks `ze doctor` runs report codes from the same table, which the
+package owning each dependency declares: the DNS resolver's
+`doctor-dns-resolver-port-unavailable` (a listener port the system will not let ze
+bind) and `doctor-dns-resolver-upstream-unreachable` (no forward server answers a
+probe), for example.
+<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorDNSResolverPortUnavailable, CodeDoctorDNSResolverUpstreamUnreachable -->
+<!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks -->
+
 
 `ze config fix --plan` reports candidate repairs without editing files.
 Repair plans carry safety labels (`format-only`, `section-local`, `behavior-preserving`,

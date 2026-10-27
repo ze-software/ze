@@ -1070,6 +1070,13 @@ var doctorDependencyCovered = map[string]string{
 	// yields an endpoint for both families and checkListeners probes them.
 	"listener/service-as112-ipv4-anycast-listener": "doctor-listen-unavailable",
 	"listener/service-as112-ipv6-anycast-listener": "doctor-listen-unavailable",
+
+	// The dns resolver's listener list has no default entry: a resolver with
+	// no listener is refused at commit (checkEnabled,
+	// internal/plugins/dnsresolver/config.go), so every running resolver's
+	// endpoints are listener entries and checkListeners probes each. Its own
+	// check adds only the permission case (doctor-dns-resolver-port-unavailable).
+	"listener/service-dns-resolver-listener": "doctor-listen-unavailable",
 }
 
 // doctorDependencyExcluded names a ze:listener service ze doctor emits NO
@@ -1117,6 +1124,9 @@ var listenerProbeNetworks = map[string][]string{
 	"service-geodns-listener":             {"udp", "tcp"},
 	"service-as112-ipv4-anycast-listener": {"udp", "tcp"},
 	"service-as112-ipv6-anycast-listener": {"udp", "tcp"},
+	// dnsserver.Manager binds each resolver endpoint for UDP and TCP
+	// (internal/plugins/dnsresolver/server.go reconcile).
+	"service-dns-resolver-listener": {"udp", "tcp"},
 }
 
 // goExtractorListeners names the listener/ inventory rows that come from a
@@ -1264,7 +1274,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		}
 	}
 
-	const expectedTotal = 65
+	const expectedTotal = 66
 	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)

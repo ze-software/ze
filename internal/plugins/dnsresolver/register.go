@@ -46,6 +46,7 @@ func init() {
 		InProcessConfigVerifier: verifyResolverConfig,
 		RunEngine:               runResolverPlugin,
 	}
+	reg.DoctorChecks = doctorChecks()
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	reg.ConfigureEngineLogger = func(loggerName string) {
 		if l := slogutil.Logger(loggerName); l != nil {
@@ -64,6 +65,13 @@ func init() {
 	// zt:listener shape says TCP alone, so ze doctor and the conflict check
 	// are told both.
 	config.RegisterListenerProtocols(listenerService, config.ProtocolUDP, config.ProtocolTCP)
+	// A listener entry that omits its port binds port 53 (parseListener,
+	// config.go), so the listener conflict check and ze doctor's probe see
+	// the endpoint the resolver binds. parseListener refuses an entry with
+	// no ip, so the default address only fills what a probe needs; it is
+	// loopback because a wildcard is refused. An empty listener list binds
+	// nothing, so there is no list default.
+	config.RegisterListenerEntryDefault(listenerService, "127.0.0.1", "53")
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-dnsresolver:show-dns-resolver",

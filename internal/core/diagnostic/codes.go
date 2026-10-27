@@ -42,6 +42,8 @@ const (
 	CodeDoctorAS112RedistributeNotImported         = "doctor-as112-redistribute-not-imported"
 	CodeDoctorAS112RedistributeOriginUncoordinated = "doctor-as112-redistribute-origin-uncoordinated"
 	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
+	CodeDoctorDNSResolverPortUnavailable           = "doctor-dns-resolver-port-unavailable"
+	CodeDoctorDNSResolverUpstreamUnreachable       = "doctor-dns-resolver-upstream-unreachable"
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
@@ -630,6 +632,18 @@ var builtinCodes = []CodeMeta{
 		Title:       "AS112 port 53 cannot be bound",
 		Description: "AS112 is enabled but the daemon cannot bind its fixed UDP/TCP port 53 (RFC 7534 Section 3.5). The port needs CAP_NET_BIND_SERVICE or root, or it is already in use by another service (e.g. GeoDNS on the same address).",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-port-unavailable"},
+	},
+	{
+		Code:        CodeDoctorDNSResolverPortUnavailable,
+		Title:       "DNS resolver listener cannot be bound",
+		Description: "The DNS resolver (service dns-resolver) is enabled but the system refuses one of its listeners permission to bind its address and port: a port below 1024, such as the default 53, needs CAP_NET_BIND_SERVICE or root. Run ze with that capability, or move the listener to a port at or above 1024. A port in use or an address not on this host is reported as doctor-listen-unavailable instead.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-dns-resolver-port-unavailable"},
+	},
+	{
+		Code:        CodeDoctorDNSResolverUpstreamUnreachable,
+		Title:       "No DNS resolver upstream answers",
+		Description: "The DNS resolver (service dns-resolver) forwards to the servers under forward server, and none of them answered a probe query within the timeout, so every client query would get SERVFAIL. Check the upstream addresses, and the route and firewall towards them.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-dns-resolver-upstream-unreachable"},
 	},
 	{
 		Code:        CodeDoctorAS112WatchdogMissingWithdraw,

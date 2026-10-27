@@ -1,6 +1,7 @@
 package dnsresolver
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"testing"
@@ -15,8 +16,10 @@ import (
 // the moment of the call.
 func freeLoopbackPort(t *testing.T) uint16 {
 	t.Helper()
+	var lc net.ListenConfig
+	ctx := context.Background()
 	for range 20 {
-		tcp, err := net.Listen("tcp", "127.0.0.1:0")
+		tcp, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
 		if err != nil {
 			t.Fatalf("listen tcp: %v", err)
 		}
@@ -24,7 +27,7 @@ func freeLoopbackPort(t *testing.T) uint16 {
 		if !ok {
 			t.Fatalf("listener address %T is not TCP", tcp.Addr())
 		}
-		udp, err := net.ListenPacket("udp", addr.String())
+		udp, err := lc.ListenPacket(ctx, "udp", addr.String())
 		_ = tcp.Close() //nolint:errcheck // probe socket
 		if err != nil {
 			continue
