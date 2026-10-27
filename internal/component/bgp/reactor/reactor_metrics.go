@@ -171,6 +171,9 @@ type reactorMetrics struct {
 
 	// PATHS-LIMIT receive ceiling (labeled by peer + family)
 	pathsLimitRefused metrics.CounterVec // Received paths refused over Ze's advertised limit
+
+	// PATHS-LIMIT send elections that could not rank (labeled by peer + family)
+	pathsLimitElectionFailed metrics.CounterVec // Contested routes sent in arrival order
 }
 
 // initReactorMetrics creates reactor-level metrics from the registry.
@@ -285,6 +288,8 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 
 		// draft-abraitis-idr-addpath-paths-limit Section 3: the receive ceiling
 		pathsLimitRefused: reg.CounterVec("ze_bgp_paths_limit_refused_total", "Received paths refused over the PATHS-LIMIT Ze advertised.", []string{metricLabelPeer, metricLabelFamily}),
+		// draft-abraitis-idr-addpath-paths-limit Section 1: the send election
+		pathsLimitElectionFailed: reg.CounterVec("ze_bgp_paths_limit_election_failed_total", "Contested routes sent in arrival order because the RIB could not rank their paths under the peer's PATHS-LIMIT.", []string{metricLabelPeer, metricLabelFamily}),
 	}
 }
 

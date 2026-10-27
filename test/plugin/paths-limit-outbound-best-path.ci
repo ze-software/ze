@@ -1,0 +1,127 @@
+# paths-limit-outbound-best-path: under a peer's PATHS-LIMIT, the route server
+# sends the paths bgp-rib ranks best, not the first to arrive, and withdraws a
+# demoted path before it announces the path that displaced it.
+# draft-abraitis-idr-addpath-paths-limit Section 1: "This indication allows
+# the sender to optimize the transmission of BGP routes by selectively
+# relaying pertinent routes instead of the entire set."
+# VALIDATES: AC-17-peer, AC-18-peer, AC-6 (D-1, D-5). The receiver negotiates
+# ADD-PATH both ways and advertises PATHS-LIMIT 2 for ipv4/unicast (ze offers
+# capability 76 through its own receive limit, which the peer mirrors). One ADD-PATH
+# source announces three paths of 10.0.0.0/8 worst-first: MED 300, then 200,
+# then 100. The first two fill the bound. The third is refused at the bound,
+# which contests the route; bgp-rib elects MED 100 and MED 200, so the
+# receiver is sent the withdrawal of the MED 300 path (seq 3) before the
+# MED 100 announcement (seq 4), and never holds more than two paths.
+# PREVENTS: arrival order deciding what a peer-limited client holds
+# (pathsLimitAdmission.section admitting first arrivals with no election).
+# The fixture releases each source path only after the receiver was sent the
+# preceding UPDATE, so the arrival order is the test's, not the scheduler's.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.1
+option=linger:value=true
+expect=bgp:conn=1:seq=1:contains=18C00002
+# ORIGIN IGP, AS_PATH [65001], NEXT_HOP 192.0.2.1, MED 300, NLRI [00000001][8][10].
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001B4001010040020602010000FDE9400304C00002018004040000012C00000001080A
+expect=bgp:conn=1:seq=3:contains=18C63364
+# The same with MED 200 and NLRI [00000002][8][10].
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001B4001010040020602010000FDE9400304C0000201800404000000C800000002080A
+expect=bgp:conn=1:seq=5:contains=18CB0071
+# The same with MED 100 and NLRI [00000003][8][10]: the best path, last.
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001B4001010040020602010000FDE9400304C00002018004040000006400000003080A
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65002
+option=linger:value=true
+option=open:value=paths-limit:family=ipv4/unicast:limit=2
+expect=bgp:conn=1:seq=1:announced=080A:attribute=4,0000012C
+expect=bgp:conn=1:seq=2:announced=080A:attribute=4,000000C8
+# The election demotes the MED 300 path: its withdrawal comes first.
+expect=bgp:conn=1:seq=3:withdrawn=080A
+expect=bgp:conn=1:seq=4:announced=080A:attribute=4,00000064
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rs; }
+    external paths-limit-gate {
+        run "le test fixture plugin/vpn-withdrawal-inventory rs 4"
+        encoder json
+    }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4
+            rs-client true
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction receive; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process paths-limit-gate { send [ update ]; }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65002; }
+            router-id 1.2.3.4
+            rs-client true
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path {
+                    direction send/receive
+                    limit { receive 9; }
+                    family { ipv4/unicast; }
+                }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

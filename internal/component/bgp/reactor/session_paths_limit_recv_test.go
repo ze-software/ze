@@ -525,6 +525,63 @@ func TestReceiveCeilingSeesTreatAsWithdrawExtras(t *testing.T) {
 	}
 }
 
+// TestReceiveCeilingSeesTypedWithdrawExtras is the sibling of
+// TestReceiveCeilingSeesTreatAsWithdrawExtras for the other extra-body loop of
+// processValidatedMessage: validation.typedWithdrawBodies, the RFC 7606
+// withdrawal of a malformed typed NLRI by its held well-formed generation.
+// Method: fill a BGP-MUP T1ST route to its ceiling of 2 under ADD-PATH
+// receive (paths 1 and 2), then send a malformed generation of path 1 in an
+// UPDATE that already withdraws an IPv6 route. The MP_UNREACH_NLRI is taken,
+// so the typed withdrawal of path 1 rides its own withdraw-only body, and that
+// body MUST free path 1's slot: the ceiling then holds 1 path, and a new path
+// 3 is admitted and delivered.
+func TestReceiveCeilingSeesTypedWithdrawExtras(t *testing.T) {
+	k0 := mupWireNLRI(3, t1stBody(2, 0x00)...)
+	k := mupWireNLRI(3, t1stBody(2, 0x00, 0xf0)...)
+	withID := func(id uint32, nlri []byte) []byte {
+		return append(binary.BigEndian.AppendUint32(nil, id), nlri...)
+	}
+	s, delivered := recvCeilingSession(t, 100, mupFam, family.IPv6Unicast)
+	tracked := func() int {
+		t.Helper()
+		state := s.pathsLimitRecv[mupFam]
+		key, err := state.key(k0, state.keyScratch[:], false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry := state.prefixes[string(key)]; entry != nil {
+			return len(entry.ids)
+		}
+		return 0
+	}
+	recvProcess(t, s, prefixReceiveBody(mupFam, append(withID(1, k0), withID(2, k0)...), nil))
+	if admitted := tracked(); admitted != 2 {
+		t.Fatalf("the fill admitted %d paths, want 2", admitted)
+	}
+
+	malformed := prefixReceiveBody(mupFam, withID(1, k), nil)
+	sections, err := wire.ParseUpdateSections(malformed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attrs := append(mpUnreachAttrs(family.IPv6Unicast, pathsLimitNLRI(1, "2001:db8:9::/48")), sections.Attrs(malformed)...)
+	recvProcess(t, s, makeUpdateBody(nil, attrs, nil))
+	if len(*delivered) != 3 {
+		t.Fatalf("delivered %d UPDATEs, want 3: the fill, the typed withdrawal body and the primary", len(*delivered))
+	}
+	if admitted := tracked(); admitted != 1 {
+		t.Fatalf("after the typed withdrawal body the ceiling holds %d paths, want 1", admitted)
+	}
+
+	recvProcess(t, s, prefixReceiveBody(mupFam, withID(3, k0), nil))
+	if len(*delivered) != 4 {
+		t.Fatalf("delivered %d UPDATEs, want 4: path 3 takes the freed slot", len(*delivered))
+	}
+	if admitted := tracked(); admitted != 2 {
+		t.Fatalf("after path 3 the ceiling holds %d paths, want 2", admitted)
+	}
+}
+
 // TestReceiveCeilingEmptyResultIsNotEndOfRIB fills a route to its ceiling,
 // then sends an UPDATE whose only path is over it. Nothing may be delivered:
 // an empty body would read as End-of-RIB. The session survives and the
@@ -578,5 +635,51 @@ func TestReceiveCeilingAbsentWithoutReceiveDirection(t *testing.T) {
 	s.initPathsLimitRecv(nil)
 	if s.pathsLimitRecv != nil {
 		t.Fatal("a session with no negotiated encoding kept a receive ceiling")
+	}
+}
+
+// TestPathsLimitUnsplittableFamilyIsNamedNotEnforced proves a family Ze holds
+// no NLRI splitter for neither panics nor drops UPDATEs: the admission leaves
+// it out, its bytes pass unchanged, and the session warns that its negotiated
+// limit is not enforced. Method: negotiate a limit on IPv4 unicast and on a
+// private SAFI with no splitter, then feed the private family's NLRI through
+// the admission and read the warning.
+//
+// VALIDATES: a limit Ze cannot count is reported, never silently dropped or
+// silently unlimited.
+func TestPathsLimitUnsplittableFamilyIsNamedNotEnforced(t *testing.T) {
+	unsplittable := family.Family{AFI: family.AFIIPv4, SAFI: 241}
+	if nlrisplit.Get(unsplittable) != nil {
+		t.Fatalf("SAFI 241 gained a splitter; pick a family with none")
+	}
+	limits := map[family.Family]uint16{family.IPv4Unicast: 2, unsplittable: 2}
+	modes := map[family.Family]capability.AddPathMode{
+		family.IPv4Unicast: capability.AddPathBoth, unsplittable: capability.AddPathBoth}
+	log := captureSessionLog(t, slog.LevelWarn)
+	s := NewSession(NewPeerSettings(netip.MustParseAddr("192.0.2.41"), 65001, 65002, 0x01020341))
+	s.initPathsLimitRecv(&capability.EncodingCaps{PathsLimitRecv: limits, AddPathMode: modes})
+	if s.pathsLimitRecv[family.IPv4Unicast] == nil {
+		t.Fatal("IPv4 unicast must keep its receive ceiling")
+	}
+	if s.pathsLimitRecv[unsplittable] != nil {
+		t.Fatal("a family with no splitter must not be admitted path by path")
+	}
+	if got := strings.Count(log.String(), "negotiated but not enforced"); got != 1 {
+		t.Fatalf("logged %d unenforced warnings, want 1:\n%s", got, log.String())
+	}
+	if !strings.Contains(log.String(), unsplittable.String()) {
+		t.Fatalf("the warning does not name %s:\n%s", unsplittable, log.String())
+	}
+
+	changes, _ := pathsLimitScratch.Get().(*pathsLimitChanges)
+	defer changes.release()
+	data := []byte{0, 0, 0, 1, 0xde, 0xad, 0xbe, 0xef}
+	dst := make([]byte, len(data))
+	n, dropped, err := s.pathsLimitRecv.section(dst, data, unsplittable, false, changes)
+	if err != nil {
+		t.Fatalf("an unenforced family refused its NLRI: %v", err)
+	}
+	if n != len(data) || dropped != 0 || !bytes.Equal(dst, data) {
+		t.Fatalf("section copied %d of %d octets, dropped %d: the bytes must pass unchanged", n, len(data), dropped)
 	}
 }

@@ -400,8 +400,27 @@ func (w *recoveryWorker) decide(fam family.Family, chunk []recoveryOwedKey) erro
 		// writer withdraws only an identifier no current session owns, which
 		// is the reconnect guard: the RIB holds no session generation.
 		request.SentAddPath = true
+		// A peer PATHS-LIMIT turns each key into a limited election: the
+		// RIB ranks at most that many survivors and the admission sends
+		// them in place of the arrival-order paths (D-1, D-2).
+		// draft-abraitis-idr-addpath-paths-limit Section 3
+		if bound, limited := w.session.pathsLimitBound(fam); limited {
+			request.Limit = bound
+			admission.pathsLimit = bound
+		}
 	}
 	outcomes, err := w.adapter.lookupRecovery(w.ctx, &request)
+	if err != nil {
+		if request.Limit == 0 {
+			return err
+		}
+		// The election could not answer: the peer limit still holds in
+		// arrival order, and the keys' departures are decided as they were
+		// before the limit (D-8).
+		w.session.pathsLimitElectionFailed(fam, err)
+		request.Limit, admission.pathsLimit = 0, 0
+		outcomes, err = w.adapter.lookupRecovery(w.ctx, &request)
+	}
 	if err != nil {
 		return err
 	}

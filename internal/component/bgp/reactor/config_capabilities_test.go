@@ -130,3 +130,56 @@ func TestParseAddPathLimitRefusesInvalidReceive(t *testing.T) {
 	got := configuredPathsLimits(t, map[string]any{"direction": "send/receive", "limit": receiveLimit("65535")})
 	assert.Equal(t, map[family.Family]uint16{family.IPv4Unicast: 65535, family.IPv6Unicast: 65535}, got)
 }
+
+// TestParseAddPathLimitRefusesUnenforceableFamily proves that what Ze
+// advertises and what it enforces cannot disagree: a receive limit that would
+// reach a family Ze cannot count path by path (no NLRI splitter, the
+// pathsLimitEnforceable predicate the admission also asks) is refused at config
+// load with an error naming the family, whether the limit sits on the family or
+// on the add-path container. A send-only entry for that family asks for no
+// paths, so the container limit still loads and carries no tuple for it. The
+// method registers a family with no splitter for the test's lifetime and parses
+// a peer that negotiates it.
+func TestParseAddPathLimitRefusesUnenforceableFamily(t *testing.T) {
+	registration := []family.FamilyRegistration{{AFI: family.AFIIPv4, SAFI: 241, AFIName: "ipv4", SAFIName: "test-uncountable"}}
+	_, err := family.RegisterFamilyBatch(registration)
+	require.NoError(t, err)
+	t.Cleanup(func() { family.UnregisterFamilyBatch(registration) })
+	uncountable, ok := family.LookupFamily("ipv4/test-uncountable")
+	require.True(t, ok)
+	require.False(t, pathsLimitEnforceable(uncountable), "the test family gained a splitter; pick one with none")
+
+	parse := func(addPath map[string]any) (*PeerSettings, error) {
+		tree := addPathLimitPeerTree(addPath)
+		session, _ := tree["session"].(map[string]any)
+		families, _ := session["family"].(map[string]any)
+		families["ipv4/test-uncountable"] = map[string]any{"prefix": map[string]any{"maximum": "100000"}}
+		return parsePeerFromTree("peer1", tree, 65000, 0)
+	}
+
+	for name, addPath := range map[string]map[string]any{
+		"family limit": {"direction": "send/receive", "family": map[string]any{
+			"ipv4/test-uncountable": map[string]any{"limit": receiveLimit("2")}}},
+		"container limit": {"direction": "send/receive", "limit": receiveLimit("10")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := parse(addPath)
+			require.Error(t, err, "a receive limit Ze cannot enforce was accepted")
+			assert.Contains(t, err.Error(), "ipv4/test-uncountable")
+			assert.Contains(t, err.Error(), "does not enforce")
+		})
+	}
+
+	settings, err := parse(map[string]any{"direction": "send/receive", "limit": receiveLimit("10"),
+		"family": map[string]any{"ipv4/test-uncountable": map[string]any{"direction": "send"}}})
+	require.NoError(t, err)
+	for _, configured := range settings.Capabilities {
+		pathsLimit, isPathsLimit := configured.(*capability.PathsLimit)
+		if !isPathsLimit {
+			continue
+		}
+		for _, entry := range pathsLimit.Entries {
+			assert.NotEqual(t, uncountable, family.Family{AFI: entry.AFI, SAFI: entry.SAFI}, "a send-only family carries no tuple")
+		}
+	}
+}

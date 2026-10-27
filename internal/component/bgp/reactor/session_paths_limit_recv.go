@@ -32,6 +32,7 @@ func (s *Session) initPathsLimitRecv(encoding *capability.EncodingCaps) {
 		return
 	}
 	s.pathsLimitRecv = newPathsLimitAdmission(encoding.PathsLimitRecv, encoding.AddPathMode, capability.AddPathReceive)
+	s.warnPathsLimitUnenforced(encoding.PathsLimitRecv, encoding.AddPathMode, capability.AddPathReceive)
 }
 
 // receiveCeiling admits one received UPDATE against Ze's advertised

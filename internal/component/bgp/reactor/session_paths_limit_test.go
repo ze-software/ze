@@ -10,8 +10,9 @@ import (
 
 // TestPathsLimitSectionSharedAdmission proves the send side keeps its
 // invariants after the admission was made direction-neutral: a refusal at the
-// limit journals nothing, an unknown withdrawal passes without a change, a
-// replacement at the limit passes, and rollback restores admitted ids.
+// limit journals only the election it owes, never a receive-side refusal, an
+// unknown withdrawal passes without a change, a replacement at the limit
+// passes, and rollback restores admitted ids.
 // Method: drive the send admission directly and read its journal.
 func TestPathsLimitSectionSharedAdmission(t *testing.T) {
 	admission := newPathsLimitAdmission(
@@ -43,8 +44,14 @@ func TestPathsLimitSectionSharedAdmission(t *testing.T) {
 	if dropped != 1 {
 		t.Fatalf("dropped %d, want 1", dropped)
 	}
-	if changes.n != 2 {
-		t.Fatalf("journal holds %d entries, want 2: a send refusal is not journaled", changes.n)
+	if changes.n != 3 {
+		t.Fatalf("journal holds %d entries, want 3: two admissions and the refusal's election", changes.n)
+	}
+	if changes.entries[2].kind != pathsLimitContested {
+		t.Fatalf("the send refusal journaled kind %d, want the contested election", changes.entries[2].kind)
+	}
+	if changes.refusals != 0 {
+		t.Fatalf("the send side counted %d receive refusals, want none", changes.refusals)
 	}
 	if announced, _ := recvBodyPathIDs(t, dst[:n]); !equalIDs(announced, 1, 2) {
 		t.Fatalf("sent %v, want [1 2]", announced)
@@ -54,8 +61,16 @@ func TestPathsLimitSectionSharedAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if changes.n != 2 {
-		t.Fatalf("an unknown withdrawal or a replacement changed the journal to %d entries", changes.n)
+	if changes.n != 4 {
+		t.Fatalf("journal holds %d entries, want 4: an unknown withdrawal journals nothing, a contested replacement owes one election", changes.n)
+	}
+	// The withdrawal is walked before the announcement, so an entry journaled
+	// for unknown id 9 would sit at index 3 in place of the replacement's.
+	if changes.entries[3].kind != pathsLimitContested {
+		t.Fatalf("the contested replacement journaled kind %d, want the contested election", changes.entries[3].kind)
+	}
+	if changes.entries[3].id != 2 {
+		t.Fatalf("the fourth journal entry is for id %d, want the replacement's id 2: the unknown withdrawal must journal nothing", changes.entries[3].id)
 	}
 	announced, withdrawn := recvBodyPathIDs(t, dst[:n])
 	if !equalIDs(announced, 2) {

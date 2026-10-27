@@ -67,6 +67,10 @@ type recoveryAdmission struct {
 	// newer and lifts the exclusion. The round drains these receipts before
 	// its lookup, so the snapshot it judges against is the one it drained.
 	sources recoverySourceSnapshot
+	// pathsLimit is the peer's PATHS-LIMIT for the admission's family at an
+	// ADD-PATH destination, zero when the peer set none: a nonzero bound
+	// makes each key a limited election (queuePathsLimitElection).
+	pathsLimit uint16
 }
 
 // newRecoveryAdmission builds the admission of one lookup of destination
@@ -647,14 +651,19 @@ func (a *reactorAPIAdapter) admitRecovery(admission *recoveryAdmission, outcomes
 // marked: a key whose staging failed part way, such as an ADD-PATH withdrawal
 // whose second identifier found no buffer, is decided by a later round.
 func (a *reactorAPIAdapter) releaseRecoveryTail(admission *recoveryAdmission) {
-	marked := len(admission.itemKeys)
-	for i := marked; i < len(admission.items); i++ {
+	a.releaseRecoveryItemsFrom(admission, len(admission.itemKeys))
+}
+
+// releaseRecoveryItemsFrom releases every item staged at or after start, which
+// MUST NOT be below the marked items.
+func (a *reactorAPIAdapter) releaseRecoveryItemsFrom(admission *recoveryAdmission, start int) {
+	for i := start; i < len(admission.items); i++ {
 		if done := admission.items[i].done; done != nil {
 			done()
 		}
 		a.r.fwdPool.releaseItem(&admission.items[i])
 	}
-	admission.items = admission.items[:marked]
+	admission.items = admission.items[:start]
 }
 
 // queueRecoveryOutcome stages key k's decision. WITHDRAW withdraws the
@@ -671,6 +680,10 @@ func (a *reactorAPIAdapter) releaseRecoveryTail(admission *recoveryAdmission) {
 func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutcome, k int, fam family.Family, admission *recoveryAdmission, sender plugin.Sender) error {
 	key := &admission.keys[k]
 	admission.nlri = key.record.nlri // Immutable once the record exists.
+	if key.key.addPath && admission.pathsLimit != 0 {
+		// draft-abraitis-idr-addpath-paths-limit Section 3
+		return a.queuePathsLimitElection(outcome, key, fam, admission, sender)
+	}
 	if outcome.Withdraw {
 		sent := [][]byte{admission.nlri}
 		if key.key.addPath {
@@ -678,7 +691,7 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		}
 		for _, raw := range sent {
 			withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(raw), Withdraw: true}
-			if err := a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission); err != nil {
+			if err := a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission, false); err != nil {
 				return err
 			}
 		}
@@ -732,7 +745,7 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 	// Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE
 	// message (see 9.2)." Here no candidate may be sent.
 	withdraw := rpc.StoredRoute{Family: fam.String(), NLRIHex: hex.EncodeToString(admission.nlri), Withdraw: true}
-	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission)
+	return a.queueRecoveryWithdrawal(admission.peer, &withdraw, fam, admission, false)
 }
 
 // unsendableSurvivor decides key k when its elected survivor's source has no
@@ -851,9 +864,10 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 
 // queueRecoveryWithdrawal uses destination framing, including the advertised
 // ADD-PATH identifier. The admission's per-key fence captures its obsolete owner.
+// demotion marks a PATHS-LIMIT election's withdrawal of a current path.
 // RFC 7911 Section 3: "The combination of the address prefix and the Path
 // Identifier can be used to identify a route advertised by a BGP speaker.".
-func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission) error {
+func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, demotion bool) error {
 	source := relaySource{addr: destination.Settings().Address, ctxID: destination.sendContextID()}
 	update, id, _, err := a.buildRelayWithdrawal(route, source, fam, 0)
 	if err != nil {
@@ -861,7 +875,7 @@ func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rp
 	}
 	// The staged item owns the cache reference until the operation is released.
 	admission.items = append(admission.items, fwdItem{peer: destination,
-		session: admission.session, authority: adjOutRecovery,
+		session: admission.session, authority: adjOutRecovery, pathsLimitDemotion: demotion,
 		rawBodies: [][]byte{update.WireUpdate.Payload()},
 		done:      func() { a.r.recentUpdates.Release(id) }})
 	return nil

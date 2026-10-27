@@ -727,10 +727,14 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		}
 	}
 	committed := false
+	// pathsLimitCommitted is the journal of a committed PATHS-LIMIT admission,
+	// read for the elections it owes; nil when no family is limited.
+	var pathsLimitCommitted *pathsLimitChanges
 	if len(s.pathsLimit) != 0 {
 		handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
 		defer s.returnReadBuffer(handle)
 		changes, _ := pathsLimitScratch.Get().(*pathsLimitChanges)
+		pathsLimitCommitted = changes
 		defer func() {
 			if !committed {
 				changes.rollback()
@@ -746,6 +750,11 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 				"peer", s.settings.Address, "paths", dropped)
 		}
 		if n == 0 {
+			// Every path was refused at the bound, so the journal holds only
+			// the elections those refusals owe: they stand without a write.
+			committed = true
+			// draft-abraitis-idr-addpath-paths-limit Section 1
+			ownership.owePathsLimitElections(changes)
 			ownership.applyStaged()
 			return false, nil
 		}
@@ -799,6 +808,10 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		s.noteAIGPWrite(body, false)
 	}
 	committed = true
+	if pathsLimitCommitted != nil {
+		// draft-abraitis-idr-addpath-paths-limit Section 1
+		ownership.owePathsLimitElections(pathsLimitCommitted)
+	}
 	// Asked only while the answer can still change, as above. This is the
 	// zero-copy forwarding path and it runs for every relayed UPDATE, so an
 	// armed connection pays one atomic load here rather than a walk of the body.

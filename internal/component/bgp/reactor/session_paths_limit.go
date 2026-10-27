@@ -47,11 +47,20 @@ type pathsLimitFamily struct {
 // pathsLimitPrefix holds the admitted identifiers of one route, and on the
 // receive side up to pathsLimitRefusedHeadroom refused ones. A non-empty
 // refused set is the warned marker: the first refusal into an empty set warns.
+//
+// On the send side, contested marks a route whose admission refused a new path
+// at the bound: arrival order then decided what the peer holds, so the route
+// owes an election (session_paths_limit_elect.go). route is the route's NLRI in
+// announcement framing without a Path Identifier, copied when the route is
+// first contested, because the election names the route to the RIB after the
+// pooled body is gone. An uncontested route allocates neither.
 type pathsLimitPrefix struct {
 	key            string
 	ids            map[uint32]struct{}
 	refused        [pathsLimitRefusedHeadroom]uint32
 	refusedEntries uint8
+	contested      bool
+	route          []byte
 }
 
 // pathsLimitChangeKind names what one journal entry did, so rollback can undo
@@ -75,6 +84,10 @@ const (
 	// pathsLimitRefusalReleased removed a tracked refused identifier on
 	// withdrawal, which frees its slot and clears the warned marker.
 	pathsLimitRefusalReleased
+	// pathsLimitContested owes a send-side election for the route: a new path
+	// refused at the bound, or a replacement of an admitted path of a route
+	// already contested. contestedBefore lets rollback restore the marker.
+	pathsLimitContested
 )
 
 // Changes are undone if the UPDATE cannot be written or delivered. The input
@@ -87,6 +100,12 @@ type pathsLimitChange struct {
 	kind   pathsLimitChangeKind
 	// warn marks the refusal that made an empty refused set non-empty.
 	warn bool
+	// elect marks a send-side release of an admitted path of a contested
+	// route: the slot it frees belongs to the next path the election ranks.
+	elect bool
+	// contestedBefore is the route's contested marker before a
+	// pathsLimitContested entry set it.
+	contestedBefore bool
 }
 
 // Even the smallest ADD-PATH NLRI needs five octets, and one NLRI journals at
@@ -100,6 +119,9 @@ type pathsLimitChanges struct {
 	// refusals counts the refusal entries, so a message that refused nothing
 	// is reported without walking the journal.
 	refusals int
+	// elections counts the entries that owe a send-side election, so a
+	// message that contested nothing owes none without walking the journal.
+	elections int
 }
 
 var pathsLimitScratch = sync.Pool{New: func() any { return new(pathsLimitChanges) }}
@@ -117,6 +139,12 @@ func (c *pathsLimitChanges) journal(change pathsLimitChange) bool {
 	}
 	if change.kind == pathsLimitRefusalCounted {
 		c.refusals++
+	}
+	if change.kind == pathsLimitContested {
+		c.elections++
+	}
+	if change.elect {
+		c.elections++
 	}
 	return true
 }
@@ -142,6 +170,8 @@ func (c *pathsLimitChanges) rollback() {
 			// Counting changed no state.
 		case pathsLimitRefusalReleased:
 			change.prefix.trackRefused(change.id)
+		case pathsLimitContested:
+			change.prefix.contested = change.contestedBefore
 		case pathsLimitChangeUnspecified:
 			panic("BUG: PATHS-LIMIT journal holds an unspecified change")
 		}
@@ -152,19 +182,23 @@ func (c *pathsLimitChanges) release() {
 	clear(c.entries[:c.n])
 	c.n = 0
 	c.refusals = 0
+	c.elections = 0
 	pathsLimitScratch.Put(c)
 }
 
 // newPathsLimitAdmission builds the admission for one direction from the
 // negotiated limits. A limit applies only where ADD-PATH is negotiated in that
-// direction; nil means no family is limited, and nothing is filtered.
+// direction; nil means no family is limited, and nothing is filtered. A family
+// with no registered NLRI splitter cannot be counted path by path, so it is
+// left out: refusing its every UPDATE would drop valid routes. The session
+// names each such family once, at negotiation (warnPathsLimitUnenforced).
 func newPathsLimitAdmission(limits map[family.Family]uint16, modes map[family.Family]capability.AddPathMode, direction capability.AddPathMode) pathsLimitAdmission {
 	var admission pathsLimitAdmission
 	for fam, limit := range limits {
-		if limit == 0 {
+		if !pathsLimitApplies(limit, modes[fam], direction) {
 			continue
 		}
-		if modes[fam]&direction == 0 {
+		if !pathsLimitEnforceable(fam) {
 			continue
 		}
 		if admission == nil {
@@ -183,6 +217,57 @@ func newPathsLimitAdmission(limits map[family.Family]uint16, modes map[family.Fa
 	return admission
 }
 
+// pathsLimitEnforceable is the one answer to "can Ze enforce a PATHS-LIMIT for
+// this family": Ze counts paths NLRI by NLRI, so a family qualifies exactly when
+// a splitter is registered for it. The admission (newPathsLimitAdmission), the
+// warning (warnPathsLimitUnenforced) and the OPEN builder (parseAddPathFromTree,
+// which refuses a receive limit Ze could not enforce) all ask here, so what Ze
+// advertises and what it enforces cannot disagree.
+func pathsLimitEnforceable(fam family.Family) bool {
+	return nlrisplit.Supported(fam)
+}
+
+// pathsLimitApplies reports whether a negotiated limit constrains direction:
+// it is nonzero and ADD-PATH is negotiated in that direction.
+func pathsLimitApplies(limit uint16, mode, direction capability.AddPathMode) bool {
+	if limit == 0 {
+		return false
+	}
+	return mode&direction != 0
+}
+
+// warnPathsLimitUnenforced logs, once per negotiation, every family whose
+// limit applies but which newPathsLimitAdmission left out because Ze has no
+// NLRI splitter for it: the limit is negotiated and not enforced, and the
+// operator is told so rather than left to read it as enforced. On the send side
+// the peer chose the family, so this is the only place Ze can say it. On the
+// receive side parseAddPathFromTree already refuses such a limit at config load,
+// so a receive warning is the second half of that pair: it names a limit that
+// reached negotiation by a path the builder did not check.
+func (s *Session) warnPathsLimitUnenforced(limits map[family.Family]uint16, modes map[family.Family]capability.AddPathMode, direction capability.AddPathMode) {
+	label := "receive"
+	fix := "remove the add-path limit for this family"
+	if direction == capability.AddPathSend {
+		label = "send"
+		fix = "load the plugin that decodes the family, or remove the family from add-path send"
+	}
+	for fam, limit := range limits {
+		if !pathsLimitApplies(limit, modes[fam], direction) {
+			continue
+		}
+		if pathsLimitEnforceable(fam) {
+			continue
+		}
+		sessionLogger().Warn("PATHS-LIMIT: Ze cannot count the paths of this family, so its limit is negotiated but not enforced",
+			"peer", s.settings.Address,
+			"family", fam.String(),
+			"direction", label,
+			"limit", limit,
+			"cause", "no NLRI splitter is registered for the family",
+			"fix", fix)
+	}
+}
+
 // initPathsLimit runs once during OPEN negotiation, with writeMu held. Only the
 // receiver's limit in a negotiated ADD-PATH send direction constrains this side.
 func (s *Session) initPathsLimit(encoding *capability.EncodingCaps) {
@@ -192,6 +277,7 @@ func (s *Session) initPathsLimit(encoding *capability.EncodingCaps) {
 		return
 	}
 	s.pathsLimit = newPathsLimitAdmission(encoding.PathsLimitSend, encoding.AddPathMode, capability.AddPathSend)
+	s.warnPathsLimitUnenforced(encoding.PathsLimitSend, encoding.AddPathMode, capability.AddPathSend)
 }
 
 // section copies accepted NLRIs into dst. Withdrawals always pass, including
@@ -232,7 +318,7 @@ func (a pathsLimitAdmission) section(dst, data []byte, fam family.Family, withdr
 			return true
 		}
 		id := binary.BigEndian.Uint32(raw)
-		pass, journaled := state.admitPath(state.prefixes[string(key)], key, id, withdraw, changes)
+		pass, journaled := state.admitPath(state.prefixes[string(key)], key, raw[4:], id, withdraw, changes)
 		if !journaled {
 			keyErr = errPathsLimitNLRI
 			return true
@@ -255,15 +341,18 @@ func (a pathsLimitAdmission) section(dst, data []byte, fam family.Family, withdr
 // admitPath applies one NLRI to the state and journals the change. pass says
 // whether the NLRI stays in the message: every withdrawal does, and an
 // announcement does when its identifier is held or a slot is free. journaled
-// is false only when the journal is full, before any state changed.
-func (f *pathsLimitFamily) admitPath(prefix *pathsLimitPrefix, key []byte, id uint32, withdraw bool, changes *pathsLimitChanges) (pass, journaled bool) {
+// is false only when the journal is full, before any state changed. route is
+// the NLRI without its Path Identifier, borrowed from the message.
+func (f *pathsLimitFamily) admitPath(prefix *pathsLimitPrefix, key, route []byte, id uint32, withdraw bool, changes *pathsLimitChanges) (pass, journaled bool) {
 	held := false
 	if prefix != nil {
 		_, held = prefix.ids[id]
 	}
 	if withdraw {
 		if held {
-			if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitReleased}) {
+			// draft-abraitis-idr-addpath-paths-limit Section 1
+			released := pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitReleased, elect: prefix.contested}
+			if !changes.journal(released) {
 				return true, false
 			}
 			delete(prefix.ids, id)
@@ -286,10 +375,15 @@ func (f *pathsLimitFamily) admitPath(prefix *pathsLimitPrefix, key []byte, id ui
 		return true, true
 	}
 	if held {
+		if prefix.contested {
+			// A new revision of a contested route's path can change its rank.
+			// draft-abraitis-idr-addpath-paths-limit Section 1
+			return true, f.contestPath(prefix, route, id, changes)
+		}
 		return true, true
 	}
 	if prefix != nil && len(prefix.ids) >= int(f.limit) {
-		return false, f.refusePath(prefix, id, changes)
+		return false, f.refusePath(prefix, route, id, changes)
 	}
 	kind := pathsLimitAdmitted
 	if prefix != nil && prefix.refusedHolds(id) {
@@ -310,10 +404,11 @@ func (f *pathsLimitFamily) admitPath(prefix *pathsLimitPrefix, key []byte, id ui
 }
 
 // refusePath records one identifier refused at the limit. The send side
-// journals nothing: its writer reports only the dropped count.
-func (f *pathsLimitFamily) refusePath(prefix *pathsLimitPrefix, id uint32, changes *pathsLimitChanges) bool {
+// marks the route contested and owes it an election; draft Section 1 is why.
+func (f *pathsLimitFamily) refusePath(prefix *pathsLimitPrefix, route []byte, id uint32, changes *pathsLimitChanges) bool {
 	if !f.auditRefusals {
-		return true
+		// draft-abraitis-idr-addpath-paths-limit Section 1
+		return f.contestPath(prefix, route, id, changes)
 	}
 	counted := pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitRefusalCounted}
 	if prefix.refusedHolds(id) {
@@ -327,6 +422,26 @@ func (f *pathsLimitFamily) refusePath(prefix *pathsLimitPrefix, id uint32, chang
 		return false
 	}
 	prefix.trackRefused(id)
+	return true
+}
+
+// contestPath marks a send-side route contested and journals the election it
+// owes. Arrival order alone decided which paths took the bound's slots, and
+// the draft asks the sender for the pertinent ones, which only the RIB's
+// election can name (D-2). The route's NLRI is copied once, on first contest.
+//
+// draft-abraitis-idr-addpath-paths-limit Section 1: "This indication allows
+// the sender to optimize the transmission of BGP routes by selectively
+// relaying pertinent routes instead of the entire set."
+func (f *pathsLimitFamily) contestPath(prefix *pathsLimitPrefix, route []byte, id uint32, changes *pathsLimitChanges) bool {
+	if !changes.journal(pathsLimitChange{family: f, prefix: prefix, id: id, kind: pathsLimitContested, contestedBefore: prefix.contested}) {
+		return false
+	}
+	prefix.contested = true
+	if prefix.route == nil {
+		prefix.route = append([]byte(nil), route...)
+		oweAnnouncementFraming(f.family, prefix.route)
+	}
 	return true
 }
 

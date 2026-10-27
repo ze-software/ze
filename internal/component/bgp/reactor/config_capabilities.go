@@ -454,11 +454,23 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 		// Section 3: "If the received Paths Limit is zero (0), the tuple SHOULD be ignored."
 		// addPathReceiveLimit refuses zero, so a zero here is an absent container
 		// default rather than an operator asking for a limit of none.
-		if limit > 0 {
-			pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
-				AFI: apf.AFI, SAFI: apf.SAFI, Limit: limit,
-			})
+		if limit == 0 {
+			continue
 		}
+		// draft-abraitis-idr-addpath-paths-limit-04 Section 3: "This field indicates
+		// the maximum paths limit the receiver wants to receive from its peer."
+		// Ze holds that ceiling by counting paths NLRI by NLRI, so a family it
+		// cannot count (pathsLimitEnforceable) would advertise a ceiling Ze never
+		// applies. The config is refused rather than approximated: the operator
+		// either drops the limit for that family or loads its decoder.
+		if !pathsLimitEnforceable(f) {
+			return fmt.Errorf("add-path limit receive %d for family %s: Ze cannot count the paths of this family, so it would advertise a limit it does not enforce; "+
+				"remove the receive limit for %s (set it per family instead of on the add-path container), "+
+				"set its add-path direction to send, or load the plugin that decodes it", limit, f, f)
+		}
+		pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
+			AFI: apf.AFI, SAFI: apf.SAFI, Limit: limit,
+		})
 	}
 
 	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: "The PATHS-LIMIT capability

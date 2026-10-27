@@ -54,11 +54,15 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
 type fwdItem struct {
-	rawBodies            [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates              []*message.Update // Re-encode path: SendUpdate per entry
-	peer                 *Peer             // Target peer for all operations
-	session              *Session          // Destination incarnation captured before materialization
-	authority            adjOutAuthority
+	rawBodies [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
+	updates   []*message.Update // Re-encode path: SendUpdate per entry
+	peer      *Peer             // Target peer for all operations
+	session   *Session          // Destination incarnation captured before materialization
+	authority adjOutAuthority
+	// pathsLimitDemotion marks an election's withdrawal of a path the RIB
+	// ranked outside the peer's PATHS-LIMIT: its owner is current, and the
+	// recovery writer withdraws it anyway (session_paths_limit_elect.go).
+	pathsLimitDemotion   bool
 	provenance           *fwdProvenance
 	writeBody            int    // Original body ordinal, before final ownership filtering
 	expectedMessage      uint64 // Exact sent receipt for replay/cleanup, never ordinary withdrawal

@@ -2,7 +2,7 @@
 
 ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.
 
-PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes, and enforces its own advertised limit on the routes it receives.
+PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes, sending the paths `bgp-rib` ranks best, and enforces its own advertised limit on the routes it receives.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 
 ## Configuration
@@ -148,12 +148,31 @@ The count uses each family's route identity, not its forwarding fields. Labels d
 | Event | Effect |
 |-------|--------|
 | New path below the limit | Admit the path and count its ID |
-| New path at the limit | Suppress the announcement |
+| New path at the limit | Suppress the announcement and mark the prefix contested |
 | Replacement with an admitted path ID | Send the replacement without consuming another slot |
 | Withdrawal of an admitted path ID | Remove the ID and free its slot |
 | Destination reconnect | Start with an empty count for the new connection |
 
-The first admitted paths keep their slots. Ze does not select the best paths or queue suppressed paths for later transmission. A later re-announcement can retry after a withdrawal frees a slot.
+#### Best paths under the peer's limit
+
+Arrival order fills the slots first, but it does not decide what the peer keeps. When a path is suppressed at the limit, or a slot of a contested prefix is released, Ze asks `bgp-rib` to rank the prefix's paths and sends the best ones in place of the first arrivals. The election runs on the destination's recovery worker, never on the write path, and repeated contests of one prefix merge into one election.
+
+| Step | What the peer sees |
+|------|--------------------|
+| A held path the RIB no longer ranks among the best | A withdrawal of its path ID |
+| A better path that was suppressed | An announcement under its own path ID, sent after the withdrawal that freed its slot |
+| A held path the RIB still ranks among the best | Nothing: it keeps its slot and its path ID |
+| A path Ze originates itself | Nothing: the RIB does not rank it, so it keeps its slot and the election fills only the remaining slots |
+
+Withdrawals always go before the announcements that replace them, so the peer never holds more paths than its limit, not even for one UPDATE.
+
+The election needs `bgp-rib` loaded and attached to every source peer with `receive [ update-received ]`, which a route server or route reflector configuration already has. Without a RIB that can rank the paths, the first paths to arrive keep their slots, each contested prefix increments `ze_bgp_paths_limit_election_failed_total{peer,family}`, and the session logs one warning per family naming the fix.
+<!-- source: internal/component/bgp/reactor/session_paths_limit_elect.go -- owePathsLimitElections, planPathsLimitElection, queuePathsLimitElection, pathsLimitElectionFailed -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- decide -->
+
+A family Ze holds no NLRI decoder for cannot be counted path by path, so Ze never advertises a receive limit for it. A `limit { receive N; }` that would reach such a family, on the family entry or through the add-path container, is refused when the config loads, with an error naming the family and the fix: remove the receive limit for that family, set its add-path direction to `send`, or load the plugin that decodes it. A send limit the peer advertises for such a family is negotiated but not enforced, and the session logs one warning naming the family when it reaches Established.
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitEnforceable, newPathsLimitAdmission, warnPathsLimitUnenforced -->
+<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 
 Named transactions retain separate path IDs for one prefix. They emit routes in deterministic identity order, with ascending path IDs for the same prefix. A lower ID does not displace a path admitted earlier on the connection.
 

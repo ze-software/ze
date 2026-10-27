@@ -675,6 +675,28 @@ exclusion of the source keeps that bound (`exclude` merges two by their
 maximum). So a newer session's route, live or retained by graceful restart, is
 neither owed nor withdrawn by an older departure, and a source announcing the
 key from such a session is lifted from the round's excluded set.
+A destination whose peer advertised PATHS-LIMIT for an ADD-PATH send family
+owes a limited election as well as departures. A send admission that refuses a
+path at the bound, replaces a path of a contested prefix, or releases a slot of
+one marks the prefix contested and, once the write commits, owes the prefix
+with identifier zero, so it merges with any departure record of the same key.
+The writer owes it through the write's ownership while it still holds the
+table mutex (`adjOutWrite.owePathsLimitElections`): taking that mutex again
+from the writer would park it forever with `writeMu` held. The round asks the
+RIB with `RecoveryRequest.Limit` set to the peer's bound, read under `writeMu`,
+and the admission plans the prefix from the paths the session holds
+(`pathsLimitHeld`, under `writeMu` then the table mutex, the writer's order):
+a held path the RIB still ranks keeps its identifier, an originated path keeps
+its slot, the better survivors are staged as announcements, and each demoted
+identifier is staged as a demotion withdrawal, which may withdraw a current
+owner's ADD-PATH path. `pathsLimitWithdrawFirst` moves the withdrawals ahead
+of the announcements, so the peer never holds more than its limit. A lookup the
+RIB cannot answer with a limit counts `ze_bgp_paths_limit_election_failed_total`
+and retries without it, which decides the keys' departures as before; with no
+recovery owner at all the contested prefix keeps its arrival-order paths and is
+counted the same way.
+<!-- source: internal/component/bgp/reactor/session_paths_limit_elect.go -- owePathsLimitElections, pathsLimitHeld, planPathsLimitElection, queuePathsLimitElection, pathsLimitWithdrawFirst -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, stageMover, applyStaged -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle, admitRecovery -->

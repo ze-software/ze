@@ -112,6 +112,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
 | `ze_bgp_paths_limit_refused_total` | CounterVec | peer, family | bgp reactor (receive ceiling): one per received path refused over Ze's advertised PATHS-LIMIT |
+| `ze_bgp_paths_limit_election_failed_total` | CounterVec | peer, family | bgp reactor (send admission): one per contested prefix whose paths no RIB could rank under the peer's PATHS-LIMIT, so arrival order stood |
 | `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
 | `ze_bgp_rs_prepend_applied_total` | Counter | | bgp reactor (route-server forward) |
 | `ze_bgp_rs_large_control_community_stripped_total` | Counter | | bgp reactor (route-server forward) |

@@ -358,6 +358,10 @@ type Session struct {
 	// Negotiated sender limits and final write totals, owned by writeMu.
 	pathsLimit       pathsLimitAdmission
 	updateSendTotals updateSendCounts
+	// pathsLimitElectionWarned holds each family whose send election could
+	// not rank, so the warning is logged once per session and family.
+	// Safe for concurrent use: the writer and the recovery worker both write.
+	pathsLimitElectionWarned sync.Map
 
 	// The receive ceiling under Ze's own advertised PATHS-LIMIT. Built at OPEN
 	// negotiation and read only by processValidatedMessage; both run on the

@@ -316,8 +316,13 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				// A departure withdraws an ADD-PATH identifier only while
 				// the departed source's ended session or revoked binding
 				// owns it: the reconnected session's newer path, or an
-				// originated one, is never withdrawn for an old DOWN.
-				return false, nil
+				// originated one, is never withdrawn for an old DOWN. A
+				// PATHS-LIMIT demotion withdraws a current path the RIB
+				// ranked outside the peer's limit.
+				// draft-abraitis-idr-addpath-paths-limit Section 1
+				if !item.pathsLimitDemotion {
+					return false, nil
+				}
 			}
 			if key.addPath && w.recoverySpares(key, entry.owner) {
 				// RFC 4724 Section 4.2: nor is a newer session's path
