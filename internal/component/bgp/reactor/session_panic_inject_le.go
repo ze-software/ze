@@ -34,9 +34,11 @@ const readPanicTriggerPrefix = "bgp-read-panic-"
 // sets the ze_le tag, which no shipped binary does: the shipped half in
 // session_panic_inject.go is empty, so a peer can never reach this panic.
 //
-// It is called for every received UPDATE, before any parsing, which puts the
-// panic inside the read task's boundary (Session.Run), the boundary that sends
-// the peer a Cease / Unspecific.
+// It is called for every received UPDATE from processValidatedMessage, the
+// function both readers dispatch an UPDATE through, before the UPDATE reaches
+// any consumer. That puts the panic inside the read task's boundary
+// (Session.Run), the boundary that sends the peer a Cease / Unspecific. A
+// coalesced batch meets it once, when the batch is flushed.
 //
 // Safe for concurrent use: each session asks for its own peer's file, and the
 // remove decides which caller fires when two race on one file.

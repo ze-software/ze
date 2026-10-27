@@ -279,9 +279,6 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		if updateIsUnexpected(s.fsm.State()) {
 			return s.fsmMessageEvent(fsm.EventUpdateMsg), false
 		}
-		// Empty in every shipped build; a ze_le build panics here on demand
-		// (session_panic_inject_le.go), inside the read task's boundary.
-		injectReadPanic(s.settings.Address)
 		// RFC 7606 Sections 3 and 5.3: classify the original message once.
 		validation = s.classifyRFC7606(body)
 		s.prepareRFC7606FirstAS(body, &validation)
@@ -310,6 +307,12 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 	// is delivered, released either way.
 	var pathsLimitAdmitted *pathsLimitChanges
 	if hdr.Type == msgtype.TypeUPDATE {
+		// Empty in every shipped build; a ze_le build panics here on demand
+		// (session_panic_inject_le.go), inside the read task's boundary. Here
+		// and not in processMessage, because the coalescing reader hands a
+		// plain announcement straight to this function: every received UPDATE
+		// reaches this line, on either reader.
+		injectReadPanic(s.settings.Address)
 		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
 		receivedUpdate := wireUpdate
