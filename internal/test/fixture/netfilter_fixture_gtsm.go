@@ -46,7 +46,11 @@ const (
 // Every read is a poll over kernel state, never a wait on time: the daemon
 // publishes the state once the peer reconcile runs, and the reload withdraws
 // it once the next reconcile runs, and neither moment is fixed.
-func gtsmRelatedICMP(ctx context.Context, _ []string) error {
+func gtsmRelatedICMP(ctx context.Context, args []string) error {
+	port, err := gtsmListenPort("firewall/gtsm-related-icmp", args)
+	if err != nil {
+		return err
+	}
 	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
@@ -63,7 +67,7 @@ func gtsmRelatedICMP(ctx context.Context, _ []string) error {
 	}) {
 		return fmt.Errorf("CONFIGURED: %s table never carried a term reading the quoted destination %s (%s):\n%s", gtsmTableName, gtsmPeerAddress, quoted, table)
 	}
-	if err := checkGTSMRuleset(table, gtsmPeerAddress, quoted); err != nil {
+	if err := checkGTSMRuleset(table, gtsmPeerAddress, port, quoted); err != nil {
 		return fmt.Errorf("CONFIGURED: %w:\n%s", err, table)
 	}
 	fmt.Print(table)
@@ -115,22 +119,23 @@ const gtsmRelatedICMPRuleCount = 10
 // never by the absence of the other's:
 //
 //   - the listen rule reads the outer source on purpose, because a SYN's source
-//     is the peer: `saddr <peer>`, `tcp dport 179`, a TTL compare, and no
-//     `@th,` read. Exactly one line has that shape.
+//     is the peer: `saddr <peer>`, `tcp dport <port>` with Ze's listen port, a
+//     TTL compare, and no `@th,` read. Exactly one line has that shape.
 //   - every related-ICMP rule names the peer by the quoted header alone. Exactly
 //     gtsmRelatedICMPRuleCount lines carry the quoted read.
 //
 // A `saddr` (ip or ip6) on any line other than the listen rule is refused, so
 // an ICMP rule keyed on the error's own source fails here whether or not it
-// also carries the quoted read, and at whatever offset it reads.
-func checkGTSMRuleset(table, peer, quoted string) error {
+// also carries the quoted read, and at whatever offset it reads. A source rule
+// on a port other than the listen port is refused the same way.
+func checkGTSMRuleset(table, peer, port, quoted string) error {
 	listenRules := 0
 	relatedRules := 0
 	for line := range strings.SplitSeq(table, "\n") {
 		if strings.Contains(line, quoted) {
 			relatedRules++
 		}
-		if isGTSMListenRule(line, peer) {
+		if isGTSMListenRule(line, peer, port) {
 			listenRules++
 			continue
 		}
@@ -139,7 +144,7 @@ func checkGTSMRuleset(table, peer, quoted string) error {
 		}
 	}
 	if listenRules != 1 {
-		return fmt.Errorf("%s table holds %d listen rules for %s (saddr, tcp dport 179, a ttl compare, no @th read), want exactly 1", gtsmTableName, listenRules, peer)
+		return fmt.Errorf("%s table holds %d listen rules for %s (saddr, tcp dport %s, a ttl compare, no @th read), want exactly 1", gtsmTableName, listenRules, peer, port)
 	}
 	if relatedRules != gtsmRelatedICMPRuleCount {
 		return fmt.Errorf("%s table holds %d rules reading the quoted destination %s, want exactly %d", gtsmTableName, relatedRules, quoted, gtsmRelatedICMPRuleCount)
@@ -148,15 +153,15 @@ func checkGTSMRuleset(table, peer, quoted string) error {
 }
 
 // isGTSMListenRule answers whether one rendered rule line has the listen
-// rule's shape for peer: it reads `saddr <peer>` and `dport 179` as whole
+// rule's shape for peer: it reads `saddr <peer>` and `dport <port>` as whole
 // tokens, compares the TTL (`ttl <`), and reads no raw transport payload.
-func isGTSMListenRule(line, peer string) bool {
+func isGTSMListenRule(line, peer, port string) bool {
 	if strings.Contains(line, "@th,") {
 		return false
 	}
 	tokens := strings.Fields(line)
 	return hasTokenPair(tokens, "saddr", peer) && hasTokenPair(tokens, "tcp", "dport") &&
-		hasTokenPair(tokens, "dport", "179") && hasTokenPair(tokens, "ttl", "<")
+		hasTokenPair(tokens, "dport", port) && hasTokenPair(tokens, "ttl", "<")
 }
 
 // hasTokenPair answers whether first is immediately followed by second.

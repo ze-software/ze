@@ -3,8 +3,10 @@
 #       families, and removing the block withdraws it.
 # VALIDATES: spec-bcp194-3-session AC-1, AC-2 -- the reactor publishes each
 #            GTSM peer to internal/component/gtsm, whose listen-port term the
-#            nft backend renders as `saddr <peer> ... dport 179 ... ttl < 255
-#            ... drop` for IPv4 and `... hoplimit < 255 ... drop` for IPv6.
+#            nft backend renders as `saddr <peer> ... dport <port> ... ttl <
+#            255 ... drop` for IPv4 and `... hoplimit < 255 ... drop` for IPv6.
+#            <port> is Ze's listen port, the $PORT the runner assigns this
+#            test, which the fixture takes as its argument.
 #            AC-6 -- a reload without the IPv4 peer's `ttl` block removes its
 #            rule alone, and a reload without the last block withdraws the
 #            table.
@@ -122,7 +124,7 @@ EOF_CONF3
 option=env:var=ze.log.gtsm:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le test fixture firewall/gtsm-listener-floor:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture firewall/gtsm-listener-floor $PORT:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_gtsm
 expect=stdout:contains=saddr 192.0.2.2

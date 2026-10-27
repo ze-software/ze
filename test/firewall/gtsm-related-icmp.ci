@@ -10,8 +10,10 @@
 #            transport offset 24), and no term reads the error's own source
 #            (before it reports `CONFIGURED: table present`, the fixture
 #            requires exactly one listen rule, `saddr` of the peer with
-#            `tcp dport 179` and a TTL compare, exactly 10 rules carrying the
-#            quoted read, and refuses `saddr` on every other rule).
+#            `tcp dport $PORT`, Ze's listen port the runner assigns this test
+#            and passes to the fixture, and a TTL compare, exactly 10 rules
+#            carrying the quoted read, and refuses `saddr` on every other
+#            rule).
 # PREVENTS: a `ttl` block accepted by the parser whose kernel state never
 #           reaches the kernel, or outlives the configuration that asked for it;
 #           a term keyed on the outer source, which a forged error from any
@@ -66,7 +68,7 @@ EOF_CONF2
 option=env:var=ze.log.gtsm:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le test fixture firewall/gtsm-related-icmp:timeout=20s
+cmd=foreground:seq=2:exec=le test fixture firewall/gtsm-related-icmp $PORT:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_gtsm
 expect=stdout:contains=chain input

@@ -9,6 +9,10 @@
 // rules off the kernel, reloads a configuration without the IPv4 peer's `ttl`
 // block and reads that its rule alone left, then reloads one without either
 // block and reads the table withdrawn (AC-6).
+//
+// Ze's listen port is the port the runner assigns to the test, never 179, so
+// the .ci passes it as the driver's one argument (`$PORT`), and a rule on any
+// other port is not the listen rule.
 
 package fixture
 
@@ -16,23 +20,53 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
-// The rules the .ci configures, each as the words one rendered nft rule
-// carries. nft prints a rule on one line, so a rule is present when one line
-// holds every word.
-var (
-	gtsmListenRuleIPv4 = []string{"saddr 192.0.2.2", "dport 179", "ttl < 255", "drop"}
-	gtsmListenRuleIPv6 = []string{"saddr 2001:db8::2", "dport 179", "hoplimit < 255", "drop"}
-)
+// gtsmListenRuleIPv4 and gtsmListenRuleIPv6 are the rules the .ci configures,
+// each as the words one rendered nft rule carries for the listen port. nft
+// prints a rule on one line, so a rule is present when one line holds every
+// word as whole tokens.
+func gtsmListenRuleIPv4(port string) []string {
+	return []string{"saddr 192.0.2.2", "tcp dport " + port, "ttl < 255", "drop"}
+}
+
+func gtsmListenRuleIPv6(port string) []string {
+	return []string{"saddr 2001:db8::2", "tcp dport " + port, "hoplimit < 255", "drop"}
+}
+
+// gtsmListenPort answers the listen port a GTSM driver was given: exactly one
+// argument, a TCP port number. The runner assigns the port, so a driver that
+// guessed one would judge a rule the daemon never rendered.
+func gtsmListenPort(name string, args []string) (string, error) {
+	if len(args) != 1 {
+		return "", fmt.Errorf("%s takes Ze's listen port, got %d arguments", name, len(args))
+	}
+	port, err := strconv.ParseUint(args[0], 10, 16)
+	if err != nil {
+		return "", fmt.Errorf("%s: listen port %q is not a TCP port: %w", name, args[0], err)
+	}
+	if port == 0 {
+		return "", fmt.Errorf("%s: listen port 0 is not a TCP port a daemon listens on", name)
+	}
+	return args[0], nil
+}
 
 // gtsmListenerFloor reads both listen-port rules, then withdraws them one
 // reload at a time. Every read is a poll over kernel state: the daemon
 // publishes once its peer reconcile runs, and no moment is fixed.
-func gtsmListenerFloor(ctx context.Context, _ []string) error {
+func gtsmListenerFloor(ctx context.Context, args []string) error {
+	port, err := gtsmListenPort("firewall/gtsm-listener-floor", args)
+	if err != nil {
+		return err
+	}
+	ruleIPv4 := gtsmListenRuleIPv4(port)
+	ruleIPv6 := gtsmListenRuleIPv6(port)
+
 	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
@@ -41,7 +75,7 @@ func gtsmListenerFloor(ctx context.Context, _ []string) error {
 	var table string
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		table, err = netfilterCommandOutput(ctx, "nft", "list", "table", gtsmTableFamily, gtsmTableName)
-		return err == nil && rulePresent(table, gtsmListenRuleIPv4) && rulePresent(table, gtsmListenRuleIPv6)
+		return err == nil && rulePresent(table, ruleIPv4) && rulePresent(table, ruleIPv6)
 	}) {
 		return fmt.Errorf("CONFIGURED: %s table never carried the listen-port rule of both peers:\n%s", gtsmTableName, table)
 	}
@@ -54,7 +88,7 @@ func gtsmListenerFloor(ctx context.Context, _ []string) error {
 	}
 	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
 		table, err = netfilterCommandOutput(ctx, "nft", "list", "table", gtsmTableFamily, gtsmTableName)
-		return err == nil && !rulePresent(table, gtsmListenRuleIPv4) && rulePresent(table, gtsmListenRuleIPv6)
+		return err == nil && !rulePresent(table, ruleIPv4) && rulePresent(table, ruleIPv6)
 	}) {
 		return fmt.Errorf("RELOADED: the IPv4 peer's listen rule did not leave alone after its ttl block was removed:\n%s", table)
 	}
@@ -79,21 +113,33 @@ func gtsmListenerFloor(ctx context.Context, _ []string) error {
 // of the rule.
 func rulePresent(table string, words []string) bool {
 	for line := range strings.SplitSeq(table, "\n") {
-		if containsAll(line, words) {
+		if containsAll(strings.Fields(line), words) {
 			return true
 		}
 	}
 	return false
 }
 
-// containsAll reports whether line holds every word.
-func containsAll(line string, words []string) bool {
+// containsAll reports whether the tokens of one rule line hold every word as
+// a run of whole tokens. A substring match would read `dport 1790` as
+// `dport 179`, so a rule on another port would pass for the listen rule.
+func containsAll(tokens, words []string) bool {
 	for _, word := range words {
-		if !strings.Contains(line, word) {
+		if !hasTokenRun(tokens, strings.Fields(word)) {
 			return false
 		}
 	}
 	return true
+}
+
+// hasTokenRun answers whether run appears in tokens as consecutive tokens.
+func hasTokenRun(tokens, run []string) bool {
+	for start := range len(tokens) - len(run) + 1 {
+		if slices.Equal(tokens[start:start+len(run)], run) {
+			return true
+		}
+	}
+	return false
 }
 
 // reloadWith stages the named configuration as the daemon's file and signals
