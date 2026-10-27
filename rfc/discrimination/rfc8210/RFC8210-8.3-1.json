@@ -2,6 +2,28 @@
   {
     "rid": "RFC8210-8.3-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt",
+    "unit-sha": "e2d6b972f073d35e",
+    "claim-sha": "902a40db28cf1d20",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::load",
+    "producer-sha": "28b94524b5f5faf1",
+    "break": "body of load replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt",
+    "unit-sha": "e2d6b972f073d35e",
+    "claim-sha": "648b1977d515b8e1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::load",
+    "producer-sha": "28b94524b5f5faf1",
+    "break": "body of load replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet",
     "unit-sha": "ad4b13a4cca45a90",
     "claim-sha": "7c6fe3591df95d11",

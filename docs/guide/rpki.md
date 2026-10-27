@@ -341,6 +341,21 @@ A cache answering No Data Available ends the current attempt. Ze tries the next
 cache in preference order; if none answers, it retries with Reset Queries after
 the Retry Interval. It does not wait for the cache to close its connection.
 
+A cache answering a query with Cache Reset gets one Reset Query at once, in the
+same attempt, and its full answer replaces the working set. Every cache more
+preferred than it has already failed by then, so RFC 8210 Section 8.3 sends the
+reload to that same cache rather than to a less-preferred one. A second Cache
+Reset in the same attempt counts as a failure, and Ze moves on to the next
+cache in preference order.
+
+While a less-preferred cache holds the data, Ze asks each more-preferred cache
+that failed again when that cache's own Retry Interval runs out, not when the
+holder's Refresh Interval does. The first one that completes a full load takes
+over, and its set replaces the holder's. The holder itself is polled only at
+its Refresh Interval. `show bgp rpki status` reports `synced` true for exactly
+the cache whose set validation uses.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.probe, cacheGroup.load -->
+
 ### AS_PATH Edge Cases
 
 | AS_PATH | Origin AS | Result |

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,51 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// TestStatusNamesTheCacheWhoseDataIsInUse drives two caches from the parsed config through
+// startSessions, through a failover and a fail-back, and reads `show bgp rpki status` at each step.
+//
+// VALIDATES: the sessions are listed most preferred first, and exactly one reports `synced` true:
+// the cache whose set validation uses, read from the validation store itself.
+// PREVENTS: a status that keeps naming the cache that lost the load, or that names two caches
+// while only one set is live.
+func TestStatusNamesTheCacheWhoseDataIsInUse(t *testing.T) {
+	preferredPort, _ := outageRTRCache(t, preferredLoad(2, 5, 1, 1), nil, preferredLoad(3, 9, 3600, 600))
+	standbyPort, standbyQueries := outageRTRCache(t, standbyLoad())
+
+	rp := newStatePlugin(t)
+	rp.startSessions(&rpkiConfig{CacheServers: []cacheServerConfig{
+		{Address: "127.0.0.1", Port: standbyPort, Preference: 20},
+		{Address: "127.0.0.1", Port: preferredPort, Preference: 10},
+	}})
+
+	// requireStatusNames waits until validation answers from the load that announced prefix for
+	// asn, then reads status. End of Data replaces the set and moves the data lease under one
+	// lock, so once validation sees the load, status describes it.
+	requireStatusNames := func(prefix string, asn uint32, want [2]bool, why string) {
+		t.Helper()
+		require.Eventually(t, func() bool {
+			return rp.cache.Validate(prefix, asn) == ValidationValid
+		}, 6*time.Second, 10*time.Millisecond, "validation never used the load announcing %s", prefix)
+
+		status := commandJSON(t, rp, "show bgp rpki status")
+		assert.InDelta(t, 1, status["sessions-synced"], 0, "%s: one set is live, so one cache is synced", why)
+		servers, ok := status["cache-servers"].([]any)
+		require.True(t, ok, "status carries the cache-servers list")
+		require.Len(t, servers, 2)
+		for i, wantPort := range []uint16{preferredPort, standbyPort} {
+			server, ok := servers[i].(map[string]any)
+			require.True(t, ok, "cache server %d is an object", i)
+			assert.InDelta(t, float64(wantPort), server["port"], 0, "cache server %d is listed most preferred first", i)
+			assert.Equal(t, want[i], server["synced"], "%s: cache server %d", why, i)
+		}
+	}
+
+	requireStatusNames("192.0.2.0/24", 64501, [2]bool{true, false}, "the preferred cache's first load")
+	takeQueries(t, standbyQueries, 1)
+	requireStatusNames("203.0.113.0/24", 64500, [2]bool{false, true}, "after the failover")
+	requireStatusNames("192.0.3.0/24", 64501, [2]bool{true, false}, "after the fail-back")
+}
 
 // TestActionString verifies the action-constant to keyword mapping.
 //

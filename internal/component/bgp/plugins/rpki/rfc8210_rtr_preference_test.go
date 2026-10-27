@@ -338,3 +338,185 @@ func TestRTRCacheResetReturnsToPreferredCache(t *testing.T) {
 		}
 	}
 }
+
+// outageRTRCache answers the connections the router opens in order, one reply each, and reports
+// the type of the query that opened each connection. A nil reply is an outage: the cache reads
+// the query and drops the connection unanswered, so the router's query fails. A connection past
+// the script is dropped the same way.
+func outageRTRCache(t *testing.T, replies ...[]byte) (uint16, <-chan byte) {
+	t.Helper()
+	queries := make(chan byte, len(replies)+8)
+	attempt := 0
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			return
+		}
+		query, err := readRTRQuery(conn)
+		if err != nil {
+			return
+		}
+		queries <- query[1]
+		if attempt >= len(replies) {
+			return
+		}
+		reply := replies[attempt]
+		attempt++
+		if reply == nil {
+			return
+		}
+		if _, err := conn.Write(reply); err != nil {
+			return
+		}
+		_, _ = conn.Read(query[:1])
+	})
+	return port, queries
+}
+
+// requireNoQuery fails the test when the cache receives a query within wait.
+func requireNoQuery(t *testing.T, queries <-chan byte, wait time.Duration, why string) {
+	t.Helper()
+	select {
+	case query := <-queries:
+		t.Fatalf("%s: PDU type %d", why, query)
+	case <-time.After(wait):
+	}
+}
+
+// preferredLoad is a complete load announcing 192.0.<octet>.0/24 for AS 64501, with the given
+// serial, Refresh Interval and Retry Interval in seconds.
+func preferredLoad(octet byte, serial, refresh, retry uint32) []byte {
+	return slices.Concat(cacheResponsePDU(),
+		ipv4AnnouncePDU([4]byte{192, 0, octet, 0}, 64501),
+		endOfDataTimed(serial, refresh, retry))
+}
+
+// standbyLoad is the standby cache's complete load: 203.0.113.0/24 for AS 64500, polled hourly.
+func standbyLoad() []byte {
+	return slices.Concat(cacheResponsePDU(),
+		ipv4AnnouncePDU([4]byte{203, 0, 113, 0}, 64500),
+		endOfDataTimed(5, 3600, 600))
+}
+
+// TestCacheGroupCacheResetFromPreferredReloadsIt drives two caches from the parsed
+// `bgp rpki cache-server` list through startSessions. The preference 10 cache holds the data and
+// answers the router's second poll, a Serial Query, with Cache Reset.
+//
+// VALIDATES: RFC 8210 Section 8.3, "If there are no more-preferred caches, it MUST issue a Reset
+// Query and get an entire new load from the cache.": in the same round the router sends that
+// cache a Reset Query and validation then uses its new set, and RFC 8210 Section 4, "The router
+// MUST choose the most preferred, by configuration, cache": the preference 20 cache receives no
+// connection.
+// PREVENTS: a Cache Reset from the most preferred cache handing the load to a less-preferred
+// cache, which was what `poll` did until 2026-10-27.
+func TestCacheGroupCacheResetFromPreferredReloadsIt(t *testing.T) {
+	// RFC requirement: RFC8210-8.3-1 positive -- with two caches configured, the preference 10 cache answers the Serial Query with Cache Reset and, in the same round, receives a Reset Query whose load replaces the set: its new VRP validates and the reset one stops validating.
+	// RFC requirement: RFC8210-8.3-1 negative -- the Cache Reset does not hand the load to the preference 20 cache: that cache receives no query and its VRP never validates.
+	// RFC requirement: RFC8210-4-1 positive -- after a Cache Reset the preference 10 cache, written second in the config, still supplies the set validation uses.
+	// RFC requirement: RFC8210-4-1 negative -- the preference 20 cache, written first in the config, is not queried while the preference 10 cache answers.
+	preferredPort, preferredQueries := outageRTRCache(t,
+		preferredLoad(2, 5, 1, 1), cacheResetPDU(0), preferredLoad(3, 9, 3600, 600))
+	standbyPort, standbyQueries := outageRTRCache(t, standbyLoad())
+
+	// The standby is written FIRST, so a pass that reads config order contacts the wrong cache.
+	rp := newStatePlugin(t)
+	rp.startSessions(&rpkiConfig{CacheServers: []cacheServerConfig{
+		{Address: "127.0.0.1", Port: standbyPort, Preference: 20},
+		{Address: "127.0.0.1", Port: preferredPort, Preference: 10},
+	}})
+
+	assert.Equal(t, []byte{pduResetQuery, pduSerialQuery, pduResetQuery}, takeQueries(t, preferredQueries, 3),
+		"after Cache Reset the router must ask the same cache for its whole set")
+	require.Eventually(t, func() bool {
+		return rp.cache.Validate("192.0.3.0/24", 64501) == ValidationValid
+	}, 6*time.Second, time.Millisecond, "the reload after the Cache Reset was not published")
+	assert.Equal(t, ValidationNotFound, rp.cache.Validate("192.0.2.0/24", 64501),
+		"the set the Cache Reset invalidated survived its reload")
+	assert.Equal(t, ValidationNotFound, rp.cache.Validate("203.0.113.0/24", 64500),
+		"the standby's set reached validation")
+	requireNoQuery(t, standbyQueries, 500*time.Millisecond,
+		"the standby was queried although the most preferred cache answered the Reset Query")
+}
+
+// TestCacheGroupRepeatedCacheResetMovesOn runs two polling rounds over two caches. In the second,
+// the preference 10 cache answers the Serial Query with Cache Reset, and the Reset Query that
+// follows with Cache Reset again.
+//
+// VALIDATES: the bound on RFC 8210 Section 8.3's Reset Query: one per cache per round. A second
+// Cache Reset fails the attempt, and the round moves on to the preference 20 cache in the
+// preference order, the way RFC 8210 Section 8.4 moves on from a cache with no data.
+// PREVENTS: a cache that answers every query with Cache Reset pinning the router in a loop of
+// Reset Queries, and that cache's failure leaving the router with no set it can load.
+func TestCacheGroupRepeatedCacheResetMovesOn(t *testing.T) {
+	preferredPort, preferredQueries := outageRTRCache(t,
+		preferredLoad(2, 5, 3600, 600), cacheResetPDU(0), cacheResetPDU(0))
+	standbyPort, standbyQueries := outageRTRCache(t, standbyLoad())
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	t.Cleanup(func() { close(stop) })
+	group := newCacheGroup([]*RTRSession{
+		newTestRTRSession(t, "127.0.0.1", preferredPort, 10, "", roas, aspas, stop),
+		newTestRTRSession(t, "127.0.0.1", standbyPort, 20, "", roas, aspas, stop),
+	}, stop)
+
+	require.Equal(t, 3600*time.Second, group.poll())
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, preferredQueries, 1))
+	require.Equal(t, ValidationValid, roas.Validate("192.0.2.0/24", 64501))
+
+	require.Equal(t, 3600*time.Second, group.poll(), "the standby's load ends the round")
+	assert.Equal(t, []byte{pduSerialQuery, pduResetQuery}, takeQueries(t, preferredQueries, 2),
+		"one Reset Query follows the first Cache Reset")
+	assert.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1),
+		"the second Cache Reset hands the round to the next cache")
+	assert.Equal(t, ValidationValid, roas.Validate("203.0.113.0/24", 64500), "the standby's set is in use")
+	assert.Equal(t, ValidationNotFound, roas.Validate("192.0.2.0/24", 64501),
+		"the preferred cache's set survived the switch")
+	requireNoQuery(t, preferredQueries, 200*time.Millisecond,
+		"the router asked the resetting cache again in the same round")
+}
+
+// TestCacheGroupFailsBackAtPreferredRetryInterval runs a cache group in its own goroutine, as
+// startSessions does. The preference 10 cache loads with a one-second Refresh and Retry Interval,
+// drops the next poll, and answers the one after it. The preference 20 cache loads with a
+// one-hour Refresh Interval.
+//
+// VALIDATES: RFC 8210 Section 10, "When a more-preferred cache becomes available, if resources
+// allow, it would be prudent for the client to start fetching from that cache.": the router asks
+// the preference 10 cache again at that cache's own Retry Interval and switches to its set at End
+// of Data. RFC 8210 Section 6, "The router SHOULD NOT poll the cache sooner than indicated by
+// this parameter.": the preference 20 cache receives no query besides its load.
+// PREVENTS: fail-back waiting for the standby's Refresh Interval, an hour by default, as it did
+// until 2026-10-27, and a fail-back probe that polls the standby early.
+func TestCacheGroupFailsBackAtPreferredRetryInterval(t *testing.T) {
+	preferredPort, preferredQueries := outageRTRCache(t,
+		preferredLoad(2, 5, 1, 1), nil, preferredLoad(3, 9, 3600, 600))
+	standbyPort, standbyQueries := outageRTRCache(t, standbyLoad())
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	group := newCacheGroup([]*RTRSession{
+		newTestRTRSession(t, "127.0.0.1", preferredPort, 10, "", roas, aspas, stop),
+		newTestRTRSession(t, "127.0.0.1", standbyPort, 20, "", roas, aspas, stop),
+	}, stop)
+	done := make(chan struct{})
+	go func() { defer close(done); group.Run() }()
+	t.Cleanup(func() {
+		close(stop)
+		<-done
+	})
+
+	require.Equal(t, []byte{pduResetQuery, pduSerialQuery}, takeQueries(t, preferredQueries, 2))
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1),
+		"the dropped poll hands the load to the standby")
+	failedOver := time.Now()
+
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, preferredQueries, 1),
+		"the preferred cache was not asked again while the standby held the load")
+	assert.Less(t, time.Since(failedOver), 3*time.Second,
+		"the preferred cache was asked again later than its one-second Retry Interval allows")
+	require.Eventually(t, func() bool {
+		return roas.Validate("192.0.3.0/24", 64501) == ValidationValid
+	}, 6*time.Second, time.Millisecond, "the preferred cache's set did not replace the standby's")
+	assert.Equal(t, ValidationNotFound, roas.Validate("203.0.113.0/24", 64500),
+		"the standby's set survived the fail-back")
+	requireNoQuery(t, standbyQueries, 1500*time.Millisecond,
+		"the standby was polled before its one-hour Refresh Interval")
+}

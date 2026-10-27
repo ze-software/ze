@@ -130,7 +130,8 @@ func newRTRSession(address string, port uint16, pref uint8, sourceAddress string
 //
 // It owns one goroutine. The caller creates the group, starts Run in that goroutine, and stops
 // it by closing the stop channel the sessions carry; the caller MUST wait for Run to return
-// before it reads the sessions for anything but a Snapshot.
+// before it reads the sessions for anything but a Snapshot. Not safe for concurrent use: only
+// that goroutine calls poll and probe.
 type cacheGroup struct {
 	// sessions holds the configured cache servers, most preferred first. newCacheGroup's
 	// one caller establishes that order.
@@ -141,6 +142,11 @@ type cacheGroup struct {
 	// merging into it: RFC 8210 Section 10 says caches "simply cannot be rigorously
 	// synchronous", so one cache's serial says nothing about another cache's set.
 	holder *RTRSession
+
+	// retryAt holds, for the session at the same index, when its Retry Interval runs out
+	// after its last failed attempt. The zero time is a session that has not failed. probe
+	// reads it so a more-preferred cache is asked again at its own Retry Interval.
+	retryAt []time.Time
 
 	stopCh <-chan struct{}
 }
@@ -157,28 +163,45 @@ func newCacheGroup(sessions []*RTRSession, stopCh <-chan struct{}) *cacheGroup {
 			session.mu.Unlock()
 		}
 	}
-	return &cacheGroup{sessions: sessions, stopCh: stopCh}
+	return &cacheGroup{sessions: sessions, retryAt: make([]time.Time, len(sessions)), stopCh: stopCh}
 }
 
 // Run polls the caches until the stop channel closes.
 //
 // The loop has no other bound, and that is the decision: a router polls its caches for as long
-// as it runs. Each round restarts at the head of the preference order, which is how a recovered
-// cache takes the load back, which is the same section's "When a more-preferred cache becomes
-// available, if resources allow, it would be prudent for the client to start fetching from
-// that cache".
+// as it runs. Two clocks drive it. A full round (poll) runs when the delay the previous round
+// returned has passed: the holder's Refresh Interval, or a Retry Interval when no cache answered.
+// In between, while a more-preferred cache than the holder has failed, a probe (probe) asks that
+// cache again when its own Retry Interval runs out, which is the same section's "When a
+// more-preferred cache becomes available, if resources allow, it would be prudent for the client
+// to start fetching from that cache." A probe that takes the load restarts the full-round clock
+// on the new holder's Refresh Interval.
 func (g *cacheGroup) Run() {
 	if len(g.sessions) == 0 {
 		return
 	}
 
-	for !stopped(g.stopCh) {
-		delay := g.poll()
+	pollAt := time.Now()
+	for {
+		wake, probing := pollAt, false
+		if probeAt, ok := g.nextProbe(); ok {
+			if probeAt.Before(pollAt) {
+				wake, probing = probeAt, true
+			}
+		}
 
 		select {
 		case <-g.stopCh:
 			return
-		case <-time.After(delay):
+		case <-time.After(time.Until(wake)):
+		}
+
+		if !probing {
+			pollAt = time.Now().Add(g.poll())
+			continue
+		}
+		if delay, won := g.probe(); won {
+			pollAt = time.Now().Add(delay)
 		}
 	}
 }
@@ -190,33 +213,99 @@ func (g *cacheGroup) Run() {
 // Section 6 read over a list rather than over a single server.
 func (g *cacheGroup) poll() time.Duration {
 	delay := rtrIntervalRetryDefault
-	for _, s := range g.sessions {
+	for i, s := range g.sessions {
 		if s.stopped() {
 			return delay
 		}
-
-		if s != g.holder {
-			s.startFullSync()
-		}
-
-		err := s.syncOnce()
-		if err == nil {
-			g.holder = s
-			if s.Snapshot().Synced {
-				setSessionsActive(1)
-			} else {
-				setSessionsActive(0)
-			}
+		if g.load(i) {
 			return s.pollDelay(true)
 		}
-
-		logger().Warn("rtr: cache did not answer, trying the next one in preference order",
-			"address", s.address, "preference", s.preference, "error", err)
 		delay = s.pollDelay(false)
 	}
 
 	setSessionsActive(0)
 	return delay
+}
+
+// nextProbe returns when the first cache more preferred than the holder may be asked again, and
+// false when no cache is more preferred than the holder, or no cache holds the data at all.
+func (g *cacheGroup) nextProbe() (time.Time, bool) {
+	var earliest time.Time
+	found := false
+	for i, s := range g.sessions {
+		if s == g.holder {
+			return earliest, found
+		}
+		if !found || g.retryAt[i].Before(earliest) {
+			earliest, found = g.retryAt[i], true
+		}
+	}
+	return time.Time{}, false
+}
+
+// probe asks the caches more preferred than the holder whose Retry Interval has run out, most
+// preferred first, and returns the winner's Refresh Interval and true when one of them took the
+// load. It returns false, and the holder keeps the load, when none did.
+//
+// The holder itself is never asked, so a probe never polls it early. RFC 8210 Section 6: "The
+// router SHOULD NOT poll the cache sooner than indicated by this parameter." A cache still inside
+// its Retry Interval is skipped, by the same section: "The router SHOULD NOT retry sooner than
+// indicated by this parameter."
+func (g *cacheGroup) probe() (time.Duration, bool) {
+	now := time.Now()
+	for i, s := range g.sessions {
+		if s == g.holder {
+			return 0, false
+		}
+		if s.stopped() {
+			return 0, false
+		}
+		if now.Before(g.retryAt[i]) {
+			continue
+		}
+		if g.load(i) {
+			return s.pollDelay(true), true
+		}
+	}
+	return 0, false
+}
+
+// load runs one attempt to take the data from the session at index i, and reports whether that
+// session now holds it. A session that is not the holder is asked for its whole set. A failed
+// attempt starts the session's Retry Interval in retryAt.
+//
+// Both callers walk the sessions most preferred first and stop at the first one that loads, so
+// every cache ahead of this one has failed in this round or is still inside its Retry Interval.
+func (g *cacheGroup) load(i int) bool {
+	s := g.sessions[i]
+	if s != g.holder {
+		s.startFullSync()
+	}
+
+	err := s.syncOnce()
+	if errors.Is(err, errRtrCacheResetReceivedWillDo) {
+		// RFC 8210 Section 8.3: "If there are no more-preferred caches, it MUST issue a Reset
+		// Query and get an entire new load from the cache."
+		// No cache ahead of this one is available, so the Reset Query goes to this cache now.
+		// handlePDU cleared the serial, so this query is the Reset Query. The bound is one per
+		// attempt: a second Cache Reset fails the attempt, so a cache that answers every query
+		// with Cache Reset cannot hold the round in a loop.
+		err = s.syncOnce()
+	}
+	if err != nil {
+		logger().Warn("rtr: cache did not answer, trying the next one in preference order",
+			"address", s.address, "preference", s.preference, "error", err)
+		g.retryAt[i] = time.Now().Add(s.pollDelay(false))
+		return false
+	}
+
+	g.holder = s
+	if s.Snapshot().Synced {
+		setSessionsActive(1)
+	} else {
+		setSessionsActive(0)
+	}
+	return true
 }
 
 // syncOnce runs one connect-query-sync cycle against this cache and closes the connection

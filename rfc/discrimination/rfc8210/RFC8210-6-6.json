@@ -7,8 +7,8 @@
     "claim-sha": "89a24a9088c82a4f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
-    "producer-sha": "38d50894f2f9a950",
-    "break": "body of poll replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "89ae5da226bf405a",
+    "break": "body of poll replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8210-6-6",
@@ -18,7 +18,7 @@
     "claim-sha": "305d4be8bccd58af",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
-    "producer-sha": "38d50894f2f9a950",
-    "break": "body of poll replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "89ae5da226bf405a",
+    "break": "body of poll replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
