@@ -158,7 +158,7 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go serveMulti(ln.conn, handlers, log)
+		go serveMulti(ln.conn, ln.iface, handlers, log)
 	}
 	log.Info("dhcpserver: started",
 		"shared-networks", len(cfg.SharedNetworks),
@@ -167,14 +167,16 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 	return listeners, nil
 }
 
-func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
+// serveMulti answers the requests conn receives on the interface named iface,
+// which is the interface a reply to a client with no address is delivered on.
+func serveMulti(conn *net.UDPConn, iface string, handlers []*dhcpHandler, log *slog.Logger) {
 	serverIPs := make([]netip.Addr, 0, len(handlers))
 	for _, h := range handlers {
 		serverIPs = append(serverIPs, h.serverIP)
 	}
 
 	buf := make([]byte, 1500)
-	for serveRequests(conn, handlers, serverIPs, buf, log) {
+	for serveRequests(conn, iface, handlers, serverIPs, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
 }
@@ -184,7 +186,7 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 // request being handled then gets no reply and its client retransmits. The pool
 // and lease tables hold their mutexes only under defer, so the unwind leaves
 // them free.
-func serveRequests(conn *net.UDPConn, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(conn *net.UDPConn, iface string, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
 	var source *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + source.String()}
@@ -216,7 +218,8 @@ func serveRequests(conn *net.UDPConn, handlers []*dhcpHandler, serverIPs []netip
 			continue
 		}
 
-		dst := responseAddr(pkt, resp)
+		// RFC 2131 Section 4.1
+		dst := replyDestination(iface, pkt, resp, log)
 		if _, writeErr := conn.WriteToUDP(resp, dst); writeErr != nil {
 			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
 		}
@@ -276,29 +279,101 @@ func logExchange(log *slog.Logger, req, resp []byte, serverIPs []netip.Addr) {
 	log.Info("dhcpserver: lease", attrs...)
 }
 
-// RFC 2131 Section 4.1: response delivery rules.
-func responseAddr(req, resp []byte) *net.UDPAddr {
+// neighborInstall writes the neighbor entry a hardware unicast needs (a var so
+// tests can observe the call and model a refusal without CAP_NET_ADMIN).
+var neighborInstall = installNeighbor
+
+// replyDestination answers where resp goes, and first installs the neighbor
+// entry a reply to a client with no address needs. Without it the kernel ARPs
+// for yiaddr, which the client does not hold yet, the neighbor ends FAILED and
+// the reply never leaves.
+func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDPAddr {
+	dst := responseAddr(req, resp)
+	if !toClientHardware(req, resp) {
+		return dst
+	}
+	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
+	chaddr := extractMAC(req)
+	// RFC 2131 Section 4.1: "If the BROADCAST bit is cleared to 0, the message
+	// SHOULD be sent as an IP unicast to the IP address specified in the
+	// 'yiaddr' field and the link-layer address specified in the 'chaddr'
+	// field."
+	// The kernel refuses a chaddr whose length is not the interface's
+	// link-layer address length, and the reply is then broadcast.
+	err := neighborInstall(iface, yiaddr, chaddr)
+	if err == nil {
+		return dst
+	}
+	log.Info("dhcpserver: reply broadcast, the client's hardware address could not be installed",
+		"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
+	// RFC 2131 Section 4.1: "If unicasting is not possible, the message MAY be
+	// sent as an IP broadcast using an IP broadcast address (preferably
+	// 0xffffffff) as the IP destination address and the link-layer broadcast
+	// address as the link-layer destination address."
+	return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
+}
+
+// toClientHardware reports whether resp goes to the client's hardware address
+// and yiaddr: a DHCPOFFER or DHCPACK answering a request with giaddr, ciaddr
+// and the BROADCAST bit all zero, which offers a non-zero yiaddr. It is the
+// one statement of that condition, read by responseAddr for the IP destination
+// and by replyDestination for the neighbor entry the unicast needs.
+func toClientHardware(req, resp []byte) bool {
 	giaddr := netip.AddrFrom4([4]byte(req[24:28]))
-	if giaddr.IsValid() && !giaddr.IsUnspecified() {
+	if !giaddr.IsUnspecified() {
+		return false
+	}
+	ciaddr := netip.AddrFrom4([4]byte(req[12:16]))
+	if !ciaddr.IsUnspecified() {
+		return false
+	}
+	flags := uint16(req[10])<<8 | uint16(req[11])
+	if flags&0x8000 != 0 {
+		return false
+	}
+	if parseMsgType(resp) == msgNak {
+		return false
+	}
+	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
+	return !yiaddr.IsUnspecified()
+}
+
+// responseAddr answers the IP destination of resp under the RFC 2131 Section
+// 4.1 delivery rules.
+func responseAddr(req, resp []byte) *net.UDPAddr {
+	// RFC 2131 Section 4.1: "If the 'giaddr' field in a DHCP message from a
+	// client is non-zero, the server sends any return messages to the 'DHCP
+	// server' port on the BOOTP relay agent whose address appears in
+	// 'giaddr'."
+	giaddr := netip.AddrFrom4([4]byte(req[24:28]))
+	if !giaddr.IsUnspecified() {
 		return &net.UDPAddr{IP: giaddr.AsSlice(), Port: 67}
 	}
 
-	ciaddr := netip.AddrFrom4([4]byte(req[12:16]))
-	if ciaddr.IsValid() && !ciaddr.IsUnspecified() {
-		return &net.UDPAddr{IP: ciaddr.AsSlice(), Port: 68}
-	}
-
-	// RFC 2131 Section 4.1: if BROADCAST flag is set, broadcast.
-	flags := uint16(req[10])<<8 | uint16(req[11])
-	if flags&0x8000 != 0 {
+	// RFC 2131 Section 4.1: "In all cases, when 'giaddr' is zero, the server
+	// broadcasts any DHCPNAK messages to 0xffffffff."
+	if parseMsgType(resp) == msgNak {
 		return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
 	}
 
-	// BROADCAST flag clear: unicast to yiaddr.
-	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
-	if yiaddr.IsValid() && !yiaddr.IsUnspecified() {
+	// RFC 2131 Section 4.1: "If the 'giaddr' field is zero and the 'ciaddr'
+	// field is nonzero, then the server unicasts DHCPOFFER and DHCPACK
+	// messages to the address in 'ciaddr'."
+	ciaddr := netip.AddrFrom4([4]byte(req[12:16]))
+	if !ciaddr.IsUnspecified() {
+		return &net.UDPAddr{IP: ciaddr.AsSlice(), Port: 68}
+	}
+
+	// RFC 2131 Section 4.1: "If the broadcast bit is not set and 'giaddr' is
+	// zero and 'ciaddr' is zero, then the server unicasts DHCPOFFER and DHCPACK
+	// messages to the client's hardware address and 'yiaddr' address."
+	if toClientHardware(req, resp) {
+		yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
 		return &net.UDPAddr{IP: yiaddr.AsSlice(), Port: 68}
 	}
 
+	// RFC 2131 Section 4.1: "If 'giaddr' is zero and 'ciaddr' is zero, and the
+	// broadcast bit is set, then the server broadcasts DHCPOFFER and DHCPACK
+	// messages to 0xffffffff."
 	return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
 }

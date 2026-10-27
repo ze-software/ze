@@ -103,7 +103,7 @@ func TestListenDHCPLoopbackPXEOffer(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	go serveMulti(conn, []*dhcpHandler{testHandler()}, slogutil.DiscardLogger())
+	go serveMulti(conn, "lo", []*dhcpHandler{testHandler()}, slogutil.DiscardLogger())
 
 	cli, err := net.ListenUDP("udp4", &net.UDPAddr{IP: clientAddr.AsSlice(), Port: 68})
 	if err != nil {
@@ -160,7 +160,7 @@ func TestListenDHCPDeviceFilter(t *testing.T) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	go serveMulti(conn, []*dhcpHandler{testHandler()}, slogutil.DiscardLogger())
+	go serveMulti(conn, "zedhcpd0", []*dhcpHandler{testHandler()}, slogutil.DiscardLogger())
 
 	cli, err := net.ListenUDP("udp4", &net.UDPAddr{IP: clientAddr.AsSlice(), Port: 68})
 	if err != nil {

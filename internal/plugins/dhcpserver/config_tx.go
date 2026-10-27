@@ -110,7 +110,7 @@ func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
 			continue
 		}
 		s.listeners = append(s.listeners, dhcpListener{iface: previous.iface, conn: conn})
-		go serveMulti(conn, s.handlers, s.log)
+		go serveMulti(conn, previous.iface, s.handlers, s.log)
 	}
 	if len(lost) == 0 {
 		return cause

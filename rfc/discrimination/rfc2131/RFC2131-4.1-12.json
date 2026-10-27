@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.1-12",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_delivery_test.go::TestOfferReachesClientHardware",
+    "unit-sha": "6933c88890af9707",
+    "claim-sha": "d0aec6f7bf812e67",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/register.go::replyDestination",
+    "producer-sha": "d7b075719c2412c6",
+    "break": "body of replyDestination replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.1-12",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_delivery_test.go::TestOfferReachesClientHardware",
+    "unit-sha": "6933c88890af9707",
+    "claim-sha": "c65da60e3a7bb25b",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/register.go::replyDestination",
+    "producer-sha": "d7b075719c2412c6",
+    "break": "body of replyDestination replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

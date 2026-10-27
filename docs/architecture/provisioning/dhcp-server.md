@@ -30,9 +30,26 @@ options. It also carries the PXE options the provisioning path needs.
   every call site.
 - Non-Linux builds bind to all interfaces. The interface-specific path is a
   Linux socket option.
+- **Reply delivery follows RFC 2131 Section 4.1.** A reply to a relayed request
+  goes to giaddr on port 67. With giaddr zero, a DHCPNAK is always broadcast.
+  An OFFER or ACK goes to a non-zero ciaddr, is broadcast when the client set
+  the BROADCAST bit, and otherwise goes to the client's hardware address and
+  yiaddr. The client does not hold yiaddr yet, so it would never answer the ARP
+  request a plain unicast triggers. Before that unicast the server writes the
+  yiaddr to chaddr neighbor entry on the interface the request arrived on, over
+  netlink, in the NUD_REACHABLE state dnsmasq's ARP-cache injection also
+  produces. The write needs CAP_NET_ADMIN, which the daemon's systemd unit
+  grants. When it fails (no capability, an interface gone, a chaddr the link
+  layer cannot hold, or a non-Linux build), the reply is broadcast instead and
+  an info line names the reason. The socket is a kernel socket under every
+  dataplane, so the kernel neighbor table chooses the frame's destination;
+  whether VPP's linux-cp pair carries that frame unchanged to the wire has not
+  been proven by a VPP lab run.
 
 <!-- source: internal/plugins/dhcpserver/socket_linux.go -- SO_BINDTODEVICE binding -->
 <!-- source: internal/plugins/dhcpserver/socket_other.go -- the non-Linux fallback -->
+<!-- source: internal/plugins/dhcpserver/register.go -- responseAddr, replyDestination, toClientHardware -->
+<!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor -->
 
 ## Address ranges
 

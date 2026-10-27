@@ -565,6 +565,7 @@ RFC sentences the design rests on, read from `rfc/full/`:
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `plan/journal/help-text-describes-superseded-behaviour.md` | 2026-10-27 | `le mock dns help` starts the mock instead of printing help |
+| `plan/journal/reply-addressed-where-the-client-cannot-receive.md` | 2026-10-27 | DHCP server unicast an OFFER to yiaddr without the chaddr neighbor entry, NAK to ciaddr; blocks AC-32 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

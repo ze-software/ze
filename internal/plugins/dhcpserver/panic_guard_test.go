@@ -47,7 +47,7 @@ func TestDHCPRequestPanicContained(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		serveMulti(conn, []*dhcpHandler{defective, healthy}, slogutil.DiscardLogger())
+		serveMulti(conn, "lo", []*dhcpHandler{defective, healthy}, slogutil.DiscardLogger())
 	}()
 	t.Cleanup(func() {
 		_ = conn.Close()
