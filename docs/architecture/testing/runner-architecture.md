@@ -241,6 +241,46 @@ Job admission and stress concurrency controls do not replace port leases.
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts, ReservePorts, tryReservePortRange, reservePortLocks -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest -->
 
+### Exclusive-group leases
+
+`option=exclusive:group=<name>` uses a same-host, same-effective-user advisory
+lease, not a per-runner channel. Separate native stress-repro children and
+independent runner invocations therefore coordinate even with different
+`TMPDIR`, checkout, or session paths. Unset groups acquire no lease; different
+groups do not block each other. Group names remain declarations in the tests,
+not a central registry.
+
+The lease uses `group-<sha256-of-full-name>.lock` in the protected port-lock
+directory above. Hashing keeps arbitrary group names inside that directory and
+within filesystem name limits. The existing directory ownership and symlink
+checks apply. Group files are created with mode 0600, opened without following
+symlinks, and must be regular files owned by the effective user without group or
+other write permission.
+<!-- source: internal/test/runner/exclusive.go -- leaseExclusiveGroupIn, checkExclusiveGroupFile -->
+<!-- source: internal/test/runner/ports.go -- portLockDirectory, checkPortLockDir -->
+
+The scheduler MUST acquire the group before its concurrency semaphore; otherwise
+waiting members could occupy every slot and starve unrelated tests. Both waits
+honor the runner context. The group wait polls nonblocking `flock` every 20 ms,
+without introducing a test deadline. Acquisition and release errors fail the
+record visibly rather than dropping exclusion. The scheduler MUST retain the
+lease through the test callback and its cleanup, then close it on every return
+path. Kernel descriptor cleanup also releases it when the runner exits.
+Lock files MUST NOT be unlinked, even after release: existing waiters still
+reference the old inode, and a replacement would allow two holders.
+<!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
+<!-- source: internal/test/runner/exclusive.go -- leaseExclusiveGroup, waitExclusiveGroup -->
+
+Every participating runner MUST be rebuilt after this cutover. Old in-memory
+gates do not coordinate with these leases, and there is no fallback to them.
+Different users, isolated `/tmp` filesystems, and nonparticipating processes
+remain outside the contract. The regression runs actual separate processes and
+checks same-group cancellation, independent groups, and stable lock inodes
+across release and reacquisition.
+<!-- test: internal/test/runner/exclusive_process_test.go -- TestParallelRunnerExclusiveAcrossProcesses -->
+<!-- test: internal/test/runner/exclusive_lease_test.go -- TestExclusiveGroupLeaseStableInodeAndCancellation, TestExclusiveGroupLeaseRefusesUnsafePaths, TestParallelRunnerExclusiveAcquisitionFailureIsVisible -->
+
+
 ## Web test format (`.wb`)
 
 Web tests live in `test/web/*.wb` and drive the HTMX web UI through a headless
@@ -592,6 +632,11 @@ runs `le test ui`. A name the table does not hold is refused, with the valid
 names, before the build or any burner starts. Words after the name (`--draft`)
 and the `test` selector are split on whitespace and follow that argv, so a
 multi-token selector reaches `le test` exactly as typed by hand.
+Each concurrent invocation is a separate native process. Declared exclusive
+groups still exclude their same-group siblings through the shared group leases;
+stress parallelism does not bypass that test contract.
+<!-- source: internal/le/test/stressrepro/run.go -- run -->
+<!-- source: internal/le/test/stressrepro/process.go -- realProcessRunner.Invoke, runCommand -->
 <!-- source: internal/le/test/stressrepro/run.go -- harnessArgs -->
 
 By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)

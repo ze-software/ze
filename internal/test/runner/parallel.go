@@ -4,6 +4,8 @@ package runner
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"runtime"
 	"sync"
 	"time"
@@ -348,33 +350,55 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, conc)
 
-	// option=exclusive:group=<name>: one lock per group, so members of a group
-	// never overlap each other while unrelated tests keep running concurrently.
-	// Built up-front (not lazily under a mutex) because r.tests is fixed here.
-	exclusive := make(map[string]chan struct{})
-	for _, t := range r.tests {
-		if g := t.Record.ExclusiveGroup; g != "" && exclusive[g] == nil {
-			exclusive[g] = make(chan struct{}, 1)
-		}
-	}
-
 	for _, test := range r.tests {
 		wg.Add(1)
 		go func(t *parallelTest[T]) {
 			defer wg.Done()
+			outcome := result{test: t}
+			defer func() { results <- outcome }()
 
 			// Take the group lock BEFORE the concurrency semaphore. Reversing these
 			// would let members of one group occupy every semaphore slot while
 			// blocked on each other, starving unrelated tests -- with a group of 8
 			// and -p 4 that stalls the suite instead of just serializing the group.
 			// Only ever one lock is held at a time, so there is no lock-order cycle.
-			if lock := exclusive[t.Record.ExclusiveGroup]; lock != nil {
-				lock <- struct{}{}
-				defer func() { <-lock }()
+			if group := t.Record.ExclusiveGroup; group != "" {
+				lease, err := leaseExclusiveGroup(ctx, group)
+				if err != nil {
+					t.Record.Error = err
+					t.Record.SetState(StateFail)
+					outcome.err = err
+					return
+				}
+				// The lease MUST remain held until Run returns and its test
+				// cleanup has finished. Close releases it without unlinking.
+				defer func() {
+					if err := lease.Close(); err != nil {
+						outcome.err = errors.Join(outcome.err, fmt.Errorf("release exclusive group %q: %w", group, err))
+						outcome.passed = false
+						t.Record.Error = outcome.err
+						t.Record.SetState(StateFail)
+					}
+				}()
 			}
 
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				t.Record.Error = ctx.Err()
+				t.Record.SetState(StateFail)
+				outcome.err = ctx.Err()
+				return
+			}
+			// Cancellation may race a free semaphore slot. It MUST NOT start
+			// another test merely because both select arms were ready.
+			if err := ctx.Err(); err != nil {
+				t.Record.Error = err
+				t.Record.SetState(StateFail)
+				outcome.err = err
+				return
+			}
 
 			// UNPARSEABLE OUTRANKS SKIPPED, and the reason is not that failing is
 			// more important -- it is that a broken file's skip marker is not
@@ -400,7 +424,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			// short-circuit here bypasses their own ParseFailed checks entirely.
 			if t.Record.ParseFailed {
 				t.Record.SetState(StateFail)
-				results <- result{test: t, passed: false, err: t.Record.Error}
+				outcome.err = t.Record.Error
 				return
 			}
 
@@ -409,7 +433,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			// this OS, not "it regressed") -- see rules/os-specific-tests.md.
 			if t.Record.SkipReason != "" {
 				t.Record.SetState(StateSkip)
-				results <- result{test: t, passed: true, err: nil}
+				outcome.passed = true
 				return
 			}
 
@@ -435,7 +459,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 				panic("BUG: unknown test state")
 			}
 
-			results <- result{test: t, passed: passed, err: err}
+			outcome.passed, outcome.err = passed, err
 		}(test)
 	}
 

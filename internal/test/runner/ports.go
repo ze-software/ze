@@ -251,7 +251,13 @@ func LockPort(port int) (*PortReservation, bool, error) {
 func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 	// A flat per-user directory cannot be blocked by another user's private
 	// legacy directory, and stays shared across TMPDIR overrides.
-	return reservePortLocksIn(textbuf.StrInt("/tmp/le-port-locks-", int64(os.Geteuid())), start, count)
+	return reservePortLocksIn(portLockDirectory(), start, count)
+}
+
+// portLockDirectory is shared by port and exclusive-group leases, independently
+// of the caller's checkout, session and TMPDIR.
+func portLockDirectory() string {
+	return textbuf.StrInt("/tmp/le-port-locks-", int64(os.Geteuid()))
 }
 
 // reservePortLocksIn takes the per-port locks for [start, start+count) in

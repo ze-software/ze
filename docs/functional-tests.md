@@ -1101,7 +1101,20 @@ run starts.
 Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
 `option=exclusive:group=<name>`: members of one group never run concurrently with
-each other, while every unrelated test in the suite keeps running in parallel.
+each other across participating runner processes on the same host and effective
+user, including separate stress-repro children. Every unrelated test keeps
+running in parallel. Group leases share the protected `/tmp/le-port-locks-<uid>`
+directory with port leases, independently of `TMPDIR`, checkout, and session.
+The group is acquired before a concurrency slot, so waiting members do not
+starve unrelated tests. Cancellation stops the wait with a visible failure;
+acquisition errors never fall back to running without exclusion.
+All participating runners MUST be rebuilt to use cross-process group leases:
+older runners' in-memory gates do not participate. Isolated `/tmp` filesystems,
+different users, and processes that do not use this runner are outside the
+advisory-lock contract.
+<!-- source: internal/test/runner/exclusive.go -- leaseExclusiveGroup, waitExclusiveGroup -->
+<!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
+
 The `plugin` suite is 690 tests and five clusters inside it contend, so serializing
 all of it would cost minutes per QEMU run.
 
