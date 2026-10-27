@@ -380,6 +380,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `tftpserver` | Read-only TFTP file server for PXE boot (RFC 2347 option negotiation) |
 | `imageserver` | HTTP provisioning server for disk images and boot files |
 | `geodns` | GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871) |
+| `dnsresolver` | LAN DNS resolver: answers allowed clients from a TTL-bounded cache and forwards misses to configured upstreams (RFC 1034, RFC 1035, RFC 2181, RFC 2308) |
 | `as112` | AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) |
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
