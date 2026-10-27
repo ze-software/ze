@@ -301,14 +301,18 @@ const workDirPrefix = "ze-work-"
 // takes ./... package patterns that mean nothing outside the module, and `./le`
 // IS a relative path to the script in the repository root. An `le` head is
 // anchored too, except for a harness command (`le test <name>`), which runs in
-// the test's directory as the harness binary did (leHarnessArea). Every other
-// binary a .ci step names is given the test's own directory, so its runtime
-// files land beside the test.
+// the test's directory as the harness binary did (leHarnessArea), and a stand-in
+// server (`le mock <name>`), whose file arguments the test's observer writes
+// beside the test (leMockArea). Every other binary a .ci step names is given the
+// test's own directory, so its runtime files land beside the test.
 func repositoryAnchoredBinary(binName string, args []string) bool {
 	switch binName {
 	case "go", "./le":
 		return true
 	case binNameLE:
+		if leMockArea(args) {
+			return false
+		}
 		return !leHarnessArea(args)
 	}
 	return false

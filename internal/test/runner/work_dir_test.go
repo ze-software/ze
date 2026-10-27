@@ -37,6 +37,27 @@ func TestChildWorkingDirectoryAnchorsOnlyRepositoryTools(t *testing.T) {
 	}
 }
 
+// TestMockServerRunsBesideItsObserver pins where a `le mock` stand-in server
+// runs. The observer fixture writes its release and outage files by bare name in
+// the test's directory, and `le mock rtr --sync-release F` and `--outage-start F`
+// wait for exactly that name. Anchor the mock at the repository root, as it was,
+// and it waits on a file nobody writes: rpki-revalidate-late-sync never synced and
+// rpki-cache-preference-failover never lost its preferred cache.
+func TestMockServerRunsBesideItsObserver(t *testing.T) {
+	r := &Runner{baseDir: "/repo"}
+	rec := &Record{WorkDir: "/scratch/ze-work-1"}
+
+	for _, args := range [][]string{
+		{"mock", "rtr", "--port", "1791", "--sync-release", "rpki-sync.release"},
+		{"mock", "irr", "--port", "1791"},
+	} {
+		require.Equal(t, "/scratch/ze-work-1", r.childWorkingDirectory("le", args, rec),
+			"le %v reads files the test's observer writes beside the test", args)
+	}
+	// The bare namespace word names no server, so it is not a mock this test starts.
+	require.Equal(t, "/repo", r.childWorkingDirectory("le", []string{"mock"}, rec))
+}
+
 // TestRecordWithoutTmpfsStillRunsOutsideTheCheckout is the discriminating half.
 // It runs a record that declares NO tmpfs block, which is the population the
 // defect lived in, and asks the child where it is. Restore the old

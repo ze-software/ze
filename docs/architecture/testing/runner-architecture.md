@@ -512,8 +512,11 @@ peer contract (`peer_contract.go`) validates its block, and a check-mode peer's
 `successful` line governs the result.
 `le test <name>` runs in the test's work directory when `test <name>` is a
 harness command, which the runner reads off registration: under `test`, the
-forwarding commands are the harness commands. Every other `le` head keeps the
-repository root, as `./le` and `go` do.
+forwarding commands are the harness commands. `le mock <name>` runs there too
+(`leMockArea`): a stand-in server's file flags (`le mock rtr --sync-release`,
+`--outage-start`, `--outage-release`) name files the test's observer writes by
+bare name in that directory. Every other `le` head keeps the repository root,
+as `./le` and `go` do.
 
 The runner prepends a shim directory to every child's PATH. It holds `ze` and
 `le` as symlinks to the two binaries above, and nothing else. So
@@ -552,7 +555,7 @@ worktree and pass in a checkout where a developer had built one
 (`plan/journal/gate-verdict-depends-on-the-machine.md`).
 
 <!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
-<!-- source: internal/test/runner/harness_exec.go -- leHarnessArea, droppedFromChild -->
+<!-- source: internal/test/runner/harness_exec.go -- leHarnessArea, leMockArea, droppedFromChild -->
 <!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
 <!-- source: internal/test/fixture/fixture.go -- nativeLEBinary -->
 <!-- source: internal/le/test/functional/binaries.go -- buildCommands, Prepare -->

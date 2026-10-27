@@ -24,6 +24,7 @@ const (
 
 	leTestWord     = "test"
 	leTestPeerWord = "peer"
+	leMockWord     = "mock"
 
 	// binNamePeer is the role name of a step that starts the harness peer,
 	// whichever head spelled it. The peer's stdin route, port and success
@@ -57,6 +58,20 @@ func leHarnessArea(args []string) bool {
 		return false
 	}
 	return leroot.Forwards(leTestWord + " " + args[1])
+}
+
+// leMockArea answers whether the arguments of an `le` head start a stand-in
+// server from the `le mock` namespace. A mock serves one test, and the files
+// its flags name (`le mock rtr --sync-release`, `--outage-start`,
+// `--outage-release`) are the ones that test's observer writes by bare name in
+// its own working directory. Anchored at the repository root, the mock waits on
+// a file nobody writes, so the outage or the release it was told to follow never
+// happens.
+func leMockArea(args []string) bool {
+	if len(args) < 2 {
+		return false
+	}
+	return args[0] == leMockWord
 }
 
 // ownExecutable answers the file of the running process, which is the `le`
