@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -616,8 +617,19 @@ func (pa *PluginAcceptor) acceptLoop() {
 	}
 }
 
+// handleConn authenticates one connect-back and hands it to the waiter for the
+// plugin it names. A panic while it does so is contained here: the connection
+// closes, the semaphore slot is released, and the acceptor keeps serving.
 func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 	defer func() { <-pa.sem }() // Release semaphore slot.
+	defer acceptorPanics().connectBack.Contain(
+		func() taskguard.Context {
+			return taskguard.Context{Unit: "plugin connect-back from " + conn.RemoteAddr().String()}
+		},
+		func(*taskguard.Panic) {
+			conn.Close() //nolint:errcheck,gosec // the panic is the unit's end; a close error adds nothing
+		},
+	)
 
 	authCtx, cancel := context.WithTimeout(pa.ctx, 10*time.Second)
 	defer cancel()
