@@ -5,15 +5,18 @@
 package rpki
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")
@@ -209,17 +212,23 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 	cfg.PeerActions = peerActions
 
-	// Parse cache-server list (YANG list keyed by address)
-	csMap, ok := rpkiMap["cache-server"].(map[string]any)
-	if !ok {
-		return cfg, nil // RPKI section exists but no cache servers
+	// RFC 8210 Section 10: "Preference: An unsigned integer denoting the router's preference
+	// to connect to that cache; the lower the value, the more preferred." The same section
+	// says "In addition, in a router, this list has a non-unique preference value for each
+	// server.", so two caches can tie, and the order the operator wrote them is then the
+	// only order left to try them in.
+	// The cache-server list is `ordered-by user` (yang/ze-rpki.yang) and the delivered
+	// payload is a JSON object, which loses that order once unmarshalled into a Go map, so
+	// configorder.Entries is the reader: it returns the entries in the order the config Tree
+	// recorded, and refuses a list of two or more that arrives without one. startSessions
+	// sorts the result STABLY by preference, which keeps this order among equal values.
+	servers, err := configorder.Entries(rpkiMap, "cache-server", "address")
+	if err != nil {
+		return nil, fmt.Errorf("rpki: %w", err)
 	}
 
-	for addr, serverRaw := range csMap {
-		serverMap, ok := serverRaw.(map[string]any)
-		if !ok {
-			continue
-		}
+	for _, server := range servers {
+		addr, serverMap := server.Key, server.Map
 
 		cs := cacheServerConfig{
 			Address:    addr,
@@ -290,6 +299,21 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// sortCachesByPreference puts servers in the order the RTR sessions are tried, most
+// preferred first. startSessions is its caller, and it sorts in place.
+//
+// RFC 8210 Section 10: "The client router attempts to establish a session with each
+// potential serving cache in preference order", where "Preference: An unsigned integer
+// denoting the router's preference to connect to that cache; the lower the value, the
+// more preferred." The sort is STABLE because the same section calls it "a non-unique
+// preference value", so servers sharing one keep the order parseRPKIConfig read them
+// in, which is the order the operator wrote.
+func sortCachesByPreference(servers []cacheServerConfig) {
+	slices.SortStableFunc(servers, func(a, b cacheServerConfig) int {
+		return cmp.Compare(a.Preference, b.Preference)
+	})
 }
 
 // parseActionLeaf reads a single action enum leaf ("reject"/"log-only"/"accept") from a

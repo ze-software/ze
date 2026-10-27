@@ -109,7 +109,7 @@ this spec (Key Design Decisions, "Owner decision, 2026-10-27").
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - One holder at a time; a switch replaces the set at End of Data and never merges (`TestRTRCacheSwitchKeepsSerialBasesSeparate`).
-- Equal preferences keep the operator's config order (stable sort); RFC 8210 Section 10 allows "a non-unique preference value".
+- Equal preferences keep the operator's config order (stable sort over the order `configorder.Entries` reads); RFC 8210 Section 10 allows "a non-unique preference value".
 - No Data Available moves to the next cache in the same round; with no other cache, periodic Reset Queries (`TestNoDataAvailableKeepsResetQueryMode`).
 - `show bgp rpki status` JSON keys and session order (most preferred first).
 
@@ -422,7 +422,7 @@ Each phase is sized at about 60 tool calls.
 | No Data Available: next cache in the same round | Wait a Retry Interval on the same cache | RFC 8210 Section 8.4: "When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order." rtrlib lists `RTR_ERROR_NO_DATA_AVAIL` among the group-error states. HEAD already does this |
 | Merge for validation: only the active cache's set, never a union | Union across caches with per-record source (BIRD) | Owner decision above. Section 10 permits holding several caches' data but does not require it: "A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data." |
 | Withdraw from one cache when another holds the same VRP | Per-record reference counts per source | Cannot occur: only the holder applies deltas, a new cache's load (withdraws included) is staged until its End of Data and then replaces the whole set (AC-4) |
-| Equal preferences keep config order | Refuse duplicates as FRR's `find_cache` lookup by preference implies | RFC 8210 Section 10: "in a router, this list has a non-unique preference value for each server." HEAD's stable sort already honors it |
+| Equal preferences keep config order | Refuse duplicates as FRR's `find_cache` lookup by preference implies | RFC 8210 Section 10: "in a router, this list has a non-unique preference value for each server." The stable sort (`sortCachesByPreference`) keeps the order `parseRPKIConfig` reads, and that reader now takes the operator's order from `configorder.Entries`; it ranged over the delivered map before, so the sort had no config order to keep. `cache-server` is `ordered-by user`. `TestRFC8210EqualPreferenceCachesKeepConfigOrder` holds it |
 | ASPA follows the holder with the VRPs | Separate selection for ASPA | One session carries both; `draft-ietf-sidrops-8210bis` adds the ASPA PDU to the same session and End of Data |
 
 ## Known Limitations

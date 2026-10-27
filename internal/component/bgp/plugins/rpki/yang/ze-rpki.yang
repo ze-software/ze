@@ -110,6 +110,7 @@ can name a cache server, because the RTR transport is global.";
 
       list cache-server {
         key "address";
+        ordered-by user;
         description "The list key is an IP address or a hostname. Ze tries entries in increasing preference order,
 publishes only a completed cache response, and replaces the selected cache's records atomically.
 An empty list leaves validation off.";

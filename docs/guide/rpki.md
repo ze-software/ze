@@ -130,7 +130,7 @@ root keeps its committed value; an explicitly removed root does not.
 
 | Path | Type | Default | Description |
 |------|------|---------|-------------|
-| `rpki / cache-server <addr>` | list | -- | RTR cache server (keyed by IP/hostname) |
+| `rpki / cache-server <addr>` | list, ordered-by-user | -- | RTR cache server (keyed by IP/hostname); the written order breaks a preference tie |
 | `rpki / cache-server / port` | 1..65535 | 323 TCP, 324 TLS | RTR transport port |
 | `rpki / cache-server / trusted-network` | boolean | false | Explicitly permit unprotected TCP on a trusted, controlled network |
 | `rpki / cache-server / tls / ca-certificate` | string | required with TLS | Named PKI CA for cache authentication |
@@ -146,6 +146,7 @@ root keeps its committed value; an explicitly removed root does not.
 
 Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig, sortCachesByPreference -->
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 
 #### Per-peer and per-group actions

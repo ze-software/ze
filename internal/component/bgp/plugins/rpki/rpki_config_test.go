@@ -52,7 +52,8 @@ func TestRPKISourceAddress(t *testing.T) {
 			"cache-server": {
 				"192.0.2.200": {"trusted-network": "true", "port": "3323", "source-address": "198.51.100.1"},
 				"192.0.2.201": {"trusted-network": "true", "port": "3324"}
-			}
+			},
+			"@cache-server": ["192.0.2.200", "192.0.2.201"]
 		}
 	}`
 
@@ -118,21 +119,19 @@ func TestParseRPKIConfigMultipleServers(t *testing.T) {
 			"cache-server": {
 				"10.0.0.1": {"trusted-network": "true", "port": "3323"},
 				"10.0.0.2": {"trusted-network": "true", "port": "3324", "preference": "200"}
-			}
+			},
+			"@cache-server": ["10.0.0.2", "10.0.0.1"]
 		}
 	}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
-	assert.Len(t, cfg.CacheServers, 2)
+	require.Len(t, cfg.CacheServers, 2)
 
-	// Verify both servers present (order may vary -- map iteration)
-	addrs := map[string]bool{}
-	for _, cs := range cfg.CacheServers {
-		addrs[cs.Address] = true
-	}
-	assert.True(t, addrs["10.0.0.1"])
-	assert.True(t, addrs["10.0.0.2"])
+	// The servers come out in the delivered order, which ToPluginMap records from
+	// the config text, and not in key order.
+	assert.Equal(t, "10.0.0.2", cfg.CacheServers[0].Address)
+	assert.Equal(t, "10.0.0.1", cfg.CacheServers[1].Address)
 }
 
 func TestParseRPKIConfigNoRPKISection(t *testing.T) {

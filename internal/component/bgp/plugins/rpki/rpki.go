@@ -8,7 +8,6 @@
 package rpki
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,7 +16,6 @@ import (
 	"maps"
 	"net"
 	"net/netip"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -512,14 +510,8 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 		return
 	}
 
-	// RFC 8210 Section 10: "The client router attempts to establish a session with each
-	// potential serving cache in preference order", where "Preference: An unsigned integer
-	// denoting the router's preference to connect to that cache; the lower the value, the
-	// more preferred." The sort is STABLE because the same section calls it "a non-unique
-	// preference value", so servers sharing one keep the order the operator wrote.
-	slices.SortStableFunc(cfg.CacheServers, func(a, b cacheServerConfig) int {
-		return cmp.Compare(a.Preference, b.Preference)
-	})
+	// RFC 8210 Section 10
+	sortCachesByPreference(cfg.CacheServers)
 
 	rp.mu.Lock()
 	if rp.dataLease == nil {
