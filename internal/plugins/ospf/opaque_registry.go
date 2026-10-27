@@ -190,14 +190,14 @@ func resetOpaqueConsumers() {
 	opaqueMu.Unlock()
 }
 
-// safeOpaqueCall runs a consumer callback, recovering from a panic so a single bad
-// consumer cannot crash the engine or wedge the LSDB lock (RFC 5250 framework isolation,
-// AC-15/R-9). onPanic increments ze_ospf_opaque_consumer_errors_total.
-func safeOpaqueCall(onPanic, fn func()) {
-	defer func() {
-		if r := recover(); r != nil && onPanic != nil {
-			onPanic()
-		}
-	}()
+// safeOpaqueCall runs a registered consumer's callback inside the engine's consumer
+// boundary, so a single bad consumer cannot crash the engine or wedge the LSDB lock (RFC
+// 5250 framework isolation, AC-15/R-9). Every panic is logged, counted in
+// ze_task_panics_total{component="ospf",task="consumer"} and crash-recorded by the guard;
+// onPanic, which MUST be non-nil, then increments the consumer's own error counter
+// (ze_ospf_opaque_consumer_errors_total, ze_ospf_ext_subtlv_errors_total). unit names the
+// consumer for the log line.
+func safeOpaqueCall(unit string, onPanic, fn func()) {
+	defer enginePanics().consumer.Contain(unitContext(unit), onContained(onPanic))
 	fn()
 }

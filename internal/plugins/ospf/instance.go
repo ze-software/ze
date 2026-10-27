@@ -571,6 +571,7 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	enginePanics().guard.SetMetricsRegistry(reg)
 	e.mu.Lock()
 	e.ifaceMetric = ospfiface.Metrics{
 		InterfaceUp: reg.GaugeVec(

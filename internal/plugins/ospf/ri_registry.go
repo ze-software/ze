@@ -96,18 +96,16 @@ func resetRITLVs() {
 	riTLVMu.Unlock()
 }
 
-// invokeRITLVBuilder runs a registered builder under panic recovery (AC-8/R-6). onPanic
-// increments ze_ospf_ri_tlv_builder_errors_total; a panicking builder contributes no TLVs and
-// the RI LSA is emitted without them, so a single bad consumer cannot wedge origination.
+// invokeRITLVBuilder runs a registered builder inside the engine's consumer boundary
+// (AC-8/R-6): the guard logs, counts and records every panic, then onPanic, which MUST be
+// non-nil, increments ze_ospf_ri_tlv_builder_errors_total. A panicking builder contributes
+// no TLVs and the RI LSA is emitted without them, so a single bad consumer cannot wedge
+// origination.
 func invokeRITLVBuilder(e riTLVEntry, router types.RouterID, onPanic func()) (tlvs []packet.RITLV) {
-	defer func() {
-		if r := recover(); r != nil {
-			tlvs = nil
-			if onPanic != nil {
-				onPanic()
-			}
-		}
-	}()
+	defer enginePanics().consumer.Contain(unitContext("router-information TLV builder"), onContained(func() {
+		tlvs = nil
+		onPanic()
+	}))
 	if e.build == nil {
 		return nil
 	}

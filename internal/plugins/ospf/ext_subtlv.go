@@ -148,7 +148,7 @@ func dispatchExtSubTLV(reg map[uint16]extSubTLVCodec, s packet.ExtSubTLV, onPani
 	if !ok || codec.Receive == nil {
 		return
 	}
-	safeOpaqueCall(onPanic, func() { codec.Receive(s.Value) })
+	safeOpaqueCall("extended sub-TLV consumer", onPanic, func() { codec.Receive(s.Value) })
 }
 
 // buildPrefixSubTLVs returns the sub-TLVs every registered Extended Prefix consumer wants
@@ -171,18 +171,15 @@ func buildExtSubTLVs(reg map[uint16]extSubTLVCodec, ctx extSubTLVContext, onPani
 	return out
 }
 
-// invokeExtSubTLVBuild runs a registered builder under panic recovery (AC-16/R-9): a panicking
-// builder contributes no sub-TLVs and onPanic increments the sub-TLV-error metric, so a single
-// bad consumer cannot wedge origination.
+// invokeExtSubTLVBuild runs a registered builder inside the engine's consumer boundary
+// (AC-16/R-9): the guard logs, counts and records every panic, the builder contributes no
+// sub-TLVs, and onPanic, which MUST be non-nil, increments the sub-TLV-error metric, so a
+// single bad consumer cannot wedge origination.
 func invokeExtSubTLVBuild(codec extSubTLVCodec, ctx extSubTLVContext, onPanic func()) (out []packet.ExtSubTLV) {
-	defer func() {
-		if r := recover(); r != nil {
-			out = nil
-			if onPanic != nil {
-				onPanic()
-			}
-		}
-	}()
+	defer enginePanics().consumer.Contain(unitContext("extended sub-TLV builder"), onContained(func() {
+		out = nil
+		onPanic()
+	}))
 	if codec.Build == nil {
 		return nil
 	}
@@ -196,7 +193,13 @@ func renderExtSubTLV(reg map[uint16]extSubTLVCodec, s packet.ExtSubTLV) string {
 	if !ok || codec.Render == nil {
 		return ""
 	}
-	var out string
-	safeOpaqueCall(nil, func() { out = codec.Render(s.Value) })
-	return out
+	return renderExtSubTLVValue(codec, s)
+}
+
+// renderExtSubTLVValue runs a registered Render inside the engine's show-decode boundary:
+// the guard logs, counts and records every panic, and the empty answer makes the caller
+// fall back to type/length/hex.
+func renderExtSubTLVValue(codec extSubTLVCodec, s packet.ExtSubTLV) (out string) {
+	defer enginePanics().showDecode.Contain(unitContext("extended sub-TLV renderer"), onContained(func() { out = "" }))
+	return codec.Render(s.Value)
 }

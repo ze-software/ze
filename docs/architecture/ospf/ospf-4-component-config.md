@@ -76,6 +76,24 @@ lifecycle callbacks, transport enrollment and config validation.
   needs. Re-reading costs two sysfs reads per interface, beside the netlink
   address dumps `lsdbTopology` already performs on the same pass.
   <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceLinkSpeedMbps -->
+- **Every recover in the engine goes through the engine's taskguard, so no panic
+  is silent.** A registered consumer's callback (opaque consumer, Router
+  Information TLV builder, Extended Link or Prefix sub-TLV codec) runs in the
+  `consumer` task, and a show-command decoder or renderer in the `show-decode`
+  task. The guard logs the panic at ERROR with its stack, counts it in
+  `ze_task_panics_total{component="ospf"}` and writes a crash record, then the
+  caller drops that one contribution and steps its own error counter. Before,
+  a caller with no counter to hand (the sub-TLV renderer) swallowed the panic
+  with no trace. These recovers isolate the consumer, not a neighbor, so they
+  stay beside the receive boundary rather than replacing it.
+  <!-- source: internal/plugins/ospf/panic_guard.go -- enginePanics, onContained -->
+- **The receive worker never holds `e.mu` without `defer` across a lookup keyed
+  by peer input.** The interface demux (`receiveTarget`), the authentication
+  lookup (`enrolledInterfaceName`), the Grace-LSA lookups (`interfaceDRIs`,
+  `runningInterface`) and the virtual-link send route (`virtualLinkRoute`) each
+  unlock by `defer`, so a panic contained at the worker's boundary cannot leave
+  the engine's mutex held and wedge every later packet, timer and show command.
+  <!-- source: internal/plugins/ospf/instance.go -- receiveTarget, enrolledInterfaceName -->
 
 ## Constraints on callers
 

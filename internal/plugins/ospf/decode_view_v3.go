@@ -253,14 +253,13 @@ func (e *engine) decodeV3Body(row *v3DetailLSA, v ospflsdb.NativeLSAView) {
 	row.Decoded = decoded
 }
 
-// safeV3Decode re-parses the raw LSA through the v3 codec and runs the typed decoder under
-// a recover wrapper (bound-checked codec + recover: a malformed body cannot crash).
+// safeV3Decode re-parses the raw LSA through the v3 codec and runs the typed decoder inside
+// the engine's show-decode boundary (bound-checked codec + guard: a malformed body cannot
+// crash): the guard logs, counts and records a panic, reported as errDecodePanicked.
 func safeV3Decode(fn v3DetailDecoderFn, raw []byte) (v any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			v, err = nil, errDecodePanicked
-		}
-	}()
+	defer enginePanics().showDecode.Contain(unitContext("OSPFv3 LSA detail decoder"), onContained(func() {
+		v, err = nil, errDecodePanicked
+	}))
 	lsa, derr := ospfv3packet.DecodeLSA(raw)
 	if derr != nil {
 		return nil, derr

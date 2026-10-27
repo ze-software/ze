@@ -101,14 +101,13 @@ type opaqueDetailDatabase struct {
 	OpaqueDetail []opaqueDetailLSA `json:"opaque-detail"`
 }
 
-// safeOpaqueDetailDecode runs a typed decoder under a recover wrapper so a panicking
-// decoder cannot crash the engine (AC-24). A panic is reported as an error.
+// safeOpaqueDetailDecode runs a typed decoder inside the engine's show-decode boundary so a
+// panicking decoder cannot crash the engine (AC-24): the guard logs, counts and records the
+// panic, and it is reported to the caller as errDecodePanicked.
 func safeOpaqueDetailDecode(fn opaqueDetailDecoderFn, body []byte) (v any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			v, err = nil, errDecodePanicked
-		}
-	}()
+	defer enginePanics().showDecode.Contain(unitContext("opaque LSA detail decoder"), onContained(func() {
+		v, err = nil, errDecodePanicked
+	}))
 	return fn(body)
 }
 

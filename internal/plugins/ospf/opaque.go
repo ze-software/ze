@@ -139,7 +139,7 @@ func (e *engine) deliverOpaque(d ospflsdb.OpaqueDelivery) {
 		Reachable:         reachable,
 		Withdrawn:         d.Withdrawn,
 	}
-	safeOpaqueCall(func() { e.opaque.consumerEr.With(label).Inc() }, func() { consumer.onReceive(rcv) })
+	safeOpaqueCall("opaque consumer "+label, func() { e.opaque.consumerEr.With(label).Inc() }, func() { consumer.onReceive(rcv) })
 }
 
 // originateOpaqueLSAs invokes every registered consumer's OnOriginate and installs +
@@ -155,7 +155,7 @@ func (e *engine) originateOpaqueLSAs(router types.RouterID) {
 		}
 		label := opaqueTypeLabel(c.opaqueType)
 		var reqs []opaqueOrigination
-		safeOpaqueCall(func() { e.opaque.consumerEr.With(label).Inc() }, func() { reqs = c.onOriginate(router) })
+		safeOpaqueCall("opaque consumer "+label, func() { e.opaque.consumerEr.With(label).Inc() }, func() { reqs = c.onOriginate(router) })
 		for _, req := range reqs {
 			// A per-origination Scope overrides the consumer's registered scope when set
 			// (RFC 5392 sec 3.1.1 inter-AS TE floods some links Type 10, others Type 11);
