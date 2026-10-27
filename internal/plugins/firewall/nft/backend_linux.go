@@ -186,6 +186,18 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 		sets[tbl.Sets[i].Name] = ns
 	}
 
+	// Flowtables are added before any rule for the same reason as the chains
+	// below: a flow_offload expression names its flowtable, and the kernel
+	// resolves that name when it adds the rule (nft_flow_offload_init calls
+	// nft_flowtable_lookup on the rule's table, net/netfilter/nft_flow_offload.c
+	// in 7.2.9). A flowtable that follows the rule in the batch is not yet in
+	// the table, so the rule, and with it the whole batch, fails with ENOENT.
+	for i := range tbl.Flowtables {
+		if err := b.applyFlowtable(t, &tbl.Flowtables[i]); err != nil {
+			return fmt.Errorf("flowtable %q: %w", tbl.Flowtables[i].Name, err)
+		}
+	}
+
 	// Every chain is added before any rule. A jump or goto names its target
 	// chain, and the kernel resolves that name when it adds the rule, so a
 	// rule in one chain that jumps to a chain listed after it is refused
@@ -201,12 +213,6 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 	for i := range tbl.Chains {
 		if err := b.addChainRules(t, sets, chains[i], &tbl.Chains[i]); err != nil {
 			return fmt.Errorf("chain %q: %w", tbl.Chains[i].Name, err)
-		}
-	}
-
-	for i := range tbl.Flowtables {
-		if err := b.applyFlowtable(t, &tbl.Flowtables[i]); err != nil {
-			return fmt.Errorf("flowtable %q: %w", tbl.Flowtables[i].Name, err)
 		}
 	}
 

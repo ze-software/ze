@@ -28,12 +28,17 @@ CONFIG_NFT_REDIR
 CONFIG_NFT_LIMIT
 CONFIG_NFT_LOG
 CONFIG_NFT_REJECT
+CONFIG_NF_FLOW_TABLE
+CONFIG_NF_FLOW_TABLE_INET
+CONFIG_NFT_FLOW_OFFLOAD
 
 # The list above is derived, not chosen: it is every nft expression the backend
 # emits that still has a Kconfig symbol of its own in 7.x. `expr.Ct`, `expr.NAT`,
-# `expr.Masq`, `expr.Redir`, `expr.Limit`, `expr.Log` and `expr.Reject` all appear
-# in internal/plugins/firewall/nft, and every one of those symbols is tristate, so
-# every one can silently answer =m.
+# `expr.Masq`, `expr.Redir`, `expr.Limit`, `expr.Log`, `expr.Reject` and
+# `expr.FlowOffload` all appear in internal/plugins/firewall/nft, and every one of
+# those symbols is tristate, so every one can silently answer =m. The backend
+# also creates flowtable objects (applyFlowtable), which NF_FLOW_TABLE and
+# NF_FLOW_TABLE_INET provide; both are tristate too.
 #
 # Deliberately NOT pinned, so the next reader does not read the gap as an
 # oversight:
