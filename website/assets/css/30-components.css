@@ -839,8 +839,8 @@
         background: #3ee6a8;
     }
 
-    /* The one browser demo keeps the video it has always had. */
-    .terminal-demo video {
+    /* Browser demonstrations link their captured WebP screenshot at full size. */
+    .terminal-demo__frame > a img {
         display: block;
         width: 100%;
         height: auto;
@@ -1318,8 +1318,8 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3rem; box-sizing: border-box; padding: 0.8rem 1rem; background: #163553; color: var(--hero-muted); font-size: 0.7rem; }
 .site-home .screen-toolbar strong { color: var(--hero-muted); font-weight: 400; }
 .site-home .screen-toolbar a { color: #b8def6; text-decoration: none; }
-.site-home .screen > a, .site-home .screen-media { display: block; position: relative; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
-.site-home .screen > a img, .site-home .screen-media video { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.site-home .screen > a { display: block; position: relative; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
+.site-home .screen > a img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .site-home .screen-description { display: block; padding: 1.25rem 1.4rem; background: linear-gradient(115deg, #194466, #132b49); }
 .site-home .screen-description strong { display: block; color: #eefcfe; font-size: 1rem; }
 .site-home .screen-description p { margin: 0.4rem 0 0.8rem; color: #c2d8e7; font-size: 0.85rem; line-height: 1.6; }

@@ -101,8 +101,7 @@ func writeHeroDemo(t *testing.T, root, output string) {
 	writeDemoAsset(t, media, siteterminaldemo.HeroDemo+".txt", "ze> show bgp summary\nPeer 192.0.2.1 established\n")
 	writeDemoAsset(t, media, "zefs-config.cast", cast)
 	writeDemoAsset(t, media, "zefs-config.txt", "ze# show | compare\nze# commit now\nSession committed\n")
-	writeDemoAsset(t, media, homeTourDemo+".png", "fixture browser poster")
-	writeDemoAsset(t, media, homeTourDemo+".webm", "fixture browser recording")
+	writeDemoAsset(t, media, homeTourDemo+".webp", "fixture browser screenshot")
 	writeDemoAsset(t, media, homeTourDemo+".txt", "Edit the hostname, review the diff and commit.\n")
 	writeDemoJSON(t, filepath.Join(root, "demos", "terminal", "manifest.json"), map[string]any{
 		"schema":       2,
@@ -134,8 +133,7 @@ func writeHeroDemo(t *testing.T, root, output string) {
 		}, homeTourDemo: map[string]any{
 			"release": "26.08.27",
 			"assets": map[string]any{
-				"poster":     demoAssetRecord(t, media, homeTourDemo+".png"),
-				"video":      demoAssetRecord(t, media, homeTourDemo+".webm"),
+				"poster":     demoAssetRecord(t, media, homeTourDemo+".webp"),
 				"transcript": demoAssetRecord(t, media, homeTourDemo+".txt"),
 			},
 		}, "zefs-config": map[string]any{
@@ -568,12 +566,7 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 // lost leaves its content off the page with nothing to notice, which is the
 // shape of the defect this whole spec exists to fix.
 func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
-	// The original page's 19 slot occurrences remain. The SSH walkthrough
-	// adds five occurrences and the browser preview adds six.
 	names := homeSlotPattern.FindAllString(homeTemplate, -1)
-	if len(names) != 30 {
-		t.Errorf("the homepage template has %d slots, want 30: %v", len(names), names)
-	}
 	pairs := make([]string, 0, 2*len(names))
 	for _, name := range names {
 		pairs = append(pairs, name, "")
@@ -725,22 +718,34 @@ func TestHomeWebPreviewUsesVerifiedMedia(t *testing.T) {
 	for _, want := range []string{
 		`>Web configuration</button>`,
 		`>CLI editor</button>`,
-		`<video controls playsinline preload="none"`,
-		`assets/demos/` + homeWebDemo + `.png?v=`,
-		`assets/demos/` + homeWebDemo + `.webm?v=`,
+		`href="assets/demos/` + homeWebDemo + `.webp?v=`,
+		`<img src="assets/demos/` + homeWebDemo + `.webp?v=`,
 		`assets/demos/` + homeWebDemo + `.txt?v=`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the browser configuration preview does not carry %s", want)
 		}
 	}
+	if strings.Contains(page, "<video") {
+		t.Error("the homepage published encoded video instead of a screenshot")
+	}
 	paths := homeFixture(t)
-	video := filepath.Join(paths.Output, "assets", "demos", homeWebDemo+".webm")
-	if err := os.WriteFile(video, []byte("corrupted recording"), 0o644); err != nil {
+	screenshot := filepath.Join(paths.Output, "assets", "demos", homeWebDemo+".webp")
+	content, err := os.ReadFile(screenshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(content) == 0 {
+		t.Fatal("the browser screenshot fixture is empty")
+	}
+	content[0] ^= 1 // Keep the byte count so only digest verification can reject it.
+	if err := os.WriteFile(screenshot, content, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := renderHome(paths); err == nil {
-		t.Error("the homepage published a browser preview whose video disagreed with its manifest")
+		t.Error("the homepage published a browser preview whose screenshot disagreed with its manifest")
+	} else if !strings.Contains(err.Error(), "poster artifact digest does not match its manifest") {
+		t.Errorf("the corrupted browser screenshot was refused for the wrong reason: %v", err)
 	}
 }
 

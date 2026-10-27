@@ -413,16 +413,16 @@ are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The
 selector reserves one shared media frame and the tallest caption, so switching
 interfaces never moves the hero. Inactive panels are invisible and inert, while
-all panels remain visible without JavaScript. The Web configuration tab replays
-the verified browser recording, with its manifest-derived poster, video and
-transcript links. Switching away pauses its video. The CLI editor and CLI
+all panels remain visible without JavaScript. The Web configuration tab shows
+the verified WebP screenshot of the committed hostname, with its
+manifest-derived full-size and transcript links. The CLI editor and CLI
 dashboard remain genuine static captures with no player controls burned in.
-The full manifest-derived replay precedes these previews in the opening hero,
-with its transcript link and `recording-title` anchor. `HeroDemo` in
-`internal/le/site/terminaldemo/readme_carrier.go` selects the recording for both
-the homepage and the measured README-carrier action. The selector never replaces
-that replay or transcript. The carrier workflow and its required GitHub
-observations are in `docs/contributing/gh-pages.md`, "README recording carrier".
+The full manifest-derived terminal replay precedes these previews in the opening
+hero, with its transcript link and `recording-title` anchor. `HeroDemo` in
+`internal/le/site/terminaldemo/types.go` selects the recording for both
+the homepage and the README screenshot link. The selector never replaces
+that replay or transcript. Screenshots use WebP; terminal playback uses the
+captured `.cast` events. Encoded video and animated README carriers are not used.
 The replay heading uses solid hero text rather than the page-title gradient,
 which is too dark against the blue hero in light mode.
 The category overview derives every
@@ -431,7 +431,7 @@ The documentation section explains how YANG and command definitions keep the
 reference aligned with the documented build. Its introduction sits to the right
 of its heading on desktop. Direct configuration, command and plugin reference
 cards precede the feature directory. Both groups share the run cards' neutral
-surfaces and spacing, with a category-coloured background behind the compact
+surfaces and spacing, with a category-colored background behind the compact
 name only. Feature links appear one per line, without removing any destinations.
 Its management explanation states that Ze runs its own SSH service and CLI,
 without relying on a host SSH service or shell.

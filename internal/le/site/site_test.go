@@ -44,12 +44,12 @@ func TestResolvePathsRejectsInTreeOutput(t *testing.T) {
 
 // VALIDATES: every former source-only family stays out of deployment.
 func TestSourceOnlyBoundary(t *testing.T) {
-	for _, name := range []string{"tools/build.go", "assets/css/site.css", "blog/posts/a.md", "presentations/tools/bundle.go", "faq/faq.md"} {
+	for _, name := range []string{"tools/build.go", "assets/css/site.css", "blog/posts/a.md", "presentations/tools/bundle.go", "faq/faq.md", "assets/demos/browser.webm", "assets/demo.MP4"} {
 		if !isSourceOnly(name) {
 			t.Errorf("%s escaped the source-only boundary", name)
 		}
 	}
-	for _, name := range []string{"faq/index.html", "assets/site.css", "blog/index.html", "CNAME"} {
+	for _, name := range []string{"faq/index.html", "assets/site.css", "blog/index.html", "CNAME", "assets/demos/session.cast", "assets/demos/browser.webp"} {
 		if isSourceOnly(name) {
 			t.Errorf("%s was incorrectly source-only", name)
 		}

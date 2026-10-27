@@ -113,13 +113,6 @@ func actionTable() leaction.Area {
 				{Keyword: renderAll, Kind: leaction.KindSwitch, Help: "re-record every website demo"},
 			},
 			AnswerArgs: runRender},
-		leaction.Action{Verb: "readme-carrier", Summary: "render or select the recorded hero's README carrier", Why: "measure real SVG, video and thumbnail candidates, then select only from recorded GitHub observations",
-			Writes: true,
-			Parameters: []leaction.Parameter{
-				{Keyword: "output", Kind: leaction.KindPath, Help: "candidate directory; must be new when rendering", Value: "directory", Requirement: leaction.Required},
-				{Keyword: "probe", Kind: leaction.KindPath, Help: "observed GitHub results; omit to render candidates", Value: "file", Requirement: leaction.Optional},
-			},
-			AnswerArgs: runReadmeCarrier},
 		leaction.Action{Verb: ptyVerb, Does: "run", Summary: "record one tape or drive a program through a PTY", Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
 			AnswerWords: runPTYAction},
 	)

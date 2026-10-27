@@ -8,14 +8,18 @@ journey: Evaluate
 
 These recordings run real Ze commands against isolated local fixtures. Each checked-in tape file defines every keystroke, pause, and terminal size. A release can therefore regenerate the recordings when Ze changes.
 
-A terminal demo is an asciicast. The page replays it as text, so you can select a command and copy it. The one browser demo stays a video. The recordings use no public service, and the player is served from this site.
+A terminal demo is an asciicast. The page replays terminal events as selectable
+text, so you can copy a command. The browser demonstration uses a WebP screenshot
+and a transcript, not encoded video. The recordings use no public service, and
+the terminal player is served from this site.
+<!-- source: internal/le/site/demo.go -- demoKindAssets, renderDemoHTML -->
 
 Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without replaying the recording.
 
 ## Continuous live configuration showcase
 
 One independently recorded session starts with ExaBGP migration and the live BGP
-dashboard. The migration preserves the neighbour's identity, local and remote
+dashboard. The migration preserves the neighbor's identity, local and remote
 AS numbers, and configured hold time. The session then loads, proves, diagnoses
 and repairs eight features on the same running Ze daemon. Each topic below uses
 the same configuration and demonstration fragments as this continuous recording.

@@ -19,6 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+// HeroDemo selects the terminal recording shown on the homepage and linked by the README.
+const HeroDemo = "showcase"
+
 const (
 	manifestSchema  = 2
 	lockWaitDefault = 2 * time.Hour
@@ -28,8 +31,6 @@ const (
 	kernelCheckTimeout     = 3 * time.Minute
 	renderSpeedup          = 5
 	renderTypingSpeedMS    = 25
-	outputWidth            = 1680
-	outputHeight           = 1008
 	rendererValidateMode   = "validate"
 	rendererRenderMode     = "render"
 	rendererImageBuildMode = "image-build"
@@ -64,9 +65,8 @@ type Command struct {
 }
 
 // Executor runs one external command and returns its process exit code.
-// The renderer invokes ffmpeg and the Go toolchain through it, because those
-// external implementations are the behavior these gates exercise; every
-// Docker operation goes through interoplab.Docker instead.
+// The renderer invokes the Go toolchain through it. Every Docker operation
+// goes through interoplab.Docker instead.
 type Executor func(Command) int
 
 // PathLookup resolves a required host binary.

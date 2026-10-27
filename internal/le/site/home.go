@@ -18,7 +18,7 @@ func init() {
 	registerProducer(Producer{Name: homeProducerName, Render: renderHome})
 }
 
-// Where the homepage is published, and which recording it replays.
+// Where the homepage is published, and which demonstrations it presents.
 const (
 	homeProducerName = "home"
 	homeRoute        = "/"
@@ -26,9 +26,9 @@ const (
 	// homeRoot is empty because the homepage IS the site root, so every link
 	// it carries is already relative to itself.
 	homeRoot = ""
-	// homeTourDemo is the recording the hero's "Watch a demo" action opens.
+	// homeTourDemo is the demonstration the hero's "Watch a demo" action opens.
 	homeTourDemo = homeWebDemo
-	// homeWebDemo supplies the hero's browser configuration preview and video.
+	// homeWebDemo supplies the browser configuration screenshot and transcript.
 	homeWebDemo = "web-config"
 	// homeManagementDemo starts at the SSH introduction in the recorded session.
 	homeManagementDemo  = "zefs-config"
@@ -207,7 +207,7 @@ func homeMirror(page string) (string, error) {
 }
 
 // homeHeroSlots answers the homepage's demonstration slots from the selected
-// recordings and their manifest entries. The management walkthrough keeps the
+// demonstrations and their manifest entries. The management walkthrough keeps the
 // complete session available but opens at its SSH introduction.
 func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 	mount, err := catalog.heroMount(siteterminaldemo.HeroDemo)
@@ -254,7 +254,6 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 		"{hero_demo_transcript}", html.EscapeString(transcript),
 		"{tour_demo_href}", html.EscapeString(tour),
 		"{web_demo_poster}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoPoster)),
-		"{web_demo_video}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoVideo)),
 		"{web_demo_transcript}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoTranscript)),
 		"{management_demo}", management,
 		"{management_demo_start}", homeManagementStart,

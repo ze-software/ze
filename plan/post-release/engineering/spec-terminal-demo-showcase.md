@@ -8,9 +8,9 @@
 | Blocked by | - |
 | Scope | tooling \| docs |
 | Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10); Linux kernel/VPN runtime proof before recording. Full `spec-appliance-kernel-vpn-modules` closure is no longer a sequencing prerequisite; its Mac acceptance remains owed |
-| Phase | 3/7 — completing the shared lab and recording/publication path |
+| Phase | 3/7 — WebP screenshots and terminal playback cutover; editorial acceptance and closure remain open |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-27 |
 
 ## Task
 
@@ -32,17 +32,42 @@ approximately-seven-minute target. Keep the accepted continuous recording at its
 measured 1,307.333538 seconds (21 minutes 47 seconds); do not shorten, retime or
 replace its explanations with a selective overview.
 
-The native showcase validator and artifact verification passed. Canonical site
-generation and checks passed, followed by actual homepage playback, transcript
-navigation, light/dark and narrow layouts, keyboard operation, reduced motion,
-no-JavaScript fallbacks and native browser 200% page zoom. The four interface
-previews, browser video, full-size captures and SSH walkthrough remain available.
+The owner's later presentation decision supersedes the encoded-media probe:
+use WebP screenshots alongside lightweight terminal-event playback. Do not
+publish encoded videos on the website, store them in the repository or generate
+them in CI/CD. The README uses a WebP screenshot linked to the site player, not
+an MP4 or large animated SVG. Keep terminal players and the information in the
+four interface previews; replace the browser video with a screenshot and its
+full-size view.
 
-The strict README-carrier action produced the actual recording's SVG, MP4 and
-PNG candidates, but GitHub playback is still unobserved and no carrier has been
-selected. No upload, push or deployment is authorized by the duration decision.
-The retained receipts are the session's `scratch/site-acceptance-final.json`,
-`scratch/carrier-showcase-final/carrier.json`, canonical build/check logs and
+Before this cutover, native recording validation, artifact verification,
+canonical site generation and checks passed. Homepage playback, transcript
+navigation, light/dark and narrow layouts, keyboard operation, reduced motion,
+no-JavaScript fallbacks and native browser 200% page zoom were observed. Those
+receipts do not prove the later WebP cutover or close editorial AC-17.
+
+The WebP cutover subsequently passed the canonical `site build` and `site check`
+using `bin/le-orchestration-webp/le`. The actual local site retained all four
+full-size previews, the 21:47 showcase and the 0:36 SSH player. Desktop, mobile,
+light/dark, keyboard, no-JavaScript, reduced-motion and native 200% zoom checks
+are recorded in the session's `scratch/site-webp-acceptance.json`. No encoded
+video remained in the generated checkout. The README screenshot is 10,788 bytes;
+its image and local player destination resolved. The public site has not been
+updated, so this is local acceptance, not deployment evidence or AC-17 closure.
+
+The terminal-demo package passed its race-enabled checks (10.436 seconds).
+The site package run reached its aggregate ten-minute timeout while processing
+the RFC compliance index; it is not a passing package result. The separately
+selected `TestSourceOnlyBoundary` passed with the race detector (1.150 seconds).
+The conversion receipt `scratch/webp-conversion-evidence-1161801814/completed.json`
+records identical decoded browser/README pixels, preservation of the other 19
+captures, and unchanged historical source, binary and release identities.
+
+The earlier SVG, MP4 and PNG carrier candidates are superseded; GitHub video
+playback is no longer an acceptance gate. No upload, push or deployment is
+authorized. Prior receipts remain in the session's
+`scratch/site-acceptance-final.json`, `scratch/carrier-showcase-final/carrier.json`,
+canonical build/check logs and
 `scratch/job-showcase-record-continuous-preflight-resumed-3-3ef3ded9.log`.
 
 
@@ -56,7 +81,7 @@ The retained receipts are the session's `scratch/site-acceptance-final.json`,
 | AC-6 | Any id in `demos/terminal/manifest.json` | It resolves to exactly one registered scenario carrying a runner and a validator; `runScenario`'s switch and the `demoValidators` literal map no longer exist; an id with no registration is refused by name |
 | AC-7 | Each topic's typed config and demonstration | Exist once, as fragments that both the topic tape and the showcase tape source; each topic's checks exist once, as a Go function both validators call |
 | AC-8 | Home page build | The hero is the `showcase` recording; its file name, caption and transcript anchor come from `HeroDemo` plus the manifest entry, and `homebody.go` names no demo id, file or anchor literally |
-| AC-9 | README carrier action, run on the recorded super | Produces the carrier the probe proved (inline SVG or a GitHub-playable video, within GitHub's size limits) or, failing both, a thumbnail image; README line 8 embeds it, linking to the site player's anchor; the measured sizes and the result of the inline-render check are recorded in this spec |
+| AC-9 | README presentation | README line 8 embeds a WebP screenshot of the actual continuous showcase, linked to the site player's manifest-derived anchor. Record its measured size and verify that the image and destination resolve. No encoded-video or animated-SVG carrier, upload or GitHub playback probe is required |
 | AC-10 | Gallery and feature pages | `docs/guide/terminal-demonstrations.md` carries one heading and marker per topic recording and one for the super; each topic recording is embedded on its feature page through `page` + `anchor`, the IPsec one on `docs/guide/ipsec.md` |
 | AC-11 | Showcase validator | Runs chapters 0 to 9's checks in order against ONE daemon whose process id never changes, each chapter's absence check before its commit and its proof after |
 | AC-12 | The replaced single-feature demos (per Owner question 1) | Their tapes, prepared `ze.conf` files, runners, validators and cards are deleted; no page marker names a deleted id; the published asset of a deleted id is removed from gh-pages by the publish action |
@@ -124,8 +149,8 @@ if github can have it embedded that would be ideal".
 | Chapters | As listed below, in that order |
 | Recordings (amendment) | One recording per topic (chapters 2 to 9) plus one super-recording. The super is a separate continuous session, recorded on its own, not stitched from nor sliced into the topic casts |
 | Topic placement (amendment) | Each topic recording on its feature's doc page AND in the demo gallery `docs/guide/terminal-demonstrations.md` |
-| Super placement (amendment) | Home is the site (asciinema player). The GitHub README embeds the super inline if GitHub can render it (animated SVG, or a video GitHub plays in markdown) within GitHub's size limits; otherwise the README shows a thumbnail linking to the site player. The carrier is a measured outcome of a Work Plan probe, not an owner question (R-4) |
-| Length | Superseded by the owner's **Complete 22-minute showcase** selection above. Use the measured 21m47s continuous recording. The README carries this same super-recording, inline or as a linked thumbnail; no separate short cut |
+| Super placement (amendment) | Superseded by the current presentation decision above: the site keeps the terminal-event player; the README uses a WebP screenshot linked to it. The earlier SVG/video probe is no longer required |
+| Length | Superseded by the owner's **Complete 22-minute showcase** selection above. Use the measured 21m47s continuous recording. The README links to this same recording; no separate short cut |
 | Front page | Switch the hero from cli-dashboard to the super-recording (the earlier decision stands) |
 | Configuration style | Superseded at design review by `docs/contributing/terminal-demos.md`, decision 1, and its "Recordings" section (a live commit that fails to enable a feature is a Ze defect) |
 
@@ -303,8 +328,8 @@ below are kept as asked.
    - one topic scenario per chapter 2 to 9 (RPKI, IRR, BFD, OSPF, IPsec, VRRP tracking, eBPF traffic, commit-confirmed), each starting from the base lab and typing its topic live. Seven topics already have a single-feature demo (`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `vrrp-failover`, `traffic-anomaly`, `commit-confirmed`) that loads a prepared `demos/terminal/<id>/ze.conf` instead of typing it, and `vrrp-failover` shows failover, not tracking. Whether each topic recording replaces its existing demo or sits beside it is settled at design (`ai/rules/no-layering.md` favours replacing). IPsec has no demo today;
    - the `showcase` super scenario, all chapters in one session, driven from the same per-topic declarations (R-5).
 4. Hero: derive the front-page demo, caption and anchor from one declaration (`homeHeroDemo` plus manifest), then point it at the super.
-5. README carrier probe, once the super is recorded: render the super as an animated SVG and measure its size; test whether GitHub renders it inline in the README, and likewise a video GitHub plays in markdown; check each against GitHub's size limits. Record the measurements in this spec.
-6. README: embed the super inline with the carrier the probe proved; when neither renders within limits, show a thumbnail linking to the site player. Its producer is a native `./le` action (`internal/le/site/...`), not a hand recipe. Reword README line 10.
+5. README screenshot: derive a WebP image from the actual showcase, measure its size and verify the image and the manifest-derived player destination. The owner's current presentation decision supersedes the SVG/video probe.
+6. README: embed that screenshot linked to the site player and reword line 10. Retire the encoded-media carrier generator, selector and automated README-replacement path.
 7. Gallery: `docs/guide/terminal-demonstrations.md` (the manifest's `gallery-page`) lists each topic recording by name, and the super.
 8. Feature pages: embed each topic recording in its feature doc page through the manifest's per-demo `page` and `anchor` (today `guide/rpki.md`, `guide/irr-filtering.md`, `guide/bfd.md`, `guide/ospf.md`, `guide/vrrp.md`, `guide/traffic-usage.md`, `guide/config-editor.md`; the new IPsec recording goes on `guide/ipsec.md`).
 
@@ -315,7 +340,7 @@ below are kept as asked.
 | R-1 | A feature does not enable on a live commit | Fix in Ze (owner decision 5) |
 | R-2 | Render host kernel lacks esp4/xfrm_interface | Load in container; else record where available; appliance spec covers the product side |
 | R-3 | Long session flakes (plugin stage stall under load seen 2026-10-08) | Per-chapter waits on output; journal and fix the stall if it recurs |
-| R-4 | A 7 minute animated SVG is likely too large for GitHub to render (a 58 s cast gave 96 KB; 7 minutes is several MB) | Not an owner question: a measured outcome. Work Plan step 5 measures the SVG and tests inline rendering (SVG, then a video GitHub plays in markdown); if neither renders within GitHub's limits, the fallback is a README thumbnail linking to the site player |
+| R-4 | Large encoded media bloats the repository and CI work | The owner superseded the carrier probe: publish WebP screenshots and lightweight terminal-event playback, with no CI video generation |
 | R-5 | Each topic is recorded twice, as its own cast and as a super chapter, and the two drift (config lines, commands, expected output) | Declare each topic's typed config and demonstration once and drive both recordings from it. No such declaration exists today: a manifest `Demo` (`internal/le/site/terminaldemo/types.go`) carries only id, title, description, page, anchor, platform, kind, engine, source tape, validate id, duration and flags; the config is a per-demo `demos/terminal/<id>/ze.conf` loaded at prepare, the steps are that demo's `demo.tape`, and each validator in `demoValidators` is a Go function keyed by demo id that starts its own runner. The tape format has an include (every tape opens with `Source common.tape`), so a per-topic tape fragment sourced by both the topic tape and the showcase tape is one candidate; each topic's validator checks must likewise be one function that both validators call |
 
 #### Work Not Done (owned elsewhere)
@@ -396,7 +421,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | R-8 | Typed IPsec config is long; the super exceeds its length or drags | measured duration in the artifact manifest | keep each topic's typed lines to the minimum that enables it (groups pre-named, one peer); the base lab may carry PKI material files the config only references |
 | R-9 | A topic validator passes against the boot config rather than the live commit (vacuous) | validator never started a daemon without the topic | AC-2 requires each topic scenario's daemon to start with the base config only, and its validator to assert the topic was ABSENT before the commit |
 | R-10 | Replacing the seven demos drops what a replaced one showed (VRRP failover by daemon kill; IRR offline staging) | gallery diff review | the topic recording covers the feature's operator story; failover-by-kill is not kept (no-layering) |
-| R-11 | The README carrier works on github.com today and breaks later (size or sanitiser change) | the README image stops rendering | the fallback thumbnail-and-link is always produced by the same `./le` action, so switching is one README line |
+| R-11 | The README screenshot or its player destination stops resolving | the image or link fails | Verify the WebP image and manifest-derived destination; no SVG/video fallback |
 | R-12 | Hidden far-end Ze leaks into the recording (its logs or prompts) | screenshot review | the far end runs detached with logs to the state dir, started by the lab runner, never by the tape |
 
 #### Blast Radius
@@ -422,7 +447,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | SSH editor `commit` adding IRR config to a running daemon | → | `bgp-filter-irr` verify/apply handlers | `test/reload/bgp-filter-irr-added-live.ci` |
 | SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic validator: `validateTopicRPKI`, `validateTopicIRR`, `validateTopicBFD`, `validateTopicOSPF`, `validateTopicIPsec`, `validateTopicVRRPTracking`, `validateTopicTrafficUsage`, `validateTopicCommitConfirmed` |
 | Site build home page | → | `heroMount` with `homeHeroDemo` = `showcase`, caption and anchor from the manifest | `TestHomeHeroDerivesFromTheManifest` |
-| README asset action | → | the new `./le` README-carrier action | `TestReadmeCarrierIsProducedFromTheHeroDeclaration` |
+| README screenshot and link | → | actual showcase image and manifest-derived player destination | Observe the published image and linked player; record size and source |
 
 #### Acceptance Criteria
 
@@ -438,7 +463,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | AC-6 | Any id in `demos/terminal/manifest.json` | It resolves to exactly one registered scenario carrying a runner and a validator; `runScenario`'s switch and the `demoValidators` literal map no longer exist; an id with no registration is refused by name |
 | AC-7 | Each topic's typed config and demonstration | Exist once, as fragments that both the topic tape and the showcase tape source; each topic's checks exist once, as a Go function both validators call |
 | AC-8 | Home page build | The hero is the `showcase` recording; its file name, caption and transcript anchor come from `homeHeroDemo` plus the manifest entry, and `homebody.go` names no demo id, file or anchor literally |
-| AC-9 | README carrier action, run on the recorded super | Produces the carrier the probe proved (inline SVG or a GitHub-playable video, within GitHub's size limits) or, failing both, a thumbnail image; README line 8 embeds it, linking to the site player's anchor; the measured sizes and the result of the inline-render check are recorded in this spec |
+| AC-9 | Superseded presentation contract | Follow the current AC-9 above; the owner replaced the SVG/video carrier probe with a WebP screenshot linked to terminal playback |
 | AC-10 | Gallery and feature pages | `docs/guide/terminal-demonstrations.md` carries one heading and marker per topic recording and one for the super; each topic recording is embedded on its feature page through `page` + `anchor`, the IPsec one on `docs/guide/ipsec.md` |
 | AC-11 | Showcase validator | Runs chapters 0 to 9's checks in order against ONE daemon whose process id never changes, each chapter's absence check before its commit and its proof after |
 | AC-12 | The replaced single-feature demos (per Owner question 1) | Their tapes, prepared `ze.conf` files, runners, validators and cards are deleted; no page marker names a deleted id; the published asset of a deleted id is removed from gh-pages by the publish action |
@@ -468,7 +493,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | `TestTapeParserHoldsTheCardRules` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: a section load with no Card since the previous load, an unknown card, and a Card inside Hide are refused | pass 2026-10-11 |
 | `TestTopicOverviewCardNamesEverySection` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: each topic's overview card names every section card its fragments show | pass 2026-10-11 |
 | `TestHomeHeroDerivesFromTheManifest` | `internal/le/site/home_test.go` | AC-8: changing `homeHeroDemo` changes file name, caption and anchor; no literal remains | |
-| `TestReadmeCarrierIsProducedFromTheHeroDeclaration` | `internal/le/site/readme_carrier_test.go` | AC-9: the action names the hero's asset and anchor; it reports the carrier's size | |
+| README image and destination smoke | `README.md` and the canonical site | Current AC-9: actual showcase WebP image resolves and links to its terminal player | local pass; public destination not yet deployed |
 | `TestFilterIRRAppliesAReloadedAsSet` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | AC-1: apply after verify swaps the per-peer set; a verify failure leaves the old one | |
 | `TestFilterIRRRefusesApplyWithoutVerify` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | AC-1: no silent no-op apply | |
 
@@ -540,7 +565,6 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 - `internal/le/site/terminaldemo/registry.go` - the scenario registry (id to runner and validator)
 - `internal/le/site/terminaldemo/scenarios_showcase.go` - shared lab runner (`showcase-lab`) and the `showcase` scenario
 - `internal/le/site/terminaldemo/validate_topics.go` - one check function per topic, called by the topic validators and the showcase validator
-- `internal/le/site/readme_carrier.go` (+ test) - native `./le` action producing the README carrier from the hero declaration
 - `demos/terminal/topics/<topic>/configure.tape` and `show.tape` - per topic, sourced by the topic tape and the showcase tape
 - `demos/terminal/<topic-id>/demo.tape` + `transcript.txt` - per topic (replacing the seven, plus `ipsec`)
 - `demos/terminal/showcase/demo.tape` + `transcript.txt` - the super
@@ -555,8 +579,8 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | YANG schema (new RPCs/config) | N-A | topics type existing leaves only |
 | YANG validation constraints | N-A | no new leaf |
 | YANG custom validators | N-A | no new leaf |
-| CLI commands/flags | Yes | `le` only: the README-carrier action registered under `site` (`internal/le/site/`); `ze` gains nothing. A ze command found missing while typing a topic is a defect under AC-2 |
-| CLI grammar (keyword before value) | Yes | the new `le` action takes `name <demo-id>` like `render` |
+| CLI commands/flags | Yes | Retire the obsolete `le` README-carrier action; retain terminal recording and playback. `ze` gains no command |
+| CLI grammar (keyword before value) | N-A | No replacement carrier or one-time conversion command is added |
 | Editor autocomplete | N-A | no new leaf or value |
 | Functional test for new RPC/API | Yes | `test/reload/bgp-filter-irr-added-live.ci` for the IRR reload path; no new RPC |
 | Pipe completeness | N-A | no new show output |
@@ -612,8 +636,8 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 5. **Phase: Super** -- `showcase` tape sourcing chapter 0, the base, every topic in order, the recap; `validateShowcase`
    - Tests: AC-11 validator
    - Verify: one daemon pid across chapters; measured duration recorded
-6. **Phase: Hero and README** -- hero from one declaration; README carrier action; carrier probe and measurements recorded here
-   - Tests: `TestHomeHeroDerivesFromTheManifest`, `TestReadmeCarrierIsProducedFromTheHeroDeclaration`
+6. **Phase: Hero and README** -- hero from one declaration; README WebP screenshot linked to the terminal player; measured size recorded here
+   - Verify: homepage playback, the actual screenshot and its destination; no encoded-video or animated-SVG carrier
 7. **Phase: Pages** -- gallery and feature pages (AC-10), docs in the Documentation checklist, each in the phase whose code made it wrong
 
 ##### Critical Review Checklist
@@ -636,7 +660,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | Eight topic recordings and the super, validated | `./le site terminal-demo` validate mode for each id, output pasted |
 | Scenario registry, no switch, no map | `gopls symbols` of `scenarios.go` and `validate_runtime.go` show neither `runScenario`'s switch nor `demoValidators` |
 | IRR live edit applies | `test/reload/bgp-filter-irr-added-live.ci` green, and red with the handler removed (pasted) |
-| Hero and README | site build shows `showcase` as hero; README embeds the carrier; carrier measurements recorded in this spec |
+| Hero and README | site build shows `showcase` as hero; README WebP image and linked terminal player resolve; image size and source recorded in this spec |
 | Gallery and pages | grep for each topic id's marker in `docs/guide/terminal-demonstrations.md` and on its feature page |
 
 ##### Security Review Checklist

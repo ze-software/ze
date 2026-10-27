@@ -50,7 +50,7 @@ func executeCommand(command Command) int {
 	if len(command.Args) == 0 {
 		return 127
 	}
-	process := exec.CommandContext(context.Background(), command.Args[0], command.Args[1:]...) // #nosec G204 -- Command.Args[0] is limited to this package's fixed ffmpeg and Go toolchain commands.
+	process := exec.CommandContext(context.Background(), command.Args[0], command.Args[1:]...) // #nosec G204 -- Command.Args[0] is limited to this package's fixed Go toolchain commands.
 	process.Dir = command.Dir
 	if command.Env != nil {
 		process.Env = command.Env
@@ -136,15 +136,6 @@ func (e *Engine) requireRendererImage(manifest Manifest) error {
 			Str(" is not built on this host; run: le site terminal-demo build image").String())
 	}
 	return nil
-}
-
-// externalCommand runs ffmpeg as a child of this process, under this process's
-// environment. ffmpeg is no Docker client: every Docker operation goes through
-// e.docker, whose endpoint interoplab.NewDocker selects (`internal/le/dockerhost`),
-// so no daemon socket is named here and a missing `ze` profile never stops an
-// encode.
-func (e *Engine) externalCommand(args []string, dir string) Command {
-	return Command{Args: args, Dir: dir, Env: os.Environ(), Stdout: e.output, Stderr: e.output}
 }
 
 // checkAll verifies all published artifacts. A non-empty release also verifies
@@ -539,13 +530,7 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
-	videoPath := expected["video"]
 	castPath := expected["cast"]
-	if videoPath != "" {
-		if _, err := e.lookup("ffmpeg"); err != nil {
-			return ArtifactEntry{}, fmt.Errorf("%s: ffmpeg is required on this host to rescale a %s demo's video and poster; install it and re-run", demo.ID, demo.Kind)
-		}
-	}
 	for _, name := range names {
 		if name == transcriptLabel {
 			continue
@@ -578,14 +563,6 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	e.output.Write(buffer.Reset().Str("rendering ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the render verdict.
 	if err := e.runDemoContainer(&demo, command); err != nil {
 		return ArtifactEntry{}, err
-	}
-	if videoPath != "" {
-		if err := e.expandTimeline(videoPath, speedup); err != nil {
-			return ArtifactEntry{}, err
-		}
-		if err := e.resizePoster(expected["poster"]); err != nil {
-			return ArtifactEntry{}, err
-		}
 	}
 	if castPath != "" {
 		if err := expandCastTimeline(castPath, speedup); err != nil {
@@ -658,7 +635,7 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 	for _, path := range keepPaths {
 		keep[filepath.Ext(path)] = struct{}{}
 	}
-	all := []string{".cast", textExtension, ".webm", ".png"}
+	all := []string{".cast", textExtension, ".webp", ".webm", ".mp4", ".png"}
 	removed := make([]string, 0)
 	for _, extension := range all {
 		if _, exists := keep[extension]; exists {
@@ -677,66 +654,6 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 	}
 	slices.Sort(removed)
 	return removed, nil
-}
-
-func (e *Engine) expandTimeline(capture string, speedup int) error {
-	compressed := siblingWithMarker(capture, ".fast")
-	if err := os.Rename(capture, compressed); err != nil {
-		return err
-	}
-	args := []string{
-		"ffmpeg", "-y", "-loglevel", "error", "-itsscale", strconv.Itoa(speedup),
-		"-i", compressed, "-map", "0:v:0", "-an",
-		"-vf", outputScale(),
-		"-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8",
-		"-crf", "30", "-b:v", "0", "-row-mt", "1", "-tile-columns", "2",
-		"-fps_mode", "passthrough", capture,
-	}
-	if code := e.execute(e.externalCommand(args, "")); code != 0 {
-		removeErr := os.Remove(capture)
-		if errors.Is(removeErr, os.ErrNotExist) {
-			removeErr = nil
-		}
-		if err := os.Rename(compressed, capture); err != nil {
-			return errors.Join(err, removeErr, commandFailure{code: code, args: args})
-		}
-		return errors.Join(commandFailure{code: code, args: args}, removeErr)
-	}
-	return os.Remove(compressed)
-}
-
-func (e *Engine) resizePoster(poster string) error {
-	original := siblingWithMarker(poster, ".original")
-	if err := os.Rename(poster, original); err != nil {
-		return err
-	}
-	args := []string{
-		"ffmpeg", "-y", "-loglevel", "error", "-i", original,
-		"-vf", outputScale(), "-frames:v", "1", poster,
-	}
-	if code := e.execute(e.externalCommand(args, "")); code != 0 {
-		removeErr := os.Remove(poster)
-		if errors.Is(removeErr, os.ErrNotExist) {
-			removeErr = nil
-		}
-		if err := os.Rename(original, poster); err != nil {
-			return errors.Join(err, removeErr, commandFailure{code: code, args: args})
-		}
-		return errors.Join(commandFailure{code: code, args: args}, removeErr)
-	}
-	return os.Remove(original)
-}
-
-func siblingWithMarker(path, marker string) string {
-	extension := filepath.Ext(path)
-	var buffer textbuf.Buffer
-	return buffer.Str(strings.TrimSuffix(path, extension)).Str(marker).Str(extension).String()
-}
-
-func outputScale() string {
-	var buffer textbuf.Buffer
-	return buffer.Str("scale=").Int(outputWidth).Byte(':').Int(outputHeight).
-		Str(":flags=lanczos").String()
 }
 
 func expandCastTimeline(path string, speedup int) error {

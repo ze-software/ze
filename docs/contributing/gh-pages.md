@@ -35,7 +35,7 @@ stays beside the worktree.
 The render action and site build retire recordings whose IDs no longer exist
 in the source manifest. They remove only media paths declared by those IDs in
 the previous artifact manifest, then remove those entries. A retired path must
-be the ID's own `.cast`, `.txt`, `.webm` or `.png` file. Ownership checks
+be the ID's own `.cast`, `.txt`, `.webm` or `.webp` file. Ownership checks
 normalize current asset paths before comparison. Unsafe, missing or
 symlink-aliased current assets stop retirement before any deletion, as does
 shared ownership. Unlisted media and current recordings remain untouched.
@@ -286,92 +286,53 @@ never a prompt. The rule is `feature-maturity.md`, "Recorded runs".
 
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
-## README recording carrier
+## README thumbnail and terminal playback
 
-The homepage and README action select one recording through `HeroDemo`.
-Select it after its manifest entry exists, before the final recording. The
-selection's Go source participates in recording digests, so changing it after
-recording makes the media stale. Publication still requires verified media.
-<!-- source: internal/le/site/terminaldemo/manifest.go -- nativeRecorderSources, Engine.sourceDigest -->
-The homepage places the full replay before the interface previews and retains
-the browser video, static captures, full-size links and SSH walkthrough.
-<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- HeroDemo -->
+The homepage and README select the continuous recording through `HeroDemo`.
+The site replays its `.cast` terminal events with the vendored asciinema player.
+The README uses `docs/demos/showcase.webp`, linked to the continuous showcase's
+actual player anchor. It does not embed encoded video or an animated SVG.
+<!-- source: internal/le/site/terminaldemo/types.go -- HeroDemo -->
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
-<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: README.md -- terminal-demo-hero -->
 
-After recording the hero, generate candidates in a new directory under the
-session scratch directory:
+Keep a thumbnail's captured source frame and conversion evidence with the
+recording's acceptance evidence. Converting an existing PNG frame to lossless
+WebP changes its image encoding, not the captured session. It does not constitute
+a new recording or new runtime proof.
 
-```text
-./le site terminal-demo readme-carrier output <fresh-directory>
-```
+Browser demonstrations publish a WebP screenshot and their authored transcript.
+The browser driver still performs the configuration workflow and observes its
+result, but it does not record video. Terminal demonstrations retain their
+`.cast` and transcript files. Recordings remain an explicit manual action, not
+a site-build step.
+<!-- source: demos/terminal/web-config/demo.cjs -- captured committed configuration -->
+<!-- source: internal/le/site/terminaldemo/manifest.go -- assetExtensions, assetNames -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.renderDemo -->
 
-The action checks the hero's source digest and artifact bytes before copying
-the cast. The existing renderer image then plays that cast with the website's
-vendored asciinema player in Chromium. It captures the terminal at two frames
-per second and produces an animated SVG, H.264 MP4 and PNG thumbnail. It starts
-no daemon, invents no terminal output and publishes nothing.
-<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- Engine.verifiedHero, Engine.prepareReadmeCarrier -->
-<!-- source: demos/terminal/readme-carrier.cjs -- cast playback and frame capture -->
+Older tape `Output` directives can still name `.webm`. The native PTY recorder
+always replaces that suffix with `.cast` and writes terminal events, not video.
+Changing those directives only for their spelling would change recording
+definitions without changing their output.
+<!-- source: internal/le/site/terminaldemo/pty.go -- recordTape -->
 
-After the conversion container stops, the host removes only its temporary
-`frames` directory, including on failure or cancellation. Candidate media and
-diagnostics remain available. A symlink replacing that directory is refused,
-not followed.
-<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- Engine.prepareReadmeCarrier, cleanupCarrierFrames -->
+A presentation change does not make an old recording current. Preserve its
+recorded source, definition, binary and release identities. The site publisher
+checks the bytes against the artifact manifest. The separate
+`./le site terminal-demo check artifacts` action also checks current recorder
+sources and refuses stale recordings. Do not replace those digests to make a
+presentation-only change pass.
+<!-- source: internal/le/site/demo.go -- demoCatalog.verifyAssets, demoCatalog.verifyAsset -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkAll -->
+<!-- source: internal/le/site/terminaldemo/manifest.go -- nativeRecorderSources, Engine.verifyAssets -->
 
-`carrier.json` records the cast digest, each candidate's bytes and SHA256,
-cast duration, dimensions, frame rate, thumbnail position, renderer versions,
-ffmpeg arguments and ffprobe results. Its GitHub observation stays
-`unobserved` and its choice stays `unselected`. Inspect the whole recording:
-two-frame-per-second capture is a carrier conversion, not new runtime proof.
-Check the thumbnail's actual frame, text legibility and the video duration.
-<!-- source: demos/terminal/readme-carrier.cjs -- measurements -->
-
-GitHub's [Markdown API](https://docs.github.com/en/rest/markdown/markdown)
-provides nonpersistent `POST /markdown` and `POST /markdown/raw` routes.
-The raw route accepts at most 400 KB of Markdown. These return HTML, not an
-observed README image load or video playback. They cannot fetch a private local
-candidate merely because its path appears in Markdown. Inspecting their HTML
-is useful sanitizer evidence, but does not prove animation, legibility,
-GitHub's image proxy behavior or the final link.
-
-GitHub's [attachment documentation](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files)
-lists SVG and MP4 among supported media. On 26 October 2026 it states 10 MB for
-images, 10 MB for video on a free plan and 100 MB for video on a paid plan.
-Those are attachment limits, not proof that a repository README renders a
-particular carrier. Determine the applicable limit and observe the exact
-candidate on the actual GitHub README surface. Uploading into an unsubmitted
-comment still uploads immediately. Any public upload or push needs owner
-authorization. Without an authorized accessible candidate, GitHub playback
-acceptance remains blocked; do not record a failed probe or choose a fallback
-merely because publication is unavailable.
-
-After observing the exact candidates, record a JSON probe with `observed-at`
-(RFC 3339) and `svg`, `video`, `thumbnail` objects. Each object states `sha256`,
-`result` (`pass` or `fail`), retained `evidence`, the applicable `limit-bytes`
-and HTTPS `limit-source`. Evidence must cover loading, animation where
-applicable, legibility and destination. A passing video also names its observed
-GitHub attachment `url`. Then select the carrier:
-
-```text
-./le site terminal-demo readme-carrier output <candidate-directory> probe <probe.json>
-```
-
-This action rechecks the hero and candidate hashes. It prefers a passing SVG,
-then a passing GitHub video, then a passing thumbnail only when both inline
-candidates failed. Unknown outcomes refuse the update. SVG and thumbnail
-choices copy only the selected image into `docs/demos/`. A video choice uses
-the observed GitHub attachment and a textual player link, with no PNG embed.
-All candidates, including the thumbnail, remain in the candidate directory.
-The action updates only the marked README block and records the choice and
-probe in `carrier.json`. The title, description and player destination come
-from the current hero manifest entry.
-It does not upload, commit or push. Keep the measured report and observations
-in the showcase spec's acceptance record.
-<!-- source: internal/le/site/terminaldemo/readme_select.go -- CarrierProbe, selectCarrier, Engine.updateReadmeCarrier -->
-<!-- source: internal/le/site/terminaldemo/actions.go -- actionTable -->
-
+Do not generate or publish MP4 or WebM assets for this site. The former README
+carrier conversion and GitHub SVG/video selection workflow is retired. A
+local preview or conversion authorizes no upload, push or deployment.
+The site's publication filter excludes these extensions when it seeds previous
+assets, removes staged source files and checks the final output.
+<!-- source: internal/le/site/paths.go -- isSourceOnly -->
+<!-- source: internal/le/site/build.go -- publishable, removeSourceOnly -->
 
 ## Rendering tests
 

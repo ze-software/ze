@@ -1,6 +1,6 @@
 # Authoring a Terminal Demo
 
-This page says what a terminal demo or video shows and how it sounds. The
+This page says what a terminal demo shows and how it sounds. The
 owner set these decisions on 2026-10-09 so that every later recording has the
 same tone. Each decision is quoted verbatim, then followed by how a demo applies
 it. How a demo is built, rendered and published is in `gh-pages.md`. The public
@@ -111,8 +111,9 @@ The owner set these on 2026-10-09 with the decisions above.
 - A separate super-recording is one continuous session that builds the
   configuration up feature by feature. It is recorded on its own, never
   stitched from the feature recordings and never cut into them. It is the hero
-  of the site. The README embeds it when GitHub can render it, and otherwise
-  shows a thumbnail that links to the site player.
+  of the site. Under the owner's 2026-10-27 presentation policy, the README uses
+  a WebP thumbnail linked to the actual site player. Terminal events remain
+  `.cast` files. Browser presentation uses WebP screenshots, not encoded video.
 - When a feature does not enable on a live commit, that is a Ze defect to fix.
   Never work around it in the tape.
 

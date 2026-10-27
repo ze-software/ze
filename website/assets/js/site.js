@@ -2035,9 +2035,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     var selected = panel.id === target;
                     panel.setAttribute("aria-hidden", selected ? "false" : "true");
                     panel.inert = !selected;
-                    if (!selected) {
-                        slice(panel.querySelectorAll("video")).forEach(function (video) { video.pause(); });
-                    }
                 });
                 buttons.forEach(function (item) { item.setAttribute("aria-pressed", item === button ? "true" : "false"); });
             }

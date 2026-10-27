@@ -101,7 +101,6 @@ type demoFixture struct {
 	canceledRuns    int
 	failValidation  int
 	wrongTranscript bool
-	failFFmpeg      int
 	// missingImage is the exit code `docker image inspect` answers with, so a
 	// case can model a host where the renderer image was never built.
 	missingImage int
@@ -193,7 +192,7 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 		Root:         f.root,
 		ArtifactRoot: f.artifacts,
 		Executor:     f.execute,
-		Lookup:       func(string) (string, error) { return "fixture-ffmpeg", nil },
+		Lookup:       func(name string) (string, error) { return name, nil },
 		Output:       output,
 		LockWait:     30 * time.Millisecond,
 		LockPoll:     time.Millisecond,
@@ -206,7 +205,7 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 const fixtureRendererImageID = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 // Run is the fixture's Docker process boundary: every demo container the
-// wrapper starts is recorded beside the ffmpeg and build commands, in order,
+// wrapper starts is recorded beside the build commands, in order,
 // and answered by execute.
 func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
 	if err := ctx.Err(); err != nil {
@@ -239,16 +238,6 @@ func (f *demoFixture) execute(command Command) int {
 	f.commands = append(f.commands, command)
 	if len(command.Args) == 0 {
 		return 127
-	}
-	if command.Args[0] == "ffmpeg" {
-		if f.failFFmpeg != 0 {
-			return f.failFFmpeg
-		}
-		target := command.Args[len(command.Args)-1]
-		if err := os.WriteFile(target, []byte("media-output\n"), 0o644); err != nil {
-			return 1
-		}
-		return 0
 	}
 	if f.appArmorUnapplied && slices.Contains(command.Args, "apparmor=ze-lab-net-sysctl") {
 		if command.Stderr != nil {
@@ -291,10 +280,7 @@ func (f *demoFixture) execute(command Command) int {
 		}
 		return 0
 	}
-	if err := os.WriteFile(filepath.Join(f.artifacts, "browser.webm"), []byte("raw-video\n"), 0o644); err != nil {
-		return 1
-	}
-	if err := os.WriteFile(filepath.Join(f.artifacts, "browser.png"), []byte("raw-poster\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(f.artifacts, "browser.webp"), []byte("captured-screenshot\n"), 0o644); err != nil {
 		return 1
 	}
 	return 0
@@ -307,6 +293,8 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	mustWrite(t, filepath.Join(fixture.artifacts, "term.webm"), "superseded\n")
 	mustWrite(t, filepath.Join(fixture.artifacts, "term.png"), "superseded\n")
 	mustWrite(t, filepath.Join(fixture.artifacts, "browser.cast"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "browser.webm"), "superseded\n")
+	mustWrite(t, filepath.Join(fixture.artifacts, "browser.png"), "superseded\n")
 	var output bytes.Buffer
 	engine := fixture.engine(&output)
 	report, err := engine.RenderAll("26.08.27")
@@ -315,11 +303,6 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	}
 	if report.Mode != "render" || !reflect.DeepEqual(report.Demos, []string{"term", "browser"}) {
 		t.Errorf("report = %#v", report)
-	}
-	// The first command asks whether the renderer image is built. The six that
-	// follow are the two validations, the two recordings and the two ffmpeg passes.
-	if len(fixture.commands) != 7 {
-		t.Fatalf("commands = %d, want 7: %#v", len(fixture.commands), fixture.commands)
 	}
 	assertSubsequence(t, fixture.commands[0].Args, []string{"docker", "image", "inspect", "fixture-renderer:3"})
 	validation := fixture.commands[1].Args
@@ -340,13 +323,18 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	assertSubsequence(t, render, []string{"--env", "ZE_DEMO_RELEASE=26.08.27", "--env", "ZE_DEMO_SPEEDUP=5", "fixture-renderer:3"})
 	browserRender := fixture.commands[4].Args
 	assertSubsequence(t, browserRender, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--privileged", "--network", "none"})
-	for _, name := range []string{"term.cast", "term.txt", "browser.webm", "browser.png", "browser.txt", "manifest.json"} {
+	for _, command := range fixture.commands {
+		if command.Args[0] == "ffmpeg" {
+			t.Fatalf("render invoked an encoded-video transform: %v", command.Args)
+		}
+	}
+	for _, name := range []string{"term.cast", "term.txt", "browser.webp", "browser.txt", "manifest.json"} {
 		info, statErr := os.Stat(filepath.Join(fixture.artifacts, name))
 		if statErr != nil || info.Size() == 0 {
 			t.Errorf("published %s: info=%v err=%v", name, info, statErr)
 		}
 	}
-	for _, name := range []string{"term.webm", "term.png", "browser.cast"} {
+	for _, name := range []string{"term.webm", "term.png", "browser.cast", "browser.webm", "browser.png"} {
 		if _, statErr := os.Stat(filepath.Join(fixture.artifacts, name)); !errors.Is(statErr, os.ErrNotExist) {
 			t.Errorf("superseded %s remains: %v", name, statErr)
 		}
@@ -385,9 +373,8 @@ func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
 	if report.Mode != rendererRenderMode || !reflect.DeepEqual(report.Demos, []string{"term"}) {
 		t.Errorf("report = %#v, want mode %q over [term] alone", report, rendererRenderMode)
 	}
-	// One image check, one validation and one recording. RenderAll ran seven
-	// commands for the two demos, and every one of the four this run did not
-	// repeat is the cost the action exists to remove.
+	// One image check, one validation and one recording. The browser capture
+	// stays untouched while the named terminal demo is recorded.
 	if len(fixture.commands) != 3 {
 		t.Fatalf("commands = %d, want 3: %#v", len(fixture.commands), fixture.commands)
 	}
@@ -413,7 +400,7 @@ func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
 		t.Errorf("browser was published for release %q, want the release of the run that recorded it",
 			published.Demos["browser"].Release)
 	}
-	for _, name := range []string{"browser.webm", "browser.png", "browser.txt"} {
+	for _, name := range []string{"browser.webp", "browser.txt"} {
 		if _, statErr := os.Stat(filepath.Join(fixture.artifacts, name)); statErr != nil {
 			t.Errorf("a single-demo render removed %s: %v", name, statErr)
 		}
@@ -785,23 +772,6 @@ func TestTranscriptRefusalMovesTheRecordingOutOfPublishedArtifacts(t *testing.T)
 	}
 	if _, statErr := os.Stat(filepath.Join(fixture.root, "tmp", "terminal-demos", "render-tapes", "term.tape")); !errors.Is(statErr, os.ErrNotExist) {
 		t.Errorf("accelerated tape remains: %v", statErr)
-	}
-}
-
-// VALIDATES: a failed media transform restores the capture the renderer wrote.
-// PREVENTS: ffmpeg failure deleting both the source capture and its destination.
-func TestMediaFailureRestoresTheOriginalCapture(t *testing.T) {
-	fixture := newDemoFixture(t)
-	fixture.failFFmpeg = 9
-	_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
-	if err == nil {
-		t.Fatal("RenderAll succeeded despite ffmpeg failure")
-	}
-	if got := mustRead(t, filepath.Join(fixture.artifacts, "browser.webm")); got != "raw-video\n" {
-		t.Errorf("restored video = %q", got)
-	}
-	if _, statErr := os.Stat(filepath.Join(fixture.artifacts, "browser.fast.webm")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Errorf("compressed temporary remains: %v", statErr)
 	}
 }
 

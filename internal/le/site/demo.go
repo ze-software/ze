@@ -31,29 +31,27 @@ const (
 	demoPlayerStylesheet = "assets/vendor/asciinema-player.css"
 )
 
-// The four assets a recording can publish. Each name is the key its manifest
+// The three assets a demonstration can publish. Each name is the key its manifest
 // records the file under and the word the error messages use.
 const (
 	demoCast       = "cast"
 	demoPoster     = "poster"
 	demoTranscript = "transcript"
-	demoVideo      = "video"
 )
 
 // demoAssetExtensions name the file each kind of demo asset is published as.
 var demoAssetExtensions = map[string]string{
-	demoCast: ".cast", demoPoster: ".png", demoTranscript: ".txt", demoVideo: ".webm",
+	demoCast: ".cast", demoPoster: ".webp", demoTranscript: ".txt",
 }
 
 // demoKindAssets name the asset set each kind of demonstration publishes, and
 // nothing else.
 //
-// A terminal session is a byte stream, so it records an asciicast the player
-// replays. A browser recording has no byte stream and stays a video with a
-// poster frame. A demo that published both would show a reader two players.
+// A terminal session is a byte stream replayed by the asciinema player.
+// A browser demonstration publishes its captured screenshot and transcript.
 var demoKindAssets = map[string][]string{
 	demoKindTerminal: {demoCast, demoTranscript},
-	demoKindBrowser:  {demoPoster, demoTranscript, demoVideo},
+	demoKindBrowser:  {demoPoster, demoTranscript},
 }
 
 // The two kinds a demo declares: a terminal session or a browser recording.
@@ -353,8 +351,7 @@ func substituteDemoMarkers(text string, rendered map[string]string) string {
 // states.
 //
 // A demonstration that publishes an asset its kind does not name is refused,
-// which is what keeps a half-converted recording from showing a player and a
-// video at once.
+// so an obsolete encoded video cannot remain in a screenshot's inventory.
 func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo.ArtifactEntry) (map[string]string, error) {
 	names, known := demoKindAssets[kind]
 	if !known {
@@ -584,8 +581,7 @@ type demoRender struct {
 	// Duration is the running time as a reader reads it, taken from the
 	// recording itself when it carries one.
 	Duration string
-	// Facts is the recording's own grid and length, nil for a browser demo,
-	// which has no byte stream and stays a video.
+	// Facts is the recording's own grid and length, nil for a browser screenshot.
 	Facts *castFacts
 	// Transcript is the recorded session as text, with its trailing blank
 	// lines removed.
@@ -607,19 +603,13 @@ func renderDemoHTML(render *demoRender) string {
 		kindLabel = "Browser"
 	}
 
-	// A demonstration with no cast facts is a browser recording, and it keeps
-	// the video element, the poster frame and the WEBM label it has always had.
+	// Browser demonstrations have a static capture rather than terminal events.
 	var player, format string
 	if facts == nil {
 		poster := html.EscapeString(demoAssetURL(root, id, entry, demoPoster))
-		video := html.EscapeString(demoAssetURL(root, id, entry, demoVideo))
-		format = "WEBM"
-		player = `<video controls playsinline preload="metadata" poster="` + poster + `" ` +
-			`aria-label="` + label + "\">\n" +
-			`      <source src="` + video + "\" type=\"video/webm\">\n" +
-			"      Your browser cannot play WebM video. " +
-			`<a href="` + video + "\">Download the recording</a>.\n" +
-			"    </video>"
+		format = "WEBP"
+		player = `<a href="` + poster + `"><img src="` + poster +
+			`" alt="` + label + `" loading="lazy"></a>`
 	} else {
 		format = "CAST"
 		player = playerMount(html.EscapeString(demoAssetURL(root, id, entry, demoCast)), transcriptURL, *facts, label)
@@ -628,7 +618,7 @@ func renderDemoHTML(render *demoRender) string {
 	return `<figure class="terminal-demo" data-terminal-demo="` + html.EscapeString(id) + `">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">` + html.EscapeString("Replayable Ze "+strings.ToLower(demo.Kind)+" lab") + `</span>
+      <span class="terminal-demo__eyebrow">` + html.EscapeString("Ze "+strings.ToLower(demo.Kind)+" lab") + `</span>
       <h3>` + html.EscapeString(demo.Title) + `</h3>
       <p>` + html.EscapeString(demo.Description) + `</p>
     </div>
@@ -664,8 +654,7 @@ func renderDemoMarkdown(render *demoRender) string {
 	links := "[Download the asciicast recording](" + demoAssetURL(root, id, entry, demoCast) +
 		") · [Plain-text transcript](" + transcriptURL + ")"
 	if facts == nil {
-		links = "[Play the WebM recording](" + demoAssetURL(root, id, entry, demoVideo) +
-			") · [View the poster](" + demoAssetURL(root, id, entry, demoPoster) +
+		links = "[View the WebP screenshot](" + demoAssetURL(root, id, entry, demoPoster) +
 			") · [Plain-text transcript](" + transcriptURL + ")"
 	}
 	return "### Demo: " + demo.Title + "\n\n" +

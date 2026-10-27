@@ -155,7 +155,7 @@ func retiredExtension(kind string) (string, error) {
 	case "video":
 		return ".webm", nil
 	case "poster":
-		return ".png", nil
+		return ".webp", nil
 	default:
 		return "", fmt.Errorf("retired demo has unknown asset kind %q", kind)
 	}

@@ -8,9 +8,7 @@ const { chromium } = require("playwright-core");
 
 const run = "/src/tmp/terminal-demos/bin/ze-demo";
 const artifactDir = "/src/demos/terminal/artifacts";
-const videoDir = "/src/tmp/terminal-demos/browser-video";
-const output = path.join(artifactDir, "web-config.webm");
-const poster = path.join(artifactDir, "web-config.png");
+const poster = path.join(artifactDir, "web-config.webp");
 const speedup = Number.parseFloat(process.env.ZE_DEMO_SPEEDUP || "1");
 
 function pause(milliseconds) {
@@ -18,8 +16,6 @@ function pause(milliseconds) {
 }
 
 (async () => {
-  fs.rmSync(videoDir, { recursive: true, force: true });
-  fs.mkdirSync(videoDir, { recursive: true });
   execFileSync(run, ["run", "web-config", "start"], { stdio: "inherit" });
 
   let browser;
@@ -32,11 +28,9 @@ function pause(milliseconds) {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       viewport: { width: 1680, height: 1008 },
-      recordVideo: { dir: videoDir, size: { width: 1680, height: 1008 } },
       colorScheme: "dark",
     });
     const page = await context.newPage();
-    const video = page.video();
 
     await page.setContent(`<!doctype html><html><head><style>
       html,body{margin:0;width:100%;height:100%;background:#1d1133;color:#e6d9f2;font:15px system-ui,sans-serif}
@@ -101,13 +95,17 @@ function pause(milliseconds) {
     // from the HOST, and a virtiofs guest keeps its own dentry for that name, so
     // a write that reuses the name resolves to the inode the host removed.
     fs.rmSync(poster, { force: true });
-    await page.screenshot({ path: poster });
+    const capture = await context.newCDPSession(page);
+    const screenshot = await capture.send("Page.captureScreenshot", {
+      format: "webp",
+      quality: 100,
+      captureBeyondViewport: false,
+    });
+    fs.writeFileSync(poster, Buffer.from(screenshot.data, "base64"));
+    await capture.detach();
     await pause(8000);
 
     await context.close();
-    const recorded = await video.path();
-    fs.rmSync(output, { force: true });
-    fs.copyFileSync(recorded, output);
   } finally {
     if (browser) {
       await browser.close();

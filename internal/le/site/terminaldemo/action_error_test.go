@@ -6,19 +6,6 @@ import (
 	"testing"
 )
 
-// TestReadmeCarrierRequiresAnOutputDirectory prevents an incomplete command from rendering or updating README.
-func TestReadmeCarrierRequiresAnOutputDirectory(t *testing.T) {
-	for _, args := range [][]string{{"readme-carrier"}, {"readme-carrier", "output", ""}} {
-		payload, code := Answer(args)
-		if code != 2 {
-			t.Fatalf("%v returned %d, expected usage refusal", args, code)
-		}
-		if payload != nil {
-			t.Fatalf("incomplete command produced a carrier result: %#v", payload)
-		}
-	}
-}
-
 // TestPTYActionPreservesRecorderErrors checks real option parsing and file errors through the public action.
 func TestPTYActionPreservesRecorderErrors(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing.tape")

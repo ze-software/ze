@@ -104,6 +104,10 @@ var sourceOnlyFiles = map[string]bool{
 // isSourceOnly reports whether a source-relative path must not be deployed.
 func isSourceOnly(name string) bool {
 	name = strings.Trim(strings.ReplaceAll(filepath.ToSlash(name), "//", "/"), "/")
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".mp4", ".webm":
+		return true
+	}
 	if sourceOnlyFiles[name] {
 		return true
 	}

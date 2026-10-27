@@ -304,3 +304,56 @@ func TestTheFixtureCastParsesAsAsciicastV2(t *testing.T) {
 		t.Error("a file that is not an asciicast must be refused")
 	}
 }
+
+// TestBrowserScreenshotPublicationRejectsVideo checks screenshot and transcript
+// output, then refuses an obsolete video in the same artifact inventory.
+func TestBrowserScreenshotPublicationRejectsVideo(t *testing.T) {
+	paths := demoFixture(t)
+	catalog := newDemoCatalog(paths)
+	if err := catalog.load(); err != nil {
+		t.Fatal(err)
+	}
+	demo := catalog.demos["launcher"]
+	demo.Kind = demoKindBrowser
+	catalog.demos["launcher"] = demo
+	entry := catalog.built["launcher"]
+	delete(entry.Assets, demoCast)
+	// Use a real captured WebP, measured here, without a capture-process mock.
+	poster := entry.Assets[demoTranscript]
+	poster.Path = "launcher.webp"
+	content, err := os.ReadFile(filepath.Join(repositoryRoot(t), "docs", "demos", "showcase.webp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(content)
+	poster.Bytes = int64(len(content))
+	poster.SHA256 = hex.EncodeToString(digest[:])
+	writeDemoAsset(t, catalog.assetRoot(), poster.Path, string(content))
+	entry.Assets[demoPoster] = poster
+	catalog.built["launcher"] = entry
+	body, mirror, head, err := catalog.expand("<!-- terminal-demo: launcher -->",
+		"<!-- terminal-demo: launcher -->", "../../", "guide/quickstart.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{`<img src="`, `launcher.webp?v=`, `>WEBP<`, `Plain-text transcript`} {
+		if !strings.Contains(body, expected) {
+			t.Errorf("browser screenshot lacks %q: %s", expected, body)
+		}
+	}
+	if !strings.Contains(mirror, "[View the WebP screenshot](") {
+		t.Errorf("mirror has no screenshot destination: %s", mirror)
+	}
+	if !strings.Contains(mirror, "[Plain-text transcript](") {
+		t.Errorf("mirror lost the transcript: %s", mirror)
+	}
+	if head != "" || strings.Contains(body, "<video") || strings.Contains(body, "data-terminal-demo-player") {
+		t.Errorf("a screenshot mounts playback machinery: %s %s", head, body)
+	}
+	entry.Assets["video"] = entry.Assets[demoTranscript]
+	catalog.built["launcher"] = entry
+	if _, _, _, err := catalog.expand("<!-- terminal-demo: launcher -->",
+		"<!-- terminal-demo: launcher -->", "../../", "guide/quickstart.md"); err == nil {
+		t.Fatal("obsolete video inventory was published")
+	}
+}

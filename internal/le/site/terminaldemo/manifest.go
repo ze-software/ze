@@ -248,7 +248,7 @@ func assetExtensions(kind string) (map[string]string, error) {
 	case terminalLabel:
 		return map[string]string{"cast": ".cast", transcriptLabel: textExtension}, nil
 	case "browser":
-		return map[string]string{"video": ".webm", "poster": ".png", transcriptLabel: textExtension}, nil
+		return map[string]string{"poster": ".webp", transcriptLabel: textExtension}, nil
 	default:
 		return nil, fmt.Errorf("unsupported kind %q", kind)
 	}
@@ -273,7 +273,7 @@ func assetNames(kind string) ([]string, error) {
 	case terminalLabel:
 		return []string{"cast", transcriptLabel}, nil
 	case "browser":
-		return []string{"video", "poster", transcriptLabel}, nil
+		return []string{"poster", transcriptLabel}, nil
 	default:
 		return nil, fmt.Errorf("unsupported kind %q", kind)
 	}

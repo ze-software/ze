@@ -13,9 +13,9 @@ package site
 //	{hero_demo}                    the recorded terminal the homepage replays
 //	{hero_demo_file} {hero_demo_title}
 //	{hero_demo_transcript}         its file name, manifest title and transcript link
-//	{tour_demo_href}               the recording "Watch a demo" opens
-//	{web_demo_poster} {web_demo_video} {web_demo_transcript}
-//	                              verified browser media from that recording
+//	{tour_demo_href}               the demonstration "Watch a demo" opens
+//	{web_demo_poster} {web_demo_transcript}
+//	                              verified browser screenshot and transcript
 //	{whats_new}                    the newest article, the newest week, the note
 //	{unit_tests} {e2e_tests}       the proof strip's nine data-ze-stat spans
 //	{fuzz_targets} {interop_targets}
@@ -98,8 +98,8 @@ const homeTemplate = `        <div class="site-home">
                                 </div>
                                 <div class="product-panels">
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
-                                    <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.png" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <a href="assets/product-routes.png" target="_blank" rel="noopener"><img src="assets/product-routes.png" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
+                                    <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
+                                    <a href="assets/product-routes.webp" target="_blank" rel="noopener"><img src="assets/product-routes.webp" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Follow a route through the network.</strong>
                                         <p>Inspect prefixes, AS paths and peers through a read-only BGP interface.</p>
@@ -109,22 +109,17 @@ const homeTemplate = `        <div class="site-home">
                                 </figure>
                                 <figure class="screen product-screen" id="product-web" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / Web configuration</strong><a href="{web_demo_poster}" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <div class="screen-media">
-                                        <video controls playsinline preload="none" poster="{web_demo_poster}" aria-label="Edit, review and commit configuration in Ze's web interface">
-                                            <source src="{web_demo_video}" type="video/webm" />
-                                            <a href="{web_demo_video}">Download the browser recording</a>.
-                                        </video>
-                                    </div>
+                                    <a href="{web_demo_poster}" target="_blank" rel="noopener"><img src="{web_demo_poster}" alt="Ze web configuration showing the system identity form with the committed hostname edge-demo" width="1680" height="1008" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Configure Ze in your browser.</strong>
                                         <p>Edit a setting, review its diff, commit the draft and verify the active value.</p>
                                         <a href="{tour_demo_href}">Explore the web interface →</a>
-                                        <p class="capture-caption">A real session with an isolated local Ze lab. <a href="{web_demo_transcript}">Read the transcript.</a></p>
+                                        <p class="capture-caption">Captured after the hostname commit in an isolated local Ze lab. <a href="{web_demo_transcript}">Read the transcript.</a></p>
                                     </figcaption>
                                 </figure>
                                 <figure class="screen product-screen" id="product-editor" data-product-panel>
-                                    <div class="screen-toolbar"><strong>Ze / CLI configuration editor</strong><a href="assets/product-editor.jpg" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <a href="assets/product-editor.jpg" target="_blank" rel="noopener"><img src="assets/product-editor.jpg" alt="Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions" width="1440" height="852" loading="lazy" /></a>
+                                    <div class="screen-toolbar"><strong>Ze / CLI configuration editor</strong><a href="assets/product-editor.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
+                                    <a href="assets/product-editor.webp" target="_blank" rel="noopener"><img src="assets/product-editor.webp" alt="Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions" width="1440" height="852" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Edit the configuration with context.</strong>
                                         <p>Review the pending change and explore the settings available at the current configuration path.</p>
@@ -133,8 +128,8 @@ const homeTemplate = `        <div class="site-home">
                                     </figcaption>
                                 </figure>
                                 <figure class="screen product-screen" id="product-dashboard" data-product-panel>
-                                    <div class="screen-toolbar"><strong>Ze / CLI dashboard</strong><a href="assets/product-dashboard.png" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <a href="assets/product-dashboard.png" target="_blank" rel="noopener"><img src="assets/product-dashboard.png" alt="Ze terminal dashboard showing three established BGP peers, uptime and message counters" width="1384" height="811" loading="lazy" /></a>
+                                    <div class="screen-toolbar"><strong>Ze / CLI dashboard</strong><a href="assets/product-dashboard.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
+                                    <a href="assets/product-dashboard.webp" target="_blank" rel="noopener"><img src="assets/product-dashboard.webp" alt="Ze terminal dashboard showing three established BGP peers, uptime and message counters" width="1384" height="811" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Keep the peers in view.</strong>
                                         <p>Inspect BGP sessions from Ze’s own CLI.</p>

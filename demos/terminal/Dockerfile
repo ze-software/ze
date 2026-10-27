@@ -1,8 +1,8 @@
 # The image every demo is rendered in.
 #
-# It carries what the demos need and nothing more: chromium with Playwright for
-# the one `kind: browser` demo, ffmpeg for the video that demo records, the
-# network tools the scenarios drive, and the three font families below.
+# It carries what the demos need and nothing more: Chromium with Playwright for
+# the browser screenshot, the network tools the scenarios drive, and the three
+# font families below.
 #
 # The vendored fonts are load-bearing, and they are the ONLY fonts the image
 # holds: the copy below removes every font a Debian package installed, so what
@@ -38,14 +38,11 @@ RUN test -n "${KEEPALIVED_VERSION}" && test -n "${KEEPALIVED_SHA256}" \
 FROM debian
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends ca-certificates chromium curl ffmpeg fontconfig iproute2 iputils-ping libnl-3-200 libnl-genl-3-200 libssl3t64 netcat-openbsd nftables nodejs npm openssh-client procps sshpass \
+    && apt-get install --yes --no-install-recommends ca-certificates chromium curl fontconfig iproute2 iputils-ping libnl-3-200 libnl-genl-3-200 libssl3t64 netcat-openbsd nftables nodejs npm openssh-client procps sshpass \
     && npm install --global playwright-core@1.55.0 \
     && npm cache clean --force \
-    && mkdir -p /opt/ms-playwright/ffmpeg-1011 \
-    && ln -s /usr/bin/ffmpeg /opt/ms-playwright/ffmpeg-1011/ffmpeg-linux \
     && rm -rf /var/lib/apt/lists/*
 ENV NODE_PATH=/usr/local/lib/node_modules
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
 COPY fonts/fira-code /usr/share/fonts/fira-code
 COPY fonts/liberation /usr/share/fonts/liberation
