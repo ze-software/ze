@@ -96,9 +96,17 @@ type resolverServer struct {
 // newResolverServer builds the listener manager over res's answer function:
 // Recursive owns the reply shape and the single write, and the UDP read
 // buffer matches the size the reply OPT advertises.
+//
+// Freebind sets IP_FREEBIND on every listener socket, so a listener binds
+// an address the host does not hold yet. A LAN resolver's address often comes
+// up after the resolver starts: a PPP pool gateway exists only once the first
+// subscriber session is up, and an interface address arrives when iface
+// applies it. Without it the bind fails with EADDRNOTAVAIL, which refuses a
+// reload (BindStrict) and leaves the listener down at boot (BindLenient).
 func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 	return &resolverServer{mgr: dnsserver.New(log, recursiveHandler(log, res), dnsserver.Options{
-		UDPSize: dnsserver.RecursiveUDPSize,
+		UDPSize:  dnsserver.RecursiveUDPSize,
+		Freebind: true,
 	})}
 }
 

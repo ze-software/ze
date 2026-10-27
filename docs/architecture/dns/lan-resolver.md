@@ -209,6 +209,15 @@ second, so a listener bound by the install never answers under the previous
 only `allow-from`, `forward`, the cache or the limits keeps every socket, and a
 TCP connection open across the reload carries on under the new policy.
 
+A listener can name an address the host does not hold yet. The resolver sets
+`IP_FREEBIND` on every listener socket (`dnsserver.Options.Freebind`, Linux
+only), so the bind succeeds before the address is up, and the listener answers
+from the moment the kernel holds it. A LAN resolver needs this for an address
+that appears after the daemon starts: an L2TP pool gateway exists only while a
+PPP session is up, and an interface address arrives when iface applies it. No
+sysctl such as `net.ipv4.ip_nonlocal_bind` is needed. On another platform the
+option has no effect, and such a bind fails.
+
 At boot a listener that cannot bind is logged and the others serve. On a reload
 a bind failure fails the commit, and the harness binds the previous listeners
 again. When even those cannot bind again, the error carries
@@ -218,7 +227,10 @@ again or restarts the plugin.
 <!-- source: internal/plugins/dnsresolver/config_tx.go -- resolverInstaller.install, configureAtBoot -->
 <!-- source: internal/plugins/dnsresolver/server.go -- resolverServer.reconcile -->
 <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
+<!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
+<!-- source: internal/core/dnsserver/freebind_linux.go -- listenConfig -->
 <!-- test: internal/plugins/dnsresolver/config_tx_test.go -- TestReloadKeepsListeners -->
+<!-- test: internal/plugins/dnsresolver/freebind_linux_test.go -- TestListenBeforeAddressIsUp -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestAllowFromReload -->
 
 ## Show and clear

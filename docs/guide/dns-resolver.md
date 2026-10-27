@@ -49,11 +49,15 @@ service {
 ```
 
 `ze config validate` accepts this config. Each listener binds UDP and TCP on
-port 53 of its address. A host in 192.168.1.0/24 that asks 192.168.1.1 gets an
+port 53 of its address. The address does not have to be up yet: on Linux the
+resolver listens on it before the host holds it, and answers once it does, so
+a listener on an L2TP pool gateway works before the first subscriber connects.
+A host in 192.168.1.0/24 that asks 192.168.1.1 gets an
 answer from the cache, or from 192.0.2.53, or from 198.51.100.53 when the first
 server does not answer.
 
 <!-- source: internal/plugins/dnsresolver/config.go -- parseListener, parseForward -->
+<!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
 
 ## Configuration reference
 
