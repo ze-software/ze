@@ -8,6 +8,7 @@ package reactor
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -80,7 +81,28 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 		ErrorSubcode: subcode,
 		Data:         data,
 	}
-	err := s.writeMessageWithin(conn, notif, deadline)
+	return s.notificationWritten(code, subcode, s.writeMessageWithin(conn, notif, deadline))
+}
+
+// tryNotificationWithin is sendNotificationWithin for a caller that MUST NOT
+// wait on the write path: it takes writeMu only if the lock comes free within
+// deadline, and answers errWritePathBusy when it does not. The panic guard of
+// Session.Run is its caller, because the write path may belong to a writer that
+// is itself stuck (ceaseAfterPanic).
+func (s *Session) tryNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, deadline time.Duration) error {
+	notif := &message.Notification{ErrorCode: code, ErrorSubcode: subcode}
+	err := s.tryWriteMessageWithin(conn, notif, deadline)
+	if errors.Is(err, errWritePathBusy) {
+		// Nothing was attempted, so the peer-last-error hook below does not fire:
+		// the caller logs that no NOTIFICATION was sent.
+		return err
+	}
+	return s.notificationWritten(code, subcode, err)
+}
+
+// notificationWritten logs and reports the outcome err of one NOTIFICATION
+// write, and returns err.
+func (s *Session) notificationWritten(code message.NotifyErrorCode, subcode uint8, err error) error {
 	delivered := err == nil
 	if delivered {
 		// A NOTIFICATION is the only wire signal that ZE, rather than the peer or the
@@ -137,6 +159,41 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	return s.writeMessageHeld(conn, msg, deadline)
+}
+
+// errWritePathBusy is tryWriteMessageWithin's answer when another writer kept
+// writeMu for the whole deadline: nothing was written.
+var errWritePathBusy = errors.New("another writer held the session's write path for the whole deadline")
+
+// writePathPoll is how often tryWriteMessageWithin retries writeMu. A writer
+// holds it for one message or one batch, so a few milliseconds is far below the
+// deadline and costs nothing on a path that runs once per contained panic.
+const writePathPoll = 5 * time.Millisecond
+
+// tryWriteMessageWithin is writeMessageWithin for a caller that MUST NOT block
+// on writeMu: it retries TryLock until deadline has passed, then gives up with
+// errWritePathBusy. The write itself keeps the same deadline.
+func (s *Session) tryWriteMessageWithin(conn net.Conn, msg message.Message, deadline time.Duration) error {
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	giveUp := s.clock.Now().Add(deadline)
+	for !s.writeMu.TryLock() {
+		if !s.clock.Now().Before(giveUp) {
+			return errWritePathBusy
+		}
+		s.clock.Sleep(writePathPoll)
+	}
+	defer s.writeMu.Unlock()
+
+	return s.writeMessageHeld(conn, msg, deadline)
+}
+
+// writeMessageHeld is the body of writeMessageWithin. The caller MUST hold
+// writeMu.
+func (s *Session) writeMessageHeld(conn net.Conn, msg message.Message, deadline time.Duration) error {
 	if s.writeFailed != nil {
 		return s.writeFailed
 	}

@@ -436,8 +436,8 @@ marker after the departed source closed its transport, and waits for publication
 the registered dispatcher to deliver the withdrawal. The lookup wrapper checks
 the selecting RIB's actual candidate removal before calling its real provider;
 recipient history must then contain a withdrawal, not a stale replacement.
-A panicking delivery callback instead tears its source down with Cease / Out of
-Resources; the destination is not retired, the lookup runs with that source
+A panicking delivery callback instead tears its source down with Cease /
+Unspecific (a Ze defect has no defined subcode, RFC 4271 Section 4.5); the destination is not retired, the lookup runs with that source
 excluded, and the recipient receives the withdrawal, never the source's
 withdrawn route. This carrier exercises the applied-event
 drain but does not independently discriminate that drain or external IPC.

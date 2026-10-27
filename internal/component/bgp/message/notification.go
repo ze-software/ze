@@ -118,6 +118,7 @@ const (
 // RFC 4271 Section 4.5 - Cease is Error Code 6, subcodes defined in RFC 4486.
 // RFC 4271 Section 6.7 - Cease NOTIFICATION is used for non-fatal connection termination.
 const (
+	NotifyCeaseUnspecific          uint8 = 0  // RFC 4271 Section 4.5
 	NotifyCeaseMaxPrefixes         uint8 = 1  // RFC 4486
 	NotifyCeaseAdminShutdown       uint8 = 2  // RFC 4486
 	NotifyCeasePeerDeconfigured    uint8 = 3  // RFC 4486

@@ -590,6 +590,71 @@ func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error
 // Connect/Active strict-mode configuration-change clauses. A nil notice means
 // the protocol explicitly calls for dropping TCP without a NOTIFICATION.
 func (s *Session) teardownSession(notice *teardownNotice, stopEvent fsm.Event) error {
+	conn := s.beginTeardown()
+
+	if conn != nil && notice != nil {
+		s.logNotifyErr(conn, notice.code, notice.subcode, notice.data)
+	}
+
+	s.closeConn()
+	s.endTeardown(stopEvent)
+	return nil
+}
+
+// ceaseAfterPanic ends the session after the panic boundary of its read task
+// (Session.Run) recovered a panic. It MUST NOT block: the write path may be
+// held by a writer that is itself stuck, so it waits for writeMu no longer
+// than holdExpiryNotifyDeadline (tryNotificationWithin), and when the lock
+// stays held it closes the socket without the NOTIFICATION and says so.
+func (s *Session) ceaseAfterPanic() {
+	conn := s.beginTeardown()
+	if conn == nil {
+		s.endTeardown(fsm.EventAutomaticStop)
+		return
+	}
+
+	// A recovered panic is a Ze defect, not one of the fatal errors of RFC 4271
+	// Section 6, so the session ends with a Cease, as Event 8 (AutomaticStop).
+	// RFC 4271 Section 6.7: "In the absence of any fatal errors (that are
+	// indicated in this section), a BGP peer MAY choose, at any given time, to
+	// close its BGP connection by sending the NOTIFICATION message with the
+	// Error Code Cease."
+	// RFC 4486 Section 4 names no subcode for an internal failure, so:
+	// RFC 4271 Section 4.5: "If no appropriate Error Subcode is defined, then a
+	// zero (Unspecific) value is used for the Error Subcode field."
+	err := s.tryNotificationWithin(conn, message.NotifyCease, message.NotifyCeaseUnspecific,
+		holdExpiryNotifyDeadline)
+	if errors.Is(err, errWritePathBusy) {
+		sessionLogger().Error("no NOTIFICATION was sent to the peer: another writer held the "+
+			"session's write path, so the connection is closed without one",
+			"peer", s.settings.Address,
+			"waited", holdExpiryNotifyDeadline,
+		)
+		// closeConn waits for writeMu to flush; closing the socket first makes
+		// the stuck writer's write fail, so it releases the lock and the
+		// closeConn deferred in Run completes.
+		if closeErr := conn.Close(); closeErr != nil {
+			sessionLogger().Debug("close after a contained panic", "peer", s.settings.Address, "error", closeErr)
+		}
+		s.endTeardown(fsm.EventAutomaticStop)
+		return
+	}
+	if err != nil {
+		sessionLogger().Warn("notification send failed",
+			"peer", s.settings.Address,
+			"code", message.NotifyCease,
+			"subcode", notifySubcodeValue(message.NotifyCease, message.NotifyCeaseUnspecific),
+			"error", err,
+		)
+	}
+	s.closeConn()
+	s.endTeardown(fsm.EventAutomaticStop)
+}
+
+// beginTeardown seals the session, records ErrTeardown as the close reason and
+// stops the timers, then answers the connection the NOTIFICATION goes to, nil
+// when none is up. Every teardown MUST call endTeardown after it.
+func (s *Session) beginTeardown() net.Conn {
 	// Seal first: a conn published after this point would carry a session the
 	// caller believes it has just ended.
 	s.seal()
@@ -600,12 +665,12 @@ func (s *Session) teardownSession(notice *teardownNotice, stopEvent fsm.Event) e
 	s.mu.Lock()
 	conn := s.conn
 	s.mu.Unlock()
+	return conn
+}
 
-	if conn != nil && notice != nil {
-		s.logNotifyErr(conn, notice.code, notice.subcode, notice.data)
-	}
-
-	s.closeConn()
+// endTeardown delivers stopEvent to the FSM and wakes Run's cancel goroutine.
+// It MUST be called after beginTeardown and after the connection is closed.
+func (s *Session) endTeardown(stopEvent fsm.Event) {
 	s.logFSMEvent(stopEvent)
 
 	// Signal errChan so the cancel goroutine in Run() exits cleanly.
@@ -615,8 +680,6 @@ func (s *Session) teardownSession(notice *teardownNotice, stopEvent fsm.Event) e
 	case s.errChan <- ErrTeardown:
 	default: // errChan full or closed — cancel goroutine already processed a signal
 	}
-
-	return nil
 }
 
 // closeConn closes the TCP connection.
@@ -638,10 +701,7 @@ func (s *Session) closeConn() {
 		// Flush under writeMu to avoid racing with Send* methods that
 		// also access bufWriter under writeMu. Lock ordering: s.mu → s.writeMu.
 		if s.bufWriter != nil {
-			s.writeMu.Lock()
-			_ = s.bufWriter.Flush()
-			s.commitAIGPWrites(false)
-			s.writeMu.Unlock()
+			s.flushForClose()
 		}
 		// Graceful close: send FIN (not RST) so the remote side can read
 		// any pending NOTIFICATION before the connection is torn down.
@@ -670,6 +730,18 @@ func (s *Session) closeConn() {
 		// which readAndProcessMessage handles as ErrConnectionClosed.
 		// connectionEstablished() replaces bufReader and bufWriter on reconnection.
 	}
+}
+
+// flushForClose writes what bufWriter still holds before closeConn closes the
+// connection. The caller MUST hold s.mu (lock ordering s.mu → s.writeMu).
+// writeMu is released by defer: a panic in the writer would otherwise leave
+// it held, and every later writer of this session, a forward worker included,
+// would wait on it for good (lock audit A-1).
+func (s *Session) flushForClose() {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	_ = s.bufWriter.Flush()
+	s.commitAIGPWrites(false)
 }
 
 // setCloseReason atomically stores why the connection is being closed.

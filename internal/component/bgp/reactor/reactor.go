@@ -1298,6 +1298,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
 			routerID, textbuf.StringUint(uint64(r.config.LocalAS)))
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		// ze_task_panics_total{component="bgp"}: the BGP panic boundary's count.
+		bgpPanics().guard.SetMetricsRegistry(r.metricsRegistry)
 		// The attribute-modification contract counters and the always-on
 		// protocol filters' metrics (loop detection). The AttrMod handlers
 		// register at init() via filterapi.RegisterAttrModHandler and run during

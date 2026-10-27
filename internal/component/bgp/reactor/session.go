@@ -19,7 +19,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,6 +38,7 @@ import (
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/source"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -642,6 +642,11 @@ type Session struct {
 	coalesce        coalesceState
 	coalesceEnabled bool
 
+	// receivedType is the type of the message processMessage is handling, or
+	// last handled, so a contained read-path panic names it (describeRead).
+	// Accessed only from the read goroutine (no lock).
+	receivedType msgtype.MessageType
+
 	// readBufferStarved is set while the read loop waits for a read buffer
 	// (awaitReadBuffer), so one wait episode logs once. Accessed only from the
 	// read goroutine (no lock).
@@ -1198,6 +1203,19 @@ func (s *Session) logFSMEvent(event fsm.Event) {
 	}
 }
 
+// describeRead names the unit a contained read-task panic ended: the peer, and
+// the message being processed when the read loop got that far. It runs on the
+// goroutine that panicked, after the panic, and reads only the read goroutine's
+// own field and the immutable address.
+func (s *Session) describeRead() taskguard.Context {
+	described := taskguard.Context{Unit: s.settings.Address.String()}
+	// Zero is "no message yet": RFC 4271 Section 4.1 assigns type codes from 1.
+	if s.receivedType != 0 {
+		described.MessageType = s.receivedType.String()
+	}
+	return described
+}
+
 // Run is the main session loop. It processes messages until context is
 // canceled or an error occurs.
 //
@@ -1205,7 +1223,14 @@ func (s *Session) logFSMEvent(event fsm.Event) {
 // errChan, then closes the connection to unblock any pending io.ReadFull.
 // This replaces the previous 100ms SetReadDeadline polling approach, providing
 // instant cancellation response on all connection types (including net.Pipe).
-func (s *Session) Run(ctx context.Context) error {
+//
+// A panic in the read loop stops at the read task's boundary (bgpPanics), which
+// is deferred after closeConn so it runs first, while the connection is still
+// open: ceaseAfterPanic sends the peer a Cease / Unspecific, and Run returns
+// the contained *taskguard.Panic, so runOnce's sessionDown and the run loop's
+// backoff follow as for any session error. safeRunOnce stays the boundary for
+// what runs outside Run (dial, OPEN setup).
+func (s *Session) Run(ctx context.Context) (runErr error) {
 	defer close(s.done)
 
 	// When the read loop exits the session is finished, so stop its timers: no keepalive,
@@ -1232,6 +1257,12 @@ func (s *Session) Run(ctx context.Context) error {
 	// unaffected (spec-fixit-bgp-session-fsm-lifecycle AC-7 / D-8).
 	defer s.closeConn()
 
+	// The read task's panic boundary, once per session and never per message.
+	defer bgpPanics().read.Contain(s.describeRead, func(contained *taskguard.Panic) {
+		s.ceaseAfterPanic()
+		runErr = contained
+	})
+
 	// readStop is closed by the cancel goroutine once the session is closing,
 	// so a read loop waiting for a buffer (awaitReadBuffer) leaves at once.
 	readStop := make(chan struct{})
@@ -1240,19 +1271,8 @@ func (s *Session) Run(ctx context.Context) error {
 	// to unblock ReadFull. Sets closeReason before closing so the read loop
 	// can distinguish cancel from hold timer from teardown.
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				buf := make([]byte, 4096)
-				n := runtime.Stack(buf, false)
-				sessionLogger().Error("session cancel goroutine panic recovered",
-					"peer", s.settings.Address,
-					"panic", r,
-					"stack", string(buf[:n]),
-				)
-				// Best-effort cleanup: close connection to unblock read loop.
-				s.closeConn()
-			}
-		}()
+		// Its panic closes the connection, which unblocks the read loop.
+		defer bgpPanics().cancel.Contain(s.describeRead, func(*taskguard.Panic) { s.closeConn() })
 		var reason error
 		select {
 		case <-ctx.Done():

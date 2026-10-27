@@ -199,7 +199,7 @@ about the last cycle and not a preference.
 |-------|-------------|---------------------------------------------|
 | Event 3, `AutomaticStart` | `Session.startAutomatic`, from a reconnect cycle whose previous cycle reached Established | Event 3 runs Event 1's Idle action list, so it sets the ConnectRetryCounter to zero too: a session that reached Established ended the run of failures the counter recorded. It differs from Event 1 in who started it, which is the system |
 | Event 6, `AutomaticStart_with_DampPeerOscillations` | `Session.startDamped`, from a reconnect cycle whose previous cycle never reached Established | Event 1 (ManualStart) sets the ConnectRetryCounter to zero. Ze fires a start event per cycle because each cycle builds a new FSM, so Event 1 there would zero the counter on every retry |
-| Event 8, `AutomaticStop` | `Session.teardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
+| Event 8, `AutomaticStop` | `Session.teardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop; `Session.ceaseAfterPanic`, from a panic recovered in the read loop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
 | Event 23, `OpenCollisionDump` | `Session.CloseWithNotification`, whose only caller is RFC 4271 Section 6.8 collision resolution | Same difference as Event 8: a connection lost to a collision is an attempt that failed |
 
 <!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
@@ -586,8 +586,12 @@ included:
 
 So a plugin hears every UPDATE of a session before its down, and the down
 follows `PeerStateConnecting`. A delivery worker that cannot publish a batch
-(a recovered receiver panic, or no receiver) tears its session down with Cease
-/ Out of Resources (`failReceivePublication`), without waiting on itself.
+tears its session down (`failReceivePublication`), without waiting on itself:
+a recovered receiver panic with Cease / Unspecific, no receiver with Cease /
+Out of Resources. A panic recovered in the session's own read loop ends the
+session with Cease / Unspecific and Event 8 (`Session.ceaseAfterPanic`); when
+another writer holds the write path past the notify deadline, the connection
+closes with no NOTIFICATION and the log says so.
 
 Before any handshake can publish negotiation, `runOnce` defers its publication
 end, including for a retained collision-winner OPEN. The session owns admission
@@ -617,6 +621,7 @@ queues the enter transition's callback.
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated, Peer.announceEstablished, Peer.announceClosed, Peer.announceDown -->
 <!-- source: internal/component/bgp/reactor/peer_session_end.go -- Peer.leaveSession, Peer.sessionDown, failReceivePublication -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- Session.ceaseAfterPanic -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM.EnteredEstablished -->
 
 ### Peer lifecycle observers

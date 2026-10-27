@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // Listener errors.
@@ -204,21 +205,13 @@ func (l *Listener) acceptLoop() {
 // safeHandle wraps a connection handler with panic recovery so that a panic
 // in one connection's handler doesn't kill the accept loop or leak connections.
 func (l *Listener) safeHandle(conn net.Conn, handler connectionHandler) {
-	defer func() {
-		if r := recover(); r != nil {
-			buf := make([]byte, 4096)
-			n := runtime.Stack(buf, false)
-			sessionLogger().Error("connection handler panic recovered",
-				"addr", l.addr,
-				"remote", conn.RemoteAddr(),
-				"panic", r,
-				"stack", string(buf[:n]),
-			)
+	defer bgpPanics().accept.Contain(
+		func() taskguard.Context { return taskguard.Context{Unit: conn.RemoteAddr().String()} },
+		func(*taskguard.Panic) {
 			if err := conn.Close(); err != nil {
-				sessionLogger().Debug("close after handler panic", "err", err)
+				sessionLogger().Debug("close after a contained handler panic", "err", err)
 			}
-		}
-	}()
+		})
 	handler(conn)
 }
 

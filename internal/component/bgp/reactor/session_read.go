@@ -268,6 +268,8 @@ func (s *Session) notifyHeaderErr(conn net.Conn, header []byte, err error) {
 // processMessage handles a received BGP message.
 // Returns (error, kept) where kept indicates if callback took buffer ownership.
 func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle) (error, bool) {
+	// The read task's boundary names this type in its report: describeRead.
+	s.receivedType = hdr.Type
 	var validation rfc7606Validation
 	if hdr.Type == msgtype.TypeUPDATE {
 		// RFC 4271 Section 8.2.2: an UPDATE in OpenSent/OpenConfirm is
@@ -290,6 +292,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 // RFC 7606 Section 2: "the UPDATE message containing the path attribute in
 // question MUST be treated as though all contained routes had been withdrawn".
 func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf BufHandle, validation *rfc7606Validation) (error, bool) {
+	// Set again here: flushCoalesce dispatches a held UPDATE straight to this
+	// function while the message that triggered the flush is another type.
+	s.receivedType = hdr.Type
 	s.mu.RLock()
 	ctxID := s.recvCtxID
 	sourceID := s.sourceID

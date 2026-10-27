@@ -271,6 +271,17 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // Returns true if buf ownership was taken (caller should not return to pool).
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
 	r.mu.RLock()
+	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
+	// hooks under the reactor-wide lock. A panic there unwinds to the read
+	// task's boundary in Session.Run, and a read lock it left held would stall
+	// every writer of r.mu and, behind that writer, every peer's read path. The
+	// deferred release runs only when the unwind passes it (lock audit A-1).
+	reactorLockHeld := true
+	defer func() {
+		if reactorLockHeld {
+			r.mu.RUnlock()
+		}
+	}()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
 
@@ -395,6 +406,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		peerInfo = plugin.PeerInfo{Address: peerAddr, AddressStr: peerAddr.String()}
 	}
 
+	reactorLockHeld = false
 	r.mu.RUnlock()
 
 	// Sent UPDATEs reuse the exact writer-owned receipt; received messages and

@@ -299,6 +299,15 @@ unit and the stack, and `ze show crashes` lists its crash record with kind
 `recovered`: attach that record to the bug report. A component's tasks appear
 at zero from the moment the component has a metrics registry.
 
+| `component` | `task` | The unit one panic ends |
+|-------------|--------|-------------------------|
+| `bgp` | `read` | One BGP session: the peer is sent Cease / Unspecific and reconnects after its backoff |
+| `bgp` | `cancel` | One BGP session's connection, closed when the session ends |
+| `bgp` | `connect` | One connection cycle of a peer (dial, OPEN setup): the peer retries after its backoff |
+| `bgp` | `delivery` | One BGP session whose received UPDATEs could not reach the plugins: Cease / Unspecific |
+| `bgp` | `accept` | One accepted TCP connection: the listener keeps accepting |
+<!-- source: internal/component/bgp/reactor/panic_guard.go -- bgpPanics -->
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 

@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -296,12 +295,14 @@ func (p *Peer) endNegotiatedSession(session *Session) {
 }
 
 // failReceivePublication records that the delivery worker could not publish a
-// batch, and on the first failure tears the session down: its routes would
-// otherwise stay installed while its UPDATEs never reach the plugins.
+// batch, and on the first failure tears the session down with a Cease carrying
+// subcode: its routes would otherwise stay installed while its UPDATEs never
+// reach the plugins. The caller names the subcode: Out of Resources when no
+// receiver exists, Unspecific when the worker contained a panic.
 // It MUST NOT wait for the delivery worker, which calls it:
 // Session.teardownAutomatic sends the NOTIFICATION, closes the connection and
 // signals Run, and waits on neither.
-func failReceivePublication(session *Session, publication *receivePublication) {
+func failReceivePublication(session *Session, publication *receivePublication, subcode uint8) {
 	if !publication.fail() {
 		return
 	}
@@ -313,7 +314,9 @@ func failReceivePublication(session *Session, publication *receivePublication) {
 	// memory) and decides to reset a session, then the speaker MAY send a
 	// NOTIFICATION message with the Error Code Cease and the Error Subcode
 	// "Out of Resources"."
-	if err := session.teardownAutomatic(message.NotifyCeaseOutOfResources, ""); err != nil {
+	// RFC 4271 Section 4.5: "If no appropriate Error Subcode is defined, then a
+	// zero (Unspecific) value is used for the Error Subcode field."
+	if err := session.teardownAutomatic(subcode, ""); err != nil {
 		peerLogger().Warn("receive publication failed, teardown failed",
 			"peer", session.settings.Address, "error", err)
 	}

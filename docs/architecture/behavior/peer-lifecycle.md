@@ -142,17 +142,36 @@ The run loop records timing metrics per attempt:
 
 ## `safeRunOnce` and panic recovery
 
-`safeRunOnce` is a one-line wrapper that defers a `recover()` around
-`runOnce`. If anything inside the session lifecycle panics (FSM, message
-handling, plugin callback, timer callback), the panic is logged with a
-4KB stack trace and converted into an error. The error feeds back into
-the run loop's normal backoff path: the peer reconnects after the usual
-delay instead of crashing the daemon.
+Two nested boundaries contain a panic in one peer's session, both through the
+BGP subsystem's `taskguard` (`bgpPanics` in `panic_guard.go`). Each contained
+panic is counted in `ze_task_panics_total{component="bgp",task}`, written as a
+crash record that `ze show crashes` lists with kind `recovered`, and logged at
+ERROR with the peer, the message type being processed and the stack.
 
-This is the **primary failure domain boundary** in the BGP plugin. A bug
-in one peer's message handling drops and retries that peer, not the
-rest of the daemon. Matches the ExaBGP failure-domain model.
+| Boundary | Task | What the panic ends | How |
+|----------|------|---------------------|-----|
+| `Session.Run`, around the read loop | `read` | The session | `ceaseAfterPanic`: Cease / Unspecific to the peer within the hold-expiry notify deadline, then Event 8 (AutomaticStop). `Run` returns the contained panic as its error |
+| `safeRunOnce`, around `runOnce` | `connect` | The connection cycle | What runs outside `Run` (dial, OPEN setup, teardown) returns the contained panic as the cycle's error |
 
+Either error feeds the run loop's normal backoff: the peer reconnects after
+the usual delay and the rest of the daemon keeps running. The read boundary
+names the message type it was processing (`UPDATE` when an UPDATE panicked,
+including one flushed from the coalescing buffer).
+
+RFC 4486 Section 4 defines no Cease subcode for an internal failure, so the
+Cease carries Unspecific (RFC 4271 Section 4.5). When another writer holds the
+session's write path past the deadline, `tryNotificationWithin` gives up, no
+NOTIFICATION is sent, the log says so, and the connection is closed raw so the
+stuck writer's write fails and releases the lock.
+
+No lock is held across a call that can panic in the read path: a reactor-wide
+lock left held by the panicking frame would stall every other peer (lock audit
+in `plan/release/fixes/spec-improve-5-panic-boundaries.md`, A-1).
+
+<!-- source: internal/component/bgp/reactor/panic_guard.go — bgpPanicTasks, bgpPanics -->
+<!-- source: internal/component/bgp/reactor/session.go — Session.Run, describeRead -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — ceaseAfterPanic, beginTeardown, endTeardown -->
+<!-- source: internal/component/bgp/reactor/session_write.go — tryNotificationWithin, tryWriteMessageWithin -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — safeRunOnce -->
 
 ## `runOnce`: one session lifecycle
@@ -372,10 +391,11 @@ The down, on every exit from `runOnce`:
 7. Log `session closed` with the reason and append the history row, which
    carries the same reason.
 
-A delivery worker that cannot publish a batch (a recovered receiver panic, or
-no receiver) tears its session down with Cease / Out of Resources
+A delivery worker that cannot publish a batch tears its session down
 (`failReceivePublication`), so the session does not stay Established while its
-UPDATEs never reach the plugins.
+UPDATEs never reach the plugins. A recovered receiver panic (task `delivery`)
+sends Cease / Unspecific, because a Ze defect has no defined subcode; no
+receiver sends Cease / Out of Resources.
 
 <!-- source: internal/component/bgp/reactor/peer_session_end.go — leaveSession, sessionDown, sessionLeave.close, failReceivePublication -->
 <!-- source: internal/component/bgp/reactor/peer_close.go — sessionCloseFor -->
@@ -589,18 +609,23 @@ This is a deliberate architectural choice documented in the
 
 ## Panic recovery summary
 
-Three independent `recover()` boundaries in the peer lifecycle:
+The recover boundaries in the peer lifecycle. The first five go through the
+BGP `taskguard` (count, crash record, ERROR log), named by their task:
 
 | Boundary | Scope | Recovery behavior |
 |----------|-------|-------------------|
-| `safeRunOnce` | Entire session lifecycle (connect, FSM, message handling, timer callbacks, plugin callbacks that run synchronously from the session goroutine) | Log panic with stack, convert to error, return to `run()` for normal backoff |
-| Delivery worker goroutine | Async message delivery to the reactor's message receiver | Log panic with stack, close `deliveryDone`, exit worker (remaining buffered items are dropped intentionally) |
+| `Session.Run` (task `read`) | The read loop: message decoding, FSM, plugin callbacks that run synchronously from the session goroutine | Cease / Unspecific to the peer, Event 8, return the panic as `Run`'s error |
+| `Session.Run` cancel goroutine (task `cancel`) | Closing the connection when the session's context ends | Close the connection |
+| `safeRunOnce` (task `connect`) | The connection cycle outside `Run`: dial, OPEN setup, teardown | Return the panic as the cycle's error to `run()` for normal backoff |
+| Delivery worker goroutine (task `delivery`) | Async message delivery to the reactor's message receiver | Fail the receive publication: Cease / Unspecific, session down; close `deliveryDone`, exit worker (remaining buffered items are dropped intentionally) |
+| `Listener.safeHandle` (task `accept`) | The handler of one accepted connection | Close that connection; the accept loop keeps running |
 | Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, clear the queueing and marker-owed flags, wake forwarded overflow, and return |
 
 Recovery does not itself kill the peer goroutine. A session failure still follows
 the normal reconnect path unless the peer is stopped.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — safeRunOnce, runOnce delivery goroutine recover -->
+<!-- source: internal/component/bgp/reactor/listener.go — safeHandle -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes -->
 
 Initial sync takes two separate session write holds: one for plugin routes and

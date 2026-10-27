@@ -6,15 +6,16 @@ package reactor
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"time"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
@@ -202,19 +203,18 @@ func (p *Peer) run() {
 // in run() handles it with normal backoff. This is the primary failure domain
 // boundary: any bug in session lifecycle triggers reconnection, not daemon crash.
 func (p *Peer) safeRunOnce() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			buf := make([]byte, 4096)
-			n := runtime.Stack(buf, false)
-			peerLogger().Error("session panic recovered",
-				"peer", p.settings.Address,
-				"panic", r,
-				"stack", string(buf[:n]),
-			)
-			err = fmt.Errorf("panic in session: %v", r)
-		}
-	}()
+	// The outer boundary: Session.Run contains its own read loop, so this one
+	// catches what runs outside it (dial, OPEN setup, the session's teardown).
+	// The cycle ends with the contained panic as its error, so the run loop's
+	// backoff applies.
+	defer bgpPanics().connect.Contain(p.describeConnect, func(contained *taskguard.Panic) { err = contained })
 	return p.runOnce()
+}
+
+// describeConnect names the unit a contained connection-cycle or delivery
+// panic ended: the peer.
+func (p *Peer) describeConnect() taskguard.Context {
+	return taskguard.Context{Unit: p.settings.Address.String()}
 }
 
 // runOnce attempts a single connection cycle.
@@ -657,18 +657,11 @@ func (p *Peer) runOnce() error {
 		// session down, so its UPDATEs that never reached the plugins end
 		// with it; the recovery ensures deliveryDone closes, which the down
 		// waits on.
-		defer func() {
-			if r := recover(); r != nil {
-				failReceivePublication(session, publication)
-				buf := make([]byte, 4096)
-				n := runtime.Stack(buf, false)
-				peerLogger().Error("delivery goroutine panic recovered",
-					"peer", p.settings.Address,
-					"panic", r,
-					"stack", string(buf[:n]),
-				)
-			}
-		}()
+		defer bgpPanics().delivery.Contain(p.describeConnect, func(*taskguard.Panic) {
+			// A recovered panic is a Ze defect, for which RFC 4486 has no
+			// subcode: Unspecific (ceaseAfterPanic has the RFC 4271 quotes).
+			failReceivePublication(session, publication, message.NotifyCeaseUnspecific)
+		})
 		var batchBuf []deliveryItem
 		for first := range deliverChan {
 			batchBuf = drainDeliveryBatch(batchBuf, &first, deliverChan)
@@ -678,7 +671,7 @@ func (p *Peer) runOnce() error {
 			reactor := p.reactor
 			p.mu.RUnlock()
 			if reactor == nil {
-				failReceivePublication(session, publication)
+				failReceivePublication(session, publication, message.NotifyCeaseOutOfResources)
 				continue
 			}
 			reactor.mu.RLock()
@@ -686,7 +679,7 @@ func (p *Peer) runOnce() error {
 			reactor.mu.RUnlock()
 			receiver = p.sessionEndHooks.Load().receiverFor(receiver)
 			if receiver == nil {
-				failReceivePublication(session, publication)
+				failReceivePublication(session, publication, message.NotifyCeaseOutOfResources)
 				continue
 			}
 

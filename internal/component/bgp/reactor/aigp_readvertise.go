@@ -316,7 +316,10 @@ func (s *Session) commitAIGPWrites(ok bool) {
 		return
 	}
 	state := &s.aigpReactor.aigp
+	// Released by defer: the lock is reactor-wide, so a panic that left it
+	// held would stall every session's AIGP writes (lock audit A-1).
 	state.mu.Lock()
+	defer state.mu.Unlock()
 	if ok && s.State() == fsm.StateEstablished {
 		for _, sent := range s.aigpPending {
 			current := state.advertised[sent.key]
@@ -343,7 +346,6 @@ func (s *Session) commitAIGPWrites(ok bool) {
 		}
 		state.signalLocked()
 	}
-	state.mu.Unlock()
 	clear(s.aigpPending)
 	s.aigpPending = s.aigpPending[:0]
 }
