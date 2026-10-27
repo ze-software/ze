@@ -7,7 +7,7 @@
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 5/7 — native amd64 traffic proved; arm64 boot proved, preparation blocked; live discrimination pending |
+| Phase | 5/7 — native amd64/KVM and arm64/HVF traffic proved; live discrimination and final reconciliation pending |
 | Handoff | - |
 | Updated | 2026-10-27 |
 
@@ -394,7 +394,7 @@ CONFIG_CRYPTO_SHA512=y
 
 ## AC-6 Implementation and Native Proof
 
-Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the required arm64/HVF run and the live discriminating breaks below. The implementation findings that led to the harness follow.
+Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. AC-6 remains open for the live discriminating breaks; another passing Mac run is not requested.
 
 - `internal/le/test/qemu/mobike.go` `runIPsecMOBIKEHere` boots through
   `NewRun` with `iproute2 iputils util-linux strongswan`. This is the Alpine
@@ -456,9 +456,9 @@ Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the require
 ### Phase 5 Verification
 
 `./le --name vpn-proof test qemu vpn-kernel-test timeout 30m` passed on native
-amd64/KVM. Both arm64/HVF attempts stopped during preparation; the second
-confirmed a loaded `pwm_fan` module. The configuration repair and traffic proof
-still need native validation.
+amd64/KVM. The first two arm64/HVF attempts stopped during preparation; the
+second confirmed a loaded `pwm_fan` module. After the built-in repair, the
+native arm64/HVF run at `ceb83b7140` passed preparation and all traffic cases.
 
 The focused CBC transform, WireGuard receipt, built-in floor, guest preparation
 and scenario-input tests passed with race detection. The separate
@@ -548,7 +548,7 @@ calls `loadModules` before services; that function opens `pwm-fan.ko` and
 calls `FinitModule`. The console does not identify the actual syscall caller.
 The original arm64 config has `CONFIG_SENSORS_PWM_FAN=m`.
 
-### Built-in fan repair: local implementation, native proof pending
+### Built-in fan repair: implementation and local checks
 
 The repair preserves fan functionality without changing the guest guards:
 `runtime.config` requests `CONFIG_HWMON=y`, `CONFIG_PWM=y` and
@@ -580,20 +580,59 @@ compilation remained limited to two jobs. Both independent source and proof
 reviews are clear after the fixture correction. Exact test and smoke logs are
 retained in this spec's session state. No broad verifier was rerun.
 
-Handover 27 now requests one native arm64 image build and HVF proof through the
-existing commands. The normal resolver must select the changed kernel key and
-an image key other than `a6574e77e607b55b`; no forced cold build, cache purge or
-old-key override is requested. Return the actual emitted config path with all
-three fan-related symbols `=y`, the installed `modules.builtin` manifest naming
-the fan driver, and evidence that the same new kernel tree has no loadable
-`pwm-fan.ko`. Then establish empty `/proc/modules`, `modules_disabled=1` and
-successful modprobe absence guards before the actual five ESP traffic cases,
-WireGuard handshake and received ping traffic, and cleanup.
+Handover 27 requested one native arm64 image build and HVF proof through the
+existing commands, using normal cache resolution rather than a forced cold
+build, cache purge or old-key override. The result follows.
 
-This is a local source repair, not a verified Mac fix. AC-6, its live
-discriminating breaks and every other open acceptance criterion remain open.
-The earlier AC-5 configs remain historical evidence, not native proof of the
-new fan configuration.
+### Native arm64 success after the fan repair, 2026-10-27
+
+The owner returned one successful run at
+`ceb83b7140c088445a1f7edcdfa682186201e3f2`, including `6e8ff49248`.
+Linux read the transferred host, revision, build, proof and console files.
+The commands were handover 27's named, admitted
+`setup docker host build arch arm64` and
+`test qemu vpn-kernel-test timeout 30m`. No passing command was rerun.
+
+| Evidence | Observed result |
+|----------|-----------------|
+| Native host and image | `Darwin arm64`; cold build, `built true`, image key `4c4d23d6ca4234aa` |
+| Native guest | `accelerator hvf`, `check-exit 0`, `interrupted false` |
+| Fan and preparation | Build log shows non-modular `CC drivers/hwmon/pwm-fan.o`; console reports missing `pwm-fan.ko`, continues, then reads `modules_disabled=1` and an empty loaded-module list; both modprobe absence guards pass |
+| ESP | `psk-site-to-site`, `esp-aes-cbc-sha256`, `esp-chacha20poly1305`, `esp-3des-sha1`, `esp-integrity-only-null` each pass |
+| WireGuard | `wireguard-kernel-ping` passes |
+| Cleanup | `lab-exit 0`, `left-behind none`, `VM stopped` |
+
+The WireGuard result is not a ping-only claim. In
+`internal/le/test/deployment/wireguardproof.go`, `checkWireGuardProof` requires
+a successful tunnel ping, then calls `requireWireGuardReceipt` for each peer.
+The latter rejects a different peer key, zero handshake timestamp or zero
+received bytes. Both peers must pass. Linux read these producers and found
+no change from the recorded Mac commit in the WireGuard, inner aggregate and
+outer QEMU proof files.
+
+The same outer source calls `vpnKernelConfig` before starting the guest.
+`requireVPNBuiltins` refuses any manifest symbol not present as `=y` in the
+resolver's emitted config. This is configuration-check evidence, not a pasted
+copy of that emitted config or its installed module manifest.
+
+The transferred files are retained in `tmp/mac-vpn-proof-2026-10-27-pwmfan/`.
+Their SHA-256 receipts are:
+
+| File | SHA-256 |
+|------|---------|
+| `host.txt` | `16b8cd028eb757aab907ab404e1656e01783846457156eec99372a91fc1b104d` |
+| `commit.txt` | `9b15c3ac1c0ba8783238fff88cb3de4f85f73653d9754bc7773ff3761b6b6589` |
+| `image-build.log` | `73b7e7bd458b14da4704915aedd8cf7fc75869b33c01f5a18bbf8ae32b0f10bb` |
+| `vpn-kernel.log` | `81dd190da0e7b55878f07a585c41963365b02b9a8375634d1ce3c58169a9dbd5` |
+| `docker-lab-console-2223.log` | `5d8d04d70d27ff14d8998494d6ba6bcc80b79f50bba38b3fc41c47762ca67c4b` |
+
+The explicit emitted-config and installed `modules.builtin` readback requested
+by handover 27 was not among these five files. Preserve the Mac cache for that
+read-only reconciliation; no new boot or traffic run is needed to retrieve it.
+The earlier two failure receipts and image remain preserved. Live deliberate
+breaks, default-appliance acceptance reconciliation and the final review still
+remain. This successful Docker-host run alone does not close the spec or prove
+the separate product WireGuard configuration-commit workflow.
 
 
 ## Known Limitations

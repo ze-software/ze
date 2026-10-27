@@ -11,7 +11,7 @@
 - The Linux session continues its own fixes and native proofs. Do not copy its scratch binaries, private overlays or cached amd64 kernel onto the Mac.
 - The website decision is WebP screenshots plus lightweight terminal playback. No video conversion, upload or website publication is part of this handover.
 
-## Mac results and the next run
+## Mac results: traffic passed; cache receipt remains
 
 The first run at `7aa2f4849e` built the arm64 kernel and image, passed the
 emitted-config prerequisite and booted under HVF. Preparation exited with
@@ -31,19 +31,29 @@ The console proves the loaded module, not the identity of the syscall caller.
 The source repair makes the fan driver built in, preserving fan functionality:
 `runtime.config` requests `CONFIG_HWMON=y`, `CONFIG_PWM=y` and
 `CONFIG_SENSORS_PWM_FAN=y`; `runtime.require` requires all three; the independent
-runtime floor also protects `CONFIG_SENSORS_PWM_FAN`. Local implementation is
-not yet a verified Mac fix.
+runtime floor also protects `CONFIG_SENSORS_PWM_FAN`.
 
-After Thomas authorizes the next Mac run, pull the commit carrying the built-in
-fan repair and execute the block below once. Keep both earlier evidence sets;
-the block makes a new evidence directory. Use the normal native arm64 image
-build and resolver. The changed kernel configuration must produce a new kernel
-key and an image key other than `a6574e77e607b55b`; do not force a cold build,
-purge caches or override the selection with an old key.
+The third run at `ceb83b7140`, including repair `6e8ff49248`, built the new
+arm64 image `4c4d23d6ca4234aa` and passed under HVF. The console shows the fan
+module absent, an empty loaded-module list, module loading disabled and both
+modprobe absence guards passing. All five ESP scenarios and WireGuard passed;
+cleanup reported no leftovers and the VM stopped. Linux received the five logs
+and identity files in `tmp/mac-vpn-proof-2026-10-27-pwmfan/` and recorded their
+hashes and source-backed verdict in the spec.
 
-Return the complete console trace even if preparation fails again. Do not unload
-modules, add an exception, disable module support, change timeouts or relax a
-guard to get past a refusal.
+Do not repeat the passing commands below. Keep them as the recorded invocation.
+The remaining Mac action is read-only: return the selected kernel cache key,
+actual config/provenance paths, the three resolved fan-related `=y` lines,
+the installed `modules.builtin` fan entry and absence of loadable `pwm-fan.ko`
+from that same tree, as requested under “Return to the Linux session”.
+Those receipts were not in the five transferred files. Do not select a tree
+by date, rebuild, boot, purge caches or change source to supply them.
+
+Linux owns the deliberate-break tests and final reconciliation. A new Mac
+traffic run is not required to confirm the WireGuard receipt: Linux read
+`checkWireGuardProof` and `requireWireGuardReceipt`, unchanged from the Mac
+revision. Their PASS requires a successful tunnel ping plus matching peer keys,
+nonzero handshake timestamps and positive received bytes on both peers.
 
 
 ## Before running
@@ -135,11 +145,8 @@ Before boot, the action checks the emitted native kernel configuration against `
 - `docs/guide/appliance.md`, “VPN Kernel Proof”.
 - Native `le help setup docker host build`: verified `arch arm64` and image-build action.
 
-**Verification limit:** The first run established build, configuration and boot
-evidence only. The second confirmed the loaded `pwm_fan` blocker before the
-modprobe guards or traffic. The repaired appliance package and focused
-enforcement/cache checks passed on Linux. A native amd64 Kconfig smoke resolved
-all 156 required symbols to `=y` and compiled the fan object with a built-in
-initcall, without OF or COMPILE_TEST. It did not build a full kernel or image.
-The new arm64 emitted config, installed module tree and full HVF traffic pass
-remain owed; Linux evidence does not replace them.
+**Verification limit:** Native arm64/HVF preparation and all six traffic
+scenarios passed after the fan repair. That is not the missing direct
+config/module-tree receipt, live deliberate-break evidence or default-appliance
+image proof. The spec remains open for those reconciliation and review steps;
+the Mac passing run must not be repeated merely to refresh its timestamp.
