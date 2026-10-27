@@ -12,7 +12,11 @@
 package engine
 
 import (
+	"context"
+	"log/slog"
 	"net"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -251,12 +255,15 @@ func TestRFC3948PeerIKERekeyKeepsInnerRegistry(t *testing.T) {
 // TestRFC3948InitiatorSessionRefusesHeldInnerAddress: an initiate peer built by
 // startPeerSession over the SATable whose registry already records peer a at
 // 10.1.2.3/32. Method: the session's own runInitiator drives IKE_SA_INIT and IKE_AUTH
-// against a far end answered in process (icyFarEnd), proposing TSr 10.1.2.3/32; once the
-// owner loop adopts the IKE SA, the session must hold no Child SA and the registry a's
-// record alone.
+// against a far end answered in process (icyFarEnd), proposing TSr 10.1.2.3/32. The owner
+// loop adopts the IKE SA (ownedSA) before runEstablished installs the first Child SA, so
+// the test then waits for that install's own outcome: a Child SA, or the Warn
+// runEstablished logs when the registry refuses it (errInnerSelectorConflict). The session
+// must have logged that refusal, hold no Child SA, and leave the registry a's record alone.
 func TestRFC3948InitiatorSessionRefusesHeldInnerAddress(t *testing.T) {
 	// RFC requirement: RFC3948-5.1-1 negative -- an initiate peer session built by startPeerSession over an SATable whose registry records peer a at inner address 10.1.2.3/32 establishes its IKE SA through runInitiator proposing 10.1.2.3/32 and adopts no Child SA, the registry holding a's record alone.
 	log := slogutil.DiscardLogger()
+	iniLog := &wiringWarnLog{}
 	ikeGroup, espGroup := testIKEGroup(), testESPGroup()
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, wiringPSK)
 	iniPeer.LocalAddress, iniPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
@@ -282,13 +289,17 @@ func TestRFC3948InitiatorSessionRefusesHeldInnerAddress(t *testing.T) {
 		ch <- time.Now()
 		return ch
 	}
-	ps := startPeerSession("ze", iniPeer, ikeGroup, espGroup, table, nil, nil, nil, log)
+	ps := startPeerSession("ze", iniPeer, ikeGroup, espGroup, table, nil, nil, nil, slog.New(iniLog))
 	session.Store(ps)
 	close(ready)
 
 	icyWaitFor(t, "the owner loop adopting the established SA", func() bool {
 		return ps.ownedSA.Load() != nil
 	})
+	icyWaitFor(t, "the first Child SA installed or refused", func() bool {
+		return ps.getChildSA() != nil || iniLog.saw(wiringRefusedWarn)
+	})
+	refused := iniLog.saw(wiringRefusedWarn)
 	child := ps.getChildSA()
 	holdings := table.innerSelectors.holdings()
 	close(ps.stopCh)
@@ -296,10 +307,51 @@ func TestRFC3948InitiatorSessionRefusesHeldInnerAddress(t *testing.T) {
 	if _, err := far.get(); err != nil {
 		t.Fatalf("the driven handshake failed: %v", err)
 	}
+	if !refused {
+		t.Fatalf("the initiator session never logged %q", wiringRefusedWarn)
+	}
 	if child != nil {
 		t.Fatal("the initiator session adopted a Child SA for 10.1.2.3/32, which peer a holds")
 	}
 	if holdings != 1 {
 		t.Fatalf("registry holds %d Child SAs, want 1 (peer a)", holdings)
 	}
+}
+
+// wiringRefusedWarn is the Warn runEstablished logs when the inner-selector registry
+// refuses the first Child SA an initiator installs (errInnerSelectorConflict).
+const wiringRefusedWarn = "ike: child SA refused, another peer holds an overlapping tunnel, " +
+	"deleting the pair and keeping the IKE SA"
+
+// wiringWarnLog is a slog.Handler that records the message of every record at Warn or
+// above. Safe for concurrent use: the session's goroutines log while the test reads.
+type wiringWarnLog struct {
+	mu   sync.Mutex
+	warn []string
+}
+
+// Enabled admits Warn and above only.
+func (h *wiringWarnLog) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= slog.LevelWarn
+}
+
+// Handle records r's message.
+func (h *wiringWarnLog) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface mandates Record by value
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.warn = append(h.warn, r.Message)
+	return nil
+}
+
+// WithAttrs returns h, so a derived logger records into the same messages.
+func (h *wiringWarnLog) WithAttrs([]slog.Attr) slog.Handler { return h }
+
+// WithGroup returns h, so a derived logger records into the same messages.
+func (h *wiringWarnLog) WithGroup(string) slog.Handler { return h }
+
+// saw reports whether a record at Warn or above carried message.
+func (h *wiringWarnLog) saw(message string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return slices.Contains(h.warn, message)
 }

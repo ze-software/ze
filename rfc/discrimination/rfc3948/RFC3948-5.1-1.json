@@ -256,12 +256,12 @@
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go::TestRFC3948InitiatorSessionRefusesHeldInnerAddress",
-    "unit-sha": "3eec2e725c0e1ea6",
+    "unit-sha": "5a09ffc475e59870",
     "claim-sha": "23bd7cbdba4ca44f",
     "route": "mutant",
     "producer": "internal/component/ike/engine/fsm.go::runInitiator",
     "producer-sha": "26ce48b955b883e2",
-    "break": "line 142: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"sa.innerSelectors = nil\""
+    "break": "line 142: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"\""
   },
   {
     "rid": "RFC3948-5.1-1",
