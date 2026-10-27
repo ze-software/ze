@@ -101,6 +101,16 @@ func TestPathsLimitReceivePredicates(t *testing.T) {
 			t.Fatalf("another session's rows or counter leaked in: %v (%+v)", err, observation)
 		}
 	})
+	t.Run("a timed-out wait shows what Ze held", func(t *testing.T) {
+		answer := rows(1, 0)
+		shown := observe(t, answer, metrics(refused(bird, "2"))).String()
+		if !strings.Contains(shown, answer) {
+			t.Fatalf("the last output omits Ze's received rows: %s", shown)
+		}
+		if !strings.Contains(shown, "refused 2") {
+			t.Fatalf("the last output omits the refusal count: %s", shown)
+		}
+	})
 	t.Run("absent series is zero refusals", func(t *testing.T) {
 		if got := observe(t, rows(2, 1), metrics()).refused; got != 0 {
 			t.Fatalf("refused = %d with no series", got)

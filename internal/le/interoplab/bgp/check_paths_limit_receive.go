@@ -44,6 +44,18 @@ type pathsLimitReceiveObservation struct {
 	other    int
 	refused  int
 	accounts bool
+	// rows is Ze's received-routes answer, cut to rowsShownMax octets, so a
+	// wait that times out shows what Ze held rather than only the counts.
+	rows string
+}
+
+// rowsShownMax bounds the received-routes answer a failure message carries.
+const rowsShownMax = 2048
+
+// String renders the observation a timed-out wait prints as its last output.
+func (o pathsLimitReceiveObservation) String() string {
+	return fmt.Sprintf("held %d of %s, held %d of %s, refused %d; received rows: %s",
+		o.held, pathsLimitReceivePrefix, o.other, pathsLimitReceiveOtherPrefix, o.refused, o.rows)
 }
 
 // checkPathsLimitReceive proves, against BIRD 3, that Ze's receive ceiling holds
@@ -124,6 +136,7 @@ func decodePathsLimitReceive(routesJSON, metricsJSON, birdAddress string) (paths
 		return pathsLimitReceiveObservation{}, errors.New("ze received RIB query omitted routes")
 	}
 	var observation pathsLimitReceiveObservation
+	observation.rows = routesJSON[:min(len(routesJSON), rowsShownMax)]
 	for _, route := range routes {
 		if route.Peer != birdAddress {
 			continue
