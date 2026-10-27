@@ -118,9 +118,10 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
 			{Name: peerPMACCT, Tag: defaultPMACCTImage, Pull: true},
 		}, pinned...),
-		Scenarios: plans,
-		NoBuild:   options.NoBuild,
-		Checkout:  root,
+		Scenarios:      plans,
+		NoBuild:        options.NoBuild,
+		ImagesOnDemand: options.Scenario != "",
+		Checkout:       root,
 	}, nil
 }
 

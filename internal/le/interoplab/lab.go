@@ -81,6 +81,10 @@ type Suite struct {
 	Images    []ImageBuild
 	Scenarios []ScenarioPlan
 	NoBuild   bool
+	// ImagesOnDemand prepares only images used by the final peer plans, after
+	// dynamic preparation. Every peer MUST name a declared image in this mode.
+	// A full suite leaves this false to retain its eager image preparation.
+	ImagesOnDemand bool
 	// Checkout is the repository root the suite runs from. Each CheckContext
 	// carries it, so a checker that retains proof resolves the session scratch
 	// against the checkout rather than against the process working directory,
@@ -256,33 +260,37 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		return report
 	}
 
-	line.Reset()
-	s.progress(line.Str("interop: preparing ").Int(int64(len(s.Images))).Str(" image(s)"))
-	preparing := time.Now()
-	images, references, err := s.prepareImages(ctx)
-	report.Images = images
+	var references map[string]string
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), dockerCommandTimeout)
 		defer cancel()
-		for _, image := range images {
+		for _, image := range report.Images {
 			if err := s.Docker.ReleaseImage(cleanupCtx, image); err != nil {
 				report.CleanupErrors = append(report.CleanupErrors, err.Error())
 				report.Code = 1
 			}
 		}
 	}()
-	if err != nil {
-		report.SetupError = err.Error()
-		report.Code = 1
-		return report
+	if !s.ImagesOnDemand {
+		line.Reset()
+		s.progress(line.Str("interop: preparing ").Int(int64(len(s.Images))).Str(" image(s)"))
+		preparing := time.Now()
+		report.Images, references, err = s.prepareImages(ctx, s.Images)
+		if err != nil {
+			report.SetupError = err.Error()
+			report.Code = 1
+			return report
+		}
+		line.Reset()
+		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
+	} else {
+		references = make(map[string]string, len(s.Images))
 	}
-	line.Reset()
-	s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
 	for index, plan := range s.Scenarios {
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
 		started := time.Now()
-		result := s.runScenario(ctx, plan, references)
+		result := s.runScenario(ctx, plan, references, &report.Images)
 		report.Scenarios = append(report.Scenarios, result)
 		line.Reset()
 		scenarioLine(&line, index, len(s.Scenarios), result.Name)
@@ -305,10 +313,10 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	return report
 }
 
-func (s Suite) prepareImages(ctx context.Context) ([]ImageResult, map[string]string, error) {
-	results := make([]ImageResult, 0, len(s.Images))
-	references := make(map[string]string, len(s.Images))
-	for _, build := range s.Images {
+func (s Suite) prepareImages(ctx context.Context, builds []ImageBuild) ([]ImageResult, map[string]string, error) {
+	results := make([]ImageResult, 0, len(builds))
+	references := make(map[string]string, len(builds))
+	for _, build := range builds {
 		if build.Name == "" {
 			return results, references, errors.New("suite image has no logical name")
 		}
@@ -359,7 +367,7 @@ func scenarioLine(line *textbuf.Buffer, index, total int, name string) *textbuf.
 	return line.Str("interop: [").Int(int64(index + 1)).Byte('/').Int(int64(total)).Str("] ").Str(name)
 }
 
-func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string) (result ScenarioResult) {
+func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult) (result ScenarioResult) {
 	result.Name = plan.Source.Name
 	if plan.Source.Name == "" {
 		result.Error = "scenario has no name"
@@ -370,7 +378,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		return result
 	}
 
-	peers := resolvedPeers(plan.Peers, references)
+	peers := plan.Peers
 	cleanupPeers := declaredCleanupPeers(plan, peers)
 	if len(cleanupPeers) == 0 {
 		result.Error = "scenario declares no containers to clean"
@@ -382,7 +390,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			return result
 		}
 	}
-	lab := newLab(s.Docker, peers)
+	lab := &Lab{docker: s.Docker}
 	cleanupCtx := context.WithoutCancel(ctx)
 	// The teardown removes only what this run created. A name preClean
 	// refused, or a create that found the name taken, belongs to another run,
@@ -411,8 +419,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	if plan.Prepare != nil {
 		prepared, prepareErr := plan.Prepare(ctx, PrepareContext{Source: plan.Source, Network: network})
 		hostCleanup = prepared.Cleanup
-		peers = resolvedPeers(prepared.Peers, references)
-		lab.setPeers(peers)
+		peers = prepared.Peers
 		if prepareErr != nil {
 			result.Error = prepareErr.Error()
 			return result
@@ -424,6 +431,14 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 			return result
 		}
 	}
+	if s.ImagesOnDemand {
+		if err := s.preparePeerImages(ctx, peers, references, images); err != nil {
+			result.Error = err.Error()
+			return result
+		}
+	}
+	peers = resolvedPeers(peers, references)
+	lab.setPeers(peers)
 	for index := range peers {
 		peer := &peers[index]
 		runErr := s.Docker.runContainer(ctx, network, *peer)

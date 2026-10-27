@@ -376,6 +376,23 @@ images. For each scenario it then:
 <!-- source: internal/le/interoplab/docker.go -- Docker.CreateNetwork, ContainerMayExist, containerNameTaken -->
 <!-- source: internal/le/test/integration/actions.go -- nativeRunner, signalContext -->
 
+An exact BGP-lab scenario selector, whether passed explicitly or through
+`INTEROP_SCENARIO`, changes image preparation to the selected peers' dependency
+closure. After the network is created and dynamic configuration preparation has
+returned its final peers, `Suite.preparePeerImages` matches their logical image
+names against the suite's existing declarations. It builds Ze and pulls the
+actual FRR reference those peers use, including a scenario-specific version pin,
+without preparing unrelated BIRD, Kea or other peer images. An undeclared image
+or a failed dependency fails the scenario before any peer starts; an optional
+image failure affects only scenarios that depend on it. Successful builds are
+shared within the run and their owned retention tags are released once, including
+after setup failure or cancellation. The selected-image progress line follows
+the scenario's `running` line. Without a selector, the lab retains the eager
+full-suite image preparation described above; the kernel probe, binary staging
+and deadlines are unchanged.
+<!-- source: internal/le/interoplab/images.go -- peerImageBuilds, Suite.preparePeerImages -->
+<!-- source: internal/le/interoplab/bgp/run.go -- suiteFor -->
+
 ### Crash-safe teardown
 
 Every container, one-shot container (the kernel probe included), network and
