@@ -74,7 +74,27 @@ vpn {
 }
 ```
 
-Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the XFRM interface leaves.
+Traffic selectors constrain which protected networks a peer negotiates.
+Route-based forwarding also needs a route through the bound XFRM interface.
+The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces)
+documents the XFRM interface leaves.
+
+If the routes exist but a protected-host ping still loses every packet, compare
+SA counters with the receiving router's `/proc/net/xfrm_stat` and
+`show vpn ipsec dataplane policy`. Decryption alone is not forwarding. On Linux,
+a tunnel needs a `fwd` PROTECT policy as well as `in` and `out`: the `fwd` policy
+uses the inbound protected prefixes, tunnel endpoints, owner and XFRM `if-id`.
+Ze installs and removes these together; this is not another configuration knob.
+
+A receiving SA whose packet count increases while `XfrmInNoPols` increases
+has decrypted packets rejected by a later policy lookup. In the live
+demonstration, both routes and both SAs existed, but the receiving router had
+only `in` and `out` policies at `if-id 42`. The missing `fwd` policy caused that
+drop. A wildcard bypass at `if-id 0` does not satisfy a lookup at `if-id 42`.
+Changing the traffic test to ping the router itself, disabling policy checks,
+or adding a bypass would not repair protected-host forwarding.
+<!-- source: internal/component/ike/engine/child.go -- childReceivePolicies, childInstalledPolicies, removeChildSAIncoming -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- RequiresForwardPolicy -->
 
 ## Which edits restart a tunnel
 

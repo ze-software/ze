@@ -30,6 +30,8 @@ type fakeDP struct {
 	removedPols []dataplane.SPParams
 }
 
+func (f *fakeDP) RequiresForwardPolicy() bool { return false }
+
 func (f *fakeDP) InstallSA(p dataplane.SAParams) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

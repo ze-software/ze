@@ -12,6 +12,8 @@ type mockDataplane struct {
 	removedPols int
 }
 
+func (m *mockDataplane) RequiresForwardPolicy() bool { return false }
+
 func (m *mockDataplane) InstallSA(p SAParams) error {
 	m.installed = append(m.installed, p)
 	return nil

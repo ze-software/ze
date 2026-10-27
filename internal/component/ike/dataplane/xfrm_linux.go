@@ -318,6 +318,10 @@ func (b *xfrmBackend) CatchAllSupported() error {
 	return nil
 }
 
+// RequiresForwardPolicy reports Linux's separate SPD-I lookup for transit traffic.
+// A tunnel packet for a protected host reaches XFRM_POLICY_FWD, not XFRM_POLICY_IN.
+func (b *xfrmBackend) RequiresForwardPolicy() bool { return true }
+
 func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

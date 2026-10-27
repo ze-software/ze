@@ -47,6 +47,8 @@ type mockDP struct {
 	removed  []uint32
 }
 
+func (m *mockDP) RequiresForwardPolicy() bool { return false }
+
 func (m *mockDP) InstallSA(p dataplane.SAParams) error {
 	m.sas = append(m.sas, p)
 	return nil

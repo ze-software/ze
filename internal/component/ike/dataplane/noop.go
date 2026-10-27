@@ -20,6 +20,9 @@ func newNoopBackend() (Dataplane, error) { return noopDataplane{}, nil }
 
 type noopDataplane struct{}
 
+// RequiresForwardPolicy selects the generic in/out model for this control-plane fixture.
+func (noopDataplane) RequiresForwardPolicy() bool { return false }
+
 func (noopDataplane) InstallSA(SAParams) error                         { return nil }
 func (noopDataplane) RemoveSA(uint32, net.IP, uint8) error             { return nil }
 func (noopDataplane) InstallPolicy(SPParams) error                     { return nil }

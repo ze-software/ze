@@ -642,6 +642,9 @@ var ErrTunnelMigrationLost = errors.New("dataplane: tunnel lost during migration
 // Dataplane abstracts the ESP SA/SP installation backend.
 // Implementations: XFRM (Linux netlink), VPP (binary API).
 type Dataplane interface {
+	// RequiresForwardPolicy declares whether tunnel-mode reception needs a separate
+	// SADirFwd PROTECT policy. Without it, SADirIn MUST cover local and transit traffic.
+	RequiresForwardPolicy() bool
 	InstallSA(p SAParams) error
 	RemoveSA(spi uint32, dst net.IP, proto uint8) error
 	InstallPolicy(p SPParams) error

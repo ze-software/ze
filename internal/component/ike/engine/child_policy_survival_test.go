@@ -51,6 +51,8 @@ func spdKeyOf(p dataplane.SPParams) spdKey {
 	return key
 }
 
+func (d *spdDP) RequiresForwardPolicy() bool { return false }
+
 func (d *spdDP) InstallSA(p dataplane.SAParams) error {
 	d.states[p.SPI] = true
 	return nil

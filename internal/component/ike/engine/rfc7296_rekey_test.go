@@ -38,6 +38,8 @@ type rkyDP struct {
 	installErr error
 }
 
+func (d *rkyDP) RequiresForwardPolicy() bool { return false }
+
 func (d *rkyDP) InstallSA(p dataplane.SAParams) error {
 	if d.installErr != nil {
 		return d.installErr

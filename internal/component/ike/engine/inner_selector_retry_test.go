@@ -221,16 +221,18 @@ func TestStrandedRetryHoldsClaim(t *testing.T) {
 	<-dp.entered
 	claimed := make(chan error, 1)
 	go func() {
-		if err := reg.claim(next, "a", innerSelectorPairsOf(next), installs); err != nil {
+		if err := reg.beginInstall(next, "a", innerSelectorPairsOf(next)); err != nil {
 			claimed <- err
 			return
 		}
 		for i := range installs {
 			if err := dp.InstallPolicy(installs[i]); err != nil {
+				reg.finishInstall(next, nil)
 				claimed <- err
 				return
 			}
 		}
+		reg.finishInstall(next, installs)
 		claimed <- nil
 	}()
 	var err error

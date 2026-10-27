@@ -107,11 +107,60 @@ inbound policies' own fields so the two cannot disagree, and a packet outside it
 dropped as `XfrmInStateMismatch`. strongSwan makes the same split.
 
 **Every negotiated selector pair gets its own policy, in each direction.** A peer
-that answers several TSi/TSr pairs negotiated several values, and `childPolicies`
-builds one inbound and one outbound policy per pair, all protecting with the one SA:
-XFRM resolves each to the state through its template, VPP through the SAD id. A pair's
-two halves each carry a protocol, and a packet matches the pair only when it matches
-both, so the policy carries their intersection: TSi "any" with TSr TCP installs TCP.
+that answers several TSi/TSr pairs negotiated several values. `childInstalledPolicies`
+builds inbound and outbound policies for each pair, plus a forward policy when the
+backend declares `RequiresForwardPolicy`. Linux declares it for tunnel reception:
+local delivery checks `IN`, while delivery to a protected host checks `FWD`.
+The forward policy has the inbound selectors, ports, template, SA id, priority,
+owner and `if_id`. VPP declares no separate forward lookup because its inbound SPD
+applies before routing; it still refuses a caller's explicit `SADirFwd`.
+Transport mode does not add a forward policy.
+
+RFC 4301 Section 5.2 says: "Then match the packet against the inbound selectors
+identified by the SAD entry to verify that the received packet is appropriate for
+the SA via which it was received." Linux's separate transit lookup is part of
+that check, not permission to bypass it. Missing it drops a decrypted tunnel
+packet as `XfrmInNoPols`, even when both SAs and the protected routes exist.
+
+`installChildSA` records the backend's requirement before claiming selectors.
+The same complete policy set reaches installation, rollback, cross-peer ownership
+and MOBIKE; incoming teardown removes both receive directions. A rekey keeps
+shared policies until the last Child SA using their selectors retires.
+`TestChildTunnelForwardsProtectedHostTraffic` exercises kernel forwarding after a
+refused rekey, a deliberately removed forward policy and restoration; the
+lifecycle and migration tests beside it cover ownership and cleanup.
+
+RFC 7296 Section 2.8 says: "To rekey a Child SA within an existing IKE SA, create a
+new, equivalent SA (see Section 2.17 below), and when the new one is established,
+delete the old one." A failed replacement must not delete its predecessor's
+shared policies. `newRekeyedChild` carries the predecessor only until the install
+attempt consumes it, including selector refusal, unsupported and no-dataplane
+exits. On policy failure, `rollbackChildPolicies` restores shared entries to the
+old selectors, templates and owner, and removes only genuinely new entries.
+An unsuccessful restoration is an explicit error and marks the predecessor
+degraded without releasing its selector claim. Its initial-install ownership
+stays immutable: a separate atomic restoration-failure fact feeds the concurrent
+metrics reader. A subsequent refused rekey still restores that predecessor's
+policies rather than treating them as unowned. The health failure stays latched
+until a successful replacement publishes a new Child.
+
+A new entry that rollback cannot remove remains in both the SPD ledger and the
+stranded-selector registry for the existing removal retry. Re-establishment
+adopts same-owner stranded entries only after installation succeeds.
+`beginInstall` through `finishInstall` holds the registry's retry exclusion, but
+not its map lock, across dataplane writes. A failed, unsupported or
+control-plane-only attempt leaves the old stranded reservation retryable.
+<!-- source: internal/component/ike/engine/child.go -- rollbackChildPolicies, installChildSA, installChildTolerant -->
+<!-- source: internal/component/ike/engine/rekey.go -- newRekeyedChild -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- beginInstall, finishInstall -->
+<!-- source: internal/component/ike/engine/metrics.go -- espInstalled -->
+
+XFRM resolves each policy to the state through its template, VPP through the SAD
+id. A pair's two halves each carry a protocol, and a packet matches the pair only
+when it matches both, so the policy carries their intersection: TSi "any" with
+TSr TCP installs TCP.
+<!-- source: internal/component/ike/engine/child.go -- childInstalledPolicies, childReceivePolicies -->
+<!-- source: internal/component/ike/engine/child_forward_policy_linux_test.go -- TestChildTunnelForwardsProtectedHostTraffic -->
 
 **TSi and TSr are read as every combination of their entries.** RFC 7296 Section
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
@@ -353,9 +402,11 @@ The VPP mapper receives actions from the same local policy builders or checked
 operator policy parsing. It also asserts `BUG` for an unnamed internal action
 rather than choosing a VPP disposition.
 
-MOBIKE migration policies likewise come from the local Child SA builder with
-inbound/outbound directions. A named forward direction retains its refusal;
-an unnamed internal direction raises a `BUG` panic before migration proceeds.
+MOBIKE migration policies come from the same complete Child SA policy set.
+Inbound and forward templates move from remote to local; outbound templates move
+from local to remote. The transaction retains each direction's owner and restores
+all three on rollback. An unnamed internal direction raises a `BUG` panic before
+migration proceeds.
 
 `unmatchedPolicies` (`engine/unmatched.go`) is the catch-all of RFC 4301 Section
 5: a wildcard selector in, out and fwd for both families at

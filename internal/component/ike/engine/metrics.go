@@ -6,6 +6,7 @@ package engine
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -414,14 +415,14 @@ func (m *IPsecMetrics) publishCookieCounts() {
 // espInstalled reports whether this peer's current Child SA is in the dataplane.
 //
 // It fails closed. An unknown peer, a session without a Child SA, and a Child SA
-// whose install was refused all read false (ai/rules/evidence.md).
+// whose install or subsequent policy restoration failed all read false (ai/rules/evidence.md).
 func espInstalled(peers map[string]*PeerSession, name string) bool {
 	ps, ok := peers[name]
 	if !ok || ps == nil {
 		return false
 	}
 	child := ps.getChildSA()
-	return child != nil && child.ESPInstalled
+	return child != nil && child.ESPInstalled && atomic.LoadUint32(&child.policyRestoreFailed) == 0
 }
 
 // Update reads the current SA table and peer session state to refresh all metrics.

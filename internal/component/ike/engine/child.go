@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"slices"
 	"strings"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
@@ -33,6 +33,9 @@ import (
 // (ai/rules/evidence.md). The tolerance survives, because a platform with
 // no XFRM must still run the control plane. The false "everything is fine" does not.
 func isXFRMUnsupported(err error) bool {
+	if errors.Is(err, errChildPolicyRollback) {
+		return false
+	}
 	if errors.Is(err, dataplane.ErrNotSupported) {
 		return true
 	}
@@ -60,6 +63,8 @@ const (
 	// it SHOULD be the default.
 	replayWindow = 64
 )
+
+var errChildPolicyRollback = errors.New("child-sa policy rollback failed")
 
 // ChildSA holds the state for one ESP Child SA pair (inbound + outbound).
 type ChildSA struct {
@@ -196,13 +201,26 @@ type ChildSA struct {
 	// the first Child SA this equals the IKE SA role (sa.IsInitiator).
 	LocalIsInitiator bool
 
-	// ESPInstalled is true when the dataplane holds both states and both policies
-	// for this Child SA. It is false when no dataplane is configured, and false when
-	// the install failed on a platform that reports XFRM as unsupported.
-	//
-	// A false value means the tunnel forwards no encrypted traffic. The peer metric
-	// reads it, so an operator sees degraded rather than up (metrics.go).
+	// ESPInstalled records whether the initial install placed both states and every
+	// policy in the dataplane. It is immutable after publication: an installed Child
+	// still owns those resources even if a later replacement cannot restore a policy.
+	// No dataplane and an unsupported platform both leave it false.
 	ESPInstalled bool
+
+	// policyRestoreFailed is a sticky health failure, accessed only atomically.
+	// It does not erase initial-install ownership. The independent metrics reader
+	// combines it with ESPInstalled; a successful replacement publishes a new Child.
+	// A published Child must not be copied while this field can be updated.
+	policyRestoreFailed uint32
+
+	// forwardPolicy records the installed backend's separate transit-policy requirement.
+	// It is set before the selector claim and install, and remains fixed until teardown.
+	// False means inbound policies alone cover reception, or this is transport mode.
+	forwardPolicy bool
+
+	// installPrevious is the live predecessor while a rekey is being installed.
+	// The installer consumes it on entry, so a completed attempt keeps no rekey chain.
+	installPrevious *ChildSA
 
 	// dataplaneRemoving is protected by dataplaneObservation. A published child
 	// remains inconclusive between removal and its replacement/clear publication.
@@ -402,25 +420,34 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 // dataplane refuses as unsupported keeps it: the caller keeps that Child SA as a
 // degraded one (warnDegraded), and it still owns its selectors in the control plane.
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	previous := child.installPrevious
+	child.installPrevious = nil
+	child.forwardPolicy = child.Mode != modeTransport && dp.RequiresForwardPolicy()
 	// RFC 3948 Section 5.1: a record a failed removal stranded is retried before it can
 	// refuse this Child SA, and before this install can upsert a selector it names
 	// (innerSelectorRegistry.retryStranded).
 	child.innerGuard.retryStranded()
-	if err := child.innerGuard.claim(child); err != nil {
+	if err := child.innerGuard.beginInstall(child); err != nil {
 		return err
 	}
-	err := installChildDataplane(child, prop, dp, log)
+	installed := false
+	defer func() {
+		// RFC 3948 Section 5.1: only completed installation adopts stranded policies.
+		child.innerGuard.finishInstall(child, installed)
+	}()
+	left, err := installChildDataplane(child, previous, prop, dp, log)
 	if err == nil {
+		installed = true
 		return nil
 	}
 	if !isXFRMUnsupported(err) {
-		child.innerGuard.release(child)
+		releaseInnerRecord(child, dp, left, log)
 	}
 	return err
 }
 
 // installChildDataplane writes the Child SA's states and policies into the dataplane.
-func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) ([]dataplane.SPParams, error) {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
 
@@ -485,7 +512,7 @@ func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.
 		// value or values negotiated at the time the SA was created."
 		sel, err := inboundStateSelector(childPolicies(child, dataplane.SADirIn))
 		if err != nil {
-			return fmt.Errorf("child-sa: inbound state selector: %w", err)
+			return nil, fmt.Errorf("child-sa: inbound state selector: %w", err)
 		}
 		inbound.Sel = sel
 	}
@@ -499,11 +526,11 @@ func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.
 	// refused before anything is installed.
 	if child.UDPEncap {
 		if localPort == 0 {
-			return fmt.Errorf("%w: peer %s: Child SA reached install with no local port (ze defect)",
+			return nil, fmt.Errorf("%w: peer %s: Child SA reached install with no local port (ze defect)",
 				errChildEncapPort, child.Owner)
 		}
 		if remotePort == 0 {
-			return fmt.Errorf("%w: peer %s: Child SA reached install with no peer port (ze defect)",
+			return nil, fmt.Errorf("%w: peer %s: Child SA reached install with no peer port (ze defect)",
 				errChildEncapPort, child.Owner)
 		}
 	}
@@ -555,7 +582,7 @@ func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.
 	inbound.AcceptBothESPForms = true
 
 	if err := dp.InstallSA(inbound); err != nil {
-		return fmt.Errorf("child-sa: install inbound: %w", err)
+		return nil, fmt.Errorf("child-sa: install inbound: %w", err)
 	}
 	log.Debug("child-sa: installed inbound SA", "spi", child.InboundSPI, "ifid", child.IfID)
 
@@ -605,7 +632,7 @@ func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.
 
 	if err := dp.InstallSA(outbound); err != nil {
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
-		return fmt.Errorf("child-sa: install outbound: %w", err)
+		return nil, fmt.Errorf("child-sa: install outbound: %w", err)
 	}
 	log.Debug("child-sa: installed outbound SA", "spi", child.OutboundSPI, "ifid", child.IfID)
 
@@ -615,38 +642,72 @@ func installChildDataplane(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.
 	// installed once, on the first configuration apply, and it outlives every Child SA: see
 	// installIKEBypass in bypass.go for why it is not installed here.
 	//
-	// RFC 4301 Section 4.4.2: one inbound and one outbound policy per negotiated pair,
-	// every one protecting with this SA. The inbound ones go first, so no outbound
-	// traffic is sent before the answering direction is accepted.
-	inPolicies := childPolicies(child, dataplane.SADirIn)
-	policies := slices.Concat(inPolicies, childPolicies(child, dataplane.SADirOut))
+	// RFC 4301 Section 4.4.2: every negotiated pair protects with this SA.
+	// Linux checks decrypted transit traffic against FWD, not IN. Install both
+	// receive paths before OUT so no traffic leaves before its reply is accepted.
+	policies := childInstalledPolicies(child)
 	for i, p := range policies {
 		err := dp.InstallPolicy(p)
 		if err == nil {
 			continue
 		}
-		direction := "outbound"
-		if i < len(inPolicies) {
-			direction = "inbound"
-		}
-		// Owner-aware, so a peer whose install was refused cannot roll back over the
-		// owning peer's live policy (dataplane.SPParams.Owner). Through removeZePolicy,
-		// so a rollback removal that fails leaves its entry in the SPD ledger
-		// (spd_left.go) and releaseSPD keeps the catch-all beneath it at exit.
-		for _, installed := range policies[:i] {
-			if rmErr := removeZePolicy(dp, installed); rmErr != nil {
-				log.Warn("child-sa: could not roll back a policy after a failed install; it stays installed",
-					"dir", dirLabel(installed.Dir), "src", installed.Src, "dst", installed.Dst, "error", rmErr)
-			}
-		}
+		// RFC 7296 Section 2.8: a failed replacement must leave the old SA usable.
+		left, rollbackErr := rollbackChildPolicies(previous, policies[:i], dp, log)
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
-		return fmt.Errorf("child-sa: install %s policy %v -> %v: %w", direction, p.Src, p.Dst, err)
+		return left, errors.Join(
+			fmt.Errorf("child-sa: install %s policy %v -> %v: %w", dirLabel(p.Dir), p.Src, p.Dst, err),
+			rollbackErr)
 	}
 
 	setChildRemoving(child, false)
 	log.Info("child-sa: installed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID)
-	return nil
+	return nil, nil
+}
+
+// rollbackChildPolicies restores shared policies and removes only new entries.
+// RFC 7296 Section 2.8: "To rekey a Child SA within an existing IKE SA, create a new,
+// equivalent SA (see Section 2.17 below), and when the new one is established,
+// delete the old one." A replacement refused during installation is not established.
+func rollbackChildPolicies(previous *ChildSA, installed []dataplane.SPParams, dp dataplane.Dataplane, log *slog.Logger) ([]dataplane.SPParams, error) {
+	var oldPolicies []dataplane.SPParams
+	if previous != nil && previous.ESPInstalled {
+		// RFC 4301 Sections 4.4.2 and 5.2.
+		oldPolicies = childInstalledPolicies(previous)
+	}
+	var left []dataplane.SPParams
+	var rollbackErr error
+	for i := len(installed) - 1; i >= 0; i-- {
+		policy := installed[i]
+		shared := false
+		for _, old := range oldPolicies {
+			if old.Dir != policy.Dir || old.Owner != policy.Owner || !samePolicyEntry(old, policy) {
+				continue
+			}
+			shared = true
+			if err := dp.InstallPolicy(old); err != nil {
+				atomic.StoreUint32(&previous.policyRestoreFailed, 1)
+				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%w: restore %s policy %v -> %v: %w",
+					errChildPolicyRollback, dirLabel(old.Dir), old.Src, old.Dst, err))
+				log.Warn("could not restore the existing tunnel policy; protected traffic may stop",
+					"peer", previous.Owner, "dir", dirLabel(old.Dir), "src", old.Src, "dst", old.Dst, "error", err,
+					"fix", fmt.Sprintf("clear vpn ipsec sa peer %q", previous.Owner))
+			}
+			break
+		}
+		if shared {
+			continue
+		}
+		if err := removeZePolicy(dp, policy); !policyGone(err) {
+			left = append(left, policy)
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%w: remove %s policy %v -> %v: %w",
+				errChildPolicyRollback, dirLabel(policy.Dir), policy.Src, policy.Dst, err))
+			log.Warn("could not remove a failed tunnel's policy; it still reserves the protected traffic",
+				"peer", policy.Owner, "dir", dirLabel(policy.Dir), "src", policy.Src, "dst", policy.Dst, "error", err,
+				"fix", fmt.Sprintf("clear vpn ipsec sa peer %q", policy.Owner))
+		}
+	}
+	return left, rollbackErr
 }
 
 // installChildTolerant installs a Child SA, tolerating platforms without XFRM/ESP
@@ -658,6 +719,7 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 	// RFC 3948 Section 5.1: with no dataplane the record is still taken, as
 	// createFirstChildSA takes it.
 	if dp == nil {
+		child.installPrevious = nil
 		return child.innerGuard.claim(child)
 	}
 	if err := installChildSA(child, prop, dp, log); err != nil {
@@ -687,18 +749,77 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 // Install AND remove both go through it, so the delete selectors are the install
 // selectors by construction.
 func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
+	return appendChildPolicies(make([]dataplane.SPParams, 0, max(1, len(child.Selectors))), child, dir)
+}
+
+// childReceivePolicies includes the transit half of SPD-I when the backend needs it.
+// Install, teardown, selector ownership and migration MUST use this same policy set.
+//
+// RFC 4301 Section 5.2: "Then match the packet against the inbound selectors
+// identified by the SAD entry to verify that the received packet is appropriate
+// for the SA via which it was received." Linux performs that lookup in FWD for a
+// protected host, so an IN policy alone cannot authorize the decrypted packet.
+func childReceivePolicies(child *ChildSA) []dataplane.SPParams {
+	directions := 1
+	if child.forwardPolicy {
+		directions++
+	}
+	// RFC 4301 Section 5.2: include every inbound-selector lookup.
+	return appendChildReceivePolicies(make([]dataplane.SPParams, 0,
+		max(1, len(child.Selectors))*directions), child)
+}
+
+// appendChildReceivePolicies applies RFC 4301 Section 5.2:
+// "Then match the packet against the inbound selectors identified by the SAD
+// entry to verify that the received packet is appropriate for the SA via which
+// it was received." Both Linux receive directions must enforce the same selectors.
+func appendChildReceivePolicies(policies []dataplane.SPParams, child *ChildSA) []dataplane.SPParams {
+	// RFC 4301 Sections 4.4.2 and 5.2.
+	policies = appendChildPolicies(policies, child, dataplane.SADirIn)
+	if child.forwardPolicy {
+		// RFC 4301 Sections 4.4.2 and 5.2.
+		policies = appendChildPolicies(policies, child, dataplane.SADirFwd)
+	}
+	return policies
+}
+
+// childInstalledPolicies builds the full install order, with receive paths first.
+// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
+// the entry for an inbound SA in the SAD MUST be initially populated with the value
+// or values negotiated at the time the SA was created." The complete installed set
+// includes every receive lookup that enforces those selectors (Section 5.2).
+func childInstalledPolicies(child *ChildSA) []dataplane.SPParams {
+	directions := 2
+	if child.forwardPolicy {
+		directions++
+	}
+	policies := make([]dataplane.SPParams, 0, max(1, len(child.Selectors))*directions)
+	// RFC 4301 Section 5.2.
+	policies = appendChildReceivePolicies(policies, child)
+	// RFC 4301 Section 4.4.2.
+	return appendChildPolicies(policies, child, dataplane.SADirOut)
+}
+
+// appendChildPolicies implements RFC 4301 Section 4.4.2:
+// "For each of the selectors defined in Section 4.4.1.1, the entry for an inbound
+// SA in the SAD MUST be initially populated with the value or values negotiated
+// at the time the SA was created." Each negotiated pair reaches the requested
+// policy direction without widening its prefixes, ports or protocol.
+func appendChildPolicies(out []dataplane.SPParams, child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
 	if len(child.Selectors) == 0 {
-		return []dataplane.SPParams{childPairPolicy(child, dir, policyPair{
+		// RFC 4301 Section 4.4.2.
+		return append(out, childPairPolicy(child, dir, policyPair{
 			local:  child.TSLocal,
 			remote: child.TSRemote,
-		})}
+		}))
 	}
-	out := make([]dataplane.SPParams, 0, len(child.Selectors))
 	for _, pair := range child.Selectors {
+		// RFC 4301 Section 4.4.2.
 		pp, ok := childPolicyPair(child, pair)
 		if !ok {
 			continue
 		}
+		// RFC 4301 Section 4.4.2.
 		out = append(out, childPairPolicy(child, dir, pp))
 	}
 	return out
@@ -789,11 +910,16 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 	// than by template addresses (dataplane.SPParams.SAID). It is the SPI of the SA
 	// installed for the SAME direction.
 	said := child.OutboundSPI
-	if dir == dataplane.SADirIn {
+	switch dir {
+	case dataplane.SADirIn, dataplane.SADirFwd:
 		src, dst = pair.remote, pair.local
 		tunnelSrc, tunnelDst = child.RemoteAddr, child.LocalAddr
 		srcPort, dstPort = pair.remotePort, pair.localPort
 		said = child.InboundSPI
+	case dataplane.SADirOut:
+		// Outbound selectors and endpoints already have local-to-remote orientation.
+	default:
+		panic("BUG: Child SA policy has an unknown direction")
 	}
 	if mode == modeTransport {
 		tunnelSrc, tunnelDst = nil, nil
@@ -1077,9 +1203,9 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 	setChildRemoving(child, true)
 	var left []dataplane.SPParams
 	if dropPolicy {
-		for _, p := range childPolicies(child, dataplane.SADirIn) {
+		for _, p := range childReceivePolicies(child) {
 			if err := removeZePolicy(dp, p); err != nil {
-				logPolicyRemoveFailure(log, "inbound", child, err)
+				logPolicyRemoveFailure(log, dirLabel(p.Dir), child, err)
 				if !policyGone(err) {
 					left = append(left, p)
 				}

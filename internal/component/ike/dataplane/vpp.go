@@ -241,6 +241,10 @@ func vppSAEndpoints(p SAParams) error {
 	return nil
 }
 
+// RequiresForwardPolicy is false because VPP applies its inbound SPD before routing.
+// It has no separate local-delivery and transit policy directions.
+func (b *vppBackend) RequiresForwardPolicy() bool { return false }
+
 func (b *vppBackend) InstallSA(p SAParams) error {
 	if err := vppUnsupportedSA(p); err != nil {
 		return err

@@ -40,15 +40,15 @@ import (
 // inbound exactly when they overlap outbound and one direction is enough.
 //
 // Safe for concurrent use. mu guards the map, and no method calls the dataplane or
-// blocks while holding it. retryMu serializes the stranded retry with itself and with
-// claim, and it is held across the retry's policy removals (retryStranded).
+// blocks while holding it. retryMu serializes stranded retries and installation
+// transactions; it spans retry removals and beginInstall through finishInstall.
 //
-// Lock order: retryMu, then mu. claim and retryStranded take retryMu first; every
-// other method takes mu alone, and nothing takes retryMu while holding mu.
+// Lock order: retryMu, then mu. beginInstall and retryStranded acquire retryMu;
+// finishInstall releases it. Release and strand take mu alone, including rollback.
 type innerSelectorRegistry struct {
 	retryMu sync.Mutex
 	mu      sync.Mutex
-	// held is bounded by the live Child SAs plus the stranded ones: claim adds one entry
+	// held is bounded by the live Child SAs plus the stranded ones: beginInstall adds one entry
 	// per installed Child SA, and removeChildSAExcept removes it when the Child SA goes
 	// away, or strands it when a policy of it stayed in the dataplane, until
 	// retryStranded removes that policy. Written only through putLocked and
@@ -427,7 +427,7 @@ func innerSelectorPairsOf(child *ChildSA) []innerSelectorPair {
 
 // admit reports whether owner may take p, without recording anything. It is the
 // narrowing filter's question (dropForeignInnerOverlaps); the answer can be stale by the
-// time the Child SA installs, which is why claim asks it again under the same lock as
+// time the Child SA installs, which is why beginInstall asks it again under the same lock as
 // its write.
 func (r *innerSelectorRegistry) admit(owner string, p innerSelectorPair) error {
 	r.mu.Lock()
@@ -435,44 +435,46 @@ func (r *innerSelectorRegistry) admit(owner string, p innerSelectorPair) error {
 	return r.conflictLocked(owner, p)
 }
 
-// claim records every pair of child under owner, or refuses child whole when one of its
-// pairs conflicts. The check and the write share one lock, so two peers that both
-// passed the narrowing filter cannot both be recorded. A claim of a child already
-// recorded replaces its record.
+// beginInstall records every pair of child under owner, or refuses child whole
+// when one conflicts. RFC 3948 Section 5.1: "Implementors MUST devise ways of
+// preventing this from occurring." The check and claim share mu, so two peers
+// passing the narrowing filter cannot both reserve conflicting selectors.
 //
-// installs is every policy child will install, both directions. A stranded holding of
-// the same owner gives up each policy of its own that installs names: the install
-// upserts that selector (xfrmBackend.InstallPolicy), so the kernel entry belongs to
-// child from then on, and a later retry removing it would take the live tunnel's
-// policy with it.
-//
-// claim takes retryMu before mu, so it never runs while a retry is between copying the
-// stranded policies and settling them. A claim in that window would adopt a policy the
-// retry is about to remove, the caller's install would upsert the same selector, and
-// the retry's removal would then delete the new Child SA's live policy: on XFRM the
-// owner check passes because the owner is the same, and the VPP backend checks no
-// owner at all. Waiting costs at most the retry's own removals, one per stranded
-// policy (retryStranded).
-//
-// MUST be paired with release when the Child SA goes away or its install fails.
-func (r *innerSelectorRegistry) claim(child *ChildSA, owner string, pairs []innerSelectorPair, installs []dataplane.SPParams) error {
+// A successful call retains retryMu until finishInstall. This prevents a removal
+// retry from deleting a policy while installation upserts it, but preserves the
+// old stranded records until installation succeeds. The dataplane is called with
+// mu released. A refused claim releases both locks before returning.
+func (r *innerSelectorRegistry) beginInstall(child *ChildSA, owner string, pairs []innerSelectorPair) error {
 	r.retryMu.Lock()
-	defer r.retryMu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range pairs {
 		if err := r.conflictLocked(owner, pairs[i]); err != nil {
+			r.retryMu.Unlock()
 			return err
 		}
 	}
-	r.adoptStrandedLocked(owner, installs)
 	r.putLocked(child, innerSelectorHolding{owner: owner, pairs: pairs})
 	return nil
 }
 
+// finishInstall adopts only policies whose installation succeeded, then releases
+// the retry exclusion acquired by beginInstall. A failed or control-plane-only
+// attempt passes no installs and leaves every old stranded record retryable.
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." Ownership must outlive a policy even when its new install fails.
+func (r *innerSelectorRegistry) finishInstall(child *ChildSA, installs []dataplane.SPParams) {
+	defer r.retryMu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(installs) != 0 {
+		r.adoptStrandedLocked(child.Owner, installs)
+	}
+}
+
 // adoptStrandedLocked drops from every stranded holding of owner the policies installs
-// re-installs, and forgets a holding left with none (claim). MUST be called with r.mu
-// held.
+// re-installs, and forgets a holding left with none (finishInstall). MUST be called
+// with r.mu held after those policies were successfully installed.
 func (r *innerSelectorRegistry) adoptStrandedLocked(owner string, installs []dataplane.SPParams) {
 	for child, holding := range r.held {
 		if holding.stranded == nil {
@@ -569,7 +571,7 @@ func (r *innerSelectorRegistry) strand(child *ChildSA, s *strandedPolicies) {
 // Safe for concurrent use. retryMu is held from the copy of the stranded holdings,
 // through every removal, to the last settle, so a second retry copies only what the
 // first left, and no claim adopts a policy between this retry's copy and its removal
-// (claim). Without it two retries both removed one policy, and a peer that claimed the
+// (beginInstall/finishInstall). Without it two retries both removed one policy, and a peer that claimed the
 // freed selector between the first removal and the second lost its fresh policy to the
 // second. What retryMu spans is bounded: one dataplane removal per stranded policy,
 // each a netlink or VPP API request. The dataplane is called with r.mu released.
@@ -796,17 +798,47 @@ func innerSelectorStrandedConflict(owner string, p innerSelectorPair, holder str
 		errInnerSelectorStranded, owner, p.text, h.text, holder, commands.String())
 }
 
-// claim records child in its registry (RFC 3948 Section 5.1), in either mode: a
-// transport-mode Child SA is recorded so no other peer's tunnel can overlap it, while
-// its overlap with another transport-mode Child SA is left to the dataplane (RFC 3948
-// Section 5.2, conflictLocked).
+// claim records a control-plane-only Child without adopting kernel policies.
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." Even without a dataplane, two peers cannot reserve conflicting scope.
 func (g innerSelectorGuard) claim(child *ChildSA) error {
+	// RFC 3948 Section 5.1.
+	if err := g.beginInstall(child); err != nil {
+		return err
+	}
+	// RFC 3948 Section 5.1: no policy was installed by this control-plane claim.
+	g.finishInstall(child, false)
+	return nil
+}
+
+// beginInstall reserves the scope and excludes stranded-policy retries until
+// finishInstall, without yet adopting their policies.
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." A failed attempt must not forget an existing policy's reservation.
+func (g innerSelectorGuard) beginInstall(child *ChildSA) error {
 	// refuse-by-default: guards innerSelectorGuard -- only a Child SA a test built by hand carries no registry; every session-built SA carries SATable.innerSelectors
 	if g.registry == nil {
 		return nil
 	}
-	installs := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
-	return g.registry.claim(child, child.Owner, innerSelectorPairsOf(child), installs)
+	// RFC 3948 Section 5.1.
+	return g.registry.beginInstall(child, child.Owner, innerSelectorPairsOf(child))
+}
+
+// finishInstall transfers stranded policies only after actual installation.
+// RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from
+// occurring." A policy stays reserved until a live successor takes responsibility.
+func (g innerSelectorGuard) finishInstall(child *ChildSA, installed bool) {
+	// refuse-by-default: guards innerSelectorGuard -- hand-built test children have no registry transaction
+	if g.registry == nil {
+		return
+	}
+	var policies []dataplane.SPParams
+	if installed {
+		// RFC 4301 Sections 4.4.2 and 5.2.
+		policies = childInstalledPolicies(child)
+	}
+	// RFC 3948 Section 5.1.
+	g.registry.finishInstall(child, policies)
 }
 
 // retryStranded retries the stranded records of its registry (innerSelectorRegistry.retryStranded).

@@ -502,7 +502,7 @@ func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane, local 
 	moved := 0
 	current := ps.getChildSA()
 	if current != nil {
-		policies := append(childPolicies(current, dataplane.SADirIn), childPolicies(current, dataplane.SADirOut)...)
+		policies := childInstalledPolicies(current)
 		if err := ps.migrateMobikePair(sa, current, policies, dp, local); err != nil {
 			return moved, err
 		}
@@ -513,7 +513,7 @@ func (ps *PeerSession) migrateMobikeChild(sa *SA, dp dataplane.Dataplane, local 
 	if old := ps.supersededChild; old != nil && old != current {
 		var policies []dataplane.SPParams
 		if !samePolicySelector(current, old) {
-			policies = append(childPolicies(old, dataplane.SADirIn), childPolicies(old, dataplane.SADirOut)...)
+			policies = childInstalledPolicies(old)
 		}
 		if err := ps.migrateMobikePair(sa, old, policies, dp, local); err != nil {
 			return moved, err

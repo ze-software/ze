@@ -62,6 +62,8 @@ type fakeDataplane struct {
 	onSAD    func()
 }
 
+func (f *fakeDataplane) RequiresForwardPolicy() bool { return false }
+
 func (f *fakeDataplane) InstallSA(dataplane.SAParams) error          { return nil }
 func (f *fakeDataplane) RemoveSA(uint32, net.IP, uint8) error        { return nil }
 func (f *fakeDataplane) InstallPolicy(dataplane.SPParams) error      { return nil }

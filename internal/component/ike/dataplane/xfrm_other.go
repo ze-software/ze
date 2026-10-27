@@ -16,6 +16,9 @@ func newXFRMBackend() (Dataplane, error) {
 	return &xfrmBackend{}, nil
 }
 
+// RequiresForwardPolicy preserves XFRM's policy model; installation remains unsupported.
+func (b *xfrmBackend) RequiresForwardPolicy() bool { return true }
+
 func (b *xfrmBackend) InstallSA(_ SAParams) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

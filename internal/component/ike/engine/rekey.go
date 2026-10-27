@@ -924,6 +924,9 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// The replacement is the same peer's, under the same configuration, so it is
 		// recorded in the same cross-peer registry (RFC 3948 Section 5.1).
 		innerGuard: old.innerGuard,
+		// RFC 7296 Section 2.8: retain the old policy templates until installation
+		// succeeds; installChildSA consumes this short-lived rollback input.
+		installPrevious: old,
 		// UDPEncap decides whether installChildSA gives the XFRM state an ESP-in-UDP
 		// template (child.go). createFirstChildSA is its only other writer, so a rekeyed
 		// child that does not inherit it installs a state with no template. The kernel

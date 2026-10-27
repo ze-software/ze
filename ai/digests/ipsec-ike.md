@@ -117,10 +117,14 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
     (`crypto.DeriveChildSAKeys`, `established.go`, `child.go`,
     `keys.go`), computes traffic selectors from the negotiated TS or falls back
     to host/32 (`child.go`), and calls `installChildSA` (`child.go`,
-    `child.go`), which installs inbound + outbound `dataplane.SAParams` and a
-    matching pair of `SPParams` policies (`dataplane.go`, `dataplane.go`,
-    `xfrm_linux.go`, `xfrm_linux.go`), tolerating `ErrNotSupported` on
-    platforms without XFRM (`isXFRMUnsupported`, `child.go`).
+    `child.go`), which installs inbound + outbound `dataplane.SAParams` and the
+    negotiated `SPParams` policies. `Dataplane.RequiresForwardPolicy` explicitly
+    declares each backend's receive model: Linux tunnel SAs need IN and FWD
+    policies, while VPP's inbound SPD covers local and transit reception.
+    `childInstalledPolicies` supplies install, ownership and migration;
+    `childReceivePolicies` supplies both receive directions to teardown.
+    `ErrNotSupported` remains tolerated on platforms without XFRM
+    (`isXFRMUnsupported`, `child.go`).
 13. **Route + event fan-out.** `emitChildUp` + `emitRouteAdd` (`established.go`,
     `established.go`, `redistribute.go`) publish `vpn-ipsec/child-up` and a
     `RouteChangeBatch` on the `"ipsec"` redistribute source registered at init

@@ -32,6 +32,8 @@ type removedPolicy struct {
 	dir      dataplane.SADir
 }
 
+func (d *bypassDP) RequiresForwardPolicy() bool { return false }
+
 func (d *bypassDP) InstallSA(_ dataplane.SAParams) error          { return nil }
 func (d *bypassDP) ListSAs(_ uint32) ([]dataplane.SAInfo, error)  { return nil, nil }
 func (d *bypassDP) ListPolicies() ([]dataplane.PolicyInfo, error) { return nil, nil }

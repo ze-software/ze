@@ -86,6 +86,8 @@ func newOwnedDP() *ownedDP {
 	}
 }
 
+func (d *ownedDP) RequiresForwardPolicy() bool { return false }
+
 func (d *ownedDP) InstallSA(p dataplane.SAParams) error {
 	d.states[p.SPI] = true
 	return nil

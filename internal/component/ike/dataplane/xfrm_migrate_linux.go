@@ -183,7 +183,7 @@ func (b *xfrmMobikeBackend) MigrateTunnel(m TunnelMigration) error {
 			updated := *policies[i]
 			updated.Tmpls = []netlink.XfrmPolicyTmpl{policies[i].Tmpls[0]}
 			updated.Tmpls[0].Src, updated.Tmpls[0].Dst = m.NewLocal, m.NewRemote
-			if updated.Dir == netlink.XFRM_DIR_IN {
+			if updated.Dir != netlink.XFRM_DIR_OUT {
 				updated.Tmpls[0].Src, updated.Tmpls[0].Dst = m.NewRemote, m.NewLocal
 			}
 			if err = xfrmMigrationPolicyUpdate(&updated); err != nil {
@@ -317,7 +317,7 @@ func (b *xfrmMobikeBackend) prepareMigration(m TunnelMigration) ([2]xfrmStateMov
 		case SADirOut:
 			outbound = true
 		case SADirFwd:
-			return moves, nil, fmt.Errorf("xfrm: migration requires inbound/outbound policies")
+			index = 0
 		default:
 			panic("BUG: migration policy has an unknown direction")
 		}

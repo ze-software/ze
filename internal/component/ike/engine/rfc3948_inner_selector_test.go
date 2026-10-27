@@ -714,9 +714,10 @@ func TestInnerSelectorInitiatorRefusalKeepsIKESA(t *testing.T) {
 		Owner: "other", Mode: modeTunnel, IfID: ifID, PolicyPriority: iniPeer.PolicyPriority,
 		Selectors: ini.NegotiatedPairs, SelectorsLocalIsTSi: true,
 	}
-	if err := reg.claim(holder, "other", innerSelectorPairsOf(holder), nil); err != nil {
+	if err := reg.beginInstall(holder, "other", innerSelectorPairsOf(holder)); err != nil {
 		t.Fatalf("setup: record the other peer: %v", err)
 	}
+	reg.finishInstall(holder, nil)
 
 	ps := &PeerSession{peerName: "ze", peerCfg: iniPeer, ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
 	encapRunEstablished(t, ps, ini, table, myTr)

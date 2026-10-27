@@ -70,6 +70,9 @@ func recordedPrefix(prefix *net.IPNet) string {
 	return prefix.String()
 }
 
+// RequiresForwardPolicy selects the generic in/out model; this fixture forwards no packets.
+func (d *recordingDataplane) RequiresForwardPolicy() bool { return false }
+
 func (d *recordingDataplane) InstallSA(SAParams) error             { return nil }
 func (d *recordingDataplane) RemoveSA(uint32, net.IP, uint8) error { return nil }
 func (d *recordingDataplane) Close() error                         { return nil }
