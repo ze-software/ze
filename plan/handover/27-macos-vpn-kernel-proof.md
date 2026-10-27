@@ -11,6 +11,31 @@
 - The Linux session continues its own fixes and native proofs. Do not copy its scratch binaries, private overlays or cached amd64 kernel onto the Mac.
 - The website decision is WebP screenshots plus lightweight terminal playback. No video conversion, upload or website publication is part of this handover.
 
+## First Mac result and the next run
+
+The first run at `7aa2f4849e` built the arm64 kernel and image, passed the
+emitted-config prerequisite and booted under HVF. Preparation exited with
+`Lima boot.sh: exit status 1`; Docker never became ready. No VPN traffic
+case ran. Evidence returned to Linux is in `tmp/mac-vpn-proof-2026-10-27/`.
+
+The preparation now traces only its fixed module checks and refuses failed
+procfs reads before testing their values. It still rejects every loaded module
+and requires `/sbin/modprobe` to be absent. This is a diagnostic and guard
+repair, not a claim that the Mac failure is fixed.
+
+After Thomas authorizes the next Mac run, pull the commit carrying this repair
+and execute the block below once. Keep the original evidence; the block makes
+a new evidence directory. Let the normal resolver choose valid cached artifacts,
+without forcing a rebuild or selecting an old image by hand.
+
+Return the complete console trace even if preparation fails again. In
+particular, retain the module list and the last traced assertion. The pinned
+gokrazy `loadModules` attempts `pwm-fan.ko` before this preparation, and the
+Mac image contains it; successful loading is only a hypothesis until the
+guest's module list establishes it. Do not unload modules, add an exception,
+change the kernel or relax a guard to get past the refusal.
+
+
 ## Before running
 
 1. Make this handover commit available in the Mac checkout through your normal Git transport, then pull `main`. This handover does not authorize a push. If the commit has not reached your remote, a normal pull cannot retrieve it; do not run an older checkout and report it as this revision.
@@ -26,6 +51,7 @@ The following block creates a fresh evidence directory. `pipefail` preserves a f
 ```bash
 bash <<'SH'
 set -euo pipefail
+export CGO_ENABLED=0 GOMAXPROCS=2
 
 if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
   printf '%s\n' 'This handover requires a native Apple Silicon macOS shell.' >&2
@@ -42,8 +68,10 @@ printf 'Evidence directory: %s\n' "$run"
 uname -sm | tee "$run/host.txt"
 git rev-parse HEAD | tee "$run/commit.txt"
 
-./le setup docker host build arch arm64 2>&1 | tee "$run/image-build.log"
-./le --name mac-vpn-proof test qemu vpn-kernel-test timeout 30m 2>&1 | tee "$run/vpn-kernel.log"
+./le --name mac-vpn-proof job run label mac-vpn-image command \
+  ./le --name mac-vpn-proof setup docker host build arch arm64 2>&1 | tee "$run/image-build.log"
+./le --name mac-vpn-proof job run label mac-vpn-proof command \
+  ./le --name mac-vpn-proof test qemu vpn-kernel-test timeout 30m 2>&1 | tee "$run/vpn-kernel.log"
 
 printf 'Native commands completed successfully. Return the evidence from %s\n' "$run"
 SH
@@ -84,4 +112,4 @@ Before boot, the action checks the emitted native kernel configuration against `
 - `docs/guide/appliance.md`, “VPN Kernel Proof”.
 - Native `le help setup docker host build`: verified `arch arm64` and image-build action.
 
-**Verification limit:** These command contracts and the prior native amd64 result were inspected on Linux. The requested Mac execution has not been run or claimed here.
+**Verification limit:** The first Mac run established build, configuration and boot evidence only. The Linux sandbox exercises the repaired shell guards, not arm64 BusyBox or VPN traffic. The diagnostic Mac rerun and full native arm64 traffic proof remain owed.

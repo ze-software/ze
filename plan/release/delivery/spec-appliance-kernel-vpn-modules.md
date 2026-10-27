@@ -7,7 +7,7 @@
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 5/7 — native amd64 traffic proved; arm64 and live discrimination pending |
+| Phase | 5/7 — native amd64 traffic proved; arm64 boot proved, preparation blocked; live discrimination pending |
 | Handoff | - |
 | Updated | 2026-10-27 |
 
@@ -445,7 +445,7 @@ Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the require
   unchanged. `vpnKernelConfig` reads the resolver's emitted config and both
   manifests; the WireGuard checker rechecks the guest's loader state.
 - The native amd64/KVM run below cannot replace the arm64/HVF condition.
-  No native arm64 host was available for this work.
+  The initial Linux phase had no native arm64 runner; the later Mac result is below.
 
 ### Wrong Assumptions
 
@@ -456,7 +456,7 @@ Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the require
 ### Phase 5 Verification
 
 `./le --name vpn-proof test qemu vpn-kernel-test timeout 30m` passed on native
-amd64/KVM. The same command remains owed on native arm64/HVF.
+amd64/KVM. The arm64/HVF attempt stopped during preparation; its traffic proof remains owed.
 
 The focused CBC transform, WireGuard receipt, built-in floor, guest preparation
 and scenario-input tests passed with race detection. The separate
@@ -492,6 +492,40 @@ This proves neither arm64/HVF nor the separate product WireGuard configuration
 workflow. It does not claim external both-role rekey coverage. The later default
 appliance image readback is recorded by `34eede6b0c` in the parent appliance
 spec; it is separate from this Docker-host traffic proof.
+
+### Native arm64 preparation failure, 2026-10-27
+
+The Mac ran handover 27 at `7aa2f4849e`. Its native arm64 kernel 7.2.9 and
+docker-host image built cold, with image cache key `a6574e77e607b55b`. The
+emitted-config prerequisite completed and the guest booted under HVF with SSH.
+Preparation then exited with only `Lima boot.sh: exit status 1`; Docker did not
+answer within the existing 120-second bound. No ESP or WireGuard case ran.
+The VM stopped without interruption. The outer zero exit fields do not turn
+unreached checks or traffic into passing evidence.
+
+The retained input is `tmp/mac-vpn-proof-2026-10-27/`: `FINDINGS.md`,
+`vpn-kernel.log`, `docker-lab-console-2223.log`, `image-build.log` and
+`kernel-config-arm64`. Linux traced the script through `vpnGuestPreparation`,
+`dockerLabGuest.cidataFiles` and `serveForever`. The pinned gokrazy
+`loadModules` attempts `pwm-fan.ko` before that preparation, and the Mac built
+that module. Successful insertion remains unproved without the guest module
+list; built-in VPN requirements alone do not exclude unrelated loaded modules.
+
+The bounded repair preserves every module guard, traces only the fixed
+preparation block and checks both procfs reads before testing their values.
+The new `TestVPNPreparationRefusesUnknownModuleState` first exposed a silent
+loaded-module refusal and acceptance of a failed module-list read. A direct
+Linux shell smoke then passed empty, loaded and unreadable module-state cases,
+including the boundary that stops tracing before the next phase. This does not
+establish the original Mac cause or an arm64 traffic pass.
+
+The post-fix package run stopped at unrelated unfinished
+`internal/plugins/dnsresolver` references, including `flightTable`, `limiter`
+and `resolverStats`; no post-fix package pass is claimed. The exact logs and
+direct-shell receipts are recorded in this spec's session state. Handover 27
+now describes one bounded diagnostic Mac rerun, with no timeout increase,
+module exception or manual cache override.
+
 
 ## Known Limitations
 - N100 hardware boot: owner-deferred (decision above), not evidence for this spec.

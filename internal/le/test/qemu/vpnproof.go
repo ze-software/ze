@@ -17,12 +17,18 @@ import (
 // vpnGuestPreparation runs only in the disposable snapshot this action boots.
 // Disable loading before checking the module list to close the autoload race.
 // An already-loaded module refuses the proof rather than supplying hidden support.
-const vpnGuestPreparation = `echo 1 > /proc/sys/kernel/modules_disabled
-test "$(cat /proc/sys/kernel/modules_disabled)" = 1
-test -z "$(cat /proc/modules)"
+// Trace only this fixed block: failed assertions need their inputs in the console,
+// but the caller's subsequent service provisioning must not inherit tracing.
+const vpnGuestPreparation = `set -x
+echo 1 > /proc/sys/kernel/modules_disabled
+modules_disabled=$(cat /proc/sys/kernel/modules_disabled)
+test "$modules_disabled" = 1
+loaded_modules=$(cat /proc/modules)
+test -z "$loaded_modules"
 rm -f /sbin/modprobe
 test ! -e /sbin/modprobe
 test ! -L /sbin/modprobe
+set +x
 `
 
 // runVPNKernelHere deliberately has no image or kernel override. The shared

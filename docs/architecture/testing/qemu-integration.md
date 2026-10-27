@@ -573,6 +573,12 @@ The WireGuard checker also reads the guest host's module state through its
 read-only root mount. A scenario or resource-cleanup failure fails the
 aggregate verdict.
 
+The fixed preparation block traces its commands and observed values to the
+guest console, so a refused assertion identifies the state it rejected.
+Both module-state reads must succeed before their values are tested; a failed
+read is not an empty module list. Tracing stops before the service-provisioning
+body, and the module guards and readiness deadline are unchanged.
+
 This is not proof about the default appliance image, and an amd64/KVM run is
 not arm64/HVF evidence. Read those provenance claims from the outer guest
 report and the separate appliance-image check.
