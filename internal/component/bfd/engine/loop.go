@@ -61,7 +61,7 @@ const (
 // true. The guard then takes the session being served Down (endServedSession).
 // echoRx is the caller's, so a closed echo half stays closed across passes. A
 // loop with no bound of its own: it runs for the life of the Loop.
-func (l *Loop) serve(rx <-chan transport.Inbound, echoRx *<-chan transport.Inbound, ticker clock.Ticker) (again bool) {
+func (l *Loop) serve(rx <-chan transport.Inbound, echoRx *<-chan transport.Inbound, ticker clock.Ticker) (again bool) { //nolint:gocritic // ptrToRefParam: serve nils the caller's echo channel when it closes, so a closed echo half stays closed in the next pass, after a panic too
 	defer expressGuard.Task(taskExpress, expressRestart).Contain(l.describeExpress, func(*taskguard.Panic) {
 		l.endServedSession()
 		again = true
