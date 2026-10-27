@@ -17,7 +17,7 @@ reached nothing; RFC 7950 Section 6.4.1: "The node representing the operation
 being defined has the operation's input parameters as children." Find now
 parents it to its operation.
 
-Upstream pull request: not opened yet (opening one needs the owner's order).
+Proposed upstream as https://github.com/openconfig/goyang/pull/318.
 Delete this patch once the goyang release go.mod requires contains the fix.
 
 Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
