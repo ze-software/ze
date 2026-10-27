@@ -237,7 +237,8 @@ func TestNegativeWithoutSOANotCached(t *testing.T) {
 // TestTrustRanking proves AC-20 (RFC 2181 Section 5.4.1): additional-section
 // data is never returned as an answer, the answer-section RRset is what a
 // later query returns, and lower-ranked data never replaces live
-// authoritative data.
+// authoritative data, both at the cache and from an upstream reply whose
+// AA bit sets the rank.
 func TestTrustRanking(t *testing.T) {
 	up := scriptedUpstream(t, func(q *dns.Msg) *dns.Msg {
 		switch q.Question[0].Name {
@@ -257,6 +258,29 @@ func TestTrustRanking(t *testing.T) {
 	}
 	if n := up.queries.Load(); n != 2 {
 		t.Fatalf("upstream saw %d queries, want 2: additional data answered b.test", n)
+	}
+
+	// The AA bit reaches the rank: y.test's authoritative RRset, cached from
+	// x.test's chain, survives a non-authoritative copy in z.test's chain.
+	chains := scriptedUpstream(t, func(q *dns.Msg) *dns.Msg {
+		switch q.Question[0].Name {
+		case "x.test.":
+			m := answerWith(q, "x.test. 300 IN CNAME y.test.", "y.test. 300 IN A 192.0.2.1")
+			m.Authoritative = true
+			return m
+		default:
+			return answerWith(q, "z.test. 300 IN CNAME y.test.", "y.test. 300 IN A 198.51.100.9")
+		}
+	})
+	r = newTestResolver(t, testConfig(chains), newTestClock())
+	ask(r, query("x.test", dns.TypeA), "127.0.0.1", false)
+	ask(r, query("z.test", dns.TypeA), "127.0.0.1", false)
+	reply = ask(r, query("y.test", dns.TypeA), "127.0.0.1", false)
+	if got := ips(reply.Answer); len(got) != 1 || got[0] != "192.0.2.1" {
+		t.Fatalf("y.test answer %v, want the authoritative 192.0.2.1", got)
+	}
+	if n := chains.queries.Load(); n != 2 {
+		t.Fatalf("upstream saw %d queries, want 2: y.test was not answered from the cache", n)
 	}
 
 	c := newLRU(10)

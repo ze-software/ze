@@ -40,8 +40,8 @@ func TestUpstreamQueryShape(t *testing.T) {
 }
 
 // TestReplyMatching proves AC-18 and A-4 (RFC 5452 Section 9.1): a reply
-// with a mismatched ID, name, class or type, or from another source port,
-// is ignored and the resolver keeps waiting for the matching one.
+// with a mismatched ID, name, class or type, with QR clear, with two
+// questions, or from another source port, is ignored and the resolver keeps waiting for the matching one.
 func TestReplyMatching(t *testing.T) {
 	bad := func(q *dns.Msg, mutate func(*dns.Msg)) *dns.Msg {
 		m := answerWith(q, "a.test. 300 IN A 198.51.100.66")
@@ -54,6 +54,10 @@ func TestReplyMatching(t *testing.T) {
 			{msg: bad(q, func(m *dns.Msg) { m.Question[0].Name = "b.test." })},
 			{msg: bad(q, func(m *dns.Msg) { m.Question[0].Qtype = dns.TypeAAAA })},
 			{msg: bad(q, func(m *dns.Msg) { m.Question[0].Qclass = dns.ClassCHAOS })},
+			// A query, not a reply: QR clear.
+			{msg: bad(q, func(m *dns.Msg) { m.Response = false })},
+			// QDCOUNT 2, the first question the one asked.
+			{msg: bad(q, func(m *dns.Msg) { m.Question = append(m.Question, m.Question[0]) })},
 			{msg: bad(q, func(*dns.Msg) {}), fromOther: true},
 		}
 	}
