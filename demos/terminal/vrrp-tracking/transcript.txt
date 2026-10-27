@@ -1,7 +1,46 @@
 VRRP tracking and peer-failover walkthrough
 
 Lab: VIP 203.0.113.1, VRID 12; shown Ze priority 200 and keepalived priority 100.
+$ ze-demo card topic-vrrp overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show vrrp | no-more'
+
 Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# show | compare
+ze# commit now
+
 Proof: show vrrp, kernel VIP ownership, virtual MAC and a real reachability probe.
+$ ze-demo card topic-vrrp proof
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -br address show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
+
 Failure: uplink down makes Ze Backup at 50; stopping only keepalived makes Ze Master at 50.
+$ ze-demo card topic-vrrp failure
+$ ze-demo run showcase-lab control tracked-uplink down
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip link show zetrk1
+$ ip -n showcase-vrrp -br address show
+$ ping -I zeptrk0 -c 3 -W 2 203.0.113.1
+$ ze-demo card topic-vrrp takeover
+$ ze-demo run showcase-lab control keepalived stop
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -br address show
+$ ip -n showcase-vrrp -br address show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
+
 Fix: restart keepalived (Ze Backup 50), restore uplink (Ze Master 200), inspect statistics and reachability with the same shown PID.
+$ ze-demo card topic-vrrp fix
+$ ze-demo run showcase-lab control keepalived start
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ip -n showcase-vrrp -br address show
+$ ze-demo run showcase-lab control tracked-uplink up
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze cli -c 'show vrrp statistics | no-more'
+$ ip -br link show
+$ ip netns exec showcase-vrrp ping -I eth0 -c 3 -W 2 203.0.113.1
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-vrrp recap

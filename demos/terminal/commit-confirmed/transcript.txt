@@ -5,21 +5,48 @@ Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
 show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
+$ ze-demo card topic-commit-confirmed lab
+$ ze-demo card topic-commit-confirmed overview
+$ sshpass -e ssh ze-demo
+ze# show system host
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# show | compare
+ze# commit confirmed 8
+
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
 system host for edge-original, the empty show | compare view, and
 show | changes for the explicit No pending changes response.
 
+ze# show system host
+
+After the automatic rollback:
+ze# show system host
+ze# show | compare
+ze# show | changes
+
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
 compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# show | compare
+ze# commit confirmed 8
+ze# commit accept
+
+After waiting beyond the deadline:
+ze# show system host
+
 Leave the editor and run:
-ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+ze# exit
+ze> exit
+$ ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
 The explicit config folder selects the running lab's stored revisions.
 History is a local read: a bare ze.conf selects the shell's current folder,
 not ZE_CONFIG_DIR. Both outcomes use the running daemon's session editor,
 never an offline file editor or a router restart.
+
+$ ze-demo card topic-commit-confirmed recap
 
 These are the authored walkthrough steps. Runtime validation and recording
 must succeed before this source is published as a recording.

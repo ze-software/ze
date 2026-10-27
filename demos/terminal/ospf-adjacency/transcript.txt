@@ -1,7 +1,43 @@
 OSPF live adjacency and Hello-mismatch walkthrough
 
 Lab: Ze on frr0, FRR neighbor 172.29.0.2 and loopback 10.255.1.2/32.
+$ ze-demo card topic-ospf overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show ospf neighbor | no-more'
+
 Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
+ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# show | compare
+ze# commit now
+
 Proof: show ospf neighbor detail, database router and route connect Full to the Router-LSA and loopback next hop.
+$ ze-demo card topic-ospf proof
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf interface detail | no-more'
+$ ze cli -c 'show ospf database router | no-more'
+$ ze cli -c 'show ospf route | no-more'
+
 Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
+$ ze-demo card topic-ospf failure
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf interface detail | no-more'
+$ ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'
+$ ze cli -c 'show ospf route | no-more'
+
 Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.
+$ ze-demo card topic-ospf fix
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf database router | no-more'
+$ ze cli -c 'show ospf route | no-more'
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-ospf recap

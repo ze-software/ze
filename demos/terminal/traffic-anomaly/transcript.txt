@@ -1,7 +1,37 @@
 Traffic usage live attribution walkthrough
 
 Lab: traffic0 at 10.77.0.1, real sender 10.77.0.2 and HTTP server port 8080.
+$ ze-demo card topic-traffic overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show traffic usage | no-more'
+
 Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
+ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# show | compare
+ze# commit now
+
 Proof: real ping and curl populate source, ICMP and TCP/8080 byte totals.
+Long shell commands below quote their first painted-row prefix, not invented output.
+$ ze-demo card topic-traffic proof
+$ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
+$ ip netns exec traffic-peer curl --fail --silent --show-error --max-time 5
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+
 Failure: bounded heavier senders increase those specific totals in successive snapshots; filtered metrics identify the source.
+$ ze-demo card topic-traffic failure
+$ ze-demo run showcase-lab control traffic burst
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ ze cli -c 'show metrics name ze_traffic_usage_ingress_bytes_total label interface traffic0 label src_ip 10.77.0.2 | no-more'
+$ ze cli -c 'show metrics name ze_traffic_usage_ingress_port_bytes_total label interface traffic0 label dst_port 8080 label protocol tcp
+$ ze cli -c 'show metrics name ze_traffic_usage_ingress_port_bytes_total label interface traffic0 label dst_port 0 label protocol icmp
+
 Fix: stop the senders and require cumulative totals to settle for two seconds within ten seconds, without resetting counters or replacing Ze.
+$ ze-demo card topic-traffic fix
+$ ze-demo run showcase-lab control traffic stop
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-traffic recap

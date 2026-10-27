@@ -1,7 +1,37 @@
 BFD live opt-in and link-failure walkthrough
 
 Lab: one running Ze router and its established FRR BGP peer at 172.29.0.2.
+$ ze-demo card topic-bfd overview
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze cli -c 'show bfd sessions | no-more'
+$ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
+
 Load: profile fast and peer frr BFD binding, section by section in one SSH candidate.
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
+ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# show | compare
+ze# commit now
+
 Proof: show bfd sessions/profile/session and BGP detail expose Up, real packet counts and the negotiated hold timer.
+$ ze-demo card topic-bfd proof
+$ ze cli -c 'show bfd profile name fast | no-more'
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
+
 Failure: bring frr0 down; inspect detection-expired transition, BFD Down notification and BGP history before hold expiry.
+$ ze-demo card topic-bfd failure
+$ ze-demo run showcase-lab control frr down
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 history | no-more'
+
 Fix: observe released-session retirement, restore frr0, require BFD Up and BGP Established, and print the same shown PID.
+$ ze-demo card topic-bfd fix
+$ ze cli -c 'show bfd sessions | no-more'
+$ ze-demo run showcase-lab control frr up
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze cli -c 'show bgp peer 172.29.0.2 detail | no-more'
+$ cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid
+$ ze-demo card topic-bfd recap

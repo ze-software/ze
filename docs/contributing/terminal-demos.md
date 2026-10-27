@@ -115,3 +115,20 @@ The owner set these on 2026-10-09 with the decisions above.
   shows a thumbnail that links to the site player.
 - When a feature does not enable on a live commit, that is a Ze defect to fix.
   Never work around it in the tape.
+
+## Authored transcript checks
+
+Each recording's `transcript.txt` is also a command oracle. Explanatory prose
+does not count as an assertion: include nonempty command lines starting at the
+left margin with `$ ` for the shell, `ze# ` for the configuration editor, or
+`ze> ` for operational mode. The renderer requires those prompt-and-command
+pairs in order in the captured terminal's painted rows. A prose-only transcript
+is refused after capture because it proves nothing.
+
+Quote the visible section loads, comparison and commit, operational proof,
+failure diagnosis and recovery. Do not quote hidden setup or readiness commands,
+or invent output. For a command that wraps, quote an unambiguous prefix from its
+first painted row. The continuous recording needs its own ordered assertions
+across the shared chapters; referring to the topic transcripts in prose does
+not include their checks.
+<!-- source: internal/le/site/terminaldemo/render.go -- transcriptCommands, checkTranscript, castVisibleText -->

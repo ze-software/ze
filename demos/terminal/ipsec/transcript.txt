@@ -4,16 +4,30 @@ Lab: shown Ze 172.30.0.1 initiates to a hidden Ze responder at 172.30.0.2.
 Protected hosts 10.78.1.2 and 10.78.2.2 live behind different routers.
 The shown daemon starts with no VPN configuration or XFRM interface.
 
+$ ze-demo card topic-ipsec lab
+$ ze-demo card topic-ipsec overview
+
 In one SSH candidate, load topics/ipsec/1-ike.conf, 2-esp.conf, 3-peer.conf,
 and 4-xfrm.conf with load file absolute merge. Review show | compare and
 commit now. The sections define IKE, ESP, authenticated peer and selectors,
 and the route through vpn-xfrm (if-id 42).
 
-show vpn ipsec status
-show vpn ipsec sa
-show vpn ipsec dataplane sa
-ze-demo run showcase-lab control vpn ping
-show vpn ipsec sa
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# show | compare
+ze# commit now
+ze# exit
+ze> exit
+
+$ ze-demo card topic-ipsec proof
+$ ze cli -c 'show vpn ipsec status | no-more'
+$ ze cli -c 'show vpn ipsec sa | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+$ ze-demo run showcase-lab control vpn ping
+$ ze cli -c 'show vpn ipsec sa | no-more'
 
 The kernel SPIs must match the negotiated Child SA. The protected ping
 must succeed and the same inbound SA's packets-in must increase.
@@ -21,10 +35,19 @@ must succeed and the same inbound SA's packets-in must increase.
 Failure: load 5-mismatch.conf and commit. It changes only ESP to AES-128;
 the far end offers AES-256. IKE can stay established while no Child SA exists.
 
-show vpn ipsec peer name responder
-show log recent level warn
-show vpn ipsec dataplane sa
-show vpn ipsec dataplane drift
+$ ze-demo card topic-ipsec failure
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# show | compare
+ze# commit now
+ze# exit
+ze> exit
+
+$ ze-demo card topic-ipsec diagnosis
+$ ze cli -c 'show vpn ipsec peer name responder | no-more'
+$ ze cli -c 'show log recent level warn | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+$ ze cli -c 'show vpn ipsec dataplane drift | no-more'
 
 The same log entry carries peer responder and notify NO_PROPOSAL_CHOSEN
 under attributes beside the message that IKE remains established. An empty
@@ -32,6 +55,18 @@ drift result means the engine and kernel agree, not that a tunnel carries traffi
 Load 2-esp.conf, review and commit, then clear vpn ipsec sa peer responder.
 Verify the new kernel SPIs, successful protected ping and increasing packets-in.
 The shown Ze process is never restarted.
+
+$ sshpass -e ssh ze-demo
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# show | compare
+ze# commit now
+ze# exit
+ze> exit
+$ ze cli -c 'clear vpn ipsec sa peer responder | no-more'
+$ ze-demo run showcase-lab control vpn ping
+$ ze cli -c 'show vpn ipsec sa | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+$ ze-demo card topic-ipsec recap
 
 Vendor mapping: Junos show security ike security-associations reads IKE state;
 show security ipsec security-associations reads the IPsec SAs and their SPIs.
