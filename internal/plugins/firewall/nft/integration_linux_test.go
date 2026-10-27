@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -444,4 +445,93 @@ func nftIntegrationRuleCount(t *testing.T, tableName, chainName string) int {
 	}
 	t.Fatalf("nft table %q is absent", tableName)
 	return 0
+}
+
+// VALIDATES: a table whose first chain jumps to a chain listed after it is
+// accepted by the kernel, and the jump reaches the second chain.
+// PREVENTS: the ze_copp refusal. applyTable added each chain together with its
+// rules, so the input chain's `jump bgp-neighbor` reached the kernel before
+// chain bgp-neighbor existed, the kernel answered ENOENT ("netlink receive: no
+// such file or directory") and refused the whole table, and the daemon failed
+// to start. The method: one Apply of a base chain that jumps forward, then a
+// read of both chains and of the verdict the first chain's rule carries.
+func TestApplyAcceptsAJumpToAChainListedLater(t *testing.T) {
+	withNftNetNS(t, func() {
+		b := newNftIntegrationBackend(t)
+
+		desired := []firewall.Table{{
+			Name:   "ze_fw_forward_jump",
+			Family: firewall.FamilyInet,
+			Chains: []firewall.Chain{
+				{
+					Name:     "input",
+					IsBase:   true,
+					Type:     firewall.ChainFilter,
+					Hook:     firewall.HookInput,
+					Priority: 0,
+					Policy:   firewall.PolicyAccept,
+					Terms: []firewall.Term{{
+						Name:    "to-neighbor",
+						Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 179, Hi: 179}}}},
+						Actions: []firewall.Action{firewall.Jump{Target: "neighbor"}},
+					}},
+				},
+				{
+					Name: "neighbor",
+					Terms: []firewall.Term{{
+						Name:    "neighbor-accept",
+						Actions: []firewall.Action{firewall.Accept{}},
+					}},
+				},
+			},
+		}}
+
+		if err := b.Apply(desired); err != nil {
+			t.Fatalf("apply of a forward jump: %v", err)
+		}
+		if got := nftIntegrationRuleCount(t, "ze_fw_forward_jump", "input"); got != 1 {
+			t.Fatalf("chain input holds %d rules, want 1", got)
+		}
+		if got := nftIntegrationRuleCount(t, "ze_fw_forward_jump", "neighbor"); got != 1 {
+			t.Fatalf("chain neighbor holds %d rules, want 1", got)
+		}
+		if target := nftIntegrationJumpTarget(t, "ze_fw_forward_jump", "input"); target != "neighbor" {
+			t.Fatalf("the input rule jumps to %q, want %q", target, "neighbor")
+		}
+	})
+}
+
+// nftIntegrationJumpTarget returns the chain the single jump verdict of
+// tableName/chainName names, and fails the test when the chain holds none.
+func nftIntegrationJumpTarget(t *testing.T, tableName, chainName string) string {
+	t.Helper()
+
+	conn, err := nftables.New()
+	if err != nil {
+		t.Fatalf("nftables.New: %v", err)
+	}
+	tables, err := conn.ListTables()
+	if err != nil {
+		t.Fatalf("list nft tables: %v", err)
+	}
+	for _, table := range tables {
+		if table.Name != tableName {
+			continue
+		}
+		rules, err := conn.GetRules(table, &nftables.Chain{Name: chainName, Table: table})
+		if err != nil {
+			t.Fatalf("get rules of %q/%q: %v", tableName, chainName, err)
+		}
+		for _, rule := range rules {
+			for _, e := range rule.Exprs {
+				v, ok := e.(*expr.Verdict)
+				if ok && v.Kind == expr.VerdictJump {
+					return v.Chain
+				}
+			}
+		}
+		t.Fatalf("chain %q/%q holds no jump verdict", tableName, chainName)
+	}
+	t.Fatalf("nft table %q is absent", tableName)
+	return ""
 }

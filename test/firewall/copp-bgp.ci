@@ -2,10 +2,35 @@
 # VALIDATES: spec-cp-survival-2-copp-port179 AC-1 -- CoPP config produces
 #            an nft input-hook chain with tcp dport 179 limit rate.
 # PREVENTS: CoPP config accepted but no nft chain programmed.
+#
+# The limiter guards the accepted BGP neighbors only (RFC 7454 Section 4), so
+# CoPP builds it in the bgp-neighbor chain, and only when a BGP peer is
+# configured. The peer never connects: the access list is derived from its
+# configured address, not from a session.
 
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 198.51.100.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
 control-plane-protection {
     bgp {
         rate 100/second;
@@ -17,9 +42,10 @@ EOF_CONF
 option=env:var=ze.log.copp:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+# The daemon writes the applied line, so the assertion sits under its command.
+expect=stderr:contains=copp table applied
 cmd=foreground:seq=2:exec=le test fixture firewall/copp-bgp:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=copp table applied
 expect=stdout:contains=table inet ze_copp
 # nft renders the unqualified dport as `tcp dport` or generic `th dport` by version.
 expect=stdout:pattern=(tcp|th) dport 179

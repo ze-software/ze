@@ -1098,7 +1098,7 @@ raw elements.
 
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 
 ### show, update and clear firewall irr
 

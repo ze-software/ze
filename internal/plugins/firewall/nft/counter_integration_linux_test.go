@@ -1,5 +1,5 @@
 // Design: docs/guide/command-reference.md -- show firewall ruleset counters
-// Related: backend_linux.go -- applyChain places the counter, GetCounters reads it back
+// Related: backend_linux.go -- addChainRules places the counter, GetCounters reads it back
 // Related: integration_linux_test.go -- withNftNetNS and the backend helper
 
 //go:build integration && linux

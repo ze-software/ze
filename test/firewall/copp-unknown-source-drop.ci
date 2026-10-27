@@ -1,0 +1,60 @@
+# Test: CoPP drops TCP to the protected port from a source that is neither a
+#       BGP neighbor nor trusted, and a configured neighbor still connects.
+# VALIDATES: spec-bcp194-3-session -- the unknown-source-drop term of the ze_copp
+#            input chain (RFC 7454 Section 4: "discard all packets directed to
+#            TCP port 179 on the local device and sourced from an address not
+#            known or permitted to become a BGP neighbor").
+# PREVENTS: an access list that names the neighbors but lets any other source
+#           reach the BGP listener, and one that drops the neighbors too.
+#
+# Everything runs on loopback in the test's namespace. Ze listens on
+# 127.0.0.1:$PORT for the passive peer 127.0.0.2, and the protected port is
+# $PORT. The fixture dials from 127.0.0.2 first and needs a completed
+# handshake, which proves the listener is up and the neighbor admitted. It then
+# dials from 127.0.0.3 and needs a timeout: a listener that is up completes the
+# handshake unless the SYN is dropped, and a reset would mean an answer. Last
+# it reads the unknown-source-drop counter and needs it above zero.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer neighbor {
+		connection {
+			remote {
+				ip 127.0.0.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+				port $PORT
+			}
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+control-plane-protection {
+    bgp {
+        protected-port $PORT;
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.copp:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+# The daemon writes the applied line, so the assertion sits under its command.
+expect=stderr:contains=copp table applied
+cmd=foreground:seq=2:exec=le test fixture firewall/copp-unknown-source-drop $PORT:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=NEIGHBOR_OK
+expect=stderr:contains=UNKNOWN_DROPPED
+expect=stderr:contains=DROP_COUNTED
+expect=stdout:contains=jump bgp-neighbor

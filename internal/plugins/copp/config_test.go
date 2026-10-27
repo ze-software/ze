@@ -1,6 +1,7 @@
 package copp
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -16,23 +17,72 @@ func TestCoppParseConfig(t *testing.T) {
 	if !found {
 		t.Fatal("expected config to be found")
 	}
-	if policy.Rate != 100 {
-		t.Errorf("Rate = %d, want 100", policy.Rate)
+	limit := policy.RateLimit
+	if limit == nil {
+		t.Fatal("RateLimit = nil, want the configured rate")
 	}
-	if policy.RateUnit != "second" {
-		t.Errorf("RateUnit = %q, want second", policy.RateUnit)
+	if limit.Rate != 100 {
+		t.Errorf("Rate = %d, want 100", limit.Rate)
 	}
-	if policy.Dimension != firewall.RateDimensionPackets {
-		t.Errorf("Dimension = %d, want RateDimensionPackets", policy.Dimension)
+	if limit.RateUnit != "second" {
+		t.Errorf("RateUnit = %q, want second", limit.RateUnit)
 	}
-	if policy.Burst != 20 {
-		t.Errorf("Burst = %d, want 20", policy.Burst)
+	if limit.Dimension != firewall.RateDimensionPackets {
+		t.Errorf("Dimension = %d, want RateDimensionPackets", limit.Dimension)
+	}
+	if limit.Burst != 20 {
+		t.Errorf("Burst = %d, want 20", limit.Burst)
 	}
 	if len(policy.ProtectedPorts) != 1 || policy.ProtectedPorts[0] != 179 {
 		t.Errorf("ProtectedPorts = %v, want [179]", policy.ProtectedPorts)
 	}
-	if policy.OverPolicy != "accept" {
-		t.Errorf("OverPolicy = %q, want accept", policy.OverPolicy)
+	if limit.OverPolicy != overPolicyDrop {
+		t.Errorf("OverPolicy = %q, want drop (the default, spec-bcp194-3-session D-8)", limit.OverPolicy)
+	}
+}
+
+// TestParseCoppConfigOverLimitDefaultDrop proves the over-limit-policy
+// default: a limit written without the leaf drops what exceeds it, and the
+// explicit `accept` spelling still admits and counts.
+//
+// VALIDATES: AC-10, parseRateLimit's default.
+// PREVENTS: a configured limit that stops nothing (umbrella gap S2).
+func TestParseCoppConfigOverLimitDefaultDrop(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"omitted", `{"control-plane-protection":{"bgp":{"rate":"10/second"}}}`, overPolicyDrop},
+		{"explicit accept", `{"control-plane-protection":{"bgp":{"rate":"10/second","over-limit-policy":"accept"}}}`, overPolicyAccept},
+		{"explicit drop", `{"control-plane-protection":{"bgp":{"rate":"10/second","over-limit-policy":"drop"}}}`, overPolicyDrop},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, found, err := parseCoppConfig(tc.input)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if !found {
+				t.Fatal("config parsed as absent")
+			}
+			if policy.RateLimit == nil {
+				t.Fatal("RateLimit = nil, want the configured rate")
+			}
+			if policy.RateLimit.OverPolicy != tc.want {
+				t.Errorf("OverPolicy = %q, want %q", policy.RateLimit.OverPolicy, tc.want)
+			}
+		})
+	}
+}
+
+// TestCoppParseConfigBurstWithoutRateRefused proves a burst written alone is
+// refused rather than dropped in silence: it sizes a limit that does not exist.
+func TestCoppParseConfigBurstWithoutRateRefused(t *testing.T) {
+	input := `{"control-plane-protection":{"bgp":{"burst":"20"}}}`
+	_, _, err := parseCoppConfig(input)
+	if !errors.Is(err, errBurstWithoutRate) {
+		t.Fatalf("err = %v, want errBurstWithoutRate", err)
 	}
 }
 
@@ -85,8 +135,11 @@ func TestCoppParseConfigOverLimitDrop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if policy.OverPolicy != "drop" {
-		t.Errorf("OverPolicy = %q, want drop", policy.OverPolicy)
+	if policy.RateLimit == nil {
+		t.Fatal("RateLimit = nil, want the configured rate")
+	}
+	if policy.RateLimit.OverPolicy != "drop" {
+		t.Errorf("OverPolicy = %q, want drop", policy.RateLimit.OverPolicy)
 	}
 }
 
@@ -98,11 +151,25 @@ func TestCoppParseConfigInvalidRate(t *testing.T) {
 	}
 }
 
+// TestCoppParseConfigMissingRate proves `rate` is optional: the container
+// without it is the ACL alone, parsed as present with no limiter.
+//
+// VALIDATES: AC-11 (spec-bcp194-3-session D-7: the ACL is RFC 7454 Section
+// 4's SHOULD, the limit its MAY, so the ACL does not wait on a rate).
 func TestCoppParseConfigMissingRate(t *testing.T) {
 	input := `{"control-plane-protection":{"bgp":{}}}`
-	_, _, err := parseCoppConfig(input)
-	if err == nil {
-		t.Error("expected error for missing rate")
+	policy, found, err := parseCoppConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !found {
+		t.Fatal("a bgp container with no rate parsed as absent; want the ACL")
+	}
+	if policy.RateLimit != nil {
+		t.Errorf("RateLimit = %+v, want nil: no rate was written", *policy.RateLimit)
+	}
+	if len(policy.ProtectedPorts) != 1 || policy.ProtectedPorts[0] != defaultPort {
+		t.Errorf("ProtectedPorts = %v, want [%d]", policy.ProtectedPorts, defaultPort)
 	}
 }
 
@@ -131,8 +198,11 @@ func TestCoppParseConfigBoundaryRate(t *testing.T) {
 	if !found {
 		t.Fatal("expected config to be found")
 	}
-	if policy.Rate != 1 {
-		t.Errorf("Rate = %d, want 1 (last valid)", policy.Rate)
+	if policy.RateLimit == nil {
+		t.Fatal("RateLimit = nil, want the configured rate")
+	}
+	if policy.RateLimit.Rate != 1 {
+		t.Errorf("Rate = %d, want 1 (last valid)", policy.RateLimit.Rate)
 	}
 }
 

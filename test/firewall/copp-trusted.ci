@@ -3,10 +3,36 @@
 #            192.0.2.0/24 produces an accept term ordered before the
 #            limit term in the nft input chain.
 # PREVENTS: trusted peers rate-limited because term ordering is wrong.
+#
+# The limiter lives in the bgp-neighbor chain, built only when a BGP peer is
+# configured, and the input chain reaches it through its jump. The fixture
+# proves the trusted accept sits before that jump in the input chain and that
+# the jump target holds the limiter. The peer, outside the trusted prefix,
+# never connects.
 
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 198.51.100.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
 control-plane-protection {
     bgp {
         rate 50/second;

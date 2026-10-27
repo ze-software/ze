@@ -2,10 +2,12 @@ package fixture
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -42,22 +44,165 @@ func coppTrusted(ctx context.Context, _ []string) error {
 		return fmt.Errorf("firewall object never programmed")
 	}
 	fmt.Print(out)
-	trusted, limit := -1, -1
-	for i, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "ip saddr 192.0.2.0/24") && strings.Contains(line, "accept") {
-			trusted = i
-		}
-		if strings.Contains(line, "limit rate") {
-			limit = i
-		}
+	// The limiter lives in the regular bgp-neighbor chain, reached only through
+	// the input chain's jump, so "trusted before the limiter" is the trusted
+	// accept ordered before that jump, with the limiter inside the jump target.
+	// Line order across the whole listing says nothing: nft prints the chains
+	// in its own order.
+	input, err := nftChainLines(out, "input")
+	if err != nil {
+		return err
 	}
-	if trusted >= 0 && limit >= 0 {
-		if trusted >= limit {
-			return fmt.Errorf("ORDER_FAIL: trusted after limit")
-		}
-		fmt.Fprintln(os.Stderr, "ORDER_OK: trusted before limit")
+	trusted := nftLineIndex(input, "ip saddr 192.0.2.0/24", "accept")
+	if trusted < 0 {
+		return fmt.Errorf("ORDER_FAIL: input chain holds no accept for trusted 192.0.2.0/24")
 	}
+	jump := nftLineIndex(input, "jump bgp-neighbor")
+	if jump < 0 {
+		return fmt.Errorf("ORDER_FAIL: input chain holds no jump to the bgp-neighbor chain")
+	}
+	if trusted >= jump {
+		return fmt.Errorf("ORDER_FAIL: trusted accept after the jump to the limiter")
+	}
+	neighbor, err := nftChainLines(out, "bgp-neighbor")
+	if err != nil {
+		return err
+	}
+	if nftLineIndex(neighbor, "limit rate") < 0 {
+		return fmt.Errorf("ORDER_FAIL: bgp-neighbor chain holds no limiter")
+	}
+	fmt.Fprintln(os.Stderr, "ORDER_OK: trusted accepted before the jump to the bgp-neighbor limiter")
 	return signalProcess(pid, syscall.SIGTERM)
+}
+
+// coppUnknownSourceDrop proves the CoPP access list from both sides on
+// loopback: the configured neighbor 127.0.0.2 completes a TCP handshake to the
+// protected port, and 127.0.0.3, neither a neighbor nor trusted, gets no answer
+// while unknown-source-drop counts its SYN. The neighbor dials first, so the
+// listener is known to be up: with no drop term the kernel would complete the
+// unknown source's handshake too, and only the drop explains its silence.
+func coppUnknownSourceDrop(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("firewall/copp-unknown-source-drop takes the protected port, got %d arguments", len(args))
+	}
+	pid, err := waitDaemon(ctx, 200)
+	if err != nil {
+		return err
+	}
+	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
+		out, readErr := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_copp")
+		return readErr == nil && strings.Contains(out, "jump bgp-neighbor")
+	}) {
+		return fmt.Errorf("ze_copp never programmed a jump to the bgp-neighbor chain")
+	}
+
+	target := net.JoinHostPort("127.0.0.1", args[0])
+	var dialErr error
+	if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
+		dialErr = coppDial(ctx, "127.0.0.2", target, time.Second)
+		// refuse-by-default: guards coppUnknownSourceDrop -- dialErr keeps the last dial error, and NEIGHBOR_FAIL reports it when the poll gives up
+		return dialErr == nil
+	}) {
+		return fmt.Errorf("NEIGHBOR_FAIL: configured neighbor 127.0.0.2 never connected to %s: %w", target, dialErr)
+	}
+	fmt.Fprintln(os.Stderr, "NEIGHBOR_OK: 127.0.0.2 connected to", target)
+
+	dialErr = coppDial(ctx, "127.0.0.3", target, 2*time.Second)
+	if dialErr == nil {
+		return fmt.Errorf("UNKNOWN_FAIL: unknown source 127.0.0.3 completed a handshake to %s", target)
+	}
+	var netErr net.Error
+	if !errors.As(dialErr, &netErr) {
+		return fmt.Errorf("UNKNOWN_FAIL: unknown source 127.0.0.3 was answered, not dropped: %w", dialErr)
+	}
+	if !netErr.Timeout() {
+		return fmt.Errorf("UNKNOWN_FAIL: unknown source 127.0.0.3 was answered, not dropped: %w", dialErr)
+	}
+	fmt.Fprintln(os.Stderr, "UNKNOWN_DROPPED: 127.0.0.3 got no answer from", target)
+
+	out, err := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_copp")
+	if err != nil {
+		return fmt.Errorf("read ze_copp after the dials: %w", err)
+	}
+	fmt.Print(out)
+	input, err := nftChainLines(out, "input")
+	if err != nil {
+		return err
+	}
+	drop := nftLineIndex(input, "counter packets", "drop")
+	if drop < 0 {
+		return fmt.Errorf("DROP_FAIL: input chain holds no counted drop term")
+	}
+	packets, err := nftCounterPackets(input[drop])
+	if err != nil {
+		return err
+	}
+	if packets == 0 {
+		return fmt.Errorf("DROP_FAIL: unknown-source-drop counted no packet: %q", input[drop])
+	}
+	fmt.Fprintln(os.Stderr, "DROP_COUNTED: unknown-source-drop packets", packets)
+	return signalProcess(pid, syscall.SIGTERM)
+}
+
+// coppDial opens one TCP connection from source to target and closes it.
+func coppDial(ctx context.Context, source, target string, timeout time.Duration) error {
+	dialer := net.Dialer{Timeout: timeout, LocalAddr: &net.TCPAddr{IP: net.ParseIP(source)}}
+	conn, err := dialer.DialContext(ctx, "tcp", target)
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}
+
+// nftChainLines answers the trimmed rule lines of one chain in an
+// `nft list table` rendering, or an error when the listing holds no such
+// chain or never closes it.
+func nftChainLines(out, chain string) ([]string, error) {
+	header := "chain " + chain + " {"
+	var lines []string
+	inside := false
+	for line := range strings.SplitSeq(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !inside {
+			inside = trimmed == header
+			continue
+		}
+		if trimmed == "}" {
+			return lines, nil
+		}
+		lines = append(lines, trimmed)
+	}
+	return nil, fmt.Errorf("nft listing holds no complete chain %q", chain)
+}
+
+// nftLineIndex answers the index of the first line holding every part, or -1.
+func nftLineIndex(lines []string, parts ...string) int {
+	for i, line := range lines {
+		if nftLineHoldsAll(line, parts) {
+			return i
+		}
+	}
+	return -1
+}
+
+func nftLineHoldsAll(line string, parts []string) bool {
+	for _, part := range parts {
+		if !strings.Contains(line, part) {
+			return false
+		}
+	}
+	return true
+}
+
+// nftCounterPackets reads the packet count of a rendered `counter packets N`.
+func nftCounterPackets(line string) (uint64, error) {
+	fields := strings.Fields(line)
+	for i := 0; i+1 < len(fields); i++ {
+		if fields[i] == "packets" {
+			return strconv.ParseUint(fields[i+1], 10, 64)
+		}
+	}
+	return 0, fmt.Errorf("no packet counter in nft rule %q", line)
 }
 
 func coppWithdraw(ctx context.Context, _ []string) error {

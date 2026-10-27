@@ -1405,7 +1405,7 @@ func TestLowerProtoMatchAcceptsEveryCanonicalName(t *testing.T) {
 
 // VALIDATES: a literal address match in an inet table emits
 // `meta nfproto ipv4|ipv6` BEFORE the network-header payload load, driven
-// through lowerTerm, the entry point applyChain calls.
+// through lowerTerm, the entry point addChainRules calls.
 // PREVENTS: an IPv4 FlowSpec or firewall rule for 10.1.0.0/24 also
 // dropping IPv6 traffic whose source address carries those bytes, and the
 // uncooked `@nh,128,32 & 0xffffff00 == 0xa010000` rendering that goes with
@@ -1618,7 +1618,7 @@ func TestLowerCtxTableFamilyFailsClosedToInet(t *testing.T) {
 // its header-checksum fixup, one guarded `meta nfproto ipv6` carrying the IPv6
 // traffic-class write with NO checksum, and each rule repeating the term's own
 // matches and its accept verdict. Driven through lowerTerm, the entry point
-// applyChain calls.
+// addChainRules calls.
 // PREVENTS: the IPv4 write reaching an IPv6 packet, where offset 1 holds the
 // traffic-class low nibble and the flow-label high nibble and the checksum
 // fixup at offset 10 lands inside the IPv6 source address. Measured in a
@@ -1832,7 +1832,7 @@ func TestLowerSetDSCPRejectsWithoutAFamily(t *testing.T) {
 // VALIDATES: `icmp-type` and `icmpv6-type` each lower behind their own
 // `meta l4proto` dependency, so the type byte at transport-header offset 0 is
 // read only for the protocol whose numbering the operator wrote. Driven
-// through lowerTerm, the entry point applyChain calls.
+// through lowerTerm, the entry point addChainRules calls.
 // PREVENTS: `icmp-type echo-request` (ICMPv4 type 8) also matching an ICMPv6
 // packet whose type byte is 8, which is `unassigned` in ICMPv6, and
 // `icmpv6-type echo-request` (128) matching an ICMPv4 packet.
@@ -2021,9 +2021,9 @@ func exprTypeNames(exprs []expr.Any) []string {
 	return names
 }
 
-// VALIDATES: the anonymous counter applyChain adds sits AFTER the term's
+// VALIDATES: the anonymous counter addChainRules adds sits AFTER the term's
 // matches and BEFORE its actions, so it counts the packets the term selected.
-// Driven through lowerTerm and withCounter, the pair applyChain composes.
+// Driven through lowerTerm and withCounter, the pair addChainRules composes.
 // PREVENTS: the counter returning to the front of the rule. nftables evaluates
 // a rule from left to right and abandons it at the first expression that does
 // not match, so a leading counter counts every packet the chain offered the

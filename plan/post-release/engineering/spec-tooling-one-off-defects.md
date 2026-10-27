@@ -200,6 +200,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-verdict-depends-on-the-machine` | 2026-10-27 | job `InputHash` whole-tree diff killed by `gitTimeout` in the 9p QEMU guest |
 | `bulk-rename-corruption` | 2026-10-27 | le doc index and verify status `write` callers |
 | `bulk-rename-corruption` | 2026-10-27 | qemu action names lost `-test`, TestQEMUActionsIncludeTheHostRun |
 | `bulk-rename-corruption` | 2026-10-27 | le-vendor-web-answers, le-checks-answers |

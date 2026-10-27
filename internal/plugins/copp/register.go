@@ -333,10 +333,19 @@ func applyCoppPolicy(policy *coppPolicy, mu *sync.Mutex, currentPolicy **coppPol
 	mu.Lock()
 	*currentPolicy = policy
 	mu.Unlock()
+	if policy.RateLimit == nil {
+		logger().Info("copp table applied",
+			"neighbors", len(policy.Neighbors),
+			"ports", policy.ProtectedPorts,
+			"rate", "none",
+		)
+		return nil
+	}
 	logger().Info("copp table applied",
-		"rate", policy.Rate,
-		"unit", policy.RateUnit,
+		"neighbors", len(policy.Neighbors),
 		"ports", policy.ProtectedPorts,
+		"rate", policy.RateLimit.Rate,
+		"unit", policy.RateLimit.RateUnit,
 	)
 	return nil
 }

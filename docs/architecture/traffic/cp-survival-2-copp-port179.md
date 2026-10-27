@@ -56,22 +56,61 @@ else. Such a policy would take SSH, ICMP and every other service with it. The
 operator would lose the box on the first apply. The policy is therefore `accept`
 under both settings of `over-limit-policy`.
 
-`over-limit-policy` rides the rate-limit term instead, as the nftables limiter
-and its inversion flag. `accept` emits `limit rate N` and then `accept`. That
-rule matches while the token bucket has credit, so an over-limit packet falls
-through to the chain policy and is accepted. `drop` emits `limit rate over N`
-and then `drop`. That rule matches only once the bucket is empty, so an
-over-limit packet is dropped. Every under-limit packet falls through to the same
-accept policy.
+The drop that the ACL needs is a term instead, and it names TCP to a protected
+port only.
 
-An established session is accepted by the first term, before the limiter is
-reached. A `drop` setting never closes a session that is already up.
+### The ACL: neighbors in, every other source out
+
+<!-- source: internal/plugins/copp/translate.go -- translatePolicy, neighborChainTerms, intervalElements -->
+<!-- source: internal/plugins/copp/config.go -- parseRateLimit -->
+
+The `input` base chain holds, in this order:
+
+| Term | Matches | Action |
+|------|---------|--------|
+| `established` | connection state established or related | accept |
+| `trusted-<prefix>` | TCP to a protected port from one `trusted-source` prefix (`/` and `:` written as `-`) | accept |
+| `bgp-neighbor-ipv4`, `bgp-neighbor-ipv6` | TCP to a protected port from a source in that family's neighbor set | jump to `bgp-neighbor` |
+| `unknown-source-drop` | TCP to a protected port, any source, any state | count, drop |
+
+The neighbor sets are interval sets named `bgp-neighbor-ipv4` and
+`bgp-neighbor-ipv6`, one per family that has a neighbor. A static peer inside a
+dynamic group's range is folded into the range, because the kernel refuses
+overlapping intervals. A family with no neighbor gets no set and no term.
+
+The regular chain `bgp-neighbor` holds the limiter, when `rate` is set, then an
+accept. One limiter serves both families, so `rate` is one budget for all
+neighbors, as the operator wrote it. Only a source the input chain found in a
+neighbor set reaches it, so a flood from an unknown source is dropped before it
+can spend the neighbors' budget (RFC 7454 Section 4: "In addition to strict
+filtering, rate-limiting MAY be configured for accepted BGP traffic."). A
+`trusted-source` never meets the limiter.
+
+`rate` is optional. Without it the table carries the ACL and no limiter.
+`over-limit-policy` rides the limiter, as the nftables limiter and its inversion
+flag. `drop`, the default, emits `limit rate over N` and then `drop`: that rule
+matches only once the bucket is empty, so an over-limit connection is dropped
+and an under-limit one falls through to the accept. `accept` emits
+`limit rate N` and then `accept`: the over-limit connection falls through to
+the same accept, so the limit reports load and stops nothing. Neither setting
+changes the ACL.
+
+The drop catches every connection state, because an unknown source cannot own
+an established session: the `established` term has already accepted every live
+one. A `drop` setting never closes a session that is already up.
 
 ### Term order is fixed by construction
 
-The append sequence is established, then trusted, then limit. It is not
+The append sequence is established, trusted, neighbors, drop. It is not
 configurable, because the wrong order is the dangerous failure mode and an
 operator has no reason to want a different one.
+
+### CoPP stays opt-in
+
+RFC 7454 Section 4 notes that "Some routers automatically program such an ACL
+upon BGP configuration." Ze does not: a configuration without
+`control-plane-protection bgp` gets no ACL, so an upgrade never adds an
+implicit deny to a deployment that did not ask for one.
 
 ### One dual-stack table
 
@@ -90,11 +129,17 @@ any plugin with a rate-spec leaf can use it.
 
 ## Consequences
 
-<!-- source: internal/plugins/copp/doctor.go -- doctor-copp-missing -->
+<!-- source: internal/plugins/copp/doctor.go -- checkCoppInputChain, expectedTable, missingFromKernel -->
 
 - Any future control-plane protection (OSPF, LDP, SSH) extends this plugin with
   another protocol block under `control-plane-protection { ... }`.
-- The copp table uses priority 0, the standard filter priority. When an
-  operator's own input chain also uses priority 0, evaluation order depends on
-  table creation order. The doctor check warns when CoPP is configured and the
-  chain may not be active.
+- The copp table uses priority 0, the standard filter priority. A drop in any
+  base chain at a hook is final, so the `unknown-source-drop` term stands
+  wherever the operator's own input chains sit.
+- The `copp-input-chain` doctor check (code `doctor-copp-missing`) builds the
+  table this configuration asks for with `translatePolicy`, reads the kernel's
+  tables back through the firewall backend, and names each part the kernel does
+  not hold: the whole table, a chain, a term by name, or a set. It names
+  `ze signal restart` as the fix, because a reload that changes neither root
+  copp reads does not reach copp. When the kernel tables cannot be read, it
+  says so rather than reporting the table present.

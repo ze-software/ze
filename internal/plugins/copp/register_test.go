@@ -105,12 +105,28 @@ func TestCoppDropTermWiring(t *testing.T) {
 		}
 	}
 
-	if len(table.Chains) != 1 {
-		t.Fatalf("table %s: %d chains, want 1", table.Name, len(table.Chains))
+	// The input-hook base chain is the one the kernel walks for every packet;
+	// a regular chain is reached only by a jump from it, so the base chain's
+	// last term is the one every other source meets.
+	var input *firewall.Chain
+	for i := range table.Chains {
+		if !table.Chains[i].IsBase {
+			continue
+		}
+		if input != nil {
+			t.Fatalf("table %s: two base chains, %s and %s", table.Name, input.Name, table.Chains[i].Name)
+		}
+		input = &table.Chains[i]
 	}
-	terms := table.Chains[0].Terms
+	if input == nil {
+		t.Fatalf("table %s: no base chain", table.Name)
+	}
+	if input.Hook != firewall.HookInput {
+		t.Fatalf("table %s: base chain %s hooks %v, want input", table.Name, input.Name, input.Hook)
+	}
+	terms := input.Terms
 	if len(terms) == 0 {
-		t.Fatalf("table %s: chain %s has no term", table.Name, table.Chains[0].Name)
+		t.Fatalf("table %s: chain %s has no term", table.Name, input.Name)
 	}
 	last := terms[len(terms)-1]
 	if !dropsTCPToPort(last, defaultPort) {
@@ -118,31 +134,84 @@ func TestCoppDropTermWiring(t *testing.T) {
 	}
 }
 
-// setElementPrefixes reads every element of every set as a prefix: an
-// interval element as written, a lone address as its host prefix.
+// setElementPrefixes reads every set as the prefixes it holds. A set without
+// the interval flag holds addresses, each read as its host prefix. An interval
+// set holds a start element, then the exclusive end element marked
+// IntervalEnd, or no end when the interval runs to the top of the address
+// space; each interval MUST be exactly one prefix.
 func setElementPrefixes(t *testing.T, sets []firewall.Set) []netip.Prefix {
 	t.Helper()
 
 	var prefixes []netip.Prefix
 	for _, set := range sets {
-		for _, element := range set.Elements {
-			if prefix, err := netip.ParsePrefix(element.Value); err == nil {
-				prefixes = append(prefixes, prefix)
+		elements := set.Elements
+		for i := 0; i < len(elements); i++ {
+			start, err := netip.ParseAddr(elements[i].Value)
+			if err != nil {
+				t.Fatalf("set %s: element %q is not an address", set.Name, elements[i].Value)
+			}
+			if elements[i].IntervalEnd {
+				t.Fatalf("set %s: element %q ends an interval nothing started", set.Name, elements[i].Value)
+			}
+			if set.Flags&firewall.SetFlagInterval == 0 {
+				prefixes = append(prefixes, netip.PrefixFrom(start, start.BitLen()))
 				continue
 			}
-			addr, err := netip.ParseAddr(element.Value)
-			if err != nil {
-				t.Fatalf("set %s: element %q is neither a prefix nor an address", set.Name, element.Value)
+			var after netip.Addr
+			if i+1 < len(elements) && elements[i+1].IntervalEnd {
+				i++
+				after, err = netip.ParseAddr(elements[i].Value)
+				if err != nil {
+					t.Fatalf("set %s: interval end %q is not an address", set.Name, elements[i].Value)
+				}
 			}
-			prefixes = append(prefixes, netip.PrefixFrom(addr, addr.BitLen()))
+			prefixes = append(prefixes, intervalPrefix(t, set.Name, start, after))
 		}
 	}
 	return prefixes
 }
 
+// intervalPrefix answers the prefix whose addresses are exactly [start, after),
+// where an invalid after means the interval runs to the top of the space.
+func intervalPrefix(t *testing.T, setName string, start, after netip.Addr) netip.Prefix {
+	t.Helper()
+
+	// Widen from the host prefix: the first prefix starting at start whose
+	// last address is the one before after (or the top of the space) is the
+	// interval, and a prefix that no longer starts at start ends the search.
+	for bits := start.BitLen(); bits >= 0; bits-- {
+		prefix := netip.PrefixFrom(start, bits)
+		if prefix.Masked().Addr() != start {
+			break
+		}
+		last := testLastAddress(prefix)
+		if last.Next() == after {
+			return prefix
+		}
+	}
+	t.Fatalf("set %s: interval [%s, %s) is not one prefix", setName, start, after)
+	return netip.Prefix{}
+}
+
+// testLastAddress sets every host bit of prefix. It is written here rather
+// than borrowed from translate.go, so the reading does not share a defect with
+// the producer it judges.
+func testLastAddress(prefix netip.Prefix) netip.Addr {
+	octets := prefix.Masked().Addr().AsSlice()
+	for bit := prefix.Bits(); bit < len(octets)*8; bit++ {
+		octets[bit/8] |= 0x80 >> (bit % 8)
+	}
+	addr, ok := netip.AddrFromSlice(octets)
+	if !ok {
+		panic("BUG: AsSlice of a valid address is 4 or 16 octets")
+	}
+	return addr
+}
+
 // dropsTCPToPort reports whether a term drops TCP to port whatever its source:
 // it matches protocol tcp and a destination port range holding port, names no
-// source, and its only action is a drop.
+// source, and its actions are a drop, optionally counted first. No other
+// action may ride the term, so it can admit nothing.
 func dropsTCPToPort(term firewall.Term, port uint16) bool {
 	tcp, toPort := false, false
 	for _, match := range term.Matches {
@@ -159,9 +228,16 @@ func dropsTCPToPort(term firewall.Term, port uint16) bool {
 			return false
 		}
 	}
-	if len(term.Actions) != 1 {
+	actions := term.Actions
+	if len(actions) == 2 {
+		if _, counted := actions[0].(firewall.Counter); !counted {
+			return false
+		}
+		actions = actions[1:]
+	}
+	if len(actions) != 1 {
 		return false
 	}
-	_, drop := term.Actions[0].(firewall.Drop)
+	_, drop := actions[0].(firewall.Drop)
 	return tcp && toPort && drop
 }

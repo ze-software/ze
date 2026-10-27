@@ -5,8 +5,12 @@ package copp
 
 import (
 	"errors"
+	"net/netip"
+	"slices"
 	"sync"
 	"testing"
+
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // recordingInstaller stands in for applyCoppPolicy: it records what the apply
@@ -22,7 +26,65 @@ func (r *recordingInstaller) install(policy *coppPolicy) error {
 }
 
 func samplePolicy() *coppPolicy {
-	return &coppPolicy{Rate: 100, RateUnit: "second", ProtectedPorts: []uint16{defaultPort}, OverPolicy: overPolicyAccept}
+	return &coppPolicy{
+		ProtectedPorts: []uint16{defaultPort},
+		RateLimit:      &coppRateLimit{Rate: 100, RateUnit: "second", OverPolicy: overPolicyAccept},
+	}
+}
+
+// TestCoppReloadAddsNeighbor proves a reload that changes only the bgp root
+// moves the CoPP neighbor set: the peer added by the first reload is in the
+// installed table, and the peer removed by the second is gone from it.
+//
+// The engine delivers both roots whole on a reload that changes either
+// (reloadConfigSections, internal/component/plugin/server/reload_compensation.go),
+// so each reload below hands the verify the same control-plane-protection
+// body and a new bgp body, through the verify-to-apply seam the plugin's
+// handlers run.
+//
+// VALIDATES: AC-9 at table level; stageVerifiedPolicy -> parseCoppSections ->
+// applyStagedPolicy -> translatePolicy.
+// PREVENTS: R-2, a neighbor added while CoPP is on whose SYN is dropped
+// because the set was built from the configuration CoPP saw first.
+func TestCoppReloadAddsNeighbor(t *testing.T) {
+	const copp = `{"control-plane-protection": {"bgp": {}}}`
+	const onePeer = `{"bgp": {"peer": {"a": {"connection": {"remote": {"ip": "192.0.2.1"}}}}}}`
+	const twoPeers = `{"bgp": {"peer": {
+		"a": {"connection": {"remote": {"ip": "192.0.2.1"}}},
+		"b": {"connection": {"remote": {"ip": "198.51.100.7"}}}}}}`
+	added := netip.MustParsePrefix("198.51.100.7/32")
+
+	var mu sync.Mutex
+	var pending pendingPolicy
+	var installed *coppPolicy
+	reload := func(bgp string) []netip.Prefix {
+		t.Helper()
+		sections := []sdk.ConfigSection{{Root: configRoot, Data: copp}, {Root: bgpConfigRoot, Data: bgp}}
+		if err := stageVerifiedPolicy(sections, &pending, &mu); err != nil {
+			t.Fatalf("verify: %v", err)
+		}
+		_, err := applyStagedPolicy(&pending, &mu, installed, func(p *coppPolicy) error {
+			installed = p
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("apply: %v", err)
+		}
+		if installed == nil {
+			t.Fatal("apply installed no policy")
+		}
+		return setElementPrefixes(t, translatePolicy(*installed).Sets)
+	}
+
+	if inSet := reload(onePeer); slices.Contains(inSet, added) {
+		t.Fatalf("before the peer is configured the set already holds %s: %v", added, inSet)
+	}
+	if inSet := reload(twoPeers); !slices.Contains(inSet, added) {
+		t.Fatalf("after the reload adding the peer the set lacks %s: %v", added, inSet)
+	}
+	if inSet := reload(onePeer); slices.Contains(inSet, added) {
+		t.Fatalf("after the reload removing the peer the set still holds %s: %v", added, inSet)
+	}
 }
 
 // TestApplyStagedPolicyWithdrawsWhenTheSectionIsRemoved proves that deleting

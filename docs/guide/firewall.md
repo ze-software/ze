@@ -351,6 +351,36 @@ firewall {
 }
 ```
 
+## Control-plane protection (CoPP)
+
+<!-- source: internal/plugins/copp/translate.go -- translatePolicy -->
+<!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
+
+`control-plane-protection bgp` builds its own table, `inet ze_copp`, beside
+the firewall component's tables. It is an access list on TCP to the protected
+ports (179 unless `protected-port` says otherwise), as RFC 7454 Section 4
+recommends:
+
+- an established or related connection is accepted;
+- a connection from a `trusted-source` prefix is accepted;
+- a connection from a configured BGP neighbor is accepted: the `remote ip` of
+  each static peer and the `range` of each dynamic group, read from the `bgp`
+  configuration, so adding or removing a peer updates the list on reload;
+- TCP to a protected port from any other source is counted and dropped.
+
+```
+set control-plane-protection bgp rate 100/second
+set control-plane-protection bgp trusted-source 203.0.113.10/32
+```
+
+`rate` is optional and limits new connections from the neighbors only.
+`over-limit-policy` defaults to `drop`; set `accept` to observe a new rate
+before you enforce it. Neither setting admits an unknown source. Without the
+`control-plane-protection bgp` container Ze builds no access list. The chain
+policy stays `accept`, so SSH, ICMP and every port the table does not name stay
+reachable. `ze doctor` names any part of `ze_copp` the kernel does not hold.
+Design: [CoPP for BGP](../architecture/traffic/cp-survival-2-copp-port179.md).
+
 ## Global Options
 
 The `global-options` container provides keyword toggles for common network

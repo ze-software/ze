@@ -138,7 +138,7 @@ that carries nothing reads zero while its siblings climb.
 A policy that names no interface matches every ingress interface.
 
 <!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain, mergeRuleCounters -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules, mergeRuleCounters -->
 
 The `order` leaf still decides which rule runs first. The nftables rules
 of one policy rule stay together, in the order the interfaces are

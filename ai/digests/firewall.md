@@ -61,14 +61,18 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    tables (`ListTables`, line 44), delete only tables this Apply owns
    (`shouldDeleteTable`, line 73), then `applyTable` per table (line 92), **Sets are applied
    before Chains** (lines 102-114) so `MatchInSet` lowering can resolve the kernel-assigned set
-   ID from the `sets` map handed to `applyChain` (line 156), then Flowtables (line 239); one
-   atomic `conn.Flush()` (line 66) commits everything.
-9. **Term lowering.** `applyChain` (line 131) calls `lowerTerm`
+   ID from the `sets` map handed to `addChainRules`. **Every chain is added (`addChain`)
+   before any chain's rules (`addChainRules`)**: the kernel resolves a `jump` or `goto`
+   target by name when it adds the rule, so a rule jumping to a chain listed later is
+   refused with ENOENT if chains go in one at a time with their rules. Then Flowtables;
+   one atomic `conn.Flush()` commits everything.
+9. **Term lowering.** `addChainRules` calls `lowerTerm`
    (`internal/plugins/firewall/nft/lower_linux.go`), which lowers each `Match`
    (`lower_linux.go`) and `Action` (`lower_linux.go`) to `expr.Any` (register-machine
    discipline documented at the top of that file). Every rule gets an anonymous `Counter`
-   expression prepended unless the term already declared one (`hasCounterExpr`,
-   `backend_linux.go`, `backend_linux.go`) so `show firewall ruleset` always has
+   expression inserted after the term's matches and ahead of its actions
+   (`loweredRule.withCounter`, `lower_linux.go`) unless the term already declared one
+   (`hasCounterExpr`, `backend_linux.go`) so `show firewall ruleset` always has
    packet/byte data; the term name is stashed in `Rule.UserData` (`backend_linux.go`) for
    readback/counters.
 10. **Snapshot for readers.** Once `backend.Apply` returns nil, `ApplyAll`
@@ -208,6 +212,11 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
   `Set` before any `Chain` because `MatchInSet` lowering needs the kernel-assigned set ID
   recovered from the `sets` map built during that same pass (`backend_linux.go`,
   `backend_linux.go`).
+- **Chains before rules is load-bearing too.** `applyTable` adds every chain (`addChain`)
+  before it adds any chain's rules (`addChainRules`). A `jump` or `goto` names its target,
+  the kernel resolves it when the rule is added, and a target not yet added fails the
+  whole table with ENOENT. CoPP's input chain jumps to `bgp-neighbor`, listed after it.
+  `TestApplyAcceptsAJumpToAChainListedLater` (`integration_linux_test.go`) proves it.
 - **`ze_` prefix is the ownership boundary.** `shouldDeleteTable` (`backend_linux.go`) only
   deletes tables with that prefix AND either in the new desired set or previously applied by
   this backend instance, a foreign `ze_*`-named table from another process is never swept.

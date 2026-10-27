@@ -10,10 +10,33 @@
 # The unit test on translatePolicy cannot see this: the Limit.Over field only
 # becomes `limit rate over` inside lowerLimit (internal/plugins/firewall/nft/
 # lower_linux.go), which needs a real kernel. This reads the rendered table.
+#
+# The limiter guards the accepted BGP neighbors only, so it is built in the
+# bgp-neighbor chain when a BGP peer is configured. The peer never connects.
 
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 198.51.100.2
+				connect false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
 control-plane-protection {
     bgp {
         rate 100/second;
@@ -26,9 +49,10 @@ EOF_CONF
 option=env:var=ze.log.copp:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+# The daemon writes the applied line, so the assertion sits under its command.
+expect=stderr:contains=copp table applied
 cmd=foreground:seq=2:exec=le test fixture firewall/copp-over-limit-drop:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=copp table applied
 expect=stdout:contains=table inet ze_copp
 # The chain accepts what its terms do not name. This is the lock-out guard.
 expect=stdout:pattern=policy accept

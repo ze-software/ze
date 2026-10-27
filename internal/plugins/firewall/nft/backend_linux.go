@@ -176,7 +176,7 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 	// them via MatchInSet can resolve the set's ID/Name from the map
 	// below when lowering expressions. google/nftables assigns each
 	// *nftables.Set a monotonically increasing ID inside AddSet; by the
-	// time applyChain runs its Lookup expressions, the IDs are stable.
+	// time addChainRules runs its Lookup expressions, the IDs are stable.
 	sets := make(map[string]*nftables.Set, len(tbl.Sets))
 	for i := range tbl.Sets {
 		ns, err := b.applySet(t, &tbl.Sets[i])
@@ -186,8 +186,20 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 		sets[tbl.Sets[i].Name] = ns
 	}
 
+	// Every chain is added before any rule. A jump or goto names its target
+	// chain, and the kernel resolves that name when it adds the rule, so a
+	// rule in one chain that jumps to a chain listed after it is refused
+	// with ENOENT when the chains go in one at a time with their rules.
+	chains := make([]*nftables.Chain, len(tbl.Chains))
 	for i := range tbl.Chains {
-		if err := b.applyChain(t, sets, &tbl.Chains[i]); err != nil {
+		c, err := b.addChain(t, &tbl.Chains[i])
+		if err != nil {
+			return fmt.Errorf("chain %q: %w", tbl.Chains[i].Name, err)
+		}
+		chains[i] = c
+	}
+	for i := range tbl.Chains {
+		if err := b.addChainRules(t, sets, chains[i], &tbl.Chains[i]); err != nil {
 			return fmt.Errorf("chain %q: %w", tbl.Chains[i].Name, err)
 		}
 	}
@@ -201,7 +213,9 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 	return nil
 }
 
-func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, chain *firewall.Chain) error {
+// addChain adds one chain, with its hook and policy when it is a base chain,
+// and none of its rules: applyTable adds the rules once every chain exists.
+func (b *backend) addChain(t *nftables.Table, chain *firewall.Chain) (*nftables.Chain, error) {
 	c := &nftables.Chain{
 		Name:  chain.Name,
 		Table: t,
@@ -209,23 +223,27 @@ func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, c
 	if chain.IsBase {
 		hooknum, err := lowerHook(t.Family, chain.Hook)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		policy, err := lowerPolicy(chain.Policy)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		chainType, err := lowerChainType(chain.Type)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		c.Type = chainType
 		c.Hooknum = hooknum
 		c.Priority = new(nftables.ChainPriority(chain.Priority))
 		c.Policy = &policy
 	}
-	b.conn.AddChain(c)
+	return b.conn.AddChain(c), nil
+}
 
+// addChainRules lowers each term of chain into rules of c. applyTable calls
+// it only after addChain added every chain of the table.
+func (b *backend) addChainRules(t *nftables.Table, sets map[string]*nftables.Set, c *nftables.Chain, chain *firewall.Chain) error {
 	ctx := &lowerCtx{conn: b.conn, table: t, sets: sets}
 	for i := range chain.Terms {
 		// A term is usually one rule, and is two in an inet table when an
@@ -278,7 +296,7 @@ func hasCounterExpr(exprs []expr.Any) bool {
 }
 
 // applySet registers the set on the nftables connection and returns the
-// *nftables.Set so applyTable can expose it to applyChain via the sets
+// *nftables.Set so applyTable can expose it to addChainRules via the sets
 // map. The returned pointer carries the kernel-assigned ID (allocated
 // inside conn.AddSet) that expr.Lookup needs.
 func (b *backend) applySet(t *nftables.Table, s *firewall.Set) (*nftables.Set, error) {
@@ -318,9 +336,9 @@ func (b *backend) ListTables() ([]firewall.Table, error) {
 }
 
 // GetCounters returns per-term packet/byte counter values for a table.
-// Each rule carries its term name in UserData (set by applyChain) and an
+// Each rule carries its term name in UserData (set by addChainRules) and an
 // anonymous counter expression that sits after the term's matches, ahead of
-// its actions (also set by applyChain). readRuleCounter decodes both; rules
+// its actions (also set by addChainRules). readRuleCounter decodes both; rules
 // lacking either (e.g. inserted out-of-band) surface with empty Name and
 // zeroes.
 //

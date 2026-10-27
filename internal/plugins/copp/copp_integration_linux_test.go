@@ -54,6 +54,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 
 	// The nft backend registers itself, which is what lets firewall.ApplyAll
 	// reach the kernel from this test binary. These proofs assert what the
@@ -85,7 +86,33 @@ const (
 var (
 	floodSource   = netip.MustParseAddr("127.0.0.1")
 	trustedSource = netip.MustParseAddr("127.0.0.2")
+	unknownSource = netip.MustParseAddr("127.0.0.3")
+	rangeNeighbor = netip.MustParseAddr("127.0.1.9")
 )
+
+// TestCoppUnknownSourceDroppedLinux proves the ACL on a kernel: with no rate
+// configured, a source that is no neighbor and no trusted-source gets none of
+// its connections to the protected port, while a static peer and an address
+// in a dynamic group's range connect whole, and the same unknown source
+// reaches a port the policy never names whole.
+//
+// VALIDATES: AC-7, AC-8 (static, range), AC-11, AC-12 (an unnamed port stays
+// reachable) on Ze's kernel, through parseCoppSections and translatePolicy.
+// PREVENTS: an ACL that admits every source, and one that drops a neighbor.
+func TestCoppUnknownSourceDroppedLinux(t *testing.T) {
+	enterNamespace(t)
+	applySections(t, fmt.Sprintf(`{"control-plane-protection":{"bgp":{"protected-port":["%d"]}}}`, protectedPort))
+
+	protected := listen(t, protectedPort)
+	if got := offer(t, protected, unknownSource, protectedPort); got.accepted != 0 {
+		t.Errorf("unknown source: %d of %d connections accepted, want 0", got.accepted, offered)
+	}
+	assertAcceptedWhole(t, "static peer", offer(t, protected, floodSource, protectedPort))
+	assertAcceptedWhole(t, "dynamic range member", offer(t, protected, rangeNeighbor, protectedPort))
+
+	control := listen(t, controlPort)
+	assertAcceptedWhole(t, "unknown source to an unnamed port", offer(t, control, unknownSource, controlPort))
+}
 
 // offered is the number of SYNs each flood sends. It is what the bucket can
 // hold plus a full second of refill, so a flood that leaves in milliseconds
@@ -202,7 +229,25 @@ func applyPolicy(t *testing.T, overLimit, trusted string) {
 	}
 	config := fmt.Sprintf(`{"control-plane-protection":{"bgp":{"rate":"%d/second","burst":"%d","protected-port":["%d"],"over-limit-policy":%q%s}}}`,
 		rate, burst, protectedPort, overLimit, trustedLeaf)
-	policy, present, err := parseCoppConfig(config)
+	applySections(t, config)
+}
+
+// neighborsBGP is the bgp section every proof delivers beside its CoPP
+// config: floodSource is a static peer, so a flood from it is a neighbor's and
+// meets the limiter, and rangeNeighbor sits in a dynamic group's range.
+// unknownSource and trustedSource are neither.
+var neighborsBGP = fmt.Sprintf(`{"bgp":{
+	"peer":{"flood":{"connection":{"remote":{"ip":%q}}}},
+	"group":{"ixp":{"connection":{"remote":{"ip":"dynamic","range":["127.0.1.0/24"],"connect":"false"}}}}}}`,
+	floodSource)
+
+// applySections parses the CoPP config the way the plugin's verify does,
+// beside the neighborsBGP section, and publishes the table to the kernel.
+func applySections(t *testing.T, config string) {
+	t.Helper()
+
+	sections := []sdk.ConfigSection{{Root: configRoot, Data: config}, {Root: bgpConfigRoot, Data: neighborsBGP}}
+	policy, present, err := parseCoppSections(sections, config)
 	if err != nil {
 		t.Fatalf("parse the copp config: %v", err)
 	}

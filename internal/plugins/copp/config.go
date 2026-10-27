@@ -4,6 +4,7 @@ package copp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -85,29 +86,13 @@ func parseCoppConfig(jsonData string) (coppPolicy, bool, error) {
 		return coppPolicy{}, false, nil
 	}
 
-	rateStr, ok := bgpTree["rate"].(string)
-	if !ok || rateStr == "" {
-		return coppPolicy{}, false, fmt.Errorf("copp: bgp rate is required")
-	}
-
-	lim, err := firewall.ParseRateSpec(rateStr)
+	var policy coppPolicy
+	rateLimit, limited, err := parseRateLimit(bgpTree)
 	if err != nil {
-		return coppPolicy{}, false, fmt.Errorf("copp: rate: %w", err)
+		return coppPolicy{}, false, err
 	}
-
-	policy := coppPolicy{
-		Rate:       lim.Rate,
-		RateUnit:   lim.Unit,
-		Dimension:  lim.Dimension,
-		OverPolicy: overPolicyAccept,
-	}
-
-	if burstStr, ok := bgpTree["burst"].(string); ok {
-		b, err := strconv.ParseUint(burstStr, 10, 32)
-		if err != nil {
-			return coppPolicy{}, false, fmt.Errorf("copp: burst: invalid value %q: %w", burstStr, err)
-		}
-		policy.Burst = uint32(b)
+	if limited {
+		policy.RateLimit = &rateLimit
 	}
 
 	ports, err := parsePorts(bgpTree)
@@ -125,17 +110,64 @@ func parseCoppConfig(jsonData string) (coppPolicy, bool, error) {
 	}
 	policy.TrustedSources = trusted
 
+	return policy, true, nil
+}
+
+// parseRateLimit reads the `rate`, `burst` and `over-limit-policy` leaves. A
+// container with no `rate` answers nil: the operator asked for the ACL alone.
+//
+// RFC 7454 Section 4: "In addition to strict filtering, rate-limiting MAY be
+// configured for accepted BGP traffic."
+//
+// `over-limit-policy` defaults to drop. A limit whose over-limit packets are
+// accepted stops nothing, so the setting that limits is the one an operator
+// gets without writing it; `accept` stays available to observe load first.
+//
+// limited is false when the container holds no `rate`; the caller then
+// builds the ACL with no limiter term.
+func parseRateLimit(bgpTree map[string]any) (rateLimit coppRateLimit, limited bool, err error) {
+	overPolicy := overPolicyDrop
 	if op, ok := bgpTree["over-limit-policy"].(string); ok {
 		switch op {
 		case overPolicyDrop, overPolicyAccept:
-			policy.OverPolicy = op
+			overPolicy = op
 		default:
-			return coppPolicy{}, false, fmt.Errorf("copp: over-limit-policy: invalid value %q (want drop|accept)", op)
+			return coppRateLimit{}, false, fmt.Errorf("copp: over-limit-policy: invalid value %q (want drop|accept)", op)
 		}
 	}
 
-	return policy, true, nil
+	burstStr, hasBurst := bgpTree["burst"].(string)
+	rateStr, hasRate := bgpTree["rate"].(string)
+	if !hasRate {
+		if hasBurst {
+			return coppRateLimit{}, false, errBurstWithoutRate
+		}
+		return coppRateLimit{}, false, nil
+	}
+
+	lim, err := firewall.ParseRateSpec(rateStr)
+	if err != nil {
+		return coppRateLimit{}, false, fmt.Errorf("copp: rate: %w", err)
+	}
+	rateLimit = coppRateLimit{
+		Rate:       lim.Rate,
+		RateUnit:   lim.Unit,
+		Dimension:  lim.Dimension,
+		OverPolicy: overPolicy,
+	}
+	if hasBurst {
+		b, err := strconv.ParseUint(burstStr, 10, 32)
+		if err != nil {
+			return coppRateLimit{}, false, fmt.Errorf("copp: burst: invalid value %q: %w", burstStr, err)
+		}
+		rateLimit.Burst = uint32(b)
+	}
+	return rateLimit, true, nil
 }
+
+var errBurstWithoutRate = errors.New("copp: control-plane-protection bgp sets burst but no rate; " +
+	"a burst sizes the rate limit, so it needs one. " +
+	"Set the rate, or delete the burst: set control-plane-protection bgp rate 100/second")
 
 func parsePorts(bgpTree map[string]any) ([]uint16, error) {
 	var ports []uint16
