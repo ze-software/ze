@@ -39,8 +39,10 @@ const (
 	peerServer = "freeradius"
 	peerLAC    = "lac"
 
-	scenarioCoADuplicate = "radius-coa-duplicate-freeradius"
-	scenarioAcctRestart  = "radius-acct-restart-freeradius"
+	scenarioCoADuplicate  = "radius-coa-duplicate-freeradius"
+	scenarioAcctRestart   = "radius-acct-restart-freeradius"
+	scenarioCoADisconnect = "radius-coa-disconnect-freeradius"
+	scenarioFramedReject  = "l2tp-radius-framed-protocol-reject"
 
 	labDirectory = "test/interop-radius-subscriber"
 
@@ -69,8 +71,10 @@ var networkPrefix = netip.MustParsePrefix("172.26.0.0/24")
 // without a checker breaks the run instead of passing silently.
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		scenarioCoADuplicate: checker(checkCoADuplicate, timeout),
-		scenarioAcctRestart:  checker(checkAcctRestart, timeout),
+		scenarioCoADuplicate:  checker(checkCoADuplicate, timeout),
+		scenarioAcctRestart:   checker(checkAcctRestart, timeout),
+		scenarioCoADisconnect: checker(checkCoADisconnect, timeout),
+		scenarioFramedReject:  checker(checkFramedReject, timeout),
 	}
 }
 
@@ -151,6 +155,10 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 	serverContainer := tb.Reset().Str("ze-radsub-server-").Str(suffix).String()
 	lacContainer := tb.Reset().Str("ze-radsub-lac-").Str(suffix).String()
 	networkName := tb.Reset().Str("ze-radsub-").Str(suffix).String()
+	server := serverPeerConfig(root, serverContainer)
+	if source.Name == scenarioFramedReject {
+		configureFramedServerPeer(source, &server)
+	}
 	return interoplab.ScenarioPlan{
 		Source: source,
 		Network: interoplab.NetworkSpec{
@@ -161,7 +169,7 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 		// The server starts first so ze's first Access-Request meets a
 		// listening socket, and the LAC last so it dials a listening LNS.
 		Peers: []interoplab.PeerConfig{
-			serverPeerConfig(root, serverContainer),
+			server,
 			zePeerConfig(source, zeContainer),
 			lacPeerConfig(root, lacContainer),
 		},

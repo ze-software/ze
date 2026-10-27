@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | in-progress |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the access group before any row edit, parent R-11) |
-| Phase | - |
+| Phase | 13/13 — D-8 interop gate |
 | Handoff | - |
-| Updated | 2026-10-11 |
+| Updated | 2026-10-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -493,14 +493,64 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 3 rows, all in `spec-radius-rfc-defects` ACs |
 | every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 121 moved verdicts; `./le rfc check` clean for the access stems |
-| D-8 fixes work against another implementation | interop | GAP: interoplab suites exist (`internal/le/interoplab/l2tp`, `pppoe`, `radius`), but no run after the D-8 commits above is recorded in the handover or in a committed log |
+| D-8 fixes work against another implementation | interop | Three link scenarios have native green / intended-red / restored-green evidence in `9a51de9deb` and `1573a9970a`. CoA and framing have native greens; their discrimination remains open. See the current proof table below |
+
+## D-8 Interop Implementation, 2026-10-26
+
+The five scenarios below were implemented on 2026-10-26. The current native
+results follow the implementation table; the OPEN GATE remains in force for
+the missing discrimination and existing-scenario acceptance runs.
+
+| Scenario | Producer and distinguishing observation |
+|----------|-----------------------------------------|
+| `l2tp-unknown-mandatory-avp-xl2tpd` | `l2tp/mandatory_avp.go` `checkUnknownMandatoryAVP`: a transparent relay appends an optional unknown AVP to real xl2tpd SCCCN, proves PPP traffic, then appends the mandatory form to real HELLO; requires matching StopCCN 2/8 and both-peer cleanup |
+| `pppoe-chap-rechallenge-ze-client` | `pppoe/check_lifecycle.go` `checkCHAPRechallenge`: two native accel-ppp reauthentication exchanges after IPCP traffic, exact CHAP digest and Identifier, unchanged session and subsequent traffic |
+| `pppoe-peer-terminate-ze-ac` | `pppoe/check_lifecycle.go` `checkPeerTerminate`: real pppd Terminate-Request with its outgoing PADT filtered; requires Ze Terminate-Ack, delayed Ze PADT, REST removal, both PPP interfaces removed and an empty Ze kernel PPPoE table |
+| `radius-coa-disconnect-freeradius` | `radiussubscriber/check_coa_disconnect.go` `checkCoADisconnect`: real radclient ACK/NAK, kernel download and upload rate changes, mixed-validity CoA refusal without partial changes, refused then accepted Disconnect and matching Accounting-Stop |
+| `l2tp-radius-framed-protocol-reject` | `radiussubscriber/check_framed_protocol.go` `checkFramedReject`: the same FreeRADIUS user receives PPP, SLIP, then PPP authorization; requires initial/recovery traffic and intermediate Ze refusal, pppd CHAP failure and no Accounting-Start |
+
+The subscriber scenarios reuse the FreeRADIUS subscriber suite, not the
+admin-login suite or the L2TP RADIUS mock. The scenario implementation changed
+no RFC tags or audit ledger. Native execution subsequently exposed the kernel
+POLICE omission and userspace shaping defects; `80175d768d` and `0d9da69ff3`
+repair those producers. No full-tree check was run.
+
+Owner-approved test maintenance replaced the seven affected population,
+topology and configuration-hash units after preserving existing selector and
+shared peer-start/readiness failure coverage and adding focused missing-input,
+invalid-network/rendering and subscriber-selector behavior tests. No hashes or
+counts were repinned. The five real-peer scenarios and packet/parser/digest/relay
+tests remain. Native weakening approvals and exact unit names are retained in
+the per-spec session state. The scoped eight-package race proof completed in
+two retained runs, continuing only roots not completed before the first run
+was interrupted; already-passing tests were not repeated.
+
+### Current native proof, 2026-10-27
+
+| Scenario | Observed proof | Commit or remaining obligation |
+|----------|----------------|--------------------------------|
+| `pppoe-chap-rechallenge-ze-client` | Green, private network-phase CHAP break red, normal rebuild green | `9a51de9deb` |
+| `pppoe-peer-terminate-ze-ac` | Green, private layer-finished break red, normal rebuild green; peer/kernel cleanup retained | `9a51de9deb` |
+| `l2tp-unknown-mandatory-avp-xl2tpd` | Optional-AVP control and mandatory-AVP teardown green, intended private break red, normal rebuild green | `1573a9970a`; earlier infrastructure-contaminated attempts are not the discrimination evidence |
+| `radius-coa-disconnect-freeradius` | Native Ze KVM green: 10M/2M initial rates, 20M/5M update, invalid-CoA preservation, connectivity and Disconnect/accounting assertions | Product correction `0d9da69ff3`; private invalid-CoA break and restored green still owed |
+| `l2tp-radius-framed-protocol-reject` | Native Ze KVM green: PPP traffic, SLIP refusal with CHAP failure and no bad accounting, then PPP recovery | Private framing-guard break and restored green still owed |
+
+The two RADIUS greens used Ze Docker-host image `789bdd6a7c1a5487`; both outer
+reports have check/lab exit zero, stopped VMs and no leftovers. Framing needed
+the pinned FreeRADIUS image's entrypoint after copying its users file and
+`logfd 2` for pppd, because xl2tpd closes standard output. Neither repair changes
+an assertion or deadline.
+
+Required rebuilds for the remaining proof encountered another session's
+in-progress CoPP/GTSM migrations before guest startup. These are compilation
+failures, not protocol verdicts. No foreign source was edited or bypassed.
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `spec-radius-rfc-defects`, closed 2026-10-20 with all three verdicts `enforced` |
-| OPEN GATE: interop over the wire-visible D-8 fixes | no run after the D-8 commits is recorded, and the existing scenarios are happy paths (round-1 review ISSUE-2 to ISSUE-4) | this spec, before closure, worked separately. The gate needs the new named scenarios `l2tp-unknown-mandatory-avp-xl2tpd`, `pppoe-chap-rechallenge-ze-client`, `pppoe-peer-terminate-ze-ac`, `radius-coa-disconnect-freeradius` and `l2tp-radius-framed-protocol-reject`, each with a recorded forced red; a pass over HEAD of the existing `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`; and every run's log kept |
-| OPEN GATE: `./le verify worktree` | `./le verify status check` (2026-10-11) prints STALE: the last verify failed (exit=1, at 2026-10-05T10:05:53Z), and the run needs a quiet machine | this spec, before closure, worked separately. The gate needs one `./le verify worktree` run over a HEAD that carries this child's commits, on a machine running no other test, VM or Docker lab, that exits 0 so `./le verify status check` reports FRESH |
+| OPEN GATE: interop over the wire-visible D-8 fixes | Three new link scenarios are discriminated; CoA and framing have baseline greens only | This spec still owes their two intended-red/restored-green pairs, acceptance runs of `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`, and retained logs |
+| OPEN GATE: scoped committed verification | No passing scoped certificate is claimed | This spec owes `./le verify changed` after closing commits. Full verification is Thomas's separate release check, not an agent closure gate |
 
 ## Review Gate
 

@@ -1,0 +1,3 @@
+alice	Cleartext-Password := "s3cr3t"
+	Service-Type = Framed-User,
+	Framed-Protocol = SLIP

@@ -8,3 +8,4 @@ ipcp-accept-remote
 noipv6
 debug
 nodetach
+logfd 2

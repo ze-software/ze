@@ -19,7 +19,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// VALIDATES: the suite discovers exactly its two named scenarios, and ze and
+// VALIDATES: the suite discovers every registered scenario, and ze and
 // the LAC hold NET_ADMIN and the host's /dev/ppp while FreeRADIUS holds
 // neither; the preflight runs the shared PPP device probe.
 // PREVENTS: a scenario directory with no checker, and a peer that cannot
@@ -220,6 +220,29 @@ func TestReplayScriptAndReplyCode(t *testing.T) {
 	for _, output := range []string{"", " \n", "abc", "300"} {
 		if code, err := replyCode(output); err == nil {
 			t.Errorf("replyCode(%q) = %d, want an error", output, code)
+		}
+	}
+}
+
+// TestUnknownSelectorFailsBeforePeerSetup checks explicit selection precedence
+// and environment selection without launching Docker or accepting an empty run.
+func TestUnknownSelectorFailsBeforePeerSetup(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(selectorVariable, "missing-from-environment")
+	for _, test := range []struct {
+		selector string
+		missing  string
+	}{
+		{selector: "missing-explicit", missing: "missing-explicit"},
+		{missing: "missing-from-environment"},
+	} {
+		report := RunAt(t.Context(), root, test.selector)
+		want := "no scenario matching '" + test.missing + "' found"
+		if report.Code != 1 || report.SetupError != want {
+			t.Fatalf("missing selector report = %+v, want %q", report, want)
 		}
 	}
 }

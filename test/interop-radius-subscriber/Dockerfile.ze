@@ -7,7 +7,7 @@
 
 FROM alpine:3.24.3
 
-RUN apk add --no-cache tini iproute2 ppp tcpdump
+RUN apk add --no-cache tini iproute2 iproute2-tc ppp tcpdump
 
 COPY test/interop-radius-subscriber/ze-linux /usr/local/bin/ze
 

@@ -2036,6 +2036,8 @@ is the Dynamic Authorization Client.
 |----------|----------------|
 | `radius-coa-duplicate-freeradius` | RFC 5176 Section 2.3 duplicate detection. With ze paused, `radclient` sends one Disconnect-Request and retransmits it on its own socket: ze answers the copies from the cache, `radclient` gets a Disconnect-ACK, and ze logs one teardown. On a second session, `radclient` sends one Disconnect-Request and gets a Disconnect-ACK, then a bash process in the FreeRADIUS container sends the very octets ze received, read from the capture, out of a socket of its own, so from a new port: ze processes it afresh and answers Disconnect-NAK, where a key blind to the port would answer the cached ACK. A tcpdump capture in ze's container confirms the retransmitted copies share port, Identifier and Authenticator, and the two clients' requests are the same octets from two ports |
 | `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
+| `radius-coa-disconnect-freeradius` | Requires both kernel shaping rates to change after CoA-ACK; a mixed valid/unsupported request must NAK without changing either rate. A valid Disconnect must ACK and produce the matching Accounting-Stop |
+| `l2tp-radius-framed-protocol-reject` | Changes only FreeRADIUS's Framed-Protocol for one user: PPP must establish traffic, SLIP must produce authorization refusal and CHAP failure without Accounting-Start, then PPP must work again |
 
 The server listens as a stock deployment does, `type = auth` on 1812 and
 `type = acct` on 1813 (`site-default`), and ze sends accounting to a server
@@ -2048,7 +2050,7 @@ session it asked for. Ze's container sets `ze.log.l2tp.auth.radius=debug`,
 because the teardown count reads the plugin's Info line and the default level
 is WARN.
 
-Both scenarios passed on 2026-10-20, and each discriminates. With `replayKey`
+The duplicate and restart scenarios passed on 2026-10-20, and each discriminates. With `replayKey`
 writing port 0 into the key, so blind to the source port, the two-client half fails: "ze answered Code 41,
 want a fresh Disconnect-NAK (42), not the first client's cached answer". With
 `genSessionID` writing the old tunnel-session-counter form, the restart
@@ -2060,6 +2062,21 @@ boot tag".
 <!-- source: test/interop-radius-subscriber/site-default -- the authentication and accounting listeners -->
 <!-- source: test/interop-radius-subscriber/xl2tpd.conf -- redial = no -->
 <!-- source: test/interop-radius-subscriber/mods-ze-detail -- the detail module the server's record comes from -->
+
+The two additional scenarios passed on native Ze KVM guests on 2026-10-27.
+Their forced-red and restored-green proofs remain owed. The framing checker
+uses radclient's Access-Accept as its reload barrier and retries HUP no sooner
+than six seconds after the last signal: FreeRADIUS ignores HUP within five
+seconds of the preceding reload.
+After copying its initial users file, the framing peer starts through the
+image's entrypoint. The pinned Debian image resolves `radiusd` to `freeradius`
+there; a shell executing `radiusd` directly bypasses that translation.
+The LAC sends pppd's diagnostic messages to descriptor 2: xl2tpd closes stdout
+before starting pppd in kernel mode, while its foreground stderr reaches Docker
+logs. This keeps the checker's CHAP-refusal observation connected to the peer.
+<!-- source: test/interop-radius-subscriber/ppp-options -- logfd -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_coa_disconnect.go -- checkCoADisconnect -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
 
 ### The freeRouter RSVP-TE suite
 
