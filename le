@@ -653,7 +653,7 @@ fi
 
 # Sets $rollback_kind to what the words after `rollback` ask for: `act` for
 # none, or only a pipe chain of output formats (the usage line `le rollback
-# [| json | yaml | table]`), `help` for one help word with an optional pipe
+# ['|' json|yaml|table]`), `help` for one help word with an optional pipe
 # chain after it, and `stray` for anything else. A stray word would be
 # accepted and ignored, which no help page can show, so it is refused.
 rollback_words() {

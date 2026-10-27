@@ -705,7 +705,7 @@ func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
 
 	want := "le qemu run - boot a guest\n\n  boot a guest\n\nUsage:\n" +
 		"  le qemu run command <command> [timeout <duration>] [share <path>]... [keep-alive]\n" +
-		"      [| json | yaml | table]\n\nKeywords:\n" +
+		"      ['|' json|yaml|table]\n\nKeywords:\n" +
 		"  command <command>  string, required: h\n" +
 		"  timeout <duration> string, optional: h\n" +
 		"  share <path>       string, optional, repeatable: h\n" +
@@ -1199,7 +1199,7 @@ func TestListingWrapsAtTheTerminalWidth(t *testing.T) {
 	for _, width := range []int{20, 80, 500} {
 		text := renderAt(page, width)
 		for line := range strings.SplitSeq(text, "\n") {
-			// A bracket group (`[| json | yaml | table]`) is one token: a
+			// A bracket group (`['|' json|yaml|table]`) is one token: a
 			// line never breaks inside it.
 			token := strings.TrimSpace(line)
 			group := strings.HasPrefix(token, "[") && strings.HasSuffix(token, "]")

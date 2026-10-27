@@ -39,7 +39,7 @@ func TestAParseRefusalOnAPipePrintsOneActionUsage(t *testing.T) {
 	var code int
 	stdout := captureStdout(t, func() {
 		stderr := captureStderr(t, func() { _, code = area.Answer([]string{"claim", "plan/x.md", "loud"}) })
-		if !strings.Contains(stderr, "\nusage: le spec claim <spec> [quiet] [| json | yaml | table]\n") {
+		if !strings.Contains(stderr, "\nusage: le spec claim <spec> [quiet] ['|' json|yaml|table]\n") {
 			t.Errorf("the refusal does not carry claim's usage line:\n%s", stderr)
 		}
 		if !strings.Contains(stderr, "the spec file to claim") || !strings.Contains(stderr, "print nothing on success") {
@@ -77,7 +77,7 @@ func TestMissingRequiredParameterOnAPipeRefusesWithOneUsage(t *testing.T) {
 		if !strings.Contains(stderr, "error: le spec claim requires <spec>\n") {
 			t.Errorf("the refusal does not name the missing slot:\n%s", stderr)
 		}
-		if !strings.Contains(stderr, "\nusage: le spec claim <spec> [quiet] [| json | yaml | table]\n") {
+		if !strings.Contains(stderr, "\nusage: le spec claim <spec> [quiet] ['|' json|yaml|table]\n") {
 			t.Errorf("the refusal does not carry claim's usage line:\n%s", stderr)
 		}
 		if !strings.Contains(stderr, "the spec file to claim") {

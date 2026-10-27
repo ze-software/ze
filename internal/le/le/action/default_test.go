@@ -124,11 +124,11 @@ func TestAreaUsageShowsTheActionOptionalWhenADefaultOwnsTheBareLine(t *testing.T
 		{"a default", []Action{
 			{Verb: "report", Default: true, Why: "default", Answer: defaultAnswer},
 			{Verb: "write", Why: "other", Answer: defaultAnswer},
-		}, "le a [<action>] [<keyword> <value>...] [| json | yaml | table]"},
+		}, "le a [<action>] [<keyword> <value>...] ['|' json|yaml|table]"},
 		{"no default", []Action{
 			{Verb: "report", Why: "first", Answer: defaultAnswer},
 			{Verb: "write", Why: "second", Answer: defaultAnswer},
-		}, "le a <action> [<keyword> <value>...] [| json | yaml | table]"},
+		}, "le a <action> [<keyword> <value>...] ['|' json|yaml|table]"},
 	}
 
 	for _, one := range cases {

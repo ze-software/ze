@@ -96,7 +96,7 @@ func TestUnparsableSourceIsAnError(t *testing.T) {
 const helpPage = `le - the Ze repository and development entry point
 
 Usage:
-  le <command> [options] [| json | yaml | table]
+  le <command> [options] ['|' json|yaml|table]
 
 Commands:
   fuzz                       Go fuzzing: every ` + "`func Fuzz`" + ` under internal/
@@ -134,7 +134,7 @@ func TestAPageWithNoCommandsSectionAnswersNothing(t *testing.T) {
 const groupedHelpPage = `le - the Ze repository and development entry point
 
 Usage:
-  le <command> [options] [| json | yaml | table]
+  le <command> [options] ['|' json|yaml|table]
 
 Workflow (you type these while working):
   commit   prepare explicit commits
@@ -154,7 +154,7 @@ Reports (read the tree, gate nothing):
 const treeHelpPage = `le - the Ze repository and development entry point
 
 Usage:
-  le <command> [options] [| json | yaml | table]
+  le <command> [options] ['|' json|yaml|table]
 
 Commands:
   inventory        [report] what ze is made of, a description long enough

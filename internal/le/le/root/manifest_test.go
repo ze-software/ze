@@ -36,7 +36,7 @@ func manifestProbeRoots(t *testing.T) []registry.RootCommand {
 const rootHelpToday = "le - the Ze repository and development entry point\n" +
 	"\n" +
 	"Usage:\n" +
-	"  le <command> [options] [| json | yaml | table]\n" +
+	"  le <command> [options] ['|' json|yaml|table]\n" +
 	"\n" +
 	"Commands:\n" +
 	"  manifest-probe-alpha [workflow] the first probe\n" +

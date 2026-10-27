@@ -76,5 +76,5 @@ func (r Report) Text() string {
 	}
 	// The detail is a pipe operator away rather than a flag, which is the one
 	// place this page differs from the script's.
-	return tb.Str(" (ai/rules/protocol.md; | json for detail)\n").String()
+	return tb.Str(" (ai/rules/protocol.md; '|' json for detail)\n").String()
 }

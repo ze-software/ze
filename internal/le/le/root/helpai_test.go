@@ -35,8 +35,8 @@ func TestHelpAiTextSummary(t *testing.T) {
 			t.Errorf("the summary does not name section %q:\n%s", section, text)
 		}
 	}
-	if !strings.Contains(text, "le help ai | json") {
-		t.Errorf("the summary does not name `le help ai | json`:\n%s", text)
+	if !strings.Contains(text, "le help ai '|' json") {
+		t.Errorf("the summary does not name `le help ai '|' json`:\n%s", text)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestZeLeParity(t *testing.T) {
 	if !bytes.Equal(a, b) {
 		t.Error("ze le help ai differs from le help ai beyond the program name")
 	}
-	if !strings.Contains(helpAIOf(t, "ze le").Text(), "ze le help ai | json") {
-		t.Error("the ze le summary does not name `ze le help ai | json`")
+	if !strings.Contains(helpAIOf(t, "ze le").Text(), "ze le help ai '|' json") {
+		t.Error("the ze le summary does not name `ze le help ai '|' json`")
 	}
 }

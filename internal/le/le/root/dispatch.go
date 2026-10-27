@@ -524,14 +524,14 @@ func areaPage(program, name string) helpfmt.Page {
 	case meta.ResolveSubs() != "":
 		for grammar := range strings.SplitSeq(meta.ResolveSubs(), " | ") {
 			tb.Reset()
-			page.Usage = append(page.Usage, tb.Str(command).Byte(' ').Str(grammar).Str(" [| json | yaml | table]").String())
+			page.Usage = append(page.Usage, tb.Str(command).Byte(' ').Str(grammar).Str(leaction.Renderings).String())
 		}
 	case len(members(name)) != 0:
 		tb.Reset()
 		page.Usage = []string{tb.Str(command).Str(" <command> ...").String()}
 	default:
 		tb.Reset()
-		page.Usage = []string{tb.Str(command).Str(" [| json | yaml | table]").String()}
+		page.Usage = []string{tb.Str(command).Str(leaction.Renderings).String()}
 	}
 	// A pass-through area keeps the usage its registration declares, which
 	// names the program's own subcommands, and says where the words go.

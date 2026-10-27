@@ -166,9 +166,9 @@ func (r Reference) writeIndex(tb *textbuf.Buffer) {
 		tb.Str("  ").PadRight(section.Name, width).Str("  ").Str(section.Meaning).Byte('\n')
 	}
 	tb.Str("\n## Machine-readable\n\n")
-	tb.Str("  ").Str(r.Program).Str(" help ai | json          every section's index as JSON\n")
-	tb.Str("  ").Str(r.Program).Str(" help ai all | json      every section as JSON (| yaml for YAML)\n")
-	tb.Str("  ").Str(r.Program).Str(" help ai commands | json every command, action and typed parameter\n")
+	tb.Str("  ").Str(r.Program).Str(" help ai '|' json          every section's index as JSON\n")
+	tb.Str("  ").Str(r.Program).Str(" help ai all '|' json      every section as JSON ('|' yaml for YAML)\n")
+	tb.Str("  ").Str(r.Program).Str(" help ai commands '|' json every command, action and typed parameter\n")
 }
 
 // writeNamespaces prints one line per namespace with its one-line summary,

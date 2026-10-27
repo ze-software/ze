@@ -69,7 +69,7 @@ func TestTheWalkReachesEveryCommandWordTheDispatcherReads(t *testing.T) {
 const launcherHelpPage = `le - the Ze repository and development entry point
 
 Usage:
-  le <command> [options] [| json | yaml | table]
+  le <command> [options] ['|' json|yaml|table]
 
 yang: YANG modules, their generated glue and path migrations
   yang glue        [generate] check or write the generated YANG glue

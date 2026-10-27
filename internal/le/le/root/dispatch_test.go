@@ -412,7 +412,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 		t.Errorf("the area's handler ran %d time(s) for a help word", reached)
 	}
 	for _, want := range []string{
-		"\n  le trailing-help-grammar-probe run scope <packages> [timeout <duration>] [| json | yaml | table]\n",
+		"\n  le trailing-help-grammar-probe run scope <packages> [timeout <duration>] ['|' json|yaml|table]\n",
 		"\n  run the probe over one scope\n",
 	} {
 		if !strings.Contains(page, want) {
@@ -839,8 +839,8 @@ func TestOneRendererForEveryPage(t *testing.T) {
 	})
 	page := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-tableless", "--help"}) })
 	for _, want := range []string{
-		"\n  le one-renderer-tableless spec <spec> [| json | yaml | table]\n",
-		"\n  le one-renderer-tableless current [| json | yaml | table]\n",
+		"\n  le one-renderer-tableless spec <spec> ['|' json|yaml|table]\n",
+		"\n  le one-renderer-tableless current ['|' json|yaml|table]\n",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the table-less page lacks the usage line %q:\n%s", want, page)
@@ -891,7 +891,7 @@ func TestKeywordHelpPage(t *testing.T) {
 // way round, `le ai help` answering the reference, so neither question is left
 // with no spelling that answers it.
 // Method: register one probe member under `ai`, then dispatch the four lines
-// with stdout on a pipe. The reference names `le help ai | json` and every
+// with stdout on a pipe. The reference names `le help ai '|' json` and every
 // section and no member; the namespace page names the probe member and its
 // summary and not the reference's pipe line.
 func TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage(t *testing.T) {
@@ -902,7 +902,7 @@ func TestHelpAiIsTheReferenceAndAiHelpIsTheNamespacePage(t *testing.T) {
 	area := leaction.New(member, leaction.Action{Summary: "show the member", Verb: "show", Why: "show the member", Answer: func() (any, int) { return nil, 0 }})
 	RegisterActions(member, area.Actions)
 	RegisterShape(member, command.ShapeDoc)
-	const referenceLine = "le help ai | json"
+	const referenceLine = "le help ai '|' json"
 
 	code := -1
 	reference := captureStdout(t, func() { code = Dispatch("le", []string{"help", aiWord}) })

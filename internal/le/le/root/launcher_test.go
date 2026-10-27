@@ -1,5 +1,5 @@
 // VALIDATES: every word the ./le launcher script consumes before le starts is
-// one le declares, and each is on the root page, in `le help ai | json` and
+// one le declares, and each is on the root page, in `le help ai '|' json` and
 // among the completion candidates at its place (AC-51, D-P4-launcher of
 // spec-le-cli-usability). The words are read from the script itself.
 // PREVENTS: a word added to the script that no help page, reference or

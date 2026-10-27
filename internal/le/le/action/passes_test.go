@@ -30,7 +30,7 @@ func TestPassesWordsDeclaresWhereTheWordsGo(t *testing.T) {
 	}
 
 	page := list.Page("le")
-	if len(page.Usage) != 1 || page.Usage[0] != "le mrt [<words>...] [| json | yaml | table]" {
+	if len(page.Usage) != 1 || page.Usage[0] != "le mrt [<words>...] ['|' json|yaml|table]" {
 		t.Errorf("the usage is %q, want the program's words after the area", page.Usage)
 	}
 	section := list.Section()

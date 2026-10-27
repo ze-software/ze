@@ -28,8 +28,11 @@ import (
 // through a pipe cannot depend on the terminal of the machine that ran it.
 const pipeWidth = 100
 
-// renderings is the pipe-operator suffix every usage line ends with.
-const renderings = " [| json | yaml | table]"
+// Renderings is the pipe-operator suffix every usage line ends with. The bar
+// is quoted because it is typed quoted: a shell takes a bare `|` as its own
+// pipe and runs `json` as a program, so le never sees it. The bare bars
+// between the renderings separate the choices.
+const Renderings = " ['|' json|yaml|table]"
 
 // passedWords names the words a forwarding row or a pass-through area hands to
 // its program, in the usage line and in the pass-through section, so both say
@@ -123,7 +126,7 @@ func (l List) Page(program string) helpfmt.Page {
 	}
 	return helpfmt.Page{
 		Command:  command,
-		Usage:    []string{tb.Str(renderings).String()},
+		Usage:    []string{tb.Str(Renderings).String()},
 		Sections: []helpfmt.HelpSection{l.Section()},
 	}
 }
@@ -188,7 +191,7 @@ func (l List) usageLine(program string, row Row) string {
 	if grammar := rowGrammar(row); grammar != "" {
 		tb.Byte(' ').Str(grammar)
 	}
-	return tb.Str(renderings).String()
+	return tb.Str(Renderings).String()
 }
 
 // commandOf answers the words that name one action under the program name:

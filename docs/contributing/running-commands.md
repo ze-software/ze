@@ -140,9 +140,9 @@ absent from help pages and completion) marked hidden; `groups` the purpose tags;
 closed verb vocabulary (below); `exit-codes` what each code means and who answers another
 program's; `launcher` the words the `./le` script reads before le starts
 (below); `all` every section. Render it with the pipe layer, never a flag:
-`./le help ai commands | json`, `./le help ai all | yaml`. A dash-leading word
+`./le help ai commands '|' json`, `./le help ai all '|' yaml`. A dash-leading word
 (`--json`, `--ai`) is refused with exit 2 and the refusal names
-`le help ai | json`; so is a section that does not exist. `ai` is the one
+`le help ai '|' json`; so is a section that does not exist. `ai` is the one
 reserved word after `help`, so the `ai` namespace's own page is
 `./le ai help`. `ze le help ai` answers the same, its program reading `ze le`.
 

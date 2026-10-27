@@ -57,7 +57,7 @@ func helpAI(program string, args []string) int {
 		if strings.HasPrefix(word, "-") {
 			return refuseHelpAI(program, textbuf.New().Str(word).
 				Str(" is not an option of help ai: le takes no rendering flag; render with a pipe: ").
-				Str(program).Str(" help ai | json").String())
+				Str(program).Str(" help ai '|' json").String())
 		}
 	}
 	return Run("", func(validated command.ValidatedArgs) (any, int) {
@@ -110,7 +110,7 @@ func sectionNames() []string {
 func refuseHelpAI(program, why string) int {
 	var tb textbuf.Buffer
 	tb.Str("error: ").Str(why).Byte('\n').
-		Str("usage: ").Str(program).Str(" help ai [").Join(sectionNames(), "|").Str("] [| json | yaml]\n").
+		Str("usage: ").Str(program).Str(" help ai [").Join(sectionNames(), "|").Str("] ['|' json|yaml]\n").
 		StdErr() //nolint:errcheck // CLI output
 	return 2
 }
