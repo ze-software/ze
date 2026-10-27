@@ -27,7 +27,7 @@ Zeledon is the narrator, not Thomas. Never "I did X" -- "Ze can now...", "shippe
 
 ### Only what shipped
 
-Design and planning work goes under a clearly separate "Coming up" heading, phrased as started, not delivered. Nothing is claimed before it lands.
+Only work that landed is reported. Design and planning work does not appear in the update, and nothing is claimed before it lands.
 
 ### No internal process language
 

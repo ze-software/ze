@@ -227,7 +227,9 @@ func TestTheMirrorCheckExemptsAFrozenTalkDeck(t *testing.T) {
 //
 // The page reads the same as the one published at gh-pages 2fa8fa2ad: the same
 // visible text and the same link targets. The comparison is over <main>,
-// because the shell around it is what AC-3 changes deliberately.
+// because the shell around it is what AC-3 changes deliberately. The fixtures
+// carry one later wording change, the "Only what shipped" card, made when the
+// weekly update dropped its "Coming up" section.
 func TestTheZeledonPageReadsAsThePublishedPage(t *testing.T) {
 	assertAuthoredPageParity(t, "zeledon/index.html", "published-zeledon.html", "published-zeledon.md")
 }
