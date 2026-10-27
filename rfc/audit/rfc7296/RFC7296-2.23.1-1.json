@@ -2,21 +2,24 @@
   "code": {
     "internal/component/ike/engine/transport_mode.go::transportSelectorPairs": "472481f3c9bd32b1",
     "internal/component/ike/engine/ts_narrow.go::keepSingleAddress": "af457c70d2e3d922",
+    "internal/component/ike/engine/ts_narrow.go::narrowChildSelectorsIn": "849b8763536ac025",
     "internal/component/ike/engine/ts_narrow.go::oneTransportPair": "1237ea1e3012660a"
   },
-  "note": "Re-judged 2026-10-20 (independent judge, after 0b324c6182). Section 2.23.1: \"For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.\" The STALE unit oneTransportPair (ts_narrow.go) changed only in its doc comment (0b324c6182 adds the pointer to Linux limitation LL-XFRM-STATE-ONE-SELECTOR); the body is unchanged, as are keepSingleAddress and transportSelectorPairs. Responder: keepSingleAddress then oneTransportPair, TS_UNACCEPTABLE when no single-address pair is left; initiator: proposal with the SA endpoint addresses, more than one answered pair refused. Tagged carriers TestTransportModeUsesExactlyOneAddress and TestResponderAnswersTheIKESAAddressesBehindANAT PASS with -race at HEAD; claims match the bodies. Capability note from the prior judgement unchanged (several port ranges narrowed to one pair). Verdict stands.",
+  "note": "Re-judged 2026-10-27 (independent judge, after 2f36373081). RFC 7296 Section 2.23.1: \"For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.\" and \"It can have multiple Traffic Selectors if it has, for example, multiple port ranges that it wants to negotiate, but all TSi entries must use the IP1-IP1 range as the IP addresses, and all TSr entries must have the IPN2-IPN2 range as IP addresses.\" The single-address gate now lives in narrowChildSelectorsIn, keyed on the exchange's computed mode instead of the deleted PeerRequestedTransport flag; keepSingleAddress, oneTransportPair and transportSelectorPairs are unchanged. Initiator: transportSelectorPairs builds every proposed selector from the IKE SA's two observed addresses, so one address per entry by construction, while ports and protocols survive (two-selector assertion; its mutant record on transportSelectorPairs no longer verifies, unit-changed, and is owed a re-record by the author). Responder: TestTransportModeUsesExactlyOneAddress now reaches transport through decideResponderTransportMode with a Fatal setup guard, and its /16 refusal discriminates the gate: commenting out keepSingleAddress in narrowChildSelectorsIn turns that unit red, observed this audit. TestResponderAnswersTheIKESAAddressesBehindANAT answers one address each, substituted; its two revert records on substituteResponderSelectors no longer verify (producer-changed) and are owed a re-record by the author, and making substituteResponderSelectors return its input unchanged turns that unit red, observed this audit. New positive TestTransportChildRekeyAfterIKERekeyHoldsOneAddress: a transport Child SA rekeyed after an IKE SA rekey answers one address in TSi and TSr and installs the one host pair in transport mode; its verified mutant record breaks the rekey mode decision in respondChildRekey. Its claim is the positive half only, as tagged: under the keepSingleAddress mutant above it stays green, because on a rekey the Section 2.9.2 floor narrows a /24 to the retired host pair first, so no rekey-path negative of the gate exists and none is claimed. All tagged units PASS at 95efd5421d. Pre-existing labeling note, unchanged: the negative tag in TestTransportModeUsesExactlyOneAddress guards the permitted multi-selector clause rather than a violating input; the violating-input negatives are the /16 refusal in the same unit and the NAT responder's substituted answer.",
   "requirement_sha": "94c565064d74a38f",
   "tests": {
+    "internal/component/ike/engine/rfc7296_transport_nat_rekey_test.go::TestTransportChildRekeyAfterIKERekeyHoldsOneAddress": "cbe6f9c3b3dc9f8b",
     "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "235c6f7e874e30ca",
     "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "235c6f7e874e30ca",
-    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "fabd90e9a9b5f392",
-    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "fabd90e9a9b5f392"
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "2f34f99968778d75",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "2f34f99968778d75"
   },
   "units": {
+    "internal/component/ike/engine/rfc7296_transport_nat_rekey_test.go::TestTransportChildRekeyAfterIKERekeyHoldsOneAddress": "a5c513bca876ed4c",
     "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "c0bd95f2cca724db",
     "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "c0bd95f2cca724db",
-    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "399692f1a15b5b25",
-    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "399692f1a15b5b25"
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "015b584c549012c6",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "015b584c549012c6"
   },
   "verdict": "enforced"
 }
