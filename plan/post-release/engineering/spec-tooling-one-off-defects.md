@@ -200,6 +200,8 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-verdict-depends-on-the-machine` | 2026-10-27 | verify changed at 043c682d24 load reds |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |
 | `command-name-breaks-the-cli-grammar` | 2026-10-27 | readme-carrier and vpn-kernel-test names |
 | `delegation-hands-the-callee-a-different-argv` | 2026-10-27 | `le` rollback refusal echoes `$*` |
 | `lint-contract-not-applied` | 2026-10-27 | radiussubscriber check_policer.go parse not allowlisted |

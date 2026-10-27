@@ -226,6 +226,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `lock-held-across-a-join` | 2026-10-27 | handleBFDEvent holds openMu across negotiation publication |
 | `assertion-reads-state-the-scheduler-owns` | 2026-10-27 | TestRFC4271DelayOpenBothSidesHold closed-pipe deadline |
 | `clock-bypass` | 2026-10-27 | reactor_connection.go forward write deadline |
 | `retained-entry-still-answers-lookups` | 2026-10-27 | api-peer-create-delete-rib |
