@@ -365,6 +365,10 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/component/radius/panic_guard.go -- readTask -->
 | `radius-coa` | `request` | One CoA-Request or Disconnect-Request: answered with a NAK carrying Error-Cause 506 (Resources Unavailable) when it had been authenticated, dropped otherwise; the listener serves the next one |
 <!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
+| `radius-auth` | `request` | One subscriber login, denied with `internal error`; every other login is served as before |
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- authRequestTask -->
+| `radius-auth` | `accounting` | One session's Start and Interim-Update records: none follow, the session stays up, and its Stop record is still sent when it ends; every other session accounts as before |
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
 | `dhcp` | `request` | One DHCP request, unanswered: the client retransmits it, and the listener serves the next one |
 <!-- source: internal/plugins/dhcpserver/panic_guard.go -- requestTask -->
 | `tftp` | `request` | One TFTP request: its client is sent an ERROR (code 0), and the listener serves the next request |

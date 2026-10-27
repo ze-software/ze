@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -355,10 +356,30 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	a.sessions[key] = sess
 	a.mu.Unlock()
 
-	go func() {
-		a.sendAcctStart(client, sess, nasID, srcAddr)
-		a.interimLoop(ctx, client, sess, nasID, srcAddr, interval)
-	}()
+	go a.runAccounting(ctx, client, sess, nasID, srcAddr, interval)
+}
+
+// runAccounting is one session's accounting task: its Accounting-Start, then
+// one Interim-Update per interval until the session's context ends. It owns the
+// session's goroutine for that lifetime, and onSessionDown ends it by
+// canceling ctx.
+//
+// Its panic boundary is the accounting task. A Ze defect met here ends this
+// session's Start and Interim-Update records only: the session stays up and in
+// a.sessions, and every other session's task runs on. The Accounting-Stop is
+// left to onSessionDown, because RFC 2866 Section 2 ties it to the end of
+// service, which a defect in the accounting task is not: "At the end of
+// service delivery the client will generate an Accounting Stop packet
+// describing the type of service that was delivered and optionally statistics
+// such as elapsed time, input and output octets, or input and output packets."
+// A Stop sent here would close the server's record of a session still
+// delivering service, and onSessionDown would then send a second one.
+func (a *radiusAcct) runAccounting(ctx context.Context, client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP, interval time.Duration) {
+	describe := func() taskguard.Context { return sessionUnit(sess.tunnelID, sess.sessionID) }
+	defer accountingTask.Contain(describe, nil)
+
+	a.sendAcctStart(client, sess, nasID, sourceAddr)
+	a.interimLoop(ctx, client, sess, nasID, sourceAddr, interval)
 }
 
 func (a *radiusAcct) onSessionDown(payload *l2tpevents.SessionDownPayload) {

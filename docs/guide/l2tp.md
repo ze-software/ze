@@ -431,6 +431,15 @@ ze strips the Ident and decodes the digits rather than passing the attribute
 through.
 <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS, extractMSCHAP2Success, decodeMSCHAP2Success -->
 
+A login whose handling meets a Ze defect (a Go panic) is denied with
+`internal error`, and every other login is served as before. The panic is
+logged at ERROR with the tunnel and session and the stack, counted in
+`ze_task_panics_total{component="radius-auth",task="request"}`, and written as
+a crash record that `ze show crashes` lists. Any count above zero is a Ze defect
+to report with that record.
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- doRADIUS -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- authRequestTask -->
+
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
 (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and
 Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
@@ -458,6 +467,17 @@ initial raw interface counters before it enables forwarding. This includes a
 replacement network lifetime on the same PPP unit. Accounting-Start runs
 asynchronously; forwarding does not wait for a RADIUS server response. PPPoE
 accounting remains unconnected to subscriber events.
+
+Each session's Start and Interim-Update records come from a task of its own. A
+Ze defect (a Go panic) met in that task ends that session's Start and
+Interim-Update records only: the session stays up, every other session accounts
+as before, and the session's Stop record is still sent when it ends, because
+RFC 2866 Section 2 ties the Stop to the end of service delivery. The panic is
+logged at ERROR with the tunnel and session and the stack, counted in
+`ze_task_panics_total{component="radius-auth",task="accounting"}`, and written
+as a crash record that `ze show crashes` lists.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
 
 Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
 which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP

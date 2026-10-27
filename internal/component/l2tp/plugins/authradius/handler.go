@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // radiusAuth holds the RADIUS client and implements the auth handler.
@@ -109,16 +110,17 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	return l2tp.AuthResult{Handled: true}
 }
 
+// doRADIUS asks the RADIUS servers about one subscriber login and answers it
+// through respond. It runs on its own goroutine for that login, so its panic
+// boundary is the login request task: a Ze defect met here rejects this login
+// as an internal error, and the guard counts and crash-records it.
 func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, nasID string, sourceAddr net.IP, policy attributePolicy, respond l2tp.AuthRespondFunc) {
-	defer func() {
-		if r := recover(); r != nil {
-			logger().Error("l2tp-auth-radius: goroutine panic",
-				"tunnel", req.TunnelID, "session", req.SessionID, "panic", r)
-			if err := respond(false, "internal error", nil); err != nil {
-				logger().Warn("l2tp-auth-radius: respond failed after panic", "error", err)
-			}
+	describe := func() taskguard.Context { return sessionUnit(req.TunnelID, req.SessionID) }
+	defer authRequestTask.Contain(describe, func(*taskguard.Panic) {
+		if err := respond(false, "internal error", nil); err != nil {
+			logger().Warn("l2tp-auth-radius: respond failed after an internal error", "error", err)
 		}
-	}()
+	})
 
 	auth, err := radius.RandomAuthenticator()
 	if err != nil {
