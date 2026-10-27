@@ -60,6 +60,12 @@ func (l *recordingLab) Exec(_ context.Context, peer string, arguments []string, 
 		return interoplab.CommandResult{Stdout: `{"error":"peer cannot answer OCRQ"}` + "\n"}, nil
 	case strings.Contains(command, `{"command":"clear l2tp session all"}`):
 		return interoplab.CommandResult{Stdout: `{"result":"1 session cleared"}` + "\n"}, nil
+	case command == "cat "+subscriberResolvConf:
+		return interoplab.CommandResult{Stdout: "nameserver 10.100.0.1\nnameserver 10.100.0.1\n"}, nil
+	case command == "ip route get 10.100.0.1":
+		return interoplab.CommandResult{Stdout: "10.100.0.1 dev ppp0 src 10.100.0.2 uid 0\n"}, nil
+	case command == "nslookup -type=a www.lab.example 10.100.0.1":
+		return interoplab.CommandResult{Stdout: busyboxAnswer}, nil
 	default:
 		return interoplab.CommandResult{}, errors.New("unexpected exec: " + peer + " " + command)
 	}
@@ -279,6 +285,15 @@ func TestCheckersRecordPeerParticipation(t *testing.T) {
 						"http://127.0.0.1:17012/api/v1/execute",
 					},
 				},
+			},
+		},
+		{
+			name:      scenarioDNSResolver,
+			wantPeers: []string{peerZe, peerLAC},
+			wantCalls: []recordedCall{
+				{operation: "exec", peer: peerLAC, arguments: []string{"cat", subscriberResolvConf}},
+				{operation: "exec", peer: peerLAC, arguments: []string{"ip", "route", "get", localPPPAddress}},
+				{operation: "exec", peer: peerLAC, arguments: []string{"nslookup", "-type=a", subscriberQueryName, localPPPAddress}},
 			},
 		},
 	}

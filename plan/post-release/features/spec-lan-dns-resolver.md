@@ -254,7 +254,7 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-2 | The listener conflict check refuses the resolver on an address and port geodns or as112 already binds, with no edit to `listener.go` | `DiscoverListenerServices` walks every `zt:listener` user | two services race for port 53 | functional test `dns-resolver-listener-conflict.ci` | unvalidated |
-| A-3 | An L2TP subscriber reaches a resolver bound on an LNS loopback or gateway address; binding per ppp interface is not needed | subscriber sessions are dynamic interfaces; IPCP hands out an address, not an interface | per-session binding needed; ACL by source prefix still holds | interop `dns-resolver-l2tp-subscriber` | unvalidated |
+| A-3 | An L2TP subscriber reaches a resolver bound on an LNS loopback or gateway address; binding per ppp interface is not needed. The pool gateway exists only while a session is up, so the resolver binds it before then with `IP_FREEBIND` (`newResolverServer` sets `dnsserver.Options.Freebind`) | subscriber sessions are dynamic interfaces; IPCP hands out an address, not an interface | per-session binding needed; ACL by source prefix still holds | unit `TestListenBeforeAddressIsUp` (bind half); interop `dns-resolver-l2tp-subscriber` | bind half validated by unit test (red without Freebind); interop unvalidated |
 | A-4 | Spoofed replies are rejected: fresh ephemeral port and random ID per exchange, source filtered by the connected UDP socket, mismatched ID skipped; the question is NOT checked by miekg | `vendor/github.com/miekg/dns/client.go` `exchange` (read) | cache poisoning by off-path spoofing | unit test injecting a mismatched ID, a mismatched question, and a reply from another source | read at source; question check is resolver code (AC-18) |
 | A-7 | Ze's DHCP server runs in the interop Ze container and leases to a client container on the lab bridge | `internal/plugins/dhcpserver` serves on a configured interface; the lab Ze container owns `eth0` on the bridge | the DHCP story needs a QEMU guest instead | interop `dns-resolver-dhcp-lan` | unvalidated |
 | A-8 | miekg `dns.Server` handles each UDP and TCP query on its own goroutine, so a blocking answer function does not stall other queries | miekg server design; `docs/architecture/dns/server-harness.md` | one slow resolution blocks the listener | unit test: a resolution blocked on a slow upstream while a cached query is answered | unvalidated |
@@ -336,8 +336,8 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | AC-29 | `dns-resolver` absent or `enabled false` | No listener bound; `system name-server` and the stub unchanged |
 | AC-30 | Reload changing only `allow-from`, upstreams or limits | New policy on the next query; listeners not rebound (no serving pause). → Test: `TestReloadKeepsListeners` (one socket across the reload), `test/reload/dns-resolver-reload.ci` (allow-from reloaded, next query refused or answered by the new list) |
 | AC-31 | `show dns-resolver` | The fields in the Commands table; `clear dns-resolver cache all` empties every cache and the next query goes upstream. → Test: `test/plugin/dns-resolver-show.ci` |
-| AC-32 | LAN host gets a DHCPv4 lease from Ze with `dns-server` set to the resolver address, then resolves a name with `kdig` against the leased server | Answered |
-| AC-33 | L2TP subscriber gets the resolver address via IPCP from the pool's `dns-primary` and resolves a name | Answered; the subscriber's pool prefix is in `allow-from` |
+| AC-32 | LAN host gets a DHCPv4 lease from Ze with `dns-server` set to the resolver address, then resolves a name with `kdig` against the leased server | Answered. → Test: interop `dns-resolver-dhcp-lan` (`checkDNSDHCPLAN`, assertions 1-4: the lease is the pool address, its option 6 is exactly Ze's address, the name resolves through that server from the leased address, the host's other address is REFUSED) |
+| AC-33 | L2TP subscriber gets the resolver address via IPCP from the pool's `dns-primary` and resolves a name | Answered; the subscriber's pool prefix is in `allow-from`. → Test: interop `dns-resolver-l2tp-subscriber` (`checkDNSL2TPSubscriber`: pppd's `/etc/ppp/resolv.conf` names Ze's resolver as primary and secondary DNS, and `www.lab.example` resolves through it over the PPP link to exactly the two Knot A records) |
 
 ## End-to-End User Stories
 
@@ -403,9 +403,14 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `dns-resolver-forward-unbound` | `test/interop/scenarios/dns-resolver-forward-unbound/` | Unbound (latest stable) as upstream over a Knot DNS authoritative lab hierarchy; `kdig` client container | Ze forwards to a real resolver; per query, RCODE and answer RRsets equal Unbound's own answers to the same queries; TC and TCP retry with a large RRset | |
-| `dns-resolver-dhcp-lan` | `test/interop/scenarios/dns-resolver-dhcp-lan/` | client container (Debian stable: `dhcpcd`, `knot-dnsutils`) leased by Ze's DHCP server; Knot DNS authoritative | the host learns the resolver from option 6 and resolves through it; a host outside `allow-from` is refused | |
-| `dns-resolver-l2tp-subscriber` | `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/` | the lab's xl2tpd + pppd LAC | subscriber gets the resolver address through IPCP and resolves through it | |
+| `dns-resolver-forward-unbound` | `test/interop/scenarios/dns-resolver-forward-unbound/` | Unbound 1.26.2 (`test/interop/Dockerfile.unbound`) as upstream over Knot DNS 3.6.2, authoritative for `lab.example.`; `kdig` from the `dnsclient` container | Ze forwards to a real resolver; per query, RCODE and answer RRsets equal Unbound's own answers to the same queries; TC and TCP retry with a large RRset | written (85f6892d03); green run and recorded red owed |
+| `dns-resolver-dhcp-lan` | `test/interop/scenarios/dns-resolver-dhcp-lan/` | the `dnsclient` container (the Knot image on `alpine:3.24.3`, the lab base: Knot's `kdig` 3.6.2 and Alpine's dhcpcd 10.5.2) leased by Ze's DHCP server; Knot DNS 3.6.2 authoritative for `lab.example.` | the host learns the resolver from option 6 and resolves through it; a host outside `allow-from` is refused | written (85f6892d03); green run and recorded red owed |
+| `dns-resolver-l2tp-subscriber` | `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/` | the lab's xl2tpd 1.3.20 + pppd 2.5.4 LAC (`usepeerdns`) and its busybox `nslookup`; Knot DNS 3.6.2 as the resolver's upstream | subscriber gets the resolver address through IPCP (RFC 1877) and resolves through it | written; green run and recorded red owed |
+
+→ Decision: there is no `Dockerfile.dnsclient`. One image, `test/interop/Dockerfile.knot`, serves the `knot` and `dnsclient` roles: the client needs Knot's own `kdig`, a second image would build Knot twice, and dhcpcd comes from Alpine in the same image.
+→ Decision: the client base is `alpine:3.24.3`, the base every other interop image uses, not Debian stable. Alpine's dhcpcd 10.5.2 is the latest upstream release; Knot is built from the upstream 3.6.2 release because Alpine 3.24 packages 3.5.10.
+→ Decision: the lab zone is `lab.example.` (RFC 2606 reserves `example`), served by Knot in all three scenarios.
+→ Decision: in `dns-resolver-l2tp-subscriber` the resolver listens on the pool gateway 10.100.0.1, which exists only while a PPP session is up, so the resolver sets `IP_FREEBIND` on its listener sockets (`newResolverServer`, `dnsserver.Options.Freebind`, as as112 does) and the listener binds before the first session. A lab sysctl (`net.ipv4.ip_nonlocal_bind=1`) was refused by the test judge: it hid a product defect, because a real LNS has no such sysctl set either. The subscriber's query reaches it over the PPP link from its pool address, which `allow-from 10.100.0.0/24` admits.
 
 ### Future (if deferring any tests)
 - None deferred.
@@ -432,7 +437,7 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 - `internal/le/dns/query/register.go` - registers `le dns query`; implementation `internal/test/dnsquery/` with tests
 - `test/plugin/dns-resolver-*.ci` - the functional tests above
 - `test/interop/scenarios/dns-resolver-forward-unbound/`, `dns-resolver-dhcp-lan/`; `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/`
-- `test/interop/Dockerfile.unbound`, `test/interop/Dockerfile.knot`, `test/interop/Dockerfile.dnsclient`
+- `test/interop/Dockerfile.unbound`, `test/interop/Dockerfile.knot` (also the `dnsclient` image; there is no `Dockerfile.dnsclient`)
 - `internal/le/interoplab/bgp/check_dns_resolver.go`, `check_dns_resolver_predicate.go` (with predicate tests, as `check_dhcp_predicate.go`), and the L2TP checker in `internal/le/interoplab/l2tp/`
 - `features/lan-dns-resolver.md` - feature record
 - `docs/guide/dns-resolver.md` - operator guide (config, advertisement via DHCP, RA, IPCP; ACL; limits; DNSSEC posture: not validating)

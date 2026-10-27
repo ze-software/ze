@@ -30,6 +30,7 @@ const (
 	scenarioInitiator           = "03-ze-lac-xl2tpd-lns"
 	scenarioRadiusAttrs         = "04-radius-acct-attrs"
 	scenarioUnknownMandatoryAVP = "l2tp-unknown-mandatory-avp-xl2tpd"
+	scenarioDNSResolver         = "dns-resolver-l2tp-subscriber"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -51,6 +52,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioInitiator:           checker(checkInitiator, timeout, peerZe, peerLAC),
 		scenarioRadiusAttrs:         checker(checkRadiusAttributes, timeout, peerZe, peerLAC, peerRadius),
 		scenarioUnknownMandatoryAVP: checker(checkUnknownMandatoryAVP, timeout, peerZe, peerLAC, peerAVPRelay),
+		scenarioDNSResolver:         checker(checkDNSResolverSubscriber, timeout, peerZe, peerLAC, peerKnot),
 	}
 }
 
@@ -150,6 +152,7 @@ func scenarioPlan(root string, source interoplab.ScenarioSource, environment int
 		tb.Reset().Str("ze-l2tp-frr-").Str(environment.Suffix).String(),
 		tb.Reset().Str("ze-l2tp-radius-").Str(environment.Suffix).String(),
 		tb.Reset().Str("ze-l2tp-avp-relay-").Str(environment.Suffix).String(),
+		tb.Reset().Str("ze-l2tp-knot-").Str(environment.Suffix).String(),
 	}
 	plan := interoplab.ScenarioPlan{
 		Source: source,
@@ -203,6 +206,13 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 			return interoplab.PreparedScenario{}, err
 		}
 		peers = []interoplab.PeerConfig{ze, relay, lac}
+	case scenarioDNSResolver:
+		// The resolver listens on the pool gateway, an address the kernel
+		// holds only while a PPP session is up; the resolver sets
+		// IP_FREEBIND on its sockets, so the listener binds before the
+		// first session with no sysctl. Its allow-from admits the pool.
+		// Knot starts first, so the resolver's upstream is up.
+		peers = []interoplab.PeerConfig{knotPeer(environment.Suffix, directory), ze, lac}
 	default:
 		if cleanup != nil {
 			_ = cleanup()
@@ -328,6 +338,24 @@ func radiusPeer(suffix string) interoplab.PeerConfig {
 	}
 }
 
+// knotPeer is Knot DNS, authoritative for lab.example. and the upstream of
+// Ze's LAN DNS resolver in dns-resolver-l2tp-subscriber. The image is the
+// BGP lab's (test/interop/Dockerfile.knot), whose default command runs knotd.
+func knotPeer(suffix, directory string) interoplab.PeerConfig {
+	var tb textbuf.Buffer
+	return interoplab.PeerConfig{
+		Name:      peerKnot,
+		Container: tb.Str("ze-l2tp-knot-").Str(suffix).String(),
+		Image:     peerKnot,
+		Host:      7,
+		Mounts: []interoplab.Mount{
+			{Source: filepath.Join(directory, "knot.conf"), Target: "/etc/knot/knot.conf", ReadOnly: true},
+			{Source: filepath.Join(directory, "lab.example.zone"), Target: "/etc/knot/lab.example.zone", ReadOnly: true},
+		},
+		Ready: &interoplab.ReadyProbe{Command: []string{"pidof", "knotd"}, Timeout: 20 * time.Second, Interval: time.Second},
+	}
+}
+
 // LabBinaries declares the one binary this lab stages into its Docker build
 // context, which is what test/interop-l2tp/Dockerfile.ze copies in.
 //
@@ -344,10 +372,12 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	needFRR := false
 	needRadius := false
 	needAVPRelay := false
+	needKnot := false
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
 		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs
 		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP
+		needKnot = needKnot || plan.Source.Name == scenarioDNSResolver
 	}
 	labRoot := filepath.Join(root, "test", "interop-l2tp")
 	builds := []interoplab.ImageBuild{
@@ -364,6 +394,13 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 		builds = append(builds, interoplab.ImageBuild{
 			Name: "avp-relay", Tag: "ze-l2tp-avp-relay", Required: true, Context: root,
 			Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "avprelay", "Dockerfile"),
+		})
+	}
+	if needKnot {
+		interopRoot := filepath.Join(root, "test", "interop")
+		builds = append(builds, interoplab.ImageBuild{
+			Name: peerKnot, Tag: "ze-l2tp-knot", Required: true, Context: interopRoot,
+			Dockerfile: filepath.Join(interopRoot, "Dockerfile.knot"),
 		})
 	}
 	return builds

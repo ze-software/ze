@@ -1,0 +1,9 @@
+; The lab zone. www holds two A records, the RRset the subscriber must
+; resolve through Ze's resolver.
+$ORIGIN lab.example.
+$TTL 300
+@       SOA   ns.lab.example. hostmaster.lab.example. 1 3600 600 86400 60
+@       NS    ns
+ns      A     172.29.0.7
+www     A     192.0.2.10
+www     A     192.0.2.11
