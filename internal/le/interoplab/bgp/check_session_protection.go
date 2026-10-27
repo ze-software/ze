@@ -107,18 +107,21 @@ func checkSessionProtection(ctx context.Context, check *interoplab.CheckContext)
 		return fail(2, err)
 	}
 
-	// Assertion 3. ze's unknown-source-drop counter before any probe.
+	// Assertion 3. ze_copp is installed. The unknown-source-drop counter read
+	// here is judged at assertion 7, after the stray probe: a table that lost
+	// its drop term must first show at FRR, as a SYN-ACK to an unknown source.
+	readTable := []string{cmdNft, nftActionList, nftObjectTable, nftFamilyInet, "ze_copp"}
 	readDrops := func() (uint64, error) {
-		table, queryErr := check.Lab.Query(ctx, "ze", []string{cmdNft, nftActionList, nftObjectTable, nftFamilyInet, "ze_copp"}, nil)
+		table, queryErr := check.Lab.Query(ctx, "ze", readTable, nil)
 		if queryErr != nil {
 			return 0, queryErr
 		}
 		return coppUnknownSourceDrops(table)
 	}
-	dropsBefore, err := readDrops()
-	if err != nil {
+	if _, err := check.Lab.Query(ctx, "ze", readTable, nil); err != nil {
 		return fail(3, err)
 	}
+	dropsBefore, dropsBeforeErr := readDrops()
 
 	probe := func(source, ttl string) (string, error) {
 		argv := []string{"python3", "-c", sessionProbeScript, source, zeAddress, sessionProtectionPort, ttl, sessionProtectionWaitSeconds}
@@ -173,6 +176,9 @@ func checkSessionProtection(ctx context.Context, check *interoplab.CheckContext)
 	}
 
 	// Assertion 7. ze counted that drop in the unknown-source-drop term.
+	if dropsBeforeErr != nil {
+		return fail(7, dropsBeforeErr)
+	}
 	dropsAfter, err := readDrops()
 	if err != nil {
 		return fail(7, err)
