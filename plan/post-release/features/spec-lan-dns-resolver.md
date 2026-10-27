@@ -557,6 +557,7 @@ RFC sentences the design rests on, read from `rfc/full/`:
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `plan/journal/help-text-describes-superseded-behaviour.md` | 2026-10-27 | `le mock dns help` starts the mock instead of printing help |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
