@@ -240,7 +240,7 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 		return true, nil
 	}
 
-	modified := applyIngressFilter(payload, defs, fc, src.LocalAS, src.PeerAS)
+	modified := applyIngressFilter(payload, defs, fc, src.LocalAS, src.PeerAS, src.RouteServerAS)
 	if modified != nil {
 		logger().Info("community ingress applied",
 			"peer", src.Name,

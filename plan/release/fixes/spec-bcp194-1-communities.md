@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Repair existing route-server control handling and BLACKHOLE propagation; absent conventions have separate ownership. |
 | Scope | protocol |
 | Depends | spec-bcp194-0-umbrella |
-| Phase | 3b/6 |
-| Updated | 2026-08-12 |
+| Phase | 4/6 |
+| Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -68,9 +68,9 @@ These paths retain the release-owned mechanisms and their remaining repair oblig
 
 ## Historical Combined Specification
 
-The complete pre-split body follows, with headings nested one level. It preserves the former mixed Task, criteria, phases, decisions and evidence. It does not override the active ownership above.
+The complete pre-split body follows, from here to the end of the file, at the template's own heading levels so the spec validator finds its sections. It preserves the former mixed Task, criteria, phases, decisions and evidence. It does not override the active ownership above.
 
-### Task
+## Task
 
 Ze must handle BGP communities as RFC 7454 §11 and RFC 8195 describe. Child 1 of
 the set that `plan/release/validation/spec-bcp194-0-umbrella.md` coordinates.
@@ -114,9 +114,9 @@ remaining work.
 Owner decisions taken at the /ze-spec design gate on 2026-08-08 are recorded in
 Key Design Decisions below.
 
-### Required Reading
+## Required Reading
 
-#### Architecture Docs
+### Architecture Docs
 - [ ] `docs/architecture/bgp/structural-forwarding.md` - what left the critical path to close the route-server forwarding gap against BIRD
 
 - [ ] `docs/architecture/core-design.md` - the zero-copy wire model the community
@@ -135,7 +135,7 @@ Key Design Decisions below.
     `0:X`, `RS:X` and `RS:101..103:X` spellings to operators. Any numbering change
     is a documented behavior change, not an internal detail.
 
-#### RFC Summaries (Scope: protocol)
+### RFC Summaries (Scope: protocol)
 
 - [ ] `rfc/short/rfc8195.md` - the conventions this spec implements
   → Constraint: §3.2 and §4.1.1 both say an AS "could assign" a function number.
@@ -204,7 +204,7 @@ Key Design Decisions below.
 - Named community set values are `type string` with no pattern, so today nothing
   rejects a malformed or wildcard value at config time.
 
-### Current Behavior (MANDATORY)
+## Current Behavior (MANDATORY)
 
 **Source files read:** (read before this spec was written)
 
@@ -279,9 +279,9 @@ Key Design Decisions below.
 - `rfc/not-enrolled.txt` records rfc7454 and rfc8195 as `non-normative`.
 - `source_keyword_count` stops counting the RFC 2119 key-words sentence.
 
-### Data Flow (MANDATORY)
+## Data Flow (MANDATORY)
 
-#### Entry Point
+### Entry Point
 
 Three entry points, one per direction.
 
@@ -290,7 +290,7 @@ Three entry points, one per direction.
 - Forwarded UPDATE wire bytes, per destination peer, for Functions 4 and 6.
 - Configuration, delivered as the unflattened BGP subtree, for every new leaf.
 
-#### Transformation Path
+### Transformation Path
 
 1. Config resolution binds the new leaves to the peer at the four augmentation
    sites the module already uses, combining levels by `ze:cumulative`.
@@ -303,7 +303,7 @@ Three entry points, one per direction.
    requests one.
 5. `buildModifiedPayload` plans, sizes and writes the rebuilt UPDATE.
 
-#### Boundaries Crossed
+### Boundaries Crossed
 
 | Boundary | How | Verified |
 |----------|-----|----------|
@@ -312,7 +312,7 @@ Three entry points, one per direction.
 | Reactor ↔ accumulator | `mods.Op` and `OpGen` operations, applied after all filters pass | No |
 | Config ↔ runtime | unflattened BGP subtree walked by the plugin | No |
 
-#### Integration Points
+### Integration Points
 
 - `filterapi.Register` with an explicit `Stage`, which is where ordering is
   declared. Code position does not order filters.
@@ -321,7 +321,7 @@ Three entry points, one per direction.
 - `resolvePeerRole` for the relation parameter.
 - `wireu.CommunityPolicy` for the egress decisions.
 
-#### Architectural Verification
+### Architectural Verification
 
 | Check | Holds? | Evidence |
 |-------|--------|----------|
@@ -331,22 +331,22 @@ Three entry points, one per direction.
 | Zero-copy preserved where applicable (refs, not copies) | No | |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
-### Risks & Assumptions
+## Risks & Assumptions
 
-#### Assumptions
+### Assumptions
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No operator relies on `RS:101..103:X` being ignored | `PrependCount` has no non-test caller, so the request has never reached the wire | An upgrade starts prepending where it did not before, changing path selection at clients | Owner confirmation plus a release note | unvalidated |
+| A-1 | No operator relies on `RS:101..103:X` being ignored | `PrependCount` has no non-test caller, so the request has never reached the wire | An upgrade starts prepending where it did not before, changing path selection at clients | Owner confirmation plus a release note | confirmed 2026-10-27: the owner confirmation is the Key Design Decisions row "The prepend is applied, gated on the requesting community" (2026-08-08). Ze keeps no release-notes file, so the behaviour-change note is the "Behaviour change" paragraph of `docs/guide/bgp-policy.md`, "Route-server control communities", which also announces the large-community removal (R-6). `PrependCount` now has a production reader, `wireu.CommunityPolicy.RSPrepend`, called from both forward rails |
 | A-2 | `resolvePeerRole` answers for every peer with a role configured or advertised | `internal/component/bgp/plugins/role/otc.go`, read 2026-08-08 | The relation tag is absent or wrong for some peers | Unit test over the five role values plus the empty case | confirmed 2026-08-12: `TestRelationParameterFromRole` covers all five plus empty; `TestOTCIngressPublishesPeerRole` covers the producer, including capability-over-config preference. A peer with NEITHER resolves to "" and the key stays ABSENT, so no tag is written -- the closed branch, not a wrong one |
 | A-3 | A dynamic-group peer reaches the ingress filter with no role config | the retired deferral shard "ad-hoc-2026-07-27-423eaa77" records exactly this | Dynamic peers silently get no relation tag | Read `extractPeerRoleConfigs`, then a functional test with a dynamic peer | confirmed 2026-08-12 by reading the producer `configjson.ForEachPeer` (`internal/component/bgp/configjson/traverse.go`): it visits only entries under `bgp.peer` and `bgp.group.*.peer`, and a dynamic-group peer has no list entry in either. `filter_community` inherits the SAME limitation from the same walker, so such a peer has no entry in `peerConfigs`, every ingress filter returns early, and it gets no tag AND no scrub. Fail-closed. The functional test is not written |
-| A-4 | Function 4 suppression composes with existing egress filters without reordering them | `buildOrderedEgressSteps` resolves order from the declared stage | A suppression decision runs before a filter that would have modified the route | Read the ordered egress builder, then an ordering test | unvalidated |
-| A-5 | Ingress scrubbing does not break the route-server rail, which reads communities after ingress | The scrub is peer-scoped and eBGP-only | A route server scrubs the control communities its clients send it | Functional test: a client sends a control community and the route server still acts on it | unvalidated |
-| A-6 | `source_keyword_count` is the only reader that counts the RFC 2119 boilerplate as a gate input | Read of `check_new_summaries` and both counters on 2026-08-08 | Narrowing it leaves the red in place, or moves it elsewhere | Run `./le rfc check` before and after | unvalidated |
+| A-4 | Function 4 suppression composes with existing egress filters without reordering them | `buildOrderedEgressSteps` resolves order from the declared stage | A suppression decision runs before a filter that would have modified the route | Read the ordered egress builder, then an ordering test | not this spec's, 2026-10-27: Function 4 is AC-9, owned with this assumption by `plan/post-release/features/spec-bcp194-community-function4-function6.md`, which must validate it; this spec ships no Function 4 code |
+| A-5 | Ingress scrubbing does not break the route-server rail, which reads communities after ingress | The scrub is peer-scoped and eBGP-only | A route server scrubs the control communities its clients send it | Functional test: a client sends a control community and the route server still acts on it | broken 2026-10-27, then repaired at the source: the scrub (`filter_community` `applyIngressFilter`) is eBGP-only (peerAS != localAS) but was not role-gated, and the reactor runs the whole ingress pass before caching (`Reactor.notifyMessageReceiver`), so an rs-client session with `scrub-own-ga true` lost `RS:X`, `RS:0` and `RS:101..103:X` before `wireu.ParseCommunityPolicy` read them (`rs-control-community-scrub.ci` red: AS_PATH [65001] instead of [65000 65001]). Fix: `scrubOwnGACommunities` keeps the `wireu.IsRSControlCommunity` / `wireu.IsRSControlLargeCommunity` values matched against `PeerFilterInfo.RouteServerAS`, which the reactor ingress pass fills from the source's `GlobalLocalAS` on an rs-client session only (zero elsewhere, which keeps nothing). Second break, 2026-10-27: the first repair matched the keep against `PeerFilterInfo.LocalAS`, the per-session local AS, while both RS rails act and strip by `GlobalLocalAS` (`reactorForwardRSSection` rsLocalAS, `forwardUpdateSection` srcInfo.globalLocalAS); with a per-peer local-as override, override-AS values shaped like controls were kept, neither acted on nor stripped, and leaked (`rs-control-community-scrub-local-as.ci` red with the old argument: receiver 65002 got `COMMUNITIES 65010:65003` and `LARGE 0000fdf2000000650000fdea`, UPDATE len 75 vs 51). The scrub's own GA stays the session `LocalAS` (RFC 7454 Section 11: "Network administrators SHOULD scrub inbound communities with their number in the high-order bits"); a true control under the global AS is outside its reach and survives to the RS rail. Evidence: `test/plugin/rs-control-community-scrub.ci` (prepend reaches 65002, the RS:X whitelist withholds the route from 65003, exact hex), `test/plugin/rs-control-community-scrub-local-as.ci` (override 65010, global 65000), `TestScrubKeepsRouteServerClientControlCommunities`, `TestScrubRouteServerKeepFollowsTheRouteServerAS`, `TestIngressRouteServerASIsTheGlobalLocalAS`, `TestRSControlPredicates`; breaking the large keep turns the 65002 assertion red, breaking the standard keep turns the 65003 assertion red, matching against `localAS` turns the local-as .ci and the scrub unit test red, filling `RouteServerAS` from `LocalAS` turns the reactor test red |
+| A-6 | `source_keyword_count` is the only reader that counts the RFC 2119 boilerplate as a gate input | Read of `check_new_summaries` and both counters on 2026-08-08 | Narrowing it leaves the red in place, or moves it elsewhere | Run `./le rfc check` before and after | broken 2026-10-27 (phase 6): the Python names are gone. The new-summary gate is `internal/le/rfc/check_ratchets.go::checkNewSummaries`, which reads `Deriver.Inventory(...).KeywordSites` (`inventory.go::InventoryUnder`), counted by `inventory.go::sitesFor`, which already drops every sentence `boilerplateRE` matches, so the gate was narrowed before this phase. `coverage.go::sourceKeywordCount` was not the gate input but still counted the key-words sentence for the ledger table `sections.go::renderUnconverted`, which rendered rfc7454 and rfc7948 as "RE-AUTHOR: source is normative" with 4 uppercase: the red had moved elsewhere, as the If-wrong column predicts. The design holds: `sourceKeywordCount` now counts through the same `sitesFor` exclusion, and `renderUnconverted` names a key-words document with lowercase-only prose UNDECIDED without calling it pre-2119. Evidence: `TestNewSummaryBoilerplateOnlyPasses`, `TestTheKeyWordsSentenceIsNotCountedAsAnObligation`; `./le rfc check` reports no new-summary or disposition finding |
 | A-7 | New leaves under the existing `ingress/community` container inherit the four augment sites without a new augment statement | `ze-filter-community.yang` uses one grouping at four sites | The new leaves are settable at some levels and not others | Read the generated schema, then a config test setting the leaf at group level | confirmed 2026-08-12: every new leaf sits inside `grouping community-filter-fields`, which four `augment` statements `uses`, so no new augment was needed. `./le doc check all` and `./le cli grammar` both load the module and pass. `TestMergeScalarLeavesOverrideOnlyWhenSet` covers the group-then-peer layering |
 | A-8 | The keep-list can be expressed without changing `strip` semantics | `strip` is an exact whole-value match today and a wildcard there would change every existing config | Operators find `strip` silently matching more than before | Separate container, plus a test that an existing `strip` set still matches exactly | confirmed 2026-08-12: the scrub got its own leaves and REUSES `ingressStripCommunities`, so it selects different values through the same exact-value rebuild rather than giving `strip` a wildcard. `TestStripSetStillExact` proves a named set still matches exactly, with a sibling value sharing its ASN left in place |
 
-#### Risks
+### Risks
 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
@@ -356,9 +356,9 @@ Three entry points, one per direction.
 | R-4 | Conditional prepend breaks a client that cannot accept a non-adjacent leftmost AS | A client session drops or rejects routes after upgrade | The prepend is opt-in per route by construction. Absent the community nothing changes |
 | R-5 | Two rails carry different function numbers and an operator assumes one config governs both | A support question, or a tag that does nothing | Separate leaves per rail, and one documentation table showing both |
 | R-6 | Removing the large control communities changes what clients see, and a client may key on them | Client-side policy stops matching after upgrade | The removal makes the two attribute codes consistent. Announce it as a behavior change |
-| R-7 | The scrub runs on a route the route server must forward transparently | An RFC 7947 tagged test goes red | The scrub is bound per peer and is not enabled on route-server sessions by default |
+| R-7 | The scrub runs on a route the route server must forward transparently | An RFC 7947 tagged test goes red | The scrub is bound per peer and is not enabled on route-server sessions by default. Enabled on an rs-client session, it keeps exactly the route-server control communities the route server acts on, matched against the route server's AS (`PeerFilterInfo.RouteServerAS`, the global local-as, never a per-peer local-as override) (A-5), and the route server strips them on egress, so no client receives a value the scrub kept. Evidence: `rs-control-community-scrub-local-as.ci` (override-AS control-shaped values scrubbed, global-AS controls act and are stripped) |
 
-### Blast Radius
+## Blast Radius
 
 | Question | Answer |
 |----------|--------|
@@ -366,7 +366,7 @@ Three entry points, one per direction.
 | How is it reverted? | Single commit revert for the code. Not revertible for routes peers already accepted, so the prepend and the suppression need their functional tests before release |
 | Who else touches this path? | spec-fixit-send-community-suppress-ignored, closed 2026-08-12 (egress community suppression: `filterapi.LastSetOrSuppress` is the one fold, and `genericCommunityHandler` drops a community attribute whose last Set-or-Suppress op is a Suppress), spec-fixit-rs-community-strip-arity, closed 2026-08-10 (strip arity on this exact rail: a Remove buffer may carry a whole number of wire values, `filter_community.wholeValues` judges it, and a violation is refused and counted as `ze_bgp_attr_mod_remove_buffer_refused_total`), spec-fixit-otc-src-role-meta-fallback, closed 2026-08-11 (role resolution), spec-fixit-dynamic-group-peer-config, closed 2026-08-14 (a dynamic group's per-peer plugin config now reaches the peers the group builds: `configjson.ForEachPeer` yields the group's template as one visit, and `role`, `rpki`, `blackholecfg` and `filter_community` resolve it from `PeerFilterInfo.GroupName`) |
 
-### Wiring Test (MANDATORY -- NOT deferrable)
+## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
@@ -376,10 +376,12 @@ Three entry points, one per direction.
 | route carries own-GA Function 6 naming the destination ASN | → | egress prepend generator | `TestFunction6PrependWiring`, then `test/plugin/community-function6-prepend.ci` |
 | route-server client sends the prepend control community | → | `PrependCount` reaches the AS_PATH writer | `TestRSPrependReachesWire`, then `test/plugin/rs-prepend-control-community.ci` |
 | route-server forward of a route carrying large control communities | → | code 32 removal operation | `TestRSStripsLargeControlCommunities`, then `test/plugin/rs-control-community-strip.ci` |
+| route-server client with `scrub-own-ga true` sends control communities | → | `scrubOwnGACommunities` keeps them (`PeerFilterInfo.RouteServerAS`) | `TestScrubKeepsRouteServerClientControlCommunities`, then `test/plugin/rs-control-community-scrub.ci` |
+| route-server client with a per-peer local-as override and `scrub-own-ga true` sends control communities | → | `Reactor.notifyMessageReceiver` fills `PeerFilterInfo.RouteServerAS` from `GlobalLocalAS`; `scrubOwnGACommunities` keeps only the controls under it | `TestIngressRouteServerASIsTheGlobalLocalAS`, `TestScrubRouteServerKeepFollowsTheRouteServerAS`, then `test/plugin/rs-control-community-scrub-local-as.ci` |
 | eBGP peer sends a route carrying BLACKHOLE | → | ingress propagation guard | `TestBlackholePropagationGuardWiring`, then `test/plugin/community-blackhole-noexport.ci` |
 | new summary with zero gated MUSTs over a 2119-boilerplate source | → | `check_new_summaries` | `test_new_summary_boilerplate_only_passes` |
 
-### Acceptance Criteria
+## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -405,7 +407,7 @@ Three entry points, one per direction.
 | AC-20 | The own-GA scrub runs over a route carrying BLACKHOLE, NO_EXPORT and NO_ADVERTISE | All three survive. The scrub reaches no community whose Global Administrator is 65535 |
 | AC-21 | eBGP peer sends BLACKHOLE with the propagation guard disabled | No community is added, and the route keeps the bytes it arrived with |
 
-### End-to-End User Stories
+## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
@@ -415,9 +417,9 @@ Three entry points, one per direction.
 | 4 | Runs a route server and sends the Euro-IX prepend community | client UPDATE → RS rail → `PrependCount` → AS_PATH → other client | `test-rs-prepend-control-community` |
 | 5 | Runs a route server and expects its own control tags not to leak | client UPDATE → RS rail → code 8 and code 32 removal → other client | `test-rs-control-community-strip` |
 
-### 🧪 TDD Test Plan
+## 🧪 TDD Test Plan
 
-#### Unit Tests
+### Unit Tests
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
@@ -426,13 +428,13 @@ Three entry points, one per direction.
 | `TestScrubIgnoresForeignGA` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | A community whose Global Administrator is another ASN is never removed, per §11 bullet two | PASS |
 | `TestScrubThenTagOrder` | `internal/component/bgp/plugins/filter_community/filter_relation_test.go` | A forged Function 3 does not survive the pass | PASS |
 | `TestStripSetStillExact` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | Adding the scrub does not make `strip` match more than before (AC-18) | PASS |
-| `TestPrependCountReachesGenerator` | `internal/component/bgp/wireu/community_test.go` | The recorded count produces the right number of AS_PATH entries | |
-| `TestStripControlCommunitiesLarge` | `internal/component/bgp/wireu/community_test.go` | Code 32 control values are returned for removal, and foreign-GA large values are not | |
+| `TestPrependCountReachesGenerator` | `internal/component/bgp/wireu/community_test.go` | The recorded count produces the right number of AS_PATH entries | PASS, red under an RSPrepend no-op |
+| `TestStripControlCommunitiesLarge` | `internal/component/bgp/wireu/community_test.go` | Code 32 control values are returned for removal, and foreign-GA large values are not | PASS, red under a nil StripLargeControlCommunities |
 | `TestRFC7999BlackholeFieldHasReader` | `internal/component/bgp/plugins/filter_community/blackhole_test.go` | `RFC7999Blackhole` drives the propagation guard, so the field is no longer write-only. MOVED from `wireu/community_test.go`: a test in package `wireu` can assert the field is SET, only a test at the reader can assert it is USED | PASS, discriminates |
 | `TestWellKnownCommunitiesSurviveScrub` | `internal/component/bgp/plugins/filter_community/scrub_test.go` | BLACKHOLE, NO_EXPORT and NO_ADVERTISE all survive the own-GA scrub (AC-20) | PASS |
-| `test_new_summary_boilerplate_only_passes` | `internal/le/` | A 2119-boilerplate-only source with zero gated requirements passes, and a genuine MUST still fails | |
+| `test_new_summary_boilerplate_only_passes` | `internal/le/` | A 2119-boilerplate-only source with zero gated requirements passes, and a genuine MUST still fails | written as `TestNewSummaryBoilerplateOnlyPasses` (`internal/le/rfc/check_new_summaries_test.go`), green; red under both breaks of `sitesFor` (exclusion off, exclusion of everything) |
 
-#### Boundary Tests (numeric inputs)
+### Boundary Tests (numeric inputs)
 
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
@@ -442,7 +444,7 @@ Three entry points, one per direction.
 | Global Administrator for the scrub | 0-4294967295 | 4294967295 | N/A | N/A |
 | Route-server ASN for standard-community match | 0-65535 after truncation | 65535 | N/A | a 4-byte ASN cannot express `RS:X`, which is a property of RFC 1997 |
 
-#### Functional Tests
+### Functional Tests
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
@@ -450,16 +452,17 @@ Three entry points, one per direction.
 | `test-community-scrub-own-ga` | `test/plugin/community-scrub-own-ga.ci` | An own-number community outside the keep-list does not survive | PASS, discriminates in three directions: keep-everything, keep-nothing and ignore-the-Global-Administrator each turn it red on their own assertion. Uses STANDARD communities: the RIB emits no large-community field for a received route (journal row 2026-08-12) |
 | `test-community-function4-noexport` | `test/plugin/*.ci` | A route is withheld from one peer and delivered to another | |
 | `test-community-function6-prepend` | `test/plugin/*.ci` | One peer sees a prepended AS_PATH and another does not | |
-| `test-rs-prepend-control-community` | `test/plugin/*.ci` | The Euro-IX prepend community changes the AS_PATH one client sees | |
-| `test-rs-control-community-strip` | `test/plugin/*.ci` | Large control communities do not reach clients | |
+| `test-rs-prepend-control-community` | `test/plugin/rs-prepend-control-community.ci` | The Euro-IX prepend community changes the AS_PATH one client sees | PASS, red under an RSPrepend no-op |
+| `test-rs-control-community-strip` | `test/plugin/rs-control-community-strip.ci` | Large control communities do not reach clients | PASS, red under a nil StripLargeControlCommunities |
 | `test-community-blackhole-noexport` | `test/plugin/community-blackhole-noexport.ci` | A route received carrying BLACKHOLE gains NO_EXPORT | PASS, discriminates: disabling the guard turns it red. NOTE the title's claim is only half met -- Ze adds the community and does not itself honor it (journal row 2026-08-12, RFC1997-Well-1..4) |
 
-#### Interop Tests (Scope: protocol)
+### Interop Tests (Scope: protocol)
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `NN-community-relation-frr` | `test/interop/scenarios/` | FRR | A conforming peer accepts and displays the relation community Ze writes | |
-| `NN-community-function6-bird` | `test/interop/scenarios/` | BIRD | The prepended AS_PATH Ze produces is accepted and changes the peer's best-path choice | |
+| `NN-community-function6-bird` | `test/interop/scenarios/` | BIRD | The prepended AS_PATH Ze produces is accepted and changes the peer's best-path choice | owned by `plan/post-release/features/spec-bcp194-community-function4-function6.md` |
+| `bgp-route-server-control-community-frr` | `test/interop/scenarios/bgp-route-server-control-community-frr/` | FRR sends, BIRD receives | Ze as route server applies FRR's `65001:101:65003` prepend toward BIRD only, leaves a request naming another client unapplied, and strips every large value under its own AS while FRR's `65002:1:1` reaches BIRD (AC-11, AC-12) | see Goal Validation |
 
 Vacuity note, per `ai/rules/interop-and-goal-validation.md`: a conforming peer
 accepts any large community, so a scenario that only checks the session stays up
@@ -468,7 +471,7 @@ and each must be shown to FAIL when its producing change is reverted. The
 Function 6 scenario asserts a path-length change at the peer, which a tag alone
 cannot produce.
 
-### Files to Modify
+## Files to Modify
 
 - `internal/component/bgp/wireu/community.go` - large control community removal;
   the disposition of `RFC7999Blackhole`
@@ -489,7 +492,7 @@ cannot produce.
 - `docs/features/rfc-status.md` - the RFC 7947 row gains the conditional prepend
   note
 
-### Files to Create
+## Files to Create
 
 - `internal/component/bgp/plugins/filter_community/relation.go` - the role to
   parameter mapping
@@ -497,7 +500,7 @@ cannot produce.
 - `test/plugin/community-relation-tag.ci` and the five siblings named above
 - `test/interop/scenarios/NN-community-relation-frr/` and the BIRD sibling
 
-#### Integration Checklist
+### Integration Checklist
 
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
@@ -511,10 +514,10 @@ cannot produce.
 | Pipe completeness | N-A | No new command output |
 | Env var registration | N-A | No leaf under `environment/` |
 | Doctor check for runtime dependencies | No | No new file path, socket, service, module, port, procfs entry, binary or certificate |
-| Prometheus counters/metrics | Yes | Counters for values scrubbed, tags written, destinations suppressed and prepends applied. Names and labels fixed at implementation |
+| Prometheus counters/metrics | Yes | Built 2026-10-27. `ze_filter_community_value_scrubbed_total{width=standard\|large}`, `ze_filter_community_relation_tag_written_total`, `ze_filter_community_blackhole_guard_added_total{community=no-export\|no-advertise}` (`filter_community/metrics.go` recordScrub, recordRelationTag, recordBlackholeGuard, bound by `Filter.ConfigureMetrics` in `register.go`); `ze_bgp_rs_prepend_applied_total`, `ze_bgp_rs_large_control_community_stripped_total` (`reactor/forward_rs.go` recordRSCommunityEdits, called on both rails once the client's UPDATE is queued). Evidence: `TestScrubCountsEachRemovedValueByWidth`, `TestRelationTagCountedWhenWritten`, `TestBlackholeGuardCountedByCommunity`, `TestCommunityMetricsWiredThroughTheFilter`, `TestRSPrependReachesWire` and `TestRSStripsLargeControlCommunities` (both rails), `TestRSControlCommunityCountersStayAtZero`, `TestRecordRSCommunityEditsCountsEachUpdateWritten`, and `rs-prepend-control-community.ci` reading both RS counters through `show metrics values`; each red under a removed increment and the negative ones red under an eager increment. "Destinations suppressed" is Function 4, which this spec does not implement (`spec-bcp194-community-function4-function6.md`) |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No new SAFI, capability or attribute code. RFC 8092's LARGE_COMMUNITY already exists |
 
-#### Documentation Update Checklist (BLOCKING)
+### Documentation Update Checklist (BLOCKING)
 
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
@@ -531,12 +534,12 @@ cannot produce.
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, which names community capabilities |
 | 12 | Internal architecture changed? | No | No new layer or seam |
 | 13 | Route metadata keys added/changed? | Yes | `docs/architecture/meta/README.md`, if the egress decision travels in meta |
-| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
+| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md`: five inventory rows, the `bgp-filter-community` scope row, and the "Which Plugins Need Metrics" paragraphs on the community rewrites and the route-server edits, with source anchors |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/features/plugins.md`, since the filter gains registered behavior |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `wireu/community.go` and the two forward paths |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/bgp-policy.md` documents the control-community spellings and must show both rails |
 
-### Implementation Steps
+## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- register the entry points and write the
    failing wiring tests
@@ -575,7 +578,7 @@ cannot produce.
    - Files: `internal/le/rfc/rfc.go`, `rfc/not-enrolled.txt`
    - Verify: `./le rfc check` passes, and a genuine MUST still fires the gate
 
-#### Critical Review Checklist
+### Critical Review Checklist
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -590,7 +593,7 @@ cannot produce.
 | Rule: `ai/rules/rfc-compliance.md` | The RFC 7947 conditional deviation is recorded against `RFC7947-x-1` with its gate stated |
 | Rule: `ai/rules/testing.md` | No existing tagged test is weakened. `TestReactorForwardRSTransparent` keeps its assertions |
 
-#### Deliverables Checklist
+### Deliverables Checklist
 
 | Deliverable | Verification method |
 |-------------|---------------------|
@@ -601,7 +604,7 @@ cannot produce.
 | Every functional test exists | `ls test/plugin/community-*.ci test/plugin/rs-*.ci` |
 | The interop scenarios discriminate | Revert each producing change and confirm the scenario fails |
 
-#### Security Review Checklist
+### Security Review Checklist
 
 | Check | What to look for |
 |-------|-----------------|
@@ -611,7 +614,7 @@ cannot produce.
 | Resource exhaustion | A route carrying many own-GA values must not cause an unbounded rebuild. Confirm the edit-set digest bound is respected |
 | Guard failing open | When the role cannot be resolved, no tag is written and nothing is scrubbed. Confirm that is the coded behavior and that it is logged |
 
-#### Failure Routing
+### Failure Routing
 
 | Failure | Route To |
 |---------|----------|
@@ -624,7 +627,7 @@ cannot produce.
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
-### Design Insights
+## Design Insights
 
 - The egress half of RFC 8195 was already modelled in `wireu.CommunityPolicy` and
   half-wired. Reading the producer rather than the config surface is what found
@@ -637,7 +640,7 @@ cannot produce.
   uppercase hits. RFC 7454 shows four, all inside the sentence that defines the
   words. The fix restores an assumption the file already states.
 
-### Key Design Decisions
+## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
@@ -650,7 +653,7 @@ cannot produce.
 | §11 is implemented as a keep-list | A denylist of known-bad functions | §11's own text is a scrub with a carve-out for what customers may signal. A denylist fails open for any value a neighbour invents, which is what §11 exists to prevent |
 | The scrub gets its own container rather than a wildcard in `strip` | Allow wildcards in the existing `strip` leaf-list | `strip` is an exact whole-value match today. Admitting a wildcard there changes the meaning of every existing config that uses it |
 
-### Known Limitations
+## Known Limitations
 
 - RFC 8195 Function 3 parameter 1, route originated internally, is not written. It
   applies to locally originated routes rather than to any peer, so it belongs with
@@ -671,22 +674,22 @@ cannot produce.
 - TCP-AO, prefix-list defaults, role-derived policy and route flap dampening are
   the other children of the umbrella and are not touched here.
 
-### Open Questions
+## Open Questions
 
 | # | Question | Status |
 |---|----------|--------|
 | Q-1 | Is `CommunityPolicy.RFC7999Blackhole` wired, or removed as dead code? | SETTLED 2026-08-08, owner brought RFC 7999 into scope. The field is WIRED, and it gains its reader here: it drives the §3.2 propagation guard (AC-19). Honouring the community, which means discarding traffic, is child 6. The field stops being write-only without this spec taking on the blackhole feature |
 
-### RFC Documentation (Scope: protocol)
+## RFC Documentation (Scope: protocol)
 
 Add the quoted requirement above each enforcing site. The sites are the relation
 mapping (RFC 8195 §3.2), the scrub (RFC 7454 §11), the suppression (RFC 8195
 §4.1.1), the prepend (RFC 8195 §4.2.1), and the conditional deviation from RFC
 7947 §2.2.2.1 together with the condition that gates it.
 
-### Checklist
+## Checklist
 
-#### Goal Gates (MUST pass)
+### Goal Gates (MUST pass)
 
 - [ ] AC-1..AC-21 all demonstrated
 - [ ] Every user story has a working path and a passing test
@@ -699,7 +702,7 @@ mapping (RFC 8195 §3.2), the scrub (RFC 7454 §11), the suppression (RFC 8195
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
-#### TDD
+### TDD
 
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
@@ -708,10 +711,172 @@ mapping (RFC 8195 §3.2), the scrub (RFC 7454 §11), the suppression (RFC 8195
 - [ ] Functional `.ci` tests for end-to-end behavior
 - [ ] Interop tests for protocol features, each shown to fail when its producing change is reverted
 
-#### Closure
+### Closure
 
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Route-server rail (AC-11, AC-12, AC-14): `wireu.CommunityPolicy.RSPrepend` gives `PrependCount` its production reader; both rails (`forward_rs.go` `reactorForwardRSSection`, `reactor_api_forward.go` `forwardUpdateSection`) set `intent.Prepend` from it for an rs-client destination and record one code-32 `AttrModRemove` from `wireu.StripLargeControlCommunities`. `pathAttrValue` is the one bounded attribute walk both strip helpers use.
+- Scrub vs route server (AC-17, A-5): `wireu.IsRSControlCommunity` and `wireu.IsRSControlLargeCommunity` declare the control sets once; `filter_community` `scrubOwnGACommunities` keeps them on an rs-client session, matched against `filterapi.PeerFilterInfo.RouteServerAS`, which `Reactor.notifyMessageReceiver` fills from `GlobalLocalAS` for an rs-client only (`keepsRouteServerControl` names the zero guard).
+- Ledger and gate (AC-15, AC-16): `coverage.go` `sourceKeywordCount` counts through `sitesFor`, so the RFC 2119 key-words sentence is not an obligation; `sections.go` `renderUnconverted` renders such a document UNDECIDED.
+- AC-1..AC-8, AC-13, AC-18..AC-21 were delivered by earlier phases with recorded PASS evidence (TDD tables above); closure re-ran their packages.
+- Interop (closure): `test/interop/scenarios/bgp-route-server-control-community-frr` with checker `checkRouteServerControlCommunity` and predicate test `TestRouteServerControlCommunityPredicates` (`internal/le/interoplab/bgp/`).
+
+### Bugs Found/Fixed
+- A-5: the own-GA scrub removed an rs-client's control communities before the route server read them. Fixed at `scrubOwnGACommunities`; covered by `TestScrubKeepsRouteServerClientControlCommunities`, `test/plugin/rs-control-community-scrub.ci`.
+- A-5 residual: the keep matched the per-peer local-as override, not the route server's AS. Fixed by `PeerFilterInfo.RouteServerAS`; covered by `TestScrubRouteServerKeepFollowsTheRouteServerAS`, `TestIngressRouteServerASIsTheGlobalLocalAS`, `test/plugin/rs-control-community-scrub-local-as.ci`.
+- `TestRFC7999*` audit verdicts shifted by the call-site edits in the filter_community tests: resealed (`rfc/audit/rfc7999/RFC7999-3.2-1.json`, `RFC7999-3.2-2.json`).
+
+### Documentation Updates
+- `docs/guide/bgp-policy.md` "Route-server control communities" (large rows 101..103, large strip, Behaviour change note) and "Ingress community rules" (rs-client keep), anchored to `wireu/community.go` and `filter_community/scrub.go`.
+- `docs/architecture/core-design.md` StripLargeControlCommunities twin (anchor `wireu/community.go -- StripControlCommunities, StripLargeControlCommunities`).
+- `docs/architecture/meta/filter-community.md` "Scrub before the route server reads".
+- `docs/comparison.md` route-server control community sentence (anchor `wireu/community.go -- RSPrepend, StripControlCommunities, StripLargeControlCommunities`).
+- `docs/architecture/testing/interop.md` scenario row 55.
+- `rfc/short/rfc7947.md` Enrolment reason: the conditional RFC7947-x-1 deviation and its gate.
+- `./le doc check all`: FAILED on three foreign source anchors only (`commandWordsMax` in `core-design.md`, `Available` in `ipsec-9-ikev2-eap-nat.md`, `workflowNestedLe` in `ci-workflows.md`); none on a line this spec changed.
+
+### Deviations from Plan
+- `internal/le/rfc/rfc.go` `source_keyword_count` no longer exists (A-6): the change landed in `coverage.go` and `sections.go`.
+- Phase 5 (AC-9, AC-10) and its interop scenarios moved to `plan/post-release/features/spec-bcp194-community-function4-function6.md`; the interop owed here is the route-server scenario above.
+- Prometheus counters (Integration Checklist) were missed by every phase and built after the closure review: five counters (Integration Checklist row names them and their tests). The "destinations suppressed" counter the row first named belongs to Function 4, which this spec does not implement.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: the scrub was assumed harmless to the route-server rail because it is peer-scoped and eBGP-only | The reactor runs the ingress pass before caching and both RS rails parse the cached payload, so an rs-client's `RS:X` and `RS:101:X` were scrubbed before the route server read them | `rs-control-community-scrub.ci` red: AS_PATH [65001], expected [65000 65001] | Keep the RS controls on rs-client sessions, matched against `RouteServerAS` |
+| assumption | A-6: `source_keyword_count` was assumed to be the gate input that counts the key-words sentence | The gate (`checkNewSummaries` via `sitesFor`) already excluded it; the stale count lived in the ledger renderer, which showed rfc7454 and rfc7948 as RE-AUTHOR | Reading `check_ratchets.go` and `inventory.go` in phase 6 | Count through `sitesFor` in `sourceKeywordCount`; render UNDECIDED |
+| approach | No interop scenario covered the RS work after phase 5 moved | A protocol behaviour change owes one (`interop-and-goal-validation.md`) | Closure review | `bgp-route-server-control-community-frr` written and proven both ways |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Route-server prepend applied on request | Done | `wireu/community.go` RSPrepend; `forward_rs.go`, `reactor_api_forward.go` | both rails |
+| Large control communities stripped | Done | `wireu/community.go` StripLargeControlCommunities; both rails | |
+| Scrub keeps RS controls on rs-client | Done | `filter_community/scrub.go`; `reactor_notify.go` | |
+| Ledger and gate | Done | `internal/le/rfc/coverage.go`, `sections.go` | |
+| Relation tag, scrub, BLACKHOLE guard | Done | earlier phases | recorded PASS |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-4, AC-13 | Done | `TestRelationParameterFromRole`, `community-relation-tag.ci` | earlier phase |
+| AC-5..AC-8 | Done | `TestScrubKeepList`, `TestScrubIgnoresForeignGA`, `TestScrubThenTagOrder`, `community-scrub-own-ga.ci` | earlier phase |
+| AC-11 | Done | `TestRSPrependReachesWire`, `rs-prepend-control-community.ci`, interop `bgp-route-server-control-community-frr` | |
+| AC-12 | Done | `TestRSStripsLargeControlCommunities`, `rs-control-community-strip.ci`, interop | |
+| AC-14 | Done | `TestPrependCountReachesGenerator` (functions 100, 104, 1), existing RS community tests | |
+| AC-15 | Done | `rfc/not-enrolled.txt` rows rfc7454, rfc8195 kind `non-normative` | |
+| AC-16 | Done | `TestNewSummaryBoilerplateOnlyPasses` | |
+| AC-17 | Done | `TestScrubKeepsRouteServerClientControlCommunities`, `rs-control-community-scrub.ci`, `rs-control-community-scrub-local-as.ci` | |
+| AC-18 | Done | `TestStripSetStillExact` | earlier phase |
+| AC-19..AC-21 | Done | `TestRFC7999*`, `community-blackhole-noexport.ci` | earlier phase |
+| AC-9, AC-10 | Changed | - | owned by `spec-bcp194-community-function4-function6` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPrependCountReachesGenerator`, `TestStripControlCommunitiesLarge`, `TestRSControlPredicates` | Done | `wireu/community_test.go` | |
+| `TestRSPrependReachesWire`, `TestRSStripsLargeControlCommunities` | Done | `reactor/forward_rs_control_test.go` | fast-path and general subtests |
+| `TestNewSummaryBoilerplateOnlyPasses` | Done | `internal/le/rfc/check_new_summaries_test.go` | |
+| Function 4/6 tests | Changed | - | other spec |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `wireu/community.go`, `forward_rs.go`, `reactor_api_forward.go` | Done | |
+| `filter_community/scrub.go`, `filter.go`, `filter_community.go` | Done | |
+| `internal/le/rfc/rfc.go` | Changed | `coverage.go`, `sections.go` (A-6) |
+| `test/interop/scenarios/NN-*` | Changed | `bgp-route-server-control-community-frr` here; the two named ones moved |
+| `filter_community/metrics.go`, `metrics_test.go`, `reactor/reactor_metrics.go`, `docs/plugin-development/metrics.md` | Added | Integration Checklist counters, not in the plan's file list |
+
+### Audit Summary
+- **Total items:** 21 ACs
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-9, AC-10 moved to their owning spec (split recorded 2026-10-22)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Route-server prepend applied only on the client's request, toward the named client only | interop + functional | `bgp-route-server-control-community-frr`: BIRD decodes `65001 65002` for 10.99.0.0/24 (request names AS 65003) and `65002` for 10.98.0.0/24 (request names AS 65099). Green 2026-10-27; the red runs are in `docs/architecture/testing/interop.md` row 55. Functional `rs-prepend-control-community.ci` |
+| Route-server control communities never reach a client | interop + functional | Same scenario: BIRD's `bgp_large_community` holds `(65002, 1, 1)` and no `(65001, ...)`; red run in row 55. `rs-control-community-strip.ci` |
+| The scrub does not disable route-server signalling | functional | `rs-control-community-scrub.ci`, `rs-control-community-scrub-local-as.ci`, both red under the broken keep |
+| Ledger and gate stop counting the key-words sentence | unit | `TestNewSummaryBoilerplateOnlyPasses` red under both breaks of `sitesFor`; `TestTheKeyWordsSentenceIsNotCountedAsAnObligation` |
+| Relation tag, own-GA scrub, BLACKHOLE guard (retained) | functional | `community-relation-tag.ci`, `community-scrub-own-ga.ci`, `community-blackhole-noexport.ci`, recorded discriminating in earlier phases |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-9, AC-10, phase 5, their interop scenarios, A-4 | Split 2026-10-22 | `plan/post-release/features/spec-bcp194-community-function4-function6.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bcp194-1-communities-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md` (52 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 3 (round 1: everything but the counters; round 2: the counters diff; round 3: the round-2 fix, clean) |
+| Reviewer lenses used | logic and wiring of both RS rails, scrub keep vs RS read order, zero guard on RouteServerAS, bounds of `pathAttrValue`, style pass (no panic, bounded loops, comments), test weakening (`./le test weakened check`: no finding in this spec's files); round 2: counter hot-path allocation (children pre-resolved, `Add`/`Inc` only), counting site against where the edit takes effect on every split path, label bounds (constants only), names against `docs/plugin-development/metrics.md`, nil-registry guards (`cmetrics` NopRegistry fallback, `recordRSCommunityEdits` nil reactor / nil `rmetrics`), test discrimination, doc accuracy |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | No interop scenario for the protocol change | spec, Interop Tests | `bgp-route-server-control-community-frr` |
+| 2 | ISSUE | RFC 7999 audit verdicts SHIFTED by this diff's test call-site edits | `rfc/audit/rfc7999/` | `./le rfc reseal`, only the two rfc7999 files kept |
+| 3 | ISSUE (round 2) | The RS counters' unit was stated three ways: the code comment and `metrics.md` said once per received UPDATE and client, the Prometheus help said per UPDATE written, and the code counted once per `forwardUpdateSection` / `reactorForwardRSSection` call, so a received UPDATE that `forwardUpdateSelected` (AIGP, mixed NLRI fields) or `reactorForwardRS` (withhold redo) splits across calls counted once per section, unlike the in-call split | `reactor/forward_rs.go` `recordRSCommunityEdits` | counting is per UPDATE queued to a client on every path (the `recorded` latch removed, value argument); comment, `metrics.md` paragraph and `TestRecordRSCommunityEditsCountsEachUpdateWritten` state the same unit |
+
+NOTEs: the RS prepend uses the global local-as, not a per-peer override (documented design); the scrub's iBGP gate compares PeerAS with LocalAS (pre-existing row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`, which the new code does not depend on: the keep sits inside the eBGP branch and an rs-client is eBGP).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/rs-prepend-control-community.ci`, `rs-control-community-strip.ci`, `rs-control-community-scrub.ci`, `rs-control-community-scrub-local-as.ci` | Yes | `git status` lists all four untracked, carried in commit A |
+| `test/interop/scenarios/bgp-route-server-control-community-frr/` ze, frr and bird configs | Yes | interop run 2026-10-27: `1 passed, 0 failed` |
+| `reactor/forward_rs_control_test.go`, `reactor/rs_client_ingress_route_server_as_test.go`, `le/rfc/check_new_summaries_test.go` | Yes | package runs below |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-11, AC-12, AC-14, AC-17 | RS prepend, strip, scrub keep | 2026-10-27 `go test -race -tags ze_bgp` wireu, filter_community, filterapi, fixture: ok; reactor RS and Community subset: ok |
+| AC-16 | key-words sentence | `go test -run 'TestNewSummaryBoilerplateOnlyPasses|TestTheKeyWordsSentenceIsNotCounted' ./internal/le/rfc/`: ok |
+| AC-15 | disposition rows | `rfc/not-enrolled.txt` rfc7454, rfc8195 kind `non-normative`; `./le rfc check` has no disposition finding |
+| AC-11, AC-12 | interop | `bgp-route-server-control-community-frr`: pass (29s) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| rs-client sends the prepend control community | `test/plugin/rs-prepend-control-community.ci` | general rail, 3 peers, exact hex; red under RSPrepend no-op |
+| RS forward of large control communities | `test/plugin/rs-control-community-strip.ci` | fast-path rail; red under strip nil |
+| rs-client with `scrub-own-ga true` | `test/plugin/rs-control-community-scrub.ci`, `rs-control-community-scrub-local-as.ci` | red under the broken keep |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Key Design Decisions row, "Behaviour change" paragraph in `docs/guide/bgp-policy.md` |
+| A-2, A-3, A-7, A-8 | confirmed | earlier phases, evidence in the Assumptions table |
+| A-4 | other spec | Function 4 is owned by `spec-bcp194-community-function4-function6` |
+| A-5 | broken, repaired | Mistake Log row; `rs-control-community-scrub*.ci` |
+| A-6 | broken | Mistake Log row; `TestNewSummaryBoilerplateOnlyPasses` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RS large controls and strip (`bgp-policy.md`, `core-design.md`, `comparison.md`) | `wireu/community.go` RSPrepend, StripLargeControlCommunities, IsRSControlLargeCommunity (101..103) | Yes |
+| Scrub keep (`bgp-policy.md`, `meta/filter-community.md`) | `filter_community/scrub.go` keepsRouteServerControl; `reactor_notify.go` RouteServerAS from GlobalLocalAS | Yes |
+| Feature list, config, CLI, API, SDK, wire format | No: no new leaf, verb, RPC or encoding in this diff (no `.yang` file of this spec changed) | Yes |
+| Metrics (row 14) | `docs/plugin-development/metrics.md` inventory against `filter_community/metrics.go` buildMetrics and `reactor/reactor_metrics.go` initReactorMetrics (rsPrependApplied, rsLargeControlStripped): names, types and labels match | Yes |
+| `docs/features/rfc-status.md` | generated by `./le rfc update`; the RFC7947 Meta support rows are unchanged | Yes |

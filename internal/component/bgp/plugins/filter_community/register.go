@@ -31,6 +31,8 @@ func init() {
 		Priority: 0,
 		Ingress:  ingressFilter,
 		Egress:   egressFilter,
+		// The counters of both filters this package registers (metrics.go).
+		ConfigureMetrics: setMetricsRegistry,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "bgp-filter-community: filter registration failed: %v\n", err)
 		os.Exit(1)

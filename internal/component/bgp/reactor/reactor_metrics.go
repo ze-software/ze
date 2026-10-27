@@ -104,6 +104,17 @@ type reactorMetrics struct {
 	// rate-limited warning are the only places an operator sees it.
 	asSetWithdrawn metrics.Counter
 
+	// Route-server control communities a client sent, as the rebuilt UPDATE a
+	// client is written applies them (recordRSCommunityEdits). rsPrependApplied
+	// counts UPDATEs written to a client with the AS_PATH prepend a route's
+	// RS:101..103:<client> request asked for (RFC 7947 Section 2.2.2.1, the
+	// conditional deviation); rsLargeControlStripped counts the LARGE_COMMUNITY
+	// values in the route server's namespace removed from them. Neither carries
+	// a label: the client is in the log, and a peer label would grow the series
+	// with the session count.
+	rsPrependApplied       metrics.Counter
+	rsLargeControlStripped metrics.Counter
+
 	// Config + operational
 	configReloads      metrics.Counter    // Successful config reloads
 	configReloadErrors metrics.CounterVec // labels: error_type
@@ -209,6 +220,15 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		asSetWithdrawn: reg.Counter(
 			"ze_bgp_as_set_withdrawn_total",
 			"Routes written as withdrawals because their AS_PATH or AS4_PATH held an AS_SET or AS_CONFED_SET (RFC 9774 Section 3).",
+		),
+
+		rsPrependApplied: reg.Counter(
+			"ze_bgp_rs_prepend_applied_total",
+			"UPDATEs written to a route-server client carrying the AS_PATH prepend a route's large control community requested for that client (RFC 7947 Section 2.2.2.1).",
+		),
+		rsLargeControlStripped: reg.Counter(
+			"ze_bgp_rs_large_control_community_stripped_total",
+			"LARGE_COMMUNITY values in the route server's own namespace removed from UPDATEs written to route-server clients.",
 		),
 
 		updateModifyFailed: reg.CounterVec(

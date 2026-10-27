@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -50,7 +51,7 @@ func TestScrubKeepList(t *testing.T) {
 		[3]uint32{scrubLocalAS, 99, 64511}, // not in the keep-list
 	)...))
 
-	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{64: true}, 0)
+	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{64: true}, 0, 0)
 	require.NotNil(t, got, "a value outside the keep-list must be removed")
 
 	assert.Equal(t, [][3]uint32{{scrubLocalAS, 64, 64511}}, extractLargeCommunities(got))
@@ -69,7 +70,7 @@ func TestScrubEmptyKeepListRemovesEveryOwnGAValue(t *testing.T) {
 		[3]uint32{scrubLocalAS, 99, 64511},
 	)...))
 
-	got := scrubOwnGACommunities(payload, scrubLocalAS, nil, 0)
+	got := scrubOwnGACommunities(payload, scrubLocalAS, nil, 0, 0)
 	require.NotNil(t, got)
 	assert.Empty(t, extractLargeCommunities(got),
 		"an empty keep-list keeps nothing that carries our own Global Administrator")
@@ -89,7 +90,7 @@ func TestScrubIgnoresForeignGA(t *testing.T) {
 		[3]uint32{64512, 3, 2},  // another AS's relation tag
 	)...))
 
-	assert.Nil(t, scrubOwnGACommunities(payload, scrubLocalAS, nil, 3),
+	assert.Nil(t, scrubOwnGACommunities(payload, scrubLocalAS, nil, 3, 0),
 		"no value carries our Global Administrator, so nothing may be rewritten")
 }
 
@@ -109,7 +110,7 @@ func TestWellKnownCommunitiesSurviveScrub(t *testing.T) {
 	}
 	payload := buildPayload(append(buildOriginAttr(), buildCommunityAttr(wellKnown...)...))
 
-	assert.Nil(t, scrubOwnGACommunities(payload, scrubLocalAS, nil, 0),
+	assert.Nil(t, scrubOwnGACommunities(payload, scrubLocalAS, nil, 0, 0),
 		"a well-known community carries no assignable Global Administrator")
 	assert.Equal(t, wellKnown, extractCommunities(payload), "payload untouched")
 }
@@ -130,7 +131,7 @@ func TestWellKnownSurviveScrubEvenAtReservedLocalAS(t *testing.T) {
 	}
 	payload := buildPayload(append(buildOriginAttr(), buildCommunityAttr(wellKnown...)...))
 
-	assert.Nil(t, scrubOwnGACommunities(payload, 65535, nil, 0),
+	assert.Nil(t, scrubOwnGACommunities(payload, 65535, nil, 0, 0),
 		"the reserved 0xFFFF prefix is never our Global Administrator, whatever the local AS says")
 }
 
@@ -148,9 +149,116 @@ func TestScrubStandardCommunityOwnGA(t *testing.T) {
 	foreign := uint32(64511)<<16 | 99
 	payload := buildPayload(append(buildOriginAttr(), buildCommunityAttr(kept, forged, foreign)...))
 
-	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{64: true}, 0)
+	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{64: true}, 0, 0)
 	require.NotNil(t, got)
 	assert.Equal(t, []uint32{kept, foreign}, extractCommunities(got))
+}
+
+// TestScrubKeepsRouteServerClientControlCommunities verifies that on a
+// route-server client's session the scrub keeps the control communities the
+// route server acts on, and still removes every other own-GA value. The same
+// payload on a session that is not a route-server client loses all of them,
+// so the keep is bound to the session setting and nothing else.
+//
+// The route server reads its control communities from the payload this
+// ingress pass produces, so a scrubbed control value is a request the route
+// server never sees. RFC 7454 Section 11: "Allow only those communities that
+// customers/peers can use as a signaling mechanism."
+//
+// VALIDATES: AC-17, A-5 (spec-bcp194-1-communities)
+// PREVENTS: the scrub silently disabling RS:X, RS:0 and the 101..103 prepend
+// requests a route-server client sends.
+func TestScrubKeepsRouteServerClientControlCommunities(t *testing.T) {
+	announceOnly := scrubLocalAS<<16 | 65002 // RS:X, announce to AS 65002 only
+	announceNone := scrubLocalAS << 16       // RS:0, announce to nobody
+	blockPeer := uint32(65003)               // 0:X, foreign GA, never scrubbed
+	payload := buildPayload(append(append(buildOriginAttr(),
+		buildCommunityAttr(announceOnly, announceNone, blockPeer)...),
+		buildLargeCommunityAttr(
+			[3]uint32{scrubLocalAS, 101, 65002}, // prepend once toward 65002
+			[3]uint32{scrubLocalAS, 103, 0},     // prepend three times toward every client
+			[3]uint32{scrubLocalAS, 100, 65002}, // below the prepend functions
+			[3]uint32{scrubLocalAS, 104, 65002}, // above the prepend functions
+			[3]uint32{scrubLocalAS, 64, 65002},  // no route-server meaning
+		)...))
+
+	t.Run("route-server client", func(t *testing.T) {
+		got := scrubOwnGACommunities(payload, scrubLocalAS, nil, 0, scrubLocalAS)
+		require.NotNil(t, got, "the non-control own-GA large values must still be removed")
+		assert.Equal(t, []uint32{announceOnly, announceNone, blockPeer}, extractCommunities(got))
+		assert.Equal(t, [][3]uint32{
+			{scrubLocalAS, 101, 65002},
+			{scrubLocalAS, 103, 0},
+		}, extractLargeCommunities(got))
+	})
+
+	t.Run("other session", func(t *testing.T) {
+		got := scrubOwnGACommunities(payload, scrubLocalAS, nil, 0, 0)
+		require.NotNil(t, got)
+		assert.Equal(t, []uint32{blockPeer}, extractCommunities(got))
+		assert.Empty(t, extractLargeCommunities(got))
+	})
+
+	t.Run("applyIngressFilter passes the session setting", func(t *testing.T) {
+		got := applyIngressFilter(payload, nil, filterConfig{scrubOwnGA: new(true)}, scrubLocalAS, 64511, scrubLocalAS)
+		require.NotNil(t, got)
+		assert.Equal(t, []uint32{announceOnly, announceNone, blockPeer}, extractCommunities(got))
+		assert.Len(t, extractLargeCommunities(got), 2)
+	})
+}
+
+// TestScrubRouteServerKeepFollowsTheRouteServerAS verifies that on a
+// route-server client's session with a per-peer local-as override the scrub
+// keeps exactly the control communities the route server acts on: those under
+// the route server's ASN (the global local-as). A value under the override AS
+// shaped like a control is scrubbed, because the route server neither acts on
+// it nor strips it, and kept it would reach every client. A true control under
+// the global AS is outside this session's Global Administrator and survives.
+//
+// VALIDATES: AC-17, A-5 (spec-bcp194-1-communities), local-as override case.
+// PREVENTS: the keep matching the session's LocalAS instead of the route
+// server's ASN.
+func TestScrubRouteServerKeepFollowsTheRouteServerAS(t *testing.T) {
+	const overrideAS uint32 = 65010 // the session's LocalAS, the scrub's GA
+	routeServerAS := scrubLocalAS   // the global local-as the route server acts on
+
+	overrideAnnounce := overrideAS<<16 | 65002   // override-AS value shaped like RS:X
+	overrideNone := overrideAS << 16             // override-AS value shaped like RS:0
+	controlAnnounce := routeServerAS<<16 | 65002 // a true RS:X control
+	payload := buildPayload(append(append(buildOriginAttr(),
+		buildCommunityAttr(overrideAnnounce, overrideNone, controlAnnounce)...),
+		buildLargeCommunityAttr(
+			[3]uint32{overrideAS, 101, 65002},    // shaped like a prepend request
+			[3]uint32{routeServerAS, 101, 65002}, // a true prepend request
+		)...))
+
+	want := func(t *testing.T, got []byte) {
+		t.Helper()
+		require.NotNil(t, got, "the override-AS values must be removed")
+		assert.Equal(t, []uint32{controlAnnounce}, extractCommunities(got))
+		assert.Equal(t, [][3]uint32{{routeServerAS, 101, 65002}}, extractLargeCommunities(got))
+	}
+
+	t.Run("scrubOwnGACommunities", func(t *testing.T) {
+		want(t, scrubOwnGACommunities(payload, overrideAS, nil, 0, routeServerAS))
+	})
+
+	t.Run("applyIngressFilter", func(t *testing.T) {
+		want(t, applyIngressFilter(payload, nil, filterConfig{scrubOwnGA: new(true)}, overrideAS, 64511, routeServerAS))
+	})
+
+	t.Run("ingressFilter reads PeerFilterInfo.RouteServerAS", func(t *testing.T) {
+		withPeerConfig(t, filterConfig{scrubOwnGA: new(true)})
+		ok, got := ingressFilter(filterapi.PeerFilterInfo{
+			Name:          relPeerName,
+			PeerAS:        64511,
+			LocalAS:       overrideAS,
+			RSClient:      true,
+			RouteServerAS: routeServerAS,
+		}, payload, nil)
+		require.True(t, ok)
+		want(t, got)
+	})
 }
 
 // TestScrubNeverKeepsTheRelationFunction verifies that the relation
@@ -166,7 +274,7 @@ func TestScrubNeverKeepsTheRelationFunction(t *testing.T) {
 		[3]uint32{scrubLocalAS, 3, 4}, // forged "you are my provider"
 	)...))
 
-	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{3: true}, 3)
+	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{3: true}, 3, 0)
 	require.NotNil(t, got, "the relation function is never kept, whatever the keep-list says")
 	assert.Empty(t, extractLargeCommunities(got))
 }
@@ -177,7 +285,7 @@ func TestScrubNeverKeepsTheRelationFunction(t *testing.T) {
 //
 // PREVENTS: an unnecessary rebuild that defeats the fan-out dedup.
 func TestScrubNoCommunityAttributes(t *testing.T) {
-	assert.Nil(t, scrubOwnGACommunities(buildPayload(buildOriginAttr()), scrubLocalAS, nil, 0))
+	assert.Nil(t, scrubOwnGACommunities(buildPayload(buildOriginAttr()), scrubLocalAS, nil, 0, 0))
 }
 
 // TestScrubGlobalAdministratorBoundaries drives the local AS across the
@@ -221,7 +329,7 @@ func TestScrubGlobalAdministratorBoundaries(t *testing.T) {
 			attrs = append(attrs, buildLargeCommunityAttr([3]uint32{tt.localAS, 99, 1})...)
 			payload := buildPayload(attrs)
 
-			got := scrubOwnGACommunities(payload, tt.localAS, nil, 0)
+			got := scrubOwnGACommunities(payload, tt.localAS, nil, 0, 0)
 			if !tt.wantStandard && !tt.wantLargeGone {
 				assert.Nil(t, got, "nothing may be rewritten")
 				return
@@ -254,7 +362,7 @@ func TestScrubKeepListFunctionBoundaries(t *testing.T) {
 		[3]uint32{scrubLocalAS, maxFn, 1},
 	)...))
 
-	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{0: true, maxFn: true}, 0)
+	got := scrubOwnGACommunities(payload, scrubLocalAS, map[uint32]bool{0: true, maxFn: true}, 0, 0)
 	require.NotNil(t, got, "function 65536 is not in the keep-list and must be removed")
 	assert.Equal(t, [][3]uint32{{scrubLocalAS, 0, 1}, {scrubLocalAS, maxFn, 1}},
 		extractLargeCommunities(got))
@@ -278,7 +386,7 @@ func TestStripSetStillExact(t *testing.T) {
 		typ:        communityTypeStandard,
 		wireValues: [][]byte{namedWire},
 	}}
-	got := applyIngressFilter(payload, defs, filterConfig{ingressStrip: []string{"drop-me"}}, scrubLocalAS, 64511)
+	got := applyIngressFilter(payload, defs, filterConfig{ingressStrip: []string{"drop-me"}}, scrubLocalAS, 64511, 0)
 	require.NotNil(t, got)
 
 	assert.Equal(t, []uint32{sameGA}, extractCommunities(got),

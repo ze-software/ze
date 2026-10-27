@@ -265,7 +265,7 @@ func TestScrubThenTagOrder(t *testing.T) {
 		[3]uint32{64512, 99, 7},      // foreign Global Administrator, untouched
 	)...))
 
-	scrubbed := applyIngressFilter(payload, nil, fc, relLocalAS, relPeerAS)
+	scrubbed := applyIngressFilter(payload, nil, fc, relLocalAS, relPeerAS, 0)
 	require.NotNil(t, scrubbed)
 
 	_, tagged := relationIngressFilter(
@@ -291,9 +291,9 @@ func TestIBGPScrubsNothing(t *testing.T) {
 		[3]uint32{relLocalAS, 99, 7},
 	)...))
 
-	assert.Nil(t, applyIngressFilter(payload, nil, fc, relLocalAS, relLocalAS),
+	assert.Nil(t, applyIngressFilter(payload, nil, fc, relLocalAS, relLocalAS, 0),
 		"peer AS equals local AS, so the session is iBGP and nothing is scrubbed")
-	require.NotNil(t, applyIngressFilter(payload, nil, fc, relLocalAS, relPeerAS),
+	require.NotNil(t, applyIngressFilter(payload, nil, fc, relLocalAS, relPeerAS, 0),
 		"the same route on an eBGP session IS scrubbed, so the gate is the AS comparison")
 }
 

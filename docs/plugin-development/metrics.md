@@ -96,6 +96,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-role` | `role` | `bgp` prefix redundant |
 | `bgp-filter-path-asn` | `filter_path_asn` | The package name. The `bgp` prefix is redundant on a BGP filter, and the hyphen-stripped `bgpfilterpathasn` cannot be read |
+| `bgp-filter-community` | `filter_community` | The package name, for the same reason |
 
 ### Full Inventory
 
@@ -111,6 +112,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
 | `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
+| `ze_bgp_rs_prepend_applied_total` | Counter | | bgp reactor (route-server forward) |
+| `ze_bgp_rs_large_control_community_stripped_total` | Counter | | bgp reactor (route-server forward) |
 | `ze_bgp_redistribute_events_received` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_announcements` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_withdrawals` | Counter | | redistribute-orchestrator |
@@ -137,6 +140,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
+| `ze_filter_community_value_scrubbed_total` | CounterVec | width | bgp-filter-community |
+| `ze_filter_community_relation_tag_written_total` | Counter | | bgp-filter-community |
+| `ze_filter_community_blackhole_guard_added_total` | CounterVec | community | bgp-filter-community |
 | `ze_isis_adjacencies_up` | GaugeVec | level, interface | isis |
 | `ze_isis_adjacencies_total` | GaugeVec | level | isis |
 | `ze_isis_lsps` | GaugeVec | level | isis (lsdb) |
@@ -422,6 +428,7 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
 | Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn) | |
+| Plugins that rewrite received routes (bgp-filter-community) | |
 
 A plugin that can refuse a route needs metrics even if it holds no state: a
 suppression is invisible to the operator otherwise. `bgp-role` was once listed
@@ -439,6 +446,33 @@ series count with the session count.
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
+
+A filter that rewrites a received route is the same case again: the route is
+the only trace of the rewrite. `bgp-filter-community` counts the values its
+own-GA scrub removes (RFC 7454 Section 11), labelled `width` (`standard` or
+`large`); the routes its RFC 8195 relation tag is written to; and the BLACKHOLE
+routes its RFC 7999 Section 3.2 guard adds a propagation community to, labelled
+`community` with the YANG keyword (`no-export` or `no-advertise`). Each is
+counted after the rebuild that applies it succeeded, never where the change is
+only computed. Its filters run in the daemon whatever process the plugin's
+engine runs in, so the registry arrives through `Filter.ConfigureMetrics`, which
+`filterapi.SetMetricsRegistry` calls from the reactor's metrics-enable block,
+and not through the plugin `ConfigureMetrics` hook.
+
+The route server counts the control-community edits it makes for its clients.
+`ze_bgp_rs_prepend_applied_total` counts the UPDATEs written to a client that
+carry the AS_PATH prepend a route's large control community requested for that
+client (RFC 7947 Section 2.2.2.1), and
+`ze_bgp_rs_large_control_community_stripped_total` counts the LARGE_COMMUNITY
+values in the route server's own namespace removed from them. Both rails count
+each UPDATE once it is queued for the client: a client the egress filters
+refused, a failed rebuild and a withdrawal count nothing, and a received UPDATE
+split into several sections counts once per section, because each section
+carries the edit.
+
+<!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- recordRSCommunityEdits -->
 
 ## Reference Implementation
 

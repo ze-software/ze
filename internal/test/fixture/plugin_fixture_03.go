@@ -42,6 +42,7 @@ func init() {
 	Register("plugin/bgp-redistribute-withdraw", observe03("withdraw-test", bgpRedistributeWithdraw03))
 	Register("plugin/bgp-rs-asn4-transcode", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 	Register("plugin/bgp-rs-community-strip-multi-fastpath", observe03("shutdown-after-up", routeServerObserver03(2, true)))
+	Register("plugin/rs-control-community-strip", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 	Register("plugin/bgp-rs-community-strip-multi", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 	Register("plugin/bgp-rs-control-community-withdraw-egress", observe03("rs-community-withdraw", bgpRSControlWithdraw03))
 	Register("plugin/bgp-rs-fastpath-ebgp-shared", observe03("shutdown-after-up", routeServerObserver03(2, true)))

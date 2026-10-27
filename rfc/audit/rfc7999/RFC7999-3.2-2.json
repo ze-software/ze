@@ -2,9 +2,9 @@
   "note": "Positive TestRFC7999PropagationCommunityFollowsTheOperatorLeaf: each leaf value puts exactly its community on a received BLACKHOLE route. Negative TestRFC7999PropagationCommunityIsNeverForced: the unchosen community is absent under each value, and leaf none or unset leaves the route unchanged, so no fixed default is forced. Revert records on blackholeGuardCommunity for both.",
   "requirement_sha": "e0c6234737f6b78b",
   "tests": {
-    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "01445f68041be7b4",
-    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "8504f6d9864f16f2",
-    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "8504f6d9864f16f2"
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "4bbcfd3a57bbed31",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "5bee8846594dbe6a",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "5bee8846594dbe6a"
   },
   "units": {
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "bff270859ef99dad",

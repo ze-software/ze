@@ -1371,8 +1371,13 @@ concatenated buffer, both forward rails pass that buffer as a single
 list untouched otherwise -- in silence. Every route carrying two or more control
 communities kept all of them.
 
+`wireu.StripLargeControlCommunities` is its LARGE_COMMUNITY twin under the same
+obligation: every value whose Global Administrator is the route server's ASN, in
+one buffer of twelve-octet values, recorded by both rails as one `AttrModRemove`
+for code 32.
+
 <!-- source: internal/component/bgp/plugins/filter_community/handler.go -- wholeValues, genericCommunityHandler -->
-<!-- source: internal/component/bgp/wireu/community.go -- StripControlCommunities -->
+<!-- source: internal/component/bgp/wireu/community.go -- StripControlCommunities, StripLargeControlCommunities -->
 <!-- source: internal/component/bgp/filterapi/metrics.go -- RecordRemoveBufferRefused -->
 
 ### Progressive Build (applyMods)

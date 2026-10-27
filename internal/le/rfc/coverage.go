@@ -382,12 +382,23 @@ func verdictValue(verdict map[string]any) string {
 // against the captured count is what exposes a summary that quietly captured
 // nothing. Never 0 for an absent source: "I could not look" must not render as
 // "nothing was there".
+//
+// The RFC 2119 / RFC 8174 key-words sentence is not counted. It names the
+// keywords to say how the other sentences read, and binds nobody, so counting
+// it gave RFC 7454 four keywords and read a document with no MUST-level
+// obligation as normative. The exclusion is sitesFor's, the one the new-summary
+// gate reads through Inventory.KeywordSites, so the measurement and the gate
+// cannot disagree on what the sentence is.
 func sourceKeywordCount(tree, stem string) (int, bool) {
 	text, held := SourceText(tree, stem)
 	if !held {
 		return 0, false
 	}
-	return len(sourceKeywordRE.FindAllString(text, -1)), true
+	keywords := 0
+	for _, site := range sitesFor(stripPageFurniture(text), sourceKeywordRE) {
+		keywords += len(sourceKeywordRE.FindAllString(site.Quote, -1))
+	}
+	return keywords, true
 }
 
 // sourceProseKeywordCount counts LOWERCASE must/shall in the RFC's own text.
@@ -405,6 +416,17 @@ func sourceProseKeywordCount(tree, stem string) (int, bool) {
 	return len(sourceProseKeywordRE.FindAllString(text, -1)), true
 }
 
+// sourceDeclaresKeyWords answers whether the RFC's own text carries the
+// RFC 2119 / RFC 8174 key-words sentence that sourceKeywordCount leaves out. An
+// absent source answers false, and the caller reads UpperHeld before this.
+func sourceDeclaresKeyWords(tree, stem string) bool {
+	text, held := SourceText(tree, stem)
+	if !held {
+		return false
+	}
+	return boilerplateRE.MatchString(stripPageFurniture(text))
+}
+
 // unconvertedSummary is one summary that declares no MUST-level requirement,
 // with both source keyword counts. Held is false for a stem with no source
 // text: the verdict cell says "cannot judge" rather than showing a zero.
@@ -414,6 +436,10 @@ type unconvertedSummary struct {
 	UpperHeld bool   `json:"upper-held"`
 	Prose     int    `json:"prose"`
 	ProseHeld bool   `json:"prose-held"`
+	// KeyWords is true when the source carries the RFC 2119 / RFC 8174
+	// key-words sentence, so it postdates RFC 2119 and a zero Upper beside a
+	// non-zero Prose is not the pre-2119 signature.
+	KeyWords bool `json:"key-words"`
 }
 
 // unconvertedSummaries answers every summary that captured no GATED
@@ -438,6 +464,7 @@ func unconvertedSummaries(tree string, stems map[string]bool,
 		row := unconvertedSummary{Stem: stem}
 		row.Upper, row.UpperHeld = sourceKeywordCount(tree, stem)
 		row.Prose, row.ProseHeld = sourceProseKeywordCount(tree, stem)
+		row.KeyWords = sourceDeclaresKeyWords(tree, stem)
 		out = append(out, row)
 	}
 	return out

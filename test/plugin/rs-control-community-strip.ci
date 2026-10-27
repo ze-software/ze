@@ -1,0 +1,187 @@
+# rs-control-community-strip -- the route server's own LARGE_COMMUNITY control
+# values never reach its clients; every other large community does, in order.
+#
+# VALIDATES: spec-bcp194-1-communities AC-12 and AC-14 through the real daemon,
+# on the route-server FAST-PATH rail (reactor.reactorForwardRS). The source sends
+# four large communities, two in the route server's namespace (Global
+# Administrator 65000) and two outside it. The receiver gets exactly the two
+# outside it, in the order sent (wireu.StripLargeControlCommunities, recorded as
+# ONE AttrModRemove for code 32 and applied by
+# filter_community.genericCommunityHandler).
+#
+# PREVENTS: the large-community half of the control set leaking. Before this spec
+# the route-server rails removed the standard 0:X and RS:X values only, so a
+# client saw every large instruction another client sent the route server.
+#
+# RAIL: rs-fast-path is set on the SOURCE peer, which is what selects
+# reactorForwardRS (bgp-rs-reactor-fastpath-fallback.ci). The general rail is
+# covered by TestRSStripsLargeControlCommunities/general and, through the daemon,
+# by rs-prepend-control-community.ci, whose receivers must not see the large
+# community either.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+option=bind:value=0.0.0.0
+# Map conn=N by remote IP rather than accept order (bgp-rs-reactor-fastpath.ci).
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001) announces 10.0.0.0/24 carrying FOUR large
+# communities, control and ordinary interleaved:
+#
+#   0000FDE8 00000065 0000FE4B   65000:101:65099  control -> removed. A prepend
+#                                request naming AS 65099, which is no peer here.
+#   0000FDE9 00000001 00000002   65001:1:2        the sender's own -> kept.
+#   0000FDE8 00000007 00000007   65000:7:7        control, a function the route
+#                                server does not define -> removed all the same:
+#                                the whole namespace is the route server's.
+#   0000FE4B 00000065 0000FDEA   65099:101:65002  another AS's namespace -> kept,
+#                                although its parameter names the receiver.
+#
+# ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, LARGE_COMMUNITY C0 20 30 + 48
+# bytes, NLRI 10.0.0.0/24. attr len = 4+9+7+51 = 71 = 0x47;
+# total = 19+2+2+71+4 = 98 = 0x62.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006202000000474001010040020602010000FDE940030401010101C020300000FDE8000000650000FE4B0000FDE900000001000000020000FDE800000007000000070000FE4B000000650000FDEA180A0000
+
+# The source peer's own End-of-RIB, sent by its initial sync at establishment.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver peer (conn=2, AS 65002): LARGE_COMMUNITY holding exactly the two values
+# outside the route server's namespace, in order.
+#
+#   D0    flags: optional transitive + extended length, which
+#         filter_community.emitCommunity always writes.
+#   20    LARGE_COMMUNITY
+#   0018  twenty-four bytes: two values of the four sent.
+#
+# The byte string exists only after the rewrite, so it cannot be met by the
+# source's attribute (C0 20 30 and four values) nor by a withdrawal. No
+# End-of-RIB rule for conn=2: see bgp-rs-community-strip-multi.ci.
+expect=bgp:conn=2:seq=1:contains=D02000180000FDE900000001000000020000FE4B000000650000FDEA
+EOF_PEER
+
+# Observer: wait until the route server has replayed to every peer, then stop.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "le test fixture plugin/rs-control-community-strip"
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			# LOAD-BEARING, and its absence is why an earlier draft of this test
+			# saw all five communities arrive intact even against the FIXED
+			# binary: session/rs-client defaults to false, and both the strip
+			# emission (`facts.rsClient` in
+			# reactor.reactorAPIAdapter.forwardUpdateCore) and the RFC 7947 policy
+			# branch above it are gated on it. Without the leaf no AttrModRemove is
+			# ever accumulated, so there is nothing for the community handler to do
+			# and the attribute is copied through.
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		# The source-side flag that selects the fast-path rail. This is the ONLY
+		# difference from bgp-rs-community-strip-multi.ci; keep the two files in
+		# step, since divergence anywhere else would let one rail pass on an
+		# assertion the other never makes.
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			# LOAD-BEARING, and its absence is why an earlier draft of this test
+			# saw all five communities arrive intact even against the FIXED
+			# binary: session/rs-client defaults to false, and both the strip
+			# emission (`facts.rsClient` in
+			# reactor.reactorAPIAdapter.forwardUpdateCore) and the RFC 7947 policy
+			# branch above it are gated on it. Without the leaf no AttrModRemove is
+			# ever accumulated, so there is nothing for the community handler to do
+			# and the attribute is copied through.
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+# The arity refusal added by spec-fixit-rs-community-strip-arity. It must NOT
+# fire here: this scenario sends a whole number of four-byte values, so seeing it
+# would mean the strip buffer had become malformed.
+reject=stderr:pattern=remove buffer is not a whole number of wire values

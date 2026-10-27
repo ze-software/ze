@@ -64,6 +64,13 @@ type PeerFilterInfo struct {
 	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
 	LoopDisabled bool       // Loop detection deactivated for this peer (FilterRef.Inactive)
 	RSClient     bool       // Configured route-server client; policy belongs to the plugin.
+	// RouteServerAS is the ASN the route server reads and strips its control
+	// communities by when this session is a route-server client: the router's
+	// global local-as (PeerSettings.GlobalLocalAS), the value both forward
+	// rails match on, never a per-peer local-as override. Filled on the
+	// received path only, and only for a client; zero otherwise, and a zero
+	// MUST be read as "not a route-server client", never as an ASN.
+	RouteServerAS uint32
 	// IsIBGP reports an internal session, filled from PeerSettings.IsIBGP, the one
 	// rule that also counts an RFC 7705 migration session as internal. A filter
 	// that needs the session type reads this field rather than comparing PeerAS

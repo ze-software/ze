@@ -19,7 +19,7 @@ func rfc7999Ingress(t *testing.T, leaf any, payload []byte) []byte {
 		block["blackhole-propagation"] = leaf
 	}
 	fc := parseFilterConfig(ingressCommunityCfg(block))
-	return applyIngressFilter(payload, nil, fc, blackholeLocalAS, 64511)
+	return applyIngressFilter(payload, nil, fc, blackholeLocalAS, 64511, 0)
 }
 
 // RFC requirement: RFC7999-3.2-1 positive -- a received announcement tagged

@@ -115,7 +115,11 @@ func summaryCounts04(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
-func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
+// rsObserver04 waits until the route server has replayed to every client, then
+// shuts the daemon down. Each requiredSeries is a whole Prometheus exposition
+// line, name, labels and value, that "show metrics values" MUST answer once the
+// forwards were seen; the .ci then needs telemetry enabled.
+func rsObserver04(expected int, prefix string, requireReplay bool, requiredSeries ...string) Driver {
 	return func(ctx context.Context, args []string) error {
 		if len(args) != 0 {
 			return fmt.Errorf("unexpected arguments: %v", args)
@@ -242,6 +246,9 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 				if requireReplay && (len(eorPeers) < needEOR || !forwardSeen) {
 					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward peers=%d/%d)", len(eorPeers), needEOR, len(forwardPeers), needForward)
 				}
+				if scenarioErr == nil && len(requiredSeries) > 0 {
+					scenarioErr = requireSeries04(ctx, p, requiredSeries)
+				}
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), WaitBudget(25, 15*time.Second))
 				defer cancel()
 				_, _, _ = p.DispatchCommand(shutdownCtx, "request shutdown")
@@ -271,4 +278,33 @@ func sentToAddress04(bgp map[string]any) string {
 	}
 	address, _ = peer["address"].(string)
 	return address
+}
+
+// requireSeries04 answers an error naming every required exposition line that
+// "show metrics values" does not hold, or nil when it holds them all. A counter
+// stepped before the forward was queued is already in the answer when the sent
+// event arrives, so one read decides.
+func requireSeries04(ctx context.Context, p *sdk.Plugin, requiredSeries []string) error {
+	data, err := requireDone04(ctx, p, "show metrics values")
+	if err != nil {
+		return err
+	}
+	text, _ := data["metrics"].(string)
+	if text == "" {
+		return errors.New("show metrics values answered no metrics: is telemetry prometheus enabled in the .ci config?")
+	}
+	lines := make(map[string]struct{})
+	for line := range strings.SplitSeq(text, "\n") {
+		lines[line] = struct{}{}
+	}
+	var missing []string
+	for _, series := range requiredSeries {
+		if _, ok := lines[series]; !ok {
+			missing = append(missing, series)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("show metrics values lacks %q", missing)
+	}
+	return nil
 }

@@ -5,7 +5,7 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | General eBGP Function 4 and Function 6 actions are absent conventions, separate from existing community repairs. |
-| Depends | `plan/release/fixes/spec-bcp194-1-communities.md` ; inherited: spec-bcp194-0-umbrella |
+| Depends | spec-bcp194-1-communities (closed) ; inherited: spec-bcp194-0-umbrella |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-22 |
@@ -16,7 +16,7 @@ Implement original AC-9 and AC-10: general eBGP Function 4 destination suppressi
 
 ## Source and Evidence
 
-Split from `plan/release/fixes/spec-bcp194-1-communities.md` under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in `plan/release/fixes/spec-bcp194-1-communities.md`. Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
+Split from spec-bcp194-1-communities (closed: its history is in git, and `plan/learned/039-bcp194-communities.md` carries what outlives it) under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in spec-bcp194-1-communities (closed: its history is in git, and `plan/learned/039-bcp194-communities.md` carries what outlives it). Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
 
 ## Acceptance Criteria
 
@@ -31,10 +31,10 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 
 | Work | Implementation owner |
 |------|----------------------|
-| Original AC-1 to AC-8 and AC-11 to AC-21; former phases 1 to 4 and 6, including retained delivered history | `plan/release/fixes/spec-bcp194-1-communities.md` |
+| Original AC-1 to AC-8 and AC-11 to AC-21; former phases 1 to 4 and 6, including retained delivered history | spec-bcp194-1-communities (closed: its history is in git, and `plan/learned/039-bcp194-communities.md` carries what outlives it) |
 | Original AC-9/AC-10 and former phase 5, with general-rail feature tests and interop | `plan/post-release/features/spec-bcp194-community-function4-function6.md` |
 
-Work assigned to `plan/release/fixes/spec-bcp194-1-communities.md` is not performed or closed by this spec. Shared mechanisms are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
+Work assigned to spec-bcp194-1-communities (closed: its history is in git, and `plan/learned/039-bcp194-communities.md` carries what outlives it) is not performed or closed by this spec. Shared mechanisms are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
 
 ## Implementation Ownership
 

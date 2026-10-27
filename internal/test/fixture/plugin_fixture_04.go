@@ -16,6 +16,15 @@ func init() {
 	Register("plugin/bgp-local-as-options", rsObserver04(5, "10.0.0.0/24", true))
 	Register("plugin/bgp-local-as-inbound-untouched", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-rs-relay-aspath-transparency", rsObserver04(3, "10.0.0.0/24", true))
+	// One prepend reached one client, and the request value was stripped from
+	// what both clients were written (reactor recordRSCommunityEdits).
+	Register("plugin/rs-prepend-control-community", rsObserver04(3, "10.0.0.0/24", true,
+		"ze_bgp_rs_prepend_applied_total 1",
+		"ze_bgp_rs_large_control_community_stripped_total 2"))
+	// The marker route 10.0.1.0/24 is the one both receivers get: the RS:X
+	// whitelist withholds 10.0.0.0/24 from one of them on purpose.
+	Register("plugin/rs-control-community-scrub", rsObserver04(3, "10.0.1.0/24", true))
+	Register("plugin/rs-control-community-scrub-local-as", rsObserver04(3, "10.0.1.0/24", true))
 	Register("plugin/bgp-rs-replaying-gate", rsObserver04(1, "", true))
 	Register("plugin/prefixsid-ebgp-egress-boundary", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-summary-flat-payload", observe04(summaryFlat04))

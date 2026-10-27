@@ -105,7 +105,11 @@ func blackholePropagationGuard(payload []byte, localAS uint32, guard string) []b
 
 	wire := make([]byte, 4)
 	binary.BigEndian.PutUint32(wire, uint32(add))
-	return ingressTagCommunities(payload, attribute.AttrCommunity, [][]byte{wire})
+	modified := ingressTagCommunities(payload, attribute.AttrCommunity, [][]byte{wire})
+	if modified != nil {
+		recordBlackholeGuard(add)
+	}
+	return modified
 }
 
 // hasStandardCommunity reports whether the COMMUNITY attribute already

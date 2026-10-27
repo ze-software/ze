@@ -46,6 +46,21 @@ Two properties follow from the table and neither is a convention:
   Section 11 scrub always runs over a payload the relation tag has not
   touched. Reversing them would delete the value Ze just derived, because the
   scrub's keep-list never keeps the relation function.
+- **Scrub before the route server reads.** The whole ingress pass runs before
+  the UPDATE is cached, and both route-server forward rails parse the cached
+  payload (`wireu.ParseCommunityPolicy`). So on a route-server client's
+  session the scrub keeps the values `wireu.IsRSControlCommunity` and
+  `wireu.IsRSControlLargeCommunity` match against
+  `PeerFilterInfo.RouteServerAS`; scrubbing them would cancel the client's
+  request before the route server saw it. The route server strips them itself
+  on egress. The reactor fills `RouteServerAS` from the source's
+  `GlobalLocalAS`, the AS both forward rails read and strip by, and leaves it
+  zero on any other session, which keeps nothing. The scrub's own Global
+  Administrator stays the session's `LocalAS`, so with a per-peer local-as
+  override a control-shaped value under the override is scrubbed (the route
+  server neither acts on nor strips it), and a true control under the global
+  AS is outside the scrub's reach. The set kept is the set the route server
+  acts on and strips.
 - **Role before relation.** `bgp-role` registers at the annotation stage with
   priority 0, so it writes `src-peer-role` before priority 1 reads it. A single
   filter at the policy stage would read a key nothing had written yet.

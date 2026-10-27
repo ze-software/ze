@@ -716,7 +716,8 @@ func renderUnconverted(in RenderInput) []string {
 		"",
 		"These summaries gate nothing. That is correct for a genuinely non-normative " +
 			"reference, and a capture failure for anything else. The uppercase column " +
-			"counts MUST/MUST NOT/SHALL/SHALL NOT in the RFC's own text; the lowercase " +
+			"counts MUST/MUST NOT/SHALL/SHALL NOT in the RFC's own text, outside the " +
+			"RFC 2119 key-words sentence, which binds nobody; the lowercase " +
 			"column counts the same four words in indicative prose, which is the only " +
 			"form a pre-RFC-2119 document has. A non-zero uppercase count with nothing " +
 			"captured means the summary needs re-authoring (`/ze-rfc <stem>`) before its " +
@@ -733,6 +734,20 @@ func renderUnconverted(in RenderInput) []string {
 		case !row.UpperHeld:
 			upper.Byte('?')
 			verdict = "no source text under `rfc/full/` -- cannot judge"
+		case row.Upper == 0 && row.Prose != 0 && row.KeyWords:
+			// RFC 7454's shape: its only capitalised keywords sit in the
+			// key-words sentence, which sourceKeywordCount leaves out. It is
+			// not pre-2119, and its lowercase words still need a reader:
+			// RFC 8174 Section 2: "Specifically, normative text does not
+			// require the use of these key words."
+			upper.Byte('0')
+			var tb textbuf.Buffer
+			verdict = tb.Str("**UNDECIDED**: no uppercase keyword outside the key-words sentence, but ").
+				Int(int64(row.Prose)).
+				Str(" lowercase -- RFC 8174 lets normative text go without the key words, so ").
+				Str("a zero uppercase count is not evidence of a non-normative source. Needs a ").
+				Str("human reading, not a keyword count").
+				String()
 		case row.Upper == 0 && row.Prose != 0:
 			// The pre-2119 case, and the one the old verdict got wrong. RFC 1035
 			// (1987) shows 0 uppercase and 23 lowercase `must`, and "consistent:

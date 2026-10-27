@@ -625,6 +625,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
 	var communityPolicy *wireu.CommunityPolicy
 	var communityStripBytes []byte
+	var largeCommunityStripBytes []byte
 	var communityParsed bool
 	rsLocalAS := srcInfo.globalLocalAS
 
@@ -646,7 +647,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// without allocating per destination. Same isolation contract, too -- nothing
 	// may read a generator after the Reset that follows it.
 	var aspathEdit wireu.ASPathEdit
-	var prependBuf [2]uint32
+	// Three slots: the RS-client prepend a route requests is one to three
+	// copies of the route server's AS (wireu.CommunityPolicy.RSPrepend).
+	var prependBuf [3]uint32
 
 	// RFC 4271 Section 5.1.5 needs one bit per UPDATE, not one scan per
 	// destination: whether the source carries LOCAL_PREF at all. A destination
@@ -725,6 +728,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				cp := wireu.ParseCommunityPolicy(sourceWire.Payload(), rsLocalAS)
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(sourceWire.Payload(), rsLocalAS)
+				largeCommunityStripBytes = wireu.StripLargeControlCommunities(sourceWire.Payload(), rsLocalAS)
 			}
 			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
 			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
@@ -774,6 +778,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// tagged with two or more control communities kept all of them.
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
+		}
+		// The large-community control values in the route server's own namespace
+		// leave the same way, as ONE operation for code 32
+		// (wireu.StripLargeControlCommunities). Both rails MUST record it.
+		var rsEdits rsCommunityEdits
+		if facts.rsClient && len(largeCommunityStripBytes) > 0 {
+			mods.Op(32, filterapi.AttrModRemove, largeCommunityStripBytes)
+			rsEdits.largeStrippedValues = len(largeCommunityStripBytes) / largeCommunityOctets
 		}
 		// Unified egress filter pass: ONE stage-ordered pipeline over the in-process
 		// egress filters (community, gr, role) and the export policy chain
@@ -1043,8 +1055,16 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 						intent.Prepend = prependBuf[:2]
 					}
 				}
-				// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend.
-				// An explicitly configured override still belongs to this same intent.
+				if facts.rsClient && communityPolicy != nil {
+					// RFC 7947 Section 2.2.2.1, RFC 8195 Section 4.2.1: the one prepend an RS
+					// client receives is the one the route requests for it. No request, no
+					// change (wireu.CommunityPolicy.RSPrepend).
+					intent.Prepend = communityPolicy.RSPrepend(prependBuf[:0], facts.peerAS, rsLocalAS)
+					rsEdits.prepended = len(intent.Prepend) > 0
+				}
+				// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend unless the
+				// route requests one. An explicitly configured override still belongs to
+				// this same intent.
 				changed, aspErr := aspathEdit.Record(&mods, peerBaseWire.Payload(), intent)
 				if aspErr != nil {
 					// Fail closed: an EBGP peer receiving an unprepended path is a
@@ -1259,6 +1279,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				dedup.commit(candidate, materialization)
 			}
 
+			if !mods.IsWithdraw() {
+				a.r.recordRSCommunityEdits(rsEdits)
+			}
 			pending = append(pending, pendingFwd{
 				item: item,
 				key:  fwdKey{peerAddr: facts.peerKey},

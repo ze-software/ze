@@ -21,7 +21,7 @@ their destination.
 
 The umbrella spec `plan/release/validation/spec-bcp194-0-umbrella.md` recorded the split
 on 2026-08-08, in its Known Limitations: child 1
-(`plan/release/fixes/spec-bcp194-1-communities.md`) covers Functions 1 to 4 and 6,
+(spec-bcp194-1-communities, closed (`plan/learned/039-bcp194-communities.md`)) covers Functions 1 to 4 and 6,
 and Functions 5, 7 and 8 to 12 were left with no destination. The umbrella gave
 the reason for the split: "The LOCAL_PREF family is a separate design problem,
 and both Section 4.3.3 and RFC 4264 warn about it."
@@ -142,7 +142,7 @@ assign", so each stays configuration rather than a constant.
 |----------|--------|
 | What breaks if this is wrong? | Routes are exported, prepended, or preferred against operator intent |
 | How is it reverted? | Single commit revert; the functions are opt-in configuration |
-| Who else touches this path? | `plan/release/fixes/spec-bcp194-1-communities.md` (Functions 1 to 4 and 6) |
+| Who else touches this path? | spec-bcp194-1-communities, closed (`plan/learned/039-bcp194-communities.md`) (Functions 1 to 4 and 6) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

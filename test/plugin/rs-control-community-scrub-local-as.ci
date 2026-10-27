@@ -1,0 +1,238 @@
+# rs-control-community-scrub-local-as -- the RFC 7454 Section 11 own-GA scrub on
+# a route-server client whose session carries a per-peer local-as override keeps
+# exactly the control communities the route server acts on: those under the
+# route server's ASN (the global local-as), never values under the override.
+#
+# VALIDATES: spec-bcp194-1-communities AC-17, assumption A-5 and risk R-7 with a
+# local-as override. The router's global local-as is 65000; the source session
+# (AS 65001, rs-client, scrub-own-ga true, empty keep-list) overrides its own
+# local-as to 65010, so the scrub's Global Administrator is 65010. The route
+# server reads and strips its control communities by the global local-as
+# (reactorForwardRSSection's rsLocalAS, forwardUpdateSection's
+# srcInfo.globalLocalAS), so 65000. The UPDATE carries:
+#   - COMMUNITY 65000:65002, a true RS:X control: announce to AS 65002 only;
+#   - COMMUNITY 65010:65003, an override-AS value shaped like RS:X;
+#   - LARGE_COMMUNITY 65000:101:65002, a true prepend request toward AS 65002;
+#   - LARGE_COMMUNITY 65010:101:65002, an override-AS value shaped like one.
+# The true controls are outside the scrub's Global Administrator, reach the
+# route server, act, and are stripped on egress. The override-AS values are
+# under the scrub's Global Administrator and are no route-server control, so
+# the scrub removes them.
+#   - receiver-named (AS 65002) gets AS_SEQUENCE[65000, 65001] and no community
+#     at all: the prepend acted, the route server stripped its controls, and the
+#     scrub removed the override-AS values.
+#   - receiver-other (AS 65003) never gets 10.0.0.0/24: the RS:X whitelist acted.
+#     The marker 10.0.1.0/24 is the first route it receives.
+# A scrub keep matched against the session's LocalAS (65010) instead of the
+# route server's ASN keeps both override-AS values; the route server neither
+# acts on them nor strips them, so receiver-named gets COMMUNITY 65010:65003 and
+# LARGE_COMMUNITY 65010:101:65002 and its assertion goes red.
+#
+# PREVENTS: values under a local-as override, shaped like route-server
+# controls, leaking through the scrub to every route-server client
+# (filter_community ownGAStandardValues, ownGALargeValues;
+# filterapi.PeerFilterInfo.RouteServerAS filled in Reactor.notifyMessageReceiver).
+#
+# RAIL: rs-fast-path is ABSENT, so forwarding goes through the bgp-rs plugin into
+# reactorAPIAdapter.forwardUpdateCore, which reads the post-filter payload.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Bind conn=N by remote IP: the two receivers must be told apart by identity.
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001): announce 10.0.0.0/24.
+#   ORIGIN:          40010100
+#   AS_PATH:         40020602010000FDE9            AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:        40030401010101                1.1.1.1
+#   COMMUNITY:       C00808 FDE8FDEA FDF2FDEB      65000:65002 65010:65003
+#   LARGE_COMMUNITY: C02018 0000FDE8 00000065 0000FDEA   65000:101:65002
+#                           0000FDF2 00000065 0000FDEA   65010:101:65002
+#   NLRI:            180A0000                      10.0.0.0/24
+# attr len = 4+9+7+11+27 = 58 = 0x3A; total = 19+2+2+58+4 = 85 = 0x55.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0055020000003A4001010040020602010000FDE940030401010101C00808FDE8FDEAFDF2FDEBC020180000FDE8000000650000FDEA0000FDF2000000650000FDEA180A0000
+
+# Source peer (conn=1): then announce 10.0.1.0/24 with no community, the marker
+# that proves receiver-other was refused the first route rather than not yet sent
+# it. Per-source forwarding is FIFO, so a receiver given the first route sees it
+# before this one.
+#   ORIGIN 40010100, AS_PATH 40020602010000FDE9, NEXT_HOP 40030401010101,
+#   NLRI 180A0001. attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+
+# The source's own EOR. Receivers' EORs are not pinned (bgp-rs-relay-aspath-transparency.ci).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# receiver-named (conn=2, AS 65002): the route server's AS (the global 65000,
+# not the override) prepended once.
+#   AS_PATH:   40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33. No community:
+# the route server stripped its controls and the scrub removed the override-AS
+# values.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+
+# receiver-named (conn=2): then the marker route, as the source sent it.
+expect=bgp:conn=2:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+
+# receiver-other (conn=3, AS 65003): the RS:X whitelist withholds 10.0.0.0/24, so
+# the first UPDATE this client receives is the marker route. A scrubbed
+# whitelist would forward 10.0.0.0/24 to it first, and this line goes red.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+EOF_PEER
+
+# Observer: wait until the route server has replayed to every client, then shut down.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "le test fixture plugin/rs-control-community-scrub-local-as"
+		encoder json
+	}
+}
+bgp {
+	# The router's global local-as: the ASN the route server acts on. The
+	# receivers inherit it; the source overrides its own session's local-as.
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65010
+				remote 65001
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			ingress {
+				community {
+					scrub-own-ga true
+				}
+			}
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver-named {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver-other {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed

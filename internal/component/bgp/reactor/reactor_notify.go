@@ -520,6 +520,17 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			src.AllowOwnAS = peer.settings.LoopAllowOwnAS
 			src.ClusterID = peer.settings.LoopClusterID
 			src.LoopDisabled = peer.settings.LoopDisabled
+			// The source's rs-client setting, and the ASN the route server acts
+			// on for it: the RFC 7454 Section 11 scrub keeps a route-server
+			// client's control communities, which the forward rails read from
+			// the payload this pass produces. The ASN is the one those rails
+			// match on (reactorForwardRSSection's rsLocalAS,
+			// forwardUpdateSection's srcInfo.globalLocalAS), never the
+			// session's possibly overridden LocalAS.
+			src.RSClient = peer.settings.RSClient
+			if peer.settings.RSClient {
+				src.RouteServerAS = peer.settings.GlobalLocalAS
+			}
 			// The one IBGP rule (PeerSettings.IsIBGP), which an RFC 7705
 			// migration session needs; PeerAS == LocalAS gets it wrong. The
 			// guarded accessor, as for PeerAS above.

@@ -150,7 +150,7 @@ func TestBlackholeGuardSurvivesTheScrub(t *testing.T) {
 		scrubOwnGA:           new(true),
 		blackholePropagation: new(blackholeGuardNoExport),
 	}
-	got := applyIngressFilter(payload, nil, fc, blackholeLocalAS, 64511)
+	got := applyIngressFilter(payload, nil, fc, blackholeLocalAS, 64511, 0)
 	require.NotNil(t, got)
 
 	assert.Equal(t,

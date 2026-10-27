@@ -367,6 +367,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	// Parsed once before the peer loop; zero-cost when no RS-client peers exist.
 	var communityPolicy *wireu.CommunityPolicy
 	var communityStripBytes []byte
+	var largeCommunityStripBytes []byte
 	var communityParsed bool
 	var rsLocalAS uint32
 	if sourcePeer != nil {
@@ -398,7 +399,9 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	// Hoisted with the accumulator: the resolver holds its generators inline, so
 	// one value serves the whole client fan-out without allocating per client.
 	var aspathEdit wireu.ASPathEdit
-	var prependBuf [2]uint32
+	// Three slots: the RS-client prepend a route requests is one to three
+	// copies of the route server's AS (wireu.CommunityPolicy.RSPrepend).
+	var prependBuf [3]uint32
 
 	// RFC 4271 Section 5.1.5 needs one bit per UPDATE, not one scan per client:
 	// whether the source carries LOCAL_PREF at all. See applyFactsLocalPref
@@ -464,6 +467,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				cp := wireu.ParseCommunityPolicy(wire.Payload(), rsLocalAS)
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(wire.Payload(), rsLocalAS)
+				largeCommunityStripBytes = wireu.StripLargeControlCommunities(wire.Payload(), rsLocalAS)
 			}
 			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
 			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
@@ -502,6 +506,14 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// whichever path the deployment happens to select.
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
+		}
+		// The large-community control values in the route server's own namespace
+		// leave the same way, as ONE operation for code 32
+		// (wireu.StripLargeControlCommunities). Both rails MUST record it.
+		var rsEdits rsCommunityEdits
+		if facts.rsClient && len(largeCommunityStripBytes) > 0 {
+			mods.Op(32, filterapi.AttrModRemove, largeCommunityStripBytes)
+			rsEdits.largeStrippedValues = len(largeCommunityStripBytes) / largeCommunityOctets
 		}
 		if len(r.egressFilters) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
@@ -626,8 +638,16 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 					intent.Prepend = prependBuf[:2]
 				}
 			}
-			// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend;
-			// explicit override and width projection share the same intent.
+			if facts.rsClient && communityPolicy != nil {
+				// RFC 7947 Section 2.2.2.1, RFC 8195 Section 4.2.1: the one prepend an RS
+				// client receives is the one the route requests for it. No request, no
+				// change (wireu.CommunityPolicy.RSPrepend).
+				intent.Prepend = communityPolicy.RSPrepend(prependBuf[:0], facts.peerAS, rsLocalAS)
+				rsEdits.prepended = len(intent.Prepend) > 0
+			}
+			// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend unless the
+			// route requests one; explicit override and width projection share the
+			// same intent.
 			changed, aspErr := aspathEdit.Record(&mods, wire.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
@@ -797,6 +817,9 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			dedup.commit(candidate, materialization)
 		}
 
+		if !mods.IsWithdraw() {
+			r.recordRSCommunityEdits(rsEdits)
+		}
 		pending = append(pending, pendingFwd{
 			item: item,
 			key:  fwdKey{peerAddr: facts.peerKey},
@@ -887,4 +910,43 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	}
 
 	return skipped, delivered, bySection
+}
+
+// rsCommunityEdits is what the route-server control communities of one received
+// UPDATE changed in what one client is written. Both forward rails fill it while
+// they record the edits, and recordRSCommunityEdits counts it each time an
+// UPDATE carrying them is queued for the client, never where the edit is only
+// computed: a destination the egress filters, a failed rebuild or a withdrawal
+// then suppress counts nothing.
+type rsCommunityEdits struct {
+	prepended           bool // the route asked for an AS_PATH prepend toward this client
+	largeStrippedValues int  // LARGE_COMMUNITY values in the route server's namespace removed
+}
+
+// recordRSCommunityEdits counts one UPDATE queued for a client with its
+// control-community edits applied.
+//
+// It counts every UPDATE written, so a received UPDATE split into several
+// sections counts once per section: each section carries the prepend and the
+// strip. Counting per received UPDATE instead would need state shared across
+// the split loops of both rails (forwardUpdateSelected, reactorForwardRS), and
+// each UPDATE written is where the edit takes effect. The caller MUST call it
+// only for a delivery that is not a withdrawal: a withdrawal carries no path
+// attribute, so no edit reaches the client.
+//
+// Telemetry can be off, so a reactor with no registry (rmetrics nil) counts
+// nothing: counting never changes what the client is written.
+func (r *Reactor) recordRSCommunityEdits(edits rsCommunityEdits) {
+	if r == nil {
+		return
+	}
+	if r.rmetrics == nil {
+		return
+	}
+	if edits.prepended {
+		r.rmetrics.rsPrependApplied.Inc()
+	}
+	if edits.largeStrippedValues > 0 {
+		r.rmetrics.rsLargeControlStripped.Add(float64(edits.largeStrippedValues))
+	}
 }

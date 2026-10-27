@@ -336,6 +336,35 @@ func TestASummaryWithNoObligationIsJudgedAgainstItsOwnSourceText(t *testing.T) {
 	}
 }
 
+func TestTheKeyWordsSentenceIsNotCountedAsAnObligation(t *testing.T) {
+	// RFC 7454's shape: four capitalised keywords, all in the key-words
+	// sentence, plus lowercase `must` in prose. Counting the sentence rendered
+	// RE-AUTHOR, "source is normative", for a document with no MUST-level
+	// obligation. The fix must not call it pre-2119 either: it declares the
+	// key words. A genuine MUST beside the same sentence still reads RE-AUTHOR.
+	keyWords := "1.  Introduction\n\n   The key words \"MUST\", \"MUST NOT\", \"SHALL\", and\n" +
+		"   \"SHALL NOT\" in this document are to be interpreted as described in\n" +
+		"   BCP 14 [RFC2119] [RFC8174].\n\n2.  Operations\n\n"
+	in := renderFixture(t, map[string]string{
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
+		"rfc/full/rfc1000.txt": keyWords + "   An operator must filter what a customer sends.\n",
+		"rfc/short/rfc1001.md": "# RFC 1001\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
+		"rfc/full/rfc1001.txt": keyWords + "   Operators SHOULD filter what a customer sends.\n",
+		"rfc/short/rfc1002.md": "# RFC 1002\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
+		"rfc/full/rfc1002.txt": keyWords + "   A speaker MUST discard the route.\n",
+	})
+	body := renderedIndex(t, in)
+	for _, want := range []string{
+		"| `rfc1000` | 0 | 1 | **UNDECIDED**: no uppercase keyword outside the key-words sentence, but 1 lowercase",
+		"| `rfc1001` | 0 | 0 | consistent: source declares none in either register",
+		"| `rfc1002` | 1 | 0 | **RE-AUTHOR**: source is normative, summary captured nothing",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the verdict row is missing:\n  want %q\ngot:\n%s", want, body)
+		}
+	}
+}
+
 func TestASummaryCapturingOnlyAdvisoryRowsStillCountsAsCapturingNothing(t *testing.T) {
 	// One SHOULD bought a summary immunity from this table while the caller
 	// passed every parsed requirement at any level. The table's whole purpose is

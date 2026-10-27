@@ -252,7 +252,7 @@ separate feature. It needs its own spec before it can be an obligation.
 
 | Spec | Scope | Owns |
 |------|-------|------|
-| `plan/release/fixes/spec-bcp194-1-communities.md` | RFC 7454 §11 and all of RFC 8195 | C1 to C7, L1, L2 |
+| spec-bcp194-1-communities, closed (`plan/learned/039-bcp194-communities.md`) | RFC 7454 §11 and all of RFC 8195 | C1 to C7, L1, L2 |
 | `plan/post-release/features/spec-bcp194-2-role-policy.md` | role-derived policy | P4, P5, P6, P9 |
 | `plan/release/fixes/spec-bcp194-3-session.md` | RFC 7454 §4 and §5 | S1, S2 |
 | `plan/post-release/features/spec-bcp194-4-prefix.md` | RFC 7454 §6.1 and §8 | P1, P2, P3, P8 |
@@ -434,7 +434,7 @@ is listed there.
 
 - `rfc/not-enrolled.txt` - the two disposition rows, applied by child 1
 - `docs/features/rfc-status.md` - the RFC 7947 conditional note, applied by child 1
-- `plan/release/fixes/spec-bcp194-1-communities.md` through `plan/proposals/spec-bcp194-5-damping.md` -
+- spec-bcp194-1-communities, closed (`plan/learned/039-bcp194-communities.md`) through `plan/proposals/spec-bcp194-5-damping.md` -
   status transitions as each child starts
 
 ### Files to Create

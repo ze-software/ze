@@ -1,0 +1,224 @@
+# rs-control-community-scrub -- a route-server client sends control communities
+# on a session where the RFC 7454 Section 11 own-GA scrub is enabled, and the
+# route server still acts on them.
+#
+# VALIDATES: spec-bcp194-1-communities AC-17 and assumption A-5 through the real
+# daemon. The source session (AS 65001, rs-client) has
+# `filter ingress community scrub-own-ga true` with an empty keep-list, so every
+# value whose Global Administrator is 65000 (the route server's AS) is in the
+# scrub's reach. The UPDATE carries two route-server control communities:
+#   - COMMUNITY 65000:65002, RS:X: announce to AS 65002 only;
+#   - LARGE_COMMUNITY 65000:101:65002: prepend the route server's AS once toward
+#     AS 65002.
+# The route server reads them AFTER the ingress filters (the forward rails parse
+# the cached, post-filter payload), so the scrub must keep a client's control
+# signalling: RFC 7454 Section 11 says "Allow only those communities that
+# customers/peers can use as a signaling mechanism."
+#   - receiver-named (AS 65002) gets AS_SEQUENCE[65000, 65001] and neither
+#     community: the prepend acted, and the route server removed both control
+#     values (wireu.StripControlCommunities, wireu.StripLargeControlCommunities).
+#   - receiver-other (AS 65003) never gets 10.0.0.0/24: the RS:X whitelist
+#     acted (wireu.CommunityPolicy.ShouldForwardTo). A second UPDATE, 10.0.1.0/24
+#     with no community, is the first route it receives, which makes the
+#     absence an exact-hex assertion.
+# A scrub that removed the values would send receiver-named AS_SEQUENCE[65001]
+# and send receiver-other 10.0.0.0/24 first, so both assertions go red.
+#
+# PREVENTS: the Section 11 scrub silently disabling every route-server control
+# community a client sends, which it did until the scrub learned which own-GA
+# values a route-server client may send (filter_community scrubOwnGACommunities).
+#
+# RAIL: rs-fast-path is ABSENT, so forwarding goes through the bgp-rs plugin into
+# reactorAPIAdapter.forwardUpdateCore. Both rails read the same post-filter
+# payload, because the ingress pass runs before the UPDATE is cached
+# (Reactor.notifyMessageReceiver).
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Bind conn=N by remote IP: the two receivers must be told apart by identity.
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001): announce 10.0.0.0/24.
+#   ORIGIN:          40010100
+#   AS_PATH:         40020602010000FDE9            AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:        40030401010101                1.1.1.1
+#   COMMUNITY:       C00804 FDE8FDEA               65000:65002
+#   LARGE_COMMUNITY: C0200C 0000FDE8 00000065 0000FDEA   65000:101:65002
+#   NLRI:            180A0000                      10.0.0.0/24
+# attr len = 4+9+7+7+15 = 42 = 0x2A; total = 19+2+2+42+4 = 69 = 0x45.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002A4001010040020602010000FDE940030401010101C00804FDE8FDEAC0200C0000FDE8000000650000FDEA180A0000
+
+# Source peer (conn=1): then announce 10.0.1.0/24 with no community, the marker
+# that proves receiver-other was refused the first route rather than not yet sent
+# it. Per-source forwarding is FIFO, so a receiver given the first route sees it
+# before this one.
+#   ORIGIN 40010100, AS_PATH 40020602010000FDE9, NEXT_HOP 40030401010101,
+#   NLRI 180A0001. attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+
+# The source's own EOR. Receivers' EORs are not pinned (bgp-rs-relay-aspath-transparency.ci).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# receiver-named (conn=2, AS 65002): the route server's AS prepended once.
+#   AS_PATH:   40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33. No community.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+
+# receiver-named (conn=2): then the marker route, as the source sent it.
+expect=bgp:conn=2:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+
+# receiver-other (conn=3, AS 65003): the RS:X whitelist withholds 10.0.0.0/24, so
+# the first UPDATE this client receives is the marker route. A scrubbed
+# whitelist would forward 10.0.0.0/24 to it first, and this line goes red.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0001
+EOF_PEER
+
+# Observer: wait until the route server has replayed to every client, then shut down.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "le test fixture plugin/rs-control-community-scrub"
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		filter {
+			ingress {
+				community {
+					scrub-own-ga true
+				}
+			}
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver-named {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer receiver-other {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed

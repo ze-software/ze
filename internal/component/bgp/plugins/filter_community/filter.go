@@ -46,8 +46,12 @@ import (
 // localAS is the Global Administrator both RFC-derived steps key on. It
 // comes from PeerFilterInfo.LocalAS, so a peer using a local-AS override is
 // scrubbed against the ASN that peer actually sees. peerAS is compared
-// against it to tell an iBGP session from an eBGP one.
-func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig, localAS, peerAS uint32) []byte {
+// against it to tell an iBGP session from an eBGP one. routeServerAS is the
+// route server's ASN on a route-server client's session and zero on any
+// other (PeerFilterInfo.RouteServerAS): the scrub keeps the control
+// communities the route server acts on under that ASN
+// (scrubOwnGACommunities says why, and why it is not localAS).
+func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig, localAS, peerAS, routeServerAS uint32) []byte {
 	if len(payload) < 4 {
 		return nil
 	}
@@ -67,7 +71,7 @@ func applyIngressFilter(payload []byte, defs communityDefs, fc filterConfig, loc
 	// whose remote AS equals the local AS is that case, and it is skipped
 	// even when the leaf is on.
 	if fc.scrubEnabled() && peerAS != localAS {
-		if modified := scrubOwnGACommunities(current, localAS, fc.scrubKeepSet(), fc.scrubRelationFunction()); modified != nil {
+		if modified := scrubOwnGACommunities(current, localAS, fc.scrubKeepSet(), fc.scrubRelationFunction(), routeServerAS); modified != nil {
 			current = modified
 		}
 	}
@@ -122,6 +126,7 @@ func applyRelationTag(payload []byte, fc filterConfig, localAS uint32, peerRole 
 	if modified := ingressTagCommunities(current, attribute.AttrLargeCommunity,
 		[][]byte{relationWireValue(localAS, function, parameter)}); modified != nil {
 		current = modified
+		recordRelationTag()
 	}
 
 	if bytes.Equal(current, payload) {
