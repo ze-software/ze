@@ -134,6 +134,7 @@ func init() {
 	Register("plugin/rpki-pending-withdraw-relay", plugin15Observe("rpki-pending-withdraw-relay-test", &sdk.Registration{}, plugin15RPKIPendingWithdrawRelay))
 	Register("plugin/rpki-revalidate-relay", plugin15Observe("rpki-revalidate-relay-test", &sdk.Registration{}, plugin15RPKIRevalidateRelay))
 	Register("plugin/rpki-revalidate-late-sync", plugin15Observe("rpki-late-sync-test", &sdk.Registration{}, plugin15RPKILateSync))
+	Register("plugin/rpki-cache-preference-failover", plugin15Observe("rpki-failover-test", &sdk.Registration{}, plugin15RPKICacheFailover))
 	Register("plugin/rpki-timeout", plugin15Observe("rpki-timeout-test", &sdk.Registration{}, plugin15RPKITimeout))
 	Register("plugin/rpki-validate-accept", plugin15Observe("rpki-accept-test", &sdk.Registration{}, plugin15RPKIAccept))
 	Register("plugin/rpki-validate-batch-mixed", plugin15Observe("rpki-batch-test", &sdk.Registration{}, plugin15RPKIBatch))

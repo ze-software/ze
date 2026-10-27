@@ -393,6 +393,74 @@ func plugin15RPKIRouteState(ctx context.Context, p *sdk.Plugin, prefix string, s
 	return nil
 }
 
+// plugin15RPKICacheFailover proves cache preference end to end through what an operator reads.
+//
+// Method: two `le mock rtr` caches hold different sets. The preferred cache 127.0.0.1
+// (preference 10) holds 10.0.0.0/8 maxlen 24 AS 65001, so the peer's 10.0.1.0/24 from AS 65001
+// is Valid. The standby 127.0.0.2 (preference 20) holds the same prefix for AS 65999, so on its
+// data the route is Invalid and `invalid reject` makes it ineligible. Each step waits for the
+// state the operator sees (the route's validation state and eligibility, and which cache
+// `show bgp rpki status` names as synced) before it moves the next cache: the observer writes
+// rpki-preferred.down to take the preferred cache down only after Ze uses it, and
+// rpki-preferred.up to bring it back only after Ze failed over to the standby.
+func plugin15RPKICacheFailover(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15RPKIReady(ctx, p, true); err != nil {
+		return err
+	}
+	steps := []struct {
+		label      string
+		state      int
+		ineligible bool
+		synced     string
+		release    string
+	}{
+		{"on the preferred cache", 1, false, addrLoopback, "rpki-preferred.down"},
+		{"after failover to the standby cache", 3, true, addrLoopbackSecond, "rpki-preferred.up"},
+		{"after fail-back to the preferred cache", 1, false, addrLoopback, ""},
+	}
+	for _, step := range steps {
+		if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", step.state, step.ineligible, step.label); err != nil {
+			return err
+		}
+		if err := plugin15AssertSyncedCache(ctx, p, step.synced, step.label); err != nil {
+			return err
+		}
+		if step.release == "" {
+			continue
+		}
+		if err := os.WriteFile(step.release, nil, 0o600); err != nil {
+			return fmt.Errorf("%s: write %s: %w", step.label, step.release, err)
+		}
+	}
+	fmt.Fprintln(os.Stderr, "OK: 10.0.1.0/24 Valid on the preferred cache, Invalid on the standby, Valid again after fail-back")
+	return nil
+}
+
+// plugin15AssertSyncedCache waits until `show bgp rpki status` lists exactly one synced cache
+// server, the one at address, and returns an error naming the last rows it read when it never
+// does.
+func plugin15AssertSyncedCache(ctx context.Context, p *sdk.Plugin, address, label string) error {
+	var rows []any
+	if Poll(ctx, 40, 250*time.Millisecond, func() bool {
+		status, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp rpki status"))
+		if err != nil {
+			return false
+		}
+		rows, _ = status["cache-servers"].([]any)
+		var synced []any
+		for _, row := range rows {
+			server, _ := row.(map[string]any)
+			if server["synced"] == true {
+				synced = append(synced, server["address"])
+			}
+		}
+		return len(synced) == 1 && synced[0] == address
+	}) {
+		return nil
+	}
+	return fmt.Errorf("%s: show bgp rpki status never named %s as the one synced cache: %v", label, address, rows)
+}
+
 func plugin15RPKIAccept(ctx context.Context, p *sdk.Plugin) error {
 	return plugin15RPKIRouteState(ctx, p, "10.0.1.0/24", 1, "OK: route 10.0.1.0/24 accepted with validation-state=Valid")
 }
