@@ -12,7 +12,7 @@
 // is delivered via the loopback device (skb->dev == lo), so only a socket
 // bound to "lo" can both bind AND receive that traffic within one namespace.
 // A veth round-trip would require two namespaces, and the TFTP transfer path
-// spawns its own goroutine (handleRRQ -> go func -> net.DialUDP) that is not
+// spawns its own goroutine (handleRRQ -> go runTransfer -> net.DialUDP) that is not
 // pinned to a namespace, which makes cross-namespace delivery unreliable. The
 // dummy-interface negative test below proves the option genuinely filters by
 // device, which is the property that matters.
@@ -149,8 +149,8 @@ func createDummyForTest(t *testing.T, name string) {
 // SO_BINDTODEVICE and performs a real multi-block RRQ transfer over UDP.
 //
 // RFC requirement: RFC1350-4-3 positive -- the transfer completes over the server's distinct
-// transfer TID: handleRRQ dials a fresh socket per RRQ (internal/plugins/tftpserver/handler.go:293)
-// so DATA arrives from an ephemeral port rather than port 69, which tftpFetch asserts on the
+// transfer TID: handleRRQ hands each RRQ to runTransfer, which dials a fresh socket for it
+// (internal/plugins/tftpserver/handler.go::runTransfer), so DATA arrives from an ephemeral port rather than port 69, which tftpFetch asserts on the
 // first DATA before it fixes that TID and ACKs every block to it to drive the transfer to
 // completion.
 func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
