@@ -25,7 +25,7 @@ func bgpDelayOpen(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("bgp-delay-open requires the runner-assigned listener address")
 	}
-	return Observe(ctx, "bgp-delay-open", nil, func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "bgp-delay-open", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if err := delayOpenFixtureExchange(ctx, plugin, args[0], false); err != nil {
 			return err
 		}

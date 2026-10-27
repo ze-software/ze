@@ -138,6 +138,10 @@ option=asn:value=65533
 
 ### An observer plugin answers callbacks before it polls
 
+Compiled observers pass a non-nil registration to `fixture.Observe`; use
+`&sdk.Registration{}` when they declare no capabilities. `sdk.Plugin.Run`
+rejects nil before startup stage 1, so the scenario callback never runs.
+
 Ze asks a filter plugin for its verdict over the callback connection, and only
 `api.read_line()` answers that request. An observer parked in a dispatch RPC,
 which is what every `wait_*` poll does, leaves the request unanswered until the
