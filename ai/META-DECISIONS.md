@@ -263,6 +263,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   stopping at a phase boundary to report or to ask whether to continue. It
   comes back only with a decision no RFC, agreed design or rule in this file
   answers, and with the finished result.
+- While Thomas is away, a fix spec's design needs no approval from him: the
+  RFC text settles it, and FRR's and BIRD's source where the RFC is silent.
+  The spec moves to ready and is implemented, and any choice only he can make
+  waits in a table for his return.
 - A hook checks what a command, path or file is, never how a message is worded.
 - Run a formatter, codemod or rewrite tool only on the files you edited in this
   task, never on every dirty file, a directory glob or the whole tree.
