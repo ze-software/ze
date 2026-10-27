@@ -559,6 +559,7 @@ var journeyAreaLabels = map[string]string{
 var journeyKeyLabels = map[string]string{
 	"code-of-conduct": journeyCommunity,
 	"faq":             labelFAQ,
+	"legal":           "Legal",
 	"license":         "License",
 	roadmapName:       "Release path",
 	"security":        "Security",

@@ -53,6 +53,20 @@ func TestFooterCarriesTheLicenseLineAndTheStamp(t *testing.T) {
 	}
 }
 
+// VALIDATES: every page names Thomas Mangin as the copyright holder, from the
+// first year of Ze to the year the page was published, and links the legal
+// notice that says who owns the code and runs the site.
+func TestFooterNamesTheCopyrightHolderAndTheLegalNotice(t *testing.T) {
+	published := time.Date(2027, time.January, 1, 0, 30, 0, 0, time.FixedZone("CET", 3600))
+	footer := footerHTML("../../", published)
+	if !strings.Contains(footer, `<span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>`) {
+		t.Fatalf("footer lost the copyright line, or read the year outside UTC: %s", footer)
+	}
+	if !strings.Contains(footer, `<a href="../../legal/">Legal notice</a>`) {
+		t.Fatalf("footer lost the legal notice link: %s", footer)
+	}
+}
+
 // VALIDATES: the root page links the license without a directory prefix, and a
 // nested page climbs one level for each directory it sits under.
 func TestPageRootClimbsOneLevelPerDirectory(t *testing.T) {

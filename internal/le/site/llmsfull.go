@@ -118,7 +118,7 @@ var llmsFullReadingOrder = []readingSection{
 	// be the thing AC-15b forbids: a page landing at the end because nothing
 	// claimed it. A page added to the site and to no section is refused instead.
 	{Title: "About this site", Kind: readingUsage, Routes: []string{
-		"/code-of-conduct/", "/demos/", "/license/", "/search/", "/style-guide/", "/zeledon/",
+		"/code-of-conduct/", "/demos/", "/legal/", "/license/", "/search/", "/style-guide/", "/zeledon/",
 	}},
 }
 

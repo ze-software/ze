@@ -94,7 +94,7 @@ var sourceOnlyFiles = map[string]bool{
 	"assets/vendor/fonts/README.md": true, "CACHEDIR.TAG": true,
 	"compare/bgp.md": true, "compare/comparison.md": true, "compare/nos.md": true,
 	"contribute/contribute.md": true, "contribute/guide.md": true,
-	"docs/docs.md": true, "faq/faq.md": true, "license/license.md": true,
+	"docs/docs.md": true, "faq/faq.md": true, "legal/legal.md": true, "license/license.md": true,
 	"quality/browser-editor.md": true, "quality/functional-ci.md": true,
 	"quality/qemu-interop-release.md": true, "quality/quality.md": true,
 	"quality/unit-fuzz-mutation.md": true, "quality/verify-debugging.md": true,

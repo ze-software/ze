@@ -471,7 +471,8 @@ the reader's choice. Neither layout removes content for readers without scripts.
 
 Navigation is part of the design system. `data/nav.json` owns the top
 mega-menu and curated `llms.txt` sections. The build publishes the menu as
-`assets/header.html`, and the footer keeps the page publication stamp. Asset
+`assets/header.html`. The footer carries the copyright line, the license and
+legal notice links, and the page publication stamp. Asset
 URLs carry no version query, so an asset edit does not rewrite every page.
 
 The right page menu comes from `data/page-links.json`; page bodies do not carry

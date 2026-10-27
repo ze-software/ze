@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -76,14 +77,24 @@ func pageRoot(htmlPath string) string {
 	return strings.Repeat("../", strings.Count(directory, "/")+1)
 }
 
+// firstCopyrightYear is the year of Ze's first commit, where the copyright
+// line starts.
+const firstCopyrightYear = "2025"
+
 // footerHTML renders the whole footer for a page at the given root prefix: the
-// license line and the publication stamp. The footer is not a sitemap and not a
-// second call to action, so nothing else belongs in it.
+// copyright line, the license line, the legal notice link and the publication
+// stamp. The footer is not a sitemap and not a second call to action, so
+// nothing else belongs in it.
+//
+// The copyright line ends at the year the page was published, read in UTC like
+// the stamp beside it, so the two never name different years.
 func footerHTML(root string, published time.Time) string {
 	return "        <footer>\n" +
 		"            <div class=\"footer-inner\">\n" +
 		"                <div class=\"footer-bottom\">\n" +
+		"                    <span class=\"footer-copyright\">© " + firstCopyrightYear + "-" + strconv.Itoa(published.UTC().Year()) + " Thomas Mangin.</span>\n" +
 		"                    <a href=\"" + html.EscapeString(root+"license/") + "\">Ze is AGPLv3 open source.</a>\n" +
+		"                    <a href=\"" + html.EscapeString(root+"legal/") + "\">Legal notice</a>\n" +
 		"                    <span class=\"footer-published\">Published " + html.EscapeString(publishedDisplay(published)) + "</span>\n" +
 		"                </div>\n" +
 		"            </div>\n" +

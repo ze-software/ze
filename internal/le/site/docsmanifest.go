@@ -316,6 +316,11 @@ var oneShotPages = []sitePage{
 		Desc:   "Ze is free software under the GNU Affero General Public License v3.",
 	},
 	{
+		Source: "website/legal/legal.md",
+		Dest:   "legal/index.html",
+		Desc:   "Who owns Ze and runs this website, and how to contact him.",
+	},
+	{
 		Source: "CODE_OF_CONDUCT.md",
 		Dest:   "code-of-conduct/index.html",
 		Desc:   "The code of conduct for the Ze community.",
