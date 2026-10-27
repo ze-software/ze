@@ -277,3 +277,55 @@ func TestMockLogAndDelay(t *testing.T) {
 		t.Fatalf("query log counted %d A questions for the name, want 3", got)
 	}
 }
+
+// TestMockDropFirst proves DropFirst leaves exactly the first count queries
+// for a name unanswered and answers every one after them, leaves other names
+// alone, and logs the dropped ones too. Method: a real UDP stub on 127.0.0.2,
+// the second loopback address a two-upstream .ci test binds, with a 200 ms
+// client timeout per question.
+func TestMockDropFirst(t *testing.T) {
+	server, err := Start("127.0.0.2:0")
+	if err != nil {
+		t.Fatalf("Start on 127.0.0.2: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := server.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
+	if got := server.Addr().Addr().String(); got != "127.0.0.2" {
+		t.Fatalf("stub bound %s, want 127.0.0.2", got)
+	}
+	log := &lockedLog{}
+	server.LogQueries(log)
+	server.DropFirst("web.example.test", 2)
+
+	client := &mdns.Client{Net: "udp", Timeout: 200 * time.Millisecond}
+	exchange := func(name string) (*mdns.Msg, error) {
+		query := new(mdns.Msg)
+		query.SetQuestion(mdns.Fqdn(name), mdns.TypeA)
+		reply, _, err := client.Exchange(query, server.Addr().String())
+		return reply, err
+	}
+
+	if reply, err := exchange("v4only.example.test"); err != nil || reply.Rcode != mdns.RcodeSuccess {
+		t.Fatalf("an undropped name: reply %v, err %v, want NOERROR", reply, err)
+	}
+	for attempt := 1; attempt <= 2; attempt++ {
+		if reply, err := exchange("web.example.test"); err == nil {
+			t.Fatalf("query %d of a name dropped twice answered %v, want a timeout", attempt, reply)
+		}
+	}
+	for attempt := 3; attempt <= 4; attempt++ {
+		reply, err := exchange("web.example.test")
+		if err != nil {
+			t.Fatalf("query %d, after the two drops: %v, want an answer", attempt, err)
+		}
+		if got := addresses(reply); len(got) != 1 || got[0] != "203.0.113.10" {
+			t.Fatalf("query %d answered %v, want 203.0.113.10", attempt, got)
+		}
+	}
+	if got := strings.Count(log.String(), "query web.example.test. A\n"); got != 4 {
+		t.Fatalf("query log counted %d questions for the name, want 4: a dropped query is logged too", got)
+	}
+}

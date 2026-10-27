@@ -7,7 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +41,34 @@ func parseDelay(value string) (string, time.Duration, error) {
 		return "", 0, fmt.Errorf("%d ms is above the %d ms bound: give a delay up to one minute", n, delayMsMax)
 	}
 	return name, time.Duration(n) * time.Millisecond, nil
+}
+
+// dropFirstMax bounds --drop-first: a test asks a handful of questions, so a
+// larger count is a typo, not a scenario.
+const dropFirstMax = 1000
+
+// parseDropFirst reads one --drop-first value, <name>=<count>.
+func parseDropFirst(value string) (string, uint32, error) {
+	name, count, found := strings.Cut(value, "=")
+	if !found {
+		return "", 0, errors.New("no '=': write --drop-first <name>=<count>, as --drop-first slow.test=1")
+	}
+	if name == "" {
+		return "", 0, errors.New("an empty name: write --drop-first <name>=<count>, as --drop-first slow.test=1")
+	}
+	n, err := strconv.ParseUint(count, 10, 32)
+	if err != nil {
+		return "", 0, errors.New(textbuf.New().Str("count \"").Str(count).
+			Str("\" is not a whole number: write --drop-first ").Str(name).Str("=1").String())
+	}
+	if n == 0 {
+		return "", 0, errors.New("a count of 0 drops nothing: give 1 or more, or leave the flag out")
+	}
+	if n > dropFirstMax {
+		return "", 0, errors.New(textbuf.New().Uint(n).Str(" is above the bound of ").Uint(dropFirstMax).
+			Str(" queries: give a count up to that").String())
+	}
+	return name, uint32(n), nil
 }
 
 // Run serves the default zone until the process is killed. It is the form a
@@ -80,12 +108,35 @@ func Run(args []string) int {
 		drops = append(drops, value)
 		return nil
 	})
+	dropsFirst := make(map[string]uint32)
+	fs.Func("drop-first", "<name>=<count>: read the first count queries for name and never answer them, then answer (repeatable)", func(value string) error {
+		name, count, err := parseDropFirst(value)
+		if err != nil {
+			return err
+		}
+		dropsFirst[name] = count
+		return nil
+	})
+	// The default is the one loopback address every Linux host answers. Two
+	// stubs on one port need two addresses: Linux answers the whole of
+	// 127.0.0.0/8 on lo, so a test can run one on 127.0.0.2 and one on
+	// 127.0.0.3.
+	address := netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	fs.Func("address", "IP address to listen on (default 127.0.0.1; any 127.0.0.0/8 address works on Linux)", func(value string) error {
+		parsed, err := netip.ParseAddr(value)
+		if err != nil {
+			return errors.New(textbuf.New().Str("\"").Str(value).
+				Str("\" is not an IP address: write --address 127.0.0.2").String())
+		}
+		address = parsed
+		return nil
+	})
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le mock dns [flags]
 
 Deterministic fake DNS server for functional tests. It answers A and AAAA
-queries for the names below, on 127.0.0.1 over UDP.
+queries for the names below over UDP, on 127.0.0.1 or the --address given.
 
 A name absent from the zone answers NXDOMAIN (RFC 1035 Section 4.1.1). A name
 the zone carries, queried for a record type it does not hold, answers NOERROR
@@ -101,10 +152,13 @@ lookup reaches this server rather than the cache.
 a daemon at this stub runs it on port 53 and declares
 option=needs-linux:caps=net-bind.
 
---log-queries, --delay and --drop shape what a resolver under test meets: a
-log line per question proves how many queries reached the stub, a delay makes
-one name slow, and a dropped name is never answered, so the resolver times
-out. le mock dns help prints this text.
+--log-queries, --delay, --drop and --drop-first shape what a resolver under
+test meets: a log line per question proves how many queries reached the stub,
+a delay makes one name slow, a dropped name is never answered, so the
+resolver times out, and --drop-first drops only a name's first queries, so
+the resolver times out and is then answered. --address puts a second stub on
+the same port (127.0.0.2, 127.0.0.3), for a resolver with two upstreams.
+le mock dns help prints this text.
 
 Flags:
 `, zoneUsage(defaultZone()))
@@ -128,7 +182,7 @@ Flags:
 			return 0
 		}
 		_ = textbuf.New().Str("error: le mock dns takes flags only, and \"").Str(fs.Arg(0)).
-			Str("\" is not one: the flags are --port, --log-queries, --delay <name>=<ms> and --drop <name>; run le mock dns help\n").
+			Str("\" is not one: the flags are --port, --address, --log-queries, --delay <name>=<ms>, --drop <name> and --drop-first <name>=<count>; run le mock dns help\n").
 			StdErr() //nolint:errcheck // exiting with the code; stderr is the last channel
 		return 1
 	}
@@ -138,7 +192,7 @@ Flags:
 		return 1
 	}
 
-	server, err := Start(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	server, err := Start(netip.AddrPortFrom(address, uint16(port)).String())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -152,6 +206,9 @@ Flags:
 	}
 	for _, name := range drops {
 		server.Drop(name)
+	}
+	for name, count := range dropsFirst {
+		server.DropFirst(name, count)
 	}
 
 	_ = textbuf.New().Str("le mock dns: listening on port ").Uint(uint64(server.Addr().Port())).Byte('\n').

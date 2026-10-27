@@ -32,9 +32,12 @@ type Server struct {
 	// the default: the stub logs nothing.
 	queryLog io.Writer
 	// delays and drops hold the canonical names a test made slow or silent
-	// (Delay, Drop). A name in neither is answered at once.
-	delays map[string]time.Duration
-	drops  map[string]bool
+	// (Delay, Drop). A name in neither is answered at once. dropsLeft counts
+	// the queries still to drop for a name DropFirst made silent for a while;
+	// a name whose count reaches zero leaves the map and is answered again.
+	delays    map[string]time.Duration
+	drops     map[string]bool
+	dropsLeft map[string]uint32
 
 	server *mdns.Server
 	addr   netip.AddrPort
@@ -190,19 +193,52 @@ func (s *Server) Drop(name string) {
 	s.drops[canonical(name)] = true
 }
 
-// behaviorFor reads, under one lock, what LogQueries, Delay and Drop set for
-// name.
+// DropFirst makes the stub read the next count queries for name and send
+// nothing back, then answer the ones after them, so a resolver meets a timeout
+// and then an upstream that serves again. A count of zero removes what is
+// left of it. Drop wins over DropFirst for the same name. Safe for concurrent
+// use.
+func (s *Server) DropFirst(name string, count uint32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dropsLeft == nil {
+		s.dropsLeft = make(map[string]uint32)
+	}
+	if count == 0 {
+		delete(s.dropsLeft, canonical(name))
+		return
+	}
+	s.dropsLeft[canonical(name)] = count
+}
+
+// behaviorFor reads, under one lock, what LogQueries, Delay, Drop and
+// DropFirst set for name, and spends one of DropFirst's drops when the answer
+// is to drop: the write lock makes the count and its decrement one step, so
+// two queries arriving together never share one drop.
 func (s *Server) behaviorFor(name string) (io.Writer, time.Duration, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	key := canonical(name)
-	return s.queryLog, s.delays[key], s.drops[key]
+	if s.drops[key] {
+		return s.queryLog, s.delays[key], true
+	}
+	left := s.dropsLeft[key]
+	if left == 0 {
+		return s.queryLog, s.delays[key], false
+	}
+	if left == 1 {
+		delete(s.dropsLeft, key)
+	} else {
+		s.dropsLeft[key] = left - 1
+	}
+	return s.queryLog, s.delays[key], true
 }
 
 // handle answers one query. A message it cannot answer is REFUSED rather than
 // dropped, the way handleCymruDNS (internal/test/mock/cymru/cymru.go) answers
 // one: a silent drop reaches the caller as a timeout, which reads like a stub
-// that never started. The one silent drop is the one a test asked for (Drop).
+// that never started. The one silent drop is the one a test asked for (Drop,
+// DropFirst).
 func (s *Server) handle(w mdns.ResponseWriter, query *mdns.Msg) {
 	reply := new(mdns.Msg)
 	reply.SetReply(query)

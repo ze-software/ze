@@ -142,6 +142,45 @@ func TestDelayFlagRefusals(t *testing.T) {
 	}
 }
 
+// TestDropFirstAndAddressFlagRefusals proves --drop-first and --address
+// refuse a value they cannot act on before the stub binds. Method: Run with
+// each bad value; none may print the listening line.
+func TestDropFirstAndAddressFlagRefusals(t *testing.T) {
+	cases := [][]string{
+		{"--drop-first", "slow.test"},
+		{"--drop-first", "=1"},
+		{"--drop-first", "slow.test=many"},
+		{"--drop-first", "slow.test=0"},
+		{"--drop-first", "slow.test=1001"},
+		{"--address", "localhost"},
+		{"--address", "127.0.0.300"},
+	}
+	for _, args := range cases {
+		code, stderr := runCapturingStderr(t, args...)
+		if code != 1 {
+			t.Errorf("%v returned %d, want 1", args, code)
+		}
+		if strings.Contains(stderr, "listening on port") {
+			t.Errorf("%v started the stub", args)
+		}
+	}
+}
+
+// TestAddressReachesTheBind proves --address is the address the stub binds,
+// not a flag that parses and is dropped. Method: 192.0.2.1 (RFC 5737
+// TEST-NET-1) is on no interface of a test host, so the bind fails and the
+// error names it. A stub that ignored the flag would bind 127.0.0.1 and
+// serve, and this test would hang to its deadline instead.
+func TestAddressReachesTheBind(t *testing.T) {
+	code, stderr := runCapturingStderr(t, "--address", "192.0.2.1")
+	if code != 1 {
+		t.Fatalf("Run on an address no interface holds returned %d, want 1", code)
+	}
+	if !strings.Contains(stderr, "192.0.2.1") {
+		t.Fatalf("Run wrote %q, which does not name the address it could not bind", stderr)
+	}
+}
+
 func TestUsageListsEveryZoneName(t *testing.T) {
 	usage := zoneUsage(defaultZone())
 

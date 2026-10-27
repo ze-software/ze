@@ -3319,7 +3319,7 @@ and declares `option=needs-linux:caps=net-bind` plus
 `le mock cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
 from the queried ASN and shares no answer with this zone.
 
-Three flags shape what a resolver under test meets, and each has an in-process
+Four flags shape what a resolver under test meets, and each has an in-process
 twin on `Server`:
 
 | Flag | Method | Effect |
@@ -3327,15 +3327,24 @@ twin on `Server`:
 | `--log-queries` | `LogQueries(w)` | One stderr line per question received, `le mock dns: query <name> <type>`, the name lowercased and fully qualified. A dropped question is logged too, so a test tells "never sent" from "sent, unanswered" |
 | `--delay <name>=<ms>` | `Delay(name, d)` | Every answer for the name waits that long, up to 60000 ms. Other names answer at once. Repeatable |
 | `--drop <name>` | `Drop(name)` | Every query for the name is read and never answered, so the resolver times out. Repeatable |
+| `--drop-first <name>=<count>` | `DropFirst(name, count)` | The first count queries for the name (1 to 1000) are read and never answered, and every one after them is answered, so a test sees the resolver time out and then recover. `--drop` wins for the same name. Repeatable |
+
+`--address <ip>` is the address the stub listens on, 127.0.0.1 when absent.
+Linux answers the whole of 127.0.0.0/8 on lo, so two stubs share one port on
+127.0.0.2 and 127.0.0.3 and a resolver with two forward servers meets one of
+each. The log line carries no address, so a test tells the two apart by giving
+`--log-queries` to one of them (`test/plugin/dns-resolver-failover.ci`).
 
 `le mock dns help` prints the usage and exits 0, the same as `--help`. Any
 other word after the flags is refused with the flag list.
 
-Usage: `le mock dns --port 53 [--log-queries] [--delay <name>=<ms>]... [--drop <name>]...`
+Usage: `le mock dns --port 53 [--address <ip>] [--log-queries] [--delay <name>=<ms>]... [--drop <name>]... [--drop-first <name>=<count>]...`
 
-<!-- source: internal/test/mock/dns/dns.go -- le mock dns subcommand, parseDelay -->
+<!-- source: internal/test/mock/dns/dns.go -- le mock dns subcommand, parseDelay, parseDropFirst -->
 <!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
-<!-- source: internal/test/mock/dns/server.go -- Start, Set, Close, LogQueries, Delay, Drop -->
+<!-- source: internal/test/mock/dns/server.go -- Start, Set, Close, LogQueries, Delay, Drop, DropFirst -->
+<!-- test: internal/test/mock/dns/server_test.go TestMockDropFirst -->
+<!-- test: internal/test/mock/dns/dns_test.go TestDropFirstAndAddressFlagRefusals, TestAddressReachesTheBind -->
 
 ### le dns query
 
