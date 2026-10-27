@@ -1,0 +1,40 @@
+Native IKEv2 and Linux IPsec, configured live
+
+Lab: shown Ze 172.30.0.1 initiates to a hidden Ze responder at 172.30.0.2.
+Protected hosts 10.78.1.2 and 10.78.2.2 live behind different routers.
+The shown daemon starts with no VPN configuration or XFRM interface.
+
+In one SSH candidate, load topics/ipsec/1-ike.conf, 2-esp.conf, 3-peer.conf,
+and 4-xfrm.conf with load file absolute merge. Review show | compare and
+commit now. The sections define IKE, ESP, authenticated peer and selectors,
+and the route through vpn-xfrm (if-id 42).
+
+show vpn ipsec status
+show vpn ipsec sa
+show vpn ipsec dataplane sa
+ze-demo run showcase-lab control vpn ping
+show vpn ipsec sa
+
+The kernel SPIs must match the negotiated Child SA. The protected ping
+must succeed and the same inbound SA's packets-in must increase.
+
+Failure: load 5-mismatch.conf and commit. It changes only ESP to AES-128;
+the far end offers AES-256. IKE can stay established while no Child SA exists.
+
+show vpn ipsec peer name responder
+show log recent level warn
+show vpn ipsec dataplane sa
+show vpn ipsec dataplane drift
+
+The same log entry carries peer responder and notify NO_PROPOSAL_CHOSEN
+under attributes beside the message that IKE remains established. An empty
+drift result means the engine and kernel agree, not that a tunnel carries traffic.
+Load 2-esp.conf, review and commit, then clear vpn ipsec sa peer responder.
+Verify the new kernel SPIs, successful protected ping and increasing packets-in.
+The shown Ze process is never restarted.
+
+Vendor mapping: Junos show security ike security-associations reads IKE state;
+show security ipsec security-associations reads the IPsec SAs and their SPIs.
+https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-security-ike-security-associations.html
+https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-security-ipsec-security-associations.html
+https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/statement/security-edit-proposal.html

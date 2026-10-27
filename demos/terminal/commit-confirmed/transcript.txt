@@ -1,22 +1,25 @@
-$ ze config edit -f ze.conf
-ze# show system host
-host edge-original
-ze# set system host edge-trial
-ze# show | compare
-ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use 'commit accept' or 'commit abort'.
-ze# show system host
-host edge-trial
-Timeout: configuration automatically rolled back.
-ze# show system host
-host edge-original
+Commit confirmed: rollback and acceptance on the running router
 
-ze# set system host edge-confirmed
-ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use 'commit accept' or 'commit abort'.
-ze# commit accept
-Commit accepted: the confirmed configuration is saved permanently.
-ze# show system host
-host edge-confirmed
+Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
+Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
+unlike Junos commit confirmed, whose timeout is in minutes.
 
-The first change is left unconfirmed and rolls back. The second receives `commit accept`; after waiting beyond the same deadline, the editor still reports edge-confirmed.
+Show the active edge-trial value, then deliberately leave the change
+unaccepted. Wait for the actual automatic rollback notice. Inspect show
+system host for edge-original, the empty show | compare view, and
+show | changes for the explicit No pending changes response.
+
+Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+deadline and inspect edge-confirmed again. The accepted value must remain.
+
+Leave the editor and run:
+ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+The explicit config folder selects the running lab's stored revisions.
+History is a local read: a bare ze.conf selects the shell's current folder,
+not ZE_CONFIG_DIR. Both outcomes use the running daemon's session editor,
+never an offline file editor or a router restart.
+
+These are the authored walkthrough steps. Runtime validation and recording
+must succeed before this source is published as a recording.

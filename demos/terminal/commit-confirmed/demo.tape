@@ -1,71 +1,8 @@
 Output artifacts/commit-confirmed.webm
 Source common.tape
-
-Hide
-Type "ze-demo run commit-confirmed prepare"
-Enter
-Wait+Screen /Commit confirmed demo prepared/
-Type "clear"
-Enter
-Type "ze-demo card commit-confirmed intro"
-Enter
-Show
-Wait+Screen /====/
-Sleep 500ms
-Screenshot artifacts/commit-confirmed.png
-
-Hide
-Type "cd /src/tmp/terminal-demos/state/commit-confirmed/config"
-Enter
-Type "clear"
-Enter
-Show
-Type "ze config edit -f ze.conf"
-Enter
-Wait+Screen /ze#/
-Type "show system host"
-Enter
-Wait+Screen /edge-original/
-Sleep 4s
-Type "set system host edge-trial"
-Enter
-Sleep 3s
-Type "show | compare"
-Enter
-Wait+Screen /\*\s+system host edge-trial/
-Sleep 5s
-Type "commit confirmed 8"
-Enter
-Wait+Screen /Confirm within/
-Sleep 4s
-Type "show system host"
-Enter
-Wait+Screen /edge-trial/
-Sleep 5s
-Wait+Screen /automatically rolled back/
-Sleep 4s
-Type "show system host"
-Enter
-Wait+Screen /edge-original/
-Sleep 5s
-Type "set system host edge-confirmed"
-Enter
-Type "commit confirmed 8"
-Enter
-Wait+Screen /Confirm within/
-Type "commit accept"
-Enter
-Wait+Screen /Commit accepted/
-Sleep 5s
-Type "show system host"
-Enter
-Wait+Screen /edge-confirmed/
-Sleep 5s
-
-Hide
-Type "clear"
-Enter
-Type "ze-demo card commit-confirmed recap"
-Enter
-Show
-Sleep 9s
+Set TypingSpeed 12ms
+Set WaitTimeout 90s
+Source showcase-lab/start.tape
+Source topics/commit-confirmed/configure.tape
+Source topics/commit-confirmed/show.tape
+Source showcase-lab/stop.tape

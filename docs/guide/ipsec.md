@@ -1,8 +1,36 @@
 # Native IKEv2 and IPsec
 
-> **Pre-Alpha.** This page describes behaviour that may change.
+> **Pre-Alpha.** This page describes behavior that may change.
 
 Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels. It does not require strongSwan, libreswan, or another external IKE daemon. The IKE engine, cryptographic primitives, wire codec, and XFRM dataplane integration are all in-tree. The Ze binary negotiates IKE SAs, installs XFRM policies and states, and programs routes through XFRM interfaces from the same YANG config tree as every other subsystem.
+
+## Live IPsec demonstration
+
+The recording loads IKE, ESP, peer authentication and selectors, then XFRM
+routing into one SSH candidate on a running router. A hidden Ze responder
+protects the other host. Kernel SPIs and increasing `packets-in` after a
+protected-host ping distinguish installed forwarding from negotiated state.
+<!-- source: demos/terminal/topics/ipsec/configure.tape -- sectioned live commit -->
+<!-- source: internal/le/site/terminaldemo/validate_topic_ipsec.go -- proveTopicIPsecTraffic, requireTopicIPsecKernel -->
+
+The failure changes only ESP to a cipher the responder does not offer.
+`show vpn ipsec peer name responder` can still report established IKE with no
+Child SA. `show log recent level warn` carries `notify: NO_PROPOSAL_CHOSEN`
+and `peer: responder` in the same entry's structured attributes. Empty dataplane
+drift means the expected SA identities are present, not that a tunnel exists
+or that every forwarding policy is installed. The repair restores the ESP
+group, clears that peer's SAs and proves protected traffic again.
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
+<!-- source: demos/terminal/topics/ipsec/show.tape -- mismatch, diagnosis and recovery -->
+
+For Junos operators, the equivalent observations are
+[`show security ike security-associations`](https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-security-ike-security-associations.html)
+for IKE and
+[`show security ipsec security-associations`](https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-security-ipsec-security-associations.html)
+for the installed IPsec SAs and SPIs.
+
+<!-- terminal-demo: ipsec -->
 
 ## Architecture
 
@@ -78,6 +106,21 @@ Traffic selectors constrain which protected networks a peer negotiates.
 Route-based forwarding also needs a route through the bound XFRM interface.
 The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces)
 documents the XFRM interface leaves.
+<!-- source: demos/terminal/topics/ipsec/3-peer.conf -- protected traffic selectors -->
+<!-- source: demos/terminal/topics/ipsec/4-xfrm.conf -- XFRM interface and protected route -->
+
+In the live demonstration, the route is `10.78.2.0/24` with
+`next { interface vpn-xfrm {} }`. The empty next-hop entry is meaningful:
+it selects the XFRM interface without a gateway or another leaf. The editor
+records this as an owned entry, not as a side effect of configuring the nearby
+interface leaves. It must survive the SSH candidate commit and appear in the
+kernel routing table. Established IKE, installed SAs and an up XFRM interface
+do not substitute for that route.
+If the protected ping receives `Destination Net Unreachable` from the local
+router, inspect the committed route and kernel route lookup before changing
+selectors or proposals.
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
+<!-- source: internal/component/cli/editor_create_entry.go -- creationReplayOps -->
 
 If the routes exist but a protected-host ping still loses every packet, compare
 SA counters with the receiving router's `/proc/net/xfrm_stat` and
@@ -95,6 +138,7 @@ Changing the traffic test to ping the router itself, disabling policy checks,
 or adding a bypass would not repair protected-host forwarding.
 <!-- source: internal/component/ike/engine/child.go -- childReceivePolicies, childInstalledPolicies, removeChildSAIncoming -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- RequiresForwardPolicy -->
+<!-- source: internal/le/site/terminaldemo/validate_topic_ipsec.go -- requireTopicIPsecPolicies -->
 
 ## Which edits restart a tunnel
 
@@ -1495,6 +1539,28 @@ and carries no traffic.
 | `clear vpn ipsec sa all`, `clear vpn ipsec sa peer <name>` | Tear down and re-establish every SA, or one peer's. The bare `clear vpn ipsec sa` is refused and names both forms |
 | `monitor vpn ipsec` | Stream `sa-up`, `sa-down`, `child-up`, `child-down`, and `child-rekey` lifecycle events |
 | `show pki certificates` | List loaded certificates with expiry information |
+
+When scripting these commands with `| json`, decode the rendered answer rather
+than the handler's internal wrapper. The JSON formatter unwraps a single-key
+object whose value is an array:
+
+| Command with `\| json` | JSON shape |
+|---|---|
+| `show vpn ipsec sa` | Array of SA records; `[]` when none exist |
+| `show vpn ipsec dataplane sa` | Array of kernel SA records; `[]` when none exist |
+| `show vpn ipsec dataplane drift` | `[]` when there is no drift; drift is a command error |
+| `show vpn ipsec peer name <name>` | Object with `peer-name` and the `ike-sas` array |
+| `show log recent level warn` | Object with `count` and the `entries` array, including each entry's structured `attributes` |
+| `clear vpn ipsec sa peer <name>` | Object with `action: "clear-peer"` and `peer` |
+
+The live demonstration validator uses these same rendered shapes for its absence,
+negotiation, kernel and refusal-log checks.
+<!-- source: internal/component/command/pipe.go -- applyJSON, unwrapSingleKeyArray -->
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- handleShowVPNIPsecSA, handleShowVPNIPsecPeer -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAPeer -->
+<!-- source: internal/plugins/log/cmd/handlers.go -- handleLogRecent -->
+<!-- source: internal/le/site/terminaldemo/validate_topic_ipsec.go -- requireTopicIPsecAbsent, requireTopicIPsecState, requireTopicIPsecKernel -->
 
 `show vpn ipsec sa` also reports `peer-window-size`, the number of outstanding requests
 the peer promised in its SET_WINDOW_SIZE notification. Zero means the peer sent none, which

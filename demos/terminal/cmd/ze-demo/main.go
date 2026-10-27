@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	_ "github.com/ze-software/ze/internal/component/plugin/all" // Configuration checks use the product's schema registrations.
 	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 

@@ -22,6 +22,7 @@ import (
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	"github.com/ze-software/ze/internal/le/feature"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
+	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
@@ -111,6 +112,12 @@ func Build(options BuildOptions) (BuildReport, error) {
 		return BuildReport{}, err
 	}
 	if err := stageSources(paths.Source, paths.Output, files); err != nil {
+		return BuildReport{}, err
+	}
+	// Retirement MUST follow media seeding, and precede every page consumer.
+	if err := siteterminaldemo.New(siteterminaldemo.Options{
+		Root: paths.Repository, ArtifactRoot: filepath.Join(paths.Output, "assets", "demos"),
+	}).RetireDeleted(); err != nil {
 		return BuildReport{}, err
 	}
 	if err := refreshNativeSurfaces(paths); err != nil {

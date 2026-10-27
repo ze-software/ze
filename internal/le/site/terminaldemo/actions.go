@@ -159,7 +159,8 @@ func runBuild() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	command, report := buildCommand(root, toolchain, arch)
+	tags := demoTags(toolchain)
+	command, report := buildCommand(root, toolchain, arch, tags)
 	if err := os.MkdirAll(filepath.Dir(report.Output), 0o750); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -167,17 +168,17 @@ func runBuild() (any, int) {
 	gaterun.Announce(report.Action)
 	code := gaterun.Stream(command.Args, command.Dir, command.Env)
 	if code == 0 {
-		tags, err := linuxle.Tags(root)
+		recorderTags, err := linuxle.Tags(root)
 		if err != nil {
 			leaction.ReportError(err)
 			return nil, 1
 		}
-		recorder, output := recorderBuildCommand(root, command.Env, tags, arch)
+		recorder, output := recorderBuildCommand(root, command.Env, recorderTags, arch)
 		report.HelperArgs = recorder.Args
 		report.HelperOutput = output
 		code = gaterun.Stream(recorder.Args, recorder.Dir, recorder.Env)
 		if code == 0 {
-			runtime := runtimeBuildCommand(root, command.Env)
+			runtime := runtimeBuildCommand(root, command.Env, tags)
 			report.RuntimeArgs = runtime.Args
 			report.RuntimeOutput = runtime.Args[len(runtime.Args)-2]
 			code = gaterun.Stream(runtime.Args, runtime.Dir, runtime.Env)
@@ -200,8 +201,7 @@ func rendererGOARCH() (string, error) {
 	}
 	return strings.TrimSpace(string(output)), nil
 }
-func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string) (Command, BuildReport) {
-	tags := demoTags(toolchain)
+func buildCommand(root string, toolchain gotoolchain.Toolchain, arch, tags string) (Command, BuildReport) {
 	ldflags := []string{"-ldflags", toolchain.LDFlags()}
 	action := "terminal-demo build binaries"
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze")
@@ -237,10 +237,10 @@ func recorderBuildCommand(root string, environ []string, tags, arch string) (Com
 	}, output
 }
 
-func runtimeBuildCommand(root string, environ []string) Command {
+func runtimeBuildCommand(root string, environ []string, tags string) Command {
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-demo")
 	return Command{
-		Args: []string{"go", goCommandBuild, "-o", output, "./demos/terminal/cmd/ze-demo"},
+		Args: []string{"go", goCommandBuild, "-tags", tags, "-o", output, "./demos/terminal/cmd/ze-demo"},
 		Dir:  root,
 		Env:  environ,
 	}

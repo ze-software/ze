@@ -32,6 +32,18 @@ stays beside the worktree.
 <!-- source: internal/le/site/demo.go -- (*demoCatalog).assetRoot -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- renderEngine -->
 
+The render action and site build retire recordings whose IDs no longer exist
+in the source manifest. They remove only media paths declared by those IDs in
+the previous artifact manifest, then remove those entries. A retired path must
+be the ID's own `.cast`, `.txt`, `.webm` or `.png` file. Ownership checks
+normalize current asset paths before comparison. Unsafe, missing or
+symlink-aliased current assets stop retirement before any deletion, as does
+shared ownership. Unlisted media and current recordings remain untouched.
+The site build does this after seeding its output, before a page reads the media.
+<!-- source: internal/le/site/terminaldemo/retire.go -- Engine.RetireDeleted, Engine.retireDeletedAssets -->
+<!-- source: internal/le/site/terminaldemo/render.go -- Engine.renderSelected -->
+<!-- source: internal/le/site/build.go -- Build -->
+
 A recording runs in a container this repository builds and publishes to no
 registry, so build it once per checkout with `./le site terminal-demo build image`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
@@ -84,8 +96,14 @@ does not satisfy a later command's wait. Command and tape driving share the
 terminal grid, which retains incomplete control sequences across PTY reads.
 <!-- source: internal/le/site/terminaldemo/pty.go -- driveCommands -->
 <!-- source: internal/le/site/terminaldemo/screen.go -- terminalScreen -->
+
+The `ze-demo` runtime links the product composition root and uses the same
+feature tags as the staged `ze`. Its configuration checks therefore load the
+actual registered schemas, rather than parsing against only the foundation
+modules linked by the fixture harness itself.
 <!-- source: internal/le/linuxle/linuxle.go -- Argv -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- recorderBuildCommand -->
+<!-- source: demos/terminal/cmd/ze-demo/main.go -- product schema composition -->
 <!-- source: internal/le/site/terminaldemo/entrypoint.go -- recorderCommand -->
 <!-- source: internal/le/site/terminaldemo/pty.go -- RunPTY -->
 
@@ -102,16 +120,94 @@ manifest demo with no scenario, fails the package's unit test.
 <!-- source: internal/le/site/terminaldemo/register_scenarios.go -- init -->
 <!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
 
-The topic recordings share one lab, the `showcase-lab` scenario. It starts one
-Ze in the container's root network namespace with the base config in
-`demos/terminal/showcase-lab/ze.conf`, which configures no topic, beside the
-fixtures the topics need: an FRR namespace running bgpd, bfdd and ospfd under
-one zebra, an RTR cache, an IRR server and a transit BGP peer. Its `announce`
-action connects the customer peer the IRR topic filters. Each fixture declares
-how the lab observes that it is ready (a port that accepts, or a command whose
-answer carries a text), and the lab waits on that observation, never on a sleep.
-<!-- source: internal/le/site/terminaldemo/scenarios_showcase.go -- showcaseLabFixtures -->
-<!-- source: internal/le/site/terminaldemo/validate_showcase.go -- validateShowcaseLab -->
+Live topics use `registerLiveTopic` in that same registry. Each registration
+names its configuration fragment, one live check and a read-only readiness
+callback. The standalone validator owns prepare, start and stop. The continuous
+validator reads chapter order from `showcase/demo.tape` and calls those same
+checks against one daemon, checking its PID between chapters. Each check proves
+absence before its commit, the failure diagnostic and recovery.
+<!-- source: internal/le/site/terminaldemo/register_topics.go -- registerLiveTopic -->
+<!-- source: internal/le/site/terminaldemo/validate_topics.go -- validateLiveTopic -->
+<!-- source: internal/le/site/terminaldemo/validate_showcase_topics.go -- showcaseTopicOrder, validateShowcase -->
+
+`loadShowcaseSections` loads every section into one actual SSH candidate and
+commits it once. It never imports an offline configuration into a running
+store. The tapes use the same section files and `configure.tape`/`show.tape`
+fragments for standalone and continuous recordings. Hidden `await` actions
+observe real state before visible proof commands; they neither configure a
+feature nor replace a failed proof.
+<!-- source: internal/le/site/terminaldemo/validate_topics.go -- loadShowcaseSections -->
+<!-- source: internal/le/site/terminaldemo/register_topics.go -- registerLiveTopic -->
+<!-- source: demos/terminal/showcase/demo.tape -- shared topic fragments -->
+
+
+The topic recordings share one lab, the `showcase-lab` scenario. It starts the
+shown Ze in the container's root network namespace with
+`demos/terminal/showcase-lab/ze.conf`. That base config contains interfaces and
+BGP peers and a loopback-only Prometheus exporter for diagnostic queries, but no
+topic configuration or topic plugin bindings. Baseline BGP
+plumbing attaches `bgp-adj-rib-in` to each peer with an UPDATE send grant for its
+initial replay. Transit also attaches `bgp-rib`, receiving update, state and
+refresh events and sending updates for Route Refresh catch-up.
+The base guard admits this plumbing but rejects topic bindings.
+FRR runs bgpd, bfdd and ospfd under one zebra. An RTR cache, IRR server and transit peer serve
+the routing chapters. `announce` starts or restarts the customer peer so it
+announces its routes after the IRR filter commit.
+Its OPEN declares a distinct BGP identifier from transit's: these fixtures
+represent separate speakers in the same AS, not parallel sessions to one speaker.
+<!-- source: demos/terminal/showcase-lab/customer.msg -- explicit customer identifier -->
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase.go -- showcaseLabFixtures, showcaseCustomer -->
+<!-- source: demos/terminal/showcase-lab/ze.conf -- base interfaces and BGP peers -->
+<!-- source: internal/le/site/terminaldemo/validate_showcase.go -- requireShowcaseBase, requireShowcaseBaseTree -->
+
+The hidden VPN endpoint is a second Ze in `showcase-vpn`, with its own config
+store and real kernel XFRM backend. Each protected host has a separate
+namespace. The shown Ze has no VPN, XFRM interface or tunnel route until the
+topic's live commit. Both VPN configurations must explicitly select
+`unmatched bypass`, so unrelated chapters and SSH stay reachable.
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- prepareShowcaseVPN, showcaseNetworkCommands -->
+<!-- source: demos/terminal/showcase-lab/far-end.conf -- hidden responder and unmatched policy -->
+
+| Link or service | Shown side | Fixture side |
+|-----------------|------------|--------------|
+| FRR | `frr0`, `172.29.0.1/24` | `showcase-frr`, `172.29.0.2/24`, loopback `10.255.1.2/32` |
+| VPN underlay | `vpn0`, `172.30.0.1/30` | `showcase-vpn`, `172.30.0.2/30` |
+| Protected networks | `vpn-lan`, `10.78.1.1/24`; host `10.78.1.2` in `showcase-host-left` | `lan0`, `10.78.2.1/24`; host `10.78.2.2` in `showcase-host-right` |
+| VRRP LAN | `zeptrk0`, `203.0.113.251/24` | `showcase-vrrp`, `203.0.113.252/24`; keepalived v3, VRID 12, priority 100 |
+| Tracked uplink | `zetrk1`, independently controlled dummy link | No peer process |
+| Traffic | `traffic0`, `10.77.0.1/24`, HTTP port 8080 | `traffic-peer`, `10.77.0.2/24` |
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- showcaseNetworkCommands, showcaseTrafficFixture -->
+<!-- source: demos/terminal/showcase-lab/keepalived.conf -- VRRP companion -->
+
+Use `ze-demo run showcase-lab control <fixture> <action>` for scripted failures
+and recovery. Controls belong to their fixture, not a central feature switch.
+They never stop the shown Ze.
+
+| Fixture | Actions | Effect |
+|---------|---------|--------|
+| `rtr-cache` | `stop`, `start` | Disconnect or restore the RTR service |
+| `customer` | `reannounce` | Restart its owned BGP speaker and resend routes |
+| `frr` | `down`, `up` | Change the `frr0` link state |
+| `keepalived` | `stop`, `start` | Stop or restore the companion's advertisements |
+| `tracked-uplink` | `down`, `up` | Change the independent `zetrk1` link state |
+| `traffic` | `burst`, `stop` | Start bounded ICMP/HTTP senders or stop those senders, leaving the server running |
+| `vpn` | `ping` | Send four real probes between the protected hosts |
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_control.go -- controlShowcaseLab -->
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- showcaseVPNFixture, showcaseKeepalivedFixture, showcaseTrackedFixture, showcaseTrafficFixture -->
+
+Each fixture declares a port or command-output readiness observation.
+Startup refuses a fixture with no observations. The readiness path refuses an
+empty target or a command observation without a command; neither can stand in
+for a service that was actually observed ready.
+`startFixtures` records its processes before waiting. Selective stop waits for
+those processes to exit before restart. The shown daemon has its own `ze.pid`;
+topic checks use `showcasePID` and `requireShowcasePID`, not the first aggregate
+PID. `ze-demo validate showcase-lab` checks the topic-free base, fixture
+controls, named BGP peers and unchanged shown PID inside the renderer container.
+It does not replace each topic's live-commit and traffic proof.
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase.go -- startFixtures, awaitReadiness -->
+<!-- source: internal/le/site/terminaldemo/scenarios_showcase_control.go -- stopShowcaseFixture, showcasePID, requireShowcasePID -->
+<!-- source: internal/le/site/terminaldemo/validate_showcase.go -- validateShowcaseLab, requireShowcaseBase -->
 
 A demo's container holds `NET_ADMIN`, `NET_RAW` and `SYS_ADMIN` under Docker's
 default seccomp and AppArmor profiles. A demo that needs more sets

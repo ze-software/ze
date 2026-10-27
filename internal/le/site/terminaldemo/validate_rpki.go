@@ -1,5 +1,5 @@
 // Design: docs/guide/rpki.md -- an Invalid route stays in Adj-RIB-In, ineligible for selection
-// Related: validate_runtime.go -- validateRPKI, which retries this check against the live daemon
+// Related: scenarios_routing.go -- requireRPKITransit checks the shared lab's transit rows.
 
 package siteterminaldemo
 
@@ -29,7 +29,7 @@ type rpkiDemoRoute struct {
 
 // rpkiDemoRoutesExpected is what the demo's RTR cache and its policy
 // (`invalid reject`, `not-found accept`) produce for the three prefixes the
-// peer announces in demos/terminal/rpki/routes.msg. `reject` keeps the Invalid
+// peer announces in demos/terminal/showcase-lab/transit.msg. `reject` keeps the Invalid
 // route in Adj-RIB-In and marks it ineligible; it does not drop it.
 var rpkiDemoRoutesExpected = []rpkiDemoRoute{
 	{Key: "ipv4/unicast:9.43.0.0/24", ValidationState: rpkiDemoStateValid, Ineligible: false},

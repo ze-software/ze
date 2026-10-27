@@ -111,7 +111,8 @@ The import replaces the stored `ze.conf` only because `--yes` confirms it; the p
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 
-Run `ze config cat ze.conf` before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.
+Run `ze config cat ze.conf` before and after these commands to review the stored changes. This offline workflow is separate from the live SSH workflow in the demonstration below.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 
 ## Choose the AS-SET
 
@@ -244,10 +245,16 @@ An UPDATE that announces some routes the list authorizes and some it does not ke
 
 ## Local demonstration
 
-The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings through a `ze config set -` pipeline that it imports back into ZeFS, then starts Ze against `le mock irr`, a deterministic local whois server. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.
+The demonstration starts Ze with a customer peer but no IRR policy. It loads the server, AS-SET and import filter sections into one SSH candidate, compares them, then commits. The IRR service is a deterministic local test server, not a public registry. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`.
+<!-- source: demos/terminal/topics/irr/configure.tape -- sectioned live configuration -->
+<!-- source: internal/test/mock/irr/irr.go -- irrResponses -->
 
-<!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
-<!-- source: demos/terminal/irr-filter/ze.conf -- baseline BGP configuration without IRR filtering -->
+The customer announces both routes and two control prefixes. The check commands explain decisions; they do not prove an UPDATE arrived. Before each reannouncement, the lab waits for the previous customer session to depart and its Adj-RIB-In to clear. It puts the current policy's accepted control last in the fixture's actual send order: `10.0.1.0/24` for `AS-TEST`, or `192.0.2.0/24` for `AS-V4ONLY`. Seeing that control in Adj-RIB-In proves the earlier announcements were processed. The outside prefix and the other policy's control must be absent.
+
+The failure changes the peer to `AS-V4ONLY`, which lacks the customer prefix. After the new session's final control arrives, `10.0.0.0/24` must be absent. The repair restores `AS-TEST` through SSH, refreshes it with `update bgp irr as-set AS-TEST`, then announces again and checks the customer route and its final control. Customer establishment has a separate deadline covering Ze's existing maximum 60-second reconnect backoff plus handshake time; policy convergence still uses its shorter bound. Ze stays running throughout.
+<!-- source: demos/terminal/topics/irr/show.tape -- failure, diagnosis and live repair -->
+<!-- source: internal/le/site/terminaldemo/scenarios_routing.go -- checkTopicIRR, requireIRRState -->
+<!-- source: internal/le/site/terminaldemo/validate_policy_evidence.go -- orderIRRAnnouncements, requireIRRCustomerCleared, awaitIRRCustomer, requireIRRRoutes -->
 <!-- terminal-demo: irr-filter -->
 
 ## Troubleshooting

@@ -1,15 +1,7 @@
-An operator is investigating why 10.255.0.3/32 is missing.
+OSPF live adjacency and Hello-mismatch walkthrough
 
-$ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
-The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
-
-$ ze cli -c 'show ospf neighbor detail'
-The live FRR neighbor at 172.31.0.3 is Full.
-
-$ ze cli -c 'show ospf database router'
-The live link-state database contains FRR's Router-LSA.
-
-$ ze cli -c 'show ospf route'
-The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
-
-The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.
+Lab: Ze on frr0, FRR neighbor 172.29.0.2 and loopback 10.255.1.2/32.
+Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
+Proof: show ospf neighbor detail, database router and route connect Full to the Router-LSA and loopback next hop.
+Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
+Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.

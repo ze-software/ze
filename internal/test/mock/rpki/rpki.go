@@ -26,6 +26,7 @@ type rpkiServer struct {
 	validASN   uint32
 	invalidASN uint32
 	serial     uint32
+	timers     rpkiTimers
 }
 
 func Run(args []string) int {
@@ -37,6 +38,8 @@ func Run(args []string) int {
 		validASN   uint
 		invalidASN uint
 		serial     uint
+		refresh    uint64
+		retry      uint64
 	)
 
 	fs.StringVar(&bind, "bind", "127.0.0.1", "TCP bind address")
@@ -44,6 +47,8 @@ func Run(args []string) int {
 	fs.UintVar(&validASN, "valid-asn", 65001, "ASN for Valid VRPs (octet % 3 == 0)")
 	fs.UintVar(&invalidASN, "invalid-asn", 65099, "ASN for Invalid VRPs (octet % 3 == 1)")
 	fs.UintVar(&serial, "serial", 1, "initial serial number")
+	fs.Uint64Var(&refresh, "refresh", 3600, "RTR refresh interval in seconds (1..86400)")
+	fs.Uint64Var(&retry, "retry", 600, "RTR retry interval in seconds (1..7200)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le mock rpki [flags]
@@ -68,11 +73,17 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
+	timers, err := newRPKITimers(refresh, retry)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
 
 	srv := &rpkiServer{
 		validASN:   uint32(validASN),   //nolint:gosec // CLI flag range
 		invalidASN: uint32(invalidASN), //nolint:gosec // CLI flag range
 		serial:     uint32(serial),     //nolint:gosec // CLI flag range
+		timers:     timers,
 	}
 
 	lc := &net.ListenConfig{}
@@ -162,9 +173,9 @@ func (s *rpkiServer) sendResponse(conn net.Conn) error {
 	binary.BigEndian.PutUint16(eod[2:4], sessionID)
 	binary.BigEndian.PutUint32(eod[4:8], 24)
 	binary.BigEndian.PutUint32(eod[8:12], s.serial)
-	binary.BigEndian.PutUint32(eod[12:16], 3600)
-	binary.BigEndian.PutUint32(eod[16:20], 600)
-	binary.BigEndian.PutUint32(eod[20:24], 7200)
+	binary.BigEndian.PutUint32(eod[12:16], s.timers.refreshSeconds)
+	binary.BigEndian.PutUint32(eod[16:20], s.timers.retrySeconds)
+	binary.BigEndian.PutUint32(eod[20:24], s.timers.expireSeconds)
 	_, err := conn.Write(eod)
 	return err
 }
@@ -181,4 +192,32 @@ func (s *rpkiServer) sendIPv4PrefixPDU(conn net.Conn, octet byte, asn uint32) er
 	binary.BigEndian.PutUint32(pdu[16:20], asn)
 	_, err := conn.Write(pdu)
 	return err
+}
+
+type rpkiTimers struct {
+	refreshSeconds uint32
+	retrySeconds   uint32
+	expireSeconds  uint32
+}
+
+// newRPKITimers validates RFC 8210 Section 6 before narrowing wire values.
+// Expiration retains its default unless a requested timer requires a longer lease.
+func newRPKITimers(refresh, retry uint64) (rpkiTimers, error) {
+	if refresh < 1 {
+		return rpkiTimers{}, fmt.Errorf("RTR refresh interval must be 1..86400 seconds, got %d", refresh)
+	}
+	if refresh > 86400 {
+		return rpkiTimers{}, fmt.Errorf("RTR refresh interval must be 1..86400 seconds, got %d", refresh)
+	}
+	if retry < 1 {
+		return rpkiTimers{}, fmt.Errorf("RTR retry interval must be 1..7200 seconds, got %d", retry)
+	}
+	if retry > 7200 {
+		return rpkiTimers{}, fmt.Errorf("RTR retry interval must be 1..7200 seconds, got %d", retry)
+	}
+	return rpkiTimers{
+		refreshSeconds: uint32(refresh),
+		retrySeconds:   uint32(retry),
+		expireSeconds:  uint32(max(7200, refresh+1, retry+1)),
+	}, nil
 }

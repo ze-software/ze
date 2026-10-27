@@ -707,6 +707,15 @@ scripts can parse the output while the interactive CLI renders them.
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 
+The terminal lab starts with an established FRR BGP peer and no BFD binding.
+It loads the profile and peer opt-in through one live SSH candidate, then
+checks Up, packet exchange and unchanged connection counts on both Ze and
+FRR. FRR's counters also detect a reconnect hidden by recreating Ze's peer
+object. Cutting `frr0` exercises the detection-expired diagnostic and BGP's BFD notification
+before its negotiated hold timer. The lab also checks released-session
+retirement and restores the link without replacing the shown Ze process.
+<!-- source: internal/le/site/terminaldemo/validate_topic_bfd.go -- checkTopicBFD -->
+
 <!-- terminal-demo: bfd-failover -->
 
 ### List all sessions
@@ -724,12 +733,12 @@ produce diff-able output.
 
 ### Session detail
 
-`show bfd session <peer>` returns the same struct for one session
+`show bfd session address <peer>` returns the same struct for one session
 plus the most recent state transitions kept in a bounded in-memory
 ring (eight entries by default -- see `api.TransitionHistoryDepth`):
 
 ```
-operator@router> show bfd session 192.0.2.2
+operator@router> show bfd session address 192.0.2.2
 {
   "peer": "192.0.2.2",
   "local": "192.0.2.1",

@@ -1,14 +1,7 @@
-An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
+Traffic usage live attribution walkthrough
 
-$ ze config show demos/terminal/traffic-anomaly/ze.conf traffic usage
-The daemon configuration shows eBPF accounting enabled on `traffic0`, with per-IP tracking and bounded maps.
-
-$ ze cli -c 'show traffic usage name traffic0'
-The complete baseline snapshot is displayed.
-
-$ ip netns exec traffic-peer ping -c 4 10.77.0.1
-$ ip netns exec traffic-peer curl -s -o /dev/null http://10.77.0.1:8080/payload.txt
-The isolated workload sends ICMP and HTTP traffic.
-
-$ ze cli -c 'show traffic usage name traffic0'
-The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP destination port 8080, and reports map occupancy. The accounting path observes traffic only and never modifies or drops packets.
+Lab: traffic0 at 10.77.0.1, real sender 10.77.0.2 and HTTP server port 8080.
+Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
+Proof: real ping and curl populate source, ICMP and TCP/8080 byte totals.
+Failure: bounded heavier senders increase those specific totals in successive snapshots; filtered metrics identify the source.
+Fix: stop the senders and require cumulative totals to settle for two seconds within ten seconds, without resetting counters or replacing Ze.

@@ -572,6 +572,24 @@ confirmed` needs config history. An editor without one, such as
 `ze config edit -f` on a file whose folder holds no store, refuses before it
 writes the file and names `ze init`; `commit now` still works there.
 
+The demonstration uses the running daemon's SSH editor, not file mode. It
+load-merges a trial hostname and uses `commit confirmed 8`. After the
+unaccepted window expires, it checks the restored `edge-original` hostname
+and an empty `show | compare`, followed by `show | changes` reporting no
+pending changes. A second change uses `commit accept` and stays
+`edge-confirmed` beyond the same deadline. After leaving the editor, it runs
+`ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"`
+to read the running lab's stored revisions. History is a local read and
+resolves the supplied file's folder: a bare `ze.conf` selects the shell's
+current folder, even when `ZE_CONFIG_DIR` points at the daemon's store.
+The explicit path selects that store without creating another one. The
+live validator reads the same history as JSON and requires at least two
+stored revisions after the automatic rollback, before testing acceptance.
+<!-- source: demos/terminal/topics/commit-confirmed/configure.tape -- live eight-second probation -->
+<!-- source: demos/terminal/topics/commit-confirmed/show.tape -- rollback, acceptance and history -->
+<!-- source: internal/le/site/terminaldemo/validate_commit_confirmed.go -- checkTopicCommitConfirmed -->
+
+
 <!-- terminal-demo: commit-confirmed -->
 
 ## Rollback

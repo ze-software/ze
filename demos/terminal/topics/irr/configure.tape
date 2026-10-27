@@ -1,31 +1,50 @@
-# IRR topic, beat 2: the IRR configuration, loaded into the running daemon's
-# candidate one section at a time, then compared and committed. The caller has
-# the SSH editor open at the ze# prompt on the showcase lab. Each wait names
-# its section's file or a value only that section adds, so an earlier
-# section's output still on screen cannot satisfy it. A Card before each load
-# explains its section over the editor, and the recorder repaints the editor
-# after it; the topic opens with `ze-demo card topic-irr overview` before the
-# editor starts.
+Type "ze-demo card topic-irr lab"
+Enter
+Wait+Screen /====/
+Sleep 6s
+Type "ze cli -c 'show bgp irr | yaml | no-more'"
+Enter
+Wait+Screen /entries: \[\]/
+Sleep 3s
+Type "ze-demo card topic-irr overview"
+Enter
+Wait+Screen /====/
+Sleep 6s
+Type "sshpass -e ssh ze-demo"
+Enter
+Wait+Screen /ze#/
 Card topic-irr server
 Type "load file absolute merge /src/demos/terminal/topics/irr/1-server.conf"
 Enter
 Wait+Screen /merged from \S*1-server\.conf/
-Sleep 3s
 Card topic-irr as-set
 Type "load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf"
 Enter
 Wait+Screen /merged from \S*2-as-set\.conf/
-Sleep 3s
 Card topic-irr import
 Type "load file absolute merge /src/demos/terminal/topics/irr/3-import.conf"
 Enter
 Wait+Screen /merged from \S*3-import\.conf/
-Sleep 3s
 Type "show | compare"
 Enter
 Wait+Screen /AS-TEST/
-Sleep 6s
+Sleep 3s
 Type "commit now"
 Enter
 Wait+Screen /Session committed/
-Sleep 3s
+Type "exit"
+Enter
+Wait+Screen /operational\]/
+Type "exit"
+Enter
+Wait+Screen /\$ /
+Hide
+Type "ze-demo run showcase-lab control customer reannounce"
+Enter
+Wait+Screen /Customer routes announced/
+Type "ze-demo run irr-filter await healthy"
+Enter
+Wait+Screen /Topic ready/
+Type "clear"
+Enter
+Show

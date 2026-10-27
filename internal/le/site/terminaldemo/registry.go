@@ -20,6 +20,8 @@ type scenario struct {
 	run scenarioRunner
 	// validate is required: no recording ships without a check of what it shows.
 	validate func() error
+	// live is present only for a topic committed into the shared running lab.
+	live *liveTopic
 }
 
 // scenarioRegistry maps a demo id to its scenario. Each scenario registers

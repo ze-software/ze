@@ -117,6 +117,16 @@ The command answers structured data, which `ze cli -c` renders in the format
 set of pipe operators applies.
 <!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage -->
 
+The terminal lab enables accounting on `traffic0` through a live SSH commit.
+Real ICMP and HTTP requests establish a baseline for source `10.77.0.2`
+and TCP destination port `8080`. A heavier burst must increase those
+specific byte totals, not merely create more map entries. The validator also
+requires positive exported metrics filtered to that source, TCP/8080 and
+ICMP/0. After the senders stop, it requires a stable two-second window within
+ten seconds.
+The totals remain cumulative: stopping traffic does not reset them to zero.
+<!-- source: internal/le/site/terminaldemo/validate_topic_traffic.go -- checkTopicTrafficUsage -->
+
 <!-- terminal-demo: traffic-anomaly -->
 
 ## Prometheus Metrics

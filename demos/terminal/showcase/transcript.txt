@@ -1,0 +1,38 @@
+One running router, eight live configuration topics
+
+0. Migrate an actual ExaBGP neighbor configuration:
+   ze exabgp migrate /src/demos/terminal/showcase/exabgp.conf
+   Read the resulting bgp group and peer, remote address and AS numbers.
+   This previews migration; it does not replace the lab's active configuration.
+
+1. Connect to the base lab over SSH. Exit configuration mode, open monitor bgp,
+   press s to sort by ASN, then q to return to the operational prompt.
+   The transit and FRR peers are established before any feature is committed.
+
+2. RPKI: add cache and validation binding live. Compare Valid, NotFound and
+   Invalid routes; explain the ROA, stop the cache, diagnose and restore it.
+3. IRR: query a local test server, bind AS-TEST and import filtering live.
+   Prove accepted and refused routes; diagnose a wrong AS-SET and restore it.
+4. BFD: add a profile and opt-in to the established FRR BGP peer. Cut its link,
+   show BFD diagnostics and BGP history, restore the link and the sessions.
+5. OSPF: add the area and interface. Follow Full adjacency through the router
+   database to the loopback route. Diagnose a Hello mismatch and restore it.
+6. IPsec: load IKE, ESP, authenticated peer/selectors and XFRM route in one
+   candidate. Prove negotiated and kernel SPIs with protected-host traffic.
+   Mismatch ESP alone, diagnose NO_PROPOSAL_CHOSEN without calling IKE down,
+   restore the matching ESP group, clear the peer SAs and prove traffic again.
+7. VRRP: add the gateway and uplink tracking. Observe master, tracked-link
+   demotion and reduced priority; stop the companion master to show failover
+   while the shown Ze stays running. Restore the companion and tracked link.
+8. Traffic usage: attach accounting live, identify the heavy source and port,
+   stop the burst, and observe recovery without changing forwarding.
+9. Commit confirmed: leave a risky hostname change unconfirmed, observe its
+   automatic rollback, then explicitly accept the next change and prove it stays.
+10. Recap: the same daemon received each live commit, diagnostic and recovery.
+
+Every topic uses its standalone recording's configure.tape and show.tape.
+The showcase is recorded as one continuous session, not assembled from casts.
+See each topic transcript for the commands, topology and vendor references.
+BGP vendor mapping: FRR show bgp summary displays session state; Ze's monitor bgp
+adds the interactive live view used here.
+https://docs.frrouting.org/en/latest/bgp.html#clicmd-show-ip-bgp-all-summary-wide-json

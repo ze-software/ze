@@ -437,7 +437,16 @@ A few consequences of this mechanism are worth knowing:
 State changes are logged as `vrrp: state change` with `from`, `to`, and a
 `reason`, so a failover leaves a record of what triggered it.
 
-<!-- terminal-demo: vrrp-failover -->
+The terminal lab keeps the shown Ze process running throughout two failures.
+First, losing `zetrk1` lowers its priority from 200 to 50, below keepalived's
+100. Then stopping only keepalived lets Ze take the VIP even at priority 50:
+tracking changes preference, not eligibility. Restarting keepalived hands
+the VIP back; restoring the tracked uplink lets Ze preempt at 200. The lab
+checks exclusive VIP ownership, the VRID 12 virtual MAC and reachability
+through each transition.
+<!-- source: internal/le/site/terminaldemo/validate_topic_vrrp.go -- checkTopicVRRPTracking -->
+
+<!-- terminal-demo: vrrp-tracking -->
 
 For Prometheus:
 

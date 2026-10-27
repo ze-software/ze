@@ -20,7 +20,7 @@ func init() {
 	scenarios.add("rib-fib", scenario{run: runRIBFIB, validate: validateRIBFIB})
 	scenarios.add("health-reports", scenario{run: actionOnly(runHealthReports), validate: validateHealthReports})
 	scenarios.add(demoConfigViews, scenario{run: actionOnly(runConfigViews), validate: validateConfigViews})
-	scenarios.add(demoCommitConfirmed, scenario{run: actionOnly(runCommitConfirmed), validate: validateCommitConfirmed})
+	registerLiveTopic(demoCommitConfirmed, "topics/commit-confirmed/configure.tape", checkTopicCommitConfirmed, awaitTopicCommitConfirmed)
 	// These three tapes start no lab: their validators drive ze directly.
 	scenarios.add("launcher", scenario{validate: validateLauncher})
 	scenarios.add("host-inventory", scenario{validate: validateHostInventory})

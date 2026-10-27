@@ -602,6 +602,14 @@ The `le mock rpki` command starts a deterministic mock RTR server that auto-gene
 le mock rpki --port 3323
 ```
 
+For a short local outage exercise, `le mock rpki --refresh 2 --retry 1`
+advertises two-second refresh and one-second retry intervals. Defaults remain
+3600 and 600 seconds. Refresh accepts 1 through 86400, and retry accepts
+1 through 7200. Expiration is the larger of 7200 seconds or one second beyond
+either requested timer, as required by [RFC 8210, Section 6](https://www.rfc-editor.org/rfc/rfc8210#section-6).
+<!-- source: internal/test/mock/rpki/rpki.go -- Run, newRPKITimers -->
+
+
 Validation states are predictable (for routes from AS 65001 with default flags):
 
 | First octet | Modulo | State | Example |
@@ -609,6 +617,29 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 | 0, 3, 6, 9... | %3 == 0 | Valid | 9.0.1.0/24 |
 | 1, 4, 7, 10... | %3 == 1 | Invalid | 10.0.1.0/24 |
 | 2, 5, 8, 11... | %3 == 2 | NotFound | 11.0.1.0/24 |
+
+The demonstration adds the cache, policy and transit receive binding through
+one live SSH candidate. Transit negotiates Route Refresh at boot, before it
+announces the three routes. Its base RIB binding can send routes; no RPKI
+binding is present until the live commit. The validator checks all three
+retained routes and their validation states. It also requires exactly one
+connection in the external transit fixture's log, which a replaced Ze peer
+cannot reset. The wrong-origin VRP explains why the Invalid route is ineligible.
+<!-- source: demos/terminal/topics/rpki/configure.tape -- live sections -->
+<!-- source: internal/le/site/terminaldemo/scenarios_routing.go -- checkTopicRPKI, requireRPKITransit -->
+
+The outage captures a pre-stop log boundary, then stops only the local RTR
+service. Ze polls and closes its RTR transport, so `idle` alone does not prove
+failure. A warning newer than that boundary diagnoses this outage, beside
+cache and status output. Cached VRPs remain usable until their lease expires.
+After restart, the validator requires `rtr: sync complete` newer than this
+outage's recorded failed poll, not merely unchanged cached data or an old
+failure/recovery pair. Equal whole-second log timestamps do not prove order;
+the check waits for a strictly newer event.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.poll, syncOnce, Snapshot -->
+<!-- source: demos/terminal/topics/rpki/show.tape -- cache outage and recovery -->
+<!-- source: internal/le/site/terminaldemo/validate_policy_evidence.go -- beginRPKIOutage, rpkiCycleEvent, checkTransitConnectionLog -->
+
 
 <!-- terminal-demo: rpki -->
 

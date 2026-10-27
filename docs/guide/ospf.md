@@ -684,6 +684,15 @@ show ospf border-routers
 
 The runtime can be reset without reconfiguring via `clear ospf process all` (tear down every adjacency and re-run SPF), `clear ospf neighbor all` (re-form every adjacency; `clear ospf neighbor` and `clear ospf process` alone are refused, because everything is never the default), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
 
+The terminal lab adds area 0 and `frr0` to an already-running Ze router.
+It follows the FRR neighbor to Full, finds that router's Router-LSA, and
+checks the route to `10.255.1.2/32`. A live change to Hello interval 20
+deliberately disagrees with FRR's interval 10. Inspect the current timers
+with `show ospf interface detail` and the actual rejection reason with
+`show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval`.
+Restoring interval 10 must restore the adjacency and route in the same process.
+<!-- source: internal/le/site/terminaldemo/validate_topic_ospf.go -- checkTopicOSPF -->
+
 <!-- terminal-demo: ospf-adjacency -->
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
 <!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->

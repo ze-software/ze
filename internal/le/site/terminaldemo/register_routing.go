@@ -1,9 +1,9 @@
 // Design: docs/contributing/gh-pages.md -- terminal demo scenarios
-// Related: scenarios_routing.go -- runRPKI, runIRR
+// Related: scenarios_routing.go -- live RPKI and IRR checks.
 
 package siteterminaldemo
 
 func init() {
-	scenarios.add(demoRPKI, scenario{run: actionOnly(runRPKI), validate: validateRPKI})
-	scenarios.add("irr-filter", scenario{run: actionOnly(runIRR), validate: validateIRR})
+	registerLiveTopic(demoRPKI, "topics/rpki/configure.tape", checkTopicRPKI, awaitTopicRPKI)
+	registerLiveTopic("irr-filter", "topics/irr/configure.tape", checkTopicIRR, awaitTopicIRR)
 }

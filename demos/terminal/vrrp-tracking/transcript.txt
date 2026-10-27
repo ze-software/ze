@@ -1,0 +1,7 @@
+VRRP tracking and peer-failover walkthrough
+
+Lab: VIP 203.0.113.1, VRID 12; shown Ze priority 200 and keepalived priority 100.
+Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
+Proof: show vrrp, kernel VIP ownership, virtual MAC and a real reachability probe.
+Failure: uplink down makes Ze Backup at 50; stopping only keepalived makes Ze Master at 50.
+Fix: restart keepalived (Ze Backup 50), restore uplink (Ze Master 200), inspect statistics and reachability with the same shown PID.

@@ -492,6 +492,9 @@ func (e *Engine) renderSelected(manifest Manifest, indexed map[string]Demo, sele
 		}
 		generated.Demos[demoID] = entry
 	}
+	if err := e.retireDeletedAssets(&generated, indexed); err != nil {
+		return err
+	}
 	if err := e.writeArtifactManifest(generated); err != nil {
 		return err
 	}
