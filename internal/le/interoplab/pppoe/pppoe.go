@@ -139,9 +139,11 @@ var wireCheckers = map[string]interoplab.Checker{}
 
 func checkers() map[string]interoplab.Checker {
 	all := map[string]interoplab.Checker{
-		"01-pppoe-chap-ipv4":   checkZeClient,
-		"02-ze-ac-pppd-client": checkZeAccessConcentrator,
-		"pppoe-pap-ze-client":  checkZeClientPAP,
+		"01-pppoe-chap-ipv4":               checkZeClient,
+		"02-ze-ac-pppd-client":             checkZeAccessConcentrator,
+		"pppoe-pap-ze-client":              checkZeClientPAP,
+		"pppoe-chap-rechallenge-ze-client": checkCHAPRechallenge,
+		"pppoe-peer-terminate-ze-ac":       checkPeerTerminate,
 	}
 	maps.Copy(all, wireCheckers)
 	return all

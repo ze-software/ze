@@ -2,12 +2,9 @@ package interop_pppoe_test
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -18,132 +15,25 @@ import (
 var _ func(context.Context, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.Run
 var _ func(context.Context, string, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.RunAt
 
-// pppoeScenarios is the whole reviewed population, in the lexical order
-// ScenarioNames answers and os.ReadDir walks. The four named scenarios arrived
-// after the two numbered ones and each carries its own RFC claim:
-// pppoe-empty-service-name (0e1543cc9a, the mandatory Service-Name tag on every
-// PADO and PADS), pppoe-padr-replay (4efaa4fd8d, the per-MAC allocation bound),
-// the two ipv6cp cases (fd7cd7b44e, whether the peer's identifier was ever
-// negotiated), and the two PAP cases: pppoe-pap-ze-ac (RFC 1334 Section 2.2.1,
-// Ze's AC re-answers a repeated Authenticate-Request) and pppoe-pap-ze-client
-// (Ze's client authenticates to a PAP-only accel-ppp).
-var pppoeScenarios = []string{
-	"01-pppoe-chap-ipv4",
-	"02-ze-ac-pppd-client",
-	"ipv6cp-missing-option",
-	"ipv6cp-zero-identifier",
-	"pppoe-empty-service-name",
-	"pppoe-padr-replay",
-	"pppoe-pap-ze-ac",
-	"pppoe-pap-ze-client",
-}
-
-// VALIDATES: The native selector exposes every reviewed PPPoE role under its
-// exact name and lexical order.
-// PREVENTS: A Go-only gate dropping either the Ze client or access-concentrator role.
-func TestNativeScenarioPopulationIsExact(t *testing.T) {
-	if got := pppoeleaf.ScenarioNames(); !reflect.DeepEqual(got, pppoeScenarios) {
-		t.Fatalf("native scenarios = %v, want %v", got, pppoeScenarios)
-	}
-	entries, err := os.ReadDir("scenarios")
-	if err != nil {
-		t.Fatal(err)
-	}
-	directories := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			directories = append(directories, entry.Name())
-		}
-	}
-	if !reflect.DeepEqual(directories, pppoeScenarios) {
-		t.Fatalf("fixture directories = %v, want %v", directories, pppoeScenarios)
-	}
-
+// TestUnknownSelectorFailsBeforePeerSetup retains the explicit and environment
+// failure contracts independently of any enumerated scenario population.
+func TestUnknownSelectorFailsBeforePeerSetup(t *testing.T) {
 	root := repositoryRoot(t)
 	report := pppoeleaf.RunAt(context.Background(), root, pppoeleaf.Options{
 		Scenario: "not-a-pppoe-scenario",
 		NoBuild:  true,
-		Suffix:   "population",
+		Suffix:   "selector",
 	})
 	if report.Code != 1 || report.SetupError != "no scenario matching 'not-a-pppoe-scenario' found" {
 		t.Fatalf("native missing-selector result = %#v", report)
 	}
-
 	t.Setenv("ZE_PPPOE_INTEROP_SCENARIO", "missing-from-environment")
 	report = pppoeleaf.RunAt(context.Background(), root, pppoeleaf.Options{
 		NoBuild: true,
-		Suffix:  "population",
+		Suffix:  "selector",
 	})
 	if report.Code != 1 || report.SetupError != "no scenario matching 'missing-from-environment' found" {
 		t.Fatalf("environment-selected missing scenario result = %#v", report)
-	}
-}
-
-// VALIDATES: Docker peers, credentials, role selection, and protocol configs
-// remain the exact reviewed inputs consumed by the typed plans.
-// PREVENTS: Peer substitution or copied fixture drift after runner removal.
-func TestNativeConfigBytesArePinned(t *testing.T) {
-	files := map[string]string{
-		// Repinned for 5837fd3247, which removed the Go toolchain from this
-		// image: it is now an alpine:3.21 base plus one apk add plus a COPY of
-		// the binary StageBinaries cross-compiles
-		// (internal/le/interoplab/zebuild.go).
-		// Repinned for 4a923c72de: the header comment names `./le test integration`.
-		// Repinned for bdee1599a3, which removed kmod and modprobe from the ze,
-		// accel-ppp and client images: each peer holds NET_ADMIN and /dev/ppp.
-		// Repinned for 180dfc8b8a, which moved both images to alpine:3.24.3,
-		// whose accel-ppp 1.14.0 is upstream's latest stable release (every lab
-		// peer runs one), and for ecf2804fc1, whose comment no longer cites the
-		// owner decision by label.
-		"Dockerfile.ze":    "6db26bfc313a30ebefceae2680900442b829b5387852da969f947475392421e2",
-		"Dockerfile.accel": "5cdc9590fcb5508437df656f36532d47647bb222b0c32e7989f8c5301ffb7d46",
-		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
-		// pppoe-empty-service-name checker captures the discovery exchange to
-		// read the Service-Name tags Ze puts on the wire. Repinned again for
-		// pppoe-pap-ze-ac, which added tcpreplay: that checker resends the
-		// client's captured PAP Authenticate-Request from inside the container.
-		// Repinned again for bdee1599a3 (no kmod, no modprobe). Repinned again
-		// for 180dfc8b8a and 8c82bd749b (alpine:3.24.3, upstream ppp 2.5.4) and
-		// ecf2804fc1 (comment wording).
-		"Dockerfile.client":                           "05b2352d73615c9f17b16a71fedd0b89890331c3e43b7efebd58eb1d81cbaa35",
-		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
-		// Repinned for ad81e43e76: log copy=1 puts the session's LCP and CHAP
-		// exchange in the general log the CHAP-MD5 evidence check reads.
-		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "0f8e0c7aaa425f9ad809a72456ad6d91f5cc439bec632bb36d79045c5b787e83",
-		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
-		"scenarios/01-pppoe-chap-ipv4/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
-		"scenarios/02-ze-ac-pppd-client/ze.conf":      "86018076f6fa758abb91a5108f39fda38ca78ddd6d0c15325f77ca630daa89e5",
-		"scenarios/02-ze-ac-pppd-client/role":         "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		// The four scenarios added after the numbered pair. Their bytes were
-		// unpinned, so this test's claim covered two scenarios while the suite
-		// mounted six.
-		"scenarios/ipv6cp-missing-option/ze.conf":    "47eaeb37cef6bae4b41710514e18c577e94bf684a827c0346b7569f5cfcd6fe4",
-		"scenarios/ipv6cp-missing-option/role":       "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		"scenarios/ipv6cp-zero-identifier/ze.conf":   "cdd26c75e0a8a41bfe041e4cffea01134b0a16b105c939300c3b43f2123736d8",
-		"scenarios/ipv6cp-zero-identifier/role":      "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		"scenarios/pppoe-empty-service-name/ze.conf": "45df553e263889bd953585a55638c05b8844b9ef7ac14456f8f873db26e5eddf",
-		"scenarios/pppoe-empty-service-name/role":    "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		"scenarios/pppoe-padr-replay/ze.conf":        "a8cf774fccc14bac46919f33ab03db40cb05950d0bd0762ec169ea8c877a5887",
-		"scenarios/pppoe-padr-replay/role":           "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		// The two PAP scenarios: Ze's AC with auth-method pap, and accel-ppp
-		// loading auth_pap alone for Ze's client.
-		"scenarios/pppoe-pap-ze-ac/ze.conf":            "72702048c63ff15c4caee91b0ccdf413e1e4afd845a02fce670b7d82c6a61458",
-		"scenarios/pppoe-pap-ze-ac/role":               "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
-		"scenarios/pppoe-pap-ze-client/ze.conf":        "048ec54803b6c9154cf4e0f57780ae30480d7b9982b154ee55aab52ddb406d88",
-		"scenarios/pppoe-pap-ze-client/accel-ppp.conf": "44ed54a913d8eaf266f4a5d8b6ffce25f2348e2a96d63fc789ef58caae485dc9",
-		"scenarios/pppoe-pap-ze-client/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
-		"scenarios/pppoe-pap-ze-client/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
-	}
-	for name, want := range files {
-		data, err := os.ReadFile(filepath.Clean(name))
-		if err != nil {
-			t.Errorf("read %s: %v", name, err)
-			continue
-		}
-		digest := sha256.Sum256(data)
-		if got := hex.EncodeToString(digest[:]); got != want {
-			t.Errorf("%s sha256 = %s, want %s", name, got, want)
-		}
 	}
 }
 

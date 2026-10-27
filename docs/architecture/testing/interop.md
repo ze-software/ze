@@ -1883,6 +1883,22 @@ cleanup error beside that failure, rather than reporting traffic as a clean pass
 <!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
 <!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
 
+### L2TP and PPPoE lifecycle fault scenarios
+
+`pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
+exchanges after working IPCP traffic, checks each CHAP Response's Identifier
+and digest, and requires the session and connectivity to survive.
+`pppoe-peer-terminate-ze-ac` lets pppd originate LCP termination while
+filtering its outgoing PADT. Ze must send the correlated Terminate-Ack and
+its own delayed PADT, remove the session and release its kernel PPP state.
+Both scenarios passed, failed under isolated producer breaks, then passed after
+normal rebuilds. Removing network-phase CHAP handling left repeated Challenges
+unanswered; removing the Stopped lower-layer notification left no Ze PADT despite
+the peer's correlated Terminate-Request and Terminate-Ack. Shared product sources
+were not changed by these private build overlays.
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkCHAPRechallenge, checkPeerTerminate -->
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- rechallengeEvidence, terminateEvidence -->
+
 ### The FreeRADIUS admin-login suite
 
 `internal/le/interoplab/radius/` runs ze's operator login against a real

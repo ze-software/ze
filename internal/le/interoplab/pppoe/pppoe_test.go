@@ -617,3 +617,61 @@ func TestScenarioRoleFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+// TestScenarioPlanRefusesMissingPeerInputs reaches each role's preparation
+// through the production plan builder. Repairing the input must then succeed.
+func TestScenarioPlanRefusesMissingPeerInputs(t *testing.T) {
+	for _, role := range []string{roleZeClient, roleZeAC} {
+		files := []string{"ze.conf"}
+		if role == roleZeClient {
+			files = append(files, "accel-ppp.conf", "chap-secrets")
+		}
+		for _, missing := range files {
+			for _, directoryInstead := range []bool{false, true} {
+				name := role + "/" + missing
+				if directoryInstead {
+					name += "/directory"
+				}
+				t.Run(name, func(t *testing.T) {
+					directory := t.TempDir()
+					if err := os.WriteFile(filepath.Join(directory, "role"), []byte(role), 0o600); err != nil {
+						t.Fatal(err)
+					}
+					for _, file := range files {
+						if file == missing {
+							continue
+						}
+						if err := os.WriteFile(filepath.Join(directory, file), []byte("peer input\n"), 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					path := filepath.Join(directory, missing)
+					if directoryInstead {
+						if err := os.Mkdir(path, 0o700); err != nil {
+							t.Fatal(err)
+						}
+					}
+					source := interoplab.ScenarioSource{Name: "missing-input", Directory: directory}
+					plan, err := scenarioPlan(source, "setup-test")
+					if err == nil || !strings.Contains(err.Error(), "missing "+missing+" in missing-input") {
+						t.Fatalf("plan error = %v, want missing %s", err, missing)
+					}
+					if len(plan.Peers) != 0 {
+						t.Fatalf("failed plan returned runnable peers: %+v", plan.Peers)
+					}
+					if directoryInstead {
+						if err := os.Remove(path); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if err := os.WriteFile(path, []byte("repaired peer input\n"), 0o600); err != nil {
+						t.Fatal(err)
+					}
+					if _, err := scenarioPlan(source, "setup-test"); err != nil {
+						t.Fatalf("repaired peer input still rejected: %v", err)
+					}
+				})
+			}
+		}
+	}
+}

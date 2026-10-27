@@ -43,7 +43,8 @@ COPY --from=build /out/ /
 # so the send needs no host privilege to enter the container's network
 # namespace. The rest are the shared objects pppd and its plugins need, read
 # from the binaries by scanelf rather than listed by hand.
-RUN apk add --no-cache iproute2 iputils tcpdump tcpreplay $(cat /.ppp-rundeps) \
+# iproute2-tc: isolate the peer LCP termination path by dropping client PADT.
+RUN apk add --no-cache iproute2 iproute2-tc iputils tcpdump tcpreplay $(cat /.ppp-rundeps) \
     && rm /.ppp-rundeps
 
 ENTRYPOINT ["sh", "-c", "mkdir -p /etc/ppp /var/log/ppp; exec tail -f /dev/null"]

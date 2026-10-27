@@ -22,7 +22,8 @@ FROM alpine:3.24.3
 # iputils: ping for the dataplane check; curl: the ze-ac scenarios read Ze's own
 # session table over its REST API, which refuses any non-loopback listener (no
 # TLS transport), so the request has to originate inside this container.
-RUN apk add --no-cache tini iproute2 ppp iputils curl
+# tcpdump: D-8 lifecycle checks capture at Ze, beyond the client's PADT filter.
+RUN apk add --no-cache tini iproute2 ppp iputils curl tcpdump
 
 COPY test/interop-pppoe/ze-linux /usr/local/bin/ze
 

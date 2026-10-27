@@ -34,6 +34,8 @@ test/interop-pppoe/
   scenarios/
     01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
+    pppoe-chap-rechallenge-ze-client/  Ze client, native accel-ppp reauthentication
+    pppoe-peer-terminate-ze-ac/        Ze concentrator, pppd LCP termination without incoming PADT
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
     ipv6cp-zero-identifier/    Ze concentrator, pppd session, zero IPv6CP identifier replayed
@@ -86,6 +88,8 @@ ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le test deployment docker-ppp
 ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-ac ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-client ./le test deployment docker-pppoe-accel
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-chap-rechallenge-ze-client ./le test deployment docker-pppoe-accel
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-peer-terminate-ze-ac ./le test deployment docker-pppoe-accel
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -147,6 +151,43 @@ reads pppd's discovery, bidirectional LCP, CHAP, and IPCP trace and compares it
 with Ze's REST session table. It then requires PADT and empty state before
 repeating the dial with `wrong-secret`; the second trace must reach CHAP and
 receive a refusal without creating a session.
+
+### pppoe-chap-rechallenge-ze-client
+
+After IPCP traffic succeeds, the checker observes two native accel-ppp CHAP
+reauthentication exchanges. It checks each Response's Identifier, CHAP-MD5
+digest and username, and each corresponding Success. The kernel PPPoE session,
+PPP interface, address and route must remain unchanged, and traffic must still
+cross the session. This separates network-phase CHAP from initial login.
+
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkCHAPRechallenge -->
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- rechallengeEvidence -->
+<!-- source: test/interop-pppoe/scenarios/pppoe-chap-rechallenge-ze-client/accel-ppp.conf -- native auth interval -->
+
+### pppoe-peer-terminate-ze-ac
+
+The checker first establishes authenticated traffic with pppd. It then filters
+only pppd's outgoing PADT and asks pppd to terminate. Capture at Ze must show the
+peer's LCP Terminate-Request, the matching Ze Terminate-Ack, and Ze's own PADT
+after the Restart timer. No client PADT may reach Ze. The checker records Ze's
+live PPP interface before termination, then requires the REST session and both
+peers' PPP interfaces to disappear. Ze's `/proc/net/pppoe` must retain only its
+header, independently proving kernel session cleanup. The filter requires the
+host's `clsact`, `u32`, `mirred` and `dummy` support and fails closed if
+installation fails. It redirects only PADT into a dummy interface owned by the
+client container; removing that container removes the sink too. Redirect consumes
+the matched frame rather than mirroring it, and the dummy driver frees it without
+transmission. These facilities already ship for Ze's interface and mirroring
+features, so this fault injection needs no test-only `gact` kernel requirement.
+
+The action semantics come from iproute2's
+[`parse_direction`](https://github.com/iproute2/iproute2/blob/main/tc/m_mirred.c)
+and Linux's
+[`tcf_mirred_to_dev`](https://github.com/torvalds/linux/blob/master/net/sched/act_mirred.c)
+and [`dummy_xmit`](https://github.com/torvalds/linux/blob/master/drivers/net/dummy.c).
+
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkPeerTerminate -->
+<!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- terminateEvidence -->
 
 ### pppoe-empty-service-name
 
