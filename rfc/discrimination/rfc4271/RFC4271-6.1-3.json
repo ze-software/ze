@@ -51,7 +51,7 @@
     "claim-sha": "ae28d4b143f4a2e9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "f4f23c1e31de5efd",
-    "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "87e92b60ce318bb1",
+    "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

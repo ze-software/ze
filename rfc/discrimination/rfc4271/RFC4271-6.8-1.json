@@ -7,7 +7,7 @@
     "claim-sha": "f4f56f0cc004030e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session.go::detectCollision",
-    "producer-sha": "b86ae7eeedc401ea",
-    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fb57946491172d8b",
+    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

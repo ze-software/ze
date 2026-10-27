@@ -97,8 +97,8 @@ func (s *Session) applyBFDStrictNegotiation() {
 // "sends a NOTIFICATION message with the error code Cease (6) and error subcode
 // BFD Down (10), drops the TCP connection, releases all BGP resources,
 // increments the ConnectRetryCounter, ... and changes its state to Idle."
-// handleBFDEvent performs the wire half and fsm.handleOpenSent the counter and
-// the state change.
+// handleBFDEvent performs the wire half; the corresponding Connect, Active or
+// OpenSent FSM handler owns the counter and state change (Sections 8.3.3/8.4.3/8.5.3).
 func (s *Session) raiseBFDHoldTimerExpired() {
 	sessionLogger().Warn("bfd strict-mode: BfdHoldTimer expired waiting for the BFD session to come up",
 		"peer", s.settings.Address,
@@ -113,6 +113,8 @@ func (s *Session) raiseBFDHoldTimerExpired() {
 // hold-down interval of draft-ietf-idr-bgp-bfd-strict-mode Section 10. It
 // completes whichever transition the interval was holding: the OpenConfirm
 // KEEPALIVE that was withheld, or the OpenSentConfirmedBfdUpPending release.
+// It MUST enter without openMu: handleKeepalive and handleBFDEvent acquire
+// that lock themselves to serialize their pre-establishment action lists.
 func (s *Session) releaseBFDHoldDown() {
 	s.bfdHoldDownObserved.Store(true)
 	sessionLogger().Info("bfd strict-mode: hold-down interval observed, establishing",
@@ -278,32 +280,21 @@ func (s *Session) bfdStrictHolds() bool {
 	return state != api.StateUp && state != api.StateAdminDown
 }
 
-// advanceAfterOpen performs what RFC 4271 Section 8.2.2 Event 19 asks of a
-// speaker in OpenSent, as draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5
-// revises it. Both OPEN rails end here: handleOpen (session_handlers.go) and
-// the collision-winner processOpen (session_connection.go).
-//
-// The draft's strict branch: "DOES NOT send a KEEPALIVE message, and DOES NOT
-// start the KeepaliveTimer, if the HoldTimer negotiated value is zero, starts
-// the BfdHoldTimer with the value BfdHoldTime, stays in OpenSent state
-// (OpenSentBfdUpPending)".
-//
-// The else branch is the unmodified RFC 4271 text: "sends a KEEPALIVE message,
-// and sets a KeepaliveTimer (via the text below), changes its state to
-// OpenConfirm".
+// advanceAfterOpen handles the shared negotiated strict-mode decision for
+// Event 19 and DelayOpen Event 20 (draft Sections 8.3.5, 8.4.5 and 8.5.5).
+// Both OPEN rails call it with openMu held, serializing the decision and entry
+// with BFD releases. The session sends OPEN before withholding KEEPALIVE.
 func (s *Session) advanceAfterOpen(conn net.Conn) error {
-	if s.timers.IsDelayOpenTimerRunning() {
-		// RFC 4271 Section 8.2.2 Event 20: send OPEN then KEEPALIVE,
-		// and enter OpenConfirm directly, without passing OpenSent.
+	delayed := s.timers.IsDelayOpenTimerRunning()
+	if delayed {
 		if err := s.sendOpen(conn); err != nil {
 			return err
 		}
-		if err := s.fsm.Event(fsm.EventBGPOpenWithDelayOpenTimer); err != nil {
-			return err
-		}
-		return s.sendKeepalive(conn)
 	}
 	if s.bfdStrictHolds() {
+		if delayed {
+			return s.fsm.EnterDelayOpenBfdUpPending()
+		}
 		if err := s.fsm.EnterBfdUpPending(); err != nil {
 			return err
 		}
@@ -318,6 +309,12 @@ func (s *Session) advanceAfterOpen(conn net.Conn) error {
 			"bfd-hold-time", s.timers.BfdHoldTime())
 		return nil
 	}
+	if delayed {
+		if err := s.fsm.Event(fsm.EventBGPOpenWithDelayOpenTimer); err != nil {
+			return err
+		}
+		return s.sendKeepalive(conn)
+	}
 
 	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
 		return err
@@ -329,29 +326,29 @@ func (s *Session) advanceAfterOpen(conn net.Conn) error {
 	return nil
 }
 
-// handleBFDEvent delivers one of the six draft events to this session's FSM and
-// performs the wire actions its clause names. It is the single producer of
-// every NOTIFICATION draft-ietf-idr-bgp-bfd-strict-mode sends, and the single
-// producer of the KEEPALIVE its Section 8.5.1 withheld earlier.
+// handleBFDEvent delivers one of the six draft events and performs its wire
+// actions, including the withheld KEEPALIVE in Sections 8.3.1, 8.4.1 and 8.5.1.
 //
 // draft-ietf-idr-bgp-bfd-strict-mode Section 9: "When BGP sessions are closed
 // according to the procedures in this document, the session SHOULD be
 // terminated with a NOTIFICATION message with the Cease Code (6) and the 'BFD
-// Down' Subcode (10); see [RFC9384]." The one exception the draft writes for
-// itself is the config change, which carries Other Configuration Change (6) in
-// Sections 8.5.4 and 8.6.3, because BFD is not the fault there.
+// Down' Subcode (10); see [RFC9384]." Configuration changes instead use Other
+// Configuration Change (6) in Sections 8.5.4/8.6.3, or close silently in
+// Connect/Active (Sections 8.3.4/8.4.4). Second OPEN uses FSM Error in handleOpen.
 //
-// The teardown clauses go through Session.teardown, which is the one path that
-// seals the session, stops every timer, sends the Cease, drops the TCP
-// connection and wakes the run loop. Each draft clause spells that same list --
-// "drops the TCP connection, releases all BGP resources" -- and the FSM event it
-// passes on is what applies the clause's own ConnectRetryCounter rule.
+// The teardown clauses share teardownSession: seal, stop timers, optionally
+// notify, drop TCP and wake Run. The FSM event applies the clause's own
+// ConnectRetryCounter rule.
 //
 // Ordering on the advancing path: the KEEPALIVE goes out BEFORE the FSM event,
 // which is the order Section 8.5.1 writes and the order the wire needs. A
 // session that reached Established first would let an UPDATE overtake the
 // KEEPALIVE that confirms the OPEN.
 func (s *Session) handleBFDEvent(event fsm.Event) error {
+	// An Up arriving between the state snapshot and strict Event 20 entry
+	// must release that entry, not disappear in the non-pending Connect state.
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
 	state := s.fsm.State()
 	pending := s.fsm.BfdSubState()
 
@@ -361,12 +358,16 @@ func (s *Session) handleBFDEvent(event fsm.Event) error {
 			"state", state.String(),
 			"event", event.String(),
 			"reason", reason)
+		if event == fsm.EventBfdStrictConfigChanged &&
+			(state == fsm.StateConnect || state == fsm.StateActive) {
+			// Sections 8.3.4/8.4.4 drop TCP without a NOTIFICATION.
+			return s.teardownSession(nil, event)
+		}
 		return s.teardown(subcode, reason, event)
 	}
 
-	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.1: in either pending
-	// sub-state the local system "sends a KEEPALIVE message" before it leaves
-	// the sub-state. Which state it leaves for is the FSM's decision below.
+	// Sections 8.3.1, 8.4.1 and 8.5.1 send the withheld KEEPALIVE
+	// before leaving a pending sub-state. The FSM chooses the next state.
 	advancing := pending != fsm.SubStateNone &&
 		(event == fsm.EventBfdUp || event == fsm.EventBfdAdminDown || event == fsm.EventBfdDisabled)
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 10 gates the transition to
@@ -452,9 +453,8 @@ func (s *Session) bfdTeardown(event fsm.Event, state fsm.State) (uint8, string, 
 	case fsm.EventBfdStrictConfigChanged:
 		// draft-ietf-idr-bgp-bfd-strict-mode Sections 8.5.4 and 8.6.3 send "an
 		// error code Cease (6), error subcode Other Configuration Change (6)".
-		// Sections 8.3.4 and 8.4.4 close the connection with no NOTIFICATION,
-		// because ze reaches Connect and Active with no TCP connection
-		// published, and Session.teardown sends nothing when there is none.
+		// Sections 8.3.4 and 8.4.4 close without a NOTIFICATION;
+		// handleBFDEvent selects that silent teardown even with live TCP.
 		// Section 8.7.3 ignores the event in Established.
 		if state == fsm.StateIdle || state == fsm.StateEstablished {
 			return 0, "", false

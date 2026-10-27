@@ -287,14 +287,10 @@ const (
 //
 // SubStateNone is not "unset": it is the sub-state of every session that is
 // not waiting for BFD, which is every session where BFD strict-mode was not
-// negotiated. A session that IS waiting always carries one of the other two.
+// negotiated. A session that IS waiting carries one of the four pending states.
 type BfdSubState int
 
 // The strict-mode sub-states per draft-ietf-idr-bgp-bfd-strict-mode Section 8.1.
-//
-// The draft names four. This declaration covers the two OpenSent sub-states.
-// ConnectDelayOpenBfdUpPending and ActiveDelayOpenBfdUpPending require the
-// separate strict-mode Event 20 path, beyond the base RFC 4271 DelayOpen timer.
 const (
 	// SubStateNone says the FSM is not waiting for a BFD Up event.
 	SubStateNone BfdSubState = iota
@@ -311,12 +307,22 @@ const (
 	// while the local system was still waiting for BFD, so the next BFD Up
 	// event advances the session straight to Established (Section 8.5.6).
 	SubStateOpenSentConfirmedBfdUpPending
+
+	// SubStateConnectDelayOpenBfdUpPending holds Event 20 in Connect until
+	// BFD permits the withheld KEEPALIVE (draft Section 8.3.5).
+	SubStateConnectDelayOpenBfdUpPending
+
+	// SubStateActiveDelayOpenBfdUpPending holds Event 20 in Active until
+	// BFD permits the withheld KEEPALIVE (draft Section 8.4.5).
+	SubStateActiveDelayOpenBfdUpPending
 )
 
 var bfdSubStateNames = map[BfdSubState]string{
 	SubStateNone:                          "NONE",
 	SubStateOpenSentBfdUpPending:          "OPENSENT-BFD-UP-PENDING",
 	SubStateOpenSentConfirmedBfdUpPending: "OPENSENT-CONFIRMED-BFD-UP-PENDING",
+	SubStateConnectDelayOpenBfdUpPending:  "CONNECT-DELAYOPEN-BFD-UP-PENDING",
+	SubStateActiveDelayOpenBfdUpPending:   "ACTIVE-DELAYOPEN-BFD-UP-PENDING",
 }
 
 // String returns a human-readable sub-state name.

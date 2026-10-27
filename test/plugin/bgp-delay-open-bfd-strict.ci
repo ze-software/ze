@@ -1,0 +1,65 @@
+# Test: strict Event 20 holds Active until the real BFD engine reports Up.
+# The observer exchanges OPENs with capability 74, checks the pending substate
+# and absence of KEEPALIVE, injects an RFC 5880 Init datagram, then requires
+# OPENCONFIRM, one KEEPALIVE and ESTABLISHED. No direct FSM hook is used.
+# Discrimination: bypass the strict Event 20 entry or drop its BfdUp release;
+# the pending-state or KEEPALIVE/state assertion respectively must fail.
+option=env:var=ze.bfd.test-parallel:value=true
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external strict-delay-watch {
+        run "le test fixture plugin/bgp-bfd-delay-open 127.0.0.1:$PORT"
+        encoder json
+    }
+}
+bfd {
+    enabled true
+    profile strict-delay {
+        detect-multiplier 3
+        desired-min-tx-us 1000000
+        required-min-rx-us 1000000
+    }
+}
+bgp {
+    timer {
+        delay-open 60
+    }
+    peer delay {
+        connection {
+            local {
+                ip 127.0.0.1
+                port $PORT
+            }
+            remote {
+                ip 127.0.0.2
+                connect false
+            }
+            bfd {
+                enabled true
+                mode single-hop
+                profile strict-delay
+                strict true
+                hold-time 30
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.1.1.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: strict DelayOpen withheld KEEPALIVE until real BFD Up and established
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic

@@ -317,8 +317,8 @@ func TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification(t *testing.T
 //
 // RFC requirement: RFC4271-8.2.2-12 positive -- Event 24 shares the
 // incrementing error arm in handleConnect and handleActive (its clause there
-// sits in the DelayOpenTimer-is-not-running branch, the only branch ze can
-// take) and the grouped Event 24/25 arm in handleEstablished
+// sits in the DelayOpenTimer-is-not-running branch exercised by this
+// timer-disabled fixture) and the grouped Event 24/25 arm in handleEstablished
 // (internal/component/bgp/fsm/fsm.go).
 func TestRFC4271ConnectRetryCounterOnVersionErrorPerState(t *testing.T) {
 	for _, st := range []State{StateConnect, StateActive, StateEstablished} {
@@ -362,10 +362,9 @@ func TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates(t *testing.T)
 // PREVENTS: A peer whose TCP connection keeps dropping mid-session reading as
 // zero attempts.
 //
-// Not an RFC4271-8.2.2-13 proof: the event is driven into the FSM directly,
-// and no Ze producer fires Event 18 in Active, because without the optional
-// DelayOpen Active leaves for OpenSent the moment TCP is established. The row
-// carries {feature-declined} for that reason (rfc/short/rfc4271.md).
+// This direct FSM boundary test is not the RFC4271-8.2.2-13 producer proof.
+// TestRFC4271ActiveEvent18WithDelayOpen drives Active's real Peer producer;
+// this test independently checks the counter rule in all three states.
 func TestRFC4271ConnectRetryCounterOnTCPFailurePerState(t *testing.T) {
 	for _, st := range []State{StateActive, StateOpenConfirm, StateEstablished} {
 		f, c := crcFSM(t, st, 0)

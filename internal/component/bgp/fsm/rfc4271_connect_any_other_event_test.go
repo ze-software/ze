@@ -45,8 +45,7 @@ var connectActiveAnyOtherEvents = []Event{
 // 26, 27 and 28, each in Connect and in Active, move the ConnectRetryCounter
 // from 3 to 4 and the state to Idle (internal/component/bgp/fsm/fsm.go,
 // handleConnect and handleActive). The timer, resource and TCP clauses are not
-// asserted here: Ze runs no DelayOpenTimer and never starts the
-// ConnectRetryTimer, and an FSM holds no connection.
+// asserted here: crcFSM installs neither timer, and an FSM holds no connection.
 func TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle(t *testing.T) {
 	for _, state := range []State{StateConnect, StateActive} {
 		for _, event := range connectActiveAnyOtherEvents {

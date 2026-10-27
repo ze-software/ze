@@ -81,15 +81,21 @@ func (s *Session) handleOpen(body []byte) error {
 	// EnterBfdUpPending demotes a Confirmed sub-state back to Pending, so the
 	// next BFD Up lands in OpenConfirm against a peer that already confirmed.
 	//
-	// The draft's answer differs from the Cease below: it is Finite State
-	// Machine Error, and fsm.handleOpenSent's Event 19 arm applies the counter
-	// clause and the state change.
+	// Sections 8.3.5 and 8.4.5 impose the same second-OPEN refusal in the
+	// Connect/Active DelayOpen pending states. Their Event 20 catchall and
+	// OpenSent's Event 19 arm apply the counter and Idle transition; none
+	// may negotiate capabilities a second time.
 	if pending := s.fsm.BfdSubState(); pending != fsm.SubStateNone {
 		s.mu.RLock()
 		conn := s.conn
 		s.mu.RUnlock()
 		s.logNotifyErr(conn, message.NotifyFSMError, 0, nil)
-		s.logFSMEvent(fsm.EventBGPOpen)
+		event := fsm.EventBGPOpen
+		if pending == fsm.SubStateConnectDelayOpenBfdUpPending ||
+			pending == fsm.SubStateActiveDelayOpenBfdUpPending {
+			event = fsm.EventBGPOpenWithDelayOpenTimer
+		}
+		s.logFSMEvent(event)
 		s.closeConn()
 		return fmt.Errorf("%w: second OPEN in the %s sub-state", ErrInvalidState, pending)
 	}
@@ -284,7 +290,18 @@ func (s *Session) rejectOpenCapabilityError(err error) error {
 // side-effects (start keepalive + send hold timers) that the FSM
 // layer deliberately does not own.
 func (s *Session) handleKeepalive() error {
+	// Callers MUST NOT hold openMu: the read dispatcher and the independent
+	// hold-down callback enter here without it. A BFD release sends its
+	// KEEPALIVE before changing state (draft Sections 8.3.1/8.4.1/8.5.1);
+	// an immediate reply must wait for that complete action list.
 	state := s.fsm.State()
+	if state != fsm.StateEstablished {
+		s.openMu.Lock()
+		defer s.openMu.Unlock()
+		state = s.fsm.State()
+	}
+	// Established is the steady-state fast path: no extra lock or State read.
+	// A Session is retired, not reused, when that connection ends.
 	if state == fsm.StateOpenConfirm {
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "the BGP state machine
 		// is permitted to transition to the Established state from the
@@ -316,8 +333,9 @@ func (s *Session) handleKeepalive() error {
 // The FSM has already counted the attempt and moved to Idle, and the error it
 // returns ends the read loop, which is what releases the session.
 //
-// Connect and Active also answer ErrFSMError for their "any other event", but
-// their lists send no NOTIFICATION, and no message is read in either state.
+// Connect and Active also answer ErrFSMError for their "any other event".
+// DelayOpen and strict pending make received messages reachable there; those
+// catchall clauses send no NOTIFICATION and Run retires the failed session.
 // The subcode is 0 (Unspecified Error): Ze does not originate the RFC 6608
 // subcodes (rfc/short/rfc6608.md records the gap).
 func (s *Session) fsmMessageEvent(event fsm.Event) error {

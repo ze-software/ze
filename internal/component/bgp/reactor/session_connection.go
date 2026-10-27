@@ -583,6 +583,13 @@ func operatorNotice(code, subcode uint8, data []byte) (teardownNotice, error) {
 
 // teardownWith ends the session with notice as its NOTIFICATION.
 func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error {
+	return s.teardownSession(&notice, stopEvent)
+}
+
+// teardownSession owns cleanup for both notified closes and the silent
+// Connect/Active strict-mode configuration-change clauses. A nil notice means
+// the protocol explicitly calls for dropping TCP without a NOTIFICATION.
+func (s *Session) teardownSession(notice *teardownNotice, stopEvent fsm.Event) error {
 	// Seal first: a conn published after this point would carry a session the
 	// caller believes it has just ended.
 	s.seal()
@@ -594,7 +601,7 @@ func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error
 	conn := s.conn
 	s.mu.Unlock()
 
-	if conn != nil {
+	if conn != nil && notice != nil {
 		s.logNotifyErr(conn, notice.code, notice.subcode, notice.data)
 	}
 

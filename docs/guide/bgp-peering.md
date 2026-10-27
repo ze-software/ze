@@ -301,6 +301,14 @@ displace the held connection merely by connecting.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
+With `connection { bfd { enabled true; strict true; } }` and strict mode
+negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE
+until BFD permits the session. `show bgp peer detail` reports a Connect or Active
+DelayOpen BFD pending sub-state. A nonzero negotiated HoldTimer bounds that wait;
+zero hold uses the configured BFD `hold-time` instead.
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen -->
+<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending -->
+
 
 ### Hold timer expiry
 

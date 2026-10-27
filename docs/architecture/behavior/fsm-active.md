@@ -5,8 +5,10 @@
 The system is listening for an incoming TCP connection. Entered from Idle
 on `ManualStart` when the peer is configured with the passive bit, or from
 OpenSent when the TCP connection fails. With DelayOpen enabled it also holds an
-accepted socket without sending OPEN. Peer OPEN goes directly to OpenConfirm;
-DelayOpen expiry sends OPEN and enters OpenSent. Stop or error returns to Idle.
+accepted socket without sending OPEN. Peer OPEN goes directly to OpenConfirm
+unless negotiated strict mode is waiting for BFD: Active then retains
+`ActiveDelayOpenBfdUpPending` and withholds KEEPALIVE. DelayOpen expiry sends
+OPEN and enters OpenSent. Stop or error returns to Idle.
 
 RFC 4271 Section 8.2.2 "Active state".
 
@@ -45,11 +47,15 @@ the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / collision retirement | clear timers; **increments ConnectRetryCounter** | Cease for automatic teardown; **no NOTIFICATION** for an OPEN-less collision loser | `Idle` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | stop ConnectRetryTimer; start DelayOpenTimer when enabled | no OPEN while delayed; otherwise immediate OPEN | `Active` when delayed, otherwise `OpenSent` |
 | `EventDelayOpenTimerExpires` | `Session.delayOpenExpired` | clear retry and delay timers; start OPEN-wait HoldTimer | OPEN | `OpenSent` |
-| `EventBGPOpenWithDelayOpenTimer` | either OPEN receive rail via `advanceAfterOpen` | clear retry and delay timers; arm negotiated hold/keepalive timers, or stop both for zero hold | OPEN then KEEPALIVE | `OpenConfirm` |
+| `EventBGPOpenWithDelayOpenTimer` | either OPEN rail via `advanceAfterOpen` | clear delay/retry; nonwaiting path starts negotiated timers; strict wait starts HoldTimer or zero-hold BfdHoldTimer | OPEN; KEEPALIVE only when not waiting for BFD | `Active` with `ActiveDelayOpenBfdUpPending` when waiting, otherwise `OpenConfirm` |
 | `EventTCPConnectionFails` | held-socket read failure while DelayOpen runs | restart ConnectRetryTimer, clear DelayOpenTimer, release connection resources, **increment ConnectRetryCounter** | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
 | `EventNotifMsgVerErr` | received version-error NOTIFICATION | clear timers; **no increment** with DelayOpen running, increment otherwise | none | `Idle` |
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsg` | message decode paths | clear timers; **increment ConnectRetryCounter** | NOTIFICATION where applicable | `Idle` |
+| `EventBfdUp` / `EventBfdAdminDown` / `EventBfdDisabled` | BFD subscriber/config path | pending only: stop BfdHoldTimer, start KEEPALIVE timer if hold is nonzero | withheld KEEPALIVE | `OpenConfirm` from pending; otherwise stay `Active` |
+| `EventBfdHoldTimerExpires` | zero-hold strict wait timer | clear pending, **increment counter**, retire session | Cease / BFD Down | `Idle` |
+| `EventBfdStrictConfigChanged` | strict config change | clear pending, **reset counter**, retire session | none, even with live TCP | `Idle` |
+| second OPEN while pending | OPEN handler | no renegotiation; clear pending, **increment counter**, retire session | FSM Error | `Idle` |
 | any other event | unexpected | clear timers; **increment ConnectRetryCounter** | none for Event 23 on an OPEN-less connection | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleActive -->
@@ -61,8 +67,9 @@ the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 |-------|--------|-------|
 | ConnectRetryTimer | stopped on TCP success; restarted by Event 18 | The Peer owns reconnect scheduling; old-session cleanup stops the timer after the transition. |
 | DelayOpenTimer | running while the accepted socket has sent no OPEN | `timer delay-open` is 0..240 seconds; zero disables it. |
-| HoldTimer | not running during DelayOpen | Event 12 starts the OPEN-wait bound; Event 20 starts negotiated hold. |
-| KeepaliveTimer | not running during DelayOpen | Event 20 starts it unless negotiated hold is zero. |
+| HoldTimer | off before peer OPEN; running during a nonzero-hold strict wait | Event 10 bounds that wait and increments the counter on exit. |
+| KeepaliveTimer | off during DelayOpen and strict pending | Starts on nonwaiting Event 20 or BFD release, unless hold is zero. |
+| BfdHoldTimer | running only for a zero-hold strict pending wait | Expiry sends Cease / BFD Down. |
 
 <!-- source: internal/component/bgp/fsm/timer.go — Timers -->
 
@@ -94,15 +101,19 @@ This path:
    publishes the socket and fires Event 17. DelayOpen holds the local OPEN.
 2. Observes the original received OPEN bytes on the winning Session.
 3. Calls `processOpen(peerOpen)` to validate and negotiate that OPEN, then
-   `advanceAfterOpen` for Event 20: local OPEN, OpenConfirm, and KEEPALIVE.
+   `advanceAfterOpen` for Event 20: local OPEN followed by the shared strict
+   decision, withholding KEEPALIVE while BFD is pending.
 
 For `connection both`, the start left the FSM in Connect, so both events run
 there. For `connection passive`, both run in Active. Neither delayed path visits
 OpenSent. With delay zero the old OpenSent sequence remains.
 
-The base DelayOpen path here covers RFC 4271 without negotiated BFD strict mode.
-The strict-mode DelayOpen sub-states are a separate implementation phase, not
-claimed by this path.
+Both OPEN rails share the strict decision. BFD Up, AdminDown or Disabled releases
+`ActiveDelayOpenBfdUpPending` to OpenConfirm; otherwise the ordinary HoldTimer
+or zero-hold BfdHoldTimer bounds the wait.
+
+<!-- source: internal/component/bgp/fsm/delay_open.go — EnterDelayOpenBfdUpPending, releaseDelayOpenBfdPending -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, handleBFDEvent -->
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
@@ -146,3 +157,7 @@ The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers car
 - `internal/component/bgp/reactor/delay_open_test.go` proves Active Event 18
   through a real Peer, with delay zero as the opposite path.
   <!-- source: internal/component/bgp/reactor/delay_open_test.go — TestRFC4271ActiveEvent18WithDelayOpen -->
+- `internal/component/bgp/reactor/bfd_delay_open_test.go` covers strict
+  Event 20, all releases, second OPEN, silent config teardown and real timer
+  callbacks; `TestPeerBFDStrictDelayOpenRelease` also runs the Peer lifecycle.
+  <!-- source: internal/component/bgp/reactor/bfd_delay_open_test.go -->

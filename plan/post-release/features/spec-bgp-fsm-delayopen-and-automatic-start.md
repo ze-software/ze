@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Optional DelayOpen and automatic-start controls are owner-selected follow-up capabilities, not required behavior of the shipped FSM. |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
-| Handoff | - |
-| Updated | 2026-10-11 |
+| Phase | 3a/5 — strict-mode DelayOpen sub-states (row 6s) |
+| Handoff | `tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/state/session-state-bgp-fsm-delayopen-and-automatic-start-644a4e78-0122-4eeb-8642-eb50638a1641.md` |
+| Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -104,7 +104,17 @@ as a bug. `plan/README.md` puts that at this level. The owner's split put them h
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
+**2026-10-26 phase-2 reconciliation:** the following checklist records the
+design-time baseline, not today's source status. Event 3 and
+`Peer.cycleReachedEstablished` were already present when phase 2 began; this
+phase does not implement or certify phase 3. The base DelayOpen leaf, timer,
+Connect/Active events, real Session wiring, and bounded pending collision
+handoff are now authored, with verification assigned to the supervising main
+agent. `fsm.handleDelayOpen`, `Session.delayOpenExpired`, `advanceAfterOpen`,
+and `Peer.finishCollisionHandoff` are the enforcing entry points. Strict-mode
+DelayOpen sub-states remain phase 3a, not part of this implementation.
+
+**Source files in the design-time baseline:**
 - [ ] `internal/component/bgp/fsm/fsm.go`, `internal/component/bgp/fsm/state.go` - Event 6 implemented as the reactor's exponential backoff (state.go line 162); Events 3 and DelayOpen absent by recorded design (fsm.go header lines 16-18, 77)
 - [ ] `internal/component/bgp/reactor/session.go` - line 1006-1011 fires Event 6 for an automatic restart
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - grouping `peer-fields`, container `timer` (`receive-hold-time`, `send-hold-time`, `keepalive`, `connect-retry`); no DelayOpen leaf
@@ -231,9 +241,10 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 | `TestRFC4271DelayOpenHeldConnectionWritesNoOpen` | `internal/component/bgp/reactor/` | AC-1a: no OPEN bytes on the wire while the DelayOpenTimer runs, through a real `Peer` | |
 | `TestRFC4271DelayOpenPreBufferedOpen` | `internal/component/bgp/reactor/` | AC-1h, once per connection mode: through `acceptWithOpen` with DelayOpen TRUE, the wire carries no OPEN before the buffered OPEN is processed, then OPEN and KEEPALIVE, and the state goes Connect to OpenConfirm for `connection both` and Active to OpenConfirm for `connection passive`, with no OpenSent in either; with DelayOpen FALSE the old sequence in both modes | |
 | `TestRFC4271DelayOpenBothSidesHold` | `internal/component/bgp/reactor/` | AC-1i, through a real `Peer` and two connections: the second inbound takes the pending slot while the DelayOpenTimer runs, in Connect and in Active; orders (a) with both BGP Identifier orders, (b) and (c); in (b) the held outbound is closed with no NOTIFICATION on its wire, the FSM logs Event 23 and Idle, the ConnectRetryCounter rises by one, the next cycle starts at once with Event 6 and runs `acceptWithOpen`; in (b) with the held outbound already in OpenConfirm, §6.8 decides instead, run in both BGP Identifier orders (round-4 I1): peer higher, the existing session is closed with Cease and the stored inbound runs `acceptWithOpen`; Ze higher, the inbound slot is empty, `collisionHandoff` is false, no `inboundNotify` wake-up is pending, the inbound socket is closed, and the existing session stays in OpenConfirm and reaches Established; the pending deadline closes only the pending connection; exactly one Established session in each; an active-only peer closes the inbound | |
-| `TestDraftBFDStrictDelayOpenHoldTimerExpires` | `internal/component/bgp/fsm/bfd_strict_test.go` and the reactor wire half | AC-7h: in each DelayOpen sub-state the HoldTimer is armed with the negotiated value, its expiry leaves Connect or Active for Idle with the counter incremented and the sub-state cleared | |
-| `TestDraftBFDStrictDelayOpenSubStates` | `internal/component/bgp/fsm/bfd_strict_test.go` | AC-4, AC-5, AC-6, AC-7, AC-8 in Connect and in Active | |
-| `TestDraftBFDStrictDelayOpenWithholdsKeepalive` | `internal/component/bgp/reactor/` | AC-4, AC-5 wire half: OPEN sent, no KEEPALIVE until BfdUp, through a real `Peer` | |
+| `TestSessionBFDStrictDelayOpenBoundedWait` | `internal/component/bgp/reactor/bfd_delay_open_test.go` | AC-6, AC-7, AC-7h: real timer callbacks and Session.Run retire socket/timers, counter and pending state; second OPEN refuses renegotiation; config close is silent | passed in scoped race selection; boundary mutations discriminate |
+| `TestDraftBFDStrictDelayOpenSubStates`, `TestDraftBFDStrictDelayOpenFailures`, `TestEnterDelayOpenBfdUpPendingRefusesInvalidEntry` | `internal/component/bgp/fsm/bfd_delay_open_test.go` | AC-4, AC-5, AC-6, AC-7, AC-8 in Connect and Active, hold zero/nonzero and all three releases | passed in scoped race selection; boundary mutations discriminate |
+| `TestSessionBFDStrictDelayOpenRelease`, `TestSessionBFDStrictDelayOpenNonwaitingControls`, `TestPeerBFDStrictDelayOpenRelease` | `internal/component/bgp/reactor/bfd_delay_open_test.go` | AC-4, AC-5 wire half: both OPEN processing rails, all releases, nonwaiting controls and actual Peer Connect/Active cycles | passed in scoped race selection |
+| `TestSessionBFDStrictDelayOpenImmediatePeerKeepalive` | `internal/component/bgp/reactor/bfd_delay_open_release_race_test.go` | AC-5: immediate peer reply cannot race BFD release into the Connect/Active catchall | observed red before `handleKeepalive` serialization; repaired race selection passed |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -243,8 +254,8 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-delay-open` | `test/plugin/` | AC-1, AC-1a, AC-1b, AC-1c | |
-| `bgp-delay-open-bfd-strict` | `test/plugin/` | AC-4, AC-5 | |
+| `bgp-delay-open` | `test/draft/plugin/bgp-delay-open.ci`; not promoted | AC-1, AC-1a, AC-1b, AC-1c through the daemon listener and operational FSM state | original promoted TIME30 unresolved; later diagnostic passes do not clear it |
+| `bgp-delay-open-bfd-strict` | `test/plugin/bgp-delay-open-bfd-strict.ci` | AC-4, AC-5: daemon OPEN exchange, public pending sub-state, withheld KEEPALIVE, real BFD Init datagram causes Up and establishment | draft GREEN–RED–GREEN and stress80 passed after runner repair; promoted live selector bg_508 FAILED TIME30 case124, acceptance not cleared |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -316,6 +327,48 @@ Row 7 is not wire-visible; its proof is the reactor unit test through a real `Pe
 2. **Phase: DelayOpen (row 6)** -- YANG leaf, config, DelayOpenTimer in Connect and Active, Event 18 in Active; `fsm.md` edited. Own commit.
 3. **Phase: Event 3 (row 7)** -- the automatic restart picks Event 3 or Event 6 from the Established flag of the cycle that ended; passive peers through the Event 1/4 arm. Own commit.
 3a. **Phase: strict-mode DelayOpen sub-states (row 6s)** -- after the DelayOpen phase: declare the two sub-states, extend `advanceAfterOpen` and `handleBFDEvent`, rewrite every comment and page listed in Current Behavior, edit the strict-mode summary prose (AC-9). Own commit.
+
+Phase 3a implementation and evidence (2026-10-27): `EnterDelayOpenBfdUpPending`
+atomically consumes strict Event 20 under the FSM lock and leaves the main
+state in Connect/Active. Both OPEN rails share `advanceAfterOpen`'s strict
+decision. BFD release, ordinary hold expiry and pre-established KEEPALIVE
+receive serialize with OPEN entry under `openMu`; silent Connect/Active config
+teardown shares the session lifecycle with notified teardown.
+
+The supervising phase reports 34 named FSM/reactor race units passing and
+accepted independent code reviews. Seven isolated boundary mutations failed
+their assertions and passed after restoration. Native draft proof completed
+GREEN–RED–GREEN. The initial stress attempt failed on invocation 7; after the
+separately committed cross-process runner exclusion repair `16245cda84`, the
+authorized unchanged stress80 command passed all 80 invocations. Evidence is
+retained in `tmp/strict-delayopen-phase3-native/session-state.md` (latest section
+supersedes its initial stress verdict) and
+`tmp/strict-delayopen-claim-proof/expanded-final-receipt.json`.
+
+The RFC receipt accounts for 45 native records across 23 files (two approved
+claim-comment records plus 43 attributable refreshes), with no owned stale
+record in its final scoped reports. Thirteen foreign stale records remain;
+the unscoped `./le rfc check` was not run and a clean ledger is not claimed.
+Section 8 adds no normative requirement row. Promotion changes no tagged unit,
+producer or RFC record identity: the untagged strict carrier is copied
+unchanged to `test/plugin/bgp-delay-open-bfd-strict.ci`. After matching SHA256
+identities, the untracked original was moved out of draft discovery to this
+session's `scratch/strict-draft-before-promotion.ci`; no tracked removal is owed.
+
+Main's promoted live selector `bg_508` failed TIME30, case124: expected/received
+0, with only the exec step passing. The failed workdir is
+`/home/thomas/.cache/tmp/ze-work-3685380489`. Draft GREEN–RED–GREEN and stress80
+remain valid historical evidence, but do not clear this live failure. Main
+owns evidence preservation, diagnosis and runtime capture; no rerun to confirm,
+carrier relocation or RFC-record change follows from this result.
+
+Main also owns applicable BGP/plugin integration gates, source-anchor index
+maintenance and committed `./le verify changed`.
+This spec stays in progress: base `bgp-delay-open`'s original promoted TIME30
+is unresolved and its carrier is not promoted. Event 3 reconciliation, FRR
+interop and whole-spec ledger/closure obligations remain independent; none is
+certified by the strict-mode evidence above.
+
 4. **Phase: interop** -- `bgp-delayopen-frr` with the recorded red.
 5. **Phase: ledger** -- AC-3, discrimination records, `./le rfc check` clean for `rfc4271`.
 

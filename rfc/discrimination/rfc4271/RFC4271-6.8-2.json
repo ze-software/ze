@@ -7,8 +7,8 @@
     "claim-sha": "aa0dee96bdedc62a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session.go::detectCollision",
-    "producer-sha": "b86ae7eeedc401ea",
-    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fb57946491172d8b",
+    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-6.8-2",
@@ -18,7 +18,7 @@
     "claim-sha": "cf1c11cbb784bacb",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session.go::detectCollision",
-    "producer-sha": "b86ae7eeedc401ea",
-    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fb57946491172d8b",
+    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

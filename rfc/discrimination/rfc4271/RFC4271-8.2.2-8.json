@@ -18,8 +18,8 @@
     "claim-sha": "aa2b1a03a0a704d9",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
-    "producer-sha": "11b4ebaf65ecfc01",
-    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "294d78b7ebd30de1",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-8.2.2-8",

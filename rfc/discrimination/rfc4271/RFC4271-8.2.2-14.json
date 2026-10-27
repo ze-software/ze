@@ -29,7 +29,7 @@
     "claim-sha": "173d6281ca156776",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/fsm.go::handleEstablished",
-    "producer-sha": "168897c1f9b0382e",
-    "break": "body of handleEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3e7bb5debdb37d11",
+    "break": "body of handleEstablished replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

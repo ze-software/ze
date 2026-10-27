@@ -7,8 +7,8 @@
     "claim-sha": "682450d8dc39f87c",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
-    "producer-sha": "60826e7f42a8269d",
-    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3810a0c678632f3f",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -18,8 +18,8 @@
     "claim-sha": "ca79e8416859ea2f",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
-    "producer-sha": "60826e7f42a8269d",
-    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3810a0c678632f3f",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -40,7 +40,7 @@
     "claim-sha": "c3257e5e26e96064",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "81ce07ed0c51a14d",
+    "producer-sha": "1cad4f14d017b739",
     "break": "body of runOnce replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

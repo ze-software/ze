@@ -7,8 +7,8 @@
     "claim-sha": "f18840ee961b0352",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_connection.go::CloseWithNotification",
-    "producer-sha": "110363c29b792284",
-    "break": "body of CloseWithNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "1cffab2c758cff40",
+    "break": "body of CloseWithNotification replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-8.2.2-17",
@@ -18,7 +18,7 @@
     "claim-sha": "4a0aadb2bed503e0",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
-    "producer-sha": "11b4ebaf65ecfc01",
-    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "294d78b7ebd30de1",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

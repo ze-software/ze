@@ -270,8 +270,8 @@ func TestBFDStrictConfigChangedResetsToIdle(t *testing.T) {
 	require.Equal(t, uint32(1), crc.Load())
 }
 
-// TestBFDStrictConnectAndActiveStayPut is draft Sections 8.3.1 and 8.4.1, read
-// through the fact that ze never enters the two DelayOpen sub-states.
+// TestBFDStrictConnectAndActiveStayPut covers Sections 8.3.1 and 8.4.1's
+// non-pending branches: these fixtures have not consumed strict Event 20.
 //
 // VALIDATES: The three release events leave Connect and Active unchanged.
 //
@@ -304,14 +304,13 @@ func TestBFDStrictOpenConfirmIgnoresTheThreeUpEvents(t *testing.T) {
 	}
 }
 
-// TestEnterBfdUpPendingRefusesOutsideOpenSent guards the one sub-state ze
-// declares against being set where the draft has no sub-state at all.
+// TestEnterBfdUpPendingRefusesOutsideOpenSent guards the OpenSent-only entry.
+// Connect/Active require their distinct, timer-validated Event 20 entry.
 //
 // VALIDATES: EnterBfdUpPending returns ErrFSMError and writes nothing in every
 // state but OpenSent.
 //
-// PREVENTS: A sub-state nobody can leave, because change() only clears it on a
-// transition out of OpenSent.
+// PREVENTS: Installing an OpenSent sub-state in the wrong parent state.
 func TestEnterBfdUpPendingRefusesOutsideOpenSent(t *testing.T) {
 	for _, state := range []State{StateIdle, StateConnect, StateActive, StateOpenConfirm, StateEstablished} {
 		t.Run(state.String(), func(t *testing.T) {

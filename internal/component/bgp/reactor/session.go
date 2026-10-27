@@ -233,9 +233,9 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 type Session struct {
 	mu sync.RWMutex
 
-	// openMu serializes initial OPEN processing, DelayOpen expiry, and the
-	// OPEN-less collision close. It precedes s.mu. Callers MUST NOT hold
-	// Peer.mu: OPEN observers and state callbacks may acquire that lock.
+	// openMu serializes initial OPEN processing, DelayOpen expiry, BFD
+	// releases, pre-established KEEPALIVEs, and the OPEN-less collision close.
+	// It precedes s.mu. Callers MUST NOT hold Peer.mu: callbacks may acquire it.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
@@ -708,10 +708,15 @@ func NewSession(settings *PeerSettings) *Session {
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {
-		// RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10), in every state
-		// that can have the timer armed (OpenSent, OpenConfirm, Established).
-		// The action list is identical in all three, and every clause of it is
-		// satisfied from this callback or from the exit it triggers:
+		// Serialize the expiry with a strict OPEN entry or BFD release:
+		// a release must not send KEEPALIVE after this timer committed Idle.
+		s.openMu.Lock()
+		defer s.openMu.Unlock()
+		// RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10), bounds
+		// OpenSent, OpenConfirm and Established. Negotiated nonzero HoldTime
+		// also bounds the strict DelayOpen Connect/Active substates; those
+		// parents apply Event 10's catchall counter/Idle action. Session.Run
+		// retires the socket and timers on the signalled error in every state.
 		//
 		//   "sends a NOTIFICATION message with the error code Hold Timer
 		//   Expired"    -> sendNotificationWithin below (RFC4271-8.2.2-1)

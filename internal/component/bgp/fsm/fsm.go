@@ -116,8 +116,8 @@ type FSM struct {
 	event Event
 
 	// bfdSub is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 sub-state.
-	// It is only ever non-None while state is StateOpenSent, and change()
-	// clears it on every transition out of that state.
+	// It belongs to Connect, Active or OpenSent; change clears it whenever
+	// the FSM leaves that parent state.
 	bfdSub BfdSubState
 
 	// bfdStrict is the conjunction the draft writes in every conditional
@@ -312,9 +312,7 @@ func (f *FSM) change(to State) {
 
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 puts every sub-state
 	// INSIDE one RFC 4271 state, so leaving that state leaves the sub-state.
-	// Ze declares only the two OpenSent ones (state.go), so any state other
-	// than OpenSent carries none.
-	if to != StateOpenSent {
+	if from != to {
 		f.bfdSub = SubStateNone
 	}
 	// draft-ietf-idr-bgp-bfd-strict-mode Sections 8.3, 8.4 and 8.5: "The
@@ -569,9 +567,9 @@ func (f *FSM) handleConnect(event Event) error {
 		// checks for the ConnectDelayOpenBfdUpPending sub-state, and "If the
 		// FSM is not in the ConnectDelayOpenBfdUpPending sub-state, the local
 		// system: stays in the Connect state."
-		//
-		// The DelayOpen strict-mode sub-state is implemented separately from
-		// the base RFC 4271 DelayOpen transitions.
+		if f.bfdSub == SubStateConnectDelayOpenBfdUpPending {
+			f.releaseDelayOpenBfdPending()
+		}
 
 	case EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.2: "The BfdDown event
@@ -589,8 +587,6 @@ func (f *FSM) handleConnect(event Event) error {
 		// BFD Down (10), drops the TCP connection, releases all BGP resources,
 		// increments the ConnectRetryCounter, ... and changes its state to
 		// Idle."
-		//
-		// The base DelayOpen path does not arm the BFD hold timer.
 		f.crc.Increment()
 		f.change(StateIdle)
 
@@ -600,8 +596,7 @@ func (f *FSM) handleConnect(event Event) error {
 		// zero, stops the ConnectRetryTimer and sets ConnectRetryTimer to
 		// zero, and changes its state to Idle."
 		//
-		// No NOTIFICATION in this clause, unlike the OpenSent and OpenConfirm
-		// ones: there is no BGP session yet to tell.
+		// Unlike Sections 8.5.4 and 8.6.3, this clause sends no NOTIFICATION.
 		f.crc.Reset()
 		f.change(StateIdle)
 
@@ -723,8 +718,9 @@ func (f *FSM) handleActive(event Event) error {
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.1: "If the FSM is not
 		// in the ActiveDelayOpenBfdUpPending sub-state, the local system:
 		// stays in the Active state."
-		//
-		// The base DelayOpen path does not enter a BFD sub-state.
+		if f.bfdSub == SubStateActiveDelayOpenBfdUpPending {
+			f.releaseDelayOpenBfdPending()
+		}
 
 	case EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.2: "The BfdDown event
