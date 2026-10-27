@@ -201,6 +201,11 @@ func TestOutstandingBound(t *testing.T) {
 	if n := r.stats.dropped.Load(); n != 1 {
 		t.Fatalf("dropped %d, want 1", n)
 	}
+	// The priming query is the only one answered so far; the dropped one is
+	// in dropped_total and not in queries_total.
+	if n := r.stats.queries.Load(); n != 1 {
+		t.Fatalf("queries counted %d, want 1: only the priming query was answered", n)
+	}
 	if reply := ask(r, query("cached.test", dns.TypeA), "127.0.0.1", false); reply == nil || len(reply.Answer) != 1 {
 		t.Fatalf("cached query while bound reached: %v", reply)
 	}
@@ -227,6 +232,11 @@ func TestRateLimit(t *testing.T) {
 	}
 	if n := r.stats.rateLimited.Load(); n != 41 {
 		t.Fatalf("rate limited %d, want 41", n)
+	}
+	// queries_total counts answered queries only: a dropped one is in
+	// rate_limited_total, never in both.
+	if n := r.stats.queries.Load(); n != 9 {
+		t.Fatalf("queries counted %d, want the 9 answered", n)
 	}
 	if ask(r, query("www.example.test", dns.TypeA), "127.0.0.2", false) == nil {
 		t.Fatal("another source was rate-limited")

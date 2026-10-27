@@ -100,7 +100,7 @@ var metricsPtr atomic.Pointer[resolverMetrics]
 
 func buildMetrics(reg metrics.Registry) *resolverMetrics {
 	return &resolverMetrics{
-		queries:       reg.CounterVec("ze_dns_resolver_queries_total", "Queries answered or dropped, by transport and response code.", []string{"transport", "rcode"}),
+		queries:       reg.CounterVec("ze_dns_resolver_queries_total", "Queries answered, by transport and response code; a dropped query is counted by ze_dns_resolver_rate_limited_total or ze_dns_resolver_dropped_total.", []string{"transport", "rcode"}),
 		refused:       reg.CounterVec("ze_dns_resolver_refused_total", "Queries refused, by reason: acl (source outside allow-from) or rd-clear (recursion not desired).", []string{"reason"}),
 		rateLimited:   reg.Counter("ze_dns_resolver_rate_limited_total", "Queries dropped because their source exceeded limit per-client-rate."),
 		dropped:       reg.Counter("ze_dns_resolver_dropped_total", "Queries dropped because limit outstanding resolutions were in progress."),
