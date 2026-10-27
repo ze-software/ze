@@ -1052,6 +1052,7 @@ what it holds, a socket included, reaches the container unread.
 | Compiled strict speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
 | StayRTR | 172.30.0.12 | `ze-iop-stayrtr-<pid>` |
 | pmacct `pmbmpd` | 172.30.0.13 | `ze-iop-pmacct-<pid>` |
+| StayRTR standby cache | 172.30.0.14 | `ze-iop-stayrtr-standby-<pid>` |
 
 Container names include the runner PID, which prevents name collisions.
 Runs that share a fixed subnet or staged binary paths must run serially.
@@ -1231,6 +1232,7 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `inject.msg` | `le test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
+| `vrps-standby.json` | A second StayRTR, `stayrtr-standby` (172.30.0.14:8282), same image | Serve a different VRP set from a second cache, so the scenario can observe which cache Ze validates against as the preferred one stops and starts (`rtr-stayrtr-preference`). |
 | `dnsmasq.conf` (and optional `dnsmasq-b.conf`) | dnsmasq DHCPv4 server (172.30.0.20; second at 172.30.0.21), `test/interop/Dockerfile.dnsmasq` | Serve Ze's DHCPv4 client from an implementation Ze did not write. The checkers of `dhcpv4-renew-nak-dnsmasq` and `dhcpv4-rebind-two-servers-dnsmasq` count the DHCP messages in dnsmasq's `log-dhcp` output and read Ze's eth0 addresses. The renew-NAK checker writes a reservation into the container's own `/run/dhcp-hosts` and reloads it with SIGHUP; the rebind checker stops the server that granted the lease. |
 | `kea-dhcp6.conf` | Kea DHCPv6 server `kea-dhcp6` (IPv6 host 22 of the lab /64; the file's `fd00:1e:0::` selects an IPv6 lab network), `test/interop/Dockerfile.kea` | Serve Ze's DHCPv6 client from an implementation Ze did not write. The checker of `dhcpv6-client-renew-kea` reads Kea's INFO log, one exchange per distinct transaction id (`DHCP6_PACKET_RECEIVED`, `DHCP6_LEASE_ALLOC`, `DHCP6_LEASE_RENEW`, and `DHCP6_USING_SERVERID` at each start), and samples Ze's eth0 every 2 s: the leased /128 must be present with a finite `valid_lft` of at most the 40 s lease at every sample. Over three lease periods Kea must see one Solicit and one Request, between 10 and 16 RENEW exchanges that each extended the lease, and no Rebind: a client that never renews, renews without extending its deadlines (it loses the address after one lease and solicits again) or renews at every chance fails one of those bounds. The pool is one address (host `0x50`), so the lease is known before the run. The image deletes Kea's persisted server DUID on every start, while the memfile lease database stays in the container: the checker stops and starts Kea to change the server's identity under a live lease, so Ze's next RENEW names a server that no longer exists and only its REBIND is answered. Ze must hold the address for two lease periods after the stop, with no Solicit, and then renew with the restarted server. The image runs Kea on a copy of the mounted file (`/run/kea/kea-dhcp6.conf`, written at every start), because SIGHUP re-reads the file Kea started with. A scenario that also carries `kea-dhcp6-moved.conf` mounts it at `/etc/kea/kea-dhcp6-moved.conf`: the checker of `dhcpv6-client-confirm-kea` copies it over the live file and sends SIGHUP to move Kea to another subnet under a running lease (`DHCP6_DYNAMIC_RECONFIGURATION_SUCCESS` marks the reload). That scenario's lease is long (T1 300 s), so no Renew falls inside the run, and the `kea-dhcp6.packets` logger runs at debug level 55, where `DHCP6_RESPONSE_DATA` prints each Reply's status code option. Phase one sets Ze's eth0 down and up: Kea must log one CONFIRM after the bind and answer it `Success`, with no second Solicit, no Renew and no Rebind, and Ze must hold the /128 on every 2 s sample for 20 s. Phase two reloads Kea onto `fd00:1e:0:1::/64` and sets eth0 down and up again: Kea must answer the CONFIRM `NotOnLink`, then see one Solicit and one Request that leases `fd00:1e:0:1::50`, and within 60 s Ze's eth0 must hold that /128 and no longer hold the old address. A client that ignores the NotOnLink keeps the old address until T1, far past that bound. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
@@ -1332,6 +1334,10 @@ The pinned StayRTR v0.6.4 image runs with `-protocol 1 -enforce.version=true`.
 Its default connection state advertises version 0 when rejecting Ze's initial
 version-2 query. Enforcement sets the connection version to 1 before that
 error, so Ze can reconnect at the advertised supported version.
+`-refresh 10` is how often StayRTR re-reads its VRP file. The RTR timers it
+sends Ze in End of Data are `-rtr.refresh 10` and `-rtr.retry 10` (StayRTR's
+defaults are 3600 and 600 seconds), so Ze polls a cache every 10 seconds and
+asks a failed cache again after 10.
 The `rtr-stayrtr` checker then requires two IPv4 and two IPv6 VRPs and checks
 the per-prefix validation answers. HTTP readiness alone proves no RTR transfer.
 A changed cache command requires an image rebuild; `NO_BUILD=1` retains the
@@ -1360,6 +1366,44 @@ remain unchanged. RTR reconnection is permitted; route reannouncement is not.
 This carrier does not test disabling validation or rejecting a reload transaction.
 <!-- source: internal/le/interoplab/bgp/check_rpki_reload.go -- checkRPKIPolicyReload -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- queryFRRSessionGeneration, waitFRRNewSession -->
+
+### RTR cache preference, failover and fail-back
+
+The `rtr-stayrtr-preference` scenario gives Ze two StayRTR caches serving
+different VRP sets: the preferred cache at 172.30.0.12 (preference 10, from
+`vrps.json`) and a standby at 172.30.0.14 (preference 20, from
+`vrps-standby.json`). `ze.conf` lists the standby first, so a client that used
+the configuration order instead of the preference would sync the standby. FRR
+announces 9.59.0.0/24 and 10.59.0.0/16 from AS 65001, and Invalid routes are
+rejected: 9.59.0.0/24 is Valid only under the preferred set, and the standby
+set makes it Invalid. 10.59.0.0/16 is Valid under both and is the control.
+
+The checker waits through three phases, each bounded at 90 seconds: the
+preferred cache in use, then the standby in use after it stops the preferred
+container, then the preferred cache again after it starts it. A phase holds
+when `show bgp rpki status` lists both caches with exactly one synced, the
+expected one; when `show bgp rpki roa` equals exactly that cache's set, so a
+union of both sets fails; and when BIRD holds 10.59.0.0/16 with path
+`65000 65001` and holds 9.59.0.0/24 under the preferred cache, or does not
+hold it under the standby. The predicate's accepted and refused shapes are
+unit-tested in `TestRPKIPreferencePhaseError`.
+
+Results on 2026-10-27, `INTEROP_SCENARIO=rtr-stayrtr-preference ./le test
+integration interop`, each break built with `GOFLAGS=-overlay` and the image
+rebuilt by the harness:
+
+| Build | Result |
+|-------|--------|
+| unmodified | 3 passes (2m19s, 4m41s, 2m26s); 2 failures in phase 1, one with neither cache synced at load 33 to 37, one with the standby 172.30.0.14 synced for the whole 90 seconds. Neither failure's cause is known yet: the harness prints only the last Ze log lines, and the checker's SSH lines push the RTR lines out |
+| the preference sort reversed in `startSessions` | red in phase 1: "show bgp rpki status names 172.30.0.14 as the cache in use, want 172.30.0.12" |
+| the preference sort made a no-op | pass. The cache list comes from ranging over the config's `cache-server` map, so its order is Go map order, random on each load, and this break passes whenever the preferred cache happens to come first |
+| `cacheGroup.load` refusing any cache more preferred than the holder (never fails back) | phases 1 and 2 pass, red in phase 3: "fail-back to the preferred cache ... names 172.30.0.14 as the cache in use, want 172.30.0.12" |
+
+The phase-1 red shares its symptom with the unexplained unmodified failure, so
+it proves less than the phase-3 red until that failure is explained.
+<!-- source: internal/le/interoplab/bgp/check_rpki_preference.go -- checkRPKICachePreference, waitRPKIPreferencePhase, rpkiPreferencePhaseError -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- stayrtr-standby container when the scenario carries vrps-standby.json -->
+<!-- source: test/interop/scenarios/rtr-stayrtr-preference/ -- preference worked example -->
 
 ### Live BFD profile edit
 
@@ -2797,6 +2841,7 @@ is not packet-forwarding evidence.
 | 56 | bgp-paths-limit-receive-bird | Ze, BIRD 3.4.0 | draft-abraitis-idr-addpath-paths-limit Section 3, the receive ceiling against a sender that ignores it: BIRD has no capability 76 and, with `add paths tx`, exports every route its table holds, so four static protocols give 10.70.0.0/24 four paths. Ze advertises `limit { receive 2; }` and must hold exactly two in `show bgp rib received`, count two in `ze_bgp_paths_limit_refused_total`, install 10.71.0.0/24 and keep the session. The wait ends once every offered path is held or refused, so the held count is read after the last offer. Red on 2026-10-27, `processValidatedMessage` skipping `receiveCeiling` (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 3, "ze holds 4 paths of 10.70.0.0/24, want the advertised ceiling 2 (refused 0)", which is also the reading that BIRD offered four |
 | 57 | bgp-paths-limit-best-path-frr | Ze (route server, bgp-rib), FRR 10.7.1, BIRD 3.4.0 | draft-abraitis-idr-addpath-paths-limit Section 1, best paths under a peer's limit: FRR advertises PATHS-LIMIT 2 for ipv4/unicast, and BIRD (`add paths tx`, `allow bgp_med yes`) gives Ze four paths of 10.72.0.0/24 one at a time, worst first, by enabling static protocols MED 300, 200, 100, then 50. After each step FRR's `show bgp ipv4 unicast 10.72.0.0/24 json` must hold exactly the two best MEDs from Ze; more than two fails at once. Disabling MED 50 must bring MED 200 back under the path identifier FRR held it with before its demotion. Without `allow bgp_med`, BIRD strips a MED on an EBGP export that its own export filter did not set, and every path arrives with none. Red on 2026-10-27, `owePathsLimitElections` returning before it owes an election (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 6, FRR holding MED 300 and MED 200 after MED 100 arrived |
 | 58 | bgp-session-protection-frr | Ze (GTSM `ttl { max 1; }`, `control-plane-protection bgp`), FRR 10.7.1 | RFC 5082 Section 2.2 and Section 3, and RFC 7454 Section 4, read at the sender: FRR runs `ttl-security hops 1`, and the checker opens python3 connects to Ze's port 179 inside FRR's container, because FRR's image has no other tool that sets a socket's TTL. A SYN from FRR's address at TTL 254 must time out (only the `ze_gtsm` listen-port term can drop it: FRR is a CoPP neighbor); the same address at TTL 255 must complete the handshake, the control that proves the probe can see a SYN-ACK; a SYN at TTL 255 from 172.30.0.40, an address the checker adds to FRR's interface and Ze does not know, must time out, never reset (only CoPP's `unknown-source-drop` can drop it: GTSM leaves an unknown source alone), and that term's counter in `nft list table inet ze_copp` must rise. FRR's session must keep its established and dropped counts and both ports across the probes. Red on 2026-10-27, each producer broken by a `GOFLAGS=-overlay` build with the image rebuilt by the harness: `peerTerms` without the listen-port term, assertion 4, "a SYN from 172.30.0.3 at TTL 254 got a completed handshake from ze"; `translatePolicy` without `unknown-source-drop`, assertion 6, "a SYN from the unconfigured 172.30.0.40 got a completed handshake from ze" |
+| 59 | rtr-stayrtr-preference | Ze (two RTR caches, preference 10 and 20), StayRTR v0.6.4 twice, FRR 10.7.1, BIRD 3.4.0 | RFC 8210 Section 10, cache preference, failover and fail-back observed at BIRD's export: the preferred cache's set is in use first, the standby's after the checker stops the preferred container, the preferred cache's again after it starts it ("RTR cache preference, failover and fail-back" above). Red on 2026-10-27 in phase 1 with the preference sort reversed, and in phase 3 with fail-back disabled. The unmodified build failed 2 of 5 runs in phase 1, cause not yet found |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->
