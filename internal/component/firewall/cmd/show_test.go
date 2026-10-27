@@ -72,6 +72,7 @@ func TestFormatMatchTypes(t *testing.T) {
 		{"icmp type", firewall.MatchICMPType{Type: 8}, "icmp type 8"},
 		{"icmpv6 type", firewall.MatchICMPv6Type{Type: 128}, "icmpv6 type 128"},
 		{"input iface exact", firewall.MatchInputInterface{Name: "eth0"}, "input interface eth0"},
+		{"link-layer unicast", firewall.MatchUnicast{}, "link-layer unicast"},
 		{"input iface wildcard", firewall.MatchInputInterface{Name: "l2tp", Wildcard: true}, "input interface l2tp*"},
 		{"output iface wildcard", firewall.MatchOutputInterface{Name: "veth", Wildcard: true}, "output interface veth*"},
 		{"tcp flags syn", firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN, Mask: firewall.TCPFlagSYN}, "tcp flags syn"},

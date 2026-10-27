@@ -111,9 +111,9 @@ func RegisterTables(owner string, tables []Table) error {
 	return nil
 }
 
-// ApplyAll merges tables from all registered owners and calls
-// backend.Apply with the full set. Tables with the same Name and Family
-// from different owners are merged: their Chains, Sets, and Flowtables
+// ApplyAll merges tables from all registered owners, runs the selected backend's
+// verifier, and calls backend.Apply with the full set. Tables with the same Name
+// and Family from different owners are merged: their Chains, Sets, and Flowtables
 // are concatenated so that e.g. a plugin can register sets for a table
 // whose chains are owned by the firewall engine.
 func ApplyAll() error {
@@ -189,6 +189,8 @@ func ApplyAll() error {
 		}
 	}
 	b := activeBackend
+	backendName := ActiveBackendName()
+	verify, hasVerifier := verifiers[backendName]
 	backendsMu.Unlock()
 
 	if b == nil {
@@ -207,6 +209,16 @@ func ApplyAll() error {
 			return nil
 		}
 		return errFirewallBackendNotLoaded
+	}
+	// Plugin-owned tables bypass OnConfigVerify. Verify the same merged state
+	// Apply will receive, using the verifier captured with that backend under
+	// backendsMu. The callback runs outside that mutex, but inside reconcileMu.
+	// Refusal leaves both kernel state and LastApplied untouched; the owner can
+	// correct or withdraw its desired tables through the normal registry path.
+	if hasVerifier {
+		if verifyErr := verify(all); verifyErr != nil {
+			return fmt.Errorf("firewall: backend %q refused registered tables: %w", backendName, verifyErr)
+		}
 	}
 	// Time every reconcile, and report a wedged dataplane at the one place that
 	// calls Backend.Apply. An owner sees only its own failed apply; this layer is

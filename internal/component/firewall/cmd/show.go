@@ -114,6 +114,8 @@ func formatMatch(m firewall.Match) string {
 		return tb.Str("protocol ").Str(v.Protocol).String()
 	case firewall.MatchInputInterface:
 		return tb.Str("input interface ").Str(formatIface(v.Name, v.Wildcard)).String()
+	case firewall.MatchUnicast:
+		return "link-layer unicast"
 	case firewall.MatchOutputInterface:
 		return tb.Str("output interface ").Str(formatIface(v.Name, v.Wildcard)).String()
 	case firewall.MatchICMPType:
@@ -426,6 +428,8 @@ func matchTypeName(m firewall.Match) string {
 		return "firewall.MatchProtocol"
 	case firewall.MatchInputInterface:
 		return "firewall.MatchInputInterface"
+	case firewall.MatchUnicast:
+		return "firewall.MatchUnicast"
 	case firewall.MatchOutputInterface:
 		return "firewall.MatchOutputInterface"
 	case firewall.MatchICMPType:

@@ -96,11 +96,11 @@ type Backend interface {
 	Close() error
 }
 
-// Verifier is a stateless pre-apply check specific to a backend. It is
-// called during OnConfigVerify with the parsed desired state; returning
-// an error rejects the commit before the backend is loaded. Verifiers are
-// optional: a backend without a verifier accepts any config that passed
-// YANG-level validation.
+// Verifier is a stateless pre-apply check specific to a backend. It runs during
+// OnConfigVerify to reject an operator commit before loading the backend, and
+// during ApplyAll over the merged tables from every owner before programming.
+// Verifiers are optional: without one, the backend's Apply must reject any
+// unsupported desired state itself.
 //
 // This exists alongside the schema-level ze:backend YANG gate because
 // the gate annotates LEAVES (a single type), not individual expression
@@ -128,10 +128,9 @@ var verifiers = map[string]Verifier{}
 // during OnConfigure. Nil until a backend is loaded.
 var activeBackend Backend
 
-// RegisterVerifier registers an optional commit-time verifier for a backend.
-// Called from init() in backend packages that need to reject configs which
-// reference unsupported expression types before Apply runs. Duplicate
-// registrations are rejected.
+// RegisterVerifier registers an optional config-time and runtime verifier for a
+// backend. Called from init() in backend packages that need to reject unsupported
+// expression types before Apply runs. Duplicate registrations are rejected.
 func RegisterVerifier(name string, v Verifier) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
@@ -144,9 +143,9 @@ func RegisterVerifier(name string, v Verifier) error {
 }
 
 // RunVerifier invokes the registered verifier for backendName against the
-// parsed desired state. Returns nil if no verifier is registered (i.e. the
-// backend accepts anything the YANG schema already allowed) or if the
-// verifier reports no issue.
+// parsed desired state. Returns nil if no verifier is registered or if it reports
+// no issue. ApplyAll also invokes the verifier captured with its active backend,
+// so tables registered outside the config lifecycle receive the same checks.
 func RunVerifier(backendName string, desired []Table) error {
 	backendsMu.Lock()
 	v, ok := verifiers[backendName]

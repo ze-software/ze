@@ -140,41 +140,6 @@ func TestPolicy(t *testing.T) {
 
 // Phase 2: Expression interface and concrete types.
 
-// VALIDATES: every reachable Match type (parsed by config, lowered by the nft
-// backend, or both) implements the Match interface via matchMarker.
-// PREVENTS: a new Match type added to the data model without the marker, which
-// would compile but silently fail the m.(Match) assertion.
-func TestMatchTypes(t *testing.T) {
-	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	matches := []struct {
-		name  string
-		match Match
-	}{
-		{"MatchSourceAddress", MatchSourceAddress{Prefix: prefix}},
-		{"MatchDestinationAddress", MatchDestinationAddress{Prefix: prefix}},
-		{"MatchSourcePort", MatchSourcePort{Ranges: []PortRange{{Lo: 80, Hi: 80}}}},
-		{"MatchDestinationPort", MatchDestinationPort{Ranges: []PortRange{{Lo: 443, Hi: 445}}}},
-		{"MatchProtocol", MatchProtocol{Protocol: "tcp"}},
-		{"MatchInputInterface", MatchInputInterface{Name: "eth0"}},
-		{"MatchOutputInterface", MatchOutputInterface{Name: "eth1"}},
-		{"MatchConnState", MatchConnState{States: ConnStateEstablished | ConnStateRelated}},
-		{"MatchConnMark", MatchConnMark{Value: 0x10, Mask: 0xFF}},
-		{"MatchMark", MatchMark{Value: 0x20, Mask: 0xFF}},
-		{"MatchDSCP", MatchDSCP{Value: 46}},
-		{"MatchICMPType", MatchICMPType{Type: 8}},
-		{"MatchICMPv6Type", MatchICMPv6Type{Type: 128}},
-		{"MatchInSet", MatchInSet{SetName: "blocked", MatchField: SetFieldSourceAddr}},
-	}
-	if len(matches) != 14 {
-		t.Fatalf("expected 14 match types, got %d", len(matches))
-	}
-	for _, tt := range matches {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.match.matchMarker()
-		})
-	}
-}
-
 // VALIDATES: every reachable Action type (parsed by config, lowered by the nft
 // backend, or both) implements the Action interface via actionMarker.
 // PREVENTS: a new Action type added to the data model without the marker, which

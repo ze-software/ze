@@ -72,16 +72,41 @@ under the owner `vrrp-backup`:
 
 | Table | Family | Hook | Drops |
 |-------|--------|------|-------|
-| `ze_vrrp_backup` | inet | prerouting | every packet the Backup's macvlan receives |
+| `ze_vrrp_backup` | inet | prerouting | host-type unicast received by the Backup's PRIVATE macvlan |
 
 A private macvlan receives a unicast frame only when the destination MAC is its
-own. A broadcast or multicast frame also reaches the parent, which handles it,
-and the advertisement socket listens on the parent. The worker sets the entry when
-it starts, a demotion sets it again before the addresses are removed, a promotion
-withdraws it after they are installed, and the worker withdraws it when it stops.
+own. The discard combines the exact input interface with `MatchUnicast`, lowered
+to nft `meta pkttype host`. Broadcast and multicast, including VRRP and IPv6 ND,
+do not match. Both advertisement receive and transmit sockets bind to the
+macvlan, while the engine retains the parent's identity for group lookup.
+The worker sets the entry when it starts; a demotion sets it before addresses
+are removed; a promotion withdraws it after installation; shutdown withdraws it.
 `TestVRRPBackupDoesNotForwardVirtualMACFrames` sends a transit datagram to the
 Virtual Router MAC: with no filter the kernel forwards it, with the filter it does
 not, and with the filter withdrawn and the address installed it is forwarded.
+
+Listening on the parent alone loses advertisements from a real VRRP peer.
+Linux's `macvlan_handle_frame` looks up the source MAC of a multicast frame.
+When it matches a local PRIVATE macvlan, the kernel delivers the frame to that
+macvlan and consumes the parent's copy. VRRP peers share the same virtual source
+MAC, so this is the normal election path, not reflected local traffic.
+`macvlan_broadcast_one` preserves its multicast packet type. For unicast, the
+same handler selects the macvlan by destination MAC and sets `PACKET_HOST`.
+The nft `meta pkttype` getter reads that classification unchanged for these
+packets.
+
+This explains the tracked-priority split brain: keepalived received Ze's
+priority-50 advertisements and became Active at 100, but the old parent-bound Ze
+socket never received the winning advertisements. Joining on the macvlan and
+narrowing the Backup discard are one fix: otherwise the filter would block the
+election immediately after demotion.
+
+Sources: Linux
+[`macvlan_handle_frame` and `macvlan_broadcast_one`](https://github.com/torvalds/linux/blob/master/drivers/net/macvlan.c),
+[`nft_meta_get_eval`](https://github.com/torvalds/linux/blob/master/net/netfilter/nft_meta.c),
+and keepalived's
+[`open_vrrp_read_socket`](https://github.com/acassen/keepalived/blob/v2.4.3/keepalived/vrrp/vrrp.c),
+which binds to the instance's VMAC device when `use_vmac` selects it.
 
 ### The address owner needs a filter, not a sysctl
 

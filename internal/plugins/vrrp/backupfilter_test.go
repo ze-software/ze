@@ -13,12 +13,12 @@ import (
 	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
 )
 
-// TestBackupFilterTablesDropWhatTheMacvlanReceives checks the table the backup
-// filter publishes.
+// TestBackupFilterTablesDropWhatTheMacvlanReceives checks the table the backup filter publishes.
 //
 // Method: two devices, one listed twice, give one inet table with one
-// prerouting base chain that accepts by policy and drops, per device, what that
-// device receives, sorted and deduplicated. No device gives no table.
+// prerouting base chain that accepts by policy and drops, per device, only
+// host-type unicast. Multicast control packets do not match. Devices are sorted
+// and deduplicated. No device gives no table.
 func TestBackupFilterTablesDropWhatTheMacvlanReceives(t *testing.T) {
 	if got := backupFilterTables(nil); got != nil {
 		t.Fatalf("no device published %v, want no table", got)
@@ -42,12 +42,15 @@ func TestBackupFilterTablesDropWhatTheMacvlanReceives(t *testing.T) {
 	}
 	var devices []string
 	for _, term := range chain.Terms {
-		if len(term.Matches) != 1 || len(term.Actions) != 1 {
-			t.Fatalf("term %q has %d matches and %d actions, want one of each", term.Name, len(term.Matches), len(term.Actions))
+		if len(term.Matches) != 2 || len(term.Actions) != 1 {
+			t.Fatalf("term %q has %d matches and %d actions, want two matches and one action", term.Name, len(term.Matches), len(term.Actions))
 		}
 		match, ok := term.Matches[0].(firewall.MatchInputInterface)
 		if !ok || match.Wildcard {
 			t.Fatalf("term %q matches %#v, want an exact input interface", term.Name, term.Matches[0])
+		}
+		if _, ok := term.Matches[1].(firewall.MatchUnicast); !ok {
+			t.Fatalf("term %q matches %#v, want link-layer unicast", term.Name, term.Matches[1])
 		}
 		if _, ok := term.Actions[0].(firewall.Drop); !ok {
 			t.Fatalf("term %q acts %#v, want drop", term.Name, term.Actions[0])

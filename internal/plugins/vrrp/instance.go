@@ -136,8 +136,8 @@ type engineDeps struct {
 	// alone.
 	clearOwnerFilter func(instanceOwner string) error
 
-	// setBackupFilter drops what the virtual-MAC device receives while the
-	// instance is not Active (backupfilter.go). The caller MUST call
+	// setBackupFilter drops unicast addressed to the virtual-MAC device while
+	// the instance is not Active (backupfilter.go). The caller MUST call
 	// clearBackupFilter when the instance becomes Active and when it stops.
 	setBackupFilter func(instanceOwner, device string) error
 	// clearBackupFilter withdraws the instance's backup-filter entry. It MUST

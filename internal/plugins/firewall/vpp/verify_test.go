@@ -170,6 +170,7 @@ func TestVerifyRejectsUnsupportedMatches(t *testing.T) {
 		want  string
 	}{
 		{"input-interface", firewall.MatchInputInterface{Name: "eth0"}, "input-interface"},
+		{"link-layer unicast", firewall.MatchUnicast{}, "link-layer unicast"},
 		{"output-interface", firewall.MatchOutputInterface{Name: "eth0"}, "output-interface"},
 		{"conn-mark", firewall.MatchConnMark{Value: 1, Mask: 1}, "connection-mark"},
 		{"mark", firewall.MatchMark{Value: 1, Mask: 1}, "mark match"},

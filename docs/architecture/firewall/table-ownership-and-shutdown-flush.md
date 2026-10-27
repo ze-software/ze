@@ -19,6 +19,17 @@ tables and no firewall section loaded one. `LoadBackend` was split so `ApplyAll`
 can load atomically while it holds the backend mutex. The fix sits at the shared
 altitude, so every registry consumer gets it.
 
+### Backend capability checks apply to every producer
+
+Config verification alone cannot protect plugin-owned tables: VRRP, CoPP and
+other producers register tables without passing through the firewall config
+parser. `ApplyAll` must run the selected backend's registered verifier against
+the merged desired tables before calling `Backend.Apply`. A refusal must leave
+the applied snapshot unchanged and must not program a partial interpretation.
+For example, VPP cannot represent VRRP's host packet-type predicate; silently
+omitting it would turn a unicast-only discard into a broader drop.
+
+
 ## Rule 2: a producer's table name carries the `ze_` prefix
 
 The nft backend uses `firewall.Table.Name` verbatim and adds nothing. It

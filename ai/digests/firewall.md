@@ -53,7 +53,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    `RegisterTables("firewall", cfg.Tables)` (`firewall/engine.go` → `registry.go`) stores this
    owner's desired tables; `ApplyAll()` (`firewall/engine.go` → `registry.go`) merges tables from
    **every** registered owner by `(Name, Family)` via `mergeSameNameTables`
-   (`registry.go`, `registry.go`) and calls `backend.Apply(all)` (`registry.go`).
+   (`registry.go`). It runs the active backend's registered verifier against
+   this merged state before calling `backend.Apply(all)`, so plugin-owned tables
+   cannot bypass the capability checks run for operator config. Refusal leaves
+   the applied snapshot unchanged.
 8. **nftables Apply.** `internal/plugins/firewall/nft/backend_linux.go`: list current `ze_*`
    tables (`ListTables`, line 44), delete only tables this Apply owns
    (`shouldDeleteTable`, line 73), then `applyTable` per table (line 92), **Sets are applied

@@ -12,13 +12,13 @@
 // received by the macvlan, and with forwarding enabled the kernel forwards it.
 //
 // RFC 3768, RFC 5798 and RFC 9568 Section 6.4.2 forbid that. While the instance
-// is not Active this file drops, at the inet prerouting hook, every packet the
-// macvlan receives. A private macvlan receives a unicast frame only when its
-// destination MAC is the macvlan's own, the Virtual Router MAC. Broadcast and
-// multicast frames reach the parent as well, so the parent still handles them,
-// and the advertisements this router listens for arrive on the parent socket
-// (transport/backend_linux.go openV4, openV6). ARP is not carried by the inet
-// family, and a Backup holds no virtual address to answer for.
+// is not Active this file drops, at the inet prerouting hook, host-type packets
+// received by the macvlan. A PRIVATE macvlan selects unicast by its destination
+// MAC and classifies it as PACKET_HOST, so this is exactly destination-VMAC
+// traffic. Multicast advertisements from a peer sharing the VMAC are redirected
+// exclusively to the macvlan; they must survive this filter and reach its raw
+// socket. Broadcast and multicast, including IPv6 ND, keep their packet types.
+// ARP is not carried by the inet family.
 //
 // The rules reach the kernel through the firewall component's table registry,
 // under an owner separate from the other two filters', because each set changes
@@ -47,7 +47,7 @@ const (
 )
 
 // backupFilterState holds, for each VRRP instance that is not Active, the
-// virtual-MAC device whose received packets are dropped.
+// virtual-MAC device whose received unicast packets are dropped.
 //
 // Process-wide, because one kernel table carries every group's rules. Bounded
 // by the configured group count, which is operator configuration.
@@ -57,7 +57,7 @@ var (
 )
 
 // setBackupFilter records that device, one instance's virtual-MAC macvlan, MUST
-// NOT pass on what it receives, and reconciles the kernel. The caller MUST call
+// NOT pass on VMAC-addressed unicast, and reconciles the kernel. The caller MUST call
 // clearBackupFilter when the instance becomes Active, or it drops the traffic
 // an Active router has to forward, and when the instance stops.
 func setBackupFilter(instanceOwner, device string) error {
@@ -106,7 +106,7 @@ var backupFilterPublish = func(tables []firewall.Table) error {
 	return firewall.ApplyAll()
 }
 
-// backupFilterTables builds the inet table that drops what each device
+// backupFilterTables builds the inet table that drops unicast each device
 // receives. No device gives no table, so the last Backup to leave withdraws it
 // instead of leaving an empty table behind.
 //
@@ -138,14 +138,14 @@ func backupFilterTables(devices []string) []firewall.Table {
 	}}
 }
 
-// backupDiscardTerm drops every packet received by one virtual-MAC device.
+// backupDiscardTerm drops unicast received by one PRIVATE virtual-MAC device.
 func backupDiscardTerm(device string) firewall.Term {
 	// RFC 9568 Section 6.4.2: "It MUST discard packets with a destination
 	// link-layer MAC address equal to the Virtual Router MAC address."
 	var tb textbuf.Buffer
 	return firewall.Term{
 		Name:    tb.Str("discard-").Str(device).String(),
-		Matches: []firewall.Match{firewall.MatchInputInterface{Name: device}},
+		Matches: []firewall.Match{firewall.MatchInputInterface{Name: device}, firewall.MatchUnicast{}},
 		Actions: []firewall.Action{firewall.Drop{}},
 	}
 }

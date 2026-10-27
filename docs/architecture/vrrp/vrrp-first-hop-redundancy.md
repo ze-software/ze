@@ -329,8 +329,8 @@ state; a tracked route and a health-check script are not implemented.
   in the plugin's `ConfigureMetrics` fixes it. A registered counter that nothing
   increments, and a registered registry that nothing forwards, are both invisible
   failures. Assert the production wiring, not the unit-level registration.
-- Each instance opens its own parent-bound receive socket, so one advert on the
-  wire is delivered once per instance on that parent. Routing receive by VRID
+- Each instance opens its own macvlan-bound receive socket. Multicast received on
+  that device belongs to its configured parent; routing receive by VRID alone
   hands every copy to one instance, which gives duplicate FSM events and counters
   inflated by the instance count. The per-instance receive sink stamps
   `transport.RxItem.Key` and routing keys on that.

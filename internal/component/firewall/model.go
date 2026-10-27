@@ -334,6 +334,12 @@ type MatchInputInterface struct {
 	Wildcard bool
 }
 
+// MatchUnicast matches link-layer packets classified as addressed to this host,
+// excluding broadcast and multicast. Its zero value is the complete predicate.
+// Daemon-only: VRRP combines it with its PRIVATE macvlan input interface to
+// discard destination-VMAC traffic without discarding multicast advertisements.
+type MatchUnicast struct{}
+
 // MatchOutputInterface matches packets by output interface name.
 // See MatchInputInterface for Wildcard semantics.
 type MatchOutputInterface struct {
@@ -549,6 +555,7 @@ func (MatchInSet) matchMarker()              {}
 func (MatchICMPType) matchMarker()           {}
 func (MatchICMPv6Type) matchMarker()         {}
 func (MatchTCPFlags) matchMarker()           {}
+func (MatchUnicast) matchMarker()            {}
 
 func (MatchIPv4TTLBelow) matchMarker()           {}
 func (MatchICMPErrorQuotedTCPPort) matchMarker() {}

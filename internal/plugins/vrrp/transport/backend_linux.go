@@ -1,13 +1,15 @@
 //go:build linux
 
 // RFC: rfc/short/rfc9568.md -- Section 5.1/5.2 (advert transport), 7.2 (source identity)
-// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- Linux raw proto-112 backend (rx parent / tx macvlan)
+// Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- Linux raw proto-112 backend (rx/tx macvlan)
 // Related: garp_linux.go -- AF_PACKET gratuitous-ARP sender on the macvlan
 // Related: na_linux.go -- raw ICMPv6 unsolicited-NA sender on the macvlan
 //
-// The Linux backend opens, per instance, a raw proto-112 RX socket bound to the
-// PARENT interface with the VRRP multicast group joined, and a raw proto-112 TX
-// socket bound to the instance's MACVLAN so adverts egress with the virtual MAC.
+// The Linux backend opens per-instance raw proto-112 RX and TX sockets on the
+// MACVLAN. A peer uses the same virtual source MAC; Linux redirects its multicast
+// to the PRIVATE macvlan and consumes the parent's copy, so parent-bound RX loses
+// the winning advertisement. The RX metadata retains the configured parent's
+// ifindex for the engine's group lookup.
 // IPv4 TX uses IP_HDRINCL with an explicitly built header (the addressless macvlan
 // has no primary IPv4 for kernel source selection); IPv6 TX pins the source via an
 // IPV6_PKTINFO cmsg and offloads the checksum to the kernel (IPV6_CHECKSUM). A
@@ -77,10 +79,6 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 	if err != nil {
 		return nil, fmt.Errorf("vrrp/transport: resolve parent %s: %w", spec.Parent, err)
 	}
-	parentOS := pb.OsName
-	if parentOS == "" {
-		parentOS = spec.Parent
-	}
 	mvi, err := net.InterfaceByName(spec.MacvlanDevice)
 	if err != nil {
 		return nil, fmt.Errorf("vrrp/transport: resolve macvlan %s: %w", spec.MacvlanDevice, err)
@@ -99,7 +97,7 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 		stop:        make(chan struct{}),
 		done:        make(chan struct{}),
 	}
-	if oerr := li.openSockets(parentOS); oerr != nil {
+	if oerr := li.openSockets(); oerr != nil {
 		_ = li.closeFDs() // cleanup on the error path; return the original openSockets error
 		return nil, oerr
 	}
@@ -108,15 +106,15 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 }
 
 // openSockets opens the rx/tx/announce sockets for the instance's family.
-func (li *linuxInstance) openSockets(parentOS string) error {
+func (li *linuxInstance) openSockets() error {
 	if li.family == packet.V6 {
-		return li.openV6(parentOS)
+		return li.openV6()
 	}
-	return li.openV4(parentOS)
+	return li.openV4()
 }
 
-func (li *linuxInstance) openV4(parentOS string) error {
-	rxFD, err := openRawIP(unix.AF_INET, parentOS)
+func (li *linuxInstance) openV4() error {
+	rxFD, err := openRawIP(unix.AF_INET, li.macvlanName)
 	if err != nil {
 		return err
 	}
@@ -124,10 +122,13 @@ func (li *linuxInstance) openV4(parentOS string) error {
 	if terr := setRcvTimeout(rxFD); terr != nil {
 		return terr
 	}
-	// Join 224.0.0.18 by parent ifindex (RFC 9568 Constants).
-	mreq := &unix.IPMreqn{Multiaddr: packet.MulticastV4.As4(), Ifindex: int32(li.parentIf)}
+	// RFC 9568 Section 6.4.3: "VRRP packets are transmitted with the Virtual Router MAC
+	// address as the source MAC address to ensure that learning bridges correctly
+	// determine the LAN segment to which the Virtual Router is attached."
+	// Linux delivers that shared source MAC's multicast to the PRIVATE macvlan.
+	mreq := &unix.IPMreqn{Multiaddr: packet.MulticastV4.As4(), Ifindex: int32(li.macvlanIf)}
 	if jerr := unix.SetsockoptIPMreqn(rxFD, unix.IPPROTO_IP, unix.IP_ADD_MEMBERSHIP, mreq); jerr != nil {
-		return fmt.Errorf("vrrp/transport: join 224.0.0.18 on ifindex %d: %w", li.parentIf, jerr)
+		return fmt.Errorf("vrrp/transport: join 224.0.0.18 on ifindex %d: %w", li.macvlanIf, jerr)
 	}
 
 	txFD, err := openRawIP(unix.AF_INET, li.macvlanName)
@@ -152,8 +153,8 @@ func (li *linuxInstance) openV4(parentOS string) error {
 	return nil
 }
 
-func (li *linuxInstance) openV6(parentOS string) error {
-	rxFD, err := openRawIP(unix.AF_INET6, parentOS)
+func (li *linuxInstance) openV6() error {
+	rxFD, err := openRawIP(unix.AF_INET6, li.macvlanName)
 	if err != nil {
 		return err
 	}
@@ -161,11 +162,11 @@ func (li *linuxInstance) openV6(parentOS string) error {
 	if terr := setRcvTimeout(rxFD); terr != nil {
 		return terr
 	}
-	// Join ff02::12 by parent ifindex (RFC 9568 Constants).
-	mreq := &unix.IPv6Mreq{Interface: uint32(li.parentIf)}
+	// Join ff02::12 on the macvlan for the same shared-source-MAC reason as IPv4.
+	mreq := &unix.IPv6Mreq{Interface: uint32(li.macvlanIf)}
 	mreq.Multiaddr = packet.MulticastV6.As16()
 	if jerr := unix.SetsockoptIPv6Mreq(rxFD, unix.IPPROTO_IPV6, unix.IPV6_JOIN_GROUP, mreq); jerr != nil {
-		return fmt.Errorf("vrrp/transport: join ff02::12 on ifindex %d: %w", li.parentIf, jerr)
+		return fmt.Errorf("vrrp/transport: join ff02::12 on ifindex %d: %w", li.macvlanIf, jerr)
 	}
 	// Deliver dst (IPV6_PKTINFO) and hop limit (IPV6_RECVHOPLIMIT) as ancillary data
 	// so the readLoop can build RxMeta for the codec's GTSM check.

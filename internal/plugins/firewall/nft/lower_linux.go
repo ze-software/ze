@@ -490,6 +490,11 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerProtoMatch(v.Protocol)
 	case firewall.MatchInputInterface:
 		return lowerIfaceMatch(expr.MetaKeyIIFNAME, v.Name, v.Wildcard)
+	case firewall.MatchUnicast:
+		return []expr.Any{
+			&expr.Meta{Key: expr.MetaKeyPKTTYPE, Register: 1},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.PACKET_HOST}},
+		}, nil
 	case firewall.MatchOutputInterface:
 		return lowerIfaceMatch(expr.MetaKeyOIFNAME, v.Name, v.Wildcard)
 	case firewall.MatchConnState:
