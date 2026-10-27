@@ -26,12 +26,6 @@ func answerQuery(msg, _ *dns.Msg, _ dnsserver.Peer) bool {
 	return true
 }
 
-// onPanic logs a query whose answer panicked; the harness has recovered it
-// and written no reply.
-func onPanic(rec any) {
-	loggerPtr.Load().Error("dnsresolver: recovered panic handling query", "panic", rec)
-}
-
 // resolverServer owns the resolver's listeners over the shared harness.
 // Not safe for concurrent use: the config transaction calls it under its
 // lock.
@@ -43,7 +37,7 @@ type resolverServer struct {
 // shape and the single write, and the UDP read buffer matches the size the
 // reply OPT advertises.
 func newResolverServer(log *slog.Logger) *resolverServer {
-	handler := dnsserver.Recursive(log, answerQuery, onPanic)
+	handler := dnsserver.Recursive(log, answerQuery)
 	return &resolverServer{mgr: dnsserver.New(log, handler, dnsserver.Options{
 		UDPSize: dnsserver.RecursiveUDPSize,
 	})}

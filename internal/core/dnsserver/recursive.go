@@ -41,17 +41,17 @@ const RecursiveUDPSize = 1232
 // A query whose opcode is not a standard query draws that reply here and
 // never reaches fn, so no opcode Ze does not implement is forwarded upstream.
 //
-// A nil log discards the one line the query path writes (see send).
-func Recursive(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
+// If fn panics, queryGuard contains it as it does for Authoritative: the panic
+// is logged, counted and recorded, and no reply is written.
+//
+// A nil log discards the write-failure line (see send), never the panic line.
+func Recursive(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
 	if log == nil {
 		log = slogutil.DiscardLogger()
 	}
+	task := queryGuard.Task(taskRecursiveQuery, queryRestart)
 	return func(w dns.ResponseWriter, r *dns.Msg) {
-		defer func() {
-			if rec := recover(); rec != nil && onPanic != nil {
-				onPanic(rec)
-			}
-		}()
+		defer task.Contain(describeQuery(w, r), nil)
 		msg := new(dns.Msg)
 		if r.Opcode != dns.OpcodeQuery {
 			msg.SetRcode(r, dns.RcodeNotImplemented)

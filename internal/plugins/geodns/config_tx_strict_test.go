@@ -130,7 +130,7 @@ func TestConfigTxReloadThatLosesTheRunningListener(t *testing.T) {
 	thief := &portThief{t: t}
 	t.Cleanup(thief.release)
 	log := testLogger()
-	handler := dnsserver.Authoritative(log, answerQuery, onPanic)
+	handler := dnsserver.Authoritative(log, answerQuery)
 	inst := &geodnsInstaller{mgr: &geodnsServer{mgr: dnsserver.New(log, handler,
 		dnsserver.Options{OnListenerChange: thief.onListenerChange})}, log: log}
 	t.Cleanup(func() {

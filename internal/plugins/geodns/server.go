@@ -337,12 +337,6 @@ func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 	return true
 }
 
-// onPanic logs a query that panicked mid-answer; the harness has already
-// recovered it and dropped the (unwritten) reply.
-func onPanic(rec any) {
-	loggerPtr.Load().Error("geodns: recovered panic handling query", "panic", rec)
-}
-
 // onListenerChange publishes bind/unbind transitions to geodns's own
 // listenerUp gauge, whose label values are this plugin's listen addresses.
 // The harness owns only the metric no consumer can see, the write-failure
@@ -368,7 +362,7 @@ type geodnsServer struct {
 // authoritative-answer/recursion-refusal guard; geodns supplies only
 // answerQuery (metrics + policy) and its own listener-up gauge.
 func newServerManager(log *slog.Logger) *geodnsServer {
-	handler := dnsserver.Authoritative(log, answerQuery, onPanic)
+	handler := dnsserver.Authoritative(log, answerQuery)
 	return &geodnsServer{mgr: dnsserver.New(log, handler, dnsserver.Options{
 		OnListenerChange: onListenerChange,
 		// The PKI store lives in the hub process. Injecting the resolver here

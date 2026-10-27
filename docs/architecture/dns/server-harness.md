@@ -48,6 +48,19 @@ alerts on instead.
 
 <!-- source: internal/core/dnsserver/metrics.go -- the write-failure counter -->
 
+Owning the query also means owning a panic in the answer function. Both wrappers
+defer the harness's own `queryGuard` (`internal/core/taskguard`) at the top of
+each query, so the consumer cannot opt out of the report. A contained panic
+writes one ERROR line on the `dns.server` subsystem logger naming the client and
+the question, counts one in `ze_task_panics_total{component="dns",task}` (task
+`authoritative-query` or `recursive-query`), writes a crash record that
+`ze show crashes` lists, and sends no reply: the client retries or gives up, and
+the listener keeps answering. The line does not go through the consumer's log,
+because a nil log means "no write-failure line", never "hide a Ze defect".
+`SetMetricsRegistry` publishes the counter beside the write-failure one.
+
+<!-- source: internal/core/dnsserver/guard.go -- queryGuard, describeQuery -->
+
 The wrapper also owns the AA bit, and the RCODE decides it. Every reply carries
 AA set except one with RCODE 5 (Refused), which an answer function returns for a
 name under no zone it serves and for a service the operator turned off. RFC 1035

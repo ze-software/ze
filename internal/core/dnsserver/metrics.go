@@ -48,8 +48,13 @@ func buildMetrics(reg metrics.Registry) *harnessMetrics {
 // of this package calls it from its plugin registration's ConfigureMetrics, so
 // a process serving DNS from more than one plugin registers the same metric
 // twice. metrics.Registry is idempotent by name, so the two consumers share one
-// counter rather than colliding. Safe for concurrent use.
-func SetMetricsRegistry(reg metrics.Registry) { harnessMetricsPtr.Store(buildMetrics(reg)) }
+// counter rather than colliding. It also publishes queryGuard's
+// ze_task_panics_total{component="dns"} count, panics recovered before it ran
+// included. Safe for concurrent use.
+func SetMetricsRegistry(reg metrics.Registry) {
+	harnessMetricsPtr.Store(buildMetrics(reg))
+	queryGuard.SetMetricsRegistry(reg)
+}
 
 // hmetrics returns the current metric set, lazily defaulting to a no-op
 // registry so a reply written before ConfigureMetrics has run still counts

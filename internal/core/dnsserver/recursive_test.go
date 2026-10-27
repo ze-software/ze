@@ -43,7 +43,7 @@ func TestRecursiveShape(t *testing.T) {
 			msg.CheckingDisabled = !cd
 			msg.Rcode = dns.RcodeServerFailure
 			return true
-		}, nil)
+		})
 
 		fw := &fakeResponseWriter{}
 		handler(fw, q)
@@ -84,20 +84,18 @@ func TestRecursiveShape(t *testing.T) {
 		}
 	}
 
-	dropped := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return false }, nil)
+	dropped := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return false })
 	fw := &fakeResponseWriter{}
 	dropped(fw, recursiveQuery("example.test.", 0))
 	if fw.written != nil {
 		t.Error("a reply was written for a query the answer func dropped (send=false), want none")
 	}
 
-	var panicked any
-	panicking := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { panic("boom") }, func(rec any) { panicked = rec })
+	guard, logs := swapQueryGuard(t)
+	panicking := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { panic("boom") })
 	fw = &fakeResponseWriter{}
 	panicking(fw, recursiveQuery("example.test.", 0))
-	if panicked != "boom" {
-		t.Errorf("onPanic received %v, want %q", panicked, "boom")
-	}
+	requireQueryContained(t, guard, logs, taskRecursiveQuery)
 	if fw.written != nil {
 		t.Error("a reply was written for a query whose answer func panicked, want none")
 	}
@@ -117,7 +115,7 @@ func TestRecursiveOpcode(t *testing.T) {
 		handler := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool {
 			t.Errorf("opcode %s reached the answer func", dns.OpcodeToString[opcode])
 			return true
-		}, nil)
+		})
 		fw := &fakeResponseWriter{}
 		handler(fw, q)
 		if fw.written == nil {
@@ -147,7 +145,7 @@ func TestRecursiveOpcode(t *testing.T) {
 // without the OPT the client asked for, or a listener that drops every large
 // EDNS query.
 func TestRecursiveUDPSize(t *testing.T) {
-	handler := Recursive(nil, answerN(200), nil)
+	handler := Recursive(nil, answerN(200))
 
 	for _, offer := range []uint16{1232, 4096} {
 		w := udpWriter()
@@ -205,7 +203,7 @@ func TestRecursiveUDPSize(t *testing.T) {
 func padded1232Answered(t *testing.T, opts Options) bool {
 	t.Helper()
 	port := freePort(t)
-	mgr := New(testLogger(), Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return true }, nil), opts)
+	mgr := New(testLogger(), Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return true }), opts)
 	if err := mgr.reconcile(true, Listeners{Plain: []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}}, BindLenient); err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}

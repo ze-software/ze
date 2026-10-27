@@ -53,8 +53,8 @@ func TestBuildCrashReportErrorValue(t *testing.T) {
 
 func TestBuildCrashReportUnknownValue(t *testing.T) {
 	report := buildCrashReport(42, nil)
-	if !strings.Contains(report, "<unknown panic value>") {
-		t.Error("unknown value not handled")
+	if !strings.Contains(report, "=== Panic ===\n42\n") {
+		t.Errorf("a panic with a non-string, non-error value does not carry the value:\n%s", report)
 	}
 }
 

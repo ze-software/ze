@@ -132,12 +132,6 @@ func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 	return true
 }
 
-// onPanic logs a query that panicked mid-answer; the harness has already
-// recovered it and dropped the (unwritten) reply.
-func onPanic(rec any) {
-	loggerPtr.Load().Error("as112: recovered panic handling query", "panic", rec)
-}
-
 // onListenerChange publishes bind/unbind transitions to as112's own
 // listenerUp gauge, whose label values are this plugin's listen addresses.
 // The harness owns only the metric no consumer can see, the write-failure
@@ -173,7 +167,7 @@ type as112Server struct {
 // runtime listener crash (dnsserver reports it via OnListenerChange up=false).
 func newServerManager(log *slog.Logger, onServing func()) *as112Server {
 	s := &as112Server{upV4: make(map[string]bool), upV6: make(map[string]bool), onServing: onServing}
-	handler := dnsserver.Authoritative(log, answerQuery, onPanic)
+	handler := dnsserver.Authoritative(log, answerQuery)
 	s.mgr = dnsserver.New(log, handler, dnsserver.Options{
 		Freebind:         true,
 		OnListenerChange: s.listenerChanged,

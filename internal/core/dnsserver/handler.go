@@ -48,9 +48,9 @@ type AnswerFunc func(msg, r *dns.Msg, p Peer) (send bool)
 // answer func can advertise recursion, and none can set or clear the
 // authoritative bit against the RCODE it chose), then
 // bounds and writes msg exactly once when fn returns send=true. If fn panics,
-// onPanic (if non-nil) receives the recovered value and no reply is written --
-// one bad query can never crash the listener, nor receive a malformed or
-// accidentally-recursive answer.
+// queryGuard contains it: it logs, counts and records the panic, and no reply
+// is written -- one bad query can never crash the listener, nor receive a
+// malformed or accidentally-recursive answer, nor vanish unreported.
 //
 // A query whose opcode is not a standard query never reaches fn: it draws Not
 // Implemented here, before any zone lookup or client resolution, so an opcode
@@ -67,21 +67,19 @@ type AnswerFunc func(msg, r *dns.Msg, p Peer) (send bool)
 // normal answer and a name outside one draws NXDOMAIN. Both claim Ze acted on
 // a request it never implemented.
 //
-// log receives the one line the harness writes on the query path, the failure
-// of the wire write (see send). A nil log is taken as "this consumer wants no
-// line" and discards it, which is what the answer-func tests pass: a nil
-// dereference on the query path would be a defect this package can inflict on
-// every reply, and no logging decision is worth that.
-func Authoritative(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
+// log receives the line the harness writes for a failed wire write (see
+// send). A nil log is taken as "this consumer wants no such line" and discards
+// it, which is what the answer-func tests pass: a nil dereference on the query
+// path would be a defect this package can inflict on every reply, and no
+// logging decision is worth that. The panic line is queryGuard's and never
+// goes through log.
+func Authoritative(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
 	if log == nil {
 		log = slogutil.DiscardLogger()
 	}
+	task := queryGuard.Task(taskAuthoritativeQuery, queryRestart)
 	return func(w dns.ResponseWriter, r *dns.Msg) {
-		defer func() {
-			if rec := recover(); rec != nil && onPanic != nil {
-				onPanic(rec)
-			}
-		}()
+		defer task.Contain(describeQuery(w, r), nil)
 		msg := new(dns.Msg)
 		if r.Opcode != dns.OpcodeQuery {
 			msg.SetRcode(r, dns.RcodeNotImplemented)

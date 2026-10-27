@@ -25,8 +25,9 @@ func (f *fakeResponseWriter) RemoteAddr() net.Addr {
 // VALIDATES: the authoritative wrapper sets Authoritative=true and never
 // advertises recursion, owns the single wire write, and re-asserts the shape
 // after fn so an answer func that sets RecursionAvailable=true cannot make it
-// onto the wire; a panic inside fn is recovered via onPanic and no reply is
-// written for that query (AC-5, the child-2 R-3 single-source recursion guard).
+// onto the wire; a panic inside fn is contained by queryGuard (logged, counted,
+// recorded) and no reply is written for that query (AC-5, the child-2 R-3
+// single-source recursion guard).
 // PREVENTS: a consumer accidentally (or via its own WriteMsg) advertising
 // recursion, or one bad query crashing the listener goroutine.
 func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
@@ -41,7 +42,7 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 		msg.RecursionAvailable = true // fn tries to advertise recursion...
 		msg.Compress = true           // ...and to enable compression
 		return true
-	}, nil)
+	})
 
 	fw := &fakeResponseWriter{}
 	handler(fw, q)
@@ -75,23 +76,21 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 	// send=false must drop the query with no reply.
 	dropped := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		return false
-	}, nil)
+	})
 	fwDrop := &fakeResponseWriter{}
 	dropped(fwDrop, q)
 	if fwDrop.written != nil {
 		t.Error("a reply was written for a query the answer func dropped (send=false), want none")
 	}
 
-	var panicked any
+	guard, logs := swapQueryGuard(t)
 	handler = Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		panic("boom")
-	}, func(rec any) { panicked = rec })
+	})
 
 	fw2 := &fakeResponseWriter{}
 	handler(fw2, q) // must not propagate the panic to the caller
-	if panicked != "boom" {
-		t.Errorf("onPanic received %v, want %q", panicked, "boom")
-	}
+	requireQueryContained(t, guard, logs, taskAuthoritativeQuery)
 	if fw2.written != nil {
 		t.Error("a reply was written for a query whose answer func panicked, want none")
 	}
@@ -121,7 +120,7 @@ func TestAuthoritativeUnchanged(t *testing.T) {
 			})
 		}
 		return true
-	}, nil)
+	})
 	fw := &fakeResponseWriter{}
 	handler(fw, q)
 	if fw.written == nil {

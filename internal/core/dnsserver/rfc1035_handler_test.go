@@ -90,7 +90,7 @@ func TestRFC1035_UDPReplyBoundedAndTruncated(t *testing.T) {
 	t.Parallel()
 
 	over := udpWriter()
-	Authoritative(nil, answerN(50), nil)(over, questionFor("big.test"))
+	Authoritative(nil, answerN(50))(over, questionFor("big.test"))
 	if over.written == nil {
 		t.Fatal("no reply written for the oversized query")
 	}
@@ -117,7 +117,7 @@ func TestRFC1035_UDPReplyBoundedAndTruncated(t *testing.T) {
 	}
 
 	under := udpWriter()
-	Authoritative(nil, answerN(3), nil)(under, questionFor("small.test"))
+	Authoritative(nil, answerN(3))(under, questionFor("small.test"))
 	if under.written == nil {
 		t.Fatal("no reply written for the small query")
 	}
@@ -146,7 +146,7 @@ func TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize(t *testing.T) {
 	t.Parallel()
 
 	plain := udpWriter()
-	Authoritative(nil, answerN(50), nil)(plain, questionFor("edns.test"))
+	Authoritative(nil, answerN(50))(plain, questionFor("edns.test"))
 	if plain.written == nil {
 		t.Fatal("no reply written for the query without an OPT record")
 	}
@@ -157,7 +157,7 @@ func TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize(t *testing.T) {
 	advertised := questionFor("edns.test")
 	advertised.SetEdns0(4096, false)
 	large := udpWriter()
-	Authoritative(nil, answerN(50), nil)(large, advertised)
+	Authoritative(nil, answerN(50))(large, advertised)
 	if large.written == nil {
 		t.Fatal("no reply written for the EDNS0 query")
 	}
@@ -185,7 +185,7 @@ func TestRFC1035_StreamTransportNotTruncated(t *testing.T) {
 	t.Parallel()
 
 	w := tcpWriter()
-	Authoritative(nil, answerN(50), nil)(w, questionFor("stream.test"))
+	Authoritative(nil, answerN(50))(w, questionFor("stream.test"))
 	if w.written == nil {
 		t.Fatal("no reply written")
 	}
@@ -228,7 +228,7 @@ func TestRFC1035_UnsupportedOpcodeReturnsNotImplemented(t *testing.T) {
 				ran = true
 				msg.SetRcode(r, dns.RcodeNameError)
 				return true
-			}, nil)
+			})
 
 			q := questionFor("iquery.test")
 			q.Opcode = tc.opcode
@@ -275,7 +275,7 @@ func TestRFC1035_QueryOpcodeAnsweredNormally(t *testing.T) {
 			A:   net.IPv4(10, 0, 0, 1),
 		})
 		return true
-	}, nil)
+	})
 
 	q := questionFor("query.test")
 	w := udpWriter()
@@ -400,7 +400,7 @@ func TestWriteFailureLoggedAndCounted(t *testing.T) {
 			log := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			tc.writer.writeErr = refused
 
-			Authoritative(log, answerN(1), nil)(tc.writer, questionFor("refused.test"))
+			Authoritative(log, answerN(1))(tc.writer, questionFor("refused.test"))
 
 			key := "ze_dns_reply_write_failure_total{" + tc.transport + "}"
 			if got := rec.get(key); got != 1 {
