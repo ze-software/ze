@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 var (
@@ -471,7 +472,24 @@ func (s *RTRSession) connectAndSync() error {
 }
 
 // readLoop reads PDUs from the connection until End of Data or error.
-func (s *RTRSession) readLoop(conn net.Conn) error {
+//
+// It is the RTR session's network-input task, so its panic boundary sits here,
+// once per sync and never per PDU: a Ze defect a cache's PDU reaches is logged,
+// counted and crash-recorded by rpkiPanics().read, the cache gets an Error Report
+// Internal Error (reportInternalError), and readLoop returns the panic as its
+// error. syncOnce then closes the connection and cacheGroup.load fails the
+// attempt, so the next cache in preference order takes the load and this one is
+// asked again after its Retry Interval.
+func (s *RTRSession) readLoop(conn net.Conn) (readErr error) {
+	var inFlight pduInFlight
+	defer rpkiPanics().read.Contain(
+		func() taskguard.Context { return s.describeRead(inFlight) },
+		func(contained *taskguard.Panic) {
+			// RFC 8210 Section 5.11, Section 12
+			s.reportInternalError(conn, inFlight)
+			readErr = contained
+		})
+
 	headerBuf := make([]byte, pduHeaderLen)
 
 	for {
@@ -489,6 +507,7 @@ func (s *RTRSession) readLoop(conn net.Conn) error {
 		if err != nil {
 			return err
 		}
+		inFlight = pduInFlight{header: hdr, parsed: true}
 
 		// Read remaining bytes.
 		remaining := int(hdr.Length) - pduHeaderLen
@@ -607,71 +626,13 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		received := time.Now()
-		s.mu.Lock()
-		lease := s.dataLeaseLocked()
-		lease.mu.Lock()
-		// An overdue timer may not have run yet. A serial delta cannot renew
-		// a base whose absolute lifetime ended before this EOD arrived.
-		expired := !lease.deadline.IsZero() && !received.Before(lease.deadline)
-		if !s.fullSync && (s.dataGeneration != lease.generation || expired) {
-			s.serial = 0
-			s.fullSync = true
-			lease.mu.Unlock()
-			s.mu.Unlock()
-			return false, errRtrDataExpired
+		applied, err := s.applyEndOfData(params, time.Now())
+		if err != nil {
+			return false, err
 		}
-		s.serial = params.SerialNumber
-		s.synced = true
-		if params.RefreshInterval > 0 {
-			s.refreshInterval = time.Duration(params.RefreshInterval) * time.Second
-		}
-		if params.RetryInterval > 0 {
-			s.retryInterval = time.Duration(params.RetryInterval) * time.Second
-		}
-		if params.ExpireInterval > 0 {
-			s.expireInterval = time.Duration(params.ExpireInterval) * time.Second
-		}
-		// Apply the accumulated VRPs. A Reset Query is answered with the cache's whole
-		// set, so its End of Data REPLACES what ze holds; a Serial Query is answered with
-		// a delta against the set ze already has. Both run under the lock this branch
-		// holds, so no validation reads a half-applied set.
-		fullSync := s.fullSync
-		s.fullSync = false
-		announced := len(s.pendingVRPs)
-		withdrawn := len(s.pendingDels)
-		if fullSync {
-			lease.generation++
-			s.cache.Replace(s.pendingVRPs)
-		} else {
-			s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
-		}
-		s.pendingVRPs = nil
-		s.pendingDels = nil
-
-		// Apply the accumulated ASPA records, the same two ways. Only a full sync replaces
-		// the whole set. A delta replaces no record but the one for each customer it names,
-		// draft-ietf-sidrops-8210bis Section 5.12: "Receipt of an ASPA PDU announcement with
-		// the announce/withdraw flag set to 1 when the router already has an ASPA PDU with
-		// the same Customer Autonomous System Number from that cache replaces the previous
-		// one."
-		aspaAnnounced := len(s.pendingASPAs)
-		aspaWithdrawn := len(s.pendingASPADels)
-		var aspaChanged []uint32
-		if s.aspaCache != nil {
-			if fullSync {
-				aspaChanged = s.aspaCache.Replace(s.pendingASPAs)
-			} else if aspaAnnounced > 0 || aspaWithdrawn > 0 {
-				aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
-				s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
-			}
-		}
-		s.pendingASPAs = nil
-		s.pendingASPADels = nil
-		s.dataGeneration = lease.generation
-		lease.renewLocked(received, s.expireInterval)
-		lease.mu.Unlock()
-		s.mu.Unlock()
+		announced, withdrawn := applied.announced, applied.withdrawn
+		aspaAnnounced, aspaWithdrawn := applied.aspaAnnounced, applied.aspaWithdrawn
+		aspaChanged, fullSync := applied.aspaChanged, applied.fullSync
 
 		// Notify ASPA change callback (re-validation trigger).
 		if len(aspaChanged) > 0 && s.onASPAChange != nil {
@@ -755,6 +716,87 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 	}
 
 	return false, fmt.Errorf("rtr: unknown PDU type %d", hdr.Type)
+}
+
+// endOfDataApplied is what applyEndOfData changed, for the callbacks, the metric and the log
+// line handlePDU runs once both locks are released.
+type endOfDataApplied struct {
+	announced, withdrawn         int
+	aspaAnnounced, aspaWithdrawn int
+	aspaChanged                  []uint32
+	fullSync                     bool
+}
+
+// applyEndOfData commits the records this sync accumulated and the End of Data's parameters,
+// under the session lock and the data lease's lock, both released by defer: a panic inside a
+// cache update, which the read task's boundary contains, MUST NOT leave either held, or the
+// connection close behind it and every later sync sharing the lease would block forever.
+func (s *RTRSession) applyEndOfData(params endOfDataParams, received time.Time) (endOfDataApplied, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	lease := s.dataLeaseLocked()
+	lease.mu.Lock()
+	defer lease.mu.Unlock()
+
+	// An overdue timer may not have run yet. A serial delta cannot renew
+	// a base whose absolute lifetime ended before this EOD arrived.
+	expired := !lease.deadline.IsZero() && !received.Before(lease.deadline)
+	if !s.fullSync && (s.dataGeneration != lease.generation || expired) {
+		s.serial = 0
+		s.fullSync = true
+		return endOfDataApplied{}, errRtrDataExpired
+	}
+	s.serial = params.SerialNumber
+	s.synced = true
+	if params.RefreshInterval > 0 {
+		s.refreshInterval = time.Duration(params.RefreshInterval) * time.Second
+	}
+	if params.RetryInterval > 0 {
+		s.retryInterval = time.Duration(params.RetryInterval) * time.Second
+	}
+	if params.ExpireInterval > 0 {
+		s.expireInterval = time.Duration(params.ExpireInterval) * time.Second
+	}
+	// Apply the accumulated VRPs. A Reset Query is answered with the cache's whole
+	// set, so its End of Data REPLACES what ze holds; a Serial Query is answered with
+	// a delta against the set ze already has. Both run under the lock this function
+	// holds, so no validation reads a half-applied set.
+	applied := endOfDataApplied{
+		announced:     len(s.pendingVRPs),
+		withdrawn:     len(s.pendingDels),
+		aspaAnnounced: len(s.pendingASPAs),
+		aspaWithdrawn: len(s.pendingASPADels),
+		fullSync:      s.fullSync,
+	}
+	s.fullSync = false
+	if applied.fullSync {
+		lease.generation++
+		s.cache.Replace(s.pendingVRPs)
+	} else {
+		s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
+	}
+	s.pendingVRPs = nil
+	s.pendingDels = nil
+
+	// Apply the accumulated ASPA records, the same two ways. Only a full sync replaces
+	// the whole set. A delta replaces no record but the one for each customer it names,
+	// draft-ietf-sidrops-8210bis Section 5.12: "Receipt of an ASPA PDU announcement with
+	// the announce/withdraw flag set to 1 when the router already has an ASPA PDU with
+	// the same Customer Autonomous System Number from that cache replaces the previous
+	// one."
+	if s.aspaCache != nil {
+		if applied.fullSync {
+			applied.aspaChanged = s.aspaCache.Replace(s.pendingASPAs)
+		} else if applied.aspaAnnounced > 0 || applied.aspaWithdrawn > 0 {
+			applied.aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
+			s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
+		}
+	}
+	s.pendingASPAs = nil
+	s.pendingASPADels = nil
+	s.dataGeneration = lease.generation
+	lease.renewLocked(received, s.expireInterval)
+	return applied, nil
 }
 
 // close cleans up the session connection.

@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -34,6 +35,10 @@ func init() {
 		// events on the in-process EventBus (mirrors redistribute_egress).
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
+		},
+		// The receiver's panic boundary counts in ze_task_panics_total.
+		ConfigureMetrics: func(reg metrics.Registry) {
+			bmpPanics().guard.SetMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

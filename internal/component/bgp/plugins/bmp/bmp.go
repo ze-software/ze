@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -681,10 +682,19 @@ func (bp *BMPPlugin) isStopping() bool {
 
 // handleSession processes a single BMP session from a remote router.
 // RFC 7854: unidirectional, router -> receiver.
+//
+// It is the receiver's network-input task, so its panic boundary sits here, once
+// per session and never per message: a Ze defect a router's message reaches is
+// logged, counted and crash-recorded by bmpPanics().receive, and the session ends
+// through the deferred teardown below, which runs before the boundary returns.
+// No message goes back first: RFC 7854 Section 3.2, "No BMP message is ever sent
+// from the monitoring station to the monitored router."
 func (bp *BMPPlugin) handleSession(conn net.Conn) {
+	remote := conn.RemoteAddr().String()
+	var inFlight msgInFlight
+	defer bmpPanics().receive.Contain(func() taskguard.Context { return describeReceive(remote, inFlight) }, nil)
 	defer closeLog(conn, "session")
 
-	remote := conn.RemoteAddr().String()
 	logger().Info("bmp: session started", "remote", remote)
 	terminated := false
 	bp.state.addRouter(remote)
@@ -723,6 +733,7 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 			logger().Warn("bmp: bad header", "remote", remote, "error", err)
 			return
 		}
+		inFlight = msgInFlight{msgType: ch.Type, decoded: true}
 
 		msgLen := int(ch.Length)
 		if msgLen < CommonHeaderSize {

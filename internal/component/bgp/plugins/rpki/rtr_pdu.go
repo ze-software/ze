@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 )
 
 // RTR protocol versions.
@@ -45,9 +46,42 @@ const (
 
 // RTR error codes (RFC 8210 Section 12, draft-ietf-sidrops-8210bis Section 12).
 const (
+	errInternalError      uint16 = 1
 	errNoDataAvail        uint16 = 2
 	errUnsupportedVersion uint16 = 4
 )
+
+// pduTypeName names a PDU type the way RFC 8210 Section 5 and
+// draft-ietf-sidrops-8210bis title its PDUs, for the operator's log line. The
+// set is open: a cache may send any octet, so an unassigned type is named by
+// its number.
+func pduTypeName(pduType uint8) string {
+	switch pduType {
+	case pduSerialNotify:
+		return "Serial Notify"
+	case pduSerialQuery:
+		return "Serial Query"
+	case pduResetQuery:
+		return "Reset Query"
+	case pduCacheResp:
+		return "Cache Response"
+	case pduIPv4Prefix:
+		return "IPv4 Prefix"
+	case pduIPv6Prefix:
+		return "IPv6 Prefix"
+	case pduEndOfData:
+		return "End of Data"
+	case pduCacheReset:
+		return "Cache Reset"
+	case pduRouterKey:
+		return "Router Key"
+	case pduErrorRpt:
+		return "Error Report"
+	case pduASPA:
+		return "ASPA"
+	}
+	return "unassigned type " + strconv.Itoa(int(pduType))
+}
 
 var errASPAProviderList = errors.New("rtr: ASPA provider list error")
 

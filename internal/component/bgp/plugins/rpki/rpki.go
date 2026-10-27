@@ -75,6 +75,7 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		aspaOutcomes:       reg.CounterVec("ze_rpki_aspa_outcomes_total", "ASPA path verification outcomes.", []string{"result"}),
 	}
 	rpkiMetricsPtr.Store(m)
+	rpkiPanics().guard.SetMetricsRegistry(reg)
 }
 
 // loggerPtr is the package-level logger, disabled by default.

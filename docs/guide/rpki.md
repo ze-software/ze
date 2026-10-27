@@ -366,6 +366,17 @@ preference order. When no cache answers, the next round runs when the first
 of them may be asked again.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.poll, cacheGroup.probe, cacheGroup.load -->
 
+A Ze defect a cache's PDU reaches ends that one sync and nothing else. Ze logs
+it at ERROR with the cache, the PDU type in flight and the stack, counts it in
+`ze_task_panics_total{component="rpki",task="rtr-read"}`, and writes a crash
+record that `ze show crashes` lists. The cache is sent an Error Report with
+code 1, Internal Error, and no encapsulated PDU (RFC 8210 Sections 5.11 and
+12), unless the PDU in flight was itself an Error Report. The connection then
+closes and the attempt counts as a failed query: the next cache in preference
+order takes the load, and this cache is asked again after its Retry Interval.
+The validation data stays as the last completed sync left it.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.readLoop, RTRSession.applyEndOfData; internal/component/bgp/plugins/rpki/panic_guard.go -- reportInternalError -->
+
 ### AS_PATH Edge Cases
 
 | AS_PATH | Origin AS | Result |

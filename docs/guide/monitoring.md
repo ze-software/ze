@@ -307,6 +307,10 @@ at zero from the moment the component has a metrics registry.
 | `bgp` | `delivery` | One BGP session whose received UPDATEs could not reach the plugins: Cease / Unspecific |
 | `bgp` | `accept` | One accepted TCP connection: the listener keeps accepting |
 <!-- source: internal/component/bgp/reactor/panic_guard.go -- bgpPanics -->
+| `rpki` | `rtr-read` | One RTR sync with one cache: the cache is sent an Error Report Internal Error, the connection closes, the next cache in preference order takes the load, and this cache is asked again after its Retry Interval |
+<!-- source: internal/component/bgp/plugins/rpki/panic_guard.go -- rpkiPanics -->
+| `bmp` | `receive` | One monitored router's BMP session: it closes with no message sent back, the router's routes are withdrawn, and the router reconnects under its own configuration |
+<!-- source: internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
 | `ldp` | `session` | One LDP session: the peer is sent an Internal Error Notification, the session closes, and the neighbor's next Hello sets it up again |
 | `ldp` | `discovery` | One received Hello, dropped: discovery reads the next one on the same socket |
 <!-- source: internal/plugins/ldp/panic_guard.go -- ldpPanics -->
