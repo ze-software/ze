@@ -802,6 +802,7 @@ func TestWaitCancellationPreservesEvidence(t *testing.T) {
 		name         string
 		preCancelled bool
 		measured     bool
+		failedFirst  bool
 		wantAttempts int
 		wantFailures int
 		wantValue    string
@@ -814,6 +815,13 @@ func TestWaitCancellationPreservesEvidence(t *testing.T) {
 		{
 			name: "failed probe", wantAttempts: 1, wantFailures: 1,
 			wantError: "wait for cancellation boundary never measured peer state: final probe failed",
+		},
+		{
+			// The second probe fails only because the wait ended under it, as a
+			// docker exec killed at the deadline does: the first probe's
+			// failure is the cause, and the red must name it.
+			name: "failed then cut short", failedFirst: true, wantAttempts: 2, wantFailures: 2,
+			wantError: "wait for cancellation boundary never measured peer state: path has no MED; the final probe, cut short by the wait's end: final probe failed",
 		},
 		{
 			name: "measured then failed", measured: true, wantAttempts: 2, wantFailures: 1,
@@ -838,6 +846,11 @@ func TestWaitCancellationPreservesEvidence(t *testing.T) {
 				if testCase.measured {
 					if probes == 1 {
 						return "last measured state", nil
+					}
+				}
+				if testCase.failedFirst {
+					if probes == 1 {
+						return "", errors.New("path has no MED")
 					}
 				}
 				cancel()

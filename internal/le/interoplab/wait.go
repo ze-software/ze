@@ -32,6 +32,8 @@ type WaitReport struct {
 // can read an unmeasured zero value as state. A not-ready timeout carries the
 // last measured value after "last output:", bounded by OutputExcerpt, so every
 // caller's red names the state the peer was in, not only the state it missed.
+// A never-measured error whose final probe the wait's end cut short also
+// names the failure of the last probe that ran to its end.
 // Wait MUST NOT start another probe after observing cancellation, even when a
 // poll tick is also ready.
 func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Context) (T, error), ready func(T) bool) (T, WaitReport, error) {
@@ -58,13 +60,21 @@ func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Co
 	report := WaitReport{}
 	var last T
 	measured := false
-	var lastErr error
+	var causeErr, cutErr error
 	for waitCtx.Err() == nil {
 		report.Attempts++
 		value, err := probe(waitCtx)
 		if err != nil {
 			report.TransientFailures++
-			lastErr = err
+			// A probe the wait's own end cut short failed for that end, not
+			// for the peer: an exec killed at the deadline names only its own
+			// timeout. The failure of the last probe that ran to its end is
+			// kept beside it, so the red names why every probe failed.
+			if waitCtx.Err() == nil {
+				causeErr, cutErr = err, nil
+			} else {
+				cutErr = err
+			}
 		}
 		if err == nil {
 			measured = true
@@ -83,21 +93,31 @@ func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Co
 	}
 	report.Elapsed = time.Since(started)
 	if !measured {
-		return zero, report, waitNeverMeasuredError(options.Description, lastErr)
+		return zero, report, waitNeverMeasuredError(options.Description, causeErr, cutErr)
 	}
 	return last, report, waitNotReadyError(options.Description, last)
 }
 
-func waitNeverMeasuredError(description string, last error) error {
+// waitNeverMeasuredError names why the probes failed: cause is the failure of
+// the last probe that ran to its end, and cut the failure of a final probe the
+// wait's end cut short. Either may be nil.
+func waitNeverMeasuredError(description string, cause, cut error) error {
 	var tb textbuf.Buffer
 	tb.Str("wait")
 	if description != "" {
 		tb.Str(" for ").Str(description)
 	}
 	tb.Str(" never measured peer state")
-	if last != nil {
-		tb.Str(": ").Err(last)
+	if cause != nil {
+		tb.Str(": ").Err(cause)
 	}
+	if cut == nil {
+		return errors.New(tb.String())
+	}
+	if cause != nil {
+		tb.Str("; the final probe, cut short by the wait's end")
+	}
+	tb.Str(": ").Err(cut)
 	return errors.New(tb.String())
 }
 
