@@ -68,7 +68,29 @@ func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 		}
 	}
 
-	newLSP.mu.Lock()
+	newLSP.locked(func() {
+		e.armRerouteLocked(newLSP, newKey, replaced, newERO, tspec, protection, bandwidth, setupPrio, holdPrio)
+	})
+
+	err := e.sendPath(newLSP)
+	// Superseding a pending attempt must still retire its established
+	// predecessor when the newest RESV succeeds, without retaining the
+	// abandoned attempt or changing its on-wire path under the same LSP ID.
+	if retirePending {
+		e.teardownLSP(oldKey)
+	}
+	if err != nil {
+		e.log.Warn("rsvp-te: make-before-break PATH send failed", "lsp", newKey.String(), "error", err)
+		return newKey, false
+	}
+	e.log.Info("rsvp-te: make-before-break started", "old", oldKey.String(), "new", newKey.String())
+	return newKey, true
+}
+
+// armRerouteLocked writes the make-before-break replacement's path state.
+// newLSP.mu MUST be held.
+func (e *engine) armRerouteLocked(newLSP *LSP, newKey, replaced lspKey, newERO []eroHop, tspec FlowSpec,
+	protection *protectionRequest, bandwidth float64, setupPrio, holdPrio uint8) {
 	newLSP.Role = RoleIngress
 	newLSP.Bandwidth = bandwidth
 	newLSP.SetupPriority = setupPrio
@@ -87,21 +109,6 @@ func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 		Protection:     protection,
 	}
 	newLSP.setState(LSPStatePathSent)
-	newLSP.mu.Unlock()
-
-	err := e.sendPath(newLSP)
-	// Superseding a pending attempt must still retire its established
-	// predecessor when the newest RESV succeeds, without retaining the
-	// abandoned attempt or changing its on-wire path under the same LSP ID.
-	if retirePending {
-		e.teardownLSP(oldKey)
-	}
-	if err != nil {
-		e.log.Warn("rsvp-te: make-before-break PATH send failed", "lsp", newKey.String(), "error", err)
-		return newKey, false
-	}
-	e.log.Info("rsvp-te: make-before-break started", "old", oldKey.String(), "new", newKey.String())
-	return newKey, true
 }
 
 // teardownLSP tears down an ingress LSP this node head-ends: it sends a PathTear
@@ -117,12 +124,19 @@ func (e *engine) teardownLSP(key lspKey) {
 	}
 	// Snapshot the removed LSP's fields under its lock; a refresh or show
 	// goroutine may still hold a reference until it next consults the table.
-	lsp.mu.Lock()
-	route, raw := e.pathTearLocked(lsp)
-	inLabel := lsp.InLabel
-	admIface := lsp.AdmissionIface
-	isBypass := lsp.IsBypass
-	lsp.mu.Unlock()
+	var (
+		route    PathRoute
+		raw      []byte
+		inLabel  uint32
+		admIface string
+		isBypass bool
+	)
+	lsp.locked(func() {
+		route, raw = e.pathTearLocked(lsp)
+		inLabel = lsp.InLabel
+		admIface = lsp.AdmissionIface
+		isBypass = lsp.IsBypass
+	})
 
 	if isBypass {
 		e.clearBypassReferences(key)
@@ -192,18 +206,24 @@ func (e *engine) shutdown() {
 	lsps := e.table.All()
 	for pass := range 2 {
 		for _, lsp := range lsps {
-			lsp.mu.Lock()
-			role, isBypass := lsp.Role, lsp.IsBypass
+			var (
+				role     lspRole
+				isBypass bool
+				route    PathRoute
+				raw      []byte
+			)
+			lsp.locked(func() {
+				role, isBypass = lsp.Role, lsp.IsBypass
+				if isBypass != (pass == 1) {
+					return
+				}
+				if role != RoleIngress {
+					route, raw = e.pathTearLocked(lsp)
+				}
+			})
 			if isBypass != (pass == 1) {
-				lsp.mu.Unlock()
 				continue
 			}
-			var route PathRoute
-			var raw []byte
-			if role != RoleIngress {
-				route, raw = e.pathTearLocked(lsp)
-			}
-			lsp.mu.Unlock()
 			if role == RoleIngress {
 				e.teardownLSP(lsp.Key)
 				continue

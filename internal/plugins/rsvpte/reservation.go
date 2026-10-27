@@ -116,60 +116,83 @@ func (e *engine) acceptReservation(src netip.Addr, msg *ParsedMessage, descripto
 		e.rejectReservation(src, msg, &failed, ErrCodeConflictingStyle, uint16(style), false)
 		return
 	}
-	lsp.mu.Lock()
-	if lsp.PSB == nil || lsp.Role == RoleEgress {
-		lsp.mu.Unlock()
+	var (
+		old                   *resvStateBlock
+		oldBandwidth          float64
+		oldIface              string
+		inLabel, pathMTU      uint32
+		role                  lspRole
+		bypassKey             *lspKey
+		repaired, confirmHere bool
+		noSender, ignored     bool
+		belowFloor            bool
+	)
+	lsp.locked(func() {
+		if lsp.PSB == nil || lsp.Role == RoleEgress {
+			noSender = true
+			return
+		}
+		// Our PATH advertises LIH zero. A returning reservation must name that
+		// exact outgoing handle, not its own unrelated incoming interface index.
+		if msg.Hop.LIH != 0 || (msg.HasHop && !e.samePeer(msg.Hop.NextHop, src)) {
+			ignored = true
+			return
+		}
+		repaired = lsp.ProtectionInUse
+		if repaired {
+			if filter.Filter.SenderAddr != lsp.RepairSender {
+				ignored = true
+				return
+			}
+		} else if lsp.NextHop.IsValid() && !e.samePeer(lsp.NextHop, src) {
+			ignored = true
+			return
+		}
+		old, oldBandwidth, oldIface = lsp.RSB, lsp.Bandwidth, lsp.AdmissionIface
+		inLabel, role, bypassKey = lsp.InLabel, lsp.Role, lsp.Bypass
+		pathMTU = reservationPathMTU(lsp, descriptor.FlowSpec)
+		// A receiver's M under the floor would be installed as the push or swap
+		// metric (mplsfib.PathMTUMinimum). RFC 2205 Appendix B, Error Code 21,
+		// sub-code 03 "Bad Flowspec value": "Malformed or unreasonable request."
+		if pathMTUBelowFloor(pathMTU) {
+			belowFloor = true
+			return
+		}
+		confirmHere = msg.HasResvConfirm && (role == RoleIngress || old != nil && reservationCovers(old.FlowSpec, descriptor.FlowSpec))
+	})
+	if noSender {
 		e.rejectReservation(src, msg, &failed, ErrCodeNoSender, 0, false)
 		return
 	}
-	// Our PATH advertises LIH zero. A returning reservation must name that
-	// exact outgoing handle, not its own unrelated incoming interface index.
-	if msg.Hop.LIH != 0 || (msg.HasHop && !e.samePeer(msg.Hop.NextHop, src)) {
-		lsp.mu.Unlock()
+	if ignored {
 		return
 	}
-	repaired := lsp.ProtectionInUse
-	if repaired {
-		if filter.Filter.SenderAddr != lsp.RepairSender {
-			lsp.mu.Unlock()
-			return
-		}
-	} else if lsp.NextHop.IsValid() && !e.samePeer(lsp.NextHop, src) {
-		lsp.mu.Unlock()
-		return
-	}
-	old, oldBandwidth, oldIface := lsp.RSB, lsp.Bandwidth, lsp.AdmissionIface
-	inLabel, role, bypassKey := lsp.InLabel, lsp.Role, lsp.Bypass
-	pathMTU := reservationPathMTU(lsp, descriptor.FlowSpec)
-	// A receiver's M under the floor would be installed as the push or swap
-	// metric (mplsfib.PathMTUMinimum). RFC 2205 Appendix B, Error Code 21,
-	// sub-code 03 "Bad Flowspec value": "Malformed or unreasonable request."
-	if pathMTUBelowFloor(pathMTU) {
-		lsp.mu.Unlock()
+	if belowFloor {
 		e.log.Warn("rsvp-te: RESV refused, path MTU below the labeled-route floor",
 			"src", src, "path-mtu", pathMTU, "floor", mplsfibevents.PathMTUMinimum)
 		e.rejectReservation(src, msg, &failed, ErrCodeTrafficControlError, ErrValueBadFlowspec, old != nil)
 		return
 	}
-	confirmHere := msg.HasResvConfirm && (role == RoleIngress || old != nil && reservationCovers(old.FlowSpec, descriptor.FlowSpec))
-	lsp.mu.Unlock()
 	allocated := role == RoleTransit && inLabel == 0
 	if allocated {
 		inLabel = e.table.AllocateLabel()
 	}
 	bypassUp := e.bypassEstablished(bypassKey)
-	lsp.mu.Lock()
-	rsb := e.receivedReservation(lsp, msg, descriptor, filter, inLabel, pathMTU, bypassUp)
-	if confirmHere {
-		rsb.ResvConfirm = netip.Addr{}
-	}
-	var raw []byte
-	if role == RoleTransit {
-		outgoing := *rsb
-		outgoing.Hop = lsp.PSB.Hop
-		raw = buildResv(&outgoing, lsp.PSB.SenderTemplate, e.cfg().RefreshPeriod, e.cfg().RouterID)
-	}
-	lsp.mu.Unlock()
+	var (
+		rsb *resvStateBlock
+		raw []byte
+	)
+	lsp.locked(func() {
+		rsb = e.receivedReservation(lsp, msg, descriptor, filter, inLabel, pathMTU, bypassUp)
+		if confirmHere {
+			rsb.ResvConfirm = netip.Addr{}
+		}
+		if role == RoleTransit {
+			outgoing := *rsb
+			outgoing.Hop = lsp.PSB.Hop
+			raw = buildResv(&outgoing, lsp.PSB.SenderTemplate, e.cfg().RefreshPeriod, e.cfg().RouterID)
+		}
+	})
 	if role == RoleTransit && len(raw) == 0 {
 		if allocated {
 			e.table.releaseLabel(inLabel)
@@ -205,18 +228,18 @@ func (e *engine) acceptReservation(src netip.Addr, msg *ParsedMessage, descripto
 		e.rejectReservation(src, msg, &failed, ErrCodeTrafficControlSystem, 0, old != nil)
 		return
 	}
-	lsp.mu.Lock()
-	lsp.RSB, lsp.Reserved, lsp.AdmissionIface, lsp.Bandwidth = rsb, true, iface, bandwidth
-	if role == RoleTransit {
-		lsp.InLabel = inLabel
-	}
-	if repaired {
-		lsp.BackupLabel = filter.Label.Label
-	} else {
-		lsp.OutLabel, lsp.NextHop = filter.Label.Label, src
-		e.recordBackupLabel(lsp, filter)
-	}
-	lsp.mu.Unlock()
+	lsp.locked(func() {
+		lsp.RSB, lsp.Reserved, lsp.AdmissionIface, lsp.Bandwidth = rsb, true, iface, bandwidth
+		if role == RoleTransit {
+			lsp.InLabel = inLabel
+		}
+		if repaired {
+			lsp.BackupLabel = filter.Label.Label
+		} else {
+			lsp.OutLabel, lsp.NextHop = filter.Label.Label, src
+			e.recordBackupLabel(lsp, filter)
+		}
+	})
 	if oldIface != "" && oldIface != iface {
 		e.admission.release(oldIface, key)
 	}
@@ -358,11 +381,11 @@ func (e *engine) reservationObjects(lsp *LSP) [][]byte {
 		if sessionFromKey(candidate.Key) != sessionFromKey(lsp.Key) {
 			continue
 		}
-		candidate.mu.Lock()
-		if candidate.RSB != nil && (candidate == lsp || candidate.RSB.Style == StyleSharedExplicit) {
-			result = appendObjectUnion(result, candidate.RSB.ForwardObjects)
-		}
-		candidate.mu.Unlock()
+		candidate.locked(func() {
+			if candidate.RSB != nil && (candidate == lsp || candidate.RSB.Style == StyleSharedExplicit) {
+				result = appendObjectUnion(result, candidate.RSB.ForwardObjects)
+			}
+		})
 	}
 	return result
 }
@@ -396,25 +419,35 @@ func (e *engine) handleResvErr(src netip.Addr, msg *ParsedMessage) {
 			if !found {
 				continue
 			}
-			lsp.mu.Lock()
-			if lsp.RSB == nil || lsp.RSB.Style != msg.Style || !e.samePeer(lsp.PrevHop, src) {
-				lsp.mu.Unlock()
+			var (
+				matched, forward bool
+				dst              netip.Addr
+				role             lspRole
+				outgoing         flowDescriptor
+				hop              rsvpHop
+			)
+			lsp.locked(func() {
+				if lsp.RSB == nil || lsp.RSB.Style != msg.Style || !e.samePeer(lsp.PrevHop, src) {
+					return
+				}
+				matched = true
+				rsb := lsp.RSB
+				forward = true
+				if msg.ErrorSpec.ErrorCode == ErrCodeAdmissionControlFailure {
+					rsb.Blockade = descriptor.FlowSpec
+					rsb.BlockadeUntil = time.Now().Add(3 * e.cfg().RefreshPeriod)
+					if msg.ErrorSpec.Flags&ErrFlagInPlace != 0 && reservationStrictlyGreater(descriptor.FlowSpec, rsb.FlowSpec) {
+						forward = false
+					}
+				}
+				dst, role = lsp.NextHop, lsp.Role
+				outgoing = *descriptor
+				outgoing.Filters = []reservationFilter{{Filter: lsp.PSB.SenderTemplate}}
+				hop = rsb.Hop
+			})
+			if !matched {
 				continue
 			}
-			rsb := lsp.RSB
-			forward := true
-			if msg.ErrorSpec.ErrorCode == ErrCodeAdmissionControlFailure {
-				rsb.Blockade = descriptor.FlowSpec
-				rsb.BlockadeUntil = time.Now().Add(3 * e.cfg().RefreshPeriod)
-				if msg.ErrorSpec.Flags&ErrFlagInPlace != 0 && reservationStrictlyGreater(descriptor.FlowSpec, rsb.FlowSpec) {
-					forward = false
-				}
-			}
-			dst, role := lsp.NextHop, lsp.Role
-			outgoing := *descriptor
-			outgoing.Filters = []reservationFilter{{Filter: lsp.PSB.SenderTemplate}}
-			hop := rsb.Hop
-			lsp.mu.Unlock()
 			if !forward {
 				if err := e.sendResv(lsp); err != nil {
 					e.log.Warn("rsvp-te: unblocked refresh failed", "error", err)
@@ -453,15 +486,16 @@ func (e *engine) handleResvTear(src netip.Addr, msg *ParsedMessage) {
 			if !found {
 				continue
 			}
-			lsp.mu.Lock()
-			// RFC 2205 Section 3.1.6: "Matching reservation state must
-			// match the SESSION, STYLE, and FILTER_SPEC objects as well as
-			// the LIH in the RSVP_HOP object."
-			if lsp.RSB == nil || lsp.RSB.Style != msg.Style || lsp.RSB.Hop != msg.Hop || !e.samePeer(lsp.RSB.Hop.NextHop, src) {
-				lsp.mu.Unlock()
+			var matched bool
+			lsp.locked(func() {
+				// RFC 2205 Section 3.1.6: "Matching reservation state must
+				// match the SESSION, STYLE, and FILTER_SPEC objects as well as
+				// the LIH in the RSVP_HOP object."
+				matched = lsp.RSB != nil && lsp.RSB.Style == msg.Style && lsp.RSB.Hop == msg.Hop && e.samePeer(lsp.RSB.Hop.NextHop, src)
+			})
+			if !matched {
 				continue
 			}
-			lsp.mu.Unlock()
 			e.removeReservation(lsp, msg.ForwardObjects)
 		}
 	}
@@ -470,22 +504,34 @@ func (e *engine) handleResvTear(src netip.Addr, msg *ParsedMessage) {
 // removeReservation withdraws only the reservation. Sender PATH state and all
 // other senders' shared charges survive a ResvTear and can receive a later Resv.
 func (e *engine) removeReservation(lsp *LSP, objects [][]byte) {
-	lsp.mu.Lock()
-	if lsp.RSB == nil || lsp.PSB == nil {
-		lsp.mu.Unlock()
-		return
-	}
-	role, label, iface, style := lsp.Role, lsp.InLabel, lsp.AdmissionIface, lsp.RSB.Style
-	flowSpec, flowSpecRaw := lsp.RSB.FlowSpec, lsp.RSB.FlowSpecRaw
-	var messages []sentReservationTear
-	if lsp.MergedPaths == nil {
-		messages = append(messages, sentReservationTear{lsp.PrevHop, lsp.PSB.Hop, lsp.PSB.SenderTemplate})
-	} else {
+	var (
+		reserved    bool
+		role        lspRole
+		label       uint32
+		iface       string
+		style       uint32
+		flowSpec    FlowSpec
+		flowSpecRaw []byte
+		messages    []sentReservationTear
+	)
+	lsp.locked(func() {
+		if lsp.RSB == nil || lsp.PSB == nil {
+			return
+		}
+		reserved = true
+		role, label, iface, style = lsp.Role, lsp.InLabel, lsp.AdmissionIface, lsp.RSB.Style
+		flowSpec, flowSpecRaw = lsp.RSB.FlowSpec, lsp.RSB.FlowSpecRaw
+		if lsp.MergedPaths == nil {
+			messages = append(messages, sentReservationTear{lsp.PrevHop, lsp.PSB.Hop, lsp.PSB.SenderTemplate})
+			return
+		}
 		for filter, branch := range lsp.MergedPaths {
 			messages = append(messages, sentReservationTear{branch.PrevHop, branch.Hop, filter})
 		}
+	})
+	if !reserved {
+		return
 	}
-	lsp.mu.Unlock()
 	if e.fib == nil {
 		return
 	}

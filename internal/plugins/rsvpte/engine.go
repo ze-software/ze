@@ -222,10 +222,33 @@ func (e *engine) sendPath(lsp *LSP) error {
 		}
 	}
 	bypassMTU := e.bypassPathMTU(bypassKey)
-	lsp.mu.Lock()
-	if lsp.PSB != original {
-		lsp.mu.Unlock()
+	var (
+		route PathRoute
+		raw   []byte
+		err   error
+	)
+	lsp.locked(func() {
+		route, raw, err = e.sendPathLocked(lsp, original, originate, selected, bypassMTU)
+	})
+	if err != nil {
+		return err
+	}
+	if len(raw) == 0 {
 		return errForwardingUnavailable
+	}
+	if err := e.transport.SendPath(route, raw); err != nil {
+		return err
+	}
+	if m := rsvpteMetricsPtr.Load(); m != nil {
+		m.pathMsgSent.Inc()
+	}
+	return nil
+}
+
+// sendPathLocked builds the PATH sendPath sends for lsp. lsp.mu MUST be held.
+func (e *engine) sendPathLocked(lsp *LSP, original *pathStateBlock, originate bool, selected pathSelection, bypassMTU uint32) (PathRoute, []byte, error) {
+	if lsp.PSB != original {
+		return PathRoute{}, nil, errForwardingUnavailable
 	}
 	psb := original
 	if originate {
@@ -242,8 +265,7 @@ func (e *engine) sendPath(lsp *LSP) error {
 			advertisement := make([]byte, 48)
 			n := encodeAdspec(advertisement, selected.Route.MTU, service)
 			if n <= 0 {
-				lsp.mu.Unlock()
-				return errForwardingUnavailable
+				return PathRoute{}, nil, errForwardingUnavailable
 			}
 			forward.Adspec = advertisement[:n]
 		}
@@ -271,8 +293,7 @@ func (e *engine) sendPath(lsp *LSP) error {
 	if lsp.ProtectionInUse && lsp.Bypass != nil {
 		backup, err := backupPath(psb, lsp.Bypass.TunnelEndpoint, e.cfg().RouterID, lsp.RepairSender, e.cfg().RefreshPeriod, bypassMTU)
 		if err != nil {
-			lsp.mu.Unlock()
-			return err
+			return PathRoute{}, nil, err
 		}
 		psb = backup
 		lsp.RepairPathMTU = adspecPathMTU(backup.Adspec, backup.SenderTSpec.Service)
@@ -282,18 +303,7 @@ func (e *engine) sendPath(lsp *LSP) error {
 		route.IfIndex = 0
 		route.TableID = bypassTableID(*lsp.Bypass)
 	}
-	raw := buildPath(psb, e.cfg().RouterID, defaultIPTTL)
-	lsp.mu.Unlock()
-	if len(raw) == 0 {
-		return errForwardingUnavailable
-	}
-	if err := e.transport.SendPath(route, raw); err != nil {
-		return err
-	}
-	if m := rsvpteMetricsPtr.Load(); m != nil {
-		m.pathMsgSent.Inc()
-	}
-	return nil
+	return route, buildPath(psb, e.cfg().RouterID, defaultIPTTL), nil
 }
 
 // pathRoute keeps the IP session destination separate from the ERO's immediate
@@ -347,9 +357,39 @@ func (e *engine) sendResv(lsp *LSP) error {
 	// LSP lock, as in handleResvTransit.
 	bypassUp := e.bypassEstablished(bypassKey)
 	objects := e.reservationObjects(lsp)
-	lsp.mu.Lock()
+	var messages []outgoingResv
+	lsp.locked(func() {
+		messages = e.sendResvLocked(lsp, bypassKey, bypassUp, objects)
+	})
+	for _, message := range messages {
+		if len(message.raw) == 0 {
+			return errReservationMessage
+		}
+	}
+
+	var sendErr error
+	for _, msg := range messages {
+		if err := e.transport.Send(msg.dst, msg.raw); err != nil {
+			sendErr = err
+			continue
+		}
+		if m := rsvpteMetricsPtr.Load(); m != nil {
+			m.resvMsgSent.Inc()
+		}
+	}
+	return sendErr
+}
+
+// outgoingResv is one RESV sendResv sends: one per merged branch, else one.
+type outgoingResv struct {
+	dst netip.Addr
+	raw []byte
+}
+
+// sendResvLocked builds the RESV messages sendResv sends for lsp, none when
+// lsp holds no reservation to refresh. lsp.mu MUST be held.
+func (e *engine) sendResvLocked(lsp *LSP, bypassKey *lspKey, bypassUp bool, objects [][]byte) []outgoingResv {
 	if lsp.RSB == nil || lsp.PSB == nil || !lsp.PrevHop.IsValid() {
-		lsp.mu.Unlock()
 		return nil
 	}
 	if !lsp.PSB.RecordRoute {
@@ -366,10 +406,6 @@ func (e *engine) sendResv(lsp *LSP) error {
 				self.Flags |= rroProtectionFlags(lsp)
 			}
 		}
-	}
-	type outgoingResv struct {
-		dst netip.Addr
-		raw []byte
 	}
 	var messages []outgoingResv
 	if lsp.MergedPaths == nil {
@@ -399,24 +435,7 @@ func (e *engine) sendResv(lsp *LSP) error {
 		}
 	}
 	lsp.RSB.ResvConfirm = netip.Addr{}
-	lsp.mu.Unlock()
-	for _, message := range messages {
-		if len(message.raw) == 0 {
-			return errReservationMessage
-		}
-	}
-
-	var sendErr error
-	for _, msg := range messages {
-		if err := e.transport.Send(msg.dst, msg.raw); err != nil {
-			sendErr = err
-			continue
-		}
-		if m := rsvpteMetricsPtr.Load(); m != nil {
-			m.resvMsgSent.Inc()
-		}
-	}
-	return sendErr
+	return messages
 }
 
 const defaultIPTTL = 64
@@ -524,18 +543,26 @@ func receivedRefreshPeriod(msg *ParsedMessage) time.Duration {
 func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 	key := keyFromMessage(msg)
 	lsp, existed := e.table.GetOrCreate(key)
-	lsp.mu.Lock()
-	oldPSB := lsp.PSB
-	popAccepted := lsp.Role == RoleEgress && lsp.State == LSPStateUp
-	psb := receivedPathState(msg, oldPSB)
-	psb.Protection = protectionFromPath(msg)
-	lsp.PrevHop, lsp.PSB = src, psb
-	if lsp.MergedPaths != nil {
-		recomputeMergedAdspecLocked(lsp)
-	}
-	oldRSB, oldBandwidth, oldIface := lsp.RSB, lsp.Bandwidth, lsp.AdmissionIface
-	label := lsp.InLabel
-	lsp.mu.Unlock()
+	var (
+		oldPSB, psb  *pathStateBlock
+		oldRSB       *resvStateBlock
+		popAccepted  bool
+		oldBandwidth float64
+		oldIface     string
+		label        uint32
+	)
+	lsp.locked(func() {
+		oldPSB = lsp.PSB
+		popAccepted = lsp.Role == RoleEgress && lsp.State == LSPStateUp
+		psb = receivedPathState(msg, oldPSB)
+		psb.Protection = protectionFromPath(msg)
+		lsp.PrevHop, lsp.PSB = src, psb
+		if lsp.MergedPaths != nil {
+			recomputeMergedAdspecLocked(lsp)
+		}
+		oldRSB, oldBandwidth, oldIface = lsp.RSB, lsp.Bandwidth, lsp.AdmissionIface
+		label = lsp.InLabel
+	})
 	allocated := label == 0
 	if allocated {
 		label = e.table.AllocateLabel()
@@ -638,64 +665,69 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage, selected 
 		}
 	}
 
-	lsp.mu.Lock()
-	lsp.Role = RoleTransit
-	lsp.PrevHop = src
-	lsp.NextHop = nextHop
-	if !lsp.ProtectionInUse {
-		lsp.Bypass = bypass
-	}
-	// The received SESSION_ATTRIBUTE outlives this packet's buffer: copy it once
-	// into the path state so every relay and refresh forwards it unmodified
-	// (RFC 3209 Section 4.7.4).
-	var sessionAttr []byte
-	if lsp.PSB != nil && bytes.Equal(lsp.PSB.SessionAttr, msg.SessionAttrRaw) {
-		sessionAttr = lsp.PSB.SessionAttr
-	} else {
-		sessionAttr = bytes.Clone(msg.SessionAttrRaw)
-	}
-	var rro []rroEntry
-	if msg.HasRRO {
-		var recordLabel uint32
-		if msg.SessionAttr.Flags&SessAttrLabelRecording != 0 {
-			recordLabel = lsp.InLabel
+	var (
+		refreshResv, repaired bool
+		raw                   []byte
+		adspecErr             error
+	)
+	lsp.locked(func() {
+		lsp.Role = RoleTransit
+		lsp.PrevHop = src
+		lsp.NextHop = nextHop
+		if !lsp.ProtectionInUse {
+			lsp.Bypass = bypass
 		}
-		rro = e.recordRoute(msg.RRO, msg.Session.TunnelID, 0, recordLabel)
-	}
-	refreshResv := false
-	if !msg.HasRRO && lsp.RSB != nil {
-		// RFC 3209 Section 4.4.3: "Subsequent Resv messages SHALL NOT
-		// contain an RRO" after a PATH withdraws route recording.
-		refreshResv = len(lsp.RSB.RRO) > 0
-		lsp.RSB.RRO = nil
-		lsp.RSB.RRODropped = false
-	}
-	previous := lsp.PSB
-	lsp.PSB = receivedPathState(msg, previous)
-	lsp.PSB.ERO, lsp.PSB.RRO = rem, rro
-	lsp.PSB.ReceivedERO = e.remainingERO(msg.ERO)
-	lsp.PSB.Protection, lsp.PSB.SessionAttr = pr, sessionAttr
-	lsp.PSB.Route = selected.Route
-	lsp.PSB.Adspec = bytes.Clone(msg.AdspecRaw)
-	if len(lsp.PSB.Adspec) > 0 {
-		if err := updateAdspec(lsp.PSB.Adspec, selected.Route.MTU); err != nil {
-			lsp.mu.Unlock()
-			e.log.Warn("rsvp-te: invalid path advertisement", "error", err)
-			return
+		// The received SESSION_ATTRIBUTE outlives this packet's buffer: copy it once
+		// into the path state so every relay and refresh forwards it unmodified
+		// (RFC 3209 Section 4.7.4).
+		var sessionAttr []byte
+		if lsp.PSB != nil && bytes.Equal(lsp.PSB.SessionAttr, msg.SessionAttrRaw) {
+			sessionAttr = lsp.PSB.SessionAttr
+		} else {
+			sessionAttr = bytes.Clone(msg.SessionAttrRaw)
 		}
+		var rro []rroEntry
+		if msg.HasRRO {
+			var recordLabel uint32
+			if msg.SessionAttr.Flags&SessAttrLabelRecording != 0 {
+				recordLabel = lsp.InLabel
+			}
+			rro = e.recordRoute(msg.RRO, msg.Session.TunnelID, 0, recordLabel)
+		}
+		if !msg.HasRRO && lsp.RSB != nil {
+			// RFC 3209 Section 4.4.3: "Subsequent Resv messages SHALL NOT
+			// contain an RRO" after a PATH withdraws route recording.
+			refreshResv = len(lsp.RSB.RRO) > 0
+			lsp.RSB.RRO = nil
+			lsp.RSB.RRODropped = false
+		}
+		previous := lsp.PSB
+		lsp.PSB = receivedPathState(msg, previous)
+		lsp.PSB.ERO, lsp.PSB.RRO = rem, rro
+		lsp.PSB.ReceivedERO = e.remainingERO(msg.ERO)
+		lsp.PSB.Protection, lsp.PSB.SessionAttr = pr, sessionAttr
+		lsp.PSB.Route = selected.Route
+		lsp.PSB.Adspec = bytes.Clone(msg.AdspecRaw)
+		if len(lsp.PSB.Adspec) > 0 {
+			if adspecErr = updateAdspec(lsp.PSB.Adspec, selected.Route.MTU); adspecErr != nil {
+				return
+			}
+		}
+		if lsp.MergedPaths != nil {
+			recomputeMergedAdspecLocked(lsp)
+		}
+		if lsp.State != LSPStateUp {
+			lsp.setState(LSPStatePathReceived)
+		}
+		repaired = lsp.ProtectionInUse
+		if !repaired {
+			raw = buildPath(lsp.PSB, e.cfg().RouterID, msg.Header.TTL-1)
+		}
+	})
+	if adspecErr != nil {
+		e.log.Warn("rsvp-te: invalid path advertisement", "error", adspecErr)
+		return
 	}
-	if lsp.MergedPaths != nil {
-		recomputeMergedAdspecLocked(lsp)
-	}
-	if lsp.State != LSPStateUp {
-		lsp.setState(LSPStatePathReceived)
-	}
-	repaired := lsp.ProtectionInUse
-	var raw []byte
-	if !repaired {
-		raw = buildPath(lsp.PSB, e.cfg().RouterID, msg.Header.TTL-1)
-	}
-	lsp.mu.Unlock()
 	if !repaired && len(raw) == 0 {
 		e.sendPathErr(src, msg, ErrCodeTrafficControlSystem, 0)
 		return
@@ -827,21 +859,24 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 	}
 	if msg.HasSenderTemplate {
 		if lsp, ok := e.repairedLSP(keyFromMessage(msg), src); ok {
-			lsp.mu.Lock()
-			var raw []byte
-			prev := lsp.PrevHop
-			ingress := lsp.Role == RoleIngress
-			if lsp.PSB != nil {
-				if ingress {
-					msg.SenderTemplate = lsp.PSB.SenderTemplate
+			var (
+				raw     []byte
+				prev    netip.Addr
+				ingress bool
+			)
+			lsp.locked(func() {
+				prev = lsp.PrevHop
+				ingress = lsp.Role == RoleIngress
+				if lsp.PSB != nil {
+					if ingress {
+						msg.SenderTemplate = lsp.PSB.SenderTemplate
+					}
+					if !ingress {
+						raw = buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate,
+							lsp.PSB.SenderTSpec, lsp.PSB.ReceivedAdspec, msg.ErrorSpec)
+					}
 				}
-				if !ingress {
-					raw = buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate,
-						lsp.PSB.SenderTSpec, lsp.PSB.ReceivedAdspec, msg.ErrorSpec)
-
-				}
-			}
-			lsp.mu.Unlock()
+			})
 			if !ingress {
 				if len(raw) > 0 {
 					if err := e.transport.Send(prev, raw); err != nil {
@@ -853,24 +888,31 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 		}
 	}
 	if lsp, ok := e.table.Get(keyFromMessage(msg)); ok {
-		lsp.mu.Lock()
-		if lsp.Role == RoleTransit && lsp.PSB != nil {
-			type outgoingError struct {
-				dst netip.Addr
-				raw []byte
+		type outgoingError struct {
+			dst netip.Addr
+			raw []byte
+		}
+		var (
+			messages []outgoingError
+			relay    bool
+		)
+		lsp.locked(func() {
+			if lsp.Role != RoleTransit || lsp.PSB == nil {
+				return
 			}
-			var messages []outgoingError
+			relay = true
 			if lsp.MergedPaths == nil {
 				messages = append(messages, outgoingError{lsp.PrevHop,
 					buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
 						lsp.PSB.ReceivedAdspec, msg.ErrorSpec)})
-			} else {
-				for filter, branch := range lsp.MergedPaths {
-					messages = append(messages, outgoingError{branch.PrevHop,
-						buildPathErr(lsp.PSB.Session, filter, lsp.PSB.SenderTSpec, branch.Adspec, msg.ErrorSpec)})
-				}
+				return
 			}
-			lsp.mu.Unlock()
+			for filter, branch := range lsp.MergedPaths {
+				messages = append(messages, outgoingError{branch.PrevHop,
+					buildPathErr(lsp.PSB.Session, filter, lsp.PSB.SenderTSpec, branch.Adspec, msg.ErrorSpec)})
+			}
+		})
+		if relay {
 			for _, outgoing := range messages {
 				if err := e.transport.Send(outgoing.dst, outgoing.raw); err != nil {
 					e.log.Warn("rsvp-te: PathErr relay failed", "lsp", lsp.Key.String(), "error", err)
@@ -878,7 +920,6 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 			}
 			return
 		}
-		lsp.mu.Unlock()
 	}
 	eb := getEventBus()
 	if eb != nil {
@@ -905,6 +946,29 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 		"code", msg.ErrorSpec.ErrorCode, "value", msg.ErrorSpec.ErrorValue)
 }
 
+// pathTearRemovesLocked applies a PathTear to lsp's path state and reports
+// whether the whole LSP goes. A tear of one merged branch removes only that
+// branch, and a tear that matches no state changes nothing. lsp.mu MUST be held.
+func pathTearRemovesLocked(lsp *LSP, msg *ParsedMessage) bool {
+	if lsp.MergedPaths != nil {
+		branch, matched := lsp.MergedPaths[msg.SenderTemplate]
+		if !matched || branch.Hop != msg.Hop {
+			return false
+		}
+		delete(lsp.MergedPaths, msg.SenderTemplate)
+		if len(lsp.MergedPaths) > 0 {
+			recomputeMergedAdspecLocked(lsp)
+			return false
+		}
+	}
+	if lsp.MergedPaths == nil && (lsp.PSB == nil || lsp.PSB.Hop != msg.Hop) {
+		// RFC 2205 Section 3.1.5: "Matching state must have match the
+		// SESSION, SENDER_TEMPLATE, and PHOP objects."
+		return false
+	}
+	return true
+}
+
 func (e *engine) handlePathTear(msg *ParsedMessage) {
 	if !msg.HasSession || !msg.HasSenderTemplate {
 		return
@@ -917,40 +981,32 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 	if !ok {
 		return
 	}
-	lsp.mu.Lock()
-	if lsp.MergedPaths != nil {
-		branch, matched := lsp.MergedPaths[msg.SenderTemplate]
-		if !matched || branch.Hop != msg.Hop {
-			lsp.mu.Unlock()
-			return
-		}
-		delete(lsp.MergedPaths, msg.SenderTemplate)
-		if len(lsp.MergedPaths) > 0 {
-			recomputeMergedAdspecLocked(lsp)
-			lsp.mu.Unlock()
-			return
-		}
-	}
-	if lsp.MergedPaths == nil && (lsp.PSB == nil || lsp.PSB.Hop != msg.Hop) {
-		// RFC 2205 Section 3.1.5: "Matching state must have match the
-		// SESSION, SENDER_TEMPLATE, and PHOP objects."
-		lsp.mu.Unlock()
+	var removes bool
+	lsp.locked(func() { removes = pathTearRemovesLocked(lsp, msg) })
+	if !removes {
 		return
 	}
-	lsp.mu.Unlock()
 	key = lsp.Key
 	if e.table.Remove(key) == nil {
 		return
 	}
 	// Snapshot fields under the LSP lock; a refresh/show goroutine may still
 	// hold this pointer until it next consults the table.
-	lsp.mu.Lock()
-	role := lsp.Role
-	inLabel := lsp.InLabel
-	tearRoute, tearRaw := e.pathTearLocked(lsp)
-	admIface := lsp.AdmissionIface
-	isBypass := lsp.IsBypass
-	lsp.mu.Unlock()
+	var (
+		role      lspRole
+		inLabel   uint32
+		tearRoute PathRoute
+		tearRaw   []byte
+		admIface  string
+		isBypass  bool
+	)
+	lsp.locked(func() {
+		role = lsp.Role
+		inLabel = lsp.InLabel
+		tearRoute, tearRaw = e.pathTearLocked(lsp)
+		admIface = lsp.AdmissionIface
+		isBypass = lsp.IsBypass
+	})
 	if isBypass {
 		e.clearBypassReferences(key)
 	}

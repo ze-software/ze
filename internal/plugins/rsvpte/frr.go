@@ -386,24 +386,30 @@ func (e *engine) bypassEstablished(key *lspKey) bool {
 // available (the caller falls back to the base tear-down behavior). Idempotent:
 // a repeated link-down event for an already-repaired LSP keeps the repair.
 func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
-	lsp.mu.Lock()
-	bypass := lsp.Bypass
-	inLabel := lsp.InLabel
-	role := lsp.Role
-	// The inner label the PLR pushes under the bypass is the merge point's label
-	// for the protected LSP: the NHOP's advertised label for link protection, or
-	// the NNHOP's recorded label for node protection (RFC 4090 Section 6.4.2).
-	// handleResvTransit resolves it into BackupLabel; 0 means "unresolved" (node
-	// protection whose NNHOP label was never recorded), which must NOT be repaired
-	// even if a PATH refresh re-armed the bypass.
-	protectedOut := lsp.BackupLabel
-	already := lsp.ProtectionInUse
-	sender := e.repairSender(lsp.Key.SenderAddr)
-	pathMTU := uint32(0)
-	if lsp.RSB != nil {
-		pathMTU = lsp.RSB.PathMTU
-	}
-	lsp.mu.Unlock()
+	var (
+		bypass                         *lspKey
+		inLabel, protectedOut, pathMTU uint32
+		role                           lspRole
+		already                        bool
+		sender                         netip.Addr
+	)
+	lsp.locked(func() {
+		bypass = lsp.Bypass
+		inLabel = lsp.InLabel
+		role = lsp.Role
+		// The inner label the PLR pushes under the bypass is the merge point's label
+		// for the protected LSP: the NHOP's advertised label for link protection, or
+		// the NNHOP's recorded label for node protection (RFC 4090 Section 6.4.2).
+		// handleResvTransit resolves it into BackupLabel; 0 means "unresolved" (node
+		// protection whose NNHOP label was never recorded), which must NOT be repaired
+		// even if a PATH refresh re-armed the bypass.
+		protectedOut = lsp.BackupLabel
+		already = lsp.ProtectionInUse
+		sender = e.repairSender(lsp.Key.SenderAddr)
+		if lsp.RSB != nil {
+			pathMTU = lsp.RSB.PathMTU
+		}
+	})
 	if already {
 		return true
 	}
@@ -515,33 +521,42 @@ func (e *engine) reoptimizeOnNotify(key lspKey) {
 // but no stale reservation or repair stack remains advertised as usable.
 func (e *engine) clearBypassReferences(bypass lspKey) {
 	for _, lsp := range e.table.All() {
-		lsp.mu.Lock()
-		if lsp.Bypass == nil || *lsp.Bypass != bypass {
-			lsp.mu.Unlock()
+		var (
+			protected, repaired bool
+			route               PathRoute
+			raw                 []byte
+			key                 lspKey
+			role                lspRole
+			label               uint32
+		)
+		lsp.locked(func() {
+			if lsp.Bypass == nil || *lsp.Bypass != bypass {
+				return
+			}
+			protected = true
+			repaired = lsp.ProtectionInUse
+			if repaired {
+				route, raw = e.pathTearLocked(lsp)
+			}
+			key, role, label = lsp.Key, lsp.Role, lsp.InLabel
+			lsp.Bypass = nil
+			lsp.ProtectionInUse = false
+			lsp.RepairSender = netip.Addr{}
+			lsp.RepairPathMTU = 0
+			if repaired {
+				lsp.RSB = nil
+				lsp.BackupLabel = 0
+				lsp.OutLabel = 0
+				if role == RoleIngress {
+					lsp.setState(LSPStatePathSent)
+				} else {
+					lsp.setState(LSPStatePathReceived)
+				}
+			}
+		})
+		if !protected {
 			continue
 		}
-		repaired := lsp.ProtectionInUse
-		var route PathRoute
-		var raw []byte
-		if repaired {
-			route, raw = e.pathTearLocked(lsp)
-		}
-		key, role, label := lsp.Key, lsp.Role, lsp.InLabel
-		lsp.Bypass = nil
-		lsp.ProtectionInUse = false
-		lsp.RepairSender = netip.Addr{}
-		lsp.RepairPathMTU = 0
-		if repaired {
-			lsp.RSB = nil
-			lsp.BackupLabel = 0
-			lsp.OutLabel = 0
-			if role == RoleIngress {
-				lsp.setState(LSPStatePathSent)
-			} else {
-				lsp.setState(LSPStatePathReceived)
-			}
-		}
-		lsp.mu.Unlock()
 		if !repaired {
 			continue
 		}
@@ -707,10 +722,11 @@ func (e *engine) repairedPathSelection(msg *ParsedMessage) (pathSelection, bool)
 // SESSION and LSP_ID stay unchanged; the backup sender is the PLR itself.
 func (e *engine) repairedLSP(key lspKey, src netip.Addr) (*LSP, bool) {
 	for _, lsp := range e.table.All() {
-		lsp.mu.Lock()
-		match := sameTunnelLSP(lsp.Key, key) && lsp.ProtectionInUse &&
-			lsp.RepairSender == key.SenderAddr && lsp.Bypass != nil && e.samePeer(lsp.Bypass.TunnelEndpoint, src)
-		lsp.mu.Unlock()
+		var match bool
+		lsp.locked(func() {
+			match = sameTunnelLSP(lsp.Key, key) && lsp.ProtectionInUse &&
+				lsp.RepairSender == key.SenderAddr && lsp.Bypass != nil && e.samePeer(lsp.Bypass.TunnelEndpoint, src)
+		})
 		if match {
 			return lsp, true
 		}
@@ -763,13 +779,13 @@ func (e *engine) mergeBackupPath(src netip.Addr, msg *ParsedMessage, rem []eroHo
 	}
 	key := keyFromMessage(msg)
 	if lsp, ok := e.table.Get(key); ok {
-		lsp.mu.Lock()
-		if lsp.MergedPaths != nil {
-			lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
-				RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
-				Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
-		}
-		lsp.mu.Unlock()
+		lsp.locked(func() {
+			if lsp.MergedPaths != nil {
+				lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
+					RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
+					Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
+			}
+		})
 		return false
 	}
 	if msg.HasFastReroute || msg.HasSessionAttr && msg.SessionAttr.Flags&SessAttrLocalProtection != 0 ||
@@ -777,26 +793,30 @@ func (e *engine) mergeBackupPath(src netip.Addr, msg *ParsedMessage, rem []eroHo
 		return false
 	}
 	for _, lsp := range e.table.All() {
-		lsp.mu.Lock()
-		if !sameTunnelLSP(lsp.Key, key) || lsp.PSB == nil || lsp.PSB.Protection == nil ||
-			lsp.PSB.SenderTSpec != msg.SenderTSpec ||
-			(lsp.Role != RoleEgress && !slices.Equal(lsp.PSB.ERO, rem)) {
-			lsp.mu.Unlock()
+		var merged, transit bool
+		lsp.locked(func() {
+			if !sameTunnelLSP(lsp.Key, key) || lsp.PSB == nil || lsp.PSB.Protection == nil ||
+				lsp.PSB.SenderTSpec != msg.SenderTSpec ||
+				(lsp.Role != RoleEgress && !slices.Equal(lsp.PSB.ERO, rem)) {
+				return
+			}
+			merged = true
+			if lsp.MergedPaths == nil {
+				lsp.MergedPaths = map[senderTemplateIPv4]mergedPath{
+					lsp.PSB.SenderTemplate: {PrevHop: lsp.PrevHop, Hop: lsp.PSB.Hop, LastRefresh: lsp.PSB.LastRefresh,
+						RefreshPeriod: lsp.PSB.RefreshPeriod, RecordRoute: lsp.PSB.RecordRoute,
+						Adspec: bytes.Clone(lsp.PSB.ReceivedAdspec), ForwardObjects: ownObjects(lsp.PSB.ForwardObjects)},
+				}
+			}
+			lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
+				RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
+				Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
+			recomputeMergedAdspecLocked(lsp)
+			transit = lsp.Role == RoleTransit
+		})
+		if !merged {
 			continue
 		}
-		if lsp.MergedPaths == nil {
-			lsp.MergedPaths = map[senderTemplateIPv4]mergedPath{
-				lsp.PSB.SenderTemplate: {PrevHop: lsp.PrevHop, Hop: lsp.PSB.Hop, LastRefresh: lsp.PSB.LastRefresh,
-					RefreshPeriod: lsp.PSB.RefreshPeriod, RecordRoute: lsp.PSB.RecordRoute,
-					Adspec: bytes.Clone(lsp.PSB.ReceivedAdspec), ForwardObjects: ownObjects(lsp.PSB.ForwardObjects)},
-			}
-		}
-		lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
-			RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
-			Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
-		recomputeMergedAdspecLocked(lsp)
-		transit := lsp.Role == RoleTransit
-		lsp.mu.Unlock()
 		if transit {
 			if err := e.sendPath(lsp); err != nil {
 				e.log.Warn("rsvp-te: merged PATH refresh failed", "lsp", lsp.Key.String(), "error", err)
@@ -848,10 +868,11 @@ func recomputeMergedAdspecLocked(lsp *LSP) {
 func (e *engine) mergedLSP(key lspKey) (*LSP, bool) {
 	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
 	for _, lsp := range e.table.All() {
-		lsp.mu.Lock()
-		_, merged := lsp.MergedPaths[filter]
-		match := sameTunnelLSP(lsp.Key, key) && merged
-		lsp.mu.Unlock()
+		var match bool
+		lsp.locked(func() {
+			_, merged := lsp.MergedPaths[filter]
+			match = sameTunnelLSP(lsp.Key, key) && merged
+		})
 		if match {
 			return lsp, true
 		}

@@ -360,6 +360,22 @@ descriptor that follows it.
 <!-- source: internal/plugins/rsvpte/frr.go -- maxSessionAttrLen, decodeSessionAttr -->
 <!-- source: internal/plugins/rsvpte/build.go -- maxRSVPMessage -->
 
+## Decision: an LSP lock is released by defer wherever a call can fail under it
+
+Each LSP carries its own mutex, and the engine holds it while it builds a
+message or applies received state. Expiry takes every LSP's lock while it
+holds the engine control lock. A panic under an LSP lock that something then
+recovers would leave that lock held: the next expiry pass would block on it,
+holding the control lock, and every RSVP session on the node would stop.
+
+So every engine hold that calls into code that can fail (a message builder, a
+lookup, a received object) runs through `LSP.locked`, which takes the lock and
+releases it by `defer`. A hold that only copies fields, or stamps the state,
+stays inline. The lock order and what runs under the lock are unchanged.
+
+<!-- source: internal/plugins/rsvpte/fsm.go -- LSP.locked -->
+<!-- source: internal/plugins/rsvpte/lock_release_test.go -- TestLSPLockReleasedAfterContainedPanic -->
+
 ## Trap: the delivered config shape
 
 The same shape trap as LDP applies: root-wrapped config, numbers as strings, and

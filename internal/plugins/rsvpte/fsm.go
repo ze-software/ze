@@ -410,6 +410,21 @@ func receivedRSBExpired(lsp *LSP, now time.Time, factor int) bool {
 	return now.After(lsp.RSB.LastRefresh.Add(lsp.RSB.RefreshPeriod * time.Duration(factor)))
 }
 
+// locked runs body with lsp.mu held and releases the lock by defer, so a panic
+// in body cannot leave lsp.mu held. The signaling task contains a panic and
+// keeps running (panic_guard.go); a lock left held would then stop cleanupTick
+// in expiredPSBs while it holds engine.control, and with it every RSVP session
+// on the node. Every engine hold of lsp.mu that calls into code that can fail
+// (a builder, a decoder's output, a lookup) runs through locked; a hold that
+// only copies fields, or stamps setState, stays inline. body runs on the
+// caller's goroutine and MUST NOT take lsp.mu itself.
+func (lsp *LSP) locked(body func()) {
+	lsp.mu.Lock()
+	defer lsp.mu.Unlock()
+
+	body()
+}
+
 // setState updates the LSP state with a timestamp. The caller must hold lsp.mu.
 func (lsp *LSP) setState(s lspState) {
 	lsp.State = s
