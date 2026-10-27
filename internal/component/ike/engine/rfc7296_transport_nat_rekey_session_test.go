@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md -- RFC 7296 Section 2.23.1 transport mode NAT traversal
 // Related: rfc7296_transport_nat_rekey_test.go -- the rig and the producer-level tests
-// Related: inbound.go -- handleCreateChildSAOwned, the session's CREATE_CHILD_SA entry point
+// Related: inbound.go -- handleOwnedInbound, the session's entry point for every CREATE_CHILD_SA datagram
 // Related: established.go -- adoptRekeyedIKESA, the IKE SA swap
 // VALIDATES: the NATed transport-mode Child SA rekey after an IKE SA rekey reaches the
 // substitution through the session entry point production runs, in both roles, and a
@@ -23,7 +23,7 @@ import (
 )
 
 // natSessionRig is natRekeyRig reached through ze's PeerSession: the peer rekeyed the
-// IKE SA, ze answered it in handleCreateChildSAOwned, the peer's Delete of the old IKE
+// IKE SA, ze answered it in handleOwnedInbound, the peer's Delete of the old IKE
 // SA confirmed it in handleOwnedInbound, and adoptRekeyedIKESA swapped the successor in,
 // as runEstablished does.
 type natSessionRig struct {
@@ -102,12 +102,12 @@ func natSessionSetup(t *testing.T) *natSessionRig {
 		t.Fatalf("initiateIKERekey: %v", err)
 	}
 	defer pending.clear()
-	reqMsg := parseMsg(t, req)
-	inner, err := decryptAndParse(o.resp, reqMsg, req)
-	if err != nil {
-		t.Fatalf("ze could not decrypt the peer's IKE SA rekey request: %v", err)
+	reqID := parseMsg(t, req).Header.MessageID
+	o.ps.handleOwnedInbound(o.resp, transport.Packet{Data: req}, nil, nil, log)
+	if o.resp.ExpectedMsgID != reqID+1 {
+		t.Fatalf("setup: ze did not accept the peer's IKE SA rekey request: expected id %d, want %d",
+			o.resp.ExpectedMsgID, reqID+1)
 	}
-	o.ps.handleCreateChildSAOwned(o.resp, reqMsg, inner, false, nil, nil, log)
 	if o.ps.pendingIKESwap == nil {
 		t.Fatal("setup: the peer's IKE SA rekey staged no swap")
 	}
@@ -139,7 +139,8 @@ func natSessionSetup(t *testing.T) *natSessionRig {
 // Goal: the session path production runs, not only the rekey producers, substitutes the
 // NATed transport-mode Child SA rekey after an IKE SA rekey and installs exactly one host
 // pair. Method: natSessionSetup rekeys the IKE SA through ze's PeerSession; the Child SA
-// rekey then enters handleCreateChildSAOwned as a request (the peer rekeys) or as the
+// rekey then enters handleOwnedInbound, which classifies and decrypts it before
+// handleCreateChildSAOwned runs, as a request (the peer rekeys) or as the
 // response to ze's own request, recorded where startChildRekey records it (ze rekeys).
 func TestTransportChildRekeyAfterIKERekeyThroughSession(t *testing.T) {
 	log := slogutil.DiscardLogger()
@@ -151,16 +152,15 @@ func TestTransportChildRekeyAfterIKERekeyThroughSession(t *testing.T) {
 			t.Fatalf("the peer's initiateChildRekey: %v", err)
 		}
 		defer pending.clear()
-		msg := parseMsg(t, raw)
-		inner, err := decryptAndParse(r.ze, msg, raw)
-		if err != nil {
-			t.Fatalf("ze could not decrypt the peer's Child SA rekey: %v", err)
-		}
-		out := r.ps.handleCreateChildSAOwned(r.ze, msg, inner, false, nil, &mockDP{}, log)
+		reqID := parseMsg(t, raw).Header.MessageID
+		out := r.ps.handleOwnedInbound(r.ze, transport.Packet{Data: raw}, nil, &mockDP{}, log)
 		if out.newChild == nil {
 			t.Fatal("ze's session refused the peer's transport-mode Child SA rekey")
 		}
 		defer out.newChild.Clear()
+		if r.ze.ExpectedMsgID != reqID+1 {
+			t.Fatalf("ze's expected Message ID is %d after the rekey request, want %d", r.ze.ExpectedMsgID, reqID+1)
+		}
 		if r.ps.getChildSA() != out.newChild {
 			t.Error("the session does not hold the replacement Child SA")
 		}
@@ -197,16 +197,19 @@ func TestTransportChildRekeyAfterIKERekeyThroughSession(t *testing.T) {
 			t.Fatalf("the peer refused ze's transport-mode Child SA rekey: %v", err)
 		}
 		defer peerNext.Clear()
-		msg := parseMsg(t, answer)
-		inner, err := decryptAndParse(r.ze, msg, answer)
-		if err != nil {
-			t.Fatalf("ze could not decrypt the peer's answer: %v", err)
-		}
-		out := r.ps.handleCreateChildSAOwned(r.ze, msg, inner, true, nil, &mockDP{}, log)
+		out := r.ps.handleOwnedInbound(r.ze, transport.Packet{Data: answer}, nil, &mockDP{}, log)
 		if out.newChild == nil {
 			t.Fatal("ze's session refused the peer's answer to its transport-mode rekey")
 		}
 		defer out.newChild.Clear()
+		if r.ps.pendingRekey != nil {
+			t.Fatal("the answer left ze's Child SA rekey pending")
+		}
+		if r.ze.reserveRequestWindow() {
+			r.ze.releaseRequestWindow()
+		} else {
+			t.Error("the answer did not free ze's request window")
+		}
 		if r.ps.getChildSA() != out.newChild {
 			t.Error("the session does not hold the replacement Child SA")
 		}
@@ -225,13 +228,15 @@ func TestTransportChildRekeyAfterIKERekeyThroughSession(t *testing.T) {
 // TestChildRekeyWithoutTransportNotifyBehindNATIsRefused covers AC-5 behind a NAT.
 //
 // Goal: a rekey request that drops USE_TRANSPORT_MODE for a NATed transport-mode Child
-// SA is never installed as a tunnel. RFC 7296 Section 1.3.1: "If the responder declines
-// the request, the Child SA will be established in tunnel mode." Declined, the proposal
-// is judged unsubstituted, so it names the NAT's public address for ze (203.0.113.2)
-// and the peer's real one, a pair that excludes the retired host pair; Section 2.9.2
-// forbids narrowing below the scope in use, so the answer is TS_UNACCEPTABLE. Method:
-// the real rekey request, stripped of the notify, enters ze's session after a real IKE
-// SA rekey; the session must answer TS_UNACCEPTABLE and keep the transport Child SA.
+// SA is never installed as a tunnel. RFC 7296 Section 1.3.1: "Except when using this
+// option to negotiate transport mode, all Child SAs will use tunnel mode." Without the
+// notify the request asks for tunnel mode, and the proposal is judged unsubstituted, so
+// it names the NAT's public address for ze (203.0.113.2) and the peer's real one, a
+// pair that excludes the retired host pair; Section 2.9.2 forbids narrowing below the
+// scope in use, so the answer is TS_UNACCEPTABLE. Method: the real rekey request,
+// stripped of the notify and sealed again with the peer's keys, enters ze's session
+// through handleOwnedInbound after a real IKE SA rekey; the session must answer
+// TS_UNACCEPTABLE and keep the transport Child SA.
 func TestChildRekeyWithoutTransportNotifyBehindNATIsRefused(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	r := natSessionSetup(t)
@@ -240,9 +245,13 @@ func TestChildRekeyWithoutTransportNotifyBehindNATIsRefused(t *testing.T) {
 		t.Fatalf("the peer's initiateChildRekey: %v", err)
 	}
 	defer pending.clear()
-	msg := parseMsg(t, raw)
 	inner := withoutTransportNotify(mbDecrypt(t, r.ze, raw))
-	out := r.ps.handleCreateChildSAOwned(r.ze, msg, inner, false, nil, &mockDP{}, log)
+	stripped, err := buildEncryptedMessageEx(r.peer, inner, parseMsg(t, raw).Header.MessageID,
+		wire.ExchangeCreateChildSA, initiatorFlag(r.peer))
+	if err != nil {
+		t.Fatalf("seal the stripped rekey request: %v", err)
+	}
+	out := r.ps.handleOwnedInbound(r.ze, transport.Packet{Data: stripped}, nil, &mockDP{}, log)
 	if out.newChild != nil {
 		defer out.newChild.Clear()
 		t.Fatalf("the session installed a mode %d replacement for a tunnel rekey of a NATed transport Child SA",

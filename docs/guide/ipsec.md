@@ -1318,7 +1318,7 @@ from the first choice, because the initiator installs every combination it is an
 non-empty subset draws a `TS_UNACCEPTABLE` notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.
 
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectorsIn -->
 
 The selectors Ze puts on the wire are the selectors it programs. A proposal it cannot
 program exactly is narrowed FURTHER, never rounded outward: an address range that is not a
@@ -1393,7 +1393,7 @@ on the far end too.
 
 <!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectorsIn -->
 
 A tunnel-mode peer's `vti { bind <name> }` names an `interface { xfrm <name> { if-id } }`
 block. The Child SA is installed with that interface's if_id, so the tunnel's traffic

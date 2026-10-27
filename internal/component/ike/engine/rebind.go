@@ -127,7 +127,7 @@ func rebindRekeyReason(ps *PeerSession, sa *SA, anchor *ChildSA) (string, bool) 
 	if anchor.Mode == modeTransport {
 		return rebindReasonTransport, false
 	}
-	if childTransportMode(sa) {
+	if wantsTransportMode(sa) {
 		return rebindReasonTransportConfigured, false
 	}
 	if !anchor.UDPEncap {

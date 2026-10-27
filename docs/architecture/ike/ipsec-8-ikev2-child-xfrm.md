@@ -748,7 +748,12 @@ to negotiate transport mode, all Child SAs will use tunnel mode."). That one val
 gates the Section 2.23.1 substitution and single-address rule, builds the
 replacement (`newRekeyedChild` takes it), and decides the echo, so a request without
 the notification for a transport SA is answered without it and installs tunnel at
-both ends, and a transport request on a tunnel SA is declined the same way. A
+both ends, and a transport request on a tunnel SA is declined the same way. Behind a
+NAT the same request installs nothing: judged in tunnel mode, the proposal gets no
+Section 2.23.1 substitution, so it names the NAT's public address for this node and
+falls outside the retired SA's host pair, and the Section 2.9.2 floor (the rekeyed
+SA's selectors are the scope in use) refuses it with TS_UNACCEPTABLE, which keeps the
+transport Child SA running (`TestChildRekeyWithoutTransportNotifyBehindNATIsRefused`). A
 request without it asks for tunnel mode, and a peer behind a NAT
 then skips its own Section 2.23.1 substitution: strongSwan 5.9.14 answered such a
 rekey with TS_UNACCEPTABLE after a NAT rebind. An answer to a transport-mode rekey

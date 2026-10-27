@@ -6,8 +6,8 @@
     "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
     "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
     "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
-    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "3abfa509bf35700b",
-    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "3abfa509bf35700b"
+    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "aca95526e1887f84",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "aca95526e1887f84"
   },
   "units": {
     "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",

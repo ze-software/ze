@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc7296.md -- Sections 2.19, 2.20, 3.15.1, 3.15.4
 // RFC: rfc/short/rfc3948.md -- locally unique inner addresses (Section 5.1)
 // Related: responder.go -- selectAuthChildSA, the one place a lease is granted
-// Related: ts_narrow.go -- narrowChildSelectors puts the lease on the remote selector
+// Related: ts_narrow.go -- narrowChildSelectorsIn puts the lease on the remote selector
 // Related: virtual_ip.go -- the lease registry and the pool descriptors
 
 package engine

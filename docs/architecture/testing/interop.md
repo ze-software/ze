@@ -1707,9 +1707,10 @@ successor IKE SA exactly as one before it. `real-nat-transport-ze-initiator-reke
 has strongSwan rekey the IKE SA and Ze's own Child SA lifetime rekey the transport
 Child SA; it proves the working path only, because strongSwan's answer already names
 Ze's own addresses and the scenario passes with the fix broken. Its discriminating
-proof is the unit test
-`TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys`
-(`internal/component/ike/engine`).
+proof is two unit tests in `internal/component/ike/engine`:
+`TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys` at the rekey
+producers, and `TestTransportChildRekeyAfterIKERekeyThroughSession/ze_rekeys` through
+the session entry point.
 
 #### The port column and the rebind step
 

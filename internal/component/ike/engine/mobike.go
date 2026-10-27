@@ -51,19 +51,12 @@ func mobikeAvailable(sa *SA) bool {
 
 // childMigrationAvailable reports whether this SA's Child SAs can be moved in place to
 // a new outer endpoint: the backend captured a TunnelMigrator when the session bound its
-// sockets, the Child SA is tunnel mode, and a NAT-T socket exists. MOBIKE negotiation and
-// the NAT rebind (rebindChildSAs) both ask it, so one predicate serves both.
+// sockets, this node's configuration asks for tunnel mode (wantsTransportMode is false),
+// and a NAT-T socket exists. MOBIKE negotiation and the NAT rebind (rebindChildSAs) both
+// ask it, so one predicate serves both. The installed Child SA's own mode is
+// ChildSA.Mode, which acceptMobikeUpdate and rebindRekeyReason read.
 func childMigrationAvailable(sa *SA) bool {
-	return sa.mobike.canMigrate && !childTransportMode(sa) && sa.nattSocket != nil
-}
-
-// childTransportMode reports whether this node's configuration asks for transport-mode
-// Child SAs. Ze accepts transport mode only when its operator configured it
-// (decideResponderTransportMode, recordInitiatorTransportMode), so a configuration of
-// tunnel never runs a transport Child SA. The installed Child SA's own mode is
-// ChildSA.Mode, which acceptMobikeUpdate reads.
-func childTransportMode(sa *SA) bool {
-	return wantsTransportMode(sa)
+	return sa.mobike.canMigrate && !wantsTransportMode(sa) && sa.nattSocket != nil
 }
 
 func mobikeAuthOffer(sa *SA) []wire.PayloadEntry {

@@ -119,7 +119,9 @@ Two properties bound it:
   runs the initiator half and proves only that it works over a real NAT: strongSwan's
   answer already names Ze's own addresses, so it passes with the fix broken, and the
   discriminating proof is
-  `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys`. The
+  `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys` at the rekey
+  producers and `TestTransportChildRekeyAfterIKERekeyThroughSession/ze_rekeys` through
+  the session entry point. The
   single-address filter and the one-pair refusal share that gate. A transport
   request the responder declines (a pool-bound peer, or an operator who configured
   tunnel) narrows the real selectors, which is the tunnel-mode outcome Section

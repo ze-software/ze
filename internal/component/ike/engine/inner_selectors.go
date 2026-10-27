@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- the inner-selector registry
 // RFC: rfc/short/rfc3948.md -- no two peers' tunnels for one inner packet (Section 5.1)
-// Related: ts_narrow.go -- narrowChildSelectors drops the pairs this registry refuses
+// Related: ts_narrow.go -- narrowChildSelectorsIn drops the pairs this registry refuses
 // Related: child.go -- installChildSA claims a Child SA, removeChildSAExcept releases or strands it
 // Related: table.go -- the SATable carries this registry to every peer session
 
@@ -375,7 +375,7 @@ func dropForeignInnerOverlaps(sa *SA, pairs []tsPair, mode uint8) ([]tsPair, err
 		return nil, err
 	}
 	// The Child SA this answer would install, as far as its policies go: this node
-	// responds, so its own side is TSr (narrowChildSelectors).
+	// responds, so its own side is TSr (narrowChildSelectorsIn).
 	probe := &ChildSA{IfID: ifID, Mode: mode, Owner: sa.PeerName, PolicyPriority: sa.PeerCfg.PolicyPriority}
 	configured := configuredPairs(sa.PeerCfg)
 	host := configuredHostPair(sa.PeerCfg)
