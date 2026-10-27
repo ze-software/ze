@@ -1149,3 +1149,42 @@ func TestParseRefusesCompiledOutRootWithItsTag(t *testing.T) {
 		t.Errorf("refusal does not name ze_bgp:\n%v", err)
 	}
 }
+
+// TestContainerGivenValueNamesReplacement covers AC-2 of the add-path limit
+// rework: the scalar `limit 10;` became `limit { receive 10; }`, and the old
+// spelling must be refused with the line to write instead. The method parses a
+// value, a quoted value and a bare word against a non-presence container and
+// asserts the refusal names the container's fields; the valid inline and block
+// spellings must still load.
+func TestContainerGivenValueNamesReplacement(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("add-path", Container(
+		Field("limit", Container(
+			Field("receive", Leaf(TypeUint16)),
+		)),
+	))
+
+	for _, input := range []string{
+		"add-path { limit 10; }",
+		`add-path { limit "10"; }`,
+		"add-path { limit ten; }",
+	} {
+		t.Run(input, func(t *testing.T) {
+			_, err := NewParser(schema).Parse(input)
+			require.Error(t, err, "%q accepted", input)
+			assert.Contains(t, err.Error(), "expected '{' after limit")
+			assert.Contains(t, err.Error(), "write: limit { receive VALUE; }")
+		})
+	}
+
+	for _, input := range []string{
+		"add-path { limit { receive 10; } }",
+		"add-path { limit receive 10; }",
+	} {
+		tree, err := NewParser(schema).Parse(input)
+		require.NoError(t, err, "%q refused", input)
+		value, ok := tree.GetContainer("add-path").GetContainer("limit").Get("receive")
+		require.True(t, ok, "%q lost receive", input)
+		assert.Equal(t, "10", value)
+	}
+}

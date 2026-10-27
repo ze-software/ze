@@ -412,7 +412,7 @@ bgp {
 
 // TestBGPSchemaAddPathFamilyList verifies per-family add-path inside capability block.
 //
-// VALIDATES: add-path { family { ipv4/unicast { direction send; limit 10; } } } parsed as list.
+// VALIDATES: add-path { family { ipv4/unicast { direction send; limit { receive 10; } } } } parsed as list.
 //
 // PREVENTS: Lost per-family add-path config in unified block.
 func TestBGPSchemaAddPathFamilyList(t *testing.T) {
@@ -434,7 +434,7 @@ bgp {
                     family {
                         ipv4/unicast {
                             direction send;
-                            limit 10;
+                            limit { receive 10; }
                         }
                         ipv6/unicast {
                             direction send/receive;
@@ -466,7 +466,7 @@ bgp {
 	dir, ok := ipv4u.Get("direction")
 	require.True(t, ok)
 	require.Equal(t, "send", dir)
-	limit, ok := ipv4u.Get("limit")
+	limit, ok := ipv4u.GetContainer("limit").Get("receive")
 	require.True(t, ok)
 	require.Equal(t, "10", limit)
 

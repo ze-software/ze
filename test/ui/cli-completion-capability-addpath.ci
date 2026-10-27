@@ -1,5 +1,5 @@
 # Test: ze config completion — capability add-path children
-# VALIDATES: add-path container shows direction, limit, family
+# VALIDATES: add-path container shows direction, limit, family; limit offers receive only
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -31,3 +31,10 @@ cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/
 expect=exit:code=0
 expect=stdout:contains=direction
 expect=stdout:contains=family
+expect=stdout:contains=limit
+# limit is a container holding one leaf per ADD-PATH direction. Only receive
+# exists; the local send cap belongs to spec-add-path-local-send-cap.
+cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/session/capability/add-path/limit --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=receive
+reject=stdout:contains=send

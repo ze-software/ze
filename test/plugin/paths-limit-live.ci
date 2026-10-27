@@ -30,7 +30,7 @@ bgp {
                 graceful-restart disable
                 add-path {
                     direction send/receive
-                    limit 9
+                    limit { receive 9; }
                     family { ipv4/unicast; ipv6/unicast; }
                 }
             }

@@ -570,7 +570,7 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
             capability {
                 add-path {
                     direction send
-                    limit 10
+                    limit { receive 10; }
                 }
             }
         }

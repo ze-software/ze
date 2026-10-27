@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). draft-abraitis-idr-addpath-paths-limit Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" The only change to test/plugin/paths-limit-live.ci since the last judgement is f68a27c87b (IPv6 expects MP_REACH_NLRI first), on the four IPv6 frames seq 9, 10, 12 and 15: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. The path identifiers inside each MP_REACH_NLRI (1, 2, 2 replacement, 3 retry) and the IPv4 frames, the withdrawal and the ordering of the sequence are unchanged, so the admitted-count assertions read exactly as before. The two Go units are unchanged. Ran green at HEAD: ./le test bgp plugin paths-limit-live. Verdict stands.",
+  "note": "Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" The only change to test/plugin/paths-limit-live.ci is the daemon's container-level config line `limit 9` -> `limit { receive 9; }`: that is ze's own receive request, incidental to this row, while the bound under test comes from the peer script's OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3's move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row's discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.",
   "requirement_sha": "269b2ebb1239d058",
   "tests": {
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "523e558a407aacb5",
-    "test/plugin/paths-limit-live.ci": "ed4627d81e081e66",
-    "test/plugin/paths-limit-live.ci#2": "ed4627d81e081e66"
+    "test/plugin/paths-limit-live.ci": "e09e5ff357bd6b8d",
+    "test/plugin/paths-limit-live.ci#2": "e09e5ff357bd6b8d"
   },
   "units": {
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "c5e97c978335c423",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "c5e97c978335c423",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "3340041aa1ba498d",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "3340041aa1ba498d",
-    "test/plugin/paths-limit-live.ci": "ed4627d81e081e66",
-    "test/plugin/paths-limit-live.ci#2": "ed4627d81e081e66"
+    "test/plugin/paths-limit-live.ci": "e09e5ff357bd6b8d",
+    "test/plugin/paths-limit-live.ci#2": "e09e5ff357bd6b8d"
   },
   "verdict": "enforced"
 }

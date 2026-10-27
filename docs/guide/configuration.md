@@ -1006,7 +1006,7 @@ Configured under `capability { }` at any inheritance level.
 | Extended Message | `extended-message` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
 | Link-Local Next Hop | `link-local-nexthop` | `enable`, `disable` |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](graceful-restart.md) |
-| ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](add-path.md) |
+| ADD-PATH | `add-path { direction send/receive; limit { receive 10; } }` | See [ADD-PATH guide](add-path.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |
 | BGP Role | `role provider` | provider, customer, rs, rs-client, peer |
 | Software Version | `software-version { encoding legacy; }` | presence; `mode`, and `encoding` `draft` (default) or `legacy` |

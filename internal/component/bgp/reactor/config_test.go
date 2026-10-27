@@ -559,7 +559,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 
 // TestParsePeerCapabilityPathsLimit verifies paths-limit capability from config.
 //
-// VALIDATES: add-path { family { ipv4/unicast { limit 10; } } } produces PathsLimit capability.
+// VALIDATES: add-path { family { ipv4/unicast { limit { receive 10; } } } } produces PathsLimit capability.
 // PREVENTS: PATHS-LIMIT capability not advertised when limit is configured.
 // RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 positive -- the per-family configuration knob sets the advertised receive request.
 func TestParsePeerCapabilityPathsLimit(t *testing.T) {
@@ -570,7 +570,7 @@ func TestParsePeerCapabilityPathsLimit(t *testing.T) {
 			"family": map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 			"capability": map[string]any{"add-path": map[string]any{
 				"direction": "send/receive",
-				"family":    map[string]any{"ipv4/unicast": map[string]any{"limit": "10"}},
+				"family":    map[string]any{"ipv4/unicast": map[string]any{"limit": receiveLimit("10")}},
 			}},
 		},
 	}
@@ -610,8 +610,8 @@ func TestParsePeerCapabilityPathsLimitSingleInstance(t *testing.T) {
 			"capability": map[string]any{"add-path": map[string]any{
 				"direction": "send/receive",
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{"limit": "10"},
-					"ipv6/unicast": map[string]any{"limit": "20"},
+					"ipv4/unicast": map[string]any{"limit": receiveLimit("10")},
+					"ipv6/unicast": map[string]any{"limit": receiveLimit("20")},
 				},
 			}},
 		},
@@ -642,7 +642,7 @@ func TestParsePeerCapabilityPathsLimitSingleInstance(t *testing.T) {
 // sibling in the same block still contributes one. The method configures a limit on
 // both families and reads back the tuples Ze would put on the wire.
 //
-// VALIDATES: ipv6/unicast { mode disable; limit 20; } leaves the PathsLimit entries
+// VALIDATES: ipv6/unicast { mode disable; limit { receive 20; } } leaves the PathsLimit entries
 // holding ipv4/unicast alone.
 // PREVENTS: An orphan PATHS-LIMIT tuple for a family that is absent from Ze's own
 // ADD-PATH capability, which a conformant peer is required to discard.
@@ -658,8 +658,8 @@ func TestParsePeerCapabilityPathsLimitSkipsDisabledFamily(t *testing.T) {
 			"capability": map[string]any{"add-path": map[string]any{
 				"direction": "send/receive",
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{"limit": "10"},
-					"ipv6/unicast": map[string]any{"mode": "disable", "limit": "20"},
+					"ipv4/unicast": map[string]any{"limit": receiveLimit("10")},
+					"ipv6/unicast": map[string]any{"mode": "disable", "limit": receiveLimit("20")},
 				},
 			}},
 		},
@@ -711,8 +711,8 @@ func TestParsePeerCapabilityPathsLimitNoneWithoutAddPath(t *testing.T) {
 			"capability": map[string]any{"add-path": map[string]any{
 				"direction": "send/receive",
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{"mode": "disable", "limit": "10"},
-					"ipv6/unicast": map[string]any{"mode": "disable", "limit": "20"},
+					"ipv4/unicast": map[string]any{"mode": "disable", "limit": receiveLimit("10")},
+					"ipv6/unicast": map[string]any{"mode": "disable", "limit": receiveLimit("20")},
 				},
 			}},
 		},

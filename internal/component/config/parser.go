@@ -444,6 +444,15 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				return nil
 			}
 		}
+		// A value on a non-presence container is the shape a leaf left behind when
+		// it became a container (add-path `limit 10;`), so the refusal names the
+		// fields the container takes instead.
+		if tok.kind == tokenWord {
+			return p.containerGivenValue(tok, name, node)
+		}
+		if tok.kind == tokenString {
+			return p.containerGivenValue(tok, name, node)
+		}
 		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.kind)
 	}
 	p.tok.next()

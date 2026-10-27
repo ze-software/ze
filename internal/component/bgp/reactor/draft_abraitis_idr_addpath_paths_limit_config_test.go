@@ -25,7 +25,7 @@ func TestConfiguredPathsLimitOpen(t *testing.T) {
 	}{
 		{
 			name: "default and per-family override", direction: "send/receive", limit: "10",
-			v4:           map[string]any{"limit": "3"},
+			v4:           map[string]any{"limit": receiveLimit("3")},
 			wantFamilies: []family.Family{family.IPv4Unicast, family.IPv6Unicast},
 			wantLimits:   map[family.Family]uint16{family.IPv4Unicast: 3, family.IPv6Unicast: 10},
 		},
@@ -35,30 +35,30 @@ func TestConfiguredPathsLimitOpen(t *testing.T) {
 		},
 		{
 			name: "disabled override", direction: "send/receive", limit: "10",
-			v4:           map[string]any{"mode": "disable", "limit": "3"},
+			v4:           map[string]any{"mode": "disable", "limit": receiveLimit("3")},
 			wantFamilies: []family.Family{family.IPv6Unicast},
 			wantLimits:   map[family.Family]uint16{family.IPv6Unicast: 10},
 		},
 		{
 			name: "all disabled", direction: "send/receive", limit: "10",
-			v4: map[string]any{"mode": "disable", "limit": "3"},
-			v6: map[string]any{"mode": "disable", "limit": "4"},
+			v4: map[string]any{"mode": "disable", "limit": receiveLimit("3")},
+			v6: map[string]any{"mode": "disable", "limit": receiveLimit("4")},
 		},
 		{
 			name: "refused beside required", direction: "send/receive", limit: "10",
-			v4:           map[string]any{"mode": "refuse", "limit": "3"},
-			v6:           map[string]any{"mode": "require", "limit": "4"},
+			v4:           map[string]any{"mode": "refuse", "limit": receiveLimit("3")},
+			v6:           map[string]any{"mode": "require", "limit": receiveLimit("4")},
 			wantFamilies: []family.Family{family.IPv6Unicast},
 			wantLimits:   map[family.Family]uint16{family.IPv6Unicast: 4},
 		},
 		{
 			name: "all refused", direction: "send/receive", limit: "10",
-			v4: map[string]any{"mode": "refuse", "limit": "3"},
-			v6: map[string]any{"mode": "refuse", "limit": "4"},
+			v4: map[string]any{"mode": "refuse", "limit": receiveLimit("3")},
+			v6: map[string]any{"mode": "refuse", "limit": receiveLimit("4")},
 		},
 		{
 			name: "limit without ADD-PATH direction", limit: "10",
-			v4: map[string]any{"limit": "3"},
+			v4: map[string]any{"limit": receiveLimit("3")},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestConfiguredPathsLimitOpen(t *testing.T) {
 				"family":    map[string]any{"ipv4/unicast": tc.v4, "ipv6/unicast": tc.v6},
 			}
 			if tc.limit != "" {
-				addPath["limit"] = tc.limit
+				addPath["limit"] = receiveLimit(tc.limit)
 			}
 			tree := map[string]any{
 				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}, "local": map[string]any{"ip": "auto"}},

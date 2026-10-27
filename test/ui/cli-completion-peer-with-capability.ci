@@ -26,7 +26,7 @@ bgp {
 				asn4 enable
 				add-path {
 					direction send/receive
-					limit 10
+					limit { receive 10; }
 				}
 			}
 		}

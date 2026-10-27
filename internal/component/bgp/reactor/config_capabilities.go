@@ -308,18 +308,18 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) (capMo
 
 // parseAddPathFromTree parses ADD-PATH + PATHS-LIMIT from the unified capability add-path block.
 // RFC 7911 + draft-abraitis-idr-addpath-paths-limit.
-// Unified config: add-path { direction send; family ipv4/unicast { direction send/receive; limit 10; } }.
+// Unified config: add-path { direction send; limit { receive 10; } family ipv4/unicast { direction send/receive; limit { receive 3; } } }.
 func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 	apBlock, ok := mapMap(capMap, "add-path")
 	if !ok {
 		return nil
 	}
 
-	// Default direction and limit from container level.
+	// Default direction and receive limit from container level.
 	defaultDir := parseAddPathDirection(flexString(apBlock, "direction"))
-	var defaultLimit uint16
-	if limitStr := flexString(apBlock, "limit"); limitStr != "" {
-		defaultLimit = parseUint16(limitStr)
+	defaultLimit, _, err := addPathReceiveLimit(apBlock)
+	if err != nil {
+		return err
 	}
 	addPathMode := capModeEnable
 
@@ -357,8 +357,12 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 						addPathMode = capModeRefuse
 					}
 				}
-				if limitStr, ok := mapString(m, "limit"); ok {
-					perFamilyLimits[fam] = parseUint16(limitStr)
+				limit, configured, err := addPathReceiveLimit(m)
+				if err != nil {
+					return fmt.Errorf("family %s: %w", key, err)
+				}
+				if configured {
+					perFamilyLimits[fam] = limit
 				}
 			}
 
@@ -435,6 +439,12 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 	// contributes no tuple, and Ze never sends a limit a conformant peer must discard.
 	var pathsLimitEntries []capability.PathsLimitEntry
 	for _, apf := range addPath.Families {
+		// Section 3: the Paths Limit field "indicates the maximum paths limit the
+		// receiver wants to receive from its peer." A family whose ADD-PATH direction
+		// excludes receive asks the peer for no paths, so it carries no tuple.
+		if apf.Mode&capability.AddPathReceive == 0 {
+			continue
+		}
 		f := family.Family{AFI: apf.AFI, SAFI: apf.SAFI}
 		limit, hasOverride := perFamilyLimits[f]
 		if !hasOverride {
@@ -442,8 +452,8 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 		}
 
 		// Section 3: "If the received Paths Limit is zero (0), the tuple SHOULD be ignored."
-		// The YANG range on both limit leaves is 1..65535, so a zero here is an absent
-		// container default rather than an operator asking for a limit of none.
+		// addPathReceiveLimit refuses zero, so a zero here is an absent container
+		// default rather than an operator asking for a limit of none.
 		if limit > 0 {
 			pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
 				AFI: apf.AFI, SAFI: apf.SAFI, Limit: limit,
@@ -461,6 +471,38 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 	return nil
 }
 
+// addPathReceiveLimit reads `limit { receive N; }` from an add-path container or
+// family entry. configured is false when no receive value is set there. The
+// YANG range 1..65535 refuses zero at load; this refuses it again, together with
+// a non-numeric value and a `limit` that is not a container (the deleted scalar
+// spelling), so no tree reaching the reactor can request an unbounded tuple.
+func addPathReceiveLimit(block map[string]any) (limit uint16, configured bool, err error) {
+	value, present := block["limit"]
+	if !present {
+		return 0, false, nil
+	}
+	limitBlock, isContainer := value.(map[string]any)
+	if !isContainer {
+		return 0, false, fmt.Errorf("add-path limit is a container: write limit { receive VALUE; }")
+	}
+	receiveValue, present := limitBlock["receive"]
+	if !present {
+		return 0, false, nil
+	}
+	receive, isString := receiveValue.(string)
+	if !isString {
+		return 0, false, fmt.Errorf("add-path limit receive %v: want a number from 1 through 65535", receiveValue)
+	}
+	count, err := strconv.ParseUint(receive, 10, 16)
+	if err != nil {
+		return 0, false, fmt.Errorf("add-path limit receive %q: %w", receive, err)
+	}
+	if count == 0 {
+		return 0, false, fmt.Errorf("add-path limit receive 0: use a value from 1 through 65535")
+	}
+	return uint16(count), true, nil
+}
+
 // parseAddPathDirection converts a direction string to AddPathMode.
 func parseAddPathDirection(dir string) capability.AddPathMode {
 	// enumeration: gated by TestAddPathDirectionsMatchTheYANGModel
@@ -473,13 +515,4 @@ func parseAddPathDirection(dir string) capability.AddPathMode {
 		return capability.AddPathBoth
 	}
 	return capability.AddPathNone
-}
-
-// parseUint16 parses a string to uint16, returning 0 on failure.
-func parseUint16(s string) uint16 {
-	n, err := strconv.ParseUint(s, 10, 16)
-	if err != nil {
-		return 0
-	}
-	return uint16(n)
 }

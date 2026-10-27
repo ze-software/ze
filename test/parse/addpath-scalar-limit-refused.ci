@@ -1,0 +1,224 @@
+# The add-path PATHS-LIMIT knob was a scalar leaf, `limit N`, at the add-path
+# container and in each family entry. It became a container holding one
+# receive leaf, `limit { receive N; }` (spec-add-path-limit-send-receive, AC-2
+# and AC-16-receive). This proves, through the daemon's own config load, that:
+#   - the old scalar spelling is refused at both levels, and the refusal names
+#     the replacement line (parseContainer appends containerValueFix);
+#   - receive 0 and receive 65536 are refused by the YANG range 1..65535;
+#   - the container spelling with the last valid values (1 and 65535) loads.
+# The accepted counterpart runs last, so the test fails if the refusal ever
+# widens into "add-path limit rejected".
+
+stdin=scalar:terminator=EOF_SCALAR
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1000
+					}
+				}
+			}
+			capability {
+				add-path {
+					direction send/receive
+					limit 10
+				}
+			}
+		}
+	}
+}
+EOF_SCALAR
+
+stdin=familyscalar:terminator=EOF_FAMILYSCALAR
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1000
+					}
+				}
+			}
+			capability {
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast {
+							limit 3
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_FAMILYSCALAR
+
+stdin=zero:terminator=EOF_ZERO
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1000
+					}
+				}
+			}
+			capability {
+				add-path {
+					direction send/receive
+					limit {
+						receive 0
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ZERO
+
+stdin=above:terminator=EOF_ABOVE
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1000
+					}
+				}
+			}
+			capability {
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast {
+							limit {
+								receive 65536
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_ABOVE
+
+stdin=container:terminator=EOF_CONTAINER
+bgp {
+	router-id 203.0.113.253
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 1000
+					}
+				}
+			}
+			capability {
+				add-path {
+					direction send/receive
+					limit {
+						receive 65535
+					}
+					family {
+						ipv4/unicast {
+							limit {
+								receive 1
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONTAINER
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=scalar
+expect=exit:code=1
+# The needles carry no ':' because the directive splits on it.
+expect=stdout:contains=expected '{' after limit
+expect=stdout:contains=limit { receive VALUE; }
+cmd=foreground:seq=2:exec=ze config validate -:stdin=familyscalar
+expect=exit:code=1
+expect=stdout:contains=expected '{' after limit
+expect=stdout:contains=limit { receive VALUE; }
+cmd=foreground:seq=3:exec=ze config validate -:stdin=zero
+expect=exit:code=1
+expect=stdout:contains=receive
+cmd=foreground:seq=4:exec=ze config validate -:stdin=above
+expect=exit:code=1
+expect=stdout:contains=receive
+cmd=foreground:seq=5:exec=ze config validate -:stdin=container
+expect=exit:code=0

@@ -65,6 +65,12 @@ func containerValueFix(node *ContainerNode, name string) string {
 	return b.Str(" }").String()
 }
 
+// containerGivenValue refuses a value written on a non-presence container and
+// names the container's fields as the line to write instead.
+func (p *Parser) containerGivenValue(tok token, name string, node *ContainerNode) error {
+	return &syntaxRefusal{cause: p.errorf(tok, "expected '{' after %s, got %s\n  write: %s", name, tok.kind, containerValueFix(node, name))}
+}
+
 // setSyntaxRefusal adds the same schema corrections to set and set-meta errors.
 // The walk is bounded by the refused line's tokens and runs only on failure.
 func (p *SetParser) setSyntaxRefusal(tokens []string, err error) error {

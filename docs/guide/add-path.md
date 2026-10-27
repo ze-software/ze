@@ -17,12 +17,12 @@ Enable ADD-PATH for all negotiated families, with an optional default path count
 capability {
     add-path {
         direction send/receive;
-        limit 10;
+        limit { receive 10; }
     }
 }
 ```
 
-The `limit` on the container is inherited by all families. Per-family entries can override it.
+The `limit` container holds one path count per direction. Only `receive` exists: the number of paths per prefix Ze asks the peer to send. The container's `receive` is inherited by all families, and a per-family entry can override it.
 
 ### Per-Family Override
 
@@ -35,7 +35,7 @@ capability {
         family {
             ipv4/unicast {
                 direction send/receive;
-                limit 10;
+                limit { receive 10; }
             }
             ipv6/unicast {
                 direction receive;
@@ -46,7 +46,7 @@ capability {
 }
 ```
 
-A family entry can carry no block at all. `family { ipv4/unicast; }` takes the container direction and the container limit. A bare entry adds no family when the container states no direction.
+A family entry can carry no block at all. `family { ipv4/unicast; }` takes the container direction and the container `receive` limit. A bare entry adds no family when the container states no direction.
 <!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 
 ### Full Example
@@ -65,7 +65,7 @@ bgp {
                 add-path {
                     direction send/receive;
                     family {
-                        ipv4/unicast { limit 10; }
+                        ipv4/unicast { limit { receive 10; } }
                     }
                 }
             }
@@ -96,16 +96,19 @@ bgp {
 
 ## PATHS-LIMIT
 
-The `limit` leaf advertises a PATHS-LIMIT capability (code 76) for the family. The value (1-65535) requests the maximum number of paths per prefix Ze wants to receive.
+The `limit { receive N; }` setting advertises a PATHS-LIMIT capability (code 76) for the family. The value (1-65535) requests the maximum number of paths per prefix Ze wants to receive.
+
+The scalar spelling `limit 10;` was removed. Ze refuses a config that still carries it, and the error names the line to write instead: `limit { receive VALUE; }`.
 
 This local limit is a receiver request, not a guarantee that the peer obeys it. It does not set Ze's outbound limit.
 
 | Setting | Effect |
 |---------|--------|
-| No effective `limit` | Ze requests no path count limit for that family |
-| `limit 10` | Request at most 10 paths per prefix from the peer |
-| `limit 1` | Request one path per prefix, still with ADD-PATH identifiers |
-| `limit` under `mode disable` | Ze advertises no limit for the family. A limit reaches the wire only for a family Ze advertises in ADD-PATH |
+| No effective `receive` | Ze requests no path count limit for that family |
+| `limit { receive 10; }` | Request at most 10 paths per prefix from the peer |
+| `limit { receive 1; }` | Request one path per prefix, still with ADD-PATH identifiers |
+| `receive` under `mode disable` | Ze advertises no limit for the family. A limit reaches the wire only for a family Ze advertises in ADD-PATH |
+| `receive` on a family whose direction is `send` | Ze advertises no limit for the family. A limit reaches the wire only for a family whose ADD-PATH direction includes receive |
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
 <!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 

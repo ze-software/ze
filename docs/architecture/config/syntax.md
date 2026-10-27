@@ -869,7 +869,7 @@ Each line is parsed as: `<family> <next-hop-afi> [<mode>]` where family is the l
 capability {
     add-path {
         direction send/receive;           # default for all families
-        limit 10;                         # default PATHS-LIMIT
+        limit { receive 10; }             # default PATHS-LIMIT
         family {
             ipv4/unicast { mode require; } # per-family mode
         }
@@ -926,11 +926,11 @@ ADD-PATH and PATHS-LIMIT are configured inside `session > capability > add-path`
 capability {
     add-path {
         direction send/receive;      # default for all families
-        limit 10;                    # default PATHS-LIMIT (inherited)
+        limit { receive 10; }        # default PATHS-LIMIT (inherited)
         family {
             ipv4/unicast {
-                direction send;      # per-family override
-                limit 5;            # per-family limit override
+                direction receive;   # per-family override
+                limit { receive 5; } # per-family limit override
                 mode require;       # reject peer if missing
             }
             ipv6/unicast             # inherits direction + limit from container
@@ -939,8 +939,8 @@ capability {
 }
 ```
 
-The `direction` and `limit` leaves on the container apply to all negotiated families unless overridden per-family. Per-family `mode` supports `enable` (default), `require`, `refuse`, `disable`.
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container add-path, list family, leaf direction, leaf limit, leaf mode -->
+The `direction` leaf and the `limit` container's `receive` leaf on the add-path container apply to all negotiated families unless overridden per-family. A `receive` limit is advertised only for a family whose direction includes receive, and the old scalar `limit N;` is refused with the replacement line. Per-family `mode` supports `enable` (default), `require`, `refuse`, `disable`.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container add-path, list family, leaf direction, container limit, leaf receive, leaf mode -->
 
 ### Process Section
 

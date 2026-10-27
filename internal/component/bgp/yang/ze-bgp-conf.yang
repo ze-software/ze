@@ -1108,17 +1108,23 @@ module ze-bgp-conf {
                             that carries no family entry of its own.";
                         ze:help "Default ADD-PATH direction for all negotiated families.";
                     }
-                    leaf limit {
-                        type uint16 { range "1..65535"; }
-                        description "Ze advertises this receive request for each enabled ADD-PATH family. A per-family
-                            limit overrides it. This setting does not enforce a local receive-side limit.";
-                        ze:help "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
+                    container limit {
+                        description "Holds the path counts per prefix for each ADD-PATH direction. A per-family limit
+                            container overrides a value set here. Only the receive direction exists today.";
+                        ze:help "Default PATHS-LIMIT path counts per prefix, by direction.";
+                        leaf receive {
+                            type uint16 { range "1..65535"; }
+                            description "Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH
+                                family whose direction includes receive. A per-family receive overrides it. This
+                                setting does not enforce a local receive-side limit.";
+                            ze:help "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
+                        }
                     }
                     list family {
                         key "name";
                         description "The list key is the family name. An entry with no direction takes the container
                             direction. Ze skips an entry whose family name is not registered.";
-                        ze:help "Per-family ADD-PATH overrides with optional path count limit.";
+                        ze:help "Per-family ADD-PATH overrides with an optional path count limit.";
                         leaf name { type zt:address-family; description "The name is the list key. Ze looks it up in the family registry, and it skips the whole entry when the
      lookup fails.";
  ze:help "Address family (e.g. ipv4/unicast)"; }
@@ -1132,12 +1138,18 @@ module ze-bgp-conf {
                                 keeps the container direction.";
                             ze:help "ADD-PATH direction override for this family.";
                         }
-                        leaf limit {
-                            type uint16 { range "1..65535"; }
-                            description "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.
-                                Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request
-                                to the sender, not local receive-side policing.";
-                            ze:help "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
+                        container limit {
+                            description "Holds this family's path counts per prefix for each ADD-PATH direction. A
+                                value set here replaces the container limit for this family alone.";
+                            ze:help "PATHS-LIMIT path counts per prefix for this family, by direction.";
+                            leaf receive {
+                                type uint16 { range "1..65535"; }
+                                description "Use a value from 1 through 65535. Omit this leaf to inherit the container
+                                    receive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or
+                                    for one whose direction excludes receive. This is a request to the sender, not
+                                    local receive-side policing.";
+                                ze:help "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
+                            }
                         }
                         leaf mode {
                             type capability-mode;
