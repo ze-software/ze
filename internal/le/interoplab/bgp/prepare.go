@@ -563,6 +563,25 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		peers = append(peers, interoplab.PeerConfig{Name: peerKea, Container: containerName(peerKea, suffix), Image: peerKea, Host: keaHostNumber,
 			Mounts: keaMounts, Arguments: ipv6Sysctls(), Ready: ready("ip", ipObjectLink)})
 	}
+	// A scenario carrying knot.conf tests ze's LAN DNS resolver: Knot DNS
+	// serves the lab zone (knotZoneFile) and dnsclient, the same image
+	// running only sleep, is the LAN host whose kdig and dhcpcd the checker
+	// drives (test/interop/Dockerfile.knot). dhcpcd needs NET_ADMIN to
+	// install its lease; NET_RAW, for its raw DHCP socket, is in Docker's
+	// default set. One that also carries unbound.conf puts Unbound between
+	// ze and Knot (test/interop/Dockerfile.unbound). Readiness is the
+	// container's link; each checker waits for its first answer.
+	if path := filepath.Join(scenario, knotConfigFile); regularFile(path) {
+		peers = append(peers,
+			interoplab.PeerConfig{Name: peerKnot, Container: containerName(peerKnot, suffix), Image: peerKnot, Host: knotHostNumber,
+				Mounts: []interoplab.Mount{mount(path, "/etc/knot/knot.conf"), mount(filepath.Join(scenario, knotZoneFile), "/etc/knot/"+knotZoneFile)}, Ready: ready("ip", ipObjectLink)},
+			interoplab.PeerConfig{Name: peerDNSClient, Container: containerName(peerDNSClient, suffix), Image: peerKnot, Host: dnsClientHostNumber,
+				Capabilities: []string{capabilityNetAdmin}, Command: []string{"sleep", "infinity"}, Ready: ready("ip", ipObjectLink)})
+	}
+	if path := filepath.Join(scenario, unboundConfigFile); regularFile(path) {
+		peers = append(peers, interoplab.PeerConfig{Name: peerUnbound, Container: containerName(peerUnbound, suffix), Image: peerUnbound, Host: unboundHostNumber,
+			Mounts: []interoplab.Mount{mount(path, "/etc/unbound/unbound.conf")}, Ready: ready("ip", ipObjectLink)})
+	}
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,
 			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{capabilityNetAdmin}})

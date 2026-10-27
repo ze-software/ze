@@ -1,0 +1,46 @@
+# Knot DNS for interoperability testing of ze's LAN DNS resolver.
+#
+# One image serves two lab roles. As `knot` it runs knotd, the authoritative
+# server of the lab zone lab.example. (the scenario's knot.conf and zone file
+# are mounted under /etc/knot). As `dnsclient` it runs nothing but sleep, and
+# the checker drives its kdig (Knot's own query client) and dhcpcd over
+# `docker exec`: the LAN host that leases from ze's DHCP server and queries
+# ze's resolver.
+#
+# Knot is built from the upstream 3.6.2 release, because owner decision
+# (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
+# Alpine 3.24 packages 3.5.10. dhcpcd comes from Alpine, whose 10.5.2 is the
+# latest upstream release.
+
+FROM alpine:3.24.3 AS build
+
+# sha256 of the upstream release tarball, taken 2026-10-27 from
+# https://secure.nic.cz/files/knot-dns/knot-3.6.2.tar.xz.sha256.
+ARG KNOT_VERSION=3.6.2
+ARG KNOT_SHA256=2916ac117ac77d1f2341a6562e47d797493521b791b414960a382cb5bc113e21
+
+RUN apk add --no-cache build-base curl linux-headers pkgconf gnutls-dev userspace-rcu-dev lmdb-dev libedit-dev
+
+WORKDIR /src
+RUN curl -fsSL -o knot.tar.xz "https://secure.nic.cz/files/knot-dns/knot-${KNOT_VERSION}.tar.xz" \
+    && echo "${KNOT_SHA256}  knot.tar.xz" | sha256sum -c - \
+    && tar -xJf knot.tar.xz --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --disable-documentation --disable-static \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out \
+    && rm -rf /out/usr/share /out/usr/include /out/var
+
+# /out/var is left behind: make install creates /var/run as a directory, which
+# cannot be copied over Alpine's /var/run symlink. The runtime stage makes
+# the two directories knotd writes.
+FROM alpine:3.24.3
+
+RUN apk add --no-cache dhcpcd gnutls iproute2 libedit lmdb tini userspace-rcu \
+    && mkdir -p /var/lib/knot /run/knot
+
+COPY --from=build /out/ /
+
+# The default command is the authoritative server; the dnsclient role
+# replaces it with `sleep infinity`.
+ENTRYPOINT ["tini", "--"]
+CMD ["knotd", "-c", "/etc/knot/knot.conf"]

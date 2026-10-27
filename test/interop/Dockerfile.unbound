@@ -1,0 +1,36 @@
+# Unbound recursive resolver for interoperability testing of ze's LAN DNS
+# resolver (scenario dns-resolver-forward-unbound).
+#
+# Unbound is built from the upstream 1.26.2 release, because owner decision
+# (ai/META-DECISIONS.md) has every lab peer run its latest stable release and
+# Alpine 3.24 packages 1.25.2. The scenario's unbound.conf is mounted at
+# /etc/unbound/unbound.conf; it turns off chroot and the user switch, so the
+# read-only mount is all the server reads, and it logs every query to stderr,
+# which `docker logs` carries to the checker.
+
+FROM alpine:3.24.3 AS build
+
+# sha256 of the upstream release tarball, taken 2026-10-27 from
+# https://nlnetlabs.nl/downloads/unbound/unbound-1.26.2.tar.gz.sha256.
+ARG UNBOUND_VERSION=1.26.2
+ARG UNBOUND_SHA256=d8ee7aa6bbb3ff1be7d9e57637d0d0ec2f18273a8efff1a0afe2c665858b96f7
+
+RUN apk add --no-cache build-base curl openssl-dev expat-dev libevent-dev
+
+WORKDIR /src
+RUN curl -fsSL -o unbound.tar.gz "https://nlnetlabs.nl/downloads/unbound/unbound-${UNBOUND_VERSION}.tar.gz" \
+    && echo "${UNBOUND_SHA256}  unbound.tar.gz" | sha256sum -c - \
+    && tar -xzf unbound.tar.gz --strip-components=1 \
+    && ./configure --prefix=/usr --sysconfdir=/etc --with-libevent --disable-static \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/out \
+    && rm -rf /out/usr/share /out/usr/include
+
+FROM alpine:3.24.3
+
+RUN apk add --no-cache expat iproute2 libevent openssl tini
+
+COPY --from=build /out/ /
+
+# -d keeps unbound in the foreground so docker sees the real process.
+ENTRYPOINT ["tini", "--", "unbound", "-d", "-c", "/etc/unbound/unbound.conf"]
