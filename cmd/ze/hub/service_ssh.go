@@ -22,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	coreenv "github.com/ze-software/ze/internal/core/env"
@@ -62,6 +63,9 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 	if sshErr != nil {
 		log.Warn("SSH server config error", "error", sshErr)
 		return nil
+	}
+	if reg := registry.GetMetricsRegistry(); reg != nil {
+		zessh.SetPanicMetrics(reg)
 	}
 	if startErr := srv.Start(context.Background(), nil, nil); startErr != nil {
 		log.Warn("SSH server failed to start", "error", startErr)
@@ -268,6 +272,9 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 	if sshErr != nil {
 		log.Warn("SSH server config error", "error", sshErr)
 		return nil
+	}
+	if reg := registry.GetMetricsRegistry(); reg != nil {
+		zessh.SetPanicMetrics(reg)
 	}
 
 	// Wire session model factory so interactive SSH sessions work, and the

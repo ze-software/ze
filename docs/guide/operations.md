@@ -6,6 +6,15 @@ Running Ze in production: SSH access, signals, health checks, environment variab
 
 Ze exposes its CLI over SSH. `ze cli`, `ze cli -c`, and `ze signal` commands connect to this server. Most `ze show` subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.
 
+If a session reaches an internal Ze defect, only that session ends: its user
+reads on the session that an internal defect ended it and which
+`ze show crashes name <record>` command prints the crash record, and the session
+exits with status 1. A defect met while a login is checked refuses that login.
+The listener and every other session keep running, and each such panic is
+logged, crash recorded, and counted in
+`ze_task_panics_total{component="ssh"}` ([monitoring](monitoring.md)).
+<!-- source: internal/component/ssh/panic_guard.go -- panicMiddleware, endSessionAfterPanic, containAuth -->
+
 ### Setup
 
 ```bash

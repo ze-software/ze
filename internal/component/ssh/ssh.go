@@ -476,7 +476,10 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		wish.WithVersion(sshclient.ServerSoftwareVersion),
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.
-		// Order: maxSessions → exec → sessionClose → bubbletea → activeterm (innermost).
+		// Order: panic → maxSessions → exec → sessionClose → bubbletea → activeterm (innermost).
+		// The panic boundary is outermost so a Ze defect anywhere in a session's
+		// chain ends that session alone, after the inner defers released its
+		// slot and closer (panic_guard.go).
 		// Exec middleware intercepts non-interactive sessions before they
 		// reach bubbletea/activeterm (which require a PTY). sessionClose sits
 		// OUTSIDE bubbletea: the bubbletea middleware builds the model (which
@@ -490,24 +493,31 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.sessionCloseMiddleware(),
 			s.execMiddleware(),
 			s.maxSessionsMiddleware(),
+			s.panicMiddleware(),
 		),
+		// Each login check runs on the connection's goroutine, before any
+		// session exists, under the auth boundary: a panic refuses the login.
 		wish.WithPublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-			result := s.authenticatePublicKeyResult(ctx.User(), key, ctx.RemoteAddr())
-			if result.Authenticated {
-				setSessionAuthorizer(ctx, aaa.AuthorizerForResult(s.config.Authorizer, result))
-			}
-			return result.Authenticated
+			return containAuth(ctx, "publickey", func() bool {
+				result := s.authenticatePublicKeyResult(ctx.User(), key, ctx.RemoteAddr())
+				if result.Authenticated {
+					setSessionAuthorizer(ctx, aaa.AuthorizerForResult(s.config.Authorizer, result))
+				}
+				return result.Authenticated
+			})
 		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
-			ok, result := s.authenticatePasswordResult(authenticator, ctx.User(), pass, ctx.RemoteAddr())
-			if ok {
-				authorizer := result.Authorizer
-				if authorizer == nil {
-					authorizer = aaa.AuthorizerForResult(s.config.Authorizer, result)
+			return containAuth(ctx, "password", func() bool {
+				ok, result := s.authenticatePasswordResult(authenticator, ctx.User(), pass, ctx.RemoteAddr())
+				if ok {
+					authorizer := result.Authorizer
+					if authorizer == nil {
+						authorizer = aaa.AuthorizerForResult(s.config.Authorizer, result)
+					}
+					setSessionAuthorizer(ctx, authorizer)
 				}
-				setSessionAuthorizer(ctx, authorizer)
-			}
-			return ok
+				return ok
+			})
 		}),
 	}
 

@@ -369,6 +369,9 @@ at zero from the moment the component has a metrics registry.
 | `tftp` | `request` | One TFTP request: its client is sent an ERROR (code 0), and the listener serves the next request |
 | `tftp` | `transfer` | One file transfer: its client is sent an ERROR (code 0) on the transfer's socket and the transfer ends; every other transfer runs on |
 <!-- source: internal/plugins/tftpserver/panic_guard.go -- requestTask, transferTask -->
+| `ssh` | `session` | One SSH session, interactive or exec: its user is told on the session that an internal defect ended it and which `ze show crashes` command finds the record, and it exits with status 1; the listener and every other session keep running |
+| `ssh` | `auth` | One login attempt, refused: the client sees an authentication failure and can try again; every other login and session keeps running |
+<!-- source: internal/component/ssh/panic_guard.go -- sessionTask, authTask, endSessionAfterPanic -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
