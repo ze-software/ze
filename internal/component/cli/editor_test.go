@@ -1375,9 +1375,9 @@ func TestEditorWriteThroughRenameListEntry(t *testing.T) {
 	assert.Equal(t, "peer1", ops[0].OldKey)
 	assert.Equal(t, "peer2", ops[0].NewKey)
 
-	entries := changeMeta.SessionEntries(session.ID)
+	entries := changeMeta.SessionEntries(ed.schema, session.ID)
 	require.Len(t, entries, 1)
-	assert.Equal(t, "bgp peer peer2 session asn remote", entries[0].Path)
+	assert.Equal(t, "bgp peer peer2 session asn remote", entries[0].Path.String())
 	assert.Contains(t, string(changeData), "rename bgp peer peer1 to peer2")
 	assert.NotContains(t, string(changeData), "set bgp peer peer1 session asn remote")
 	assert.Contains(t, string(changeData), "set bgp peer peer2 session asn remote 65002")
@@ -1494,11 +1494,11 @@ func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 
-	entries := changeMeta.SessionEntries(session.ID)
+	entries := changeMeta.SessionEntries(ed.schema, session.ID)
 	require.Len(t, entries, 2)
 	for _, e := range entries {
-		assert.Contains(t, e.Path, "bgp peer renamed ")
-		assert.NotContains(t, e.Path, "peer1")
+		assert.Contains(t, e.Path.String(), "bgp peer renamed ")
+		assert.NotContains(t, e.Path.String(), "peer1")
 	}
 }
 
@@ -2338,7 +2338,7 @@ func TestEditorSessionChanges(t *testing.T) {
 	// Session 2: my changes should only include local-as.
 	myChanges := ed2.SessionChanges(session2.ID)
 	assert.Len(t, myChanges, 1, "should have exactly one change")
-	assert.Contains(t, myChanges[0].Path, "local")
+	assert.Contains(t, myChanges[0].Path.String(), "local")
 
 	// All changes should include both.
 	allChanges := ed2.SessionChanges("")
@@ -3266,7 +3266,7 @@ func TestDiscardPartialDirtyFlag(t *testing.T) {
 	// call RemoveSession (only discard-all does), so SessionEntries may still
 	// return results. But the entries were individually removed via
 	// RemoveSessionEntry, so SessionEntries should now be empty.
-	// The smart flag: len(draftMeta.SessionEntries(session.ID)) > 0
+	// The smart flag: len(draftMeta.SessionEntries(ed.schema, session.ID)) > 0
 	assert.False(t, ed.Dirty(), "should be clean after discarding all remaining entries")
 }
 
@@ -5115,11 +5115,12 @@ func TestBuildCommitMetaPreservesExisting(t *testing.T) {
 	})
 
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
+		{Path: config.EditTokens{"router-id"}, Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	result, err := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	require.NoError(t, err)
 
 	got, ok := result.GetEntry("local-as")
 	require.True(t, ok, "prior commit metadata should be preserved")
@@ -5148,11 +5149,12 @@ func TestBuildCommitMetaDeleteRemoves(t *testing.T) {
 
 	draftMeta := config.NewMetaTree()
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: ""}},
+		{Path: config.EditTokens{"router-id"}, Entry: config.MetaEntry{User: "alice", Source: "s1", Value: ""}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	result, err := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	require.NoError(t, err)
 
 	_, ok := result.GetEntry("router-id")
 	assert.False(t, ok, "delete should remove metadata, not create tombstone")
@@ -5168,11 +5170,12 @@ func TestBuildCommitMetaNilExisting(t *testing.T) {
 
 	draftMeta := config.NewMetaTree()
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
+		{Path: config.EditTokens{"router-id"}, Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(nil, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	result, err := buildCommitMeta(nil, draftMeta, myEntries, nil, "alice", commitTime, schema)
+	require.NoError(t, err)
 	require.NotNil(t, result)
 
 	got, ok := result.GetEntry("router-id")
@@ -5677,7 +5680,8 @@ func TestDetectConflictSameLeaf(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob should detect conflict with Alice.
-	conflicts := ed2.detectConflicts()
+	conflicts, err := ed2.detectConflicts()
+	require.NoError(t, err)
 	require.NotEmpty(t, conflicts, "should detect conflict on same leaf")
 	assert.Equal(t, "bgp router-id", conflicts[0].Path)
 	assert.Equal(t, "10.0.0.2", conflicts[0].MyValue)
@@ -5712,7 +5716,8 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob should NOT detect any conflict.
-	conflicts := ed2.detectConflicts()
+	conflicts, err := ed2.detectConflicts()
+	require.NoError(t, err)
 	assert.Empty(t, conflicts, "different leaves should not conflict")
 }
 
@@ -6047,7 +6052,9 @@ func TestDetectConflictsNilSession(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	// No session set — should return nil, not panic.
-	assert.Nil(t, ed.detectConflicts())
+	conflicts, err := ed.detectConflicts()
+	require.NoError(t, err)
+	assert.Nil(t, conflicts)
 }
 
 // TestDetectConflictsSameValue verifies no false positive when two users set same value.
@@ -6075,7 +6082,8 @@ func TestDetectConflictsSameValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Same value at same path — should NOT conflict.
-	conflicts := ed2.detectConflicts()
+	conflicts, err := ed2.detectConflicts()
+	require.NoError(t, err)
 	assert.Empty(t, conflicts, "same value at same path should not conflict")
 }
 

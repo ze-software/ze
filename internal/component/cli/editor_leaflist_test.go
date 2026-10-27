@@ -87,7 +87,7 @@ func TestMemberReplayIgnoresNonmemberKinds(t *testing.T) {
 			ed, _ := newLeafListSessionEditor(t, leafListSeedConfig)
 			before := config.Serialize(ed.tree, ed.schema)
 			op := config.StructuralOp{
-				Type: kind, ParentPath: "system", ListName: "name-server", NewKey: "9.9.9.9",
+				Type: kind, ParentPath: config.EditTokens{"system"}, ListName: "name-server", NewKey: "9.9.9.9",
 			}
 			require.NoError(t, applyMemberOp(ed.tree, ed.schema, op, false))
 			assert.Equal(t, before, config.Serialize(ed.tree, ed.schema))
@@ -272,8 +272,12 @@ func TestLeafListConflictDetection(t *testing.T) {
 	// Non-overlapping members: no conflict in either direction.
 	require.NoError(t, edA.SetValue([]string{"system"}, "name-server", "8.8.8.8"))
 	require.NoError(t, edB.SetValue([]string{"system"}, "name-server", "1.1.1.1"))
-	assert.Empty(t, edA.detectConflicts(), "different members must not conflict")
-	assert.Empty(t, edB.detectConflicts(), "different members must not conflict")
+	conflicts, err := edA.detectConflicts()
+	require.NoError(t, err)
+	assert.Empty(t, conflicts, "different members must not conflict")
+	conflicts, err = edB.detectConflicts()
+	require.NoError(t, err)
+	assert.Empty(t, conflicts, "different members must not conflict")
 
 	resultA, err := edA.CommitSession()
 	require.NoError(t, err)
@@ -291,7 +295,9 @@ func TestLeafListConflictDetection(t *testing.T) {
 	// Bob re-asserts the seed member while Alice deletes it.
 	require.NoError(t, edB.SetValue([]string{"system"}, "name-server", "9.9.9.9"))
 	require.NoError(t, edA.deleteLeafListValue([]string{"system"}, "name-server", "9.9.9.9"))
-	assert.NotEmpty(t, edA.detectConflicts(), "set vs delete of the same member must conflict")
+	conflicts, err = edA.detectConflicts()
+	require.NoError(t, err)
+	assert.NotEmpty(t, conflicts, "set vs delete of the same member must conflict")
 }
 
 // TestDiscardPathPreservesOtherSessionMembers: a partial discard of one

@@ -12,7 +12,16 @@ import (
 
 // walkOrCreateIn is like walkOrCreate but operates on an arbitrary tree (not e.tree).
 func (e *Editor) walkOrCreateIn(tree *config.Tree, path []string) (*config.Tree, error) {
-	if tree == nil || e.schema == nil {
+	return walkOrCreateTree(tree, e.schema, path)
+}
+
+// walkOrCreateTree is shared by editor writes and structural creation replay.
+// Both MUST resolve the same schema token path, including multi-key list entries.
+func walkOrCreateTree(tree *config.Tree, schema *config.Schema, path []string) (*config.Tree, error) {
+	if tree == nil {
+		return nil, errTreeOrSchemaNotAvailable
+	}
+	if schema == nil {
 		return nil, errTreeOrSchemaNotAvailable
 	}
 	if len(path) == 0 {
@@ -20,7 +29,7 @@ func (e *Editor) walkOrCreateIn(tree *config.Tree, path []string) (*config.Tree,
 	}
 
 	currentTree := tree
-	var currentSchema schemaGetter = e.schema
+	var currentSchema schemaGetter = schema
 
 	i := 0
 	for i < len(path) {

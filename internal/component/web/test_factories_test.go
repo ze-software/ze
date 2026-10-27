@@ -174,7 +174,7 @@ func (a *testEditorAdapter) SessionChanges(sessionID string) []contract.SessionC
 	entries := a.ed.SessionChanges(sessionID)
 	changes := make([]contract.SessionChange, len(entries))
 	for i, e := range entries {
-		changes[i] = contract.SessionChange{Path: e.Path, Previous: e.Entry.Previous, Value: e.Entry.Value}
+		changes[i] = contract.SessionChange{Path: e.Path.String(), Previous: e.Entry.Previous, Value: e.Entry.Value}
 	}
 	return changes
 }

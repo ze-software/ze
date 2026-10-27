@@ -882,7 +882,7 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 		for _, entry := range entries {
 			var tb textbuf.Buffer
 			// Member distinguishes per-member leaf-list entries that share a path.
-			key := tb.Str(entry.Entry.SessionKey()).Byte('|').Str(entry.Path).Byte('|').Str(entry.Entry.Member).String()
+			key := tb.Str(entry.Entry.SessionKey()).Byte('|').Str(entry.Path.String()).Byte('|').Str(entry.Entry.Member).String()
 			if seen[key] {
 				continue
 			}
@@ -894,10 +894,10 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 	if e.meta != nil {
 		if sessionID == "" {
 			for _, sid := range e.meta.AllSessions() {
-				addEntries(e.meta.SessionEntries(sid))
+				addEntries(e.meta.SessionEntries(e.schema, sid))
 			}
 		} else {
-			addEntries(e.meta.SessionEntries(sessionID))
+			addEntries(e.meta.SessionEntries(e.schema, sessionID))
 		}
 	}
 
@@ -907,11 +907,11 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 			continue
 		}
 		if sessionID != "" {
-			addEntries(meta.SessionEntries(sessionID))
+			addEntries(meta.SessionEntries(e.schema, sessionID))
 			continue
 		}
 		for _, sid := range meta.AllSessions() {
-			addEntries(meta.SessionEntries(sid))
+			addEntries(meta.SessionEntries(e.schema, sid))
 		}
 	}
 
@@ -945,12 +945,12 @@ func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []
 	if e.meta != nil {
 		if sessionID == "" {
 			for _, sid := range e.meta.AllSessions() {
-				for _, entry := range e.meta.SessionEntries(sid) {
+				for _, entry := range e.meta.SessionEntries(e.schema, sid) {
 					addChange(config.PendingChangeFromSessionEntry(entry))
 				}
 			}
 		} else {
-			for _, entry := range e.meta.SessionEntries(sessionID) {
+			for _, entry := range e.meta.SessionEntries(e.schema, sessionID) {
 				addChange(config.PendingChangeFromSessionEntry(entry))
 			}
 		}
@@ -962,23 +962,23 @@ func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []
 			continue
 		}
 		if sessionID != "" {
-			for _, entry := range meta.SessionEntries(sessionID) {
+			for _, entry := range meta.SessionEntries(e.schema, sessionID) {
 				addChange(config.PendingChangeFromSessionEntry(entry))
 			}
 			for i := range ops {
 				if ops[i].SessionKey() == sessionID {
-					addChange(ops[i].PendingChange())
+					addChange(ops[i].PendingChange(e.schema))
 				}
 			}
 			continue
 		}
 		for _, sid := range meta.AllSessions() {
-			for _, entry := range meta.SessionEntries(sid) {
+			for _, entry := range meta.SessionEntries(e.schema, sid) {
 				addChange(config.PendingChangeFromSessionEntry(entry))
 			}
 		}
 		for i := range ops {
-			addChange(ops[i].PendingChange())
+			addChange(ops[i].PendingChange(e.schema))
 		}
 	}
 

@@ -77,13 +77,13 @@ func TestMetaTreeSessionFilter(t *testing.T) {
 	mt.SetEntry("router-id", thomas)
 	mt.SetEntry("local-as", alice)
 
-	thomasEntries := mt.SessionEntries(thomas.SessionKey())
+	thomasEntries := mt.SessionEntries(nil, thomas.SessionKey())
 	assert.Len(t, thomasEntries, 1)
-	assert.Equal(t, "router-id", thomasEntries[0].Path)
+	assert.Equal(t, "router-id", thomasEntries[0].Path.String())
 
-	aliceEntries := mt.SessionEntries(alice.SessionKey())
+	aliceEntries := mt.SessionEntries(nil, alice.SessionKey())
 	assert.Len(t, aliceEntries, 1)
-	assert.Equal(t, "local-as", aliceEntries[0].Path)
+	assert.Equal(t, "local-as", aliceEntries[0].Path.String())
 }
 
 // TestMetaTreeRemoveSession verifies removing all entries for a session.
@@ -182,7 +182,7 @@ func TestMetaTreeEmpty(t *testing.T) {
 	assert.False(t, ok)
 
 	assert.Empty(t, mt.AllSessions())
-	assert.Empty(t, mt.SessionEntries("nobody"))
+	assert.Empty(t, mt.SessionEntries(nil, "nobody"))
 	assert.False(t, mt.HasSession("nobody"))
 }
 
@@ -352,13 +352,13 @@ func TestMetaTreeSessionEntriesNested(t *testing.T) {
 	// Different session at a different leaf (should not be collected)
 	peer.SetEntry("local-as", MetaEntry{User: bob.User, Source: bob.Source, Time: bob.Time, Value: "65000"})
 
-	entries := mt.SessionEntries(alice.SessionKey())
+	entries := mt.SessionEntries(nil, alice.SessionKey())
 	require.Len(t, entries, 2)
 
 	// Build map of path -> value for easy assertion
 	pathValues := make(map[string]string, len(entries))
 	for _, e := range entries {
-		pathValues[e.Path] = e.Entry.Value
+		pathValues[e.Path.String()] = e.Entry.Value
 	}
 
 	assert.Equal(t, "1.2.3.4", pathValues["router-id"])

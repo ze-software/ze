@@ -136,6 +136,44 @@ nobody else committed.
 <!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
 <!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 
+A newly created list entry is a pending change even when it contains no leaf
+values. `show | changes` lists it as `set <entry path>`. Loading a block such as
+an empty dummy interface or an interface-only static next hop preserves that
+entry through save and commit; it does not need a placeholder description or
+another leaf. Discarding the creation removes the pending entry, including
+after it was saved to the draft or subsequently deleted without saving, unless
+another pending edit or the committed configuration still owns it. Newly
+materialized list-entry ancestors are removed too when nothing still owns them;
+existing ancestors are retained.
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
+<!-- source: internal/component/cli/editor_create_entry.go -- pruneDiscardedCreations -->
+
+Saving an entry before renaming it does not leave a second, unowned copy at
+the old name. Copying an entry retains this session's pending leaf edits,
+including edits already saved to the draft, without copying another session's
+ownership. Its member inactivity and child edits remain as they were at copy
+time, even if the source is renamed or edited afterward. Renaming or copying
+an ancestor also preserves the ordered effects of its pending child edits:
+a child created and then deleted stays deleted.
+An existing entry renamed more than once still checks its original committed
+source, not an intermediate name. Saving between those renames continues from
+the materialized entry without moving it back through its old name; another
+session's new entry at that old name is preserved. String keys containing spaces
+or `#` keep their boundaries through save, rename, copy, commit and discard,
+including leaf-list member toggles below those keys.
+<!-- source: internal/component/cli/editor_create_entry.go -- planCreations, prepareDraftReplay, rebaseCreatedMetadata, pruneCreationMaterializations -->
+<!-- source: internal/component/config/meta.go -- SessionEntries -->
+<!-- source: internal/component/config/change_file.go -- structural operation codecs -->
+
+If a pending creation's ownership path cannot be parsed or resolved against
+the schema, commit and discard report an error rather than treating it as
+unowned. A forced commit does not bypass that uncertainty. After an edit has
+already succeeded, an inconclusive overlap check is reported as
+`conflict check failed`, separately from a known conflict; the edit stays
+pending.
+<!-- source: internal/component/cli/editor_draft.go -- liveOverlaps, detectConflicts -->
+<!-- source: internal/component/cli/model_commands_edit.go -- appendConflictStatus -->
+
 `commit now` reaches the same reload as `ze signal reload`. Which configuration
 changes stop a session, and in what order, is in
 [The order of a commit](config-reload.md#the-order-of-a-commit).

@@ -471,13 +471,13 @@ func TestChangeFileMemberOpsRoundTrip(t *testing.T) {
 	when := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	ops := []StructuralOp{
 		{Type: StructuralOpInsertMember, User: "thomas", Source: "ssh", Time: when,
-			ParentPath: "system", ListName: "name-server", NewKey: "1.1.1.1", Position: InsertFirst},
+			ParentPath: EditTokens{"system"}, ListName: "name-server", NewKey: "1.1.1.1", Position: InsertFirst},
 		{Type: StructuralOpInsertMember, User: "thomas", Source: "ssh", Time: when,
-			ParentPath: "system", ListName: "name-server", NewKey: "4.4.4.4", Position: InsertBefore, OldKey: "9.9.9.9"},
+			ParentPath: EditTokens{"system"}, ListName: "name-server", NewKey: "4.4.4.4", Position: InsertBefore, OldKey: "9.9.9.9"},
 		{Type: StructuralOpDeactivateMember, User: "thomas", Source: "ssh", Time: when,
-			ParentPath: "system", ListName: "name-server", NewKey: "8.8.8.8"},
+			ParentPath: EditTokens{"system"}, ListName: "name-server", NewKey: "8.8.8.8"},
 		{Type: StructuralOpActivateMember, User: "thomas", Source: "ssh", Time: when,
-			ParentPath: "system", ListName: "name-server", NewKey: "8.8.8.8"},
+			ParentPath: EditTokens{"system"}, ListName: "name-server", NewKey: "8.8.8.8"},
 	}
 
 	out := SerializeChangeFile(NewTree(), NewMetaTree(), ops, schema)
@@ -501,7 +501,7 @@ func TestChangeFileMemberOpsRoundTrip(t *testing.T) {
 // PREVENTS: 'delete system name-server' shown without saying which member.
 func TestPendingChangeMemberSummary(t *testing.T) {
 	se := SessionEntry{
-		Path: "system name-server",
+		Path: EditTokens{"system", "name-server"},
 		Entry: MetaEntry{
 			User: "thomas", Source: "ssh",
 			Time:   time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC),

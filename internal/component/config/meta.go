@@ -53,7 +53,7 @@ func (e MetaEntry) SessionKey() string {
 // SessionEntry pairs a YANG path with its metadata entry,
 // returned by SessionEntries for filtering by session.
 type SessionEntry struct {
-	Path  string
+	Path  EditTokens
 	Entry MetaEntry
 }
 
@@ -397,46 +397,51 @@ func (mt *MetaTree) Clone() *MetaTree {
 // SessionEntries collects all entries matching the given session ID,
 // walking the entire tree recursively. Each result includes the
 // accumulated YANG path to the leaf.
-func (mt *MetaTree) SessionEntries(sessionID string) []SessionEntry {
+func (mt *MetaTree) SessionEntries(schema *Schema, sessionID string) []SessionEntry {
 	var result []SessionEntry
-	mt.collectSession(sessionID, "", &result)
+	var provider ChildProvider
+	if schema != nil {
+		provider = schema
+	}
+	mt.collectSession(provider, nil, sessionID, nil, &result)
 	return result
 }
 
 // collectSession recursively walks the tree, accumulating path prefix.
 // Acquires mt.mu.RLock for its own node; child recursion locks the child
 // independently.
-func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEntry) {
+func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessionID string, prefix []string, result *[]SessionEntry) {
 	mt.mu.RLock()
 	defer mt.mu.RUnlock()
 
-	var tb textbuf.Buffer
 	for name, entries := range mt.entries {
 		for _, entry := range entries {
 			if entry.SessionKey() == sessionID {
-				path := name
-				if prefix != "" {
-					path = tb.Reset().Str(prefix).Byte(' ').Str(name).String()
-				}
+				path := make(EditTokens, len(prefix)+1)
+				copy(path, prefix)
+				path[len(prefix)] = name
 				*result = append(*result, SessionEntry{Path: path, Entry: entry})
 			}
 		}
 	}
-
 	for name, child := range mt.containers {
-		childPrefix := name
-		if prefix != "" {
-			childPrefix = tb.Reset().Str(prefix).Byte(' ').Str(name).String()
+		var childProvider ChildProvider
+		var childList *ListNode
+		if provider != nil {
+			node := provider.Get(name)
+			childProvider, _ = node.(ChildProvider)
+			childList, _ = node.(*ListNode)
 		}
-		child.collectSession(sessionID, childPrefix, result)
+		child.collectSession(childProvider, childList, sessionID, append(prefix, name), result)
 	}
-
 	for key, child := range mt.lists {
-		childPrefix := key
-		if prefix != "" {
-			childPrefix = tb.Reset().Str(prefix).Byte(' ').Str(key).String()
+		var childPrefix []string
+		if list != nil && list.HasMultiLeafKey() {
+			childPrefix = append(prefix, ListKeyTokens(list, key)...)
+		} else {
+			childPrefix = append(prefix, key)
 		}
-		child.collectSession(sessionID, childPrefix, result)
+		child.collectSession(provider, nil, sessionID, childPrefix, result)
 	}
 }
 

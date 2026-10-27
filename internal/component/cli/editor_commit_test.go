@@ -23,10 +23,10 @@ import (
 // PREVENTS: commit metadata referencing a leaf the hash hook removed.
 func TestDropPlaintextPasswordEntries(t *testing.T) {
 	in := []config.SessionEntry{
-		{Path: "system authentication user alice plaintext-password"},
-		{Path: "bgp local-as"},
-		{Path: "system authentication user bob plaintext-password"},
-		{Path: "system authentication user alice profile"},
+		{Path: config.EditTokens{"system", "authentication", "user", "alice", "plaintext-password"}},
+		{Path: config.EditTokens{"bgp", "local-as"}},
+		{Path: config.EditTokens{"system", "authentication", "user", "bob", "plaintext-password"}},
+		{Path: config.EditTokens{"system", "authentication", "user", "alice", "profile"}},
 	}
 	original := make([]config.SessionEntry, len(in))
 	copy(original, in)
@@ -34,8 +34,8 @@ func TestDropPlaintextPasswordEntries(t *testing.T) {
 	out := dropPlaintextPasswordEntries(in)
 
 	assert.Len(t, out, 2)
-	assert.Equal(t, "bgp local-as", out[0].Path)
-	assert.Equal(t, "system authentication user alice profile", out[1].Path)
+	assert.Equal(t, "bgp local-as", out[0].Path.String())
+	assert.Equal(t, "system authentication user alice profile", out[1].Path.String())
 
 	// Input slice must not have been mutated (we returned a fresh allocation).
 	for i, se := range in {
@@ -54,8 +54,8 @@ func TestDropPlaintextPasswordEntriesEmpty(t *testing.T) {
 // the same content (different backing array).
 func TestDropPlaintextPasswordEntriesNoMatches(t *testing.T) {
 	in := []config.SessionEntry{
-		{Path: "bgp local-as"},
-		{Path: "system authentication user alice profile"},
+		{Path: config.EditTokens{"bgp", "local-as"}},
+		{Path: config.EditTokens{"system", "authentication", "user", "alice", "profile"}},
 	}
 	out := dropPlaintextPasswordEntries(in)
 	assert.Len(t, out, 2)
@@ -66,8 +66,8 @@ func TestDropPlaintextPasswordEntriesNoMatches(t *testing.T) {
 // TestDropPlaintextPasswordEntriesAllMatch: all-plaintext input returns empty.
 func TestDropPlaintextPasswordEntriesAllMatch(t *testing.T) {
 	in := []config.SessionEntry{
-		{Path: "system authentication user alice plaintext-password"},
-		{Path: "system authentication user bob plaintext-password"},
+		{Path: config.EditTokens{"system", "authentication", "user", "alice", "plaintext-password"}},
+		{Path: config.EditTokens{"system", "authentication", "user", "bob", "plaintext-password"}},
 	}
 	out := dropPlaintextPasswordEntries(in)
 	assert.Empty(t, out)
@@ -508,8 +508,8 @@ func TestCommitRefusesSessionEntryItCannotApply(t *testing.T) {
 
 	tree := config.NewTree()
 	entries := []config.SessionEntry{
-		{Path: "bgp router-id", Entry: config.MetaEntry{User: "thomas", Value: "9.9.9.9"}},
-		{Path: "no-such-container leaf", Entry: config.MetaEntry{User: "thomas", Value: "x"}},
+		{Path: config.EditTokens{"bgp", "router-id"}, Entry: config.MetaEntry{User: "thomas", Value: "9.9.9.9"}},
+		{Path: config.EditTokens{"no-such-container", "leaf"}, Entry: config.MetaEntry{User: "thomas", Value: "x"}},
 	}
 	applied, err := ed.applyCommitEntries(tree, entries)
 	require.Error(t, err, "an entry the commit cannot apply fails the commit")

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,7 +72,10 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// A whole bracket leaf-list replaces this session's member changes to it.
 	var replacedEntry func(config.MetaEntry) bool
 	if e.bracketLeafList(path, key) != nil {
-		value, changeOps, replacedEntry = e.replaceSessionMembers(changeMeta, changeOps, committedTree, path, key, value)
+		value, changeOps, replacedEntry, err = e.replaceSessionMembers(changeMeta, changeOps, committedTree, path, key, value)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Apply the set to the change tree.
@@ -89,7 +93,11 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// committed value there, and the two must name one path.
 	previous := ""
 	if committedTree != nil {
-		previous = getValueAtPath(committedTree, e.schema, committedPathOf(changeOps, metaPath))
+		original, err := committedPathOf(e.schema, changeOps, metaPath)
+		if err != nil {
+			return err
+		}
+		previous = getValueAtPath(committedTree, e.schema, original)
 	}
 
 	// Record metadata in change file.
@@ -125,6 +133,14 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 // writeThroughCreate implements the write-through protocol for creating empty list entries.
 // It ensures the path exists in both the change file and in-memory tree without setting any leaf.
 func (e *Editor) writeThroughCreate(path []string) error {
+	if walkPath(e.tree, e.schema, path) != nil {
+		return nil // Existing entries have no creation intent to record.
+	}
+	canonical, err := config.CanonicalEditPath(e.schema, path)
+	if err != nil {
+		return fmt.Errorf("write-through create address: %w", err)
+	}
+	path = canonical
 	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
@@ -148,6 +164,17 @@ func (e *Editor) writeThroughCreate(path []string) error {
 	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
 		return fmt.Errorf("write-through create change path: %w", walkErr)
 	}
+	// A tree path alone has no session owner. SaveDraft and commit replay only
+	// metadata and structural operations, so a leafless entry needs its own
+	// creation intent even though the set writer can already preserve it.
+	changeOps = append(changeOps, config.StructuralOp{
+		Type:       config.StructuralOpCreateEntry,
+		User:       e.session.User,
+		Source:     e.session.Origin,
+		Time:       e.session.StartTime,
+		ParentPath: path[:len(path)-1],
+		ListName:   path[len(path)-1],
+	})
 
 	// Serialize and write change file.
 	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
@@ -192,7 +219,11 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 	previous := ""
 	if committedTree := e.readCommittedTree(guard); committedTree != nil {
-		previous = getValueAtPath(committedTree, e.schema, committedPathOf(changeOps, metaPath))
+		original, err := committedPathOf(e.schema, changeOps, metaPath)
+		if err != nil {
+			return err
+		}
+		previous = getValueAtPath(committedTree, e.schema, original)
 	}
 
 	// Create the parent path in the change tree so the serializer can navigate
@@ -269,12 +300,12 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: textbuf.Join(parentPath, " "),
+		ParentPath: parentPath,
 		ListName:   listName,
 		OldKey:     oldKey,
 		NewKey:     newKey,
 	}
-	if err := e.validateRenameLiveConflict(guard, proposedOp.PendingChange()); err != nil {
+	if err := e.validateRenameLiveConflict(guard, proposedOp.PendingChange(e.schema)); err != nil {
 		return err
 	}
 
@@ -299,7 +330,9 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 
 	changeOps = append(changeOps, proposedOp)
 	changeOps = config.CoalesceRenameOps(changeOps)
-	rebaseSessionMemberOps(changeOps, e.session.ID, proposedOp.SourcePath(), proposedOp.DestinationPath())
+	if err := rebaseSessionMemberOps(e.schema, changeOps, proposedOp); err != nil {
+		return err
+	}
 
 	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
 		return err
@@ -336,9 +369,9 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 // destination refuses before anything is written.
 //
 // The commit applies the copy-entry op to the committed source before this
-// session's leaf edits, so the copy would miss any pending edit of the source.
-// The change file therefore carries the source's pending edits under the
-// destination too, as writeThroughRename rebases them onto the new key.
+// session's leaf edits. Snapshot the source's session-owned edits from the
+// working metadata, which includes both saved and unsaved edits, into the
+// destination's change-file intent.
 func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targetKey string) error {
 	probe := walkPath(e.tree.Clone(), e.schema, parentPath)
 	if probe == nil {
@@ -360,7 +393,7 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: textbuf.Join(parentPath, " "),
+		ParentPath: parentPath,
 		ListName:   listName,
 		OldKey:     sourceKey,
 		NewKey:     targetKey,
@@ -370,10 +403,16 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 	if err != nil {
 		return err
 	}
-	if err := copyPendingListEntry(changeTree, changeMeta, e.schema, parentPath, listName, sourceKey, targetKey); err != nil {
+	copied, err := e.copyPendingListEntry(changeTree, changeMeta, op)
+	if err != nil {
+		return err
+	}
+	copiedMembers, err := copySessionMemberOps(e.schema, changeOps, op)
+	if err != nil {
 		return err
 	}
 	changeOps = append(changeOps, op)
+	changeOps = append(changeOps, copiedMembers...)
 	if err := e.writeChangeFile(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
 		return err
 	}
@@ -381,34 +420,50 @@ func (e *Editor) writeThroughCopy(parentPath []string, listName, sourceKey, targ
 	if err := applyStructuralOps(e.tree, e.schema, []config.StructuralOp{op}, false); err != nil {
 		return fmt.Errorf("write-through apply: %w", err)
 	}
-	if metaParent := walkMetaReadOnly(e.meta, e.schema, parentPath); metaParent != nil {
-		if err := metaParent.CopyListEntry(listName, sourceKey, targetKey); err != nil {
-			return err
-		}
+	for _, entry := range copied {
+		parent := walkOrCreateMeta(e.meta, e.schema, entry.Path[:len(entry.Path)-1])
+		parent.SetEntry(entry.Path[len(entry.Path)-1], entry.Entry)
 	}
 	e.dirty.Store(true)
 	e.draftSaved = false
 	return nil
 }
 
-// copyPendingListEntry copies the pending edits a change file holds for a
-// list entry, its sparse subtree and its metadata, to the copy's key. A source
-// with no pending edit has nothing to copy.
-func copyPendingListEntry(tree *config.Tree, meta *config.MetaTree, schema *config.Schema, parentPath []string, listName, sourceKey, targetKey string) error {
-	parent := tree
-	if len(parentPath) > 0 {
-		parent = walkPath(tree, schema, parentPath)
+// copyPendingListEntry snapshots only this session's source edits. Saved edits
+// live in e.meta rather than the change file, and an unrelated owner's metadata
+// must not acquire a second address merely because this session made a copy.
+func (e *Editor) copyPendingListEntry(tree *config.Tree, meta *config.MetaTree, op config.StructuralOp) ([]config.SessionEntry, error) {
+	source, err := structuralEntryTokens(e.schema, op, op.OldKey)
+	if err != nil {
+		return nil, err
 	}
-	if parent != nil && parent.GetList(listName)[sourceKey] != nil {
-		if err := parent.CopyListEntry(listName, sourceKey, targetKey); err != nil {
-			return err
+	destination, err := structuralEntryTokens(e.schema, op, op.NewKey)
+	if err != nil {
+		return nil, err
+	}
+	var copied []config.SessionEntry
+	for _, entry := range e.meta.SessionEntries(e.schema, e.session.ID) {
+		path, err := config.RebaseEditTokens(e.schema, entry.Path, source, destination)
+		if err != nil {
+			return nil, err
 		}
+		if slices.Equal(path, entry.Path) {
+			continue
+		}
+		entry.Path = path
+		entry.Entry.Previous = ""
+		parentPath := path[:len(path)-1]
+		leaf := path[len(path)-1]
+		if _, err := e.walkOrCreateIn(tree, parentPath); err != nil {
+			return nil, err
+		}
+		if err := e.applySessionEntryToTree(tree, parentPath, leaf, entry.Entry); err != nil {
+			return nil, err
+		}
+		walkOrCreateMeta(meta, e.schema, parentPath).SetEntry(leaf, entry.Entry)
+		copied = append(copied, entry)
 	}
-	metaParent := walkMetaReadOnly(meta, schema, parentPath)
-	if metaParent == nil {
-		return nil
-	}
-	return metaParent.CopyListEntry(listName, sourceKey, targetKey)
+	return copied, nil
 }
 
 // writeThroughToggle records a leaf or path deactivate/activate as one
@@ -417,7 +472,7 @@ func copyPendingListEntry(tree *config.Tree, meta *config.MetaTree, schema *conf
 func (e *Editor) writeThroughToggle(opType config.StructuralOpType, parentPath []string, name string) error {
 	return e.writeThroughStructuralOp(config.StructuralOp{
 		Type:       opType,
-		ParentPath: textbuf.Join(parentPath, " "),
+		ParentPath: parentPath,
 		ListName:   name,
 	})
 }
@@ -532,7 +587,7 @@ func (e *Editor) SaveDraft() error {
 		return err
 	}
 
-	myEntries := changeMeta.SessionEntries(e.session.ID)
+	myEntries := changeMeta.SessionEntries(e.schema, e.session.ID)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
 	if len(myEntries) == 0 && len(myOps) == 0 {
 		return nil // Nothing to save.
@@ -545,13 +600,17 @@ func (e *Editor) SaveDraft() error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	if err := applyStructuralOpsToMeta(baseMeta, e.schema, myOps, true); err != nil {
-		return fmt.Errorf("save apply rename meta: %w", err)
+	replayOps, savedEntries, err := e.prepareDraftReplay(guard, baseTree, baseMeta, myOps)
+	if err != nil {
+		return fmt.Errorf("save prepare replay: %w", err)
+	}
+	if len(savedEntries) != 0 {
+		myEntries = append(savedEntries, myEntries...)
 	}
 	// Apply changes to base, the member ops a new member waits for after them.
 	applyEntries := func() error {
 		for _, se := range myEntries {
-			pathParts := strings.Fields(se.Path)
+			pathParts := se.Path
 			if len(pathParts) == 0 {
 				continue
 			}
@@ -575,8 +634,13 @@ func (e *Editor) SaveDraft() error {
 		}
 		return nil
 	}
-	if err := e.applyStructuralOpsAroundEntries(baseTree, myOps, applyEntries, true, nil); err != nil {
+	if err := e.applyReplayOpsAroundEntries(baseTree, replayOps, applyEntries, true, nil); err != nil {
 		return fmt.Errorf("save %w", err)
+	}
+	if slices.ContainsFunc(myOps, func(op config.StructuralOp) bool { return op.Type == config.StructuralOpRename }) {
+		if _, err := e.pruneCreationMaterializations(guard, changePath, changeOps, changeOps, changeMeta, baseTree, baseMeta); err != nil {
+			return fmt.Errorf("save prune superseded creations: %w", err)
+		}
 	}
 
 	if e.preCommitValidate != nil {
@@ -633,8 +697,16 @@ func filterStructuralOps(ops []config.StructuralOp, sessionID string) []config.S
 
 func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
 	for i := range ops {
-		parentPath := strings.Fields(ops[i].ParentPath)
+		parentPath := ops[i].ParentPath
 		switch ops[i].Type {
+		case config.StructuralOpCreateEntry:
+			path, err := config.ParseEditPath(ops[i].SourcePath(schema))
+			if err != nil {
+				return err
+			}
+			if _, err := walkOrCreateTree(tree, schema, path); err != nil {
+				return err
+			}
 		case config.StructuralOpRename:
 			target := walkPath(tree, schema, parentPath)
 			if target == nil {
@@ -710,6 +782,17 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 // and an op it answers false for is skipped. The commit pre-scan
 // (memberOpConflicts) replays the commit's order on a copy through it.
 func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool, check func(*config.Tree, config.StructuralOp) bool) error {
+	var err error
+	ops, err = creationReplayOps(e.schema, ops)
+	if err != nil {
+		return err
+	}
+	return e.applyReplayOpsAroundEntries(tree, ops, applyEntries, allowAlreadyApplied, check)
+}
+
+// applyReplayOpsAroundEntries executes an already prepared plan. Committed
+// replay and materialized-draft replay share this ordering, not their inputs.
+func (e *Editor) applyReplayOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool, check func(*config.Tree, config.StructuralOp) bool) error {
 	apply := func(op config.StructuralOp) error {
 		if check != nil && !check(tree, op) {
 			return nil
@@ -724,7 +807,7 @@ func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config
 	for i := range ops {
 		// Once one member op on a list waits, every later one on that list
 		// waits too, so the list's ops keep the order the operator typed.
-		list := ops[i].ParentPath + "\x00" + ops[i].ListName
+		list := ops[i].ParentPath.String() + "\x00" + ops[i].ListName
 		if isMemberOp(ops[i]) && heldLists[list] {
 			held = append(held, ops[i])
 			continue
@@ -764,14 +847,14 @@ func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config
 	//exhaustive:ignore // Only the three member ops can name a member an entry adds.
 	switch op.Type {
 	case config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
-		target := walkPath(tree, schema, strings.Fields(op.ParentPath))
+		target := walkPath(tree, schema, op.ParentPath)
 		if target == nil {
 			return true
 		}
 		present, _ := target.MultiValueMemberState(op.ListName, op.NewKey)
 		return !present
 	case config.StructuralOpInsertMember:
-		target := walkPath(tree, schema, strings.Fields(op.ParentPath))
+		target := walkPath(tree, schema, op.ParentPath)
 		if target == nil {
 			return true
 		}
@@ -805,7 +888,7 @@ func copyAlreadyApplied(target *config.Tree, listName, sourceKey, targetKey stri
 // or a second session asking for the same state changes nothing. A path that
 // no longer resolves is an error at commit and skipped on replay.
 func applyToggleOp(tree *config.Tree, schema *config.Schema, op config.StructuralOp, allowAlreadyApplied bool) error {
-	parentPath := strings.Fields(op.ParentPath)
+	parentPath := op.ParentPath
 	if op.Type == config.StructuralOpDeactivateLeaf || op.Type == config.StructuralOpActivateLeaf {
 		target := walkPath(tree, schema, parentPath)
 		if target == nil {
@@ -826,7 +909,7 @@ func applyToggleOp(tree *config.Tree, schema *config.Schema, op config.Structura
 		if allowAlreadyApplied {
 			return nil
 		}
-		return fmt.Errorf("%w: %s", ErrPathNotFound, op.SourcePath())
+		return fmt.Errorf("%w: %s", ErrPathNotFound, op.SourcePath(schema))
 	}
 	target.SetInactive(op.Type == config.StructuralOpDeactivatePath)
 	return nil
@@ -837,7 +920,7 @@ func applyToggleOp(tree *config.Tree, schema *config.Schema, op config.Structura
 // deactivate, already active for activate) is treated as success so draft
 // replays and concurrent idempotent sessions do not fail the apply.
 func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.StructuralOp, allowAlreadyApplied bool) error {
-	parentPath := strings.Fields(op.ParentPath)
+	parentPath := op.ParentPath
 	target := walkPath(tree, schema, parentPath)
 	if target == nil {
 		if allowAlreadyApplied {
@@ -888,7 +971,7 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 		}
 		return target.ActivateMultiValue(op.ListName, op.NewKey)
 	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
-		config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+		config.StructuralOpCreateEntry, config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
 		config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
 		return nil
 	default:
@@ -896,12 +979,29 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 	}
 }
 
-func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
+func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) ([]config.SessionEntry, error) {
 	if meta == nil {
-		return nil
+		return nil, nil
 	}
+	plan, err := planCreations(schema, ops)
+	if err != nil {
+		return nil, err
+	}
+	var movedSessions map[string]bool
+	nextCreated := 0
 	for i := range ops {
-		parentPath := strings.Fields(ops[i].ParentPath)
+		if nextCreated < len(plan.createdRenames) && plan.createdRenames[nextCreated].index == i {
+			if err := rebaseCreatedMetadata(meta, schema, ops[i]); err != nil {
+				return nil, err
+			}
+			if movedSessions == nil {
+				movedSessions = make(map[string]bool)
+			}
+			movedSessions[ops[i].SessionKey()] = true
+			nextCreated++
+			continue
+		}
+		parentPath := ops[i].ParentPath
 		switch ops[i].Type {
 		case config.StructuralOpRename:
 			target := walkMetaReadOnly(meta, schema, parentPath)
@@ -912,7 +1012,7 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 				if allowAlreadyApplied && renameMetaAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
 					continue
 				}
-				return err
+				return nil, err
 			}
 		case config.StructuralOpDeleteEntry:
 			target := walkMetaReadOnly(meta, schema, parentPath)
@@ -933,17 +1033,21 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 			// leaf and path toggles set a marker; the metadata tree
 			// structure is unaffected.
 			continue
-		case config.StructuralOpCopyEntry:
-			// The copied entry carries no session metadata of its own: the
-			// copy op is the one attributed change.
+		case config.StructuralOpCreateEntry, config.StructuralOpCopyEntry:
+			// Creation and copy carry no leaf metadata: the structural op is
+			// the attributed change, retained in the per-user change file.
 			continue
 		case "":
-			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
+			return nil, fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		default:
 			panic("BUG: invalid structural metadata operation")
 		}
 	}
-	return nil
+	var moved []config.SessionEntry
+	for sessionID := range movedSessions {
+		moved = append(moved, meta.SessionEntries(schema, sessionID)...)
+	}
+	return moved, nil
 }
 
 func renameAlreadyApplied(target *config.Tree, listName, oldKey, newKey string) bool {
@@ -997,8 +1101,12 @@ func (e *Editor) LoadDraft() bool {
 }
 
 // detectConflicts scans pending changes from other sessions and reports live overlaps.
-func (e *Editor) detectConflicts() []Conflict {
-	return overlapConflicts(e.liveOverlaps())
+func (e *Editor) detectConflicts() ([]Conflict, error) {
+	overlaps, err := e.liveOverlaps()
+	if err != nil {
+		return nil, err
+	}
+	return overlapConflicts(overlaps), nil
 }
 
 // liveOverlap is one LIVE conflict together with the other session's pending
@@ -1010,13 +1118,13 @@ type liveOverlap struct {
 
 // liveOverlaps pairs each of this session's pending changes with every other
 // session's pending change it conflicts with.
-func (e *Editor) liveOverlaps() []liveOverlap {
+func (e *Editor) liveOverlaps() ([]liveOverlap, error) {
 	if e.session == nil || e.meta == nil {
-		return nil
+		return nil, nil
 	}
 	myChanges := e.PendingChanges(e.session.ID)
 	if len(myChanges) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	var overlaps []liveOverlap
@@ -1027,12 +1135,20 @@ func (e *Editor) liveOverlaps() []liveOverlap {
 		otherUser, _, _ := strings.Cut(sid, "@")
 		for _, mine := range myChanges {
 			for _, other := range e.PendingChanges(sid) {
-				if !pendingChangesConflict(mine, other) {
+				conflict, err := pendingChangesConflict(e.schema, mine, other)
+				if err != nil {
+					return nil, fmt.Errorf("compare pending owner %s: %w", other.SessionID, err)
+				}
+				if !conflict {
 					continue
+				}
+				path, err := conflictPath(e.schema, mine, other)
+				if err != nil {
+					return nil, err
 				}
 				overlaps = append(overlaps, liveOverlap{
 					conflict: Conflict{
-						Path:       conflictPath(mine, other),
+						Path:       path,
 						Type:       ConflictLive,
 						MyValue:    pendingConflictValue(e.schema, mine),
 						OtherValue: pendingConflictValue(e.schema, other),
@@ -1044,7 +1160,7 @@ func (e *Editor) liveOverlaps() []liveOverlap {
 		}
 	}
 
-	return overlaps
+	return overlaps, nil
 }
 
 // overlapConflicts is the conflict report of a set of live overlaps.
@@ -1059,35 +1175,36 @@ func overlapConflicts(overlaps []liveOverlap) []Conflict {
 	return conflicts
 }
 
-func pendingChangesConflict(a, b config.PendingChange) bool {
+func pendingChangesConflict(schema *config.Schema, a, b config.PendingChange) (bool, error) {
+	if entryCreation(a) || entryCreation(b) {
+		return creationChangesConflict(schema, a, b)
+	}
 	if !isEntryMove(a.Kind) && !isEntryMove(b.Kind) {
 		if a.Path != b.Path {
-			return false
+			return false, nil
 		}
 		if a.Member != "" || b.Member != "" {
 			if a.Member != "" && b.Member != "" {
-				// Leaf-list members are independent changes: two sessions
-				// touching different members never conflict; the same member
-				// conflicts only when one session sets it and the other
-				// deletes it (Value empty = delete intent).
-				return a.Member == b.Member && a.Value != b.Value
+				// Different members are independent; the same member conflicts
+				// only when one session sets it and the other deletes it.
+				return a.Member == b.Member && a.Value != b.Value, nil
 			}
-			// A member operation against a whole-leaf operation (delete of
-			// the entire leaf-list) on the same path always conflicts.
-			return true
+			return true, nil // A member operation contests a whole-leaf edit.
 		}
-		// A different kind on one path conflicts even with equal values:
-		// deactivate and activate of one leaf both carry no value.
-		return a.Kind != b.Kind || a.Value != b.Value
+		return a.Kind != b.Kind || a.Value != b.Value, nil
 	}
 	for _, aPath := range a.ConflictPaths() {
 		for _, bPath := range b.ConflictPaths() {
-			if pathOverlaps(aPath, bPath) {
-				return true
+			overlaps, err := pathOverlaps(schema, aPath, bPath)
+			if err != nil {
+				return false, err
+			}
+			if overlaps {
+				return true, nil
 			}
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (e *Editor) validateRenameLiveConflict(guard storage.WriteGuard, proposed config.PendingChange) error {
@@ -1100,10 +1217,18 @@ func (e *Editor) validateRenameLiveConflict(guard storage.WriteGuard, proposed c
 			continue
 		}
 		seen[pendingChangeKey(other)] = true
-		if !pendingChangesConflict(proposed, other) {
+		conflict, err := pendingChangesConflict(e.schema, proposed, other)
+		if err != nil {
+			return fmt.Errorf("compare pending owner %s: %w", other.SessionID, err)
+		}
+		if !conflict {
 			continue
 		}
-		return fmt.Errorf("pending change conflict with %s at %s", other.SessionID, conflictPath(proposed, other))
+		path, err := conflictPath(e.schema, proposed, other)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("pending change conflict with %s at %s", other.SessionID, path)
 	}
 
 	draftData, err := guard.ReadFile(DraftPath(e.originalPath))
@@ -1118,35 +1243,47 @@ func (e *Editor) validateRenameLiveConflict(guard storage.WriteGuard, proposed c
 		if sid == e.session.ID {
 			continue
 		}
-		for _, entry := range draftMeta.SessionEntries(sid) {
+		for _, entry := range draftMeta.SessionEntries(e.schema, sid) {
 			other := config.PendingChangeFromSessionEntry(entry)
 			if seen[pendingChangeKey(other)] {
 				continue
 			}
-			if !pendingChangesConflict(proposed, other) {
+			conflict, err := pendingChangesConflict(e.schema, proposed, other)
+			if err != nil {
+				return fmt.Errorf("compare pending owner %s: %w", other.SessionID, err)
+			}
+			if !conflict {
 				continue
 			}
-			return fmt.Errorf("pending change conflict with %s at %s", sid, conflictPath(proposed, other))
+			path, err := conflictPath(e.schema, proposed, other)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("pending change conflict with %s at %s", sid, path)
 		}
 	}
 	return nil
 }
 
-func conflictPath(a, b config.PendingChange) string {
+func conflictPath(schema *config.Schema, a, b config.PendingChange) (string, error) {
 	for _, aPath := range a.ConflictPaths() {
 		for _, bPath := range b.ConflictPaths() {
-			if pathOverlaps(aPath, bPath) {
+			overlaps, err := pathOverlaps(schema, aPath, bPath)
+			if err != nil {
+				return "", err
+			}
+			if overlaps {
 				if len(aPath) >= len(bPath) {
-					return aPath
+					return aPath, nil
 				}
-				return bPath
+				return bPath, nil
 			}
 		}
 	}
 	if a.Path != "" {
-		return a.Path
+		return a.Path, nil
 	}
-	return a.NewPath
+	return a.NewPath, nil
 }
 
 // pendingConflictValue answers the text a conflict report may publish for one
@@ -1157,7 +1294,11 @@ func pendingConflictValue(schema *config.Schema, change config.PendingChange) st
 	if isEntryMove(change.Kind) {
 		return change.Summary(schema)
 	}
-	return config.DisplayValueAtPath(schema, strings.Fields(change.Path), change.Value)
+	path, err := config.ParseEditPath(change.Path)
+	if err != nil {
+		return "invalid pending-change path: " + err.Error()
+	}
+	return config.DisplayValueAtPath(schema, path, change.Value)
 }
 
 // isEntryMove reports whether a pending change takes a list entry from one
@@ -1166,18 +1307,19 @@ func isEntryMove(kind config.PendingChangeKind) bool {
 	return kind == config.PendingChangeRename || kind == config.PendingChangeCopy
 }
 
-func pathOverlaps(a, b string) bool {
-	return pathHasPrefix(a, b) || pathHasPrefix(b, a)
-}
-
-func pathHasPrefix(path, prefix string) bool {
-	if path == prefix {
-		return true
+func pathOverlaps(schema *config.Schema, a, b string) (bool, error) {
+	if a == "" || b == "" {
+		return a == b, nil
 	}
-	if prefix == "" || path == "" {
-		return false
+	first, err := config.ResolveEditPath(schema, a)
+	if err != nil {
+		return false, err
 	}
-	return strings.HasPrefix(path, prefix+" ")
+	second, err := config.ResolveEditPath(schema, b)
+	if err != nil {
+		return false, err
+	}
+	return first.HasPrefix(second) || second.HasPrefix(first), nil
 }
 
 // readDraftOrConfig reads and parses the draft file, falling back to config.conf.
@@ -1262,7 +1404,7 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 	}
 
 	// Find all entries for the old session and rewrite to current session.
-	oldEntries := meta.SessionEntries(oldSessionID)
+	oldEntries := meta.SessionEntries(e.schema, oldSessionID)
 	changePath := ChangePath(e.originalPath, e.session.User)
 	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
 	if err != nil {
@@ -1274,7 +1416,7 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 	}
 
 	for _, se := range oldEntries {
-		pathParts := strings.Fields(se.Path)
+		pathParts := se.Path
 		if len(pathParts) == 0 {
 			continue
 		}

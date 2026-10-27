@@ -45,7 +45,7 @@ func TestChangeFileRoundTripRenameOp(t *testing.T) {
 		User:       "thomas",
 		Source:     "web",
 		Time:       stamp,
-		ParentPath: "bgp",
+		ParentPath: EditTokens{"bgp"},
 		ListName:   "peer",
 		OldKey:     "london",
 		NewKey:     "paris",
@@ -65,9 +65,9 @@ func TestChangeFileRoundTripRenameOp(t *testing.T) {
 	require.NotNil(t, parsedPeers)
 	require.NotNil(t, parsedPeers["paris"])
 
-	entries := parsedMeta.SessionEntries(ops[0].SessionKey())
+	entries := parsedMeta.SessionEntries(schema, ops[0].SessionKey())
 	require.Len(t, entries, 1)
-	assert.Equal(t, "bgp peer paris description", entries[0].Path)
+	assert.Equal(t, "bgp peer paris description", entries[0].Path.String())
 }
 
 // TestParseChangeFileRejectsMalformedRename verifies malformed rename directives are rejected.
@@ -90,7 +90,7 @@ func TestChangeFileRoundTripDeleteEntryOp(t *testing.T) {
 		User:       "thomas",
 		Source:     "local",
 		Time:       stamp,
-		ParentPath: "bgp",
+		ParentPath: EditTokens{"bgp"},
 		ListName:   "peer",
 		OldKey:     "london",
 	}}
@@ -114,7 +114,7 @@ func TestChangeFileRoundTripDeleteContainerOp(t *testing.T) {
 		User:       "thomas",
 		Source:     "local",
 		Time:       stamp,
-		ParentPath: "bgp",
+		ParentPath: EditTokens{"bgp"},
 		ListName:   "peer",
 	}}
 
@@ -146,7 +146,7 @@ func TestChangeFileDeleteEntryEmptyParent(t *testing.T) {
 	_, _, parsedOps, err := ParseChangeFile(content, NewSetParser(schema))
 	require.NoError(t, err)
 	require.Len(t, parsedOps, 1)
-	assert.Equal(t, "", parsedOps[0].ParentPath)
+	assert.Equal(t, "", parsedOps[0].ParentPath.String())
 	assert.Equal(t, "peer", parsedOps[0].ListName)
 	assert.Equal(t, "london", parsedOps[0].OldKey)
 }
@@ -169,7 +169,7 @@ func TestChangeFileDeleteContainerEmptyParent(t *testing.T) {
 	_, _, parsedOps, err := ParseChangeFile(content, NewSetParser(schema))
 	require.NoError(t, err)
 	require.Len(t, parsedOps, 1)
-	assert.Equal(t, "", parsedOps[0].ParentPath)
+	assert.Equal(t, "", parsedOps[0].ParentPath.String())
 	assert.Equal(t, "bgp", parsedOps[0].ListName)
 }
 
@@ -186,7 +186,7 @@ func TestChangeFileRoundTripDeleteListOp(t *testing.T) {
 		User:       "thomas",
 		Source:     "local",
 		Time:       stamp,
-		ParentPath: "bgp",
+		ParentPath: EditTokens{"bgp"},
 		ListName:   "peer",
 	}}
 
@@ -220,7 +220,7 @@ func TestChangeFileDeleteListEmptyParent(t *testing.T) {
 	_, _, parsedOps, err := ParseChangeFile(content, NewSetParser(schema))
 	require.NoError(t, err)
 	require.Len(t, parsedOps, 1)
-	assert.Equal(t, "", parsedOps[0].ParentPath)
+	assert.Equal(t, "", parsedOps[0].ParentPath.String())
 	assert.Equal(t, "peer", parsedOps[0].ListName)
 }
 
@@ -250,11 +250,11 @@ func TestCoalesceRenameOpsSkipsDeleteOps(t *testing.T) {
 	ops := []StructuralOp{
 		{
 			Type: StructuralOpRename, User: "thomas", Source: "local", Time: stamp,
-			ParentPath: "bgp", ListName: "peer", OldKey: "a", NewKey: "b",
+			ParentPath: EditTokens{"bgp"}, ListName: "peer", OldKey: "a", NewKey: "b",
 		},
 		{
 			Type: StructuralOpDeleteEntry, User: "thomas", Source: "local", Time: stamp,
-			ParentPath: "bgp", ListName: "peer", OldKey: "b",
+			ParentPath: EditTokens{"bgp"}, ListName: "peer", OldKey: "b",
 		},
 	}
 
@@ -273,16 +273,16 @@ func TestCoalesceRenameOpsSkipsDeleteOps(t *testing.T) {
 func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
 	op := StructuralOp{
 		Type:       StructuralOpDeactivateMember,
-		ParentPath: "system",
+		ParentPath: EditTokens{"system"},
 		ListName:   "name-server",
 		NewKey:     "192.0.2.1",
 	}
-	change := op.PendingChange()
+	change := op.PendingChange(nil)
 	if got := change.Summary(nil); got != "deactivate system name-server "+SecretDataPlaceholder {
 		t.Fatalf("deactivation summary = %q, want the verb and the masked member", got)
 	}
 	op.Type = StructuralOpActivateMember
-	if got := op.PendingChange().Summary(nil); got != "activate system name-server "+SecretDataPlaceholder {
+	if got := op.PendingChange(nil).Summary(nil); got != "activate system name-server "+SecretDataPlaceholder {
 		t.Fatalf("activation summary = %q, want the verb and the masked member", got)
 	}
 
@@ -299,7 +299,7 @@ func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
 }
 
 // TestChangeFileDeactivateOpsRoundTrip verifies that the structural ops the
-// session editor records for copy and for leaf and path deactivation survive
+// session editor records for creation, copy and leaf/path deactivation survive
 // serialize and parse unchanged, and project to one pending change each.
 func TestChangeFileDeactivateOpsRoundTrip(t *testing.T) {
 	schema := testChangeFileSchema()
@@ -314,15 +314,19 @@ func TestChangeFileDeactivateOpsRoundTrip(t *testing.T) {
 		path    string
 		summary string
 	}{
-		{"copy-entry", withOp(base, StructuralOpCopyEntry, "bgp", "peer", "london", "paris"),
+		{"create-entry", withOp(base, StructuralOpCreateEntry, EditTokens{"bgp", "peer"}, "london", "", ""),
+			"create-entry bgp peer london", PendingChangeSet, "bgp peer london", "set bgp peer london"},
+		{"create-entry quoted", withOp(base, StructuralOpCreateEntry, EditTokens{"bgp", "peer"}, "edge west", "", ""),
+			`create-entry bgp peer "edge west"`, PendingChangeSet, `bgp peer "edge west"`, `set bgp peer "edge west"`},
+		{"copy-entry", withOp(base, StructuralOpCopyEntry, EditTokens{"bgp"}, "peer", "london", "paris"),
 			"copy-entry bgp peer london to paris", PendingChangeCopy, "bgp peer paris", "copy bgp peer london to bgp peer paris"},
-		{"deactivate-leaf", withOp(base, StructuralOpDeactivateLeaf, "bgp peer london", "description", "", ""),
+		{"deactivate-leaf", withOp(base, StructuralOpDeactivateLeaf, EditTokens{"bgp", "peer", "london"}, "description", "", ""),
 			"deactivate-leaf bgp peer london description", PendingChangeDeactivate, "bgp peer london description", "deactivate bgp peer london description"},
-		{"activate-leaf", withOp(base, StructuralOpActivateLeaf, "bgp peer london", "description", "", ""),
+		{"activate-leaf", withOp(base, StructuralOpActivateLeaf, EditTokens{"bgp", "peer", "london"}, "description", "", ""),
 			"activate-leaf bgp peer london description", PendingChangeActivate, "bgp peer london description", "activate bgp peer london description"},
-		{"deactivate-path", withOp(base, StructuralOpDeactivatePath, "bgp peer", "london", "", ""),
+		{"deactivate-path", withOp(base, StructuralOpDeactivatePath, EditTokens{"bgp", "peer"}, "london", "", ""),
 			"deactivate-path bgp peer london", PendingChangeDeactivate, "bgp peer london", "deactivate bgp peer london"},
-		{"activate-path root", withOp(base, StructuralOpActivatePath, "", "bgp", "", ""),
+		{"activate-path root", withOp(base, StructuralOpActivatePath, EditTokens{}, "bgp", "", ""),
 			"activate-path bgp", PendingChangeActivate, "bgp", "activate bgp"},
 	}
 	for _, tc := range cases {
@@ -335,7 +339,7 @@ func TestChangeFileDeactivateOpsRoundTrip(t *testing.T) {
 			require.Len(t, parsed, 1)
 			assert.Equal(t, tc.op, parsed[0])
 
-			change := parsed[0].PendingChange()
+			change := parsed[0].PendingChange(schema)
 			assert.Equal(t, tc.kind, change.Kind)
 			assert.Equal(t, tc.path, change.Path)
 			assert.Equal(t, tc.summary, change.Summary(schema))
@@ -348,6 +352,8 @@ func TestChangeFileDeactivateOpsRoundTrip(t *testing.T) {
 func TestParseChangeFileRejectsTruncatedToggleOps(t *testing.T) {
 	schema := testChangeFileSchema()
 	for _, line := range []string{
+		"#thomas @ssh %2026-10-10T01:02:03Z create-entry",
+		"create-entry bgp peer london",
 		"#thomas @ssh %2026-10-10T01:02:03Z deactivate-leaf",
 		"#thomas @ssh %2026-10-10T01:02:03Z activate-path",
 		"#thomas @ssh %2026-10-10T01:02:03Z copy-entry bgp peer london paris",
@@ -358,7 +364,7 @@ func TestParseChangeFileRejectsTruncatedToggleOps(t *testing.T) {
 	}
 }
 
-func withOp(base StructuralOp, opType StructuralOpType, parentPath, name, oldKey, newKey string) StructuralOp {
+func withOp(base StructuralOp, opType StructuralOpType, parentPath EditTokens, name, oldKey, newKey string) StructuralOp {
 	base.Type = opType
 	base.ParentPath = parentPath
 	base.ListName = name
@@ -421,7 +427,7 @@ func TestKeyMoveRecordRoundTripsQuotedKeys(t *testing.T) {
 		for _, key := range keys {
 			op := StructuralOp{
 				Type: opType, User: "alice", Source: "local", Time: time.Unix(1700000000, 0).UTC(),
-				ParentPath: `bfd "odd`, ListName: "single-hop-session", OldKey: key, NewKey: "fe80::c " + key,
+				ParentPath: EditTokens{"bfd", `"odd`}, ListName: "single-hop-session", OldKey: key, NewKey: "fe80::c " + key,
 			}
 			line := formatKeyMoveLine(op)
 			entry, cmdLine := extractMeta(line)
@@ -440,7 +446,7 @@ func TestKeyMoveRecordRoundTripsQuotedKeys(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "fe80::b#2", got.OldKey)
 		assert.Equal(t, "fe80::c", got.NewKey)
-		assert.Equal(t, "bfd", got.ParentPath)
+		assert.Equal(t, "bfd", got.ParentPath.String())
 	})
 
 	t.Run("unterminated quote is refused naming the line", func(t *testing.T) {

@@ -568,7 +568,7 @@ func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key 
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: textbuf.Join(parentPath, " "),
+		ParentPath: parentPath,
 		ListName:   listName,
 		OldKey:     key,
 	}
@@ -651,7 +651,7 @@ func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opTyp
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: textbuf.Join(parentPath, " "),
+		ParentPath: parentPath,
 		ListName:   name,
 	}
 	changeOps = append(changeOps, op)

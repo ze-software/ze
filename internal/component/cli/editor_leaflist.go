@@ -8,7 +8,6 @@ package cli
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -47,7 +46,11 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 	// there. And any member once the session holds an insert on the list:
 	// every replay applies ops before entries, so an entry would land ahead
 	// of the inserts the operator typed before it (addedMembersAsInserts).
-	if e.addsMemberAsInsert(guard, changeMeta, changeOps, path, key, member) {
+	asInsert, err := e.addsMemberAsInsert(guard, changeMeta, changeOps, path, key, member)
+	if err != nil {
+		return err
+	}
+	if asInsert {
 		target := walkPath(e.tree, e.schema, path)
 		if target == nil {
 			return errPathNotFound
@@ -63,7 +66,7 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 			User:       e.session.User,
 			Source:     e.session.Origin,
 			Time:       e.session.StartTime,
-			ParentPath: strings.Join(path, " "),
+			ParentPath: path,
 			ListName:   key,
 			NewKey:     member,
 			Position:   config.InsertLast,
@@ -110,15 +113,15 @@ func (e *Editor) writeThroughSetMember(path []string, key, member string) error 
 // addsMemberAsInsert reports whether `set` of member on the plain leaf-list
 // key under path is recorded as an insert at the end rather than an
 // add-member entry; writeThroughSetMember says why.
-func (e *Editor) addsMemberAsInsert(guard storage.WriteGuard, changeMeta *config.MetaTree, changeOps []config.StructuralOp, path []string, key, member string) bool {
-	parentPath := strings.Join(path, " ")
+func (e *Editor) addsMemberAsInsert(guard storage.WriteGuard, changeMeta *config.MetaTree, changeOps []config.StructuralOp, path []string, key, member string) (bool, error) {
+	parentPath := path
 	for i := range changeOps {
 		if changeOps[i].Type == config.StructuralOpInsertMember && isSessionMemberOp(changeOps[i], e.session.ID, parentPath, key) {
-			return true
+			return true, nil
 		}
 	}
 	if !e.sessionDeletesMember(changeMeta, path, key, member) {
-		return false
+		return false, nil
 	}
 	return e.committedHoldsMember(guard, changeOps, path, key, member)
 }
@@ -141,17 +144,21 @@ func (e *Editor) sessionDeletesMember(changeMeta *config.MetaTree, path []string
 // committedHoldsMember reports whether the committed tree holds member, in
 // any state, in the leaf-list key under path, read where the session's
 // renames (changeOps) started from.
-func (e *Editor) committedHoldsMember(guard storage.WriteGuard, changeOps []config.StructuralOp, path []string, key, member string) bool {
+func (e *Editor) committedHoldsMember(guard storage.WriteGuard, changeOps []config.StructuralOp, path []string, key, member string) (bool, error) {
 	committedTree := e.readCommittedTree(guard)
 	if committedTree == nil {
-		return false
+		return false, nil
 	}
-	target := walkPath(committedTree, e.schema, committedPathOf(changeOps, path))
+	original, err := committedPathOf(e.schema, changeOps, path)
+	if err != nil {
+		return false, err
+	}
+	target := walkPath(committedTree, e.schema, original)
 	if target == nil {
-		return false
+		return false, nil
 	}
 	present, _ := target.MultiValueMemberState(key, member)
-	return present
+	return present, nil
 }
 
 // writeThroughDeleteMember implements the write-through protocol for removing
@@ -257,7 +264,7 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 			return err
 		}
 	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
-		config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
+		config.StructuralOpCreateEntry, config.StructuralOpCopyEntry, config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf,
 		config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
 		return fmt.Errorf("unsupported member op %q", opType)
 	default:
@@ -277,7 +284,7 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: strings.Join(path, " "),
+		ParentPath: path,
 		ListName:   leafListName,
 		NewKey:     member,
 		OldKey:     ref,
@@ -309,7 +316,7 @@ func (e *Editor) addedMembersAsInserts(changeTree *config.Tree, changeMeta *conf
 	}
 	walkOrCreateMeta(e.meta, e.schema, path).RemoveSessionMemberEntries(key, e.session.ID, added)
 	changeTarget := walkPath(changeTree, e.schema, path)
-	parentPath := strings.Join(path, " ")
+	parentPath := path
 	for _, entry := range removed {
 		if changeTarget != nil {
 			changeTarget.RemoveMultiValueMember(key, entry.Member)
@@ -350,7 +357,7 @@ func (e *Editor) addedMembersAsInserts(changeTree *config.Tree, changeMeta *conf
 // added and deactivated must be there for its kept deactivate. A member this
 // session deleted and now lists again, which the committed tree holds
 // deactivated, shows active in the view, so it gets an activate op.
-func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []config.StructuralOp, committedTree *config.Tree, path []string, key, value string) (string, []config.StructuralOp, func(config.MetaEntry) bool) {
+func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []config.StructuralOp, committedTree *config.Tree, path []string, key, value string) (string, []config.StructuralOp, func(config.MetaEntry) bool, error) {
 	items := config.SplitLeafListMembers(value)
 	listed := len(items)
 	if view := walkPath(e.tree, e.schema, path); view != nil {
@@ -368,7 +375,11 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 	// since the committed tree does not hold the renamed entry yet.
 	var committed *config.Tree
 	if committedTree != nil {
-		committed = walkPath(committedTree, e.schema, committedPathOf(changeOps, path))
+		original, err := committedPathOf(e.schema, changeOps, path)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		committed = walkPath(committedTree, e.schema, original)
 	}
 	committedHolds := func(member string) bool {
 		if committed == nil {
@@ -404,13 +415,13 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 				User:       e.session.User,
 				Source:     e.session.Origin,
 				Time:       e.session.StartTime,
-				ParentPath: strings.Join(path, " "),
+				ParentPath: path,
 				ListName:   key,
 				NewKey:     entry.Member,
 			})
 		}
 	}
-	return value, changeOps, dropEntry
+	return value, changeOps, dropEntry, nil
 }
 
 // sessionSetsWholeLeaf reports whether this session holds a whole-leaf entry,
@@ -461,7 +472,7 @@ func (e *Editor) rewriteWholeLeaf(path []string, key string, edit func(*config.T
 // activate) of session sessionID on the leaf-list key under path that drop
 // selects. Every other op stays, in order.
 func dropSessionMemberOps(ops []config.StructuralOp, sessionID string, path []string, key string, drop func(config.StructuralOp) bool) []config.StructuralOp {
-	parentPath := strings.Join(path, " ")
+	parentPath := path
 	kept := make([]config.StructuralOp, 0, len(ops))
 	for i := range ops {
 		if isSessionMemberOp(ops[i], sessionID, parentPath, key) && drop(ops[i]) {
@@ -479,34 +490,66 @@ func dropSessionMemberOps(ops []config.StructuralOp, sessionID string, path []st
 // member, which it could not while they kept the old path. On replay a
 // rebased op meets no list before the rename, so it waits for the entries
 // (memberOpWaitsForEntries), which run after the rename.
-func rebaseSessionMemberOps(ops []config.StructuralOp, sessionID, oldPath, newPath string) {
+func rebaseSessionMemberOps(schema *config.Schema, ops []config.StructuralOp, rename config.StructuralOp) error {
+	source, err := structuralEntryTokens(schema, rename, rename.OldKey)
+	if err != nil {
+		return err
+	}
+	destination, err := structuralEntryTokens(schema, rename, rename.NewKey)
+	if err != nil {
+		return err
+	}
 	for i := range ops {
-		if !isMemberOp(ops[i]) {
+		if !isMemberOp(ops[i]) || ops[i].SessionKey() != rename.SessionKey() {
 			continue
 		}
-		if ops[i].SessionKey() != sessionID {
-			continue
-		}
-		if ops[i].ParentPath == oldPath {
-			ops[i].ParentPath = newPath
-			continue
-		}
-		if rest, ok := strings.CutPrefix(ops[i].ParentPath, oldPath+" "); ok {
-			ops[i].ParentPath = newPath + " " + rest
+		ops[i].ParentPath, err = config.RebaseEditTokens(schema, ops[i].ParentPath, source, destination)
+		if err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// copySessionMemberOps records the copy-time member program independently of
+// its source. Subsequent source rebases and deletes must not change this copy.
+func copySessionMemberOps(schema *config.Schema, ops []config.StructuralOp, copyOp config.StructuralOp) ([]config.StructuralOp, error) {
+	source, err := structuralEntryTokens(schema, copyOp, copyOp.OldKey)
+	if err != nil {
+		return nil, err
+	}
+	destination, err := structuralEntryTokens(schema, copyOp, copyOp.NewKey)
+	if err != nil {
+		return nil, err
+	}
+	var copied []config.StructuralOp
+	for _, op := range ops {
+		if !isMemberOp(op) || op.SessionKey() != copyOp.SessionKey() {
+			continue
+		}
+		parent, err := config.RebaseEditTokens(schema, op.ParentPath, source, destination)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Equal(parent, op.ParentPath) {
+			continue
+		}
+		op.ParentPath = parent
+		copied = append(copied, op)
+	}
+	return copied, nil
 }
 
 // isSessionMemberOp reports whether op is a member op of session sessionID on
 // the leaf-list key under parentPath.
-func isSessionMemberOp(op config.StructuralOp, sessionID, parentPath, key string) bool {
+func isSessionMemberOp(op config.StructuralOp, sessionID string, parentPath []string, key string) bool {
 	if !isMemberOp(op) {
 		return false
 	}
 	if op.SessionKey() != sessionID {
 		return false
 	}
-	if op.ParentPath != parentPath {
+	if !slices.Equal(op.ParentPath, parentPath) {
 		return false
 	}
 	return op.ListName == key

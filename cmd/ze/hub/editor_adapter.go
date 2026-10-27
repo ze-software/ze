@@ -113,7 +113,7 @@ func (a *editorAdapter) SessionChanges(sessionID string) []contract.SessionChang
 	changes := make([]contract.SessionChange, len(entries))
 	for i, e := range entries {
 		changes[i] = contract.SessionChange{
-			Path:     e.Path,
+			Path:     e.Path.String(),
 			Previous: e.Entry.Previous,
 			Value:    e.Entry.Value,
 		}

@@ -95,9 +95,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}
 
 	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	msg := tb.String()
 
 	return commandResult{
@@ -116,9 +114,7 @@ func (m *Model) createListEntry(entry config.ListEntryTarget, address []string) 
 	m.refreshCompleter()
 	var tb textbuf.Buffer
 	tb.Str("created ").Str(entry.ListName).Byte(' ').Join(address, " ")
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
@@ -148,9 +144,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	tb.Str("Deleted ").Join(fullPath, " ")
 
 	// Detect conflicts with other users' change files after each edit.
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	msg := tb.String()
 
 	return commandResult{
@@ -200,9 +194,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	m.refreshCompleter()
 	var tb textbuf.Buffer
 	tb.Str(msg)
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
@@ -291,9 +283,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		tb.Byte(' ').Str(ref)
 	}
 
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	msg := tb.String()
 
 	return commandResult{
@@ -380,12 +370,23 @@ func (m *Model) listEntryMove(args []string, verb listEntryMoveVerb) (commandRes
 	var tb textbuf.Buffer
 	tb.Str(verb.done).Byte(' ').Str(target.ListName).Byte(' ').
 		Join(fullPath[len(target.ParentPath)+1:target.End], " ").Str(" to ").Join(dst, " ")
-	if conflicts := m.editor.detectConflicts(); len(conflicts) > 0 {
-		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
-	}
+	m.editor.appendConflictStatus(&tb)
 	return commandResult{
 		statusMessage: tb.String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
+}
+
+// appendConflictStatus reports an inconclusive check separately from a real
+// conflict. The edit already succeeded; neither outcome undoes that mutation.
+func (e *Editor) appendConflictStatus(tb *textbuf.Buffer) {
+	conflicts, err := e.detectConflicts()
+	if err != nil {
+		tb.Str(" (conflict check failed: ").Str(err.Error()).Byte(')')
+		return
+	}
+	if len(conflicts) != 0 {
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
+	}
 }

@@ -126,11 +126,23 @@ func (e *Editor) discardFromChangeFile(guard storage.WriteGuard, user string, ow
 	if err != nil {
 		return nil, err
 	}
+	before := ops
+	if slices.ContainsFunc(ops, func(op config.StructuralOp) bool {
+		return op.Type == config.StructuralOpCreateEntry
+	}) {
+		before = slices.Clone(ops)
+	}
 	for i := range owned {
-		ops, removed[i] = e.removePendingChange(tree, meta, ops, owned[i].other)
+		ops, removed[i], err = e.removePendingChange(tree, meta, ops, owned[i].other)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !slices.Contains(removed, true) {
 		return removed, nil
+	}
+	if err := e.pruneDiscardedCreations(guard, changePath, before, ops, meta); err != nil {
+		return nil, fmt.Errorf("forced commit: prune created entries: %w", err)
 	}
 	if len(meta.AllSessions()) == 0 && len(ops) == 0 {
 		if err := guard.Remove(changePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -164,8 +176,13 @@ func (e *Editor) discardFromDraft(guard storage.WriteGuard, owned []liveOverlap)
 	if err != nil {
 		return nil, fmt.Errorf("forced commit: draft %s does not parse: %w", draftPath, err)
 	}
+	paths := make([][]string, len(owned))
 	for i := range owned {
-		removed[i] = removeMetaChange(meta, e.schema, owned[i].other)
+		paths[i], err = config.ParseEditPath(owned[i].other.Path)
+		if err != nil {
+			return nil, err
+		}
+		removed[i] = removeMetaChange(meta, e.schema, owned[i].other, paths[i])
 	}
 	if !slices.Contains(removed, true) {
 		return removed, nil
@@ -176,7 +193,7 @@ func (e *Editor) discardFromDraft(guard storage.WriteGuard, owned []liveOverlap)
 	}
 	for i := range owned {
 		if removed[i] {
-			e.restoreCommittedValue(tree, committed, owned[i].other)
+			e.restoreCommittedValue(tree, committed, owned[i].other, paths[i])
 		}
 	}
 	if len(meta.AllSessions()) == 0 {
@@ -194,8 +211,7 @@ func (e *Editor) discardFromDraft(guard storage.WriteGuard, owned []liveOverlap)
 
 // restoreCommittedValue sets the leaf or leaf-list member a discarded change
 // named back to what the committed tree holds there, absent included.
-func (e *Editor) restoreCommittedValue(tree, committed *config.Tree, change config.PendingChange) {
-	parts := strings.Fields(change.Path)
+func (e *Editor) restoreCommittedValue(tree, committed *config.Tree, change config.PendingChange, parts []string) {
 	if len(parts) == 0 {
 		return
 	}
@@ -234,24 +250,27 @@ func (e *Editor) restoreCommittedValue(tree, committed *config.Tree, change conf
 // leaf entry leaves the meta and the tree; a leaf-list member entry takes only
 // its own member, so the owner's other members survive; a structural op is
 // matched by its pending-change key.
-func (e *Editor) removePendingChange(tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp, change config.PendingChange) ([]config.StructuralOp, bool) {
+func (e *Editor) removePendingChange(tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp, change config.PendingChange) ([]config.StructuralOp, bool, error) {
+	parts, err := config.ParseEditPath(change.Path)
+	if err != nil {
+		return nil, false, err
+	}
 	key := pendingChangeKey(change)
 	removed := false
 	kept := ops[:0]
 	for i := range ops {
-		if ops[i].SessionKey() == change.SessionID && pendingChangeKey(ops[i].PendingChange()) == key {
+		if ops[i].SessionKey() == change.SessionID && pendingChangeKey(ops[i].PendingChange(e.schema)) == key {
 			removed = true
 			continue
 		}
 		kept = append(kept, ops[i])
 	}
 
-	parts := strings.Fields(change.Path)
 	if len(parts) == 0 {
-		return kept, removed
+		return kept, removed, nil
 	}
-	if !removeMetaChange(meta, e.schema, change) {
-		return kept, removed
+	if !removeMetaChange(meta, e.schema, change, parts) {
+		return kept, removed, nil
 	}
 	leaf := parts[len(parts)-1]
 	if treeTarget := walkPath(tree, e.schema, parts[:len(parts)-1]); treeTarget != nil {
@@ -261,14 +280,13 @@ func (e *Editor) removePendingChange(tree *config.Tree, meta *config.MetaTree, o
 			treeTarget.RemoveMultiValueMember(leaf, change.Member)
 		}
 	}
-	return kept, true
+	return kept, true, nil
 }
 
 // removeMetaChange removes one pending change's meta entry and reports whether
 // it was there. A leaf-list member entry takes only its own member, so the
 // owner's other members survive.
-func removeMetaChange(meta *config.MetaTree, schema *config.Schema, change config.PendingChange) bool {
-	parts := strings.Fields(change.Path)
+func removeMetaChange(meta *config.MetaTree, schema *config.Schema, change config.PendingChange, parts []string) bool {
 	if len(parts) == 0 {
 		return false
 	}
