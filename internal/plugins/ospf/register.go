@@ -63,9 +63,14 @@ func getEventBus() ze.EventBus {
 	return *p
 }
 
+// setMetricsRegistry records the plugin's registry for the engines, and hands it
+// to the engine guard, which is one per plugin (enginePanics) rather than one
+// per engine, so its shared ze_task_panics_total series is registered here and
+// not with each engine's own ze_ospf_ series.
 func setMetricsRegistry(reg metrics.Registry) {
 	if reg != nil {
 		metricsPtr.Store(&reg)
+		enginePanics().guard.SetMetricsRegistry(reg)
 	}
 }
 

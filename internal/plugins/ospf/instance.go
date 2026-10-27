@@ -571,7 +571,6 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
-	enginePanics().guard.SetMetricsRegistry(reg)
 	e.mu.Lock()
 	e.ifaceMetric = ospfiface.Metrics{
 		InterfaceUp: reg.GaugeVec(
@@ -763,20 +762,17 @@ func (e *engine) openInterface(ic interfaceConfig) error {
 	return e.transport.HandleLinkUp(ic.Name)
 }
 
+// startReceiveLoop starts the engine's receive worker once. The worker runs until
+// the engine is canceled or the transport closes its delivery channel; a
+// contained panic ends only the current pass of receivePackets (panic_guard.go),
+// and the worker starts the next pass.
 func (e *engine) startReceiveLoop() {
 	e.receiveOnce.Do(func() {
 		recv := e.transport.Receive()
 		e.wg.Go(func() {
-			for {
-				select {
-				case <-e.ctx.Done():
-					return
-				case rp, ok := <-recv:
-					if !ok {
-						return
-					}
-					e.dispatch.dispatch(rp)
-				}
+			resume := true
+			for resume {
+				resume = e.receivePackets(recv)
 			}
 		})
 	})

@@ -94,6 +94,20 @@ lifecycle callbacks, transport enrollment and config validation.
   unlock by `defer`, so a panic contained at the worker's boundary cannot leave
   the engine's mutex held and wedge every later packet, timer and show command.
   <!-- source: internal/plugins/ospf/instance.go -- receiveTarget, enrolledInterfaceName -->
+- **A panic while the receive worker handles one packet takes only that
+  packet's neighbor Down.** The worker (`startReceiveLoop`, shared by OSPFv2 and
+  OSPFv3) runs passes of `receivePackets`, each deferring the engine guard's
+  `receive` task once, never once per packet. A contained panic is logged,
+  counted in `ze_task_panics_total{component="ospf",task="receive"}` and
+  crash-recorded; `endReceivePanic` then reads the sender's Router ID and Area
+  ID from the raw header octets (no second decode), finds the neighbor the way
+  the handlers do (`receiveTarget`, virtual links included) and raises KillNbr
+  on it (RFC 2328 Section 10.3), with nothing sent first. The worker starts its
+  next pass at once, so every other neighbor on every interface keeps its
+  state, and the Down neighbor's next Hello brings it back. The guard is one
+  per plugin, so its registry is set by `setMetricsRegistry`, not per engine.
+  <!-- source: internal/plugins/ospf/panic_guard.go -- receivePackets, endReceivePanic, describeReceivePanic -->
+  <!-- source: internal/plugins/ospf/register.go -- setMetricsRegistry -->
 
 ## Constraints on callers
 
