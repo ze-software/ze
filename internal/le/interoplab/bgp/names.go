@@ -23,10 +23,13 @@ const (
 	peerSpeaker2   = "speaker2"
 	peerKeepalived = "keepalived"
 	peerStayRTR    = "stayrtr"
-	peerPMACCT     = "pmacct"
-	peerDnsmasq    = "dnsmasq"
-	peerDnsmasqB   = "dnsmasq-b"
-	peerKea        = "kea"
+	// peerStayRTRStandby is the less-preferred of two StayRTR caches, served
+	// from the scenario's vrps-standby.json with the stayrtr image.
+	peerStayRTRStandby = "stayrtr-standby"
+	peerPMACCT         = "pmacct"
+	peerDnsmasq        = "dnsmasq"
+	peerDnsmasqB       = "dnsmasq-b"
+	peerKea            = "kea"
 )
 
 // Programs a scenario runs inside a peer container. cmdGoBGP has the spelling

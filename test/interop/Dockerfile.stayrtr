@@ -35,5 +35,10 @@ COPY --from=builder /go/bin/stayrtr /usr/local/bin/stayrtr
 # Pin the served protocol before the first query. In v0.6.4 the default
 # negotiation path reports version 0 when it rejects Ze's initial v2 query.
 # Enforcing v1 makes that Error Report advertise the supported v1 instead.
+# `-refresh` is how often StayRTR re-reads /vrps.json. The RTR timers it sends
+# Ze in End of Data are `-rtr.refresh` and `-rtr.retry` (defaults 3600 and 600
+# seconds): set to 10, so a client polls every 10 seconds and retries a failed
+# cache after 10, which is what makes failover and fail-back between two caches
+# (rtr-stayrtr-preference) observable inside a checker's wait.
 ENTRYPOINT ["tini", "--", "stayrtr"]
-CMD ["-bind", ":8282", "-cache", "/vrps.json", "-checktime=false", "-refresh", "10", "-protocol", "1", "-enforce.version=true"]
+CMD ["-bind", ":8282", "-cache", "/vrps.json", "-checktime=false", "-refresh", "10", "-rtr.refresh", "10", "-rtr.retry", "10", "-protocol", "1", "-enforce.version=true"]

@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "counts": 2
+  },
+  "roas": [
+    {"prefix": "9.59.0.0/16", "maxLength": 24, "asn": "AS4200000002", "ta": "ze-interop"},
+    {"prefix": "10.59.0.0/16", "maxLength": 16, "asn": "AS65001", "ta": "ze-interop"}
+  ]
+}

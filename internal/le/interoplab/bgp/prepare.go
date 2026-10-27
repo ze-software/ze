@@ -48,7 +48,7 @@ environment {
 
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
-	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT, peerFRRTransit, peerFRRSink,
+	peerSpeaker2, peerKeepalived, peerStayRTR, peerStayRTRStandby, peerPMACCT, peerFRRTransit, peerFRRSink,
 	peerDnsmasq, peerDnsmasqB, peerKea,
 }
 
@@ -326,6 +326,13 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	if path := filepath.Join(scenario, "vrps.json"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTR, Container: containerName(peerStayRTR, suffix), Image: peerStayRTR, Host: 12,
 			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready("wget", "-q", "-O", "-", rendered.Str("http://127.0.0.1:").Int(stayRTRPort).Str("/rpki.json").String())})
+	}
+	// A second cache serving its own VRP set, for the failover and fail-back
+	// between caches of different preference (rtr-stayrtr-preference).
+	if path := filepath.Join(scenario, "vrps-standby.json"); regularFile(path) {
+		var probe textbuf.Buffer
+		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTRStandby, Container: containerName(peerStayRTRStandby, suffix), Image: peerStayRTR, Host: 14,
+			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready("wget", "-q", "-O", "-", probe.Str("http://127.0.0.1:").Int(stayRTRPort).Str("/rpki.json").String())})
 	}
 	if path := filepath.Join(scenario, "rpki-server"); regularFile(path) {
 		arguments, err := readArguments(scenario, "rpki-server")

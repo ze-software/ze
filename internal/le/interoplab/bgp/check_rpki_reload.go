@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/netip"
 	"strings"
 	"time"
 
@@ -260,21 +259,7 @@ func requireRPKIReloadRoutes(received []rpkiReloadRoute, accepted bool, original
 func requireRPKIReloadExport(output string, accepted bool) error {
 	// Attribute checks stay inside the exact route's block. A control route's
 	// AS_PATH cannot establish where the Invalid route came from.
-	blocks := make(map[string]string, 2)
-	current := ""
-	for line := range strings.SplitSeq(output, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if _, err := netip.ParsePrefix(fields[0]); err == nil {
-			current = fields[0]
-		}
-		switch current {
-		case rpkiReloadControl, rpkiReloadInvalid:
-			blocks[current] += line + "\n"
-		}
-	}
+	blocks := birdPrefixBlocks(output)
 	if err := requireBIRDASPath(blocks[rpkiReloadControl], rpkiReloadControl, "65000 65001"); err != nil {
 		return err
 	}
