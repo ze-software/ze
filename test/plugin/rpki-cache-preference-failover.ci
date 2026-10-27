@@ -1,0 +1,120 @@
+# Test: Ze uses the most preferred RTR cache, fails over when it goes down, and fails back
+# VALIDATES: RFC 8210 Section 10 cache preference as an operator sees it -- the route's validation
+#            state follows the data of the cache in use, and `show bgp rpki status` names that cache
+# PREVENTS: fail-back never happening, so a dead preferred cache that returns is ignored and the
+#           standby's data stays in use for good
+#
+# Flow:
+# 1. cache 127.0.0.1 (preference 10) holds 10.0.0.0/8 maxlen 24 AS 65001; cache 127.0.0.2
+#    (preference 20) holds the same prefix for AS 65999. Both advertise Retry 1 s. The preferred
+#    advertises Refresh 1 s, the standby Refresh 3600 s, so once the standby holds the data no
+#    full round runs inside the test: only the probe of the preferred cache at its own Retry
+#    Interval can fail back (RFC 8210 Section 10, cacheGroup.nextProbe). The config lists the
+#    standby first, so the order the operator wrote never names the preferred cache: only the
+#    preference sort (startSessions) can make it the first cache tried
+# 2. ze-peer sends 10.0.1.0/24 from AS 65001: Valid on the preferred cache's data
+# 3. the observer writes rpki-preferred.down; the preferred cache stops listening, Ze fails over to
+#    the standby, and the route becomes Invalid and ineligible (`invalid reject`)
+# 4. the observer writes rpki-preferred.up; the preferred cache listens again, Ze fails back at its
+#    Retry Interval, and the route is Valid and eligible again
+# Every step waits for state (route validation, synced cache), never for elapsed time.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=40s
+# Hold the session open past this peer's own completion, so bgp-adj-rib-in keeps the route for the
+# observer's polls (same lever as rpki-revalidate-late-sync.ci).
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Native observer fixture: plugin/rpki-cache-preference-failover.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret rpki-test-secret-key-01234567890;
+		}
+	}
+	external rpki-failover-test {
+		run "le test fixture plugin/rpki-cache-preference-failover"
+		encoder json
+	}
+	internal rpki {
+		use bgp-rpki
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	rpki {
+		# The standby is listed first on purpose: the preference decides which cache is used,
+		# never the order written here.
+		cache-server 127.0.0.2 {
+			trusted-network true
+			port $PORT2
+			preference 20
+		}
+		cache-server 127.0.0.1 {
+			trusted-network true
+			port $PORT2
+			preference 10
+		}
+		action {
+			invalid reject
+			not-found accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process rpki {
+			receive [ update-received state ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# The observer writes the outage files only after it has seen the state each step needs.
+cmd=background:seq=1:exec=le mock rtr --address 127.0.0.1 --port $PORT2 --refresh 1 --retry 1 --outage-start rpki-preferred.down --outage-release rpki-preferred.up --vrp 10.0.0.0/8,24,65001:ready=le mock rtr: listening on
+cmd=background:seq=2:exec=le mock rtr --address 127.0.0.2 --port $PORT2 --refresh 3600 --retry 1 --vrp 10.0.0.0/8,24,65999:ready=le mock rtr: listening on
+cmd=background:seq=3:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=exit:code=0
+# The compiled observer checks each step's validation state, eligibility and synced cache.
+# It reports a failure before requesting daemon shutdown; do not pin its success wording.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
