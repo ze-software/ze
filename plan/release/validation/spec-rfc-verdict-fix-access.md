@@ -7,9 +7,9 @@
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the access group before any row edit, parent R-11) |
-| Phase | 13/13 — D-8 interop gate |
+| Phase | 13/13 — D-8 existing-scenario acceptance and closure |
 | Handoff | - |
-| Updated | 2026-10-26 |
+| Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -493,13 +493,13 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 3 rows, all in `spec-radius-rfc-defects` ACs |
 | every resolved verdict proven and judged by a non-author | discrimination records + audit | 0 unrecorded tagged units over 121 moved verdicts; `./le rfc check` clean for the access stems |
-| D-8 fixes work against another implementation | interop | Three link scenarios have native green / intended-red / restored-green evidence in `9a51de9deb` and `1573a9970a`. CoA and framing have native greens; their discrimination remains open. See the current proof table below |
+| D-8 fixes work against another implementation | interop | All five new scenarios have native green / intended-red / restored-green evidence. The three link scenarios are recorded in `9a51de9deb` and `1573a9970a`; the two subscriber scenarios are recorded below. Existing-scenario acceptance and scoped committed verification remain open |
 
 ## D-8 Interop Implementation, 2026-10-26
 
-The five scenarios below were implemented on 2026-10-26. The current native
-results follow the implementation table; the OPEN GATE remains in force for
-the missing discrimination and existing-scenario acceptance runs.
+The five scenarios below were implemented on 2026-10-26. Their native
+discrimination is complete; the OPEN GATE remains in force for the named
+existing-scenario acceptance runs and closure evidence.
 
 | Scenario | Producer and distinguishing observation |
 |----------|-----------------------------------------|
@@ -532,24 +532,29 @@ was interrupted; already-passing tests were not repeated.
 | `pppoe-chap-rechallenge-ze-client` | Green, private network-phase CHAP break red, normal rebuild green | `9a51de9deb` |
 | `pppoe-peer-terminate-ze-ac` | Green, private layer-finished break red, normal rebuild green; peer/kernel cleanup retained | `9a51de9deb` |
 | `l2tp-unknown-mandatory-avp-xl2tpd` | Optional-AVP control and mandatory-AVP teardown green, intended private break red, normal rebuild green | `1573a9970a`; earlier infrastructure-contaminated attempts are not the discrimination evidence |
-| `radius-coa-disconnect-freeradius` | Native Ze KVM green: 10M/2M initial rates, 20M/5M update, invalid-CoA preservation, connectivity and Disconnect/accounting assertions | Product correction `0d9da69ff3`; private invalid-CoA break and restored green still owed |
-| `l2tp-radius-framed-protocol-reject` | Native Ze KVM green: PPP traffic, SLIP refusal with CHAP failure and no bad accounting, then PPP recovery | Private framing-guard break and restored green still owed |
+| `radius-coa-disconnect-freeradius` | Baseline green; private `readCoAChange` break accepts an unsupported second Filter-Id and receives CoA-ACK instead of CoA-NAK; normal rebuild green in 13s, including both kernel rate directions, atomic refusal, traffic and Disconnect/accounting checks | Product correction `0d9da69ff3`; checker repair `f200020a7f`; native red `job-access-radius-coa-guest-red-20261027-n-293bab6b.log`, restored `job-access-radius-coa-guest-restored-20261027-o-37e5eb58.log` |
+| `l2tp-radius-framed-protocol-reject` | Baseline green; private framing-guard break admits real SLIP authorization with CHAP Success and bad Accounting-Start; normal rebuild green in 18s with PPP recovery | Checker repair `f200020a7f`; native red `job-access-radius-framed-guest-red-20261027-h-23e4c12c.log`, restored `job-access-radius-framed-guest-restored-20261027-k-0be19b47.log` |
 
-The two RADIUS greens used Ze Docker-host image `789bdd6a7c1a5487`; both outer
-reports have check/lab exit zero, stopped VMs and no leftovers. Framing needed
-the pinned FreeRADIUS image's entrypoint after copying its users file and
-`logfd 2` for pppd, because xl2tpd closes standard output. Neither repair changes
-an assertion or deadline.
+Framing used Ze Docker-host image `789bdd6a7c1a5487`. The CoA red and restore
+used the newly built image `bfc811e1b78a73f6` and runtime kernel key
+`7.2.9-runtime-amd64-runtime-docker-a2bfd4f0-34cba457`. Both pairs ran under
+KVM with kernel-check exit zero; every VM stopped with no leftover resources.
+The deliberate negatives returned lab exit one and their normal restores
+returned zero. Private Go overlays changed only the named guard; shared
+product source was not mutated.
 
-Required rebuilds for the remaining proof encountered another session's
-in-progress CoPP/GTSM migrations before guest startup. These are compilation
-failures, not protocol verdicts. No foreign source was edited or bypassed.
+The full commands, six logs, mutation hashes and image provenance are retained
+under `tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/`,
+indexed by `access-radius-proof-final-20261027.txt`. Earlier capacity,
+fixture and foreign-source compilation failures are not discrimination evidence.
+These runs do not refresh the historical RFC verdict or record inventory above
+and do not close AC-C1 through AC-C7 by themselves.
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2 | producer defects (P-3) | `spec-radius-rfc-defects`, closed 2026-10-20 with all three verdicts `enforced` |
-| OPEN GATE: interop over the wire-visible D-8 fixes | Three new link scenarios are discriminated; CoA and framing have baseline greens only | This spec still owes their two intended-red/restored-green pairs, acceptance runs of `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`, and retained logs |
+| OPEN GATE: interop over the wire-visible D-8 fixes | All five new scenarios have green / intended-red / restored-green proof; existing-scenario acceptance remains | This spec still owes acceptance runs of `01-ppp-ipv4`, `03-ze-lac-xl2tpd-lns`, `04-radius-acct-attrs`, `01-pppoe-chap-ipv4`, `02-ze-ac-pppd-client` and `radius-admin-eap-freeradius`, with retained logs |
 | OPEN GATE: scoped committed verification | No passing scoped certificate is claimed | This spec owes `./le verify changed` after closing commits. Full verification is Thomas's separate release check, not an agent closure gate |
 
 ## Review Gate
