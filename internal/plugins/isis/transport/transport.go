@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -151,6 +152,7 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	receivePanics().guard.SetMetricsRegistry(reg)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.metrics = newTransportMetrics(reg)
@@ -385,9 +387,20 @@ func (t *Transport) HandleLinkUp(name string) error {
 // HandleLinkDown closes the circuit on the named interface, stops its RX loop,
 // and signals teardown. Driven by the iface EventBus `interface/down` event.
 func (t *Transport) HandleLinkDown(name string) error {
+	return t.linkDown(name, nil)
+}
+
+// linkDown closes the open circuit name. With only non-nil it closes the
+// circuit only while only is still its open state, so receiveEnded never
+// closes a circuit a link-down and link-up already replaced.
+func (t *Transport) linkDown(name string, only *circuit) error {
 	t.mu.Lock()
 	c, open := t.circuits[name]
 	if !open {
+		t.mu.Unlock()
+		return nil
+	}
+	if only != nil && c != only {
 		t.mu.Unlock()
 		return nil
 	}
@@ -407,8 +420,12 @@ func (t *Transport) HandleLinkDown(name string) error {
 
 // rxLoop fans a circuit's received frames into the shared delivery channel,
 // keyed by source ifindex, until the circuit is stopped. It also feeds the
-// neighbor-MTU observer so a padded-Hello frame size surfaces a mismatch.
+// neighbor-MTU observer so a padded-Hello frame size surfaces a mismatch. A
+// panic here, or a reader that ended on its own, takes the circuit down through
+// receiveEnded.
 func (t *Transport) rxLoop(c *circuit) {
+	defer receivePanics().fanIn.Contain(c.describe, func(*taskguard.Panic) { t.receiveEnded(c) })
+
 	recv := c.handle.Recv()
 	for {
 		select {
@@ -416,6 +433,7 @@ func (t *Transport) rxLoop(c *circuit) {
 			return
 		case rf, ok := <-recv:
 			if !ok {
+				t.receiveEnded(c)
 				return
 			}
 			t.metrics.framesReceived.With(c.name).Inc()

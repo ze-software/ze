@@ -29,6 +29,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/taskguard"
+
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
@@ -94,6 +96,7 @@ func (linuxBackend) OpenCircuit(name string) (CircuitHandle, error) {
 	}
 
 	c := &linuxCircuit{
+		name:    name,
 		fd:      fd,
 		ifindex: ifindex,
 		hwaddr:  hwaddr,
@@ -107,6 +110,9 @@ func (linuxBackend) OpenCircuit(name string) (CircuitHandle, error) {
 
 // linuxCircuit is one open AF_PACKET circuit.
 type linuxCircuit struct {
+	// name is the logical interface name the circuit was opened for. Only
+	// describeRead reads it, to name the circuit in a contained panic.
+	name    string
 	fd      int
 	ifindex int
 	hwaddr  [MACLen]byte
@@ -183,6 +189,11 @@ func (c *linuxCircuit) stopOnce() bool {
 	}
 }
 
+// describeRead names the circuit whose socket reader a contained panic ended.
+func (c *linuxCircuit) describeRead() taskguard.Context {
+	return taskguard.Context{Unit: "interface " + c.name}
+}
+
 // stopped reports whether the circuit has been asked to stop.
 func (c *linuxCircuit) stopped() bool {
 	select {
@@ -198,8 +209,16 @@ func (c *linuxCircuit) stopped() bool {
 // before queueing so the engine may retain it. Frames that fail validation are
 // dropped; only an accepted ISO multicast destination is delivered (level/area
 // enforcement is isis-5).
+//
+// readLoop is the socket reader task of one circuit. Its guard is deferred
+// before the close so it runs last and contains a panic in the close as well:
+// the whole reader, its exit included, is inside the boundary. The close then
+// precedes the guard's log line, and rxLoop's receiveEnded WARN says the cause
+// is logged by the guard.
 func (c *linuxCircuit) readLoop() {
+	defer receivePanics().read.Contain(c.describeRead, nil)
 	defer close(c.recvCh)
+
 	var buf [rxBufLen]byte
 	for {
 		if c.stopped() {

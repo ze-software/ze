@@ -57,6 +57,27 @@ socket. A periodic rescan re-opens any enabled-but-closed circuit, so an
 interface-up event dropped by a full queue during a flap burst self-heals with no
 operator action.
 
+## Decision: a panic in a circuit's receive path ends that circuit, never the process
+
+Each circuit has two receive tasks: the backend's socket reader
+(`linuxCircuit.readLoop`, task `interface-read`) and the transport's fan-in
+(`Transport.rxLoop`, task `interface-fan-in`). Each defers the shared
+`taskguard` boundary at its top, so the panic is logged at ERROR, counted in
+`ze_task_panics_total{component="isis",task}` and written as a crash record
+that `ze show crashes` lists. The circuit then leaves IS-IS through its ordinary
+link-down path (the engine downs its adjacencies), and the 30-second rescan
+reopens it; the other circuits keep receiving. A reader that ends for any other
+reason takes the same path (`receiveEnded`), and `linkDown` closes only the
+circuit state it was handed, never a replacement a link flap already opened.
+
+The reader's guard is deferred before `close(recvCh)`, so it runs last and also
+contains a panic in that close: the whole reader, its exit included, sits
+inside the boundary. The fan-in may therefore log the link-down before the guard
+logs the panic.
+<!-- source: internal/plugins/isis/transport/panic_guard.go -- receivePanics, receiveEnded -->
+<!-- source: internal/plugins/isis/transport/backend_linux.go -- readLoop -->
+<!-- source: internal/plugins/isis/transport/transport.go -- rxLoop, linkDown -->
+
 ## Decision: the doctor check is split by platform and self-contained
 
 `doctor.go` holds the platform-neutral check body, so it is testable on any OS.
