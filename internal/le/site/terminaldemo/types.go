@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- the terminal-demo action area and its external renderer boundary
-// Detail: actions.go -- the eight actions and their metadata
+// Detail: actions.go -- native actions and their metadata.
 // Detail: lock.go -- the cross-process artifact-tree lock
 // Detail: manifest.go -- manifest contracts, digests, and artifact verification
 // Detail: render.go -- Docker and media execution pipeline

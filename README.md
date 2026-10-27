@@ -6,11 +6,13 @@ Linux system around it. It speaks BGP, manages interfaces, and programs the
 forwarding table. Operators use a shared configuration model through an SSH CLI
 or a web editor.
 
+<!-- terminal-demo-hero:start -->
 [![Ze's live BGP dashboard, opened over SSH](docs/demos/cli-dashboard.svg)](https://ze-software.net/demos/terminal/#live-bgp-dashboard)
 
 The recording above shows the configuration editor and live BGP dashboard in one
 SSH session. More recordings, with their transcripts, are on the
 [demonstrations page](https://ze-software.net/demos/terminal/).
+<!-- terminal-demo-hero:end -->
 
 > **Pre-release.** Ze has not been released yet. Some features are incomplete or
 > experimental, and APIs and configuration syntax can change. The

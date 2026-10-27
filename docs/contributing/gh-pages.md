@@ -286,6 +286,83 @@ never a prompt. The rule is `feature-maturity.md`, "Recorded runs".
 
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
+## README recording carrier
+
+
+After recording the hero, generate candidates in a new directory under the
+session scratch directory:
+
+```text
+./le site terminal-demo readme-carrier output <fresh-directory>
+```
+
+The action checks the hero's source digest and artifact bytes before copying
+the cast. The existing renderer image then plays that cast with the website's
+vendored asciinema player in Chromium. It captures the terminal at two frames
+per second and produces an animated SVG, H.264 MP4 and PNG thumbnail. It starts
+no daemon, invents no terminal output and publishes nothing.
+<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- Engine.verifiedHero, Engine.prepareReadmeCarrier -->
+<!-- source: demos/terminal/readme-carrier.cjs -- cast playback and frame capture -->
+
+After the conversion container stops, the host removes only its temporary
+`frames` directory, including on failure or cancellation. Candidate media and
+diagnostics remain available. A symlink replacing that directory is refused,
+not followed.
+<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- Engine.prepareReadmeCarrier, cleanupCarrierFrames -->
+
+`carrier.json` records the cast digest, each candidate's bytes and SHA256,
+cast duration, dimensions, frame rate, thumbnail position, renderer versions,
+ffmpeg arguments and ffprobe results. Its GitHub observation stays
+`unobserved` and its choice stays `unselected`. Inspect the whole recording:
+two-frame-per-second capture is a carrier conversion, not new runtime proof.
+Check the thumbnail's actual frame, text legibility and the video duration.
+<!-- source: demos/terminal/readme-carrier.cjs -- measurements -->
+
+GitHub's [Markdown API](https://docs.github.com/en/rest/markdown/markdown)
+provides nonpersistent `POST /markdown` and `POST /markdown/raw` routes.
+The raw route accepts at most 400 KB of Markdown. These return HTML, not an
+observed README image load or video playback. They cannot fetch a private local
+candidate merely because its path appears in Markdown. Inspecting their HTML
+is useful sanitizer evidence, but does not prove animation, legibility,
+GitHub's image proxy behavior or the final link.
+
+GitHub's [attachment documentation](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files)
+lists SVG and MP4 among supported media. On 26 October 2026 it states 10 MB for
+images, 10 MB for video on a free plan and 100 MB for video on a paid plan.
+Those are attachment limits, not proof that a repository README renders a
+particular carrier. Determine the applicable limit and observe the exact
+candidate on the actual GitHub README surface. Uploading into an unsubmitted
+comment still uploads immediately. Any public upload or push needs owner
+authorization. Without an authorized accessible candidate, GitHub playback
+acceptance remains blocked; do not record a failed probe or choose a fallback
+merely because publication is unavailable.
+
+After observing the exact candidates, record a JSON probe with `observed-at`
+(RFC 3339) and `svg`, `video`, `thumbnail` objects. Each object states `sha256`,
+`result` (`pass` or `fail`), retained `evidence`, the applicable `limit-bytes`
+and HTTPS `limit-source`. Evidence must cover loading, animation where
+applicable, legibility and destination. A passing video also names its observed
+GitHub attachment `url`. Then select the carrier:
+
+```text
+./le site terminal-demo readme-carrier output <candidate-directory> probe <probe.json>
+```
+
+This action rechecks the hero and candidate hashes. It prefers a passing SVG,
+then a passing GitHub video, then a passing thumbnail only when both inline
+candidates failed. Unknown outcomes refuse the update. SVG and thumbnail
+choices copy only the selected image into `docs/demos/`. A video choice uses
+the observed GitHub attachment and a textual player link, with no PNG embed.
+All candidates, including the thumbnail, remain in the candidate directory.
+The action updates only the marked README block and records the choice and
+probe in `carrier.json`. The title, description and player destination come
+from the current hero manifest entry.
+It does not upload, commit or push. Keep the measured report and observations
+in the showcase spec's acceptance record.
+<!-- source: internal/le/site/terminaldemo/readme_select.go -- CarrierProbe, selectCarrier, Engine.updateReadmeCarrier -->
+<!-- source: internal/le/site/terminaldemo/actions.go -- actionTable -->
+
+
 ## Rendering tests
 
 Editorial sources own the text and publication dates. An older Pages artifact
