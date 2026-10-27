@@ -141,6 +141,7 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `session-never-establishes-with-the-peer` | 2026-10-27 | bgp-bfd-shared-session-widens |
 | `field-carries-two-meanings` | 2026-09-08 | `api.StateChange.State` |
 | `field-carries-two-meanings` | 2026-10-11 | `show bfd sessions` profile |
 | `field-carries-two-meanings` | 2026-10-14 | `GroupSpec.IsOwner` |

@@ -200,6 +200,19 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `bulk-rename-corruption` | 2026-10-27 | le doc index and verify status `write` callers |
+| `bulk-rename-corruption` | 2026-10-27 | qemu action names lost `-test`, TestQEMUActionsIncludeTheHostRun |
+| `bulk-rename-corruption` | 2026-10-27 | le-vendor-web-answers, le-checks-answers |
+| `package-red-not-reproduced` | 2026-10-27 | harnesstool `setup docker` namespace panic |
+| `package-red-not-reproduced` | 2026-10-27 | le-rules-answers render-update |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | hookSourcesDigest stale |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | wholetree-mentions ledger |
+| `read-fails-on-a-fact-the-caller-does-not-need` | 2026-10-27 | TestSessionStartRendersNoDeferredArtifact |
+| `fixture-encodes-an-impossible-state` | 2026-10-27 | TestPartialHealthExplainsScopedEvidence |
+| `commit-needs-an-uncommitted-symbol` | 2026-10-27 | rfc/full/rfc7084.txt untracked |
+| `claim-outlives-the-evidence-it-cites` | 2026-10-27 | features/ai-first-design.md Doc review |
+| `lint-contract-not-applied` | 2026-10-27 | misspell and gocritic findings at 0723d7d26a |
+| `session-never-establishes-with-the-peer` | 2026-10-27 | RPKI relay tests, `le mock rtr` never syncs a VRP |
 | `artifact-bytes-disagree-with-identity` | 2026-10-26 | native executable corruption after content hashing |
 | `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
 | `tool-help-contradicts-owner-rule.md` | 2026-10-25 | `le verify changed` help and page grant agents a run the Linux-host rule withholds (moved from the closed spec-le-cli-usability) |

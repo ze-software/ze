@@ -158,6 +158,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `package-red-not-reproduced` | 2026-10-27 | TestEditorManagerRenameListEntry |
 | `command-waits-for-input-it-was-not-given` | 2026-09-07 | `cmdDecode` |
 | `dark-theme-cards-hide-their-text` | 2026-10-04 | generated BFD plugin page |
 | `declared-summary-without-its-explanation` | 2026-10-24 | `request`, `show policy` summary in a stripped build |

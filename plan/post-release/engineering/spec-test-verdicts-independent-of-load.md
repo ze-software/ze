@@ -198,6 +198,9 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| gate-verdict-depends-on-the-machine.md | 2026-10-27 | functional ui, web, parse, plugin timeouts at 0723d7d26a |
+| gate-verdict-depends-on-the-machine.md | 2026-10-27 | appliance QEMU guest SSH timeouts at 0723d7d26a |
+| gate-verdict-depends-on-the-machine.md | 2026-10-27 | internal/component/cli package 20m timeout |
 | gate-verdict-depends-on-the-machine.md | 2026-10-08 | ze init, ze start storage writes |
 | gate-verdict-depends-on-the-machine.md | 2026-10-06 | bgp-srpolicy-1-encode, job-enum-srpolicy-owned-syscall-duration-f764e51c.lo |
 | gate-verdict-depends-on-the-machine.md | 2026-10-05 | internal/le/repo/changed/selector.go, loadPackageGraph |
