@@ -41,7 +41,7 @@ var requestTask = requestGuard.Task(taskRequest, requestRestart)
 // then the host is indicating that it is experiencing an unrecoverable error
 // and the authentication will proceed as if that host could not be
 // contacted."
-func containRequest(purpose string, err *error) (func() taskguard.Context, func(*taskguard.Panic)) {
+func containRequest(purpose string, err *error) (func() taskguard.Context, func(*taskguard.Panic)) { //nolint:gocritic // ptrToRefParam: end writes the caller's named error result, which only a pointer reaches after the panic
 	describe := func() taskguard.Context { return taskguard.Context{Unit: purpose + " request"} }
 	end := func(p *taskguard.Panic) { *err = p }
 	return describe, end
