@@ -1855,6 +1855,12 @@ accepts nothing else. The checker reads charon's
 `esp-encryption` field (`null`), then both kernels' SAs and ESP in both
 directions. The ESP datapath is the Linux kernel's `ecb(cipher_null)` on both
 ends, which needs `CONFIG_CRYPTO_NULL` on the Docker host kernel.
+
+The scenario's `strongswan.conf` sends charon's log to stderr with
+`flush_line = yes`, at the unchanged default level. StrongSwan's default
+stdout logger can retain the selected ESP proposal in its buffer after the
+Child SA is installed. The flushed logger makes that exact proposal observable
+without changing the negotiation, kernel-state or received-traffic assertions.
 <!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
 
