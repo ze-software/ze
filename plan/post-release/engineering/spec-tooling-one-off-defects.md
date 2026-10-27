@@ -201,6 +201,9 @@ before execution. The responsible component remains unestablished.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `command-name-breaks-the-cli-grammar` | 2026-10-27 | readme-carrier and vpn-kernel-test names |
+| `delegation-hands-the-callee-a-different-argv` | 2026-10-27 | `le` rollback refusal echoes `$*` |
+| `lint-contract-not-applied` | 2026-10-27 | radiussubscriber check_policer.go parse not allowlisted |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 |
 | `command-name-breaks-the-cli-grammar` | 2026-10-27 | `ze appliance kernel --jobs` undeclared |
 | `hardcoded-count-in-test` | 2026-10-27 | TestActionsCarryTheirContracts |
 | `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest |
