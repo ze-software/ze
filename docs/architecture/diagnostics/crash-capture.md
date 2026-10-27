@@ -173,10 +173,14 @@ crash that last ended the process.
 but a running one can recover two panics in the same second, and a
 second-resolution name would overwrite the first.
 
-**The guard hands the record its panic value already printed.**
-`crashlog` spells a string or an error and writes `<unknown panic value>` for
-anything else, so the guard formats the value first and a panic with an integer
-or a struct keeps its value in the record.
+**Every report prints the panic value as `fmt` prints it.** A fatal report from
+`HandlePanic` and a recovered record alike carry an integer, a struct or a
+runtime error as that value, never a placeholder, because the value is the
+operator's first clue. `fmt` recovers a panic raised by the value's own
+`String` or `Error` method and prints `%!v(PANIC=String method: ...)` in its
+place, so a defective value cannot panic the crash path that reports it.
+
+<!-- source: internal/core/crashlog/crashlog.go -- appendValue -->
 
 ## The kernel half
 

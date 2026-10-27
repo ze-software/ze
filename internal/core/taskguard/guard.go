@@ -183,10 +183,7 @@ func (g *Guard) record(restart string, p *Panic) {
 		slog.String("restart", restart),
 	)
 
-	// The value goes to the record already printed: crashlog spells only a
-	// string or an error, and a panic with any other value would otherwise
-	// lose the operator's first clue.
-	name, err := crashlog.RecordRecoveredPanic(p.origin(), fmt.Sprint(p.Value), p.Stack)
+	name, err := crashlog.RecordRecoveredPanic(p.origin(), p.Value, p.Stack)
 	if err == nil {
 		p.Report = name
 		attrs = append(attrs, slog.String("next", showCrashesCommand+" name "+name))

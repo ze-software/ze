@@ -7,6 +7,7 @@
 package crashlog
 
 import (
+	"fmt"
 	"io"
 	"log/syslog"
 	"os"
@@ -109,15 +110,14 @@ func HandleCaughtPanic(err error) {
 	}
 }
 
+// appendValue appends the panic value v as fmt prints it, so a panic with an
+// integer, a struct or a runtime error reaches the report as what it is: the
+// value is the operator's first clue, and a placeholder in its place loses it.
+// fmt recovers a panic raised by the value's own String or Error method and
+// prints it as "%!v(PANIC=String method: ...)", so a defective value cannot
+// panic the crash path that reports it.
 func appendValue(b []byte, v any) []byte {
-	switch val := v.(type) {
-	case string:
-		return append(b, val...)
-	case error:
-		return append(b, val.Error()...)
-	default:
-		return append(b, "<unknown panic value>"...)
-	}
+	return fmt.Append(b, v)
 }
 
 func appendCrashMetadata(b []byte) []byte {
