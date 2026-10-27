@@ -96,7 +96,7 @@
     main, main.site-main-wide, main.has-page-sidebar { width: min(var(--max), calc(100% - 3rem)); padding: 0 0 3rem; }
     main.has-page-sidebar > .page-sidebar { width: 100%; max-height: none; margin: 1.5rem 0; }
     main.has-page-sidebar > .page-sidebar .page-sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
-    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "preview"; gap: 2rem; padding-top: 2.5rem; }
+    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "recording" "preview"; gap: 2rem; padding-top: 2.5rem; }
     .site-home .hero-copy { max-width: 46rem; }
     .site-home #hero-title { font-size: clamp(2.7rem, 6vw, 3.7rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }

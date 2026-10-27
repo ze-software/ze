@@ -288,6 +288,16 @@ See `website/AI.md` for the full reference: structure, tools, and how to add a t
 
 ## README recording carrier
 
+The homepage and README action select one recording through `HeroDemo`.
+Select it after its manifest entry exists, before the final recording. The
+selection's Go source participates in recording digests, so changing it after
+recording makes the media stale. Publication still requires verified media.
+<!-- source: internal/le/site/terminaldemo/manifest.go -- nativeRecorderSources, Engine.sourceDigest -->
+The homepage places the full replay before the interface previews and retains
+the browser video, static captures, full-size links and SSH walkthrough.
+<!-- source: internal/le/site/terminaldemo/readme_carrier.go -- HeroDemo -->
+<!-- source: internal/le/site/home.go -- homeHeroSlots -->
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 After recording the hero, generate candidates in a new directory under the
 session scratch directory:

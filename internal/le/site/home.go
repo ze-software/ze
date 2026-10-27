@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
 // The homepage registers from here.
@@ -25,10 +26,6 @@ const (
 	// homeRoot is empty because the homepage IS the site root, so every link
 	// it carries is already relative to itself.
 	homeRoot = ""
-	// homeHeroDemo is the recording the homepage replays. Its file name, caption,
-	// player label and transcript link all come from its manifest entry, so
-	// pointing the homepage at another recording is this one edit.
-	homeHeroDemo = "cli-dashboard"
 	// homeTourDemo is the recording the hero's "Watch a demo" action opens.
 	homeTourDemo = homeWebDemo
 	// homeWebDemo supplies the hero's browser configuration preview and video.
@@ -213,15 +210,15 @@ func homeMirror(page string) (string, error) {
 // recordings and their manifest entries. The management walkthrough keeps the
 // complete session available but opens at its SSH introduction.
 func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
-	mount, err := catalog.heroMount(homeHeroDemo)
+	mount, err := catalog.heroMount(siteterminaldemo.HeroDemo)
 	if err != nil {
 		return nil, err
 	}
-	hero, err := catalog.demo(homeHeroDemo)
+	hero, err := catalog.demo(siteterminaldemo.HeroDemo)
 	if err != nil {
 		return nil, err
 	}
-	transcript, err := catalog.demoHref(homeHeroDemo, homeRoot)
+	transcript, err := catalog.demoHref(siteterminaldemo.HeroDemo, homeRoot)
 	if err != nil {
 		return nil, err
 	}

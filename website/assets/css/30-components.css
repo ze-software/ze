@@ -1292,8 +1292,9 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero { display: block; padding: 0 clamp(1rem, 3vw, 2.5rem); margin: 0 0 2rem; color: var(--hero-text); background: var(--hero-panel-surface); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; border-bottom: 3px solid var(--brand-bright); overflow: visible; }
 .site-home .hero-start-panel { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .site-home .hero-start-panel::after { content: none; }
-.site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }
+.site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "recording" "preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }
 .site-home .hero-copy { grid-area: copy; max-width: none; }
+.site-home .hero-start-intro > .home-section-panel-demo { grid-area: recording; min-width: 0; width: 100%; box-sizing: border-box; }
 .site-home .hero .eyebrow { display: block; width: auto; margin: 0 0 1.15rem; padding: 0; border: 0; background: none; box-shadow: none; color: #8fcff4; font: 700 0.7rem/1.6 Lato, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
 .site-home #hero-title { display: block; width: auto; max-width: none; margin: 0 0 1.4rem; font-size: clamp(2.5rem, 3.9vw, 3.7rem); line-height: 1.1; letter-spacing: -0.045em; white-space: normal; color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; transform: none; }
 .site-home #hero-title em { font-style: normal; color: var(--brand-bright); }
@@ -1348,6 +1349,13 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home :is(.home-section-panel-map, .home-section-panel-usecases) .section-head { row-gap: 0.5rem; }
 .site-home :is(.section-head, .home-proof-head, .status-copy, .why-lead) h2 { margin-bottom: 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.25; color: var(--text); }
 .site-home .section-head p { font-size: 0.94rem; font-weight: 400; }
+.site-home .hero .home-section-panel-demo .section-head h2 { color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; }
+.site-home .hero .home-section-panel-demo figcaption strong { color: var(--hero-text); }
+.site-home .hero .home-section-panel-demo .section-head p,
+.site-home .hero .home-section-panel-demo figcaption { color: var(--hero-muted); }
+.site-home .hero .home-section-panel-demo a,
+.site-home .hero .home-section-panel-demo a:hover,
+.site-home .hero .home-section-panel-demo a:focus-visible { color: #8fcff4; }
 .site-home .why-lead { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-items: start; margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--brand-section-gradient); }
 .site-home .why-lead-copy, .site-home .why-demo { min-width: 0; }
 .site-home .why-lead h2 { margin-top: 0; }

@@ -68,6 +68,27 @@ const homeTemplate = `        <div class="site-home">
                                     <a class="button ghost" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                 </div>
                             </div>
+            <section class="home-section-panel home-section-panel-demo" aria-labelledby="recording-title">
+                <div class="section-head">
+                    <h2 id="recording-title">Watch Ze at work.</h2>
+                    <p>Follow a real terminal lab, with its transcript alongside it. Explore the individual interfaces below.</p>
+                </div>
+                <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
+                    <div class="hero-product-frame">
+                        <div class="hero-product-bar" aria-hidden="true">
+                            <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+                            <span>{hero_demo_file}</span>
+                            <span>CAST</span>
+                        </div>
+                        {hero_demo}
+                    </div>
+                    <figcaption>
+                        <strong id="hero-demo-title">{hero_demo_title}</strong>
+                        <span>Replayable Ze terminal lab</span>
+                        <a href="{hero_demo_transcript}">Read transcript</a>
+                    </figcaption>
+                </figure>
+            </section>
                             <div class="showcase" data-product-showcase>
                                 <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
                                     <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="true">Looking glass</button>
@@ -118,7 +139,7 @@ const homeTemplate = `        <div class="site-home">
                                         <strong>Keep the peers in view.</strong>
                                         <p>Inspect BGP sessions from Ze’s own CLI.</p>
                                         <a href="features/cli-commands/">Explore CLI interaction →</a>
-                                        <p class="capture-caption">A frame from the published terminal recording. Replay the demonstration below.</p>
+                                        <p class="capture-caption">A frame from the published terminal recording. Explore the recordings in the demo gallery.</p>
                                     </figcaption>
                                 </figure>
                                 </div>
@@ -418,27 +439,6 @@ const homeTemplate = `        <div class="site-home">
                 </div>
             </section>
 
-            <section class="home-section-panel home-section-panel-demo" aria-labelledby="recording-title">
-                <div class="section-head">
-                    <h2 id="recording-title">Watch Ze at work.</h2>
-                    <p>The screenshots introduce the interfaces. This recording shows the terminal in use, with its transcript available alongside it.</p>
-                </div>
-                <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
-                    <div class="hero-product-frame">
-                        <div class="hero-product-bar" aria-hidden="true">
-                            <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-                            <span>{hero_demo_file}</span>
-                            <span>CAST</span>
-                        </div>
-                        {hero_demo}
-                    </div>
-                    <figcaption>
-                        <strong id="hero-demo-title">{hero_demo_title}</strong>
-                        <span>Replayable Ze terminal lab</span>
-                        <a href="{hero_demo_transcript}">Read transcript</a>
-                    </figcaption>
-                </figure>
-            </section>
             <section class="home-section-panel home-section-panel-usecases" aria-labelledby="audience-title">
                 <div class="section-head reveal">
                     <h2 id="audience-title">Safe ways to try Ze before the first release.</h2>

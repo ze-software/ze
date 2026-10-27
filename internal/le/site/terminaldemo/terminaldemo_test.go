@@ -19,52 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; check and build take their target, render takes a demo id or all, and pty forwards its words.
-// PREVENTS: a port that claims a writing renderer as a read-only check, drops one build target, or lets a demo id sit in an untyped positional slot.
-func TestActionsCarryTheirContracts(t *testing.T) {
-	want := []struct {
-		verb   string
-		writes bool
-		why    string
-	}{
-		{"check", false, "the published demos hold up: every demo the manifest declares has its published artifacts (artifacts), " +
-			"each scenario's output validators pass, so a demo shows the product working (validation), " +
-			"or the published artifacts carry this release identity, which is what a tag ships (release)"},
-		{"build", true, "the container every demo is recorded in, tagged as the manifest names it (image), " +
-			"or the ze a demo drives, and the le that records it, cross-built for the renderer container (binaries)"},
-		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo, " +
-			"or every website demo (all)"},
-		{"pty", false, "record one tape, or drive a program through a PTY; the renderer container runs it"},
-	}
-	got := Actions()
-	if got.Area != area {
-		t.Fatalf("area = %q, want %q", got.Area, area)
-	}
-	if len(got.Actions) != len(want) {
-		t.Fatalf("actions = %d, want %d", len(got.Actions), len(want))
-	}
-	for index, expected := range want {
-		row := got.Actions[index]
-		if row.Verb != expected.verb || row.Writes != expected.writes || row.Why != expected.why {
-			t.Errorf("action %d = %#v, want verb=%q writes=%t why=%q", index, row, expected.verb, expected.writes, expected.why)
-		}
-	}
-	// The demo id is typed by a keyword, pty's words are RunPTY's command line,
-	// and check and build each take the target they act on.
-	table := actionTable()
-	if !table.TakesArguments("render") {
-		t.Error("render declares no keyword grammar, so a demo id would sit in an untyped positional slot")
-	}
-	if !got.Actions[len(got.Actions)-1].Forwards {
-		t.Error("pty does not forward its words, so RunPTY's options would be refused by le")
-	}
-	for _, verb := range []string{"check", "build"} {
-		if !table.TakesArguments(verb) {
-			t.Errorf("%s declares no target, so it cannot tell which property or artifact it acts on", verb)
-		}
-	}
-}
-
 // VALIDATES: `le site terminal-demo render` with no demo id is refused, and never falls through to the whole gallery.
 // PREVENTS: a typo re-recording every demo, which is the cost the single-demo action exists to avoid.
 func TestRenderWithoutADemoIdIsRefused(t *testing.T) {

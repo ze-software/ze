@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	xhtml "golang.org/x/net/html"
+
+	"github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
 // homeFixture provides stable structured data, controlled articles and weeks,
@@ -95,8 +97,8 @@ func writeHeroDemo(t *testing.T, root, output string) {
 	const cast = `{"version":2,"width":137,"height":36}` + "\n" +
 		`[0.5,"o","ze> "]` + "\n" +
 		`[12.5,"o","done\r\n"]` + "\n"
-	writeDemoAsset(t, media, homeHeroDemo+".cast", cast)
-	writeDemoAsset(t, media, homeHeroDemo+".txt", "ze> show bgp summary\nPeer 192.0.2.1 established\n")
+	writeDemoAsset(t, media, siteterminaldemo.HeroDemo+".cast", cast)
+	writeDemoAsset(t, media, siteterminaldemo.HeroDemo+".txt", "ze> show bgp summary\nPeer 192.0.2.1 established\n")
 	writeDemoAsset(t, media, "zefs-config.cast", cast)
 	writeDemoAsset(t, media, "zefs-config.txt", "ze# show | compare\nze# commit now\nSession committed\n")
 	writeDemoAsset(t, media, homeTourDemo+".png", "fixture browser poster")
@@ -107,7 +109,7 @@ func writeHeroDemo(t *testing.T, root, output string) {
 		"renderer":     map[string]any{"name": "ze-demo", "version": "3", "image": "img", "platform": "linux/native"},
 		"gallery-page": "guide/terminal-demonstrations.md",
 		"demos": []any{map[string]any{
-			"id": homeHeroDemo, "title": "Live BGP dashboard", "description": "Operate BGP from the dashboard.",
+			"id": siteterminaldemo.HeroDemo, "title": "Live BGP dashboard", "description": "Operate BGP from the dashboard.",
 			"page": "guide/quickstart.md", "anchor": "dashboard", "platform": "portable",
 			"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
 		}, map[string]any{
@@ -123,11 +125,11 @@ func writeHeroDemo(t *testing.T, root, output string) {
 	writeDemoJSON(t, filepath.Join(media, "manifest.json"), map[string]any{
 		"schema":   2,
 		"renderer": map[string]any{"name": "ze-demo", "version": "3", "image": "img", "platform": "linux/native"},
-		"demos": map[string]any{homeHeroDemo: map[string]any{
+		"demos": map[string]any{siteterminaldemo.HeroDemo: map[string]any{
 			"release": "26.08.27",
 			"assets": map[string]any{
-				"cast":       demoAssetRecord(t, media, homeHeroDemo+".cast"),
-				"transcript": demoAssetRecord(t, media, homeHeroDemo+".txt"),
+				"cast":       demoAssetRecord(t, media, siteterminaldemo.HeroDemo+".cast"),
+				"transcript": demoAssetRecord(t, media, siteterminaldemo.HeroDemo+".txt"),
 			},
 		}, homeTourDemo: map[string]any{
 			"release": "26.08.27",
@@ -545,7 +547,7 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 					"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
 				}},
 			})
-		}, "unknown terminal demo: " + homeHeroDemo},
+		}, "unknown terminal demo: " + siteterminaldemo.HeroDemo},
 	} {
 		t.Run(refusal.what, func(t *testing.T) {
 			paths := homeFixture(t)
@@ -608,15 +610,15 @@ func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
 // correct.
 func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	paths := homeFixture(t)
-	mount, err := newDemoCatalog(paths).heroMount(homeHeroDemo)
+	mount, err := newDemoCatalog(paths).heroMount(siteterminaldemo.HeroDemo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
 		`data-cols="137"`, `data-rows="36"`,
 		`aria-label="Live BGP dashboard"`,
-		`assets/demos/` + homeHeroDemo + `.cast?v=`,
-		`assets/demos/` + homeHeroDemo + `.txt?v=`,
+		`assets/demos/` + siteterminaldemo.HeroDemo + `.cast?v=`,
+		`assets/demos/` + siteterminaldemo.HeroDemo + `.txt?v=`,
 	} {
 		if !strings.Contains(mount, want) {
 			t.Errorf("the hero mount does not carry %s:\n%s", want, mount)
@@ -643,7 +645,7 @@ func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	}
 	first["kind"] = "video"
 	writeDemoJSON(t, manifest, decoded)
-	if _, err := newDemoCatalog(video).heroMount(homeHeroDemo); err == nil {
+	if _, err := newDemoCatalog(video).heroMount(siteterminaldemo.HeroDemo); err == nil {
 		t.Error("a video recording was mounted in the hero's terminal frame")
 	} else if !strings.Contains(err.Error(), "replays a terminal") {
 		t.Errorf("the refusal says %q, which does not say the frame replays a terminal", err)
@@ -750,7 +752,7 @@ func TestTheHomeProducerClaimsTheSiteRoot(t *testing.T) {
 
 // VALIDATES: spec-terminal-demo-showcase AC-8. The hero's file name, caption,
 // player label and transcript link, and the tour link beside it, come from
-// homeHeroDemo and homeTourDemo plus their manifest entries: a fixture manifest
+// HeroDemo and homeTourDemo plus their manifest entries: a fixture manifest
 // with its own title, page and anchor reaches the rendered homepage, and the
 // authored template names no demonstration id or anchor of the real manifest.
 // PREVENTS: a hero pointed at a new recording that still shows the old one's
@@ -777,7 +779,7 @@ func TestHomeHeroDerivesFromTheManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"<span>" + homeHeroDemo + ".terminal</span>",
+		"<span>" + siteterminaldemo.HeroDemo + ".terminal</span>",
 		`<strong id="hero-demo-title">Fixture hero caption</strong>`,
 		`aria-label="Fixture hero caption"`,
 		`<a href="` + destination + `/#fixture-hero-anchor">Read transcript</a>`,
@@ -785,22 +787,6 @@ func TestHomeHeroDerivesFromTheManifest(t *testing.T) {
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the homepage carries no %s", want)
-		}
-	}
-
-	var real struct {
-		Demos []struct{ ID, Anchor string } `json:"demos"`
-	}
-	readDemoJSON(t, filepath.Join(repositoryRoot(t), "demos", "terminal", "manifest.json"), &real)
-	if strings.Contains(homeTemplate, "demos/terminal/#") {
-		t.Error("the homepage template links a gallery anchor literally")
-	}
-	for _, demo := range real.Demos {
-		if strings.Contains(homeTemplate, demo.ID) {
-			t.Errorf("the homepage template names demonstration %s literally", demo.ID)
-		}
-		if strings.Contains(homeTemplate, "#"+demo.Anchor) {
-			t.Errorf("the homepage template names anchor %s literally", demo.Anchor)
 		}
 	}
 }

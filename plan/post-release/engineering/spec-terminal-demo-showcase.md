@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Release-independent terminal demo showcase work; historical findings do not establish a current product defect. |
-| Blocked by | owner order: `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` lands first (Depends) |
+| Blocked by | - |
 | Scope | tooling \| docs |
-| Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10; session-mode load merge and commit confirmed, former AC-13/AC-14); `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` (owner order: that spec first. The 2026-10-09 probe shows the render host already carries esp4 and xfrm_interface, so the dependency is the product's, not the recording's: see Probe Results) |
-| Phase | 2/7 |
+| Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10); Linux kernel/VPN runtime proof before recording. Full `spec-appliance-kernel-vpn-modules` closure is no longer a sequencing prerequisite; its Mac acceptance remains owed |
+| Phase | 3/7 — completing the shared lab and recording/publication path |
 | Handoff | - |
 | Updated | 2026-10-21 |
 
@@ -17,6 +17,34 @@
 Produce the topic recordings and independent continuous showcase requested by the owner, with the original five-beat, placement, tone and no-lost-demonstration requirements. The release child owns live-commit correctness evidence independently of whether a recording is made. This presentation work must consume the session-editor and BGP live-binding fix owners already named in the historical record, not delay their fixes.
 
 This ownership split preserves the original obligations and evidence. Migration alone neither admits implementation nor closes any criterion; original owner pauses and dependency ordering still apply.
+
+Owner sequencing amendment for this handover: allow showcase work before VPN
+closure. Finish the Linux proof and proceed with recordings and website
+integration; retain the arm64/HVF acceptance criterion and the open VPN spec,
+with no unsupported arm64 claim. This changes ordering, not scope. It supersedes
+the historical VPN-first order below. Native claim admitted resumption of this
+already-started blocked spec; the cap on new ready-spec admissions is unchanged.
+
+### Current presentation decision and observed acceptance
+
+The owner selected **Complete 22-minute showcase**, replacing the earlier
+approximately-seven-minute target. Keep the accepted continuous recording at its
+measured 1,307.333538 seconds (21 minutes 47 seconds); do not shorten, retime or
+replace its explanations with a selective overview.
+
+The native showcase validator and artifact verification passed. Canonical site
+generation and checks passed, followed by actual homepage playback, transcript
+navigation, light/dark and narrow layouts, keyboard operation, reduced motion,
+no-JavaScript fallbacks and native browser 200% page zoom. The four interface
+previews, browser video, full-size captures and SSH walkthrough remain available.
+
+The strict README-carrier action produced the actual recording's SVG, MP4 and
+PNG candidates, but GitHub playback is still unobserved and no carrier has been
+selected. No upload, push or deployment is authorized by the duration decision.
+The retained receipts are the session's `scratch/site-acceptance-final.json`,
+`scratch/carrier-showcase-final/carrier.json`, canonical build/check logs and
+`scratch/job-showcase-record-continuous-preflight-resumed-3-3ef3ded9.log`.
+
 
 ## Acceptance Criteria
 
@@ -27,7 +55,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 | AC-5 | A topic fragment outside the demo directory is edited | Both the topic recording's and the showcase recording's source digests change, and the check mode reports both stale |
 | AC-6 | Any id in `demos/terminal/manifest.json` | It resolves to exactly one registered scenario carrying a runner and a validator; `runScenario`'s switch and the `demoValidators` literal map no longer exist; an id with no registration is refused by name |
 | AC-7 | Each topic's typed config and demonstration | Exist once, as fragments that both the topic tape and the showcase tape source; each topic's checks exist once, as a Go function both validators call |
-| AC-8 | Home page build | The hero is the `showcase` recording; its file name, caption and transcript anchor come from `homeHeroDemo` plus the manifest entry, and `homebody.go` names no demo id, file or anchor literally |
+| AC-8 | Home page build | The hero is the `showcase` recording; its file name, caption and transcript anchor come from `HeroDemo` plus the manifest entry, and `homebody.go` names no demo id, file or anchor literally |
 | AC-9 | README carrier action, run on the recorded super | Produces the carrier the probe proved (inline SVG or a GitHub-playable video, within GitHub's size limits) or, failing both, a thumbnail image; README line 8 embeds it, linking to the site player's anchor; the measured sizes and the result of the inline-render check are recorded in this spec |
 | AC-10 | Gallery and feature pages | `docs/guide/terminal-demonstrations.md` carries one heading and marker per topic recording and one for the super; each topic recording is embedded on its feature page through `page` + `anchor`, the IPsec one on `docs/guide/ipsec.md` |
 | AC-11 | Showcase validator | Runs chapters 0 to 9's checks in order against ONE daemon whose process id never changes, each chapter's absence check before its commit and its proof after |
@@ -97,7 +125,7 @@ if github can have it embedded that would be ideal".
 | Recordings (amendment) | One recording per topic (chapters 2 to 9) plus one super-recording. The super is a separate continuous session, recorded on its own, not stitched from nor sliced into the topic casts |
 | Topic placement (amendment) | Each topic recording on its feature's doc page AND in the demo gallery `docs/guide/terminal-demonstrations.md` |
 | Super placement (amendment) | Home is the site (asciinema player). The GitHub README embeds the super inline if GitHub can render it (animated SVG, or a video GitHub plays in markdown) within GitHub's size limits; otherwise the README shows a thumbnail linking to the site player. The carrier is a measured outcome of a Work Plan probe, not an owner question (R-4) |
-| Length | Super about 7 minutes. The earlier "README gets a separate 60 to 90 s cut as an animated SVG" is superseded: the README carries the super itself, inline or as a linked thumbnail |
+| Length | Superseded by the owner's **Complete 22-minute showcase** selection above. Use the measured 21m47s continuous recording. The README carries this same super-recording, inline or as a linked thumbnail; no separate short cut |
 | Front page | Switch the hero from cli-dashboard to the super-recording (the earlier decision stands) |
 | Configuration style | Superseded at design review by `docs/contributing/terminal-demos.md`, decision 1, and its "Recordings" section (a live commit that fails to enable a feature is a Ze defect) |
 
