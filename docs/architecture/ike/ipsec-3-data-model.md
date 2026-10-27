@@ -23,6 +23,17 @@ are the proposal names an operator already knows from other IPsec stacks.
 
 <!-- source: internal/component/ike/ipsec/types.go -- EncryptionAlgo.String, HashAlgo.String, ParseEncryptionAlgo -->
 
+**Algorithm admission follows the SA kind.** `EncryptionImplemented` and
+`HashImplemented` retain the IKE cipher, integrity and PRF set.
+`EncryptionImplementedESP` adds `chacha20poly1305`, `3des` and `null`, but refuses
+AES-CCM because the dataplanes do not map it. `HashImplementedESP` accepts the
+ESP integrity set, including legacy `sha1`, without requiring or admitting a
+SHA-1 PRF. ESP AEAD proposals omit `hash`; non-AEAD proposals require it.
+Error messages derive their supported names from the same registries.
+
+<!-- source: internal/component/ike/ipsec/algorithm_support.go -- EncryptionImplemented, EncryptionImplementedESP, HashImplemented, HashImplementedESP -->
+
+
 **An `ESPGroup` on a live Child SA holds ONE proposal, the accepted one.** The
 configured group lists every proposal the operator offers, in order. After
 negotiation the engine narrows the Child SA's own copy to the proposal the peer

@@ -36,10 +36,10 @@ module ze-ipsec-conf {
                 ze:help "AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum chacha20poly1305 {
-                ze:help "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.";
+                ze:help "ChaCha20-Poly1305 AEAD (RFC 7634). ESP only; omit hash.";
             }
             enum 3des {
-                ze:help "Triple-DES-CBC (RFC 2451), deprecated. No build implements it.";
+                ze:help "Triple-DES-CBC (RFC 2451), legacy ESP only; requires hash.";
             }
             enum null {
                 ze:help "NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.";
@@ -50,7 +50,7 @@ module ze-ipsec-conf {
     typedef hash-algo {
         type enumeration {
             enum sha1 {
-                ze:help "HMAC-SHA-1-96 (RFC 2404). No build implements it.";
+                ze:help "HMAC-SHA-1-96 (RFC 2404), legacy ESP integrity only; not an IKE PRF.";
             }
             enum sha256 { ze:help "HMAC-SHA-256-128 (RFC 4868)."; }
             enum sha384 { ze:help "HMAC-SHA-384-192 (RFC 4868)."; }
@@ -392,10 +392,10 @@ module ze-ipsec-conf {
                     leaf encryption {
                         type encryption-algo;
                         mandatory true;
-                        description "No build carries a transform for chacha20poly1305
-                            or 3des, so a proposal that names one is refused at
-                            commit. The refusal lists the algorithms the build does
-                            implement. null selects integrity-only ESP, which RFC 4303
+                        description "chacha20poly1305 selects a fixed 256-bit AEAD key;
+                            omit hash. 3des selects a fixed 192-bit DES-EDE key
+                            including parity and requires hash. These ciphers are
+                            ESP-only. null selects integrity-only ESP, which RFC 4303
                             Section 1 requires to be negotiable. RFC 4303 Section 3.2
                             forbids ESP with neither confidentiality nor integrity, so a
                             null proposal without a hash is refused at commit.";
@@ -409,9 +409,8 @@ module ze-ipsec-conf {
                             Section 3.3 gives an AEAD cipher its own integrity, so an ESP
                             proposal offers the integrity transform NONE. An ESP proposal
                             carries no PRF transform, so this leaf never names one.
-                            No build carries a transform for sha1, so a proposal that
-                            names it is refused at commit. The refusal lists the
-                            algorithms the build does implement.";
+                            sha1 selects legacy HMAC-SHA-1-96 with a 160-bit key.
+                            It is supported for ESP integrity only, not for IKE.";
                         ze:help "Integrity algorithm.";
                     }
                 }
@@ -556,9 +555,8 @@ module ze-ipsec-conf {
                     leaf encryption {
                         type encryption-algo;
                         mandatory true;
-                        description "No build carries a transform for chacha20poly1305
-                            or 3des, so a proposal that names one is refused at
-                            commit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE
+                        description "chacha20poly1305 and 3des are ESP-only in this
+                            build and are refused here. RFC 7296 Section 5 forbids ENCR_NULL for the IKE
                             SA, so null is refused here too. The refusal lists the
                             algorithms the build does implement for the IKE SA.";
                         ze:help "Encryption algorithm.";
@@ -573,9 +571,9 @@ module ze-ipsec-conf {
                             proposal, and this leaf names it. An ESP proposal reads the
                             same leaf as integrity alone, and refuses it beside an AEAD
                             cipher.
-                            No build carries a transform for sha1, so a proposal that
-                            names it is refused at commit. The refusal lists the
-                            algorithms the build does implement.";
+                            sha1 is ESP-only integrity in this build and has no IKE
+                            PRF, so it is refused here. The refusal lists the
+                            algorithms the build implements for IKE.";
                         ze:help "PRF and integrity algorithm.";
                     }
 

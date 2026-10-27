@@ -657,6 +657,16 @@ func lookupIntegrity(hash ipsec.HashAlgo) (crypto.IntegrityTransform, error) {
 	return t, nil
 }
 
+// lookupESPIntegrity resolves ESP integrity without admitting it for IKE or PRF.
+func lookupESPIntegrity(hash ipsec.HashAlgo) (crypto.IntegrityTransform, error) {
+	// RFC 2404 Section 3; the ESP key size does not admit an IKE PRF.
+	t, err := crypto.LookupESPIntegrity(hash.String())
+	if err != nil {
+		return crypto.IntegrityTransform{}, fmt.Errorf("esp integrity %s: %w", hash, err)
+	}
+	return t, nil
+}
+
 // resolveESPTransforms resolves the encryption and integrity transforms of one configured ESP
 // proposal. RFC 7296 Section 3.3 makes the integrity transform NONE for an AEAD
 // cipher, so a hash named beside such a cipher never becomes an integrity key.
@@ -678,7 +688,7 @@ func resolveESPTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, cryp
 	if enc.ID.IsAEAD() {
 		return enc, crypto.IntegrityTransform{ID: crypto.AUTH_NONE}, nil
 	}
-	integ, err := lookupIntegrity(p.Hash)
+	integ, err := lookupESPIntegrity(p.Hash)
 	if err != nil {
 		return crypto.EncryptionTransform{}, crypto.IntegrityTransform{}, err
 	}
@@ -711,23 +721,25 @@ func encAttrs(enc crypto.EncryptionTransform) []wire.TransformAttr {
 
 // buildChildSAPayloads builds the SAi2, TSi, TSr payloads of an IKE_AUTH or
 // CREATE_CHILD_SA request. The SA payload is an OFFER, so it carries every
-// configured proposal numbered one upward (RFC 7296 Section 3.3). Returns the
-// generated inbound ESP SPI and the three payloads.
+// proposal in the supplied group numbered one upward (RFC 7296 Section 3.3).
+// IKE_AUTH supplies the IKE SA's configured group; rekey supplies the retired
+// child's group, which the response validator also reads. Returns the generated
+// inbound ESP SPI and the three payloads.
 //
 // dh is the Diffie-Hellman group the exchange runs, and it becomes a Transform Type 4 in
 // every proposal. RFC 7296 Section 3.4 requires it: a KE payload's group "MUST match a
 // Diffie-Hellman group specified in a proposal in the SA payload that is sent in the same
 // message". The IKE_AUTH caller passes dhGroupNone, because that exchange carries no KE
 // payload and Section 2.17 keys its Child SA from the IKE_SA_INIT nonces.
-func buildChildSAPayloads(sa *SA, dh crypto.DHGroupID) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
-	if len(sa.ESPGroup.Proposals) == 0 {
+func buildChildSAPayloads(sa *SA, espGroup ipsec.ESPGroup, dh crypto.DHGroupID) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
+	if len(espGroup.Proposals) == 0 {
 		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
 	}
 	espSPI, err := generateESPSPI()
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
-	offer, err := wireESPOffer(sa.ESPGroup, espSPI, dh)
+	offer, err := wireESPOffer(espGroup, espSPI, dh)
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
@@ -860,7 +872,7 @@ func espProposalWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.DH
 		{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
 	}
 	if !p.Encryption.IsAEAD() {
-		integ, err := lookupIntegrity(p.Hash)
+		integ, err := lookupESPIntegrity(p.Hash)
 		if err != nil {
 			return wire.Proposal{}, fmt.Errorf("esp proposal %d: %w", p.Number, err)
 		}

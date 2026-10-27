@@ -193,7 +193,7 @@ come up.
 |---|---|
 | IKEv2, RFC 7296 | Full IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL exchange support |
 | Role | Initiator or responder per peer through `connection-type initiate` or `respond` |
-| Proposals | AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an `esp-group`; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an `ike-group` (RFC 7296 Section 5); DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names `chacha20poly1305` and `3des`, which no build implements, so a proposal naming either is refused at commit |
+| Proposals | AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an `esp-group`; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an `ike-group` (RFC 7296 Section 5); ESP-only `chacha20poly1305` with no hash, and legacy ESP `3des` with `hash sha1`; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. ChaCha20, 3DES and SHA-1 remain unavailable for the IKE control channel |
 | Authentication | Pre-shared key, X.509 certificates, EAP-MSCHAPv2, and EAP-TLS; Ze acts as the EAP authenticator in responder mode |
 | NAT-T, RFC 3948 | Automatic NAT detection, UDP encapsulation on port 4500, and keepalives |
 | DPD | Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout |
@@ -202,6 +202,18 @@ come up.
 | Denial-of-service | COOKIE challenge before a half-open slot is committed, and the INVALID_KE_PAYLOAD group retry |
 | Dataplane read-back | `show vpn ipsec dataplane` reads the kernel SAD and SPD, and a drift check compares them against the engine |
 | Virtual IP pool | A `respond` peer with `virtual-ip-pool` is leased a unique inner address from the named `remote-access pool` in IKE_AUTH (RFC 7296 Section 2.19), and its Child SAs name that address |
+
+Prefer AES-GCM or ChaCha20-Poly1305 for new ESP deployments. `3des` and `sha1`
+are explicit legacy interoperability choices, not defaults. ChaCha20-Poly1305
+uses a 32-byte key plus a four-byte salt and a 16-byte tag. 3DES uses a 24-byte
+key including DES parity; SHA-1 integrity uses a 20-byte key and a 12-byte ICV.
+The fixed-size ciphers send no Key Length attribute. Linux XFRM and VPP have
+explicit algorithm mappings; an unavailable backend algorithm fails installation,
+never falls back to AES. Interoperability proof for both new combinations is
+pending the scoped two-role rekey runs.
+
+<!-- source: internal/component/ike/crypto/transform.go -- espOnlyEncryptionRegistry, espOnlyIntegrityRegistry -->
+<!-- source: internal/component/ike/crypto/keys.go -- encKeyMaterialLen, prepare3DESKey -->
 
 ## MOBIKE endpoint movement
 

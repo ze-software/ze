@@ -765,7 +765,7 @@ func matchOfferedESP(offer *wire.PayloadSA, our ipsec.ESPProposal, dh espDHMatch
 	aead := our.Encryption.IsAEAD()
 	var integID uint16
 	if !aead {
-		integ, err := lookupIntegrity(our.Hash)
+		integ, err := lookupESPIntegrity(our.Hash)
 		if err != nil {
 			return wire.Proposal{}, false, fmt.Errorf("esp proposal %d: %w", our.Number, err)
 		}

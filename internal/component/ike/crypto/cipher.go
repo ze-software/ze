@@ -161,7 +161,7 @@ func integrityHashFunc(id IntegrityID) func() hash.Hash {
 		return sha512.New384
 	case AUTH_HMAC_SHA2_512_256:
 		return sha512.New
-	case AUTH_NONE:
+	case AUTH_NONE, AUTH_HMAC_SHA1_96:
 		return nil
 	default:
 		panic("BUG: validated integrity algorithm has no hash")

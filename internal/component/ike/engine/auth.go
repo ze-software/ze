@@ -180,7 +180,7 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	// Section 1.2), and Section 2.17 keys that SA from the IKE_SA_INIT nonces. The offer
 	// therefore names no Diffie-Hellman group. The esp-group's pfs leaf governs the
 	// CREATE_CHILD_SA rekey instead (childRekeyDHGroup, rekey.go).
-	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa, dhGroupNone)
+	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa, sa.ESPGroup, dhGroupNone)
 	if err != nil {
 		return nil, fmt.Errorf("ike auth: child SA payloads: %w", err)
 	}

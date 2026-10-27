@@ -73,10 +73,22 @@ one rekey, which also clears it.
 <!-- source: internal/component/ike/engine/create_child.go -- takePeerTunnelAddress -->
 <!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
 
-**Child rekey is non-PFS.** This matches `createFirstChildSA`, which ignores the
-PFS config, so a rekeyed child stays consistent with the first child.
+**A Child rekey offers the Child SA's ESP group, not the IKE SA's original
+group.** `initiateChildRekey` passes the retired child's group explicitly to
+`buildChildSAPayloads`. The responder matches that child's selected proposal,
+and the initiator validates the answer against the group it offered. Reading
+the IKE SA's group at the request producer could offer AES while both the
+child and the response validator require another negotiated cipher, causing
+NO_PROPOSAL_CHOSEN at rekey.
 
-<!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
+**Child rekey follows the child's PFS setting.** With `pfs enable`, the request
+offers the IKE SA's negotiated DH group and carries a fresh KE; without PFS it
+offers no DH group. The initial IKE_AUTH child uses the IKE_SA_INIT nonces and
+does not carry an additional KE, so its construction does not determine the
+rekey's PFS policy.
+
+<!-- source: internal/component/ike/engine/initiator.go -- buildChildSAPayloads -->
+<!-- source: internal/component/ike/engine/rekey.go -- initiateChildRekey, childRekeyDHGroup, applyChildRekeyResponse -->
 
 ## Traps this code exists to avoid
 

@@ -3,6 +3,7 @@
 package crypto
 
 import (
+	"crypto/aes"
 	"errors"
 	"slices"
 )
@@ -43,6 +44,16 @@ const (
 // Child SA.
 const ENCR_NULL EncryptionID = 11
 
+// IANA IKEv2 Transform Type 1 assigns 3 to ENCR_3DES; RFC 7634 Section 4:
+// "When negotiating the ChaCha20-Poly1305 algorithm for use in IKE or IPsec,
+// the value ENCR_CHACHA20_POLY1305 (28) should be used in the transform
+// substructure of the SA payload as the ENCR (type 1) transform ID."
+// These ciphers are admitted only for ESP by this implementation.
+const (
+	ENCR_3DES              EncryptionID = 3
+	ENCR_CHACHA20_POLY1305 EncryptionID = 28
+)
+
 // RFC 7296 Section 3.3.4: PRF Transform IDs.
 type PRFID uint16
 
@@ -57,6 +68,7 @@ type IntegrityID uint16
 
 const (
 	AUTH_NONE              IntegrityID = 0
+	AUTH_HMAC_SHA1_96      IntegrityID = 2
 	AUTH_HMAC_SHA2_256_128 IntegrityID = 12
 	AUTH_HMAC_SHA2_384_192 IntegrityID = 13
 	AUTH_HMAC_SHA2_512_256 IntegrityID = 14
@@ -93,6 +105,10 @@ func (id EncryptionID) String() string {
 		return "aes-ccm-12"
 	case ENCR_AES_CCM_16:
 		return "aes-ccm-16"
+	case ENCR_3DES:
+		return "3des"
+	case ENCR_CHACHA20_POLY1305:
+		return "chacha20poly1305"
 	case ENCR_NULL:
 		return "null"
 	case encrAESCTR:
@@ -107,6 +123,8 @@ func (id IntegrityID) String() string {
 	switch id {
 	case AUTH_NONE:
 		return "none"
+	case AUTH_HMAC_SHA1_96:
+		return "sha1"
 	case AUTH_HMAC_SHA2_256_128:
 		return hashNameSHA256
 	case AUTH_HMAC_SHA2_384_192:
@@ -235,16 +253,92 @@ var dhGroupRegistry = map[uint8]DHGroupTransform{
 	20: {ID: DH_ECP_384},
 }
 
-// espOnlyEncryptionRegistry maps the encryption algorithms an ESP proposal may name and
-// an IKE proposal may not. RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a
-// service selection option, e.g., it must be negotiable in SA management protocols".
-// RFC 7296 Section 5: "implementations MUST NOT negotiate ... ENCR_NULL as the IKE
-// encryption algorithm." The null cipher therefore lives here, where only
-// LookupESPEncryption reads it, so no IKE lookup can resolve it. It takes no key, so
-// the transform carries no Key Length attribute (the offer writes one only for a
-// non-zero length).
-var espOnlyEncryptionRegistry = map[string]EncryptionTransform{
-	"null": NewEncryptionTransform(ENCR_NULL, 0),
+// espOnlyEncryptionRegistry keeps ESP-only admission, fixed keys and framing together.
+// RFC 7296 Section 3.3.5: "The Key Length attribute MUST NOT be used with
+// transforms that use a fixed-length key." KeyLength therefore stays zero here.
+// RFC 2451 Section 2.2: "The first 3DES key is taken from the first 64 bits,
+// the second from the next 64 bits, and the third from the last 64 bits."
+// RFC 7634 Section 2: "The encryption key is 256 bits."
+var espOnlyEncryptionRegistry = map[string]struct {
+	EncryptionTransform
+	keyOctets      int
+	espIVOctets    uint16
+	espBlockOctets uint16
+}{
+	// RFC 4303 Section 2.4: "Padding also may be required, irrespective of
+	// encryption algorithm requirements, to ensure that the resulting
+	// ciphertext terminates on a 4-byte boundary."
+	"null": {EncryptionTransform: NewEncryptionTransform(ENCR_NULL, 0), espBlockOctets: 4},
+	// RFC 2451 Section 2.1: "This mode requires an Initialization Vector (IV)
+	// that is the same size as the block size." Section 2.4: "All of the
+	// algorithms described in this document use a block size of eight octets (64 bits)."
+	"3des": {NewEncryptionTransform(ENCR_3DES, 0), 24, 8, 8},
+	// AEAD framing lives with its salt and ICV in aeadTransforms.
+	"chacha20poly1305": {EncryptionTransform: NewEncryptionTransform(ENCR_CHACHA20_POLY1305, 0), keyOctets: 32},
+}
+
+// FixedKeyOctets reports the fixed cipher key size, separately from the wire
+// attribute. RFC 7296 Section 3.3.5: "The Key Length attribute MUST NOT be used
+// with transforms that use a fixed-length key." A false result means this table
+// does not specify a fixed key size, not that an unknown cipher is supported.
+func (id EncryptionID) FixedKeyOctets() (int, bool) {
+	t, ok := espOnlyEncryptionRegistry[id.String()]
+	return t.keyOctets, ok
+}
+
+// ESPWireSizes returns the transmitted IV and plaintext alignment for a cipher
+// this build can install for ESP. It never counts the per-SA salt as wire data.
+// RFC 7634 Section 2: "The salt is fixed per SA, and it is not transmitted as
+// part of the ESP packet."
+// RFC 4303 Section 2.4: "Padding also may be required, irrespective of encryption
+// algorithm requirements, to ensure that the resulting ciphertext terminates
+// on a 4-byte boundary."
+func (id EncryptionID) ESPWireSizes() (ivOctets, blockOctets uint16, err error) {
+	if aead, ok := aeadTransforms[id]; ok {
+		if aead.espIVOctets == 0 {
+			// AES CCM has IKE software support, but neither ESP backend installs it.
+			return 0, 0, ErrUnsupportedAlgorithm
+		}
+		return aead.espIVOctets, 4, nil
+	}
+	if fixed, ok := espOnlyEncryptionRegistry[id.String()]; ok {
+		if fixed.espBlockOctets == 0 {
+			return 0, 0, ErrUnsupportedAlgorithm
+		}
+		return fixed.espIVOctets, fixed.espBlockOctets, nil
+	}
+	// RFC 3602 Section 3: "The IV field MUST be the same size as the block
+	// size of the cipher algorithm being used." Section 2.4: "The AES uses
+	// a block size of sixteen octets (128 bits)."
+	if id == ENCR_AES_CBC {
+		return aes.BlockSize, aes.BlockSize, nil
+	}
+	return 0, 0, ErrUnsupportedAlgorithm
+}
+
+// RFC 2404 Section 3: "Key lengths other than 160-bits MUST NOT be supported
+// (i.e. only 160-bit keys are to be used by HMAC-SHA-1-96)."
+// Section 2: "No other authenticator value lengths are supported by HMAC-SHA-1-96."
+// This registry is ESP-only; neither IKE integrity nor the PRF registry admits SHA-1.
+var espOnlyIntegrityRegistry = map[string]IntegrityTransform{
+	"sha1": {ID: AUTH_HMAC_SHA1_96, KeyLength: 20, TruncatedLength: 12},
+}
+
+// LookupESPIntegrity resolves an ESP integrity transform without widening IKE.
+// RFC 2404 Section 3: "Key lengths other than 160-bits MUST NOT be supported
+// (i.e. only 160-bit keys are to be used by HMAC-SHA-1-96)."
+func LookupESPIntegrity(name string) (IntegrityTransform, error) {
+	if t, ok := espOnlyIntegrityRegistry[name]; ok {
+		return t, nil
+	}
+	return LookupIntegrity(name)
+}
+
+// SupportedESPIntegrityNames lists the integrity names admitted for ESP.
+func SupportedESPIntegrityNames() []string {
+	names := append(sortedKeys(integrityRegistry), sortedKeys(espOnlyIntegrityRegistry)...)
+	slices.Sort(names)
+	return names
 }
 
 // LookupEncryption resolves an encryption algorithm for an IKE SA. An ESP proposal
@@ -268,7 +362,7 @@ func SupportedEncryptionNames() []string {
 // every cipher LookupEncryption knows, and the ESP-only ones of espOnlyEncryptionRegistry.
 func LookupESPEncryption(name string) (EncryptionTransform, error) {
 	if t, ok := espOnlyEncryptionRegistry[name]; ok {
-		return t, nil
+		return t.EncryptionTransform, nil
 	}
 	return LookupEncryption(name)
 }

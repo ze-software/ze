@@ -3,12 +3,12 @@
     "rid": "RFC5282-3.2-4",
     "polarity": "positive",
     "unit": "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength",
-    "unit-sha": "d601da582c08b65d",
-    "claim-sha": "35e383f4469baff6",
-    "route": "revert",
+    "unit-sha": "5ccbc985047f8dc2",
+    "claim-sha": "a1a7ea082b878c3e",
+    "route": "mutant",
     "producer": "internal/component/ike/crypto/aead.go::AEADICVOctets",
     "producer-sha": "0a37cd517e032b96",
-    "break": "body of AEADICVOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 120: \"!\" -\u003e \"\""
   },
   {
     "rid": "RFC5282-3.2-4",

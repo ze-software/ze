@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
@@ -298,9 +299,9 @@ func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, er
 			return p, fmt.Errorf("ipsec esp-group %q proposal %d: unsupported hash algorithm %q",
 				groupName, num, hashStr)
 		}
-		if !HashImplemented(h) {
-			return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash algorithm %q is not implemented by this build (implemented: %s)",
-				groupName, num, hashStr, strings.Join(supportedHashNames(), ", "))
+		if !HashImplementedESP(h) {
+			return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash algorithm %q is not implemented by this build for ESP (implemented: %s)",
+				groupName, num, hashStr, strings.Join(crypto.SupportedESPIntegrityNames(), ", "))
 		}
 		p.Hash = h
 	case !enc.IsAEAD():

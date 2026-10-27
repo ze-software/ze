@@ -367,21 +367,29 @@ what lets Ze compute what the ported tool had to hardcode.
 | outer IP header | 20 for an IPv4 endpoint, 40 for IPv6 | the family of the installed remote address |
 | UDP header | 8 when the SA is UDP-encapsulated, else 0 | `Tunnel.UDPEncap` |
 | ESP header | 8 (SPI and Sequence Number) | RFC 4303 Section 2 |
-| IV | 8 for AES-GCM (RFC 4106 Section 3.1), 16 for AES-CBC (RFC 3602 Section 3) | `espCipherWires`, keyed by the ENCR transform id |
-| ICV | 16 for AES-GCM, or the integrity transform's truncated MAC: 16, 24 or 32 for HMAC-SHA-256, -384, -512 | `crypto.AEADICVOctets` for an AEAD cipher, the crypto integrity registry's `TruncatedLength` otherwise |
-| alignment block | 4 for AES-GCM (the ESP rule of RFC 4303 Section 2.4), 16 for AES-CBC (the cipher block) | `espCipherWires` |
+| IV | 8 for AES-GCM (RFC 4106 Section 3.1), ChaCha20-Poly1305 (RFC 7634 Section 2) and 3DES (RFC 2451 Section 2.1); 16 for AES-CBC (RFC 3602 Section 3); none for NULL | `crypto.EncryptionID.ESPWireSizes`, from the cipher metadata |
+| ICV | 16 for AES-GCM and ChaCha20-Poly1305; otherwise the integrity transform's truncated MAC: 12, 16, 24 or 32 for HMAC-SHA-1, -256, -384, -512 | `crypto.AEADICVOctets` for an AEAD cipher, `crypto.LookupESPIntegrity` and its `TruncatedLength` otherwise |
+| alignment block | 4 for AES-GCM, ChaCha20-Poly1305 and NULL (RFC 4303 Section 2.4); 8 for 3DES (RFC 2451 Section 2.4); 16 for AES-CBC | `crypto.EncryptionID.ESPWireSizes` |
 | trailer | 2 (Pad Length and Next Header) | RFC 4303 Section 2 |
 
-`espCipherWires` is the one declaration of the ESP IV and block per transform
-id. The ICV is never written there: the crypto package already declares it,
-per AEAD transform and per integrity transform, so the length a packet really
-carries has one source. The population is the set an ESP proposal can carry
-into a Child SA, `ipsec.SupportedESPEncryptionNames`: the AES CCM ids IKE can
-negotiate are absent because no dataplane installs one, and an inventory row
-naming one is refused rather than sized.
+The diagnostic keeps no private cipher table. `ESPWireSizes` reads the existing
+AEAD and ESP-only registries; AES-CBC uses the cipher implementation's block
+size for both its IV and alignment. The same metadata gates
+`ipsec.EncryptionImplementedESP`, so config admission and MTU advice cannot
+gain different transform populations. AES-CCM has no installable ESP framing
+and is refused, while its IKE software support is unchanged. The ICV stays
+in the crypto AEAD/integrity registries. SHA-1 is resolved through the ESP
+integrity lookup, without admitting a SHA-1 IKE PRF.
+
+ChaCha20's four-byte salt belongs to the SA's key material, not to each
+packet, and is excluded from the overhead. `TestESPOverheadPerTransform`
+checks every ESP cipher/integrity combination against hand-computed sizes
+over IPv4/IPv6 with and without UDP encapsulation.
+`TestESPFixedCipherMTUAdvice` carries ChaCha20 and 3DES/SHA-1 through ceiling,
+recommendation and MSS arithmetic in both tunnel and transport modes.
 
 AES-GCM-128 over IPv4 without encapsulation is 20 + 8 + 8 + 16 = 52 octets,
-and 60 encapsulated. A transform the table does not hold, a child that is not
+and 60 encapsulated. A transform with no installable ESP framing, a child that is not
 installed, or a mode nobody set answers `errOverheadRefused`: the tunnel is
 reported as not advisable and nothing is computed from a default.
 
@@ -391,7 +399,9 @@ rather than an addition. The overhead carries the mode, and the ceiling
 arithmetic branches on it, so tunnel-mode arithmetic is never applied to a
 transport-mode SA.
 
-<!-- source: internal/component/mtu/cmd/overhead.go -- espCipherWires, deriveESPOverhead, espICVOctets -->
+<!-- source: internal/component/mtu/cmd/overhead.go -- deriveESPOverhead, espICVOctets -->
+<!-- source: internal/component/ike/crypto/transform.go -- EncryptionID.ESPWireSizes, espOnlyEncryptionRegistry -->
+<!-- source: internal/component/ike/crypto/aead.go -- aeadTransforms -->
 
 ## The arithmetic
 

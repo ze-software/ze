@@ -17,13 +17,14 @@ import (
 // The same length serves AES GCM and AES CCM, so it is written once.
 const ikeIVOctets = 8
 
-// aeadTransform carries the three facts that follow from choosing one AEAD encryption
-// transform: the salt it cuts from the key material, the ICV it appends to the
-// ciphertext, and the mode that produces both.
+// aeadTransform carries the salt, ICV and installable ESP framing of one AEAD
+// transform, plus the software mode constructor when IKE supports that cipher.
 type aeadTransform struct {
 	saltOctets int
 	icvOctets  int
-	mode       func(block cipher.Block, icvOctets, nonceOctets int) (cipher.AEAD, error)
+	// A zero ESP IV marks IKE-only support, never an installable ESP cipher.
+	espIVOctets uint16
+	mode        func(block cipher.Block, icvOctets, nonceOctets int) (cipher.AEAD, error)
 }
 
 // aeadTransforms names every encryption transform that combines integrity with
@@ -36,11 +37,11 @@ type aeadTransform struct {
 // cipher that keyed correctly, and negotiation then refused it with
 // ErrProposalIncomplete.
 //
-// Two neighboring maps are NOT this property, and neither is derived from it. A new
-// AEAD cipher needs an entry in each. specifiedEncryption (proposal.go) lists the IDs
-// this build accepts off the wire. encryptionRegistry (transform.go) maps a config name
-// to a transform. ipsec.EncryptionAlgo.IsAEAD answers the same question over the config
-// enum rather than the wire ID. A test in that package binds the two.
+// Algorithm admission is separate from this property: specifiedEncryption
+// (proposal.go) and encryptionRegistry (transform.go) admit IKE ciphers, while
+// the ESP-only registry admits dataplane ciphers without an IKE software mode.
+// ipsec.EncryptionAlgo.IsAEAD answers the same property over the config enum
+// rather than the wire ID. A test in that package binds the two.
 //
 // The salt is per transform and never one number shared by every AEAD. That constant
 // was correct while AES GCM was the only entry, and it gives a wrong key length
@@ -51,9 +52,15 @@ type aeadTransform struct {
 // GCM twelve octets and AES CCM eleven, which is what the same section requires of
 // each, and a stored length could disagree with the salt beside it.
 var aeadTransforms = map[EncryptionID]aeadTransform{
+	// RFC 7634 Section 2: "The KEYMAT requested for each ChaCha20-Poly1305 key
+	// is 36 octets." "All 16 octets are included in the packet."
+	// No IKE mode: this build delegates ChaCha20-Poly1305 ESP to the dataplane.
+	// RFC 7634 Section 2: "The IV field is 64 bits."
+	ENCR_CHACHA20_POLY1305: {saltOctets: 4, icvOctets: 16, espIVOctets: 8},
 	// RFC 4106 Section 8.1 gives AES GCM a four octet salt, and RFC 5282 Section 3.2
 	// gives the AES GCM ICV its full sixteen octets.
-	ENCR_AES_GCM_16: {saltOctets: 4, icvOctets: 16, mode: newAESGCM},
+	// RFC 4106 Section 3.1: "The AES-GCM-ESP IV field MUST be eight octets."
+	ENCR_AES_GCM_16: {saltOctets: 4, icvOctets: 16, espIVOctets: 8, mode: newAESGCM},
 	// RFC 4309 Section 7.1: "The KEYMAT requested for each AES CCM key is 19 octets.
 	// The first 16 octets are the 128-bit AES key, and the remaining three octets are
 	// used as the salt value in the counter block." RFC 5282 Section 7.1 carries that
@@ -103,11 +110,11 @@ func newAESCCM(block cipher.Block, icvOctets, nonceOctets int) (cipher.AEAD, err
 // sizes of 8 octets and 16 octets. Implementations MAY also support 12 octet ICVs and
 // MUST NOT support other ICV lengths."
 //
-// aeadTransforms is how ze supports a size: an ICV length exists only where a Transform
-// ID names it, Section 7.2 assigns one ID per AES CCM ICV size, and the map holds those
-// three and no others. So an ID outside the map gets an error rather than a length. A
-// zero would read as a valid "no ICV" answer and size a message without one
-// (ai/rules/evidence.md).
+// aeadTransforms is how ze supports a size: an ICV length exists only where a
+// Transform ID names it. Section 7.2 assigns one ID per AES CCM ICV size; other
+// AEAD families have their own entries and requirements. An ID outside the map
+// gets an error rather than a zero length, which would read as a valid "no ICV"
+// answer and size a message without one (ai/rules/evidence.md).
 func AEADICVOctets(id EncryptionID) (int, error) {
 	t, ok := aeadTransforms[id]
 	if !ok {
@@ -183,6 +190,9 @@ func ikeAEADNonce(salt, iv []byte) []byte {
 func newIKEAEAD(id EncryptionID, keyWithSalt []byte) (cipher.AEAD, []byte, error) {
 	t, ok := aeadTransforms[id]
 	if !ok {
+		return nil, nil, ErrUnsupportedAlgorithm
+	}
+	if t.mode == nil {
 		return nil, nil, ErrUnsupportedAlgorithm
 	}
 	if len(keyWithSalt) <= t.saltOctets {

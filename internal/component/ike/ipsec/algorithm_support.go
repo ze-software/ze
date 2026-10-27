@@ -48,20 +48,28 @@ func EncryptionImplemented(e EncryptionAlgo) bool {
 // The refusal therefore belongs at config parse, where a wrong algorithm stops the load
 // rather than a tunnel that comes up empty (ai/rules/protocol.md).
 func EncryptionImplementedESP(e EncryptionAlgo) bool {
-	if _, err := crypto.LookupESPEncryption(e.String()); err != nil {
+	enc, err := crypto.LookupESPEncryption(e.String())
+	if err != nil {
 		return false
 	}
-	return !e.IsAESCCM()
+	// RFC 4303 Section 2.4: only transforms with installable ESP framing qualify.
+	_, _, err = enc.ID.ESPWireSizes()
+	return err == nil
 }
 
-// HashImplemented reports whether this build carries an integrity transform and a PRF
-// for the algorithm. An IKE proposal reads its hash as the PRF and an ESP proposal
-// reads it as the integrity algorithm, so a usable hash needs both.
+// HashImplemented reports whether an IKE proposal's hash has both an integrity
+// transform and a PRF. ESP does not use a PRF and uses HashImplementedESP.
 func HashImplemented(h HashAlgo) bool {
 	if _, err := integrityTransformFor(h); err != nil {
 		return false
 	}
 	_, err := crypto.LookupPRF(h.String())
+	return err == nil
+}
+
+// HashImplementedESP reports whether ESP can key the integrity algorithm.
+func HashImplementedESP(h HashAlgo) bool {
+	_, err := crypto.LookupESPIntegrity(h.String())
 	return err == nil
 }
 

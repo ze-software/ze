@@ -39,12 +39,20 @@ directions. It sits in `internal/core` rather than beside the IKE code because
 it holds no config, registers nothing, and keeps no state.
 
 **One table decides every AEAD property, keyed on the wire Transform ID.**
-`aeadTransforms` (`aead.go`) carries the salt, the ICV and the mode constructor
-for each of the four AEAD transforms Ze specifies. Membership in it IS the AEAD
-property that `EncryptionID.IsAEAD` answers. The nonce length is derived rather
-than stored: RFC 5282 Section 4 builds the nonce as the salt then the IV, so AES
-GCM answers twelve octets and AES CCM eleven, and a stored length could disagree
-with the salt beside it.
+`aeadTransforms` (`aead.go`) carries the salt, ICV and installable ESP IV size
+for each AEAD transform, and a software mode constructor only for the IKE ciphers. Membership in it IS the
+AEAD property that `EncryptionID.IsAEAD` answers. ChaCha20-Poly1305 is ESP-only:
+its entry has no IKE mode, and `newIKEAEAD` refuses it. The nonce length is derived
+rather than stored: the salt precedes the eight-byte IV, giving AES GCM and
+ChaCha20 twelve octets and AES CCM eleven.
+
+`EncryptionID.ESPWireSizes` projects this metadata for ESP admission and MTU
+advice. The fixed-key registry carries NULL/3DES framing; AES-CBC uses the AES
+implementation's block size. There is no separate MTU cipher table. AES-CCM
+has no installable ESP IV size, so the same metadata refuses it at config parse
+and refuses to size an inventory row naming it.
+
+<!-- source: internal/component/ike/crypto/transform.go -- EncryptionID.ESPWireSizes -->
 
 **AES CCM is offered for the IKE SA and refused for ESP.** RFC 5282 carries AES
 CCM into the IKE SA's Encrypted payload, which Ze seals and opens in software.
@@ -68,10 +76,29 @@ when local policy names it too and the offer carries no Key Length attribute, an
 <!-- source: internal/component/ike/crypto/transform.go -- espOnlyEncryptionRegistry, LookupESPEncryption -->
 <!-- source: internal/component/ike/crypto/proposal.go -- acceptESPEncryption, espProposalComplete -->
 
+**ChaCha20-Poly1305 and legacy 3DES/SHA-1 are ESP-only choices.** The owner
+approved both ESP combinations on 2026-10-26 without expanding the IKE control
+channel. `espOnlyEncryptionRegistry` holds IDs 28 and 3 with fixed cipher key
+sizes of 32 and 24 octets. Their wire Key Length is zero (attribute absent);
+`FixedKeyOctets` supplies the actual derivation size, and the wire parser rejects
+even a zero-valued Key Length attribute on a fixed-key transform (RFC 7296
+Section 3.3.5). ChaCha20 KEYMAT adds four salt octets and uses a 16-byte tag
+(RFC 7634 Section 2). 3DES keys are normalized to odd parity and rejected if
+adjacent effective DES keys are equal (RFC 2451 Sections 2.2 and 2.3).
+
+`LookupESPIntegrity` resolves SHA-1 as ID 2 with a 20-byte key and 12-byte ICV
+(RFC 2404 Sections 2 and 3). Neither `LookupIntegrity` nor `LookupPRF` admits
+SHA-1. Initial Child SAs and PFS rekeys read the same ESP transforms, while IKE
+negotiation continues to refuse both ciphers and SHA-1 integrity.
+
+<!-- source: internal/component/ike/crypto/keys.go -- encKeyMaterialLen, prepareChildCipherKeys, prepare3DESKey -->
+<!-- source: internal/component/ike/wire/payload_sa.go -- Transform.keyLengthAllowed -->
+
+
 **A flat map registry, not the registration pattern.** The algorithm set is
-small and fixed: ten encryption transforms plus the ESP-only null cipher, three PRFs, three integrity
-transforms and three DH groups. A registry with `init()` hooks buys nothing at
-that size.
+small and fixed: ten IKE encryption choices, three ESP-only ciphers, three PRFs,
+three IKE integrity transforms, one additional ESP integrity transform and three
+DH groups. A registry with `init()` hooks buys nothing at that size.
 
 **`crypto/ecdh` for the ECP groups 19 and 20, not `crypto/elliptic`.** The ecdh
 package gives the correct API directly.

@@ -45,6 +45,18 @@ var espTransformCases = []espTransformCase{
 	{encryptionName: "null", integrityName: "sha256", wireOctets: 24, block: 4},
 	{encryptionName: "null", integrityName: "sha384", wireOctets: 32, block: 4},
 	{encryptionName: "null", integrityName: "sha512", wireOctets: 40, block: 4},
+	// SHA-1 is ESP-only integrity: 12 ICV octets, never an IKE PRF.
+	{encryptionName: "aes128", integrityName: "sha1", wireOctets: 36, block: 16},
+	{encryptionName: "aes256", integrityName: "sha1", wireOctets: 36, block: 16},
+	{encryptionName: "null", integrityName: "sha1", wireOctets: 20, block: 4},
+	// RFC 7634 Section 2: 8 ESP + 8 transmitted IV + 16 tag, aligned to 4.
+	// The four-octet per-SA salt is NOT transmitted.
+	{encryptionName: "chacha20poly1305", wireOctets: 32, block: 4},
+	// RFC 2451 Sections 2.1/2.4: 8 ESP + 8 IV + truncated HMAC, aligned to 8.
+	{encryptionName: "3des", integrityName: "sha1", wireOctets: 28, block: 8},
+	{encryptionName: "3des", integrityName: "sha256", wireOctets: 32, block: 8},
+	{encryptionName: "3des", integrityName: "sha384", wireOctets: 40, block: 8},
+	{encryptionName: "3des", integrityName: "sha512", wireOctets: 48, block: 8},
 }
 
 // upTunnel builds an installed tunnel-mode Child SA over the given endpoint
@@ -57,9 +69,9 @@ func upTunnel(t *testing.T, c *espTransformCase, remote netip.Addr, udp bool) ip
 	}
 	integrity := crypto.AUTH_NONE
 	if c.integrityName != "" {
-		transform, err := crypto.LookupIntegrity(c.integrityName)
+		transform, err := crypto.LookupESPIntegrity(c.integrityName)
 		if err != nil {
-			t.Fatalf("LookupIntegrity(%q): %v", c.integrityName, err)
+			t.Fatalf("LookupESPIntegrity(%q): %v", c.integrityName, err)
 		}
 		integrity = transform.ID
 	}
@@ -81,8 +93,8 @@ func upTunnel(t *testing.T, c *espTransformCase, remote netip.Addr, udp bool) ip
 // TestESPOverheadPerTransform validates A-2: the overhead is derivable for
 // every ESP transform pair Ze can negotiate. The population comes from the
 // registries the negotiator reads (ipsec.SupportedESPEncryptionNames and
-// crypto.SupportedIntegrityNames), so a transform added there fails the test
-// until espTransformCases and espCipherWires both carry it. Each row is then
+// crypto.SupportedESPIntegrityNames), so a transform added there fails the test
+// until espTransformCases carries its independently computed framing. Each row is then
 // checked over both endpoint families, with and without UDP encapsulation:
 // AES-GCM-128 over IPv4 is 52 bare (AC-2) and 60 encapsulated (AC-3).
 func TestESPOverheadPerTransform(t *testing.T) {
@@ -101,7 +113,7 @@ func TestESPOverheadPerTransform(t *testing.T) {
 			population = append(population, [2]string{encName, ""})
 			continue
 		}
-		for _, integrityName := range crypto.SupportedIntegrityNames() {
+		for _, integrityName := range crypto.SupportedESPIntegrityNames() {
 			population = append(population, [2]string{encName, integrityName})
 		}
 	}
@@ -220,5 +232,56 @@ func TestESPOverheadTransportMode(t *testing.T) {
 	}
 	if got.fixed != udpHeaderOctets+32 {
 		t.Errorf("fixed = %d, want %d", got.fixed, udpHeaderOctets+32)
+	}
+}
+
+// TestESPFixedCipherMTUAdvice drives overhead through ceiling, recommendation and
+// MSS. A 1499-byte path distinguishes ChaCha's four-byte and 3DES's eight-byte
+// alignment, and transport mode must preserve the original IP header.
+func TestESPFixedCipherMTUAdvice(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		hash      string
+		mode      ipsecinventory.Mode
+		ceiling   uint16
+		recommend uint16
+		mssV4     uint16
+	}{
+		{"chacha20poly1305", "", ipsecinventory.ModeTunnel, 1442, 1410, 1370},
+		{"chacha20poly1305", "", ipsecinventory.ModeTransport, 1462, 1430, 1390},
+		{"3des", "sha1", ipsecinventory.ModeTunnel, 1446, 1414, 1374},
+		{"3des", "sha1", ipsecinventory.ModeTransport, 1466, 1430, 1390},
+	} {
+		tunnel := upTunnel(t, &espTransformCase{encryptionName: tc.name, integrityName: tc.hash},
+			netip.MustParseAddr("192.0.2.1"), false)
+		tunnel.Mode = tc.mode
+		overhead, err := deriveESPOverhead(&tunnel)
+		if err != nil {
+			t.Fatalf("%s/%s: %v", tc.name, tc.mode, err)
+		}
+		gotCeiling := ceiling(1499, &overhead)
+		if gotCeiling != tc.ceiling {
+			t.Fatalf("%s/%s: ceiling %d, want %d", tc.name, tc.mode, gotCeiling, tc.ceiling)
+		}
+		for _, family := range []ipFamily{ipFamilyV4, ipFamilyV6} {
+			gotRecommended, err := recommended(gotCeiling, &overhead, family)
+			if err != nil {
+				t.Fatalf("%s/%s/%s recommendation: %v", tc.name, tc.mode, family, err)
+			}
+			if gotRecommended != tc.recommend {
+				t.Fatalf("%s/%s: recommended %d, want %d", tc.name, tc.mode, gotRecommended, tc.recommend)
+			}
+			wantMSS := tc.mssV4
+			if family == ipFamilyV6 {
+				wantMSS -= 20
+			}
+			gotMSS, err := mss(gotRecommended, family)
+			if err != nil {
+				t.Fatalf("%s/%s/%s MSS: %v", tc.name, tc.mode, family, err)
+			}
+			if gotMSS != wantMSS {
+				t.Errorf("%s/%s/%s: MSS %d, want %d", tc.name, tc.mode, family, gotMSS, wantMSS)
+			}
+		}
 	}
 }

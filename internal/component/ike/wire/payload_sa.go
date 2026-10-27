@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 )
 
 // Protocol IDs (RFC 7296 Section 3.3.1).
@@ -202,6 +204,10 @@ func (t *Transform) length() int {
 func (t *Transform) keyLengthAllowed() bool {
 	switch t.Type {
 	case TransformTypeENCR:
+		// RFC 7296 Section 3.3.5; fixed ESP keys come from the crypto registry.
+		if _, fixed := crypto.EncryptionID(t.ID).FixedKeyOctets(); fixed {
+			return false
+		}
 		return t.ID != encrDES && t.ID != encrIDEA
 	case TransformTypePRF, TransformTypeINTG:
 		return false
@@ -215,6 +221,13 @@ func (t *Transform) keyLengthAllowed() bool {
 // that the reader of an offer can apply RFC 7296 Section 3.3.6: a transform "that
 // contains a Transform Attribute it does not understand" is unacceptable.
 func (t *Transform) AttrsUnderstood() bool {
+	if !t.keyLengthAllowed() {
+		for i := range t.Attrs {
+			if t.Attrs[i].Type == AttrTypeKeyLength {
+				return false
+			}
+		}
+	}
 	for i := range t.Attrs {
 		if _, known := attrFormats[t.Attrs[i].Type]; !known {
 			return false

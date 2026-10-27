@@ -2,6 +2,12 @@
 
 package crypto
 
+import (
+	"crypto/subtle"
+	"errors"
+	"math/bits"
+)
+
 // encKeyMaterialLen returns the KEYMAT one direction takes for this cipher, in octets.
 //
 // An AEAD cipher takes a salt beyond its key. RFC 4106 Section 8.1: "The size of the
@@ -18,6 +24,11 @@ package crypto
 // Linux kernel refuses a short key. A short key also makes a peer read the second
 // direction's key at the wrong offset (ai/rules/evidence.md).
 func encKeyMaterialLen(enc EncryptionTransform) int {
+	// RFC 2451 Section 2.2 and RFC 7634 Section 2 specify fixed cipher keys;
+	// RFC 7296 Section 3.3.5 forbids encoding their size as an attribute.
+	if octets, fixed := enc.ID.FixedKeyOctets(); fixed {
+		return octets + enc.ID.aeadSalt()
+	}
 	return int(enc.KeyLength)/8 + enc.ID.aeadSalt()
 }
 
@@ -149,6 +160,11 @@ func DeriveChildSAKeys(prfID PRFID, skD, ni, nr []byte, enc EncryptionTransform,
 	keys.IntegKeyR = dup(keymat[off : off+integKeyLen])
 
 	clear(keymat)
+	// RFC 2451 Sections 2.2 and 2.3: normalize parity and reject degenerate 3DES.
+	if err := prepareChildCipherKeys(enc.ID, keys); err != nil {
+		keys.Clear()
+		return nil, err
+	}
 	return keys, nil
 }
 
@@ -183,7 +199,48 @@ func DeriveChildSAKeysPFS(prfID PRFID, skD, dhSharedSecret, ni, nr []byte, enc E
 	keys.IntegKeyR = dup(keymat[off : off+integKeyLen])
 
 	clear(keymat)
+	// RFC 2451 Sections 2.2 and 2.3 apply to rekeyed keys too.
+	if err := prepareChildCipherKeys(enc.ID, keys); err != nil {
+		keys.Clear()
+		return nil, err
+	}
 	return keys, nil
+}
+
+// prepareChildCipherKeys applies the fixed-key cipher's key admission in both directions.
+// RFC 2451 Section 2.2: "Implementations MUST take into consideration the parity
+// bits when initially accepting a new set of keys."
+func prepareChildCipherKeys(id EncryptionID, keys *ChildSAKeys) error {
+	if id != ENCR_3DES {
+		return nil
+	}
+	// RFC 2451 Sections 2.2 and 2.3.
+	if err := prepare3DESKey(keys.EncryptKeyI); err != nil {
+		return err
+	}
+	// RFC 2451 Sections 2.2 and 2.3.
+	return prepare3DESKey(keys.EncryptKeyR)
+}
+
+// prepare3DESKey sets odd parity and refuses keys that collapse EDE into DES.
+// RFC 2451 Section 2.3: "However, if the first two or last two independent
+// 64-bit keys are equal (k1 == k2 or k2 == k3), then the 3DES operation is
+// simply the same as DES. Implementers MUST reject keys that exhibit this
+// property."
+func prepare3DESKey(key []byte) error {
+	if len(key) != 24 {
+		return ErrInvalidKeyLength
+	}
+	for i, octet := range key {
+		key[i] = octet&0xfe | byte((bits.OnesCount8(octet&0xfe)+1)%2)
+	}
+	if subtle.ConstantTimeCompare(key[:8], key[8:16]) == 1 {
+		return errors.New("3des: first and second keys are equal")
+	}
+	if subtle.ConstantTimeCompare(key[8:16], key[16:]) == 1 {
+		return errors.New("3des: second and third keys are equal")
+	}
+	return nil
 }
 
 func dup(b []byte) []byte {

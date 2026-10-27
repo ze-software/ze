@@ -51,25 +51,23 @@ func TestParseESPProposalAcceptsAEADWithoutHash(t *testing.T) {
 	}
 }
 
-// VALIDATES: a config naming an encryption algorithm the crypto registry does not
-// implement is refused at parse time, and the error names the algorithm and the
-// implemented set.
-// PREVENTS: ENCR Transform ID 0 on the wire. RFC 7296 Section 3.3.2 reserves that ID.
-// lookupEncryption returns the zero transform for an unknown name. Ze therefore once
-// started, offered ID 0 with no Key Length attribute, derived a zero-length key, and
-// handed it to the kernel (ai/rules/evidence.md).
-func TestParseRejectsUnimplementedEncryption(t *testing.T) {
+// TestParseESPOnlyEncryption keeps the ESP additions out of the IKE control channel.
+// Method: parse each cipher in both proposal contexts with its correct integrity.
+func TestParseESPOnlyEncryption(t *testing.T) {
 	for _, algo := range []string{"chacha20poly1305", "3des"} {
 		t.Run(algo, func(t *testing.T) {
-			esp := makeESPTree("ESP-X", "", "", map[string][2]string{"1": {algo, ""}})
-			err := parseErr(t, esp)
-			if !strings.Contains(err.Error(), algo) {
-				t.Errorf("esp-group error %q does not name %q", err, algo)
+			hash := ""
+			if algo == "3des" {
+				hash = "sha1"
 			}
-			if !strings.Contains(err.Error(), "aes256gcm") {
-				t.Errorf("esp-group error %q does not name the implemented set", err)
+			esp := makeESPTree("ESP-X", "", "", map[string][2]string{"1": {algo, hash}})
+			cfg, err := ParseIPsecConfig(esp)
+			if err != nil {
+				t.Fatalf("ESP proposal refused: %v", err)
 			}
-
+			if got := cfg.ESPGroups["ESP-X"].Proposals[0].Encryption.String(); got != algo {
+				t.Fatalf("ESP encryption = %s, want %s", got, algo)
+			}
 			ike := makeIKETree("IKE-X", ikeOpts{proposals: map[string]ikeProposalOpts{
 				"1": {encryption: algo, hash: "sha256", dhGroup: "14"},
 			}})
@@ -81,19 +79,16 @@ func TestParseRejectsUnimplementedEncryption(t *testing.T) {
 	}
 }
 
-// VALIDATES: a config naming a hash the crypto registry does not implement is refused
-// at parse time.
-// PREVENTS: an ESP SA installed with AUTH_NONE and a zero-length integrity key.
-// lookupIntegrity returns the zero transform for "sha1", whose ID is AUTH_NONE, so a
-// CBC proposal naming sha1 once keyed an SA that authenticates nothing.
-func TestParseRejectsUnimplementedHash(t *testing.T) {
-	esp := makeESPTree("ESP-X", "", "", map[string][2]string{"1": {"aes256", "sha1"}})
-	err := parseErr(t, esp)
-	if !strings.Contains(err.Error(), "sha1") {
-		t.Errorf("esp-group error %q does not name sha1", err)
+// TestParseESPOnlyHash proves SHA-1 is integrity-only, never an IKE PRF.
+// Method: parse the same hash in an ESP group and an IKE group.
+func TestParseESPOnlyHash(t *testing.T) {
+	esp := makeESPTree("ESP-X", "", "", map[string][2]string{"1": {"3des", "sha1"}})
+	cfg, err := ParseIPsecConfig(esp)
+	if err != nil {
+		t.Fatalf("ESP SHA-1 refused: %v", err)
 	}
-	if !strings.Contains(err.Error(), "sha256") {
-		t.Errorf("esp-group error %q does not name the implemented set", err)
+	if cfg.ESPGroups["ESP-X"].Proposals[0].Hash != HashSHA1 {
+		t.Fatal("ESP SHA-1 was replaced")
 	}
 
 	ike := makeIKETree("IKE-X", ikeOpts{proposals: map[string]ikeProposalOpts{
@@ -240,4 +235,19 @@ func parseErr(t *testing.T, tree *config.Tree) error {
 		t.Fatal("ParseIPsecConfig accepted an unimplemented algorithm, want an error")
 	}
 	return err
+}
+
+// TestESPAddedCipherBoundaries refuses a missing CBC hash and any hash beside AEAD.
+func TestESPAddedCipherBoundaries(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"3des", ""}, {"3des", "md5"}, {"chacha20poly1305", "sha1"},
+		{"chacha20poly1305", "sha256"},
+	} {
+		parseErr(t, makeESPTree("ESP-X", "", "", map[string][2]string{"1": pair}))
+	}
+	for hash, name := range hashNames {
+		if HashImplementedESP(hash) != slices.Contains(crypto.SupportedESPIntegrityNames(), name) {
+			t.Errorf("ESP hash admission and error names disagree for %s", name)
+		}
+	}
 }

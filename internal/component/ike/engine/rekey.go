@@ -354,7 +354,11 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 	if err != nil {
 		return nil, nil, err
 	}
-	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa, group)
+	// RFC 7296 Section 3.3.6: "The initiator of an exchange MUST check that the
+	// accepted offer is consistent with one of its proposals, and if not MUST
+	// terminate the exchange." The child's group is also what the response
+	// validator reads; the IKE SA's original group can name another cipher.
+	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa, oldChild.ESPGroup, group)
 	if err != nil {
 		return nil, nil, err
 	}

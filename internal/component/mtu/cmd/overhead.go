@@ -30,13 +30,6 @@ const (
 	// consists of the Padding, Pad Length, and Next Header fields." The
 	// padding is what the alignment below accounts for; these two are fixed.
 	espTrailerOctets = 2
-
-	// espAlignOctets is the alignment every ESP plaintext ends on, whatever
-	// the cipher. RFC 4303 Section 2.4: "Padding also may be required,
-	// irrespective of encryption algorithm requirements, to ensure that the
-	// resulting ciphertext terminates on a 4-byte boundary." An AEAD cipher
-	// imposes no block of its own, so this is its whole alignment.
-	espAlignOctets = 4
 )
 
 // errOverheadRefused is the answer when the overhead cannot be derived for a
@@ -44,43 +37,6 @@ const (
 // from it: a default overhead would size a tunnel from a figure nobody
 // derived (ai/rules/principles.md).
 var errOverheadRefused = errors.New("mtu: the ESP overhead cannot be derived")
-
-// espCipherWire is what one ESP cipher puts on the wire beyond the ESP header:
-// the IV it transmits before the ciphertext, and the block the plaintext is
-// padded to.
-type espCipherWire struct {
-	ivOctets    uint16
-	blockOctets uint16
-}
-
-// espCipherWires is the one place these two ESP facts are written down for a
-// wire Transform ID. The ICV is NOT here: an AEAD cipher's ICV is the crypto
-// package's AEADICVOctets, and a CBC cipher's ICV is its integrity transform's
-// TruncatedLength, so the length a packet really carries has one declaration.
-//
-// The keys are the ENCR ids an ESP proposal can carry into a Child SA, which
-// is ipsec.SupportedESPEncryptionNames: the AES CCM ids are absent on purpose,
-// because no dataplane installs one (ipsec.EncryptionImplementedESP), so an
-// inventory row naming one is a defect and is refused rather than sized.
-// TestESPOverheadPerTransform derives its population from that same registry,
-// so a transform added there reddens the test until its row exists here.
-var espCipherWires = map[crypto.EncryptionID]espCipherWire{
-	// RFC 4106 Section 3.1: "The AES-GCM-ESP IV field MUST be eight octets."
-	// GCM is a stream construction, so the plaintext is padded only to the
-	// 4-octet ESP boundary (RFC 4303 Section 2.4, espAlignOctets).
-	crypto.ENCR_AES_GCM_16: {ivOctets: 8, blockOctets: espAlignOctets},
-	// RFC 3602 Section 3: "The IV field MUST be the same size as the block
-	// size of the cipher algorithm being used." RFC 3602 Section 2.4: "The AES
-	// uses a block size of sixteen octets (128 bits). Padding is required by
-	// the AES to maintain a 16-octet (128-bit) blocksize."
-	crypto.ENCR_AES_CBC: {ivOctets: 16, blockOctets: 16},
-	// Integrity-only ESP (RFC 4303 Section 1). The null cipher carries no
-	// synchronization data, and RFC 4303 Section 2.3 puts an IV in the payload
-	// only "If the algorithm used to encrypt the payload requires cryptographic
-	// synchronization data". It imposes no block either, so the plaintext is
-	// padded to the 4-octet ESP boundary alone (RFC 4303 Section 2.4).
-	crypto.ENCR_NULL: {ivOctets: 0, blockOctets: espAlignOctets},
-}
 
 // espOverhead is what ESP adds to one packet a Child SA carries, split the way
 // the ceiling arithmetic needs it (arith.go).
@@ -116,7 +72,7 @@ func (o espOverhead) octets() uint16 {
 // transform it negotiated, its mode and its encapsulation. It refuses, rather
 // than defaults, a tunnel whose child is not installed, whose mode is not one
 // ESP defines, whose transforms the IKE engine could not resolve, or whose
-// transform the table above does not hold.
+// cipher registry declares no installable ESP framing.
 func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 	if !t.Up {
 		return espOverhead{}, fmt.Errorf("%w: peer %s has no child SA installed", errOverheadRefused, t.Peer)
@@ -144,16 +100,17 @@ func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 		o.outerHeader = ipv6HeaderOctets
 	}
 	cipherID := crypto.EncryptionID(t.Encryption)
-	wire, ok := espCipherWires[cipherID]
-	if !ok {
+	// RFC 7634 Section 2, RFC 2451 Section 2.4 and RFC 4303 Section 2.4.
+	ivOctets, blockOctets, err := cipherID.ESPWireSizes()
+	if err != nil {
 		return espOverhead{}, fmt.Errorf("%w: peer %s negotiated ENCR transform %d (%s), which this arithmetic does not know", errOverheadRefused, t.Peer, cipherID, cipherID)
 	}
 	icv, err := espICVOctets(cipherID, crypto.IntegrityID(t.Integrity))
 	if err != nil {
 		return espOverhead{}, fmt.Errorf("%w: peer %s: %w", errOverheadRefused, t.Peer, err)
 	}
-	o.block = wire.blockOctets
-	o.fixed = espHeaderOctets + wire.ivOctets + icv
+	o.block = blockOctets
+	o.fixed = espHeaderOctets + ivOctets + icv
 	if t.UDPEncap {
 		o.fixed += udpHeaderOctets
 	}
@@ -167,7 +124,7 @@ func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 // the null cipher) is refused: RFC 4303 Section 2.8 makes integrity optional
 // for ESP, but no live Child SA carries that pair. crypto.espProposalComplete
 // refuses ENCR_NULL beside AUTH_NONE (RFC 4303 Section 3.2), and a CBC cipher
-// without a hash never matches, because crypto.acceptIntegrity requires the
+// without a hash never matches, because crypto.matchESP requires the
 // peer's integrity id to equal local policy's and an esp-group proposal with
 // a non-AEAD cipher and no hash is refused at commit (ipsec.parseESPProposal).
 func espICVOctets(cipherID crypto.EncryptionID, integrityID crypto.IntegrityID) (uint16, error) {
@@ -181,25 +138,10 @@ func espICVOctets(cipherID crypto.EncryptionID, integrityID crypto.IntegrityID) 
 	if integrityID == crypto.AUTH_NONE {
 		return 0, fmt.Errorf("%s carries no integrity transform", cipherID)
 	}
-	transform, ok := integrityTransformByID(integrityID)
-	if !ok {
+	// RFC 2404 Sections 2 and 3; ESP integrity includes SHA-1 without an IKE PRF.
+	transform, err := crypto.LookupESPIntegrity(integrityID.String())
+	if err != nil {
 		return 0, fmt.Errorf("INTEG transform %d (%s) is not one this build implements", integrityID, integrityID)
 	}
 	return transform.TruncatedLength, nil
-}
-
-// integrityTransformByID finds an integrity transform by its wire id through
-// the crypto registry's name index, which is the only index it exports. The
-// registry holds three entries, so the scan is bounded by that count.
-func integrityTransformByID(id crypto.IntegrityID) (crypto.IntegrityTransform, bool) {
-	for _, name := range crypto.SupportedIntegrityNames() {
-		transform, err := crypto.LookupIntegrity(name)
-		if err != nil {
-			continue
-		}
-		if transform.ID == id {
-			return transform, true
-		}
-	}
-	return crypto.IntegrityTransform{}, false
 }

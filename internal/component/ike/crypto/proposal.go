@@ -486,21 +486,15 @@ func espProposalComplete(p *ESPProposal) error {
 	return nil
 }
 
-// acceptESPEncryption decides the encryption transform of an ESP proposal. It is
-// acceptEncryption plus the one transform ESP offers and the IKE SA does not: ENCR_NULL.
-//
-// RFC 4303 Section 1: "Integrity-only ESP MUST be offered as a service selection
-// option, e.g., it must be negotiable in SA management protocols". RFC 7296 Section 5
-// forbids ENCR_NULL for the IKE SA, so the null cipher stays out of specifiedEncryption,
-// which matchIKE reads, and is admitted here alone. The null cipher takes no key, so an
-// offer carrying a Key Length attribute names a transform Ze cannot key and is refused.
-// espProposalComplete has already refused ENCR_NULL beside AUTH_NONE.
+// acceptESPEncryption admits the fixed-key ESP-only ciphers without widening IKE.
+// RFC 7296 Section 3.3.5: "The Key Length attribute MUST NOT be used with
+// transforms that use a fixed-length key."
 func acceptESPEncryption(remote, local EncryptionTransform, rule keyLengthRule) error {
-	if remote.ID != ENCR_NULL {
+	if _, fixed := remote.ID.FixedKeyOctets(); !fixed {
 		_, err := acceptEncryption(remote, local, rule)
 		return err
 	}
-	if local.ID != ENCR_NULL {
+	if local.ID != remote.ID {
 		return ErrNoProposalChosen
 	}
 	if remote.KeyLength != 0 {
@@ -517,8 +511,19 @@ func matchESP(remote, local *ESPProposal, rule keyLengthRule) (ESPProposal, erro
 	if err := acceptESPEncryption(remote.Encryption, local.Encryption, rule); err != nil {
 		return ESPProposal{}, err
 	}
-	if err := acceptIntegrity(remote.Integrity, local.Integrity); err != nil {
-		return ESPProposal{}, err
+	// RFC 7634 Section 4: "As with other AEAD algorithms, INTEG (type 3)
+	// transform substructures MUST NOT be specified, or just one INTEG
+	// transform MAY be included with value NONE (0)."
+	if remote.Encryption.ID.IsAEAD() && remote.Integrity.ID != AUTH_NONE {
+		return ESPProposal{}, ErrNoProposalChosen
+	}
+	if remote.Integrity.ID != local.Integrity.ID {
+		return ESPProposal{}, ErrNoProposalChosen
+	}
+	if remote.Integrity.ID != AUTH_NONE {
+		if _, err := LookupESPIntegrity(remote.Integrity.ID.String()); err != nil {
+			return ESPProposal{}, ErrTransformUnspecified
+		}
 	}
 	// The peer's own attributes go back to it unmodified (RFC 7296 Section 3.3.6),
 	// so the accepted proposal is the offer rather than a rebuild of it.
