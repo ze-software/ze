@@ -1,6 +1,6 @@
 ---
 name: ze-weekly-update
-description: Write and publish the Ze weekly update
+description: Write the Zeledon weekly update, update the gh-pages site and post the approved text to Discord ze-news. Use when asked for the weekly update, a ze-news post or the weekly changelog.
 ---
 
 # Weekly Update

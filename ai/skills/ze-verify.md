@@ -1,6 +1,6 @@
 ---
 name: ze-verify
-description: Verify
+description: Run the tests that cover what changed (targeted, or ./le verify changed once committed) and report. Never runs the full verification; it names Thomas's command when one is owed.
 ---
 
 # Verify

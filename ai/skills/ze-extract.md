@@ -1,6 +1,6 @@
 ---
 name: ze-extract
-description: Extract Go Symbols
+description: Move named Go functions, types, vars or consts from one file to another in the same package, as /ze-extract <src.go> <dst.go> <symbols>. Use for file splits, not refactors.
 ---
 
 # Extract Go Symbols

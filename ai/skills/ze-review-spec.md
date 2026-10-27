@@ -1,6 +1,6 @@
 ---
 name: ze-review-spec
-description: Review Against Spec
+description: After implementation, check the code matches the spec, covering every requirement, test and file it lists. Use in the Review Gate beside /ze-review.
 ---
 
 # Review Against Spec

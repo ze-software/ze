@@ -1,6 +1,6 @@
 ---
 name: ze-find-alloc
-description: Find Encoding Allocations
+description: Scan encoding paths for make([]byte) allocations that should write into a caller's buffer, and for values converted twice on a hot path. Reports only; /ze-fix-alloc fixes one.
 ---
 
 # Find Encoding Allocations

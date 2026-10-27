@@ -1,6 +1,6 @@
 ---
 name: ze-debug
-description: Debug Failing Tests
+description: Investigate failing tests from pasted output with parallel agents, one per hypothesis, each fixing its own lens. Runs in the main thread. Use when a test fails and the cause is unknown.
 ---
 
 # Debug Failing Tests

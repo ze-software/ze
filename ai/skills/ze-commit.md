@@ -1,6 +1,6 @@
 ---
 name: ze-commit
-description: Scoped Commit
+description: Commit the named changes through a ./le commit script at once, with no verification or review, only a style gate when Go is staged. Use when asked to commit; /ze-commit-check adds verification.
 ---
 
 # Scoped Commit

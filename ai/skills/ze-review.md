@@ -1,6 +1,6 @@
 ---
 name: ze-review
-description: Review For Issues
+description: Quick single-pass review of uncommitted changes for bugs, edge cases, security and missing tests, and the spec Review Gate. Use after implementing or fixing; /ze-review-deep is the exhaustive version.
 ---
 
 # Review For Issues

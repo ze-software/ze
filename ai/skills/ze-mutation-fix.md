@@ -1,6 +1,6 @@
 ---
 name: ze-mutation-fix
-description: Fix Surviving Mutations
+description: Run mutation testing on one package, then strengthen tests or fix the code bugs that surviving mutants expose. Use when asked to improve how well a package's tests catch bugs.
 ---
 
 # Fix Surviving Mutations

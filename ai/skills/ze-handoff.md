@@ -1,6 +1,6 @@
 ---
 name: ze-handoff
-description: Handoff
+description: Write a self-contained handoff so a fresh session can continue this work, listing what is done, in progress and remaining, with concrete next edits. Use when ending a session with work left.
 ---
 
 # Handoff

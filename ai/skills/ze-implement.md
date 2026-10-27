@@ -1,6 +1,6 @@
 ---
 name: ze-implement
-description: Implement Spec
+description: Implement the claimed spec, wiring first, then each phase in its own agent, with review loops until the diff is clean. Stops before closure; run /ze-close after.
 ---
 
 # Implement Spec

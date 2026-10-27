@@ -1,6 +1,6 @@
 ---
 name: ze-debrief
-description: Debrief
+description: Summarize where this session stands, covering the claimed spec and its acceptance criteria, session state, git changes and what is left. Use when asked where things stand.
 ---
 
 # Debrief

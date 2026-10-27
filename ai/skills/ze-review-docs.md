@@ -1,6 +1,6 @@
 ---
 name: ze-review-docs
-description: Doc Review
+description: Review documentation for accuracy against the code, completeness and quality, and fix what is wrong, for a path, an area or a full inventory. Use when asked to audit docs.
 ---
 
 # Doc Review

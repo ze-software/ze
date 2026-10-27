@@ -1,6 +1,6 @@
 ---
 name: ze-commit-check
-description: Scoped Commit with Verification
+description: Commit through a ./le commit script, running verification when the change needs it (scoped tests for Go). Use when asked to commit and verify; /ze-commit skips verification.
 ---
 
 # Scoped Commit with Verification

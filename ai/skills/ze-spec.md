@@ -1,6 +1,6 @@
 ---
 name: ze-spec
-description: Spec Workflow
+description: Create or resume a spec through gated phases (research, design, approval), challenging the design at each gate. Runs in the main thread. Use before any non-trivial feature or fix.
 ---
 
 # Spec Workflow

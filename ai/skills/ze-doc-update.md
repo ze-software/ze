@@ -1,6 +1,6 @@
 ---
 name: ze-doc-update
-description: Doc Update
+description: Bring docs/ and the ../wiki checkout up to date with every user-facing change since the last documented commit. Use when asked to update the docs or wiki after features land.
 ---
 
 # Doc Update

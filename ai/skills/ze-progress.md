@@ -1,6 +1,6 @@
 ---
 name: ze-progress
-description: Progress
+description: Find where the claimed spec stands in its lifecycle (implementation, review, closure) and name the single next action. Use when asked what to do next on a spec.
 ---
 
 # Progress

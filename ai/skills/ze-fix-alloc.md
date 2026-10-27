@@ -1,6 +1,6 @@
 ---
 name: ze-fix-alloc
-description: Fix Encoding Allocation
+description: Convert one encoding allocation, given as file.go:line or file.go:function, to Ze's buffer-writing pattern and verify it. Use on a hit from /ze-find-alloc.
 ---
 
 # Fix Encoding Allocation

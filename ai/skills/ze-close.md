@@ -1,6 +1,6 @@
 ---
 name: ze-close
-description: Close Spec
+description: Close an implemented spec with deliverables, security and docs checks, the Review Gate, then the two commits that land the work and delete the spec. Run after /ze-implement, one spec at a time.
 ---
 
 # Close Spec

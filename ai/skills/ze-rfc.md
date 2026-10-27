@@ -1,6 +1,6 @@
 ---
 name: ze-rfc
-description: RFC Implementation Summary
+description: Write or update an RFC implementation summary in rfc/short/, with requirement ids, levels, annotations and test links; ./le rfc next picks the RFC. Use for any RFC summary or requirement-row work.
 ---
 
 # RFC Implementation Summary

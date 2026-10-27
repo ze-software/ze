@@ -1,6 +1,6 @@
 ---
 name: ze-test
-description: Write or Change a Functional Test
+description: Write or change a .ci functional test, drafting it outside test/, asserting on state rather than time, proving it under load, then promoting it. Use before creating or editing any .ci file.
 ---
 
 # Write or Change a Functional Test

@@ -1,6 +1,6 @@
 ---
 name: ze-review-deep
-description: Deep Review
+description: Exhaustive review of changes by about nine parallel agents, one per aspect. Runs in the main thread and costs many agents. Use before landing significant work or when asked for a deep review; /ze-review is the quick pass.
 ---
 
 # Deep Review

@@ -1,6 +1,6 @@
 ---
 name: ze-audit
-description: Spec Audit
+description: Before implementing a spec, check what of it already exists in the code, marking each requirement done, partial or missing with its location. Reports only, builds nothing.
 ---
 
 # Spec Audit

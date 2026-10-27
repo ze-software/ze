@@ -1,6 +1,6 @@
 ---
 name: ze-status
-description: Status
+description: Attention view across the project, with specs by bucket, priority and status and a suggested next action. Use when asked what needs attention; /ze-debrief covers only this session.
 ---
 
 # Status

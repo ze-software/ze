@@ -1,6 +1,6 @@
 ---
 name: ze-explore
-description: Explore Topic
+description: Find and read everything about a topic (code, pages, specs) before proposing changes, and report what exists. Use at the start of work on an unfamiliar area, as /ze-explore <topic>.
 ---
 
 # Explore Topic

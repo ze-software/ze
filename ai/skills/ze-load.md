@@ -1,6 +1,6 @@
 ---
 name: ze-load
-description: Load Rules
+description: Force-read every project rule, pattern and context file into the session. Use when rules seem missing, such as after compaction. Costly in context.
 ---
 
 # Load Rules

@@ -1,6 +1,6 @@
 ---
 name: ze-design
-description: Design Collaboration
+description: Stress-test a plan or design with the user one decision at a time, depth first, logging each decision. Runs in the main thread. Use when a design still has open choices.
 ---
 
 # Design Collaboration

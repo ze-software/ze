@@ -1,6 +1,6 @@
 ---
 name: ze-check
-description: Check
+description: Run completeness and health checks on uncommitted changes (scoped tests for changed Go, missing companion docs or tests) without committing. Use before a commit to see what is missing.
 ---
 
 # Check

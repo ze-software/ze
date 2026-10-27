@@ -1,6 +1,6 @@
 ---
 name: ze-hunt
-description: Hunt Known Bug Classes
+description: Sweep the tree or a path for the bug classes recorded in RECURRING-PATTERNS.md and triage each hit as real bug, cleared or intentional. Read-only. Use for a proactive bug hunt, not a diff review.
 ---
 
 # Hunt Known Bug Classes
