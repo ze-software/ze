@@ -51,7 +51,7 @@
     "claim-sha": "0d96e916bcea5ee1",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectorsIn",
-    "producer-sha": "238c7147777e480f",
+    "producer-sha": "4a8e01def28d08d3",
     "break": "line 713: \"closedSubset(narrowed, answerPairsMax)\" -\u003e \"narrowed\""
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "c5efd6bca91bc894",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectorsIn",
-    "producer-sha": "238c7147777e480f",
+    "producer-sha": "4a8e01def28d08d3",
     "break": "line 713: \"answerPairsMax)\" -\u003e \"1)\""
   },
   {

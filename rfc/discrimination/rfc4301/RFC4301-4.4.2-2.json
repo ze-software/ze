@@ -83,9 +83,9 @@
     "unit-sha": "16d5b8b01b6b2816",
     "claim-sha": "7e1f82152a3c7e91",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/ts_narrow.go::recordInitiatorSelectors",
-    "producer-sha": "de5f88c798581e13",
-    "break": "line 843: \"sa.UseTransportMode \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
+    "producer": "internal/component/ike/engine/ts_narrow.go::recordInitiatorSelectorsIn",
+    "producer-sha": "8c53e9d9b770dfc9",
+    "break": "line 896: \"mode == modeTransport \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
   },
   {
     "rid": "RFC4301-4.4.2-2",

@@ -7,8 +7,8 @@
     "claim-sha": "24ef9fb03a6314c4",
     "route": "revert",
     "producer": "internal/component/ike/engine/ts_nat_substitute.go::substituteInitiatorSelectors",
-    "producer-sha": "856d62472f6b67ef",
-    "break": "body of substituteInitiatorSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2a9202329270ba1f",
+    "break": "body of substituteInitiatorSelectors replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.23.1-2",
@@ -18,7 +18,7 @@
     "claim-sha": "76663b359a4e0efb",
     "route": "revert",
     "producer": "internal/component/ike/engine/ts_nat_substitute.go::substituteInitiatorSelectors",
-    "producer-sha": "856d62472f6b67ef",
-    "break": "body of substituteInitiatorSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2a9202329270ba1f",
+    "break": "body of substituteInitiatorSelectors replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
