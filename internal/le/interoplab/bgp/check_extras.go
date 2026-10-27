@@ -45,6 +45,16 @@ const (
 	ospfGRHelperExitsMetric    = "ze_ospf_gr_helper_exits_total"
 )
 
+// FRR 10.7.1's prepare command persists GR state but does not restart ospfd.
+// Signal only the prepared daemon; watchfrr owns its native restart, so no
+// manual start can race supervision or restart zebra and the container.
+const ospfGRSignalPrepared = `read -r previous < /var/run/frr/ospfd.pid; printf '%s\n' "$previous" > /tmp/ospfd-before-gr.pid; kill -TERM "$previous"`
+
+// The existing Full wait MUST observe the replacement ospfd, not the original
+// process between SIGTERM delivery and exit. Missing or unchanged PIDs fail
+// this probe inside that same wait, with no extra retry or deadline.
+const ospfGRReplacementNeighbor = `read -r previous < /tmp/ospfd-before-gr.pid; read -r current < /var/run/frr/ospfd.pid; test "$current" != "$previous"; exec vtysh -c 'show ip ospf neighbor'`
+
 var ospfAdjacencyContinuity = operation{
 	kind:    opRequireAbsent,
 	peer:    "ze",
@@ -279,8 +289,9 @@ var scenarioExtras = map[string][]operation{
 	},
 	"ospf-gr-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseRouter}, contains: []string{zeLabAddress}},
-		{kind: opExec, peer: peerFRR, command: []string{cmdVtysh, "-c", "clear ip ospf process graceful-restart"}},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 30 * time.Second},
+		{kind: opExec, peer: peerFRR, command: []string{cmdVtysh, "-c", "graceful-restart prepare ip ospf"}},
+		{kind: opExec, peer: peerFRR, command: []string{"sh", "-ec", ospfGRSignalPrepared}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{"sh", "-ec", ospfGRReplacementNeighbor}, contains: []string{ospfStateFull}, timeout: 30 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospf-multiaf-frr": {
@@ -328,12 +339,13 @@ var scenarioExtras = map[string][]operation{
 	"ospf-gr-helper-broadcast-frr": {
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull, ospfGRBroadcastFRRRouterID}, timeout: 60 * time.Second},
 		{kind: opRequireAbsent, peer: "ze", command: zeCommand("show metrics values"), absent: []string{ospfGRHelperExitsMetric}, proof: []string{"ze_ospf_nsm_events_total"}},
-		{kind: opExec, peer: peerFRR, command: []string{cmdVtysh, "-c", "clear ip ospf process graceful-restart"}},
+		{kind: opExec, peer: peerFRR, command: []string{cmdVtysh, "-c", "graceful-restart prepare ip ospf"}},
+		{kind: opExec, peer: peerFRR, command: []string{"sh", "-ec", ospfGRSignalPrepared}},
 		{kind: opWaitContainsAny, peer: "ze", command: zeCommand("show metrics values"), contains: []string{
 			ospfGRHelperExitsMetric + `{family=\"ipv4\",reason=\"flushed\"}`,
 			ospfGRHelperExitsMetric + `{family="ipv4",reason="flushed"}`,
 		}, timeout: 100 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{"sh", "-ec", ospfGRReplacementNeighbor}, contains: []string{ospfStateFull}, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf neighbor"), contains: []string{zeOSPFNeighborFull, ospfGRBroadcastFRRRouterID}},
 	},
 	// The interop proof for OSPF auto-cost: FRR reads the metric Ze derived out of

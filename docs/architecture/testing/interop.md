@@ -2651,6 +2651,27 @@ container that is still shutting down.
 <!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations -->
 <!-- source: internal/le/interoplab/bgp/check_engine.go -- opStop -->
 
+`ospf-gr-frr` and `ospf-gr-helper-broadcast-frr` prepare FRR 10.7.1 with
+`graceful-restart prepare ip ospf`, save ospfd's PID, and send that process
+SIGTERM. Preparation alone does not restart the daemon. Watchfrr owns the
+restart; the checker neither starts a competing ospfd nor stops zebra, the
+container, or its network. The existing post-restart Full wait also requires
+a different ospfd PID. The broadcast helper still requires no prior helper
+exit, then `reason="flushed"` within 100 seconds, shorter than the 120-second
+grace period, and Full on both sides.
+The helper fixture enables Prometheus so those assertions read the daemon's
+actual counters; Netdata collectors are disabled because they are not involved.
+Without the registry, `show metrics values` refuses instead of proving that
+no earlier helper exit occurred.
+<!-- source: test/interop/scenarios/ospf-gr-helper-broadcast-frr/ze.conf -->
+FRR's [`ospf_gr_prepare` and `ospf_gr_restart_exit`](https://github.com/FRRouting/frr/blob/frr-10.7.1/ospfd/ospf_gr.c)
+originate and flush the Grace-LSA;
+[`ospf_finish_final`](https://github.com/FRRouting/frr/blob/frr-10.7.1/ospfd/ospfd.c)
+preserves LSAs and routes during prepared shutdown, and
+[`daemon_down`, `wakeup_down`, and `try_restart`](https://github.com/FRRouting/frr/blob/frr-10.7.1/watchfrr/watchfrr.c)
+drive the supervised restart.
+<!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras, ospfGRSignalPrepared, ospfGRReplacementNeighbor -->
+
 `ospf-sr-anycast-nexthop-frr` proves RFC 8665 Section 5's rule that a router
 "MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
 router if that router advertised the SID for the prefix", for a next hop that is
