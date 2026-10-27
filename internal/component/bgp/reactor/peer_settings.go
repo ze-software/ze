@@ -345,6 +345,9 @@ type PeerSettings struct {
 	// Used as the base for exponential backoff in peer.run().
 	ConnectRetry time.Duration
 
+	// DelayOpen is the RFC 4271 OPEN delay (0 disables it, maximum 240 seconds).
+	DelayOpen time.Duration
+
 	// Connection controls TCP connection establishment mode.
 	// ConnectionBoth (default): initiate and accept.
 	// ConnectionPassive: accept only (no dial out).

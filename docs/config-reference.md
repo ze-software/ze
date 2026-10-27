@@ -113,7 +113,7 @@ Peers are keyed by name: `peer <name> { }` where the name must start with a lett
 | `session { asn { local; remote; } }` | Local and remote AS number | Yes (or inherited) |
 | `session { router-id }` | BGP router ID for this peer | No (inherits `bgp/router-id`) |
 | `description` | Human-readable description | No |
-| `timer { receive-hold-time; send-hold-time; keepalive; connect-retry; }` | Timer container | No |
+| `timer { receive-hold-time; send-hold-time; keepalive; connect-retry; delay-open; }` | Timer container; `delay-open` is 0..240 seconds, default 0 (off) | No |
 | `connection { remote { connect } }` | Initiate outbound TCP (`true`/`false`, default: `true`) | No |
 | `connection { local { accept } }` | Accept inbound TCP (`true`/`false`, default: `true`) | No |
 | `connection { remote { port } }` | Port Ze dials to reach the peer (default: 179) | No |
@@ -130,6 +130,21 @@ The Linux proof captures a configured TCP dialer's SYN and payload at an
 adjacent namespace over a routed veth link and checks TTL 255 on that egress.
 Loopback TTL tests are calibration only.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings -->
+
+To wait up to five seconds before sending OPEN, set this inside the peer,
+group, or BGP block:
+
+```
+timer {
+    delay-open 5
+}
+```
+
+A peer OPEN ends the wait early. Otherwise timer expiry sends OPEN, so two
+speakers that both delay do not wait forever. `delay-open 0` preserves immediate
+OPEN transmission. Values above 240 are refused by the schema.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
+
 
 ## Capabilities
 

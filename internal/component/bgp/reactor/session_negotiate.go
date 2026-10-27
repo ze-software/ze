@@ -173,25 +173,39 @@ func (s *Session) sendOpen(conn net.Conn) error {
 		return ErrLocalASZero
 	}
 
-	open, err := s.buildOpen(s.settings, s.configCapabilities())
-	if err != nil {
-		return err
+	s.mu.RLock()
+	open := s.localOpen
+	s.mu.RUnlock()
+	if open == nil {
+		if err := s.prepareOpen(); err != nil {
+			return err
+		}
+		s.mu.RLock()
+		open = s.localOpen
+		s.mu.RUnlock()
 	}
 
-	s.mu.Lock()
-	s.localOpen = open
-	if transport := s.transport.Load(); transport != nil {
-		// The OPEN builder resolved migration fallback for this connection.
-		// Publish that actual identity before the raw writer observes the OPEN.
-		transport.localAS.Store(open.ASN4)
-	}
-	s.mu.Unlock()
-
-	err = s.writeMessage(conn, open)
+	err := s.writeMessage(conn, open)
 	if err == nil && s.onOpenSent != nil {
 		s.onOpenSent()
 	}
 	return err
+}
+
+// prepareOpen builds the proposal once, before negotiation or transmission.
+// The caller MUST serialize initial OPEN work with openMu.
+func (s *Session) prepareOpen() error {
+	open, err := s.buildOpen(s.settings, s.configCapabilities())
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.localOpen = open
+	if transport := s.transport.Load(); transport != nil {
+		transport.localAS.Store(open.ASN4)
+	}
+	s.mu.Unlock()
+	return nil
 }
 
 // configCapabilities returns the configured capability list, read under the

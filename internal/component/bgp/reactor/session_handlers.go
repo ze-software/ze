@@ -51,6 +51,8 @@ func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 
 // handleOpen processes a received OPEN message.
 func (s *Session) handleOpen(body []byte) error {
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
 	// An OPEN is only legitimate while we are WAITING for the peer's OPEN. Once
 	// we have one, a further OPEN on the SAME connection must not be processed:
 	// without this gate handleOpen runs the whole path again on a live session,
@@ -369,6 +371,8 @@ func updateIsUnexpected(state fsm.State) bool {
 // It logs one WARN line for it (logNotificationReceived), the RFC 9003 Shutdown
 // Communication included.
 func (s *Session) handleNotification(body []byte) error {
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
 	notif, err := message.UnpackNotification(body)
 	if err != nil {
 		s.logFSMEvent(fsm.EventNotifMsgVerErr)
@@ -383,7 +387,6 @@ func (s *Session) handleNotification(body []byte) error {
 
 	s.logNotificationReceived(notif)
 
-	s.timers.StopAll()
 	// OpenSent files Event 25 under "any other event", so there the FSM
 	// answers with a Finite State Machine Error and fsmMessageEvent writes it.
 	// Event 24 is not on that list: OpenSent and OpenConfirm answer it with no
@@ -393,6 +396,7 @@ func (s *Session) handleNotification(body []byte) error {
 		sessionLogger().Warn("FSM event failed",
 			"peer", s.settings.Address, "event", event, "error", fsmErr)
 	}
+	s.timers.StopAll()
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())

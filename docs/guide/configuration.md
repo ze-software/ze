@@ -487,7 +487,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120) | No |
+| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120), `delay-open` (seconds, 0..240, default 0/off) | No |
 | `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
 | `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `remote { port }` | Port Ze dials to reach the peer | No (default: 179) |
@@ -501,6 +501,14 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
+
+For example, `timer { delay-open 5; }` holds the local OPEN for up to five
+seconds after TCP connects. A peer OPEN releases it early; otherwise the timer
+does. The same leaf can be inherited from a BGP or group block. Set it to zero
+to send OPEN immediately.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- delayOpenExpired -->
+
 
 ## Startup Convergence Hold (`update-delay`)
 

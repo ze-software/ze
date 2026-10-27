@@ -218,6 +218,12 @@ const (
 	// Event 2 would have zeroed it.
 	EventOpenCollisionDump
 
+	// EventDelayOpenTimerExpires is RFC 4271 Section 8.1.3 Event 12.
+	EventDelayOpenTimerExpires
+
+	// EventBGPOpenWithDelayOpenTimer is RFC 4271 Section 8.1.5 Event 20.
+	EventBGPOpenWithDelayOpenTimer
+
 	// The six BFD strict-mode events of
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 4, registered by its
 	// Section 13.3 as BGP-4 FSM events 30 to 35. Each is Optional in the
@@ -286,13 +292,9 @@ type BfdSubState int
 
 // The strict-mode sub-states per draft-ietf-idr-bgp-bfd-strict-mode Section 8.1.
 //
-// The draft names four. Two of them, ConnectDelayOpenBfdUpPending and
-// ActiveDelayOpenBfdUpPending, are entered only by Event 20 (an OPEN received
-// while the DelayOpenTimer runs, Sections 8.3.5 and 8.4.5). Ze implements no
-// DelayOpenTimer, which RFC 4271 Section 8.2.1.3 permits and the fsm.go header
-// records, so neither is reachable and neither is declared here. The Connect
-// and Active handlers still answer every BFD event, and their answer is the
-// draft's "not in the sub-state" branch.
+// The draft names four. This declaration covers the two OpenSent sub-states.
+// ConnectDelayOpenBfdUpPending and ActiveDelayOpenBfdUpPending require the
+// separate strict-mode Event 20 path, beyond the base RFC 4271 DelayOpen timer.
 const (
 	// SubStateNone says the FSM is not waiting for a BFD Up event.
 	SubStateNone BfdSubState = iota
@@ -346,21 +348,23 @@ type eventSpec struct {
 // eventSpecs numbers RFC 4271 Section 8.1 Events 1 to 28 and
 // draft-ietf-idr-bgp-bfd-strict-mode Section 13.3 Events 30 to 35.
 var eventSpecs = map[Event]eventSpec{
-	EventManualStart:              {"ManualStart", 1},
-	EventManualStop:               {"ManualStop", 2},
-	EventConnectRetryTimerExpires: {"ConnectRetryTimerExpires", 9},
-	EventHoldTimerExpires:         {"HoldTimerExpires", 10},
-	EventKeepaliveTimerExpires:    {"KeepaliveTimerExpires", 11},
-	EventTCPConnectionConfirmed:   {"TCPConnectionConfirmed", 17},
-	EventTCPConnectionFails:       {"TCPConnectionFails", 18},
-	EventBGPOpen:                  {"BGPOpen", 19},
-	EventBGPHeaderErr:             {"BGPHeaderErr", 21},
-	EventBGPOpenMsgErr:            {"BGPOpenMsgErr", 22},
-	EventNotifMsgVerErr:           {"NotifMsgVerErr", 24},
-	EventNotifMsg:                 {"NotifMsg", 25},
-	EventKeepaliveMsg:             {"KeepaliveMsg", 26},
-	EventUpdateMsg:                {"UpdateMsg", 27},
-	EventUpdateMsgErr:             {"UpdateMsgErr", 28},
+	EventManualStart:               {"ManualStart", 1},
+	EventManualStop:                {"ManualStop", 2},
+	EventConnectRetryTimerExpires:  {"ConnectRetryTimerExpires", 9},
+	EventHoldTimerExpires:          {"HoldTimerExpires", 10},
+	EventKeepaliveTimerExpires:     {"KeepaliveTimerExpires", 11},
+	EventDelayOpenTimerExpires:     {"DelayOpenTimerExpires", 12},
+	EventTCPConnectionConfirmed:    {"TCPConnectionConfirmed", 17},
+	EventTCPConnectionFails:        {"TCPConnectionFails", 18},
+	EventBGPOpen:                   {"BGPOpen", 19},
+	EventBGPOpenWithDelayOpenTimer: {"BGPOpenWithDelayOpenTimer", 20},
+	EventBGPHeaderErr:              {"BGPHeaderErr", 21},
+	EventBGPOpenMsgErr:             {"BGPOpenMsgErr", 22},
+	EventNotifMsgVerErr:            {"NotifMsgVerErr", 24},
+	EventNotifMsg:                  {"NotifMsg", 25},
+	EventKeepaliveMsg:              {"KeepaliveMsg", 26},
+	EventUpdateMsg:                 {"UpdateMsg", 27},
+	EventUpdateMsgErr:              {"UpdateMsgErr", 28},
 
 	EventAutomaticStart:                         {"AutomaticStart", 3},
 	EventAutomaticStartWithDampPeerOscillations: {"AutomaticStartWithDampPeerOscillations", 6},

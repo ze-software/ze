@@ -233,6 +233,15 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 type Session struct {
 	mu sync.RWMutex
 
+	// openMu serializes initial OPEN processing, DelayOpen expiry, and the
+	// OPEN-less collision close. It precedes s.mu. Callers MUST NOT hold
+	// Peer.mu: OPEN observers and state callbacks may acquire that lock.
+	openMu sync.Mutex
+
+	// transportFailed is guarded by openMu. A failed delayed OPEN write and
+	// the reader it wakes share one non-idempotent Event 18 delivery.
+	transportFailed bool
+
 	settings *PeerSettings
 	// bfdOptIn answers the BFD opt-in this session runs under. A reload swaps
 	// a non-strict opt-in onto a running peer under the peer's p.mu, which
@@ -684,6 +693,8 @@ func NewSession(settings *PeerSettings) *Session {
 	// Configure timers.
 	s.timers.SetHoldTime(settings.ReceiveHoldTime)
 	s.timers.SetKeepaliveTime(settings.KeepaliveTime)
+	s.timers.SetDelayOpenTime(settings.DelayOpen)
+	s.timers.OnDelayOpenTimerExpires(s.delayOpenExpired)
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {
@@ -1005,7 +1016,11 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 		// BGP connection and continues to use the existing one"
 		return false, false
 
-	case fsm.StateIdle, fsm.StateConnect, fsm.StateActive, fsm.StateOpenSent:
+	case fsm.StateConnect, fsm.StateActive:
+		// No identifier comparison before OPEN (RFC 4271 Section 6.8).
+		// An inbound OPEN supersedes an OPEN-less held connection.
+		return true, s.timers.IsDelayOpenTimerRunning()
+	case fsm.StateIdle, fsm.StateOpenSent:
 		// RFC 4271 §6.8: "a connection collision cannot be detected with
 		// connections that are in Idle, Connect, or Active states"
 		// OpenSent MAY detect if BGP ID known by other means - we don't implement this
@@ -1187,7 +1202,7 @@ func (s *Session) Run(ctx context.Context) error {
 	// call on the paths that already stop timers is harmless. Not a hot path (once per session
 	// lifecycle).
 	defer s.stopSendHoldTimer()
-	defer s.timers.StopAll()
+	defer s.stopSessionTimers()
 
 	// Same discipline for the CONNECTION: when the read loop exits, the TCP
 	// connection is closed, whatever the exit path. Several error returns send

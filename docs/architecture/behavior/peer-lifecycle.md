@@ -430,6 +430,12 @@ complete OPEN arrives, then receives Cease / Connection Collision. The existing
 session is not replaced. OpenSent and OpenConfirm use the same pending reader,
 which waits for OPEN before comparing identifiers.
 
+Connect and Active use that same single pending slot while DelayOpen holds an
+OPEN-less existing connection. The pending reader has a ReceiveHoldTime
+deadline (90 seconds if configured hold is zero); expiry closes only the
+pending socket. Once its OPEN has been read, that read deadline is cleared
+before transferring the socket to the winning Session.
+
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
 `resolvePendingCollision`:
@@ -440,9 +446,15 @@ which waits for OPEN before comparing identifiers.
    - Transfers the socket, parsed OPEN and complete original OPEN bytes into
      the Peer's single inbound slot under its lock. The reactor relinquishes
      that buffer; it does not copy or reconstruct the message.
-   - Signals `inboundNotify`, then launches the losing connection's Cease /
-     Connection Collision teardown. Publication happens before teardown can
-     release the old run loop.
+   - Signals `inboundNotify`, then launches `finishCollisionHandoff`.
+     An OPEN-less held loser gets Event 23 and closes without NOTIFICATION.
+     If its OPEN or DelayOpen expiry won first, the helper rechecks Section 6.8.
+     A close-existing answer sends Cease / Connection Collision. A keep-existing
+     answer takes back the inbound slot and reservation under the Peer lock,
+     non-blockingly drains its wakeup, then sends Cease / Connection Collision
+     outside the Peer lock and closes the rejected socket. That write is bounded
+     by the normal control-write maximum. A slot already taken by `runOnce` is
+     left to that owner.
    - Returns ownership to the Peer loop, not to a waiter looking up
      `p.session` after `Session.Done`. That pointer may still identify the
      finished session or may already be nil.
@@ -472,6 +484,8 @@ both the slot and reservation, closes a retained socket and releases its OPEN.
 
 <!-- source: internal/component/bgp/reactor/peer_connection.go — inboundConnection, setPendingConnection, resolvePendingCollision, storeInboundLocked, takeInboundConnection -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce, cleanup -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- closeHeldForCollision -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go -- finishCollisionHandoff -->
 
 ## Delivery channel (per-peer async message delivery)
 

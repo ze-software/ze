@@ -45,3 +45,24 @@ func TestSchema_ZeBgpModule(t *testing.T) {
 	}
 	assert.True(t, bgpContainer, "bgp container should exist")
 }
+
+// TestSchemaDelayOpenRange proves the inherited timer leaf accepts the
+// complete configured boundary and refuses a value beyond RFC 4271's maximum.
+func TestSchemaDelayOpenRange(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	validator := yang.NewValidator(schema)
+	for _, path := range []string{"bgp/timer/delay-open", "bgp/group/timer/delay-open", "bgp/group/peer/timer/delay-open", "bgp/peer/timer/delay-open"} {
+		for _, seconds := range []uint16{0, 1, 240} {
+			require.NoError(t, validator.Validate(path, seconds), "%s=%d", path, seconds)
+		}
+		err := validator.Validate(path, uint16(241))
+		require.Error(t, err, "%s accepted 241", path)
+		var rangeError *yang.ValidationError
+		require.ErrorAs(t, err, &rangeError)
+		assert.Equal(t, yang.ErrTypeRange, rangeError.Type, "%s must reject the value, not fail schema lookup", path)
+	}
+}

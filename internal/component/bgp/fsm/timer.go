@@ -58,8 +58,7 @@ type TimerCallback func()
 //   - MinASOriginationIntervalTimer (Section 9.2.1.2) - not implemented here
 //   - MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here
 //
-// Two optional timers (DelayOpenTimer, IdleHoldTimer) are described in
-// Section 8.1.3 Events 12-13, but are not implemented.
+// DelayOpenTimer implements optional Event 12. IdleHoldTimer is not implemented.
 //
 // Timer behaviors:
 //   - HoldTimer: Detects dead peers. Restarted on KEEPALIVE/UPDATE receipt
@@ -84,6 +83,7 @@ type Timers struct {
 	connectRetryTime time.Duration
 	bfdHoldTime      time.Duration // draft-ietf-idr-bgp-bfd-strict-mode Section 3, attribute 18
 	bfdHoldDown      time.Duration // draft-ietf-idr-bgp-bfd-strict-mode Section 10
+	delayOpenTime    time.Duration
 
 	// Active timers
 	holdTimer         clock.Timer
@@ -91,6 +91,7 @@ type Timers struct {
 	connectRetryTimer clock.Timer
 	bfdHoldTimer      clock.Timer
 	bfdHoldDownTimer  clock.Timer
+	delayOpenTimer    clock.Timer
 
 	// Callbacks
 	onHoldExpires         TimerCallback
@@ -98,6 +99,7 @@ type Timers struct {
 	onConnectRetryExpires TimerCallback
 	onBfdHoldExpires      TimerCallback
 	onBfdHoldDownExpires  TimerCallback
+	onDelayOpenExpires    TimerCallback
 
 	// State tracking
 	holdRunning         bool
@@ -105,6 +107,8 @@ type Timers struct {
 	connectRetryRunning bool
 	bfdHoldRunning      bool
 	bfdHoldDownRunning  bool
+	delayOpenRunning    bool
+	delayOpenGen        uint64
 
 	// BfdHoldTimer generation guard, the same ABA defense the hold timer
 	// carries below: a fired closure that captured an older generation
@@ -489,6 +493,7 @@ func (t *Timers) StopAll() {
 	t.stopConnectRetryTimerLocked()
 	t.stopBfdHoldTimerLocked()
 	t.stopBfdHoldDownTimerLocked()
+	t.stopDelayOpenTimerLocked()
 }
 
 // SetBfdHoldDown sets the BFD hold-down interval of

@@ -653,8 +653,22 @@ func carriesAS4Attributes(wireUpdate *wireu.WireUpdate) bool {
 
 // handleConnectionClose handles TCP connection close.
 func (s *Session) handleConnectionClose() {
-	s.timers.StopAll()
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
+	s.handleConnectionCloseLocked()
+}
+
+// handleConnectionCloseLocked owns transport-failure delivery. Caller holds
+// openMu; both the delayed writer and the reader it wakes use this owner.
+func (s *Session) handleConnectionCloseLocked() {
+	if s.transportFailed {
+		return
+	}
+	s.transportFailed = true
+	// RFC 4271 Section 8.2.2: "If the TCP connection fails (Event 18), the local system checks the DelayOpenTimer."
+	// Deliver the event before teardown clears that timer.
 	s.logFSMEvent(fsm.EventTCPConnectionFails)
+	s.timers.StopAll()
 	s.closeConn()
 }
 

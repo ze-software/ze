@@ -244,6 +244,12 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		if v, ok := mapUint32(timerMap, "connect-retry"); ok {
 			ps.ConnectRetry = time.Duration(v) * time.Second
 		}
+		if v, ok := mapUint32(timerMap, "delay-open"); ok {
+			if v > 240 {
+				return nil, fmt.Errorf("peer %s: timer delay-open %d is outside 0..240 seconds; set timer delay-open to 0 (off) or 1..240", name, v)
+			}
+			ps.DelayOpen = time.Duration(v) * time.Second
+		}
 	}
 
 	// Connection mode from connection > remote > connect and connection > local > accept.

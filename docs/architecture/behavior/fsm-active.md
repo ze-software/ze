@@ -4,9 +4,9 @@
 
 The system is listening for an incoming TCP connection. Entered from Idle
 on `ManualStart` when the peer is configured with the passive bit, or from
-OpenSent when the TCP connection fails. Exits
-to OpenSent once a remote peer connects and the session layer accepts,
-or back to Idle on stop or error.
+OpenSent when the TCP connection fails. With DelayOpen enabled it also holds an
+accepted socket without sending OPEN. Peer OPEN goes directly to OpenConfirm;
+DelayOpen expiry sends OPEN and enters OpenSent. Stop or error returns to Idle.
 
 RFC 4271 Section 8.2.2 "Active state".
 
@@ -28,10 +28,10 @@ the next attempt on a new Session.
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent EventTCPConnectionFails -->
 <!-- source: internal/component/bgp/reactor/session.go — Start -->
 
-A peer in Active does not dial. It waits for `Session.Accept(conn)` to
-be called from the reactor's inbound connection plumbing. Accept runs
-`connectionEstablished(conn)`, which fires
-`EventTCPConnectionConfirmed`, moving the FSM to OpenSent.
+A passive peer does not dial. `Session.Accept(conn)` calls
+`connectionEstablished`, which fires Event 17. With `timer delay-open 0` it
+enters OpenSent immediately. A positive delay starts DelayOpenTimer and holds
+the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — Accept -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
@@ -42,12 +42,15 @@ be called from the reactor's inbound connection plumbing. Accept runs
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startAutomatic()` / `startDamped()` call | ignored (RFC 4271) | none | `Active` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
-| `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | log transition | OPEN sent immediately after transition | `OpenSent` |
-| `EventTCPConnectionFails` | not generated in production: Active holds no connection, because without DelayOpen `EventTCPConnectionConfirmed` moves it to OpenSent at once, and a `connectionEstablished` setup error returns an error without firing an event. The Event 18 producers (`Session.Connect` dial failure, `handleConnectionClose`, the forward-pool congestion teardown) fire in Connect or later states. RFC4271-8.2.2-13 carries `{feature-declined}` for this reason | **increments ConnectRetryCounter** (FSM arm kept for completeness) | none | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / collision retirement | clear timers; **increments ConnectRetryCounter** | Cease for automatic teardown; **no NOTIFICATION** for an OPEN-less collision loser | `Idle` |
+| `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | stop ConnectRetryTimer; start DelayOpenTimer when enabled | no OPEN while delayed; otherwise immediate OPEN | `Active` when delayed, otherwise `OpenSent` |
+| `EventDelayOpenTimerExpires` | `Session.delayOpenExpired` | clear retry and delay timers; start OPEN-wait HoldTimer | OPEN | `OpenSent` |
+| `EventBGPOpenWithDelayOpenTimer` | either OPEN receive rail via `advanceAfterOpen` | clear retry and delay timers; arm negotiated hold/keepalive timers, or stop both for zero hold | OPEN then KEEPALIVE | `OpenConfirm` |
+| `EventTCPConnectionFails` | held-socket read failure while DelayOpen runs | restart ConnectRetryTimer, clear DelayOpenTimer, release connection resources, **increment ConnectRetryCounter** | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
-| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
-| any other event | unexpected | log transition | none | `Idle` |
+| `EventNotifMsgVerErr` | received version-error NOTIFICATION | clear timers; **no increment** with DelayOpen running, increment otherwise | none | `Idle` |
+| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsg` | message decode paths | clear timers; **increment ConnectRetryCounter** | NOTIFICATION where applicable | `Idle` |
+| any other event | unexpected | clear timers; **increment ConnectRetryCounter** | none for Event 23 on an OPEN-less connection | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleActive -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — Accept, acceptWithOpen -->
@@ -56,9 +59,10 @@ be called from the reactor's inbound connection plumbing. Accept runs
 
 | Timer | Status | Notes |
 |-------|--------|-------|
-| ConnectRetryTimer | conceptually per RFC, not started | Same note as Connect: reconnect logic is at the peer level. |
-| HoldTimer | not running | started on entry to OpenSent. |
-| KeepaliveTimer | not running | started later. |
+| ConnectRetryTimer | stopped on TCP success; restarted by Event 18 | The Peer owns reconnect scheduling; old-session cleanup stops the timer after the transition. |
+| DelayOpenTimer | running while the accepted socket has sent no OPEN | `timer delay-open` is 0..240 seconds; zero disables it. |
+| HoldTimer | not running during DelayOpen | Event 12 starts the OPEN-wait bound; Event 20 starts negotiated hold. |
+| KeepaliveTimer | not running during DelayOpen | Event 20 starts it unless negotiated hold is zero. |
 
 <!-- source: internal/component/bgp/fsm/timer.go — Timers -->
 
@@ -68,8 +72,9 @@ be called from the reactor's inbound connection plumbing. Accept runs
   into the session, `connectionEstablished` tunes TCP (nodelay, TOS,
   buffer sizes), snapshots local addresses for NEXT_HOP validation, and
   publishes the socket and its observed buffered writer together. Only then
-  does it fire the FSM event, send OPEN, and start the OPEN-wait hold timer
-  (`ze.bgp.openwait`, default 120 seconds). A sealed Session refuses setup.
+  does it fire the FSM event. With DelayOpen disabled it sends OPEN and starts
+  the OPEN-wait hold timer (`ze.bgp.openwait`, default 120 seconds). With
+  DelayOpen enabled it retains the local proposal until peer OPEN or expiry.
   <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
 - **On `EventManualStop`:** if a partial connection exists, the caller
   (`Teardown`) sends a Cease NOTIFICATION before invoking the FSM event.
@@ -85,24 +90,19 @@ wire bytes for a fresh peer-owned Session after the losing cycle is cleaned up.
 The run loop calls `acceptWithOpen(conn, peerOpen, wire)` on that Session.
 This path:
 
-1. Calls `connectionEstablished`, which refuses a sealed Session before
-   publishing the socket, otherwise fires `EventTCPConnectionConfirmed`
-   (Active -> OpenSent) and sends the local OPEN.
+1. Calls `connectionEstablished`, which refuses a sealed Session and otherwise
+   publishes the socket and fires Event 17. DelayOpen holds the local OPEN.
 2. Observes the original received OPEN bytes on the winning Session.
-3. Calls `processOpen(peerOpen)` to validate and negotiate the OPEN, then
-   `advanceAfterOpen` to enter OpenConfirm and send KEEPALIVE when permitted.
+3. Calls `processOpen(peerOpen)` to validate and negotiate that OPEN, then
+   `advanceAfterOpen` for Event 20: local OPEN, OpenConfirm, and KEEPALIVE.
 
-So from the outside, a single incoming connection with a pre-buffered
-OPEN can drive the FSM from Active through OpenSent to OpenConfirm in
-one synchronous sequence.
+For `connection both`, the start left the FSM in Connect, so both events run
+there. For `connection passive`, both run in Active. Neither delayed path visits
+OpenSent. With delay zero the old OpenSent sequence remains.
 
-The transition and KEEPALIVE share `Session.advanceAfterOpen`; under BFD
-strict mode it does neither: KEEPALIVE is withheld, no `EventBGPOpen`
-is fired, and the session waits in OpenSent carrying a sub-state until the
-BFD session is Up (draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5). The
-collision winner gets the same wait as any other connection, because the
-draft draws no distinction between them. The OpenSent runbook has the
-whole fork.
+The base DelayOpen path here covers RFC 4271 without negotiated BFD strict mode.
+The strict-mode DelayOpen sub-states are a separate implementation phase, not
+claimed by this path.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
@@ -143,3 +143,6 @@ The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers car
 - `internal/component/bgp/reactor/session_test.go` — listener-side
   session tests covering inbound accept flow.
   <!-- source: internal/component/bgp/reactor/session_test.go -->
+- `internal/component/bgp/reactor/delay_open_test.go` proves Active Event 18
+  through a real Peer, with delay zero as the opposite path.
+  <!-- source: internal/component/bgp/reactor/delay_open_test.go — TestRFC4271ActiveEvent18WithDelayOpen -->

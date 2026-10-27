@@ -5,7 +5,7 @@
 | Concept | Description |
 |---------|-------------|
 | **States** | IDLE→ACTIVE→CONNECT→OPENSENT→OPENCONFIRM→ESTABLISHED |
-| **Timers** | Connect retry (120s), Hold (negotiated), Keepalive (hold/3) |
+| **Timers** | Connect retry (120s), optional DelayOpen (0..240s), Hold (negotiated), Keepalive (hold/3) |
 | **Collision** | Higher router-id wins when both peers initiate |
 | **Pattern** | Goroutine-per-peer, switch on `fsm.state` |
 | **Key Types** | `State`, `FSM`, `Peer.Run()` |
@@ -121,8 +121,8 @@ transition = {
 | IDLE | Any state (error/shutdown) |
 | ACTIVE | IDLE, ACTIVE, OPENSENT |
 | CONNECT | IDLE, CONNECT, ACTIVE |
-| OPENSENT | CONNECT only |
-| OPENCONFIRM | OPENSENT, OPENCONFIRM |
+| OPENSENT | CONNECT or ACTIVE after immediate OPEN or DelayOpen expiry |
+| OPENCONFIRM | OPENSENT, or CONNECT/ACTIVE after OPEN received during DelayOpen |
 | ESTABLISHED | OPENCONFIRM, ESTABLISHED |
 <!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, handleConnect, handleActive, handleOpenSent, handleOpenConfirm, handleEstablished -->
 
@@ -150,15 +150,17 @@ these later states.
 
 - **Trigger:** TCP handshake complete
 - **From:** CONNECT or ACTIVE
-- **To:** OPENSENT (after sending OPEN)
+- **To:** OPENSENT after sending OPEN when delay is zero; otherwise remain in
+  CONNECT or ACTIVE with DelayOpenTimer running and no OPEN sent
 <!-- source: internal/component/bgp/fsm/fsm.go -- handleConnect, handleActive, EventTCPConnectionConfirmed -->
 
 ### Receive OPEN
 
 - **Trigger:** Valid OPEN message received
-- **From:** OPENSENT
-- **To:** OPENCONFIRM (after sending KEEPALIVE)
-<!-- source: internal/component/bgp/fsm/fsm.go -- handleOpenSent, EventBGPOpen -->
+- **From:** OPENSENT, or CONNECT/ACTIVE while DelayOpenTimer runs
+- **To:** OPENCONFIRM (OPEN then KEEPALIVE for the delayed path)
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleOpenSent -->
+<!-- source: internal/component/bgp/fsm/delay_open.go -- handleDelayOpen -->
 
 ### Receive KEEPALIVE
 
@@ -233,10 +235,10 @@ Event 31 ZEROES the counter in OpenSent and OpenConfirm (Sections 8.5.2 and
 ### The two BFD strict-mode sub-states
 
 draft-ietf-idr-bgp-bfd-strict-mode Section 8.1 names four sub-states. Ze declares
-the two that sit inside OpenSent. The other two,
-`ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending`, are entered
-only by Event 20, an OPEN received while the DelayOpenTimer runs, and ze
-implements no DelayOpenTimer (permitted by RFC 4271 Section 8.2.1.3).
+the two that sit inside OpenSent. The base RFC 4271 DelayOpen timer is now
+implemented; the two strict-mode DelayOpen sub-states,
+`ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending`, belong to the
+separate strict-mode phase and are not claimed here.
 
 | Sub-state | Entered when | Left by |
 |-----------|--------------|---------|
@@ -301,9 +303,9 @@ facts; their OPEN is processed by the next Session, not the sealed loser.
 Three of those are per-state rather than uniform, and the FSM handlers say so
 in each arm:
 
-- Event 24 (NotifMsgVerErr) increments in Connect, Active and Established, and
-  does NOT in OpenSent or OpenConfirm, where its action list has no counter
-  line.
+- Event 24 (NotifMsgVerErr) increments in Established, and in Connect/Active
+  only when DelayOpenTimer is not running. It does NOT increment while that
+  timer runs, or in OpenSent/OpenConfirm, whose action lists have no counter line.
 - Event 18 (TcpConnectionFails) increments in Active, OpenConfirm and
   Established, and does NOT in Connect or OpenSent.
 - Event 10 (HoldTimer_Expires) applies only where the timer can be armed:
@@ -331,6 +333,32 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 - **Default:** 120 seconds
 - **Behavior:** Start on IDLE, fire triggers reconnect
 
+### DelayOpen Timer
+
+- **Configuration:** `timer { delay-open 5; }`, inherited at BGP, group, or peer
+  level. The YANG range is 0..240 seconds; zero is the default and sends OPEN
+  immediately.
+- **TCP success (Events 16/17):** stop ConnectRetryTimer, arm DelayOpenTimer,
+  retain the socket in Connect or Active, and write no OPEN.
+- **Peer OPEN (Event 20):** validate and negotiate against the prepared local
+  proposal, send OPEN, enter OpenConfirm, and send KEEPALIVE. Negotiated hold
+  zero leaves both HoldTimer and KeepaliveTimer off.
+- **Expiry (Event 12):** send OPEN, start the OPEN-wait HoldTimer, enter OpenSent.
+- **Failure and collision:** Connect Event 18 clears the delay and moves to
+  Active without incrementing; Active Event 18 clears it and moves to Idle with
+  an increment. An inbound OPEN may retire an OPEN-less held socket with
+  Event 23 and no NOTIFICATION. Two OPEN-less sockets are not compared by ID.
+- **Ownership:** the Session serializes expiry, OPEN receipt, and OPEN-less
+  collision retirement. A delayed OPEN write failure and the reader it wakes
+  share one Event 18 owner; transport closure must not erase the running-delay
+  flag before that event. Peer cleanup joins initial OPEN work and stops timers
+  even on failures before `Session.Run`; no callback can rearm after final cleanup.
+
+<!-- source: internal/component/bgp/fsm/timer_delay_open.go -- StartDelayOpenTimer, StopDelayOpenTimer -->
+<!-- source: internal/component/bgp/fsm/delay_open.go -- handleDelayOpen -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- delayOpenExpired, closeHeldForCollision, stopSessionTimers -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionCloseLocked -->
+
 ### Hold Timer
 
 - **Purpose:** Detect dead peer
@@ -346,7 +374,7 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 ### Open Wait Timer
 
 - **Purpose:** Timeout waiting for OPEN
-- **Default:** 60 seconds (`exabgp.bgp.openwait`)
+- **Default:** 120 seconds (`ze.bgp.openwait`)
 - **Behavior:** Fire in OPENSENT triggers disconnect
 
 ### BFD Hold-Down Timer

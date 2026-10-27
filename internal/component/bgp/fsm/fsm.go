@@ -8,9 +8,9 @@
 // RFC 4271 VIOLATIONS:
 //
 //  1. Missing optional session attributes (RFC 4271 Section 8.1.1):
-//     DelayOpen, TrackTcpState, and related timers are not implemented. This
-//     is permitted per RFC 4271 Section 8.2.1.3. The MANDATORY attributes of
-//     Section 8.1.1 are all present: State, ConnectRetryCounter (see
+//     TrackTcpState is not implemented, as permitted by Section 8.2.1.3.
+//     DelayOpen and its timer are supported when configured per peer.
+//     The mandatory attributes of Section 8.1.1 are present: State, ConnectRetryCounter (see
 //     connect_retry_counter.go), ConnectRetryTimer, HoldTimer and
 //     KeepaliveTimer (timer.go; the ConnectRetryTimer is the peer reconnect
 //     loop, see ARCHITECTURAL NOTES below). DampPeerOscillations is expressed
@@ -78,15 +78,14 @@ type StateCallback func(from, to State, event Event)
 //   - BGP message receipt (Events 19-28, Section 8.1.5)
 //   - Timer expiration (Events 9-13, Section 8.1.3)
 //
-// Note: This implementation does not include optional session attributes
-// (Section 8.1.1) such as DelayOpen, DampPeerOscillations, or TrackTcpState.
+// DelayOpen is enabled by the timer configuration. TrackTcpState is not implemented.
 type FSM struct {
 	mu sync.RWMutex
 
 	state    State
 	passive  bool          // Passive mode (listen only, no outgoing connection)
 	callback StateCallback // Called on state change
-	timers   *Timers       // RFC 4271 §8.2.2 HoldTimer owned by FSM; nil in tests
+	timers   *Timers       // RFC 4271 §8.2.2 timer actions; nil in pure-state tests
 
 	// crc is RFC 4271 §8.1.1 mandatory session attribute 2, the
 	// ConnectRetryCounter. It is owned by the PEER and shared with every
@@ -263,10 +262,8 @@ func (f *FSM) BfdSubState() BfdSubState {
 // and bfd.SessionState is neither Up nor AdminDown. The state stays OpenSent,
 // so this is a sub-state write and not a transition.
 //
-// It refuses the write outside OpenSent: the two OTHER pending sub-states the
-// draft names belong to the Connect and Active DelayOpen path, which Ze does
-// not implement, so an OpenSent sub-state set in any other state would be a
-// defect this reports rather than a state nobody can explain.
+// It refuses an OpenSent sub-state outside OpenSent. The distinct Connect and
+// Active DelayOpen strict-mode sub-states have separate entry requirements.
 func (f *FSM) EnterBfdUpPending() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -325,6 +322,16 @@ func (f *FSM) change(to State) {
 	// state." One place, so no handler can forget it.
 	if to == StateIdle && f.timers != nil {
 		f.timers.StopBfdHoldTimer()
+	}
+	if f.timers != nil {
+		if to == StateIdle {
+			// Active Event 18 restarts retry before entering Idle; every
+			// other Idle transition clears it. The Peer owns final cleanup.
+			if from != StateActive || f.event != EventTCPConnectionFails {
+				f.timers.StopConnectRetryTimer()
+			}
+			f.timers.StopDelayOpenTimer()
+		}
 	}
 
 	if f.callback == nil || from == to {
@@ -473,6 +480,7 @@ func (f *FSM) handleIdle(event Event) {
 		// these arrive here routinely rather than by accident.
 
 	case EventConnectRetryTimerExpires, EventHoldTimerExpires, EventKeepaliveTimerExpires,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventTCPConnectionConfirmed, EventTCPConnectionFails, EventBGPOpen,
 		EventBGPHeaderErr, EventBGPOpenMsgErr, EventNotifMsgVerErr, EventNotifMsg,
 		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr, EventOpenCollisionDump:
@@ -494,6 +502,9 @@ func (f *FSM) handleIdle(event Event) {
 // "In this state, BGP FSM is waiting for the TCP connection to be completed."
 // Handles connection events to transition to OpenSent or Idle state.
 func (f *FSM) handleConnect(event Event) error {
+	if f.handleDelayOpen(event) {
+		return nil
+	}
 	switch event {
 	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
@@ -528,6 +539,9 @@ func (f *FSM) handleConnect(event Event) error {
 		// initiates a TCP connection to the other BGP peer... and stays
 		// in the Connect state."
 		// (actual reconnect logic handled externally)
+		if f.timers != nil {
+			f.timers.StopDelayOpenTimer()
+		}
 
 	case EventTCPConnectionConfirmed:
 		// RFC 4271 Section 8.2.2: Event 16/17 (Tcp_CR_Acked/TcpConnectionConfirmed)
@@ -540,6 +554,14 @@ func (f *FSM) handleConnect(event Event) error {
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
 		// "If the DelayOpenTimer is not running... drops the TCP connection,
 		// releases all BGP resources, and changes its state to Idle."
+		if f.timers != nil && f.timers.IsDelayOpenTimerRunning() {
+			// RFC 4271 Section 8.2.2: "restarts the ConnectRetryTimer",
+			// "stops the DelayOpenTimer" and "changes its state to Active".
+			f.timers.StopDelayOpenTimer()
+			f.timers.StartConnectRetryTimer()
+			f.change(StateActive)
+			return nil
+		}
 		f.change(StateIdle)
 
 	case EventBfdAdminDown, EventBfdDisabled, EventBfdUp:
@@ -548,11 +570,8 @@ func (f *FSM) handleConnect(event Event) error {
 		// FSM is not in the ConnectDelayOpenBfdUpPending sub-state, the local
 		// system: stays in the Connect state."
 		//
-		// Ze never enters that sub-state. It is reached only from Section
-		// 8.3.5, an OPEN received while the DelayOpenTimer runs, and ze
-		// implements no DelayOpenTimer (see VIOLATIONS 1 in the file header,
-		// permitted by RFC 4271 Section 8.2.1.3). So the "not in the sub-state"
-		// branch is the only one, and staying in Connect is the whole action.
+		// The DelayOpen strict-mode sub-state is implemented separately from
+		// the base RFC 4271 DelayOpen transitions.
 
 	case EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.3.2: "The BfdDown event
@@ -571,11 +590,7 @@ func (f *FSM) handleConnect(event Event) error {
 		// increments the ConnectRetryCounter, ... and changes its state to
 		// Idle."
 		//
-		// Unreachable in ze today: the BfdHoldTimer is started only by the
-		// Section 8.3.5 and 8.4.5 DelayOpen paths and by Section 8.5.5, and the
-		// first two need a DelayOpenTimer ze does not implement. The arm exists
-		// so the counter clause is right the day one does, and because the
-		// alternative is the default arm, which would send an FSM Error.
+		// The base DelayOpen path does not arm the BFD hold timer.
 		f.crc.Increment()
 		f.change(StateIdle)
 
@@ -595,20 +610,13 @@ func (f *FSM) handleConnect(event Event) error {
 		// "releases all BGP resources, drops the TCP connection, increments
 		// the ConnectRetryCounter by 1... and changes its state to Idle."
 		//
-		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
-		// 1". All four events increment in the Connect state, which is why
-		// they share one arm here: Events 21/22 have that clause in their own
-		// paragraph, Event 24 has it in the DelayOpenTimer-is-not-running
-		// branch (ze runs no DelayOpenTimer, so that branch is the only one
-		// reachable), and Event 25 falls under "In response to any other
-		// events (Events 8, 10-11, 13, 19, 23, 25-28)", which lists it too.
-		// Contrast handleOpenSent and handleOpenConfirm, where Event 24 is
-		// deliberately split out because its clause list there has NO counter
-		// line.
+		// Event 24 with a running DelayOpenTimer is handled above and does
+		// not increment. Without a running timer it shares this action list.
 		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventHoldTimerExpires, EventKeepaliveTimerExpires, EventBGPOpen,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other events (Events 8,
 		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
@@ -634,6 +642,9 @@ func (f *FSM) handleConnect(event Event) error {
 // and accepting, a TCP connection."
 // Handles connection events for passive mode peers.
 func (f *FSM) handleActive(event Event) error {
+	if f.handleDelayOpen(event) {
+		return nil
+	}
 	switch event {
 	case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
@@ -676,6 +687,11 @@ func (f *FSM) handleActive(event Event) error {
 		// 1". Active is one of the three states where Event 18 carries this
 		// clause; the Connect state's Event 18 paragraph deliberately does
 		// not, and handleConnect matches that.
+		if f.timers != nil {
+			// RFC 4271 Section 8.2.2 Active Event 18: "restarts the
+			// ConnectRetryTimer (with the initial value)".
+			f.timers.StartConnectRetryTimer()
+		}
 		f.crc.Increment()
 		f.change(StateIdle)
 
@@ -708,9 +724,7 @@ func (f *FSM) handleActive(event Event) error {
 		// in the ActiveDelayOpenBfdUpPending sub-state, the local system:
 		// stays in the Active state."
 		//
-		// Ze never enters that sub-state, for the reason handleConnect's
-		// matching arm gives: Section 8.4.5 is its only entry and it needs a
-		// DelayOpenTimer ze does not implement.
+		// The base DelayOpen path does not enter a BFD sub-state.
 
 	case EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.4.2: "The BfdDown event
@@ -734,6 +748,7 @@ func (f *FSM) handleActive(event Event) error {
 		f.change(StateIdle)
 
 	case EventHoldTimerExpires, EventKeepaliveTimerExpires, EventBGPOpen,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 8,
 		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
@@ -972,6 +987,7 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// ignored in the OpenSent state." No state or counter action is due.
 
 	case EventConnectRetryTimerExpires, EventKeepaliveTimerExpires,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventTCPConnectionConfirmed, EventNotifMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 		// 11-13, 20, 25-28), the local system: sends the NOTIFICATION with the
@@ -1152,6 +1168,7 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// ignored in the OpenConfirm state." No state or counter action is due.
 
 	case EventConnectRetryTimerExpires, EventTCPConnectionConfirmed,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventBGPOpen, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 		// 12-13, 20, 27-28), the local system: sends a NOTIFICATION with a
@@ -1340,6 +1357,7 @@ func (f *FSM) handleEstablished(event Event) error {
 		// ignored in the Established state." No state or counter action is due.
 
 	case EventConnectRetryTimerExpires, EventTCPConnectionConfirmed,
+		EventDelayOpenTimerExpires, EventBGPOpenWithDelayOpenTimer,
 		EventBGPOpen, EventBGPOpenMsgErr:
 		// A second OPEN received on an established connection (EventBGPOpen) also
 		// lands here, and the reactor DOES rely on that: handleOpen's state gate

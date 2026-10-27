@@ -148,6 +148,8 @@ func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open, wire []b
 // processOpen handles a pre-parsed OPEN message.
 // Used by acceptWithOpen for collision resolution.
 func (s *Session) processOpen(open *message.Open) error {
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
 	if s.onOpenRecv != nil {
 		s.onOpenRecv()
 	}
@@ -327,6 +329,8 @@ func tuneTCPConnectionForSettings(tcp *net.TCPConn, settings *PeerSettings) erro
 
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
 	// Tune TCP socket for BGP:
 	// - TCP_NODELAY: BGP messages are application-framed and flushed
 	//   explicitly via bufio.Writer, so Nagle only adds latency.
@@ -410,9 +414,21 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.writeMu.Unlock()
 	s.mu.Unlock()
 
+	// Prepare the local proposal without publishing bytes while DelayOpen
+	// holds. Both OPEN receive rails negotiate against this exact proposal.
+	if s.settings.DelayOpen != 0 {
+		if err := s.prepareOpen(); err != nil {
+			s.closeConn()
+			return err
+		}
+	}
+
 	// Signal FSM.
 	if err := s.fsm.Event(fsm.EventTCPConnectionConfirmed); err != nil {
 		return err
+	}
+	if s.timers.IsDelayOpenTimerRunning() {
+		return nil
 	}
 
 	// Send OPEN message.
@@ -443,30 +459,39 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 // (fsm/connect_retry_counter.go). A connection lost to a collision is an
 // attempt that failed, so zeroing there would erase a real retry history.
 func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
-	s.timers.StopAll()
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
+	s.closeCollision(code, subcode, true)
+	return nil
+}
+
+// closeCollision owns the shared Event 23 retirement. The caller MUST hold
+// openMu; notify is false only for an OPEN-less Connect/Active connection.
+func (s *Session) closeCollision(code message.NotifyErrorCode, subcode uint8, notify bool) {
 	s.setCloseReason(ErrCollisionDump)
 
 	s.mu.Lock()
 	conn := s.conn
 	s.mu.Unlock()
 
-	if conn != nil {
-		s.logNotifyErr(conn, code, subcode, nil)
+	if notify {
+		if conn != nil {
+			s.logNotifyErr(conn, code, subcode, nil)
+		}
 	}
 
 	// RFC 4271 Section 8.2.2 (OpenSent, Event 23): "releases all BGP resources".
 	// The reason is set before NOTIFICATION I/O: a failed write can close the
 	// transport before closeConn runs. Run must still identify the collision,
 	// including when it reaches the nil-connection branch between reads.
-	s.closeConn()
 	s.logFSMEvent(fsm.EventOpenCollisionDump)
+	s.timers.StopAll()
+	s.closeConn()
 
 	select {
 	case s.errChan <- ErrCollisionDump:
 	default: // errChan full: the cancel goroutine already holds a signal
 	}
-
-	return nil
 }
 
 // ErrCollisionDump is the close reason of a session that collision resolution
@@ -594,6 +619,10 @@ func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error
 func (s *Session) closeConn() {
 	// Stop Send Hold Timer before acquiring s.mu to avoid lock ordering issues.
 	s.stopSendHoldTimer()
+	// Do not clear DelayOpen here: the cancel goroutine can close a failed
+	// writer's socket before Event 18 is delivered. Its failure owner must
+	// still see the running timer. stopSessionTimers joins OPEN work and
+	// stops all protocol timers when the Session finishes.
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

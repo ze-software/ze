@@ -326,6 +326,10 @@ func (p *Peer) runOnce() error {
 	p.mu.Unlock()
 
 	defer func() {
+		// A buffered OPEN can fail before Run installs its finalizers.
+		// This Peer owns the session from publication through every exit.
+		session.closeConn()
+		session.stopSessionTimers()
 		p.stopCapture(capture)
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.negotiatedHoldTime.Store(0)

@@ -177,8 +177,40 @@ func (p *Peer) resolvePendingCollision(pendingOpen *message.Open, wire []byte) (
 	if old != nil {
 		closeConnQuietly(old)
 	}
-	go func() {
-		_ = session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)
-	}()
+	go p.finishCollisionHandoff(session, conn, pendingOpen.BGPIdentifier)
 	return true, nil
+}
+
+// finishCollisionHandoff runs outside p.mu because closing can invoke a Peer
+// callback. Publishing the winner MUST precede this call, so runOnce cannot
+// miss it when retirement wakes the reconnect loop.
+func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID uint32) {
+	if session.closeHeldForCollision() {
+		return
+	}
+	// An OPEN or Event 12 may have won while the inbound was published.
+	// Re-ask Section 6.8 rather than closing a now-preferred connection.
+	accept, closeExisting := session.detectCollision(remoteID)
+	if accept && closeExisting {
+		if err := session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision); err != nil {
+			sessionLogger().Debug("collision close failed", "error", err)
+		}
+		return
+	}
+	p.mu.Lock()
+	if p.inbound.conn != conn {
+		// runOnce already owns it; only that owner may close it now.
+		p.mu.Unlock()
+		return
+	}
+	p.inbound = inboundConnection{}
+	p.collisionHandoff = false
+	select {
+	case <-p.inboundNotify:
+	default: // The run loop may already have consumed the wakeup.
+	}
+	p.mu.Unlock()
+	// Unlike the OPEN-less held loser, this connection already sent OPEN.
+	// RFC 4271 Section 6.8 requires Cease; no Peer lock is held while writing.
+	rejectConnectionCollision(conn)
 }

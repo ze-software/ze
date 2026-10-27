@@ -2,9 +2,10 @@
 
 ## TL;DR
 
-The system is actively dialing a TCP connection to the peer. Entered from
-Idle on `ManualStart` when the peer is configured with the active bit set.
-Exits to OpenSent once TCP is up, or back to Idle on failure or stop.
+The system is dialing a TCP connection, or holding a connected socket while
+DelayOpen runs. With `timer delay-open 0` (the default), TCP success sends OPEN
+immediately and enters OpenSent. A non-zero delay keeps Connect until peer OPEN
+(Event 20, directly to OpenConfirm) or timer expiry (Event 12, to OpenSent).
 
 RFC 4271 Section 8.2.2 "Connect state".
 
@@ -21,14 +22,11 @@ outer peer run loop once per reconnection cycle.
 <!-- source: internal/component/bgp/reactor/session.go — Start -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run loop calling session.Start then session.Connect -->
 
-The peer run loop then immediately calls `Session.Connect(ctx)` which
-dials TCP via the configured `network.Dialer`. Connect state is
-essentially a marker for "dial in progress". Because ze uses a blocking
-`DialContext`, the FSM does not sit in Connect waiting for asynchronous
-TCP events. The dial either succeeds (and the session fires
-`EventTCPConnectionConfirmed`, moving the FSM to OpenSent) or fails (and
-the session fires `EventTCPConnectionFails`, moving the FSM back to
-Idle).
+The peer run loop calls `Session.Connect(ctx)` through the configured
+`network.Dialer`. Dial failure returns to Idle. After TCP success,
+`connectionEstablished` fires Event 17 (also used for the outbound Event 16
+condition). With DelayOpen enabled, the socket and its reader remain owned by
+this Session, the retry timer is stopped, and no OPEN is written yet.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — Connect -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
@@ -39,11 +37,14 @@ Idle).
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startAutomatic()` / `startDamped()` call | ignored (RFC 4271) | none | `Connect` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | none while the dial is in progress (no connection is published yet); the teardown seals the session, so when the dial returns `connectionEstablished` refuses it and `Connect` closes the socket it dialed, sending no OPEN | `Idle` |
-| `EventConnectRetryTimerExpires` | not generated in production | no-op comment (reconnect handled externally) | none | `Connect` |
-| `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after successful `dialer.DialContext` | log transition | OPEN sent immediately after transition | `OpenSent` |
-| `EventTCPConnectionFails` | `Session.Connect` dial error path | cleanup in caller | none | `Idle` |
-| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / collision retirement | clear timers; **increments ConnectRetryCounter** | no OPEN after canceled dial; an OPEN-less collision loser closes without NOTIFICATION | `Idle` |
+| `EventConnectRetryTimerExpires` | not generated in production | clear DelayOpenTimer (Peer owns reconnect scheduling) | none | `Connect` |
+| `EventTCPConnectionConfirmed` | `Session.connectionEstablished` | stop ConnectRetryTimer; start DelayOpenTimer when configured | no OPEN while delayed; otherwise immediate OPEN | `Connect` when delayed, otherwise `OpenSent` |
+| `EventDelayOpenTimerExpires` | `Session.delayOpenExpired` | clear DelayOpenTimer and ConnectRetryTimer; arm OPEN-wait HoldTimer | OPEN | `OpenSent` |
+| `EventBGPOpenWithDelayOpenTimer` | `Session.advanceAfterOpen`, including `acceptWithOpen` | clear DelayOpenTimer and ConnectRetryTimer; arm negotiated hold/keepalive timers (both off for zero hold) | OPEN then KEEPALIVE | `OpenConfirm` |
+| `EventTCPConnectionFails` | dial error or held-socket read failure | with DelayOpen running, clear it and restart ConnectRetryTimer; otherwise stop retry | none | `Active` when delayed, otherwise `Idle` |
+| `EventNotifMsgVerErr` | received version-error NOTIFICATION | clear timers; no counter increment while DelayOpen runs, increment otherwise | none | `Idle` |
+| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsg` | message decode paths | clear timers; **increments ConnectRetryCounter** | error NOTIFICATION when applicable | `Idle` |
 | any other event (RFC 4271 lists 8, 10-11, 13, 19, 23, 25-28; Ze declares no Event 13) | unexpected | log transition; **increments ConnectRetryCounter** | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleConnect -->
@@ -54,33 +55,33 @@ Idle).
 
 | Timer | Status | Notes |
 |-------|--------|-------|
-| ConnectRetryTimer | conceptually running per RFC, **not started in ze** | Reconnect backoff lives in the outer peer run loop, not in the FSM timer layer. |
-| HoldTimer | not running | started on entry to OpenSent after OPEN is sent. |
-| KeepaliveTimer | not running | started in the OpenConfirm -> Established handoff. |
+| ConnectRetryTimer | stopped on TCP success; restarted on held-socket failure | The outer Peer still owns reconnect scheduling and destroys the old session's timer on exit. |
+| DelayOpenTimer | running only while the connected socket has sent no OPEN | `timer delay-open` is 0..240 seconds; zero disables it. |
+| HoldTimer | not running during DelayOpen | Event 12 starts the OPEN-wait bound; Event 20 starts the negotiated bound. |
+| KeepaliveTimer | not running during DelayOpen | Event 20 starts it unless negotiated hold time is zero. |
 
 <!-- source: internal/component/bgp/fsm/timer.go — Timers -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — exponential backoff at peer level -->
 
 ## Wire side effects
 
-- **On `EventTCPConnectionConfirmed` (transition to OpenSent):** the session
-  layer sends the OPEN message via `sendOpen(conn)` after tuning socket
-  options and snapshotting local addresses for NEXT_HOP validation.
-  Socket publication installs an observed buffered writer and rejects a
-  sealed Session under the same lock. The OPEN-wait hold timer then uses
-  `ze.bgp.openwait` (default 120 seconds), not the configured receive hold time.
-  <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished socket tuning and sendOpen call -->
-- **On `EventTCPConnectionFails`:** no NOTIFICATION is sent. The caller
-  simply returns the dial error to the peer run loop.
+- **On TCP success:** the session tunes the socket, publishes its reader and
+  writer, and prepares its local OPEN proposal. DelayOpen keeps that proposal
+  off the wire. Event 20 sends it before KEEPALIVE, without OpenSent; Event 12
+  sends it and starts `ze.bgp.openwait` (120 seconds by default).
+  <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
+  <!-- source: internal/component/bgp/reactor/session_delay_open.go — delayOpenExpired -->
+- **On `EventTCPConnectionFails`:** no NOTIFICATION is sent. A dial error
+  returns to the peer run loop. A held-socket read failure first applies Event
+  18 while DelayOpen is still running, then closes the socket and stops timers.
   <!-- source: internal/component/bgp/reactor/session_connection.go — Connect dial failure path -->
-- **On `EventManualStop`:** if a connection somehow exists at this point,
-  `Teardown` sends the configured Cease NOTIFICATION before invoking the
-  FSM event. In practice the connection is nil in Connect because the dial
-  is blocking, so no NOTIFICATION is sent. `Session.Stop` fires the same
-  event and sends nothing, on any connection; its only caller is the CLI
-  replay harness (`internal/test/cli/cmd_replay.go`).
-  <!-- source: internal/component/bgp/reactor/session_connection.go — Teardown -->
-  <!-- source: internal/component/bgp/reactor/session.go — Stop -->
+  <!-- source: internal/component/bgp/reactor/session_read.go — handleConnectionClose -->
+- **On stop or error:** timer cleanup includes DelayOpen. An inbound OPEN that
+  wins over an OPEN-less held connection uses `closeHeldForCollision`: Event 23,
+  one retry-counter increment, and no NOTIFICATION. If the existing OPEN won
+  first, the collision handoff rechecks RFC 4271 Section 6.8 instead.
+  <!-- source: internal/component/bgp/reactor/session_delay_open.go — closeHeldForCollision -->
+  <!-- source: internal/component/bgp/reactor/peer_connection.go — finishCollisionHandoff -->
 
 ## Code map
 
@@ -105,11 +106,10 @@ Idle).
   sophisticated than the RFC design. The FSM's Event 9 handler remains
   correct and tested, but it is architecturally unreachable.
   <!-- source: internal/component/bgp/fsm/fsm.go — ARCHITECTURAL NOTES -->
-- **Connect is effectively a transient marker.** Because ze's dial is
-  blocking, the FSM is never observed sitting in Connect waiting for TCP.
-  The state still exists because the FSM is a faithful implementation of
-  the RFC state table; it just is not a "waiting" state in practice.
-  <!-- source: internal/component/bgp/reactor/session_connection.go — DialContext in Connect -->
+- **Connect can hold a live connection.** DelayOpen is an actual waiting state,
+  bounded by its own timer. After a held-socket failure the FSM reports Active;
+  the old Session still ends and the Peer owns the next connection cycle.
+  <!-- source: internal/component/bgp/fsm/fsm.go — handleConnect -->
 
 ## Architectural notes
 
@@ -146,3 +146,8 @@ Idle).
   that dial to a test peer, verify the Connect -> OpenSent handoff, and
   exercise dial failures.
   <!-- source: internal/component/bgp/reactor/session_test.go -->
+- `internal/component/bgp/reactor/delay_open_test.go` and
+  `delay_open_collision_test.go` exercise held sockets, expiry, buffered OPEN,
+  and both identifier orders through real Peer cycles.
+  <!-- source: internal/component/bgp/reactor/delay_open_test.go -->
+  <!-- source: internal/component/bgp/reactor/delay_open_collision_test.go -->

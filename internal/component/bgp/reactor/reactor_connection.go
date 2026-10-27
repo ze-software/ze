@@ -235,7 +235,11 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 	// connection SHALL be tracked until it sends an OPEN message".
 	// Section 6.8 chooses the loser only after that OPEN arrives.
 	state := peer.SessionState()
-	if state == fsm.StateOpenSent || state == fsm.StateOpenConfirm || state == fsm.StateEstablished {
+	held := false
+	if session := peer.currentSession(); session != nil {
+		held = session.holdsOpen()
+	}
+	if held || state == fsm.StateOpenSent || state == fsm.StateOpenConfirm || state == fsm.StateEstablished {
 		if err := peer.setPendingConnection(conn); err != nil {
 			r.rejectConnectionCollisionWithSettings(conn, settings)
 			return
@@ -273,19 +277,23 @@ func (r *Reactor) rejectConnectionCollisionWithSettings(conn net.Conn, settings 
 			reactorLogger().Debug("collision notification socket tuning failed", "peer", settings.Address, "err", err)
 		}
 	}
-	r.rejectConnectionCollision(conn)
+	rejectConnectionCollision(conn)
 }
 
 // rejectConnectionCollision sends NOTIFICATION Cease/Connection Collision (6/7)
-// and closes the connection. RFC 4271 §6.8.
-func (r *Reactor) rejectConnectionCollision(conn net.Conn) {
+// and closes the connection, bounded by the normal control-write maximum.
+// RFC 4271 Section 6.8 requires Cease for this OPEN-bearing collision loser.
+func rejectConnectionCollision(conn net.Conn) {
+	defer closeConnQuietly(conn)
+	if err := conn.SetWriteDeadline(time.Now().Add(fwdWriteDeadlineDefault)); err != nil {
+		return
+	}
 	notif := &message.Notification{
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseConnectionCollision,
 	}
 	data := message.PackTo(notif, nil)
 	_, _ = conn.Write(data)
-	_ = conn.Close()
 }
 
 // handlePendingCollision reads OPEN from a pending connection and resolves collision.
@@ -318,14 +326,14 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	if err != nil {
 		peer.clearPendingConnection()
-		r.rejectConnectionCollision(conn)
+		rejectConnectionCollision(conn)
 		return
 	}
 
 	// Must be OPEN message
 	if hdr.Type != msgtype.TypeOPEN {
 		peer.clearPendingConnection()
-		r.rejectConnectionCollision(conn)
+		rejectConnectionCollision(conn)
 		return
 	}
 
@@ -340,7 +348,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// exactly this way (session_read.go, session_coalesce.go); this one did not.
 	if err := hdr.ValidateLengthWithMax(false); err != nil {
 		peer.clearPendingConnection()
-		r.rejectConnectionCollision(conn)
+		rejectConnectionCollision(conn)
 		return
 	}
 
@@ -356,7 +364,15 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
 	if err != nil {
 		peer.clearPendingConnection()
-		r.rejectConnectionCollision(conn)
+		rejectConnectionCollision(conn)
+		return
+	}
+	// The pending deadline bounds only the first OPEN. The winning Session
+	// owns its own timers; retaining this deadline would later drop a healthy
+	// connection, including one whose negotiated HoldTime is zero.
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		peer.clearPendingConnection()
+		closeConnQuietly(conn)
 		return
 	}
 
@@ -364,7 +380,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// The Peer run loop owns acceptance after the losing epoch is cleaned up.
 	accepted, rejected := peer.resolvePendingCollision(open, buf[:hdr.Length])
 	if !accepted && rejected != nil {
-		r.rejectConnectionCollision(rejected)
+		rejectConnectionCollision(rejected)
 	}
 }
 

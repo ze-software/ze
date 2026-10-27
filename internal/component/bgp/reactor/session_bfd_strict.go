@@ -292,6 +292,17 @@ func (s *Session) bfdStrictHolds() bool {
 // and sets a KeepaliveTimer (via the text below), changes its state to
 // OpenConfirm".
 func (s *Session) advanceAfterOpen(conn net.Conn) error {
+	if s.timers.IsDelayOpenTimerRunning() {
+		// RFC 4271 Section 8.2.2 Event 20: send OPEN then KEEPALIVE,
+		// and enter OpenConfirm directly, without passing OpenSent.
+		if err := s.sendOpen(conn); err != nil {
+			return err
+		}
+		if err := s.fsm.Event(fsm.EventBGPOpenWithDelayOpenTimer); err != nil {
+			return err
+		}
+		return s.sendKeepalive(conn)
+	}
 	if s.bfdStrictHolds() {
 		if err := s.fsm.EnterBfdUpPending(); err != nil {
 			return err

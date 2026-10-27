@@ -55,6 +55,12 @@ module ze-bgp-conf {
             ze:help "BGP Router ID for this speaker. Required unless every peer or its group sets one.";
         }
 
+        container timer {
+            description "BGP timer defaults inherited by groups and peers.";
+            ze:help "Session timer defaults inherited by groups and peers.";
+            uses delay-open-timer;
+        }
+
         leaf as-notation {
             type enumeration {
                 enum asplain { ze:help "Every AS number is a decimal integer"; }
@@ -337,6 +343,18 @@ module ze-bgp-conf {
             }
 
             uses peer-fields;
+        }
+    }
+
+    grouping delay-open-timer {
+        leaf delay-open {
+            type uint16 {
+                range "0..240";
+            }
+            default 0;
+            description "RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer
+                sends OPEN or this timer expires. Zero sends OPEN immediately.";
+            ze:help "Delay OPEN by 0..240 seconds; 0 disables DelayOpen.";
         }
     }
 
@@ -1306,6 +1324,8 @@ module ze-bgp-conf {
                     does not change that backoff.";
                 ze:help "Connect retry interval in seconds. Ze reads it for a dynamic peer alone.";
             }
+
+            uses delay-open-timer;
         }
 
         uses update-block;
