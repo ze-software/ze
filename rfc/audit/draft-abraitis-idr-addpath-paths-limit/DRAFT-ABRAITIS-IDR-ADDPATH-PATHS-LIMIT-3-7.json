@@ -1,15 +1,27 @@
 {
-  "note": "Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: \"An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.\" The tagged units changed only in config spelling: TestParsePeerCapabilityPathsLimit and every case of TestConfiguredPathsLimitOpen now write the knob as limit { receive N; } (receiveLimit(N)) at container and per-family level, which parseAddPathFromTree/addPathReceiveLimit parse to the same values the old scalar gave; every expected family set and limit map is byte-identical and all pass. They remain a strong test of half the sentence: the container knob, the per-family override, and disabled/refused/required families decide the tuples encoded in the OPEN, with an omitted limit advertising none. The other half, \"the maximum number of paths to accept\", is still not proven by any tagged unit. Phase 3 (9b7673180c) added a receive-side admission (pathsLimitAdmission with a bounded refused set, TestReceiveCeiling* in session_paths_limit_recv_test.go), but its own commit states it is not yet wired into processMessage, so no received path is dropped above the knob on the wire, and none of those tests carries a 3-7 tag. Weak stands until the receive ceiling is reachable from the wire and a tagged test asserts a path above the knob is not accepted.",
+  "note": "Re-judged 2026-10-27 by an independent judge (authored none of the tests). Section 3: \"An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.\" Both halves are now proven. Knob: TestParsePeerCapabilityPathsLimit and TestConfiguredPathsLimitOpen (unchanged) show limit { receive N; } at container and per-family level decides the advertised tuples, an omitted limit advertising none. Accept ceiling: the knob reaches session_negotiate.go initPathsLimitRecv(Encoding.PathsLimitRecv), and session_read.go calls receiveCeiling before checkPrefixLimits and delivery, which filters NLRIs admitPath refuses at len(prefix.ids) >= f.limit. test/plugin/paths-limit-receive-ceiling.ci drives it end to end from config: with receive 2, the plugin sees ids 1 and 2 of 10.0.0.0/8 plus 20.0.0.0/8 in one exact event line (positive, also proving the other prefix is untouched), id 3 only after a withdrawal of admitted id 1 frees a slot, and never id 4 (negative; reject=path-id 4). TestProcessMessageRefusesPathOverReceiveCeiling asserts the exact delivered path list through processMessage and the admitted/refused counts 2/1; TestReceiveCeilingAdmitsUpToLimit asserts exact admitted ids [1 2 7], refused counter 1, and a replacement at the ceiling kept. Positive inputs are conforming (at or under the ceiling), negatives exceed this ceiling and no neighbouring rule; assertions are exact, not floors. Discrimination records for all six tags observed red under admitPath breaks: ceiling check -> false (negatives) and limit -> limit-1 (positives).",
   "requirement_sha": "02645766ca857604",
   "tests": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "5575e2bdb345b347",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "3689081b28ebeaf3",
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "3689081b28ebeaf3"
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "3689081b28ebeaf3",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling": "3da54d72a50df17e",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling#2": "3da54d72a50df17e",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit": "3da54d72a50df17e",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit#2": "3da54d72a50df17e",
+    "test/plugin/paths-limit-receive-ceiling.ci": "3d79c46ebea6c7eb",
+    "test/plugin/paths-limit-receive-ceiling.ci#2": "3d79c46ebea6c7eb"
   },
   "units": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "d1cea9e5706b6445",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "cc39cab8e52e9a31",
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "cc39cab8e52e9a31"
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "cc39cab8e52e9a31",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling": "36dda0b8ba6e325b",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling#2": "36dda0b8ba6e325b",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit": "82fe867764a5ebae",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit#2": "82fe867764a5ebae",
+    "test/plugin/paths-limit-receive-ceiling.ci": "3d79c46ebea6c7eb",
+    "test/plugin/paths-limit-receive-ceiling.ci#2": "3d79c46ebea6c7eb"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

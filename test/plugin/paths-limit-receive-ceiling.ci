@@ -16,6 +16,9 @@
 # draft-abraitis-idr-addpath-paths-limit Section 3: "An implementation SHOULD
 # provide a configuration knob to specify the maximum number of paths to
 # accept from a sender."
+#
+# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 positive -- with `limit { receive 2; }` configured, the plugin receives path identifiers 1 and 2 of 10.0.0.0/8 and the path of 20.0.0.0/8 from the first UPDATE, and identifier 3 once a withdrawal of admitted identifier 1 frees a slot.
+# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 negative -- with `limit { receive 2; }` configured, a path identifier for 10.0.0.0/8 beyond the two admitted never reaches the plugin: identifier 3 is absent from the first UPDATE's event and identifier 4 from every event.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

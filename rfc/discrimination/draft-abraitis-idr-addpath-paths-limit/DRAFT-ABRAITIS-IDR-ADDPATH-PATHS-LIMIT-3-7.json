@@ -1,0 +1,70 @@
+[
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling",
+    "unit-sha": "70b1ac1c2852fa00",
+    "claim-sha": "80b175be28282e50",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(f.limit)\" -\u003e \"false\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling",
+    "unit-sha": "70b1ac1c2852fa00",
+    "claim-sha": "d8c959cad145e5b5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"int(f.limit)\" -\u003e \"int(f.limit)-1\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit",
+    "unit-sha": "ca4ece8e347c47ab",
+    "claim-sha": "0def1212b47f07e7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(f.limit)\" -\u003e \"false\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit",
+    "unit-sha": "ca4ece8e347c47ab",
+    "claim-sha": "b6ed71e6bf9dae15",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"int(f.limit)\" -\u003e \"int(f.limit)-1\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "negative",
+    "unit": "test/plugin/paths-limit-receive-ceiling.ci",
+    "unit-sha": "f748869d8b6726f5",
+    "claim-sha": "297bc0b97da631ad",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(f.limit)\" -\u003e \"false\"",
+    "citation": "reject=stderr:contains=path-id 4"
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
+    "polarity": "positive",
+    "unit": "test/plugin/paths-limit-receive-ceiling.ci",
+    "unit-sha": "f748869d8b6726f5",
+    "claim-sha": "b957164455983644",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_paths_limit.go::admitPath",
+    "producer-sha": "6f54efc0018a12d0",
+    "break": "line 385: \"int(f.limit)\" -\u003e \"int(f.limit)-1\"",
+    "citation": "expect=stderr:contains=ADDPATH-EVENT: add 10.0.0.0/8 path-id 1 10.0.0.0/8 path-id 2 20.0.0.0/8 path-id 1"
+  }
+]

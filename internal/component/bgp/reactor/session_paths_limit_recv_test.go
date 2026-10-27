@@ -133,33 +133,6 @@ func equalIDs(got []uint32, want ...uint32) bool {
 	return true
 }
 
-// TestReceiveCeilingAdmitsUpToLimit proves that ceiling 2 admits two path
-// identifiers for one prefix, refuses the third, and leaves every other prefix
-// in the same UPDATE untouched. Method: one UPDATE carrying three paths for one
-// prefix and one path for another, read back from the rewritten body.
-//
-// VALIDATES: AC-8 at unit level.
-func TestReceiveCeilingAdmitsUpToLimit(t *testing.T) {
-	r := newRecvCeiling(t)
-	announced, _ := r.receive(t, recvAnnounce(
-		pathsLimitNLRI(1, pathsLimitRecvPrefix),
-		pathsLimitNLRI(2, pathsLimitRecvPrefix),
-		pathsLimitNLRI(3, pathsLimitRecvPrefix),
-		pathsLimitNLRI(7, "203.0.113.0/24"),
-	))
-	if !equalIDs(announced, 1, 2, 7) {
-		t.Fatalf("admitted %v, want [1 2 7]: the third path is refused and the other prefix kept", announced)
-	}
-	if got := r.refusedCount(t); got != 1 {
-		t.Fatalf("refused counter %v, want 1", got)
-	}
-	// A replacement on an admitted identifier at the ceiling consumes no slot.
-	announced, _ = r.receive(t, recvAnnounce(pathsLimitNLRI(2, pathsLimitRecvPrefix)))
-	if !equalIDs(announced, 2) {
-		t.Fatalf("replacement of admitted id 2 gave %v, want [2]", announced)
-	}
-}
-
 // TestReceiveCeilingAcceptsWithdrawOfRefusedPath proves that a WITHDRAW of an
 // identifier the ceiling refused is accepted without error and frees no slot
 // that was never taken. Method: fill the ceiling, refuse id 3, withdraw it,
@@ -422,34 +395,6 @@ func mpReachPaths(t *testing.T, fam family.Family, body []byte) []string {
 		t.Fatal(err)
 	}
 	return paths
-}
-
-// TestProcessMessageRefusesPathOverReceiveCeiling drives one UPDATE through
-// processMessage: three paths for one route at ceiling 2 and one path for
-// another route. The delivery callback must see the first two paths and the
-// other route, never the third path, and the ceiling must hold what was
-// delivered (AC-8).
-func TestProcessMessageRefusesPathOverReceiveCeiling(t *testing.T) {
-	s, delivered := recvCeilingSession(t, 100, family.IPv4Unicast)
-	recvProcess(t, s, prefixReceiveBody(family.IPv4Unicast, bytes.Join([][]byte{
-		pathsLimitNLRI(1, pathsLimitRecvPrefix),
-		pathsLimitNLRI(2, pathsLimitRecvPrefix),
-		pathsLimitNLRI(3, pathsLimitRecvPrefix),
-		pathsLimitNLRI(1, pathsLimitRecvOther),
-	}, nil), nil))
-
-	if len(*delivered) != 1 {
-		t.Fatalf("delivered %d UPDATEs, want 1", len(*delivered))
-	}
-	got := strings.Join(mpReachPaths(t, family.IPv4Unicast, (*delivered)[0]), " ")
-	want := pathsLimitRecvPrefix + "#1 " + pathsLimitRecvPrefix + "#2 " + pathsLimitRecvOther + "#1"
-	if got != want {
-		t.Fatalf("delivered paths %q, want %q", got, want)
-	}
-	if admitted, refused := recvSessionTracked(t, s, family.IPv4Unicast, pathsLimitRecvPrefix); admitted != 2 || refused != 1 {
-		t.Fatalf("ceiling holds %d admitted, %d refused; want 2, 1", admitted, refused)
-	}
-	prefixReceiveCount(t, s, family.IPv4Unicast, 3)
 }
 
 // TestReceiveCeilingRollsBackOnPrefixLimitDrop admits a path, then sends an
