@@ -33,52 +33,54 @@ type scenarioCheck struct {
 }
 
 var scenarioCheckers = map[string]scenarioCheck{
-	"child-rekey":                                     {run: checkChildRekey},
-	"child-rekey-narrowing":                           {run: checkChildRekeyNarrowing},
-	"child-rekey-refused-keeps-the-sa":                {run: checkChildRekeyRefusedKeepsTheSA},
-	"childless-ike-sa-ze-initiator":                   {run: checkChildlessIKESAZeInitiator},
-	"childless-ike-sa-ze-responder":                   {run: checkChildlessIKESAZeResponder},
-	"clear-reestablish":                               {run: checkClearReestablish},
-	"cookie-challenge":                                {run: checkCookieChallenge},
-	"dataplane-readback":                              {run: checkDataplaneReadback},
-	"delete-while-window-held":                        {run: checkDeleteWhileWindowHeld},
-	"eap-mschapv2":                                    {run: checkEAPMSCHAPv2},
-	"eap-nak-method-negotiation":                      {run: checkEAPNakMethodNegotiation},
-	"eap-tls":                                         {run: checkEAPTLS},
-	"eap-tls13":                                       {run: checkEAPTLS13},
-	"esn-both-offered":                                {run: checkESNBothOffered},
-	"esn-extended-only-refused":                       {run: checkESNExtendedOnlyRefused},
-	"esp-3des-sha1":                                   {run: checkESPKernel("3des", "cbc(des3_ede)", "hmac(sha1)")},
-	"esp-aes-cbc-sha256":                              {run: checkESPKernel("aes256", "cbc(aes)", "hmac(sha256)")},
-	"esp-chacha20poly1305":                            {run: checkESPKernel("chacha20poly1305", "rfc7539esp(chacha20,poly1305)")},
-	"esp-form-change":                                 {run: checkESPFormChange},
-	"esp-integrity-only-null":                         {run: checkESPIntegrityOnlyNull},
-	"ike-aes-ccm16":                                   {run: checkIKEAESCCM16},
-	"ike-padded-probe-strongswan":                     {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
-	"ike-rekey-retries-in-the-named-group":            {run: checkIKERekeyRetriesInTheNamedGroup},
-	"initiator-rekey-answer-narrows":                  {run: checkInitiatorRekeyAnswerNarrows},
-	"invalid-ke-retry":                                {run: checkInvalidKERetry},
-	"ipsec-bgp-redistribute-frr":                      {run: checkIPsecBGPRedistributeFRR},
-	"mobike-initiator":                                {run: checkMOBIKEInitiator},
-	"mobike-responder":                                {run: checkMOBIKEResponder},
-	"mtu-nat-installed-endpoint":                      {run: checkMTUNATInstalledEndpoint},
-	"mtu-negotiated-transform":                        {run: checkMTUNegotiatedTransform},
-	"mtu-tunnel-sizing-strongswan":                    {run: checkMTUTunnelSizingStrongSwan},
-	"natt-transport-inner-checksum":                   {run: checkNATTTransportInnerChecksum},
-	"natt-tunnel-inner-checksum":                      {run: checkNATTTunnelInnerChecksum},
-	"out-of-sa-request-notified-over-sa":              {run: checkOutOfSARequestNotifiedOverSA},
-	"peer-reload-narrowing":                           {run: checkPeerReloadNarrowing},
-	"psk-site-to-site":                                {run: checkPSKSiteToSite},
-	"real-nat-port-translated-eap-ze-responder":       {run: checkRealNATPortTranslatedEAPZeResponder},
-	"real-nat-port-translated-transport-ze-responder": {run: checkRealNATPortTranslatedTransportZeResponder},
-	"real-nat-port-translated-ze-responder":           {run: checkRealNATPortTranslatedZeResponder},
-	"real-nat-transport-ze-initiator":                 {run: checkRealNATTransportZeInitiator},
-	"real-nat-transport-ze-responder":                 {run: checkRealNATTransportZeResponder},
-	"real-nat-tunnel-control":                         {run: checkRealNATTunnelControl},
-	"responder-accepts-reinit":                        {run: checkResponderAcceptsReinit},
-	"responder-eap-mschapv2":                          {run: checkResponderEAPMSCHAPv2},
-	"responder-eap-tls12":                             {run: checkResponderEAPTLS12},
-	"responder-eap-tls13":                             {run: checkResponderEAPTLS13},
+	"child-rekey":                                           {run: checkChildRekey},
+	"child-rekey-narrowing":                                 {run: checkChildRekeyNarrowing},
+	"child-rekey-refused-keeps-the-sa":                      {run: checkChildRekeyRefusedKeepsTheSA},
+	"childless-ike-sa-ze-initiator":                         {run: checkChildlessIKESAZeInitiator},
+	"childless-ike-sa-ze-responder":                         {run: checkChildlessIKESAZeResponder},
+	"clear-reestablish":                                     {run: checkClearReestablish},
+	"cookie-challenge":                                      {run: checkCookieChallenge},
+	"dataplane-readback":                                    {run: checkDataplaneReadback},
+	"delete-while-window-held":                              {run: checkDeleteWhileWindowHeld},
+	"eap-mschapv2":                                          {run: checkEAPMSCHAPv2},
+	"eap-nak-method-negotiation":                            {run: checkEAPNakMethodNegotiation},
+	"eap-tls":                                               {run: checkEAPTLS},
+	"eap-tls13":                                             {run: checkEAPTLS13},
+	"esn-both-offered":                                      {run: checkESNBothOffered},
+	"esn-extended-only-refused":                             {run: checkESNExtendedOnlyRefused},
+	"esp-3des-sha1":                                         {run: checkESPKernel("3des", "cbc(des3_ede)", "hmac(sha1)")},
+	"esp-aes-cbc-sha256":                                    {run: checkESPKernel("aes256", "cbc(aes)", "hmac(sha256)")},
+	"esp-chacha20poly1305":                                  {run: checkESPKernel("chacha20poly1305", "rfc7539esp(chacha20,poly1305)")},
+	"esp-form-change":                                       {run: checkESPFormChange},
+	"esp-integrity-only-null":                               {run: checkESPIntegrityOnlyNull},
+	"ike-aes-ccm16":                                         {run: checkIKEAESCCM16},
+	"ike-padded-probe-strongswan":                           {run: checkIKEPaddedProbeStrongSwan, writesPeerSysctl: true},
+	"ike-rekey-retries-in-the-named-group":                  {run: checkIKERekeyRetriesInTheNamedGroup},
+	"initiator-rekey-answer-narrows":                        {run: checkInitiatorRekeyAnswerNarrows},
+	"invalid-ke-retry":                                      {run: checkInvalidKERetry},
+	"ipsec-bgp-redistribute-frr":                            {run: checkIPsecBGPRedistributeFRR},
+	"mobike-initiator":                                      {run: checkMOBIKEInitiator},
+	"mobike-responder":                                      {run: checkMOBIKEResponder},
+	"mtu-nat-installed-endpoint":                            {run: checkMTUNATInstalledEndpoint},
+	"mtu-negotiated-transform":                              {run: checkMTUNegotiatedTransform},
+	"mtu-tunnel-sizing-strongswan":                          {run: checkMTUTunnelSizingStrongSwan},
+	"natt-transport-inner-checksum":                         {run: checkNATTTransportInnerChecksum},
+	"natt-tunnel-inner-checksum":                            {run: checkNATTTunnelInnerChecksum},
+	"out-of-sa-request-notified-over-sa":                    {run: checkOutOfSARequestNotifiedOverSA},
+	"peer-reload-narrowing":                                 {run: checkPeerReloadNarrowing},
+	"psk-site-to-site":                                      {run: checkPSKSiteToSite},
+	"real-nat-port-translated-eap-ze-responder":             {run: checkRealNATPortTranslatedEAPZeResponder},
+	"real-nat-port-translated-transport-ze-responder":       {run: checkRealNATPortTranslatedTransportZeResponder},
+	"real-nat-port-translated-ze-responder":                 {run: checkRealNATPortTranslatedZeResponder},
+	"real-nat-transport-rekey-after-ike-rekey":              {run: checkRealNATTransportRekeyAfterIKERekey},
+	"real-nat-transport-ze-initiator":                       {run: checkRealNATTransportZeInitiator},
+	"real-nat-transport-ze-initiator-rekey-after-ike-rekey": {run: checkRealNATTransportZeInitiatorRekeyAfterIKERekey},
+	"real-nat-transport-ze-responder":                       {run: checkRealNATTransportZeResponder},
+	"real-nat-tunnel-control":                               {run: checkRealNATTunnelControl},
+	"responder-accepts-reinit":                              {run: checkResponderAcceptsReinit},
+	"responder-eap-mschapv2":                                {run: checkResponderEAPMSCHAPv2},
+	"responder-eap-tls12":                                   {run: checkResponderEAPTLS12},
+	"responder-eap-tls13":                                   {run: checkResponderEAPTLS13},
 	// The leaf-only client establishes exactly as responder-eap-tls13 does, so it
 	// runs the same checker: the scenario differs in its chain alone (RFC 5216
 	// Section 5.3, Ze's intermediate-certificate list completes the path).
@@ -1937,6 +1939,137 @@ func checkRealNATTransport(ctx context.Context, lab *scenarioLab) error {
 
 	return lab.verifyESPDirectionsToward(ctx,
 		"traffic did not cross the transport-mode Child SA through the NAT",
+		pingProbe{peer: zePeer, target: swanPublicIP}, natESPDirections)
+}
+
+// checkRealNATTransportRekeyAfterIKERekey proves the RESPONDER half of a transport-mode
+// Child SA rekey that follows an IKE SA rekey, behind the lab NAT.
+//
+// RFC 7296 Section 2.8: the new IKE SA "inherits all of the original IKE SA's Child
+// SAs", and Section 1.3.3: "when rekeying a transport mode SA, the USE_TRANSPORT_MODE
+// notification will be used". strongSwan rekeys the IKE SA, then the Child SA, and Ze
+// answers both: the Child SA rekey arrives on the successor IKE SA, which carries no
+// IKE_AUTH mode decision. Before the fix Ze judged that request with no transport-mode
+// substitution and answered TS_UNACCEPTABLE, so the Child SA expired at its lifetime.
+//
+// After the rekey the ESP SPIs changed, Ze's selectors are still the substituted pair,
+// Ze's inbound state is still transport mode, and ESP crosses both directions.
+func checkRealNATTransportRekeyAfterIKERekey(ctx context.Context, lab *scenarioLab) error {
+	initial, err := realNATTransportBeforeRekey(ctx, lab)
+	if err != nil {
+		return err
+	}
+	if err := lab.swanRekeyChild(ctx, "ze-child"); err != nil {
+		return err
+	}
+	return realNATTransportAfterRekey(ctx, lab, initial, 60*time.Second, "strongSwan's Child SA rekey on the successor IKE SA")
+}
+
+// checkRealNATTransportZeInitiatorRekeyAfterIKERekey proves the INITIATOR half: Ze
+// dials from the client side, strongSwan rekeys the IKE SA, and Ze's own Child SA
+// lifetime then rekeys the transport Child SA on the successor (initiateChildRekey, then
+// applyChildRekeyResponse). Before the fix Ze read the NATed answer in tunnel mode and
+// refused it as widened, so the Child SA expired.
+func checkRealNATTransportZeInitiatorRekeyAfterIKERekey(ctx context.Context, lab *scenarioLab) error {
+	initial, err := realNATTransportBeforeRekey(ctx, lab)
+	if err != nil {
+		return err
+	}
+	return realNATTransportAfterRekey(ctx, lab, initial, 90*time.Second, "Ze's lifetime Child SA rekey on the successor IKE SA")
+}
+
+// realNATTransportBeforeRekey establishes the transport Child SA through the NAT with
+// every checkRealNATTransport assertion, rekeys the IKE SA from strongSwan, waits until
+// strongSwan logs the IKE SA rekeyed, and only then snapshots Ze's ESP SPIs.
+//
+// The snapshot follows the IKE SA rekey on purpose: a Child SA rekey that ran on the
+// ORIGINAL IKE SA (Ze's 30 second lifetime can fire during the establishment checks)
+// changes the SPIs too, and a snapshot taken before it would let that rekey satisfy the
+// wait. Taken after, only a Child SA rekey on the successor IKE SA can.
+func realNATTransportBeforeRekey(ctx context.Context, lab *scenarioLab) (map[string]struct{}, error) {
+	if err := checkRealNATTransport(ctx, lab); err != nil {
+		return nil, err
+	}
+	if err := lab.swanRekeyIKE(ctx); err != nil {
+		return nil, err
+	}
+	logs, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 60 * time.Second, Interval: 2 * time.Second, Description: "strongSwan IKE SA rekey through the NAT",
+	}, func(probe context.Context) (string, error) { return lab.logs(probe, swanPeer) }, swanIKERekeyed.MatchString)
+	if err != nil {
+		return nil, err
+	}
+	if strings.Contains(logs, "INVALID_SYNTAX") {
+		return nil, interoplab.WithSearchedOutput(fmt.Errorf("strongSwan reported an error during the IKE SA rekey"), logs)
+	}
+	initial, err := lab.espSPIs(ctx, zePeer)
+	if err != nil {
+		return nil, err
+	}
+	if len(initial) == 0 {
+		return nil, fmt.Errorf("ze holds no ESP SPI after the IKE SA rekey, so a changed SPI would prove nothing")
+	}
+	return initial, nil
+}
+
+// realNATTransportAfterRekey waits until none of Ze's ESP SPIs is one held before the
+// rekey, refusing early when strongSwan logs TS_UNACCEPTABLE, then repeats the
+// selector, mode and traffic assertions over the replacement Child SA.
+func realNATTransportAfterRekey(ctx context.Context, lab *scenarioLab, initial map[string]struct{}, timeout time.Duration, what string) error {
+	refused := "TS_UNACCEPTABLE"
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: timeout, Interval: 2 * time.Second, Description: what,
+	}, func(probe context.Context) (string, error) {
+		logs, err := lab.logs(probe, swanPeer)
+		if err != nil {
+			return "", err
+		}
+		if strings.Contains(logs, refused) {
+			return refused, nil
+		}
+		after, err := lab.espSPIs(probe, zePeer)
+		if err != nil {
+			return "", err
+		}
+		return strings.Join(slices.Sorted(maps.Keys(after)), " "), nil
+	}, func(state string) bool {
+		if state == refused {
+			return true
+		}
+		after := strings.Fields(state)
+		if len(after) == 0 {
+			return false
+		}
+		for _, spi := range after {
+			if _, held := initial[spi]; held {
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(logs, refused) {
+		return interoplab.WithSearchedOutput(fmt.Errorf("%s was answered TS_UNACCEPTABLE", what), logs)
+	}
+	if err := lab.assertZeSelectors(ctx, natTransportZeLocal, natTransportZeRemote); err != nil {
+		return err
+	}
+	state, err := lab.inboundXFRMState(ctx, zePeer, swanPublicIP, zeIP)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(state, "mode transport",
+		"ze's INBOUND state after the rekey is not transport mode: "+state); err != nil {
+		return err
+	}
+	return lab.verifyESPDirectionsToward(ctx,
+		"traffic did not cross the rekeyed transport-mode Child SA through the NAT",
 		pingProbe{peer: zePeer, target: swanPublicIP}, natESPDirections)
 }
 

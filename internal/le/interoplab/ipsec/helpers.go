@@ -2044,6 +2044,15 @@ func (l *scenarioLab) swanRekeyIKE(ctx context.Context) error {
 	return nil
 }
 
+// swanRekeyChild asks strongSwan to rekey the named Child SA now, so Ze answers the
+// CREATE_CHILD_SA REKEY_SA request as the responder (respondChildRekey).
+func (l *scenarioLab) swanRekeyChild(ctx context.Context, child string) error {
+	if _, err := l.exec(ctx, swanPeer, cmdSwanctl, "--rekey", "--child", child); err != nil {
+		return fmt.Errorf("swanctl --rekey --child %s: %w", child, err)
+	}
+	return nil
+}
+
 // measurementRowOf answers the ONE measurement row carrying the label and the
 // target, or an error naming what the list holds instead.
 func measurementRowOf(run map[string]any, label, target string) (map[string]any, error) {
