@@ -58,6 +58,21 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   increments. With no authentication configured, the engine signer returns the
   original payload instead.
   <!-- source: internal/plugins/ospf/transport/transport.go -- SetSigner, SendPacket, SendPacketRouted -->
+- **A panic in an interface's receive path ends that interface, never the
+  process.** Each interface has two receive tasks: the backend's socket reader
+  (`linuxInterface.readLoop`, task `interface-read`) and the transport's fan-in
+  (`Transport.rxLoop`, task `interface-fan-in`). Each defers the shared
+  `taskguard` boundary at its top, so a Ze defect a received datagram reaches is
+  logged at ERROR, counted in `ze_task_panics_total{component="ospf",task}` and
+  written as a crash record that `ze show crashes` lists. The interface then
+  leaves OSPF through its ordinary link-down path: its neighbors go Down
+  (RFC 2328 Section 9.3, InterfaceDown), and the 30-second rescan reopens it.
+  The other interfaces keep receiving. A reader that ends for any other reason,
+  such as a socket error, takes the same path (`receiveEnded`), so an open
+  interface never sits with nobody reading its socket.
+  <!-- source: internal/plugins/ospf/transport/panic_guard.go -- receivePanics, receiveEnded -->
+  <!-- source: internal/plugins/ospf/transport/backend_linux.go -- readLoop -->
+  <!-- source: internal/plugins/ospf/transport/transport.go -- rxLoop, linkDown -->
 
 ## Constraints on callers
 

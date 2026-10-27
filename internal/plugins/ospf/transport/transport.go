@@ -17,6 +17,7 @@ import (
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/plugins/ospf/wire"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -138,6 +139,7 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	receivePanics().guard.SetMetricsRegistry(reg)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.metrics = newTransportMetrics(reg)
@@ -426,9 +428,20 @@ func (t *Transport) HandleLinkUp(name string) error {
 }
 
 func (t *Transport) HandleLinkDown(name string) error {
+	return t.linkDown(name, nil)
+}
+
+// linkDown closes the open interface name. With only non-nil it closes the
+// interface only while only is still its open state, so receiveEnded never
+// closes an interface a link-down and link-up already replaced.
+func (t *Transport) linkDown(name string, only *ifaceState) error {
 	t.mu.Lock()
 	st, open := t.interfaces[name]
 	if !open {
+		t.mu.Unlock()
+		return nil
+	}
+	if only != nil && st != only {
 		t.mu.Unlock()
 		return nil
 	}
@@ -455,7 +468,13 @@ func (t *Transport) RecordDrop(name, reason string) {
 	t.metrics.packetsDropped.With(name, reason).Inc()
 }
 
+// rxLoop is the fan-in task of one open interface: it counts each packet the
+// backend's reader queues and hands it to the engine, until HandleLinkDown
+// closes st.stop. A panic here, or a reader that ended on its own, takes the
+// interface down through receiveEnded.
 func (t *Transport) rxLoop(st *ifaceState) {
+	defer receivePanics().fanIn.Contain(st.describe, func(*taskguard.Panic) { t.receiveEnded(st) })
+
 	recv := st.handle.Recv()
 	for {
 		select {
@@ -463,6 +482,7 @@ func (t *Transport) rxLoop(st *ifaceState) {
 			return
 		case pkt, ok := <-recv:
 			if !ok {
+				t.receiveEnded(st)
 				return
 			}
 			t.metrics.packetsReceived.With(st.name, packetTypeLabel(pkt.Payload)).Inc()
