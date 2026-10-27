@@ -32,7 +32,9 @@ FROM alpine:3.24.3
 # tcpreplay: the isis-purge-reorig-frr checker sends a purge of Ze's own LSP
 # from inside this container (interoplab.SendFrameInContainer), so the send
 # needs no host privilege to enter the container's network namespace.
-RUN apk add --no-cache tini nftables iproute2 tcpreplay
+# tcpdump: bgp-delayopen-frr observes native TCP handshakes and BGP timing.
+# Its bounded capture runs inside this container, never through a host sudo.
+RUN apk add --no-cache tini nftables iproute2 tcpreplay tcpdump
 
 COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it

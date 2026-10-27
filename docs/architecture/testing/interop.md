@@ -2533,6 +2533,33 @@ All four original baseline assertions run before and after the cycle.
 <!-- source: internal/le/interoplab/bgp/check_med_pmacct_epoch.go -- requireMEDWholeSetInput, medWholeSetSameEpoch, medWholeSetInputCriteria -->
 <!-- source: test/interop/scenarios/bgp-addpath-best-path-pmacct/ze.conf -- peer inputs -->
 
+### DelayOpen timing against native FRR
+
+`bgp-delayopen-frr` keeps Ze and both FRR peers administratively held until a
+bounded packet capture is active inside Ze's container. Native administrative
+commands then release the peers; no relay or payload rewrite sits between them.
+The fixture pairs a shorter Ze delay with a longer FRR delay to observe timer
+expiry, and a longer Ze delay with a shorter FRR delay to observe early-OPEN
+release. Both speakers must report Established.
+
+The checker measures OPEN timing from each completed TCP handshake and checks
+every observed connection, including losers. Each peer must have one surviving
+connection with OPEN followed by KEEPALIVE in both directions. Missing bytes,
+incomplete handshakes, truncation, capture drops or an unfinished capture
+cannot prove that no premature OPEN was sent. Retained `wire.pcap` and
+`proof.json` carry the wire history, configurations and native answers; retain
+the suite's image-identity JSON alongside them. Opposite-initiator overlap is
+reported only as a collision opportunity, not proof of an internal arbitration
+order. The real-Peer tests retain that detailed ordering responsibility.
+
+Timing uses each byte's first captured arrival. ACK and FIN boundaries must
+already have complete payload coverage at their capture time; a later
+retransmission or FIN cannot repair earlier evidence. A reordered capture may
+therefore be refused as insufficient timing proof, not as a peer protocol fault.
+<!-- source: test/interop/scenarios/bgp-delayopen-frr/ -- native peer configuration -->
+<!-- source: internal/le/interoplab/bgp/check_delayopen.go -- checkDelayOpenFRR, startDelayOpenCapture, stopDelayOpenCapture -->
+<!-- source: internal/le/interoplab/bgp/check_delayopen_wire.go -- delayOpenHistory, judgeDelayOpen, delayOpenCaptureComplete -->
+
 ### Scenario Inventory
 
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
