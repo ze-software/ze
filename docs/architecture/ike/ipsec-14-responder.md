@@ -266,7 +266,8 @@ A Child SA request Ze itself sends on that IKE SA, a rekey or a new Child SA,
 proposes the peer's side as its lease host inside each configured remote prefix
 that contains it, or against Ze's wildcard when no selector is configured
 (`proposeLeasedChildTSPayloads`, called from `proposeChildTSPayloads`), and
-records that as the ceiling. `recordInitiatorSelectors` then calls
+records that as the ceiling. `recordInitiatorSelectorsIn`, which reads the
+answer to every rekey and new Child SA request, then calls
 `answerNamesOnlyLeases`, which refuses an answer whose peer side is the pool
 prefix, the wildcard or anything else but a lease host, before the ceiling
 check, so the configured-policy fallback ceiling cannot admit it either. A

@@ -366,7 +366,7 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 	// The test infrastructure can narrow what THIS request proposes, which is the only way
 	// a Ze peer proposes a scope narrower than the SA in use (narrowedRekeyPairs,
 	// testport.go). The record of the proposal moves with the payloads:
-	// recordInitiatorSelectors (ts_narrow.go) checks the answer against
+	// recordInitiatorSelectorsIn (ts_narrow.go) checks the answer against
 	// sa.ProposedChildPairs, and a record of pairs the peer was never sent would refuse a
 	// legal answer.
 	narrowed, err := narrowedRekeyPairs(sa.ProposedChildPairs)
@@ -555,8 +555,9 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// of the SA the peer built, and this node installs that scope rather than the retired
 	// pair's, or the two ends program different traffic.
 	//
-	// recordInitiatorSelectors is the same producer the IKE_AUTH initiator adopts an answer
-	// through (transport_mode.go). It refuses an answer wider than what ze proposed and an
+	// recordInitiatorSelectorsIn is the producer the IKE_AUTH initiator adopts an answer
+	// through as well (recordInitiatorSelectors, its IKE_AUTH form, called from
+	// adoptAuthResponseNegotiation in transport_mode.go). It refuses an answer wider than what ze proposed and an
 	// answer below the floor, so what it records is always installable unchanged. This path
 	// read no TS payload at all before, and inherited old.Selectors.
 	//

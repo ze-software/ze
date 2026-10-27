@@ -98,9 +98,11 @@ node's address space before anything reads it.
 The substitution runs inside `narrowChildSelectorsIn` and
 `recordInitiatorSelectorsIn`, which are the single entry points of their roles.
 `narrowChildSelectors` and `recordInitiatorSelectors` are their IKE_AUTH forms,
-passing the IKE_AUTH decision (`decidedChildMode`). Placing it at each of the five
-call sites would reintroduce the drift those functions exist to prevent, and the
-EAP responder path is the one that gets forgotten.
+passing the IKE_AUTH decision (`decidedChildMode`): `responder.go` and
+`responder_eap.go` call the first, `adoptAuthResponseNegotiation` the second.
+Placing it at each of the seven call sites would reintroduce the drift those
+functions exist to prevent, and the EAP responder path is the one that gets
+forgotten.
 
 Two properties bound it:
 

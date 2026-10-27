@@ -286,8 +286,9 @@ func withoutTransportNotify(inner []wire.PayloadEntry) []wire.PayloadEntry {
 }
 
 // VALIDATES: AC-5. A Child SA rekey request that carries no USE_TRANSPORT_MODE, for a
-// transport-mode Child SA, installs a tunnel-mode replacement and answers without the
-// notify, with the proposal narrowed unsubstituted.
+// transport-mode Child SA, installs a tunnel-mode replacement whose selectors are the
+// proposal narrowed, and answers without the notify. The path has no NAT, so the test
+// says nothing about the substitution.
 //
 // Goal: the two ends of the replacement run the mode the rekey exchange negotiated. RFC
 // 7296 Section 1.3.1: "Except when using this option to negotiate transport mode, all

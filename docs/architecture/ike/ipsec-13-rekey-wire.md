@@ -154,8 +154,8 @@ no notification.
 **The answer the INITIATOR reads.** The same Section 2.9 sentence binds the other
 role, and it binds it harder: the responder narrowed, so only the response says
 what the peer will forward. `applyChildRekeyResponse` refuses a rekey response
-that carries no TSi or TSr, then hands the payloads and the rekey floor to
-`recordInitiatorSelectors`, which refuses an answer wider than what ze proposed
+that carries no TSi or TSr, then hands the payloads, the rekey floor and the
+retired Child SA's mode to `recordInitiatorSelectorsIn`, which refuses an answer wider than what ze proposed
 and an answer that does not cover the scope in use. What it records is what
 `newRekeyedChild` installs.
 
@@ -169,7 +169,7 @@ charon programmed `10.1.0.0/24 === 10.2.0.0/25` while ze kept `10.2.0.0/24 <->
 10.1.0.0/24`.
 
 <!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectors, checkAnswerWithin -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectorsIn, checkAnswerWithin -->
 
 **A rekey across a NAT compares both sides in the SAME address space.** Both
 producers substitute the transport-mode selector addresses before they compare

@@ -1968,8 +1968,15 @@ func checkRealNATTransportRekeyAfterIKERekey(ctx context.Context, lab *scenarioL
 // checkRealNATTransportZeInitiatorRekeyAfterIKERekey proves the INITIATOR half: Ze
 // dials from the client side, strongSwan rekeys the IKE SA, and Ze's own Child SA
 // lifetime then rekeys the transport Child SA on the successor (initiateChildRekey, then
-// applyChildRekeyResponse). Before the fix Ze read the NATed answer in tunnel mode and
-// refused it as widened, so the Child SA expired.
+// applyChildRekeyResponse).
+//
+// It proves that this rekey works over a real NAT after an IKE SA rekey. It does not
+// discriminate the fix against strongSwan: charon's rekey answer already names Ze's own
+// addresses, so it needs no substitution, and this scenario passes with the fix broken.
+// The proof that goes red without the fix is the unit test
+// TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys
+// (internal/component/ike/engine), whose peer answers in its own address space: its
+// real address, and Ze's address as the NAT shows it.
 func checkRealNATTransportZeInitiatorRekeyAfterIKERekey(ctx context.Context, lab *scenarioLab) error {
 	initial, err := realNATTransportBeforeRekey(ctx, lab)
 	if err != nil {

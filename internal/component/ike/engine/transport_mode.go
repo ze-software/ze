@@ -189,7 +189,10 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 			"peer", sa.PeerName, "fix", childResponseFixNoTS)
 		return false, wire.NotifyInvalidSyntax
 	}
-	if err := recordInitiatorSelectorsIn(sa, tsi, tsr, nil, mode); err != nil {
+	//
+	// recordInitiatorSelectors judges the answer in the IKE_AUTH mode it reads back from
+	// sa.UseTransportMode, which the top of this function set from mode.
+	if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
 		log.Warn("ike: the responder's traffic selectors cannot be adopted, deleting the SA",
 			"peer", sa.PeerName, "error", err)
 		// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
