@@ -163,6 +163,7 @@ Arrival order fills the slots first, but it does not decide what the peer keeps.
 | A better path that was suppressed | An announcement under its own path ID, sent after the withdrawal that freed its slot |
 | A held path the RIB still ranks among the best | Nothing: it keeps its slot and its path ID |
 | A path Ze originates itself | Nothing: the RIB does not rank it, so it keeps its slot and the election fills only the remaining slots |
+| A path graceful restart retains for a source whose session ended | Nothing: it keeps its slot. When the source is back and the RIB ranks the retained path among the best, it still counts as one slot, so the next best path fills the rest and the peer receives its full limit |
 
 Withdrawals always go before the announcements that replace them, so the peer never holds more paths than its limit, not even for one UPDATE.
 

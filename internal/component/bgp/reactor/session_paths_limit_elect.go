@@ -210,6 +210,19 @@ func pathsLimitHeldState(owner adjOutPath, record *adjOutOwed) (rankable, depart
 	return false, excluded
 }
 
+// pinned reports a held path the election may not touch, so it holds its slot
+// whatever the RIB answers: an originated path, which the RIB does not report
+// (D-7), or one graceful restart retains for a source whose session ended.
+// The RIB may still rank a retained path among its survivors once the source
+// is back up, because RFC 4724 forbids telling stale routes apart; the
+// election counts such a path once, as the slot it pins.
+func (p *pathsLimitHeldPath) pinned() bool {
+	if p.rankable {
+		return false
+	}
+	return !p.departed
+}
+
 // pathsLimitElectionPlan is what one limited election changes at the
 // destination: the survivors to announce, in election order, and the held
 // paths to withdraw ahead of them.
@@ -217,17 +230,24 @@ type pathsLimitElectionPlan struct {
 	announce  []int
 	departed  []uint32
 	outranked []uint32
-	// ranked reports that the RIB named at least as many paths as the slots
-	// the election fills, so every rankable path it left out is outranked.
+	// ranked reports that the RIB named enough paths the election may place
+	// to fill every slot it fills, so every rankable path it left out is
+	// outranked.
 	ranked bool
 	// free is the slots the destination holds no path in.
 	free int
 }
 
 // planPathsLimitElection decides one route. The slots the election fills are
-// the peer's limit less the paths it may not touch (originated, or retained
-// under graceful restart); the RIB's first survivors take them. A held path
-// that is one of them stays, and so keeps the identifier it was sent under.
+// the peer's limit less the pinned paths; the RIB's first survivors that are
+// not pinned take them. A survivor that is a pinned path already holds its
+// slot, so it takes none of the rest: counting it twice left a slot empty
+// until the next election, and the peer missed the next best path. A held path
+// that is one of the survivors placed stays, and so keeps the identifier it
+// was sent under.
+//
+// RFC 4724 Section 4.2: "The router MUST NOT differentiate between stale and
+// other routing information during forwarding."
 //
 // draft-abraitis-idr-addpath-paths-limit Section 3: "A sender advertising
 // multiple paths for the same prefix SHOULD send only the specified maximum
@@ -235,25 +255,32 @@ type pathsLimitElectionPlan struct {
 func planPathsLimitElection(held []pathsLimitHeldPath, survivors []ribevents.RecoveryRoute, limit uint16) pathsLimitElectionPlan {
 	slots := int(limit)
 	for i := range held {
-		if held[i].rankable {
-			continue
+		if held[i].pinned() {
+			slots--
 		}
-		if held[i].departed {
-			continue
-		}
-		slots--
 	}
 	slots = max(slots, 0)
-	plan := pathsLimitElectionPlan{ranked: len(survivors) >= slots, free: max(int(limit)-len(held), 0)}
+	plan := pathsLimitElectionPlan{free: max(int(limit)-len(held), 0)}
 	kept := make([]bool, len(held))
-	for i := range survivors[:min(len(survivors), slots)] {
+	placed := 0
+	// Bounded by the RIB's answer, at most limit survivors.
+	for i := range survivors {
+		if placed == slots {
+			break
+		}
 		j := pathsLimitHeldIndex(held, &survivors[i])
 		if j < 0 {
 			plan.announce = append(plan.announce, i)
+			placed++
+			continue
+		}
+		if held[j].pinned() {
 			continue
 		}
 		kept[j] = true
+		placed++
 	}
+	plan.ranked = placed == slots
 	for j := range held {
 		if kept[j] {
 			continue

@@ -287,6 +287,33 @@ func TestPathsLimitElectionKeepsNonRIBPaths(t *testing.T) {
 	}
 }
 
+// TestPathsLimitElectionRetainedSurvivorFillsOneSlot proves a path graceful
+// restart retains is counted once: it pins its slot, and when the RIB ranks it
+// among the survivors (its source is back up, and RFC 4724 forbids telling a
+// stale route apart) the next survivor still takes the remaining slot, so the
+// peer receives its limit of paths rather than one fewer. Method: limit 2, the
+// destination holds the retained path and one outranked path, and the RIB
+// answers the retained path first, then a better newcomer.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit Section 1, RFC 4724
+// Section 4.2.
+func TestPathsLimitElectionRetainedSurvivorFillsOneSlot(t *testing.T) {
+	restarted, outranked, newcomer := electPeer("192.0.2.1"), electPeer("192.0.2.2"), electPeer("192.0.2.3")
+	retained := pathsLimitHeldPath{id: 1, owner: adjOutPath{source: restarted, addPath: true}}
+	held := []pathsLimitHeldPath{retained, heldFrom(2, outranked, 0)}
+	plan := planPathsLimitElection(held, []ribevents.RecoveryRoute{survivorOf(restarted, 0), survivorOf(newcomer, 0)}, 2)
+	if !slices.Equal(plan.announce, []int{1}) {
+		t.Fatalf("announce %v, want the newcomer [1] in the slot the retained path does not pin", plan.announce)
+	}
+	got := plan.withdrawals(len(plan.announce))
+	if slices.Contains(got, 1) {
+		t.Fatalf("withdraw %v names the retained path", got)
+	}
+	if !slices.Equal(got, []uint32{2}) {
+		t.Fatalf("withdraw %v, want the outranked path [2]", got)
+	}
+}
+
 // TestPathsLimitElectionFailureWarnsOnce proves D-8: with no RIB to rank,
 // arrival order stands, every contested route is counted, and the session
 // warns once for the family. Method: contest two routes on a session with no

@@ -686,8 +686,11 @@ from the writer would park it forever with `writeMu` held. The round asks the
 RIB with `RecoveryRequest.Limit` set to the peer's bound, read under `writeMu`,
 and the admission plans the prefix from the paths the session holds
 (`pathsLimitHeld`, under `writeMu` then the table mutex, the writer's order):
-a held path the RIB still ranks keeps its identifier, an originated path keeps
-its slot, the better survivors are staged as announcements, and each demoted
+a held path the RIB still ranks keeps its identifier, an originated path or one
+graceful restart retains is pinned and keeps its slot, the first survivors that
+are not pinned fill the remaining slots (a pinned path the RIB names among its
+survivors is counted once, as its own slot, so no slot stays empty), the better
+survivors are staged as announcements, and each demoted
 identifier is staged as a demotion withdrawal, which may withdraw a current
 owner's ADD-PATH path. `pathsLimitWithdrawFirst` moves the withdrawals ahead
 of the announcements, so the peer never holds more than its limit. A lookup the
