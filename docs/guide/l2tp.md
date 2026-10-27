@@ -790,7 +790,7 @@ packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.
 
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- admitRequest, answerRequest, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 

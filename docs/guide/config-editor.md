@@ -497,6 +497,19 @@ from configuration mode behind `run `, and the keys are in the
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
+Every write to the daemon's configuration (a commit from any editor, an
+accept, an abort, a gNMI Set, an API config session, a managed push) runs on
+the daemon's one commit-confirm worker. A Ze defect met during one write ends
+that write only: its caller gets an error saying the write may be partly
+applied and naming the `ze show crashes` record, and the worker serves the
+next write and keeps the open window's deadline. A `commit confirmed` whose
+apply met the defect still opens its window, so its deadline, or `commit
+abort`, reverts whatever part of it applied. The panic is counted in
+`ze_task_panics_total{component="config-confirm",task="write"}`
+([Monitoring](monitoring.md), "Contained Panics").
+<!-- source: internal/component/config/confirm/panic_guard.go -- Window.write, writeEndedByPanic -->
+<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed -->
+
 In an SSH session editor or the web editor of the daemon's own
 configuration, the daemon owns the window, not your session. Both editors
 commit through the same window code, so the rules below hold for a web user

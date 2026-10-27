@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Scope | protocol |
 | Release reason | Untrusted network input must not let one session panic terminate the whole control plane. |
 | Depends | - |
-| Phase | - |
+| Phase | 10/10 |
 | Updated | 2026-10-27 |
 
 ## Post-Compaction Recovery
@@ -162,9 +162,9 @@ the process running.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No lock is held across a call that can panic in a guarded task, so the teardown after a recover does not block | Ze's lock discipline uses defer unlock on most paths | The teardown deadlocks the unit, or a shared reactor lock stalls every peer | Phase 2 audit of every lock taken in the read path (`s.mu`, `s.writeMu`, `p.mu`, `reactor.mu`); each is released by defer or never held across a callback; AC-4 proves the second peer still progresses | unvalidated |
+| A-1 | No lock is held across a call that can panic in a guarded task, so the teardown after a recover does not block | Ze's lock discipline uses defer unlock on most paths | The teardown deadlocks the unit, or a shared reactor lock stalls every peer | Phase 2 audit of every lock taken in the read path (`s.mu`, `s.writeMu`, `p.mu`, `reactor.mu`); each is released by defer or never held across a callback; AC-4 proves the second peer still progresses | validated in phase 2 (Lock audit A-1 below; two reactor-wide holds fixed) |
 | A-2 | One deferred call per task (per session, per goroutine, per dispatched event) costs nothing measurable | a defer at function entry is open-coded by the Go compiler | Hot path slows | The guard is never per message inside `readAndProcess*`; `Run` defers once per session; AC-9 | validated by placement |
-| A-3 | Shared state touched mid-panic (RIB, pools, LSDB) stays consistent enough for the other units | pools use get/return discipline; a link-state LSDB resyncs when the adjacency restarts | Containment gives false safety | Each phase names the shared state its task mutates and the unit teardown that resyncs it; a site that cannot be contained is listed in Known Limitations | unvalidated |
+| A-3 | Shared state touched mid-panic (RIB, pools, LSDB) stays consistent enough for the other units | pools use get/return discipline; a link-state LSDB resyncs when the adjacency restarts | Containment gives false safety | Each phase names the shared state its task mutates and the unit teardown that resyncs it; a site that cannot be contained is listed in Known Limitations | validated with limits: each row's end resyncs through the unit's own teardown (Cease and reconnect, KillNbr, adjacency teardown, LSP soft-state expiry plus admission release, BFD handshake, VRRP Shutdown/Startup, StopCCN, PADT, IKE Delete); the residuals are in Known Limitations |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -235,6 +235,26 @@ the process running.
   interop scenarios that end sessions with a Cease. TestSessionReadPanicSendsCeaseAndCloses
   asserts the exact NOTIFICATION octets Ze writes. Whether a lab scenario that injects
   a panic is also owed is the owner question in "Owner Questions".
+- `bgp-panic-cease` (`test/interop/scenarios/bgp-panic-cease`, checker
+  `internal/le/interoplab/bgp/check_panic_cease.go`, interop.md inventory row 60):
+  Ze runs the `ze_le` daemon, FRR 10.7.1's UPDATE triggers the injected read-path
+  panic, FRR records a RECEIVED Cease / Unspecific, its session returns (2
+  established, 1 dropped), and the BIRD 3.4.0 session never drops.
+  -> Evidence: green on 2026-10-27, twice (session scratch `lab-green4.log`, `lab-green5.log`,
+  `INTEROP_SCENARIO=bgp-panic-cease ./le test integration interop`, "1 passed,
+  0 failed"), after 27d7e4f0ea moved the seam to `processValidatedMessage`.
+  -> Evidence: red on 2026-10-27, `ceaseAfterPanic` with its
+  `tryNotificationWithin` send replaced by `var err error` (GOFLAGS overlay):
+  assertion 5 timed out, ze logged "an internal Ze defect ended this unit" for
+  172.30.0.3, FRR's `lastResetDueTo` read "Peer closed the session" (code 15).
+  -> Evidence: shipped-binary proof on the staged lab binaries:
+  `go tool nm test/interop/ze-linux | grep -c reactor.injectReadPanic` = 0,
+  `strings ... | grep -c bgp-read-panic-` = 0, `grep -c /run/ze-inject` = 0;
+  `ze-le-linux` gives 1, 1 and 2.
+  -> Decision: the seam sits in `processValidatedMessage`, not `processMessage`:
+  the coalescing reader hands a plain IPv4 announcement straight to
+  `processValidatedMessage`, so the first lab run armed a trigger no UPDATE
+  consumed (TestInjectReadPanicReachedByBothReaders, red with the old placement).
 
 ## Files to Modify
 - `internal/component/bgp/reactor/session.go` - guard deferred in `Session.Run`, after the `closeConn` defer so it runs first; tracks the last received message type in a field the read path sets and only `Run`'s goroutine reads
@@ -318,13 +338,18 @@ behind an existing interface in the test file; it never adds a hook to productio
 
 ## Mistake Log
 
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
-
-### Failed Approaches
-| Approach | Why abandoned | Replacement |
-|----------|---------------|-------------|
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The skeleton said a BGP read-path panic kills the daemon | `safeRunOnce` (`peer_run.go`) had recovered it since 986ff479dd (2026-03-06); what BGP lacked was the NOTIFICATION, the metric, the crash record and a read-path test | Disposition at 043c682d24 | Reworked in place into the shared policy; the Task section states the true premise |
+| approach | The `ze_le` injection seam sat in `processMessage` | The coalescing reader (`session_coalesce.go`) hands a plain IPv4 announcement straight to `processValidatedMessage`, so the first lab run armed a trigger no UPDATE consumed and the interop scenario went red for the wrong reason | Lab run 3 log: trigger file stayed, FRR stayed Established | 27d7e4f0ea moved the seam; TestInjectReadPanicReachedByBothReaders is red on the old placement |
+| assumption | A-1: no lock is held across a call that can panic | False in six components: the reactor `r.mu` and AIGP `state.mu` (BGP), RTR `s.mu` and `lease.mu`, L2TP `tunnelsMu`, RSVP-TE `lsp.mu` (about 20 sites), OSPF `e.mu` on the receive path and the graceful-restart `m.mu`, IS-IS circuit `c.mu`. A panic there would have left the lock held and wedged every unit sharing it, so containment would have turned a crash into a hang | Each phase's lock audit; reds by overlay (timeouts, TryLock failures) | Every hold fixed by `defer` with a lock test; the table in "Lock audit (A-1)" |
+| assumption | The phase 5 lock audit: OSPF self-origination never runs on the receive worker | A received Grace-LSA (`grInspectV6Update` -> `helperEnter`) and an LSDB content change (`helperExit`) originate on the receive worker, and a neighbor reaching Full runs `exitRestart` there | Closure review, by tracing every `originateSelfLSAs` caller | The origination `e.mu` holds read clean; the graceful-restart `m.mu` holds fixed at closure with TestGRLockReleasedAfterContainedPanic |
+| approach | Existing recovers were counted as boundaries | DNS `Authoritative`/`Recursive` and the OSPF opaque, RI and ext-sub-TLV wrappers swallowed a panic with no log, count or record whenever the caller passed no `onPanic`, which every test caller and `ext_subtlv.go` `Render` did | Phase 1 and phase 5 reading | b505e144ab and b90a703ab5 route them through taskguard; TestQueryPanicNeverSilent, TestOSPFRenderPanicNeverSilent |
+| approach | PPPoE `handlePADR` initialised `PppoxFD` to its zero value | Fd 0 is a valid descriptor: a `Remove` before `createTransport` closed the daemon's stdin | Phase 7 PPPoE test | 558c13f782 initialises it to -1 |
+| assumption | RSVP-TE's LSP role zero value was a role | `lspRole` zero was `RoleIngress`, so the panic end's `tearLSPLocal` on an LSP a handler had just created issued `removePush` for a tunnel endpoint it never installed | Phase 4 review of the end path | e4bf3104a6: zero is `RoleUnspecified`, `tearLSPLocal` withdraws only installed state |
+| approach | The original audit listed readers and connection handlers only | Per-request work dispatched to another goroutine escaped it: `dispatchPluginRPC` (one goroutine per plugin request), the LDP discovery reader, the RADIUS accounting goroutine and the commit-confirm worker that runs every gNMI, SSH, web and API config write | Phase 9, phase 8 and closure review | Each got a row, a boundary and a test |
+| approach | Existing tests changed without a judge before the commit | e4bf3104a6 changed two existing tests: `linkdown_test.go` TestHandleLinkDownIngressTornDown's fixture gained `lsp.Reserved = true` (assertions unchanged), and `rfc3032_fsm_test.go` gained the `{RoleUnspecified, "unspecified"}` case. ze-test-judge judged both after the commit landed, not before | Phase 4 part 3 record | Judged after the fact; a test change is judged before the commit that carries it |
+| escalation | The IS-IS quotes cite `rfc/full/iso-iec-10589.txt` Section 10.6 | That file is a project-written "Independent Reconstruction" (`RFC-SYNTHETIC-ISIS`), not ISO/IEC 10589, so the quoted sentence is the project's restatement, not the standard's text | Phase 5 part 4 | Owner decision: see Owner Questions |
 
 ## Design Insights
 
@@ -339,37 +364,53 @@ component's existing interface-down path, never leaving a socket nobody reads.
 
 | Task (file, function) | Class | Has a boundary today | Phase | Test |
 |-----------------------|-------|----------------------|-------|------|
-| BGP `Session.Run` read path (`reactor/session.go`) | session | outer only: `safeRunOnce` (`peer_run.go`), no NOTIFICATION, no metric | 2 | TestSessionReadPanicSendsCeaseAndCloses |
-| BGP session cancel goroutine (`session.go`) | session | has it | 2 (moves to the guard) | existing |
-| BGP delivery worker (`peer_run.go`) | session | has it, Out of Resources | 2 | TestDeliveryPanicSendsCeaseUnspecific |
-| BGP listener accept and handler (`reactor/listener.go`) | connection | has it | 2 (moves to the guard) | TestListenerHandlerRecoversPanic |
+| BGP `Session.Run` read path (`reactor/session.go`) | session | outer only: `safeRunOnce` (`peer_run.go`), no NOTIFICATION, no metric | 2: DONE, task `read`, `ceaseAfterPanic` | TestSessionReadPanicSendsCeaseAndCloses, TestSessionReadPanicCoalesced, TestSessionReadPanicWriteLockHeld, TestPeerReadPanicIsolation |
+| BGP `safeRunOnce` (`peer_run.go`) | session | has it | 2: DONE, task `connect` | TestPeerRunRecoversPanic |
+| BGP session cancel goroutine (`session.go`) | session | has it | 2: DONE, task `cancel` | existing |
+| BGP delivery worker (`peer_run.go`) | session | has it, Out of Resources | 2: DONE, task `delivery`, Unspecific | TestDeliveryPanicSendsCeaseUnspecific |
+| BGP listener handler `safeHandle` (`reactor/listener.go`) | connection | has it | 2: DONE, task `accept` | TestListenerHandlerRecoversPanic |
+| BGP listener cancel goroutine (`reactor/listener.go`) | internal | has it, logs at ERROR with stack | none: closes the listener on context end, reads no network input | existing |
 | BGP reactor monitor, notify, signal, forward pool and build (`reactor.go`, `reactor_notify.go`, `signal.go`, `forward_pool.go`, `forward_build.go`) | internal | has it | none: not network input | existing |
 | Plugin engine event dispatch (`plugin/server/engine_event.go`) | internal | has it | none | existing |
-| Internal plugin runner goroutine (`plugin/process/process.go`) | connection | has it, its child goroutines do not | 9 | existing |
-| DNS per query, incl. DoT and DoH, as112, geodns (`core/dnsserver/handler.go` `Authoritative`) | request | has it (DoH also through `net/http`) | 1 (moves to the guard) | existing handler tests |
+| Internal plugin runner goroutine (`plugin/process/process.go` `startInternal`) | connection | had a log-only recover | 9: DONE 895f153c5e, task `plugin/run`, recover replaced; the plugin ends as one whose run returned | TestInternalPluginRunnerPanicContained |
+| Plugin-to-engine request (`plugin/server/dispatch.go` `dispatchPluginRPC`) | request | lacked: found in phase 9, missing from the 043c682d24 audit | 9: DONE 07e6474dfa, task `plugin/engine-op`, request answered with a plain `SendError`, not applied; the connection and other requests continue | TestDispatchPluginRPCPanicContained |
+| DirectBridge request (in-process plugin to engine) | request | runs synchronously on the calling goroutine | none of its own: the calling task's boundary contains it (`plugin/run`, or the network reader's own row, for example `bmp/receive`); a goroutine a plugin starts for internal work is not network input. Stated in `process-protocol.md` | covered by the caller's row |
+| DNS per query, incl. DoT and DoH, as112, geodns (`core/dnsserver/handler.go` `Authoritative`, `recursive.go` `Recursive`) | request | had it, and SWALLOWED the panic silently when `onPanic == nil` | 1: DONE b505e144ab, tasks `dns/authoritative-query`, `dns/recursive-query`; no reply, the client retries | TestQueryPanicNeverSilent |
+| Commit-confirm worker (`config/confirm/confirm.go` `Window.do`) running a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push | request | lacked: found at closure; every config write runs on this one worker, outside the gNMI, SSH and web boundaries on the caller's goroutine | closure: DONE (uncommitted), task `config-confirm/write` in `Window.write`; the caller gets a plain error saying the write may be partly applied, the worker serves the next write and the deadline | TestConfirmWritePanicContained |
+| OSPF plugin-registered opaque consumers and builders, show decoders (`ospf/opaque_registry.go`, `ri_registry.go`, `ext_subtlv.go`, `decode_view*.go`) | internal | had recovers that swallowed silently when no `onPanic` was passed | 5: DONE b90a703ab5, tasks `ospf/consumer`, `ospf/show-decode` | TestOSPFRenderPanicNeverSilent, TestOSPFBuilderPanicRecorded |
 | Web UI, looking glass (`net/http` servers) | request | has it: `net/http` recovers per request | none | - |
-| RTR `RTRSession.readLoop` (`bgp/plugins/rpki/rtr_session.go`) | session | lacks | 3 | TestRTRReadPanicContained |
-| BMP receiver and session readers (`bgp/plugins/bmp/receiver.go`, `bmp.go`) | session | lacks | 3 | TestBMPReceiverPanicContained |
-| LDP `Session.ReadLoop` (`plugins/ldp/session.go`) | session | lacks | 4 | TestLDPReadPanicContained |
-| RSVP-TE `rawTransport.readLoop` (`plugins/rsvpte/transport_linux.go`) | neighbor | lacks | 4 | TestRSVPReadPanicContained |
-| OSPFv2 `linuxInterface.readLoop` and its `recvCh` worker | neighbor | lacks (only plugin-registered opaque decoders recover) | 5 | TestOSPFReadPanicContained |
-| OSPFv3 `linuxInterface.readLoop` and its worker | neighbor | lacks | 5 | TestOSPFv3ReadPanicContained |
-| IS-IS `linuxCircuit.readLoop` and its worker | neighbor | lacks | 5 | TestISISReadPanicContained |
-| BFD `UDP.readLoop` (`bfd/transport/udp.go`) and engine | neighbor | lacks (engine recovers only a send on a closed channel) | 6 | TestBFDReadPanicContained |
-| VRRP `linuxInstance.readLoopV4`, `readLoopV6` | neighbor | lacks | 6 | TestVRRPReadPanicContained |
-| L2TP `UDPListener.readLoop`, `tunnelReadLoop` (`l2tp/listener.go`) | session (tunnel) | lacks (drain recovers only pool and auth handler calls) | 7 | TestL2TPReadPanicContained |
-| PPPoE discovery reader (`l2tp/pppoe/kernel_linux.go`) | session | lacks | 7 | TestPPPoEReadPanicContained |
-| IKE UDP reader and inbound processing (`ike/transport/udp.go`, `ike/engine/inbound.go`) | session (IKE SA) | lacks | 7 | TestIKEInboundPanicContained |
-| RADIUS client `Client.readLoop` (`radius/client.go`) | request | lacks | 8 | TestRADIUSClientReadPanicContained |
-| TACACS+ client reads (`tacacs/client.go`) | request | lacks | 8 | TestTACACSClientPanicContained |
-| DHCP server (`plugins/dhcpserver/register.go`) | request | lacks | 8 | TestDHCPRequestPanicContained |
-| TFTP server (`plugins/tftpserver`) | request | lacks | 8 | TestTFTPRequestPanicContained |
-| RADIUS CoA listener (`l2tp/plugins/authradius/coa.go`) | request | lacks | 8 | TestCoAPanicContained |
-| Plugin RPC `Conn.readLoop`, `MuxConn.readLoop` (`pkg/plugin/rpc`) | connection | lacks (per-call recovers in `sdk_dispatch.go`, `bridge.go` only) | 9 | TestRPCReadLoopPanicContained, TestMuxReadLoopPanicContained |
-| Plugin TLS acceptor `PluginAcceptor.handleConn` (`plugin/ipc/tls.go`) | connection | lacks | 9 | TestPluginAcceptorPanicContained |
-| Managed server `ManagedServer.handleConn` (`plugin/server/managed_serve.go`) | connection | lacks | 9 | TestManagedServerPanicContained |
-| SSH server handlers (`ssh/ssh.go`, `x/crypto/ssh`) | connection | lacks | 9 | TestSSHHandlerPanicContained |
-| gNMI server (`gnmi/server.go`, only auth interceptors) | request | lacks: grpc-go does not recover handler panics | 9 | TestGNMIHandlerPanicContained |
+| RTR `RTRSession.readLoop` (`bgp/plugins/rpki/rtr_session.go`) | session | lacked | 3: DONE 24ff93be83, task `rpki/rtr-read`; Error Report Internal Error (RFC 8210 Sections 5.11, 12; none for an Error Report or before a PDU); the next cache in preference order loads, this one after its Retry Interval; End of Data lock fix `applyEndOfData` | TestRTRReadPanicContained, TestRTRReadPanicSkipsErrorReportForErrorReport |
+| BMP receiver session `BMPPlugin.handleSession` (`bgp/plugins/bmp/bmp.go`) | session | lacked | 3: DONE 24ff93be83, task `bmp/receive`; the session's own defers close it, withdraw the router and remove it; nothing sent (RFC 7854 Section 3.2); the router reconnects | TestBMPReceiverPanicContained |
+| BMP `acceptLoop`, sender `holdConnection`, `drainLoop`, `statisticsLoop`; RTR dial-cancel goroutine and `rtrDataLease.expire` | internal | none | none: parse no network input (the sender discards the collector's bytes uninterpreted) | - |
+| LDP `runSession` / `Session.ReadLoop` (`plugins/ldp/register.go`, `session.go`) | session | lacked | 4: DONE d9fa580dce, task `ldp/session`; Internal Error Notification (RFC 5036 Section 3.5.1.2.7), Stop and onDone teardown; the next Hello restarts it | TestLDPReadPanicContained |
+| LDP discovery reader `readDiscoveryLoop` (`plugins/ldp/register.go`) | neighbor | lacked: missing from the 043c682d24 audit | 4: DONE d9fa580dce, task `ldp/discovery`; the Hello is dropped, the same socket reads on | TestLDPDiscoveryPanicContained |
+| RSVP-TE `rawTransport.readLoop` (`plugins/rsvpte/transport_linux.go`) | neighbor | lacked | 4: DONE 1f2ec7260a, task `rsvp-te/receive`; the datagram is dropped, the same socket reads on | TestRSVPReadPanicContained |
+| RSVP-TE signaling worker `engine.run` / `handlePacket` (`plugins/rsvpte/engine.go`) | neighbor | lacked: one worker for every LSP, so a panic ended all RSVP signaling | 4: DONE 1f2ec7260a, e4bf3104a6, task `rsvp-te/signaling`; `tearLSPLocal` of the LSPs the message names (soft-state expiry path, RFC 2205 Sections 2.3, 2.4), admission released, only installed state withdrawn; restart by upstream PATH refresh or, at the head-end, the next commit | TestRSVPSignalingPanicContained, TestRSVPSignalingPanicTearsOnlyInstalledState |
+| OSPFv2 `linuxInterface.readLoop`, `Transport.rxLoop` (`ospf/transport`) | neighbor | lacked | 5: DONE a736ea0800, tasks `ospf/interface-read`, `ospf/interface-fan-in`; the interface's receive ends through the link-down path | TestOSPFReadPanicContained, TestOSPFFanInPanicContained |
+| OSPFv3 `linuxInterface.readLoop`, `Transport.rxLoop` (`ospf/v3/transport`) | neighbor | lacked | 5: DONE e89eae05b1, tasks `ospfv3/interface-read`, `ospfv3/interface-fan-in` | TestOSPFv3ReadPanicContained, TestOSPFv3FanInPanicContained |
+| OSPF engine receive worker `receivePackets` (`ospf/instance.go`, `panic_guard.go`), both families | neighbor | lacked | 5: DONE bce5fe4915, task `ospf/receive`; the packet's neighbor goes Down through KillNbr (RFC 2328 Sections 10.2, 10.3), the worker resumes | TestOSPFReceivePanicContained |
+| IS-IS `linuxCircuit.readLoop`, `Transport.rxLoop` (`isis/transport`) | neighbor | lacked | 5: DONE 4222fb02a9, tasks `isis/interface-read`, `isis/interface-fan-in` | TestISISReadPanicContained, TestISISFanInPanicContained |
+| IS-IS engine receive worker `receivePDUs` (`isis/panic_guard.go`) | neighbor | lacked | 5: DONE f02d11be14, task `isis/receive`; the sender SNPA's adjacencies on that circuit go Down (`TeardownNeighbor`), the worker resumes | TestISISReceivePanicContained, TestISISTeardownNeighbor |
+| BFD `UDP.readLoop` (`bfd/transport/udp.go`) | neighbor | lacked | 6: DONE 3417534caf, task `bfd/receive`; the packet is dropped, its slot returned | TestBFDReceivePanicContained |
+| BFD express loop `Loop.serve` (`bfd/engine/loop.go`) | neighbor | lacked (engine recovered only a send on a closed channel, kept: a benign Unsubscribe race, not a defect) | 6: DONE 3417534caf, task `bfd/express`; the session goes Down with diag 0 and restarts by the three-way handshake | TestBFDReadPanicContained |
+| VRRP `linuxInstance.readLoopV4`, `readLoopV6` (`vrrp/transport/backend_linux.go`) | neighbor | lacked | 6: DONE 0b9e085901, task `vrrp/receive` | TestVRRPReceivePanicContained |
+| VRRP advertisement dispatcher `rxLoop` (`vrrp/panic_guard.go` `serveAdvertisements`) | neighbor | lacked: plugin-wide goroutine | 6: DONE 0b9e085901, task `vrrp/advertisement`; the one virtual router restarts through Shutdown and Startup (RFC 9568 Sections 6.4.2, 6.4.3) | TestVRRPReadPanicContained |
+| VRRP `instance.run`, OSPF and IS-IS timers, LDP KeepAlive sender and adjacency expiry, RSVP-TE refresh and cleanup tickers | internal | none | none: timer or config driven, no network input | - |
+| L2TP control dispatch `reactor.handle` (`l2tp/reactor.go`); `readLoop` and `tunnelReadLoop` only copy and queue | session (tunnel) | lacked (drain recovered only pool and auth handler calls) | 7: DONE 2de545d809, tasks `l2tp/control`, `l2tp/auth-handler`, `l2tp/pool-handler`; StopCCN Result Code 1 (RFC 2661 Sections 4.4.2, 6.4) | TestL2TPReadPanicContained |
+| PPPoE discovery reader (`l2tp/pppoe/subsystem.go` `dispatchDiscovery`) | session | lacked | 7: DONE 558c13f782, tasks `pppoe/discovery`, `pppoe/auth-handler`, `pppoe/pool-handler`; before PADS the admission is removed, after PADS a PADT (RFC 2516 Section 5.5) | TestPPPoEReadPanicContained |
+| IKE inbound dispatch and established SA (`ike/engine/panic_guard.go` `deliverDatagram`, `handleOwnedInboundGuarded`); `UDPTransport.Run` only copies | session (IKE SA) | lacked | 7: DONE 91502e4f4a, tasks `ike/inbound` (datagram dropped), `ike/established` (Delete then re-establish, RFC 7296 Section 2.4) | TestIKEInboundPanicContained, TestIKEEstablishedPanicSendsDelete |
+| RADIUS client `Client.readLoop` (`radius/client.go`) | request | lacked | 8: DONE 2974d67589, task `radius/read`; the answer is dropped, the request retransmits or fails over | TestRADIUSClientReadPanicContained |
+| TACACS+ client requests (`tacacs/client.go` `Authenticate`, `SendAuthorization`, `SendAccounting`) | request | lacked | 8: DONE dfe8925c99, task `tacacs/request`; answered as an unreachable server (RFC 8907 Section 5.4.3); one deferred close-and-evict in `trySend` (Section 4.4) | TestTACACSClientPanicContained |
+| DHCP server `serveMulti` (`plugins/dhcpserver/register.go`) | request | lacked | 8: DONE c5e7232a16, task `dhcp/request`; no reply, the client retransmits (RFC 2131 Section 4.1); no DHCPv6 path exists | TestDHCPRequestPanicContained |
+| TFTP listener `serve` and transfer `runTransfer` (`plugins/tftpserver/handler.go`) | request | lacked | 8: DONE 1c189da8be, tasks `tftp/request`, `tftp/transfer`; ERROR code 0 (RFC 1350 Section 2), slot and generation released by defer | TestTFTPRequestPanicContained, TestTFTPTransferPanicContained |
+| RADIUS CoA listener (`l2tp/plugins/authradius/coa.go`) | request | lacked | 8: DONE cef77391f7, task `radius-coa/request`; NAK with Error-Cause 506 once authenticated (RFC 5176 Section 3.5), else dropped | TestCoAPanicContained |
+| L2TP RADIUS login `doRADIUS` (`authradius/handler.go`) | request | had a log-only recover: not counted, not recorded | 8: DONE 2c0b7e2e01, task `radius-auth/request`; login denied "internal error" | TestRADIUSLoginPanicContained |
+| L2TP RADIUS accounting goroutine `runAccounting` (`authradius/acct.go`) | request | lacked: missing from the 043c682d24 audit | 8: DONE 2c0b7e2e01, task `radius-auth/accounting`; that session's Start and Interim stop, Stop still sent (RFC 2866 Section 2) | TestRADIUSAccountingPanicContained |
+| Plugin RPC `Conn.readLoop`, `MuxConn.readLoop` (`pkg/plugin/rpc`) | connection | lacked (per-call recovers in `sdk_dispatch.go`, `bridge.go` only) | 9: DONE 629502dff5, tasks `plugin/rpc-read`, `plugin/rpc-route`; the connection closes, the engine releases the plugin as one that exited | TestRPCReadLoopPanicContained, TestMuxReadLoopPanicContained |
+| Plugin TLS acceptor `PluginAcceptor.handleConn` (`plugin/ipc/tls.go`) | connection | lacked | 9: DONE 3294897b53, task `plugin/connect-back` | TestPluginAcceptorPanicContained |
+| Managed server `ManagedServer.handleConn` (`plugin/server/managed_serve.go`) | connection | lacked | 9: DONE 07e6474dfa, task `plugin/managed-client` | TestManagedServerPanicContained |
+| SSH session handler and login checks (`ssh/panic_guard.go` `panicMiddleware`, `containAuth`) | connection | lacked a Ze boundary (charm.land/ssh `recoverAndLog` recovered log-only) | 9: DONE 56e4e6a9e1, tasks `ssh/session` (stderr message, exit 1), `ssh/auth` (login refused) | TestSSHHandlerPanicContained, TestSSHAuthPanicContained |
+| gNMI unary RPC and Subscribe stream (`gnmi/panic_guard.go`) | request | lacked: grpc-go does not recover handler panics | 9: DONE 5b0daf545c, task `gnmi/rpc`; code Internal with a plain message; a Set's draft discarded by defer | TestGNMIHandlerPanicContained |
 | NTP (`plugins/ntp`) | none | no Go receive loop in the package | none | - |
 
 ### Lock audit (A-1)
@@ -377,6 +418,38 @@ Phase 2 records here, for every lock the BGP read path takes (`s.mu`, `s.writeMu
 `s.sendHoldMu`, `s.openMu`, `p.mu`, `reactor.mu`), whether it is released by
 `defer` or never held across a call that can panic. A lock that fails both is fixed
 in phase 2, because a held shared lock would stall every peer (AC-4).
+
+| Lock | Scope | Read-path holds | Verdict |
+|------|-------|-----------------|---------|
+| `s.mu` | session | Field snapshots (`RLock`, read, `RUnlock`, no call inside), and the OPEN path's `Lock; s.peerOpen = open; Unlock` | Never held across a call that can panic |
+| `s.openMu` | session | `session_read.go` and `session_handlers.go` (three sites) | Always `defer Unlock` |
+| `s.writeMu` | session | Read-path writes go through `writeMessageWithin` (`defer`). `closeConn`'s flush held it with no `defer` | FIXED: `flushForClose` releases by `defer`. `connectionEstablished`'s hold covers field writes and env reads only |
+| `s.sendHoldMu` | session | `startSendHoldTimer`, `stopSendHoldTimer` (`defer`); `sendHoldTimerCheck` holds it around a nil check and `Timer.Reset` only, on the timer's goroutine, not the read path | Never held across a call that can panic |
+| FSM `f.mu` | session | All `defer`, except the callback drainer, which unlocks before the callback | A panicking callback leaves `draining` set on that session's FSM only, which ends with the unit |
+| `p.mu` | peer | Snapshot reads in `notifyMessageReceiver` and the delivery worker | Never held across a call |
+| reactor `r.mu` | reactor-wide | `notifyMessageReceiver` held `RLock` with no `defer` across about 120 lines that parse peer bytes (`wireUpdate.IsEOR`, `updateDelayEndOfRIB`, `typedNLRIHeld.endOfRIB`, health, forward weights) | FIXED: `reactorLockHeld` flag with a deferred conditional `RUnlock` |
+| AIGP `state.mu` | reactor-wide | `commitAIGPWrites` unlocked without `defer` | FIXED: `defer Unlock` |
+
+The sibling phases ran the same audit on each guarded task's path.
+
+| Component | Lock | Finding | Verdict |
+|-----------|------|---------|---------|
+| RTR | `s.mu`, `lease.mu` | End of Data unlocked both by hand around `cache.Replace`, `ApplyDelta` and the ASPA cache | FIXED 24ff93be83: `applyEndOfData` releases both by `defer`; red: test timed out in `connectAndSync`'s state defer |
+| BMP, LDP, DHCP, TFTP, TACACS+, gNMI, SSH, plugin IPC | component locks | Every hold on the task's path is deferred or copies fields only | Clean |
+| L2TP | `tunnelsMu` | `reactor.handle` held it across `Process` with no `defer` | FIXED 2de545d809: `tunnelsHeld` flag and deferred conditional unlock; red: teardown deadlocked |
+| RSVP-TE | `lsp.mu` | About 20 holds across calls on peer-derived data with no `defer` | FIXED f11f9eb9dc: `(*LSP).locked` and `*Locked` helpers; red: `lsp.mu` still held after the recovered panic |
+| OSPF | engine `e.mu` | Receive-path holds in `handleHello`, `handleLSUpdate`, `handleLSAck`, `handleNeighborPacket`, `verifyPacket`, `neighborTopologyFacts`, `interfaceAreaType`, `graceRestarterV4`, `sendVirtualLink` | FIXED 3007251b43: deferred helpers (`receiveTarget` and others); red: TryLock failed, then shutdown hung |
+| OSPF | graceful-restart `m.mu` | `helperEnter`, `updateGrace`, `helperExit` and `exitRestart` held it across metric calls and `time.AfterFunc` with no `defer`, and the receive worker reaches them (a received Grace-LSA, an LSDB content change, a neighbor reaching Full) | FIXED at closure (uncommitted): `addHelperSession`, `removeHelperSession`, `leaveRestart` and `updateGrace` release by `defer`; TestGRLockReleasedAfterContainedPanic, red on HEAD's two files in all three cases |
+| OSPF | `e.mu` in self-origination | The phase 5 premise "origination never runs on the receive worker" is false: `handleLSUpdate` -> `grInspectV6Update` -> `onGraceReceived` -> `helperEnter` -> `originateSelfLSAs`, and the content-change observer -> `helperExit` -> `originateSelfLSAs` | Read at closure: `originateSelfLSAs`, `origination_v6*.go`, `ri.go`, `te_originate.go`, `ext_link.go`, `ext_prefix.go`, `opaque.go` hold `e.mu` only to copy fields, maps and the next LSID, with no call out: clean |
+| IS-IS | circuit `c.mu` | `RunElection`'s second hold ran `st.Elect` on Hello-derived candidates with no `defer` | FIXED f02d11be14: `(*Circuit).elect`; red: `c.mu` still held. The engine's 34 `e.mu` and the `circuitsMu` sites copy fields only |
+| BFD, VRRP | session and instance locks | `handleInbound`, `tick`, `onPacket` release by `defer` | Clean |
+| Commit-confirm worker | none | Window state is worker-only, and `api/config_session.go` `(*ConfigSessionManager).Commit` copies the hooks under `m.mu` before `WriteOutside` | Clean |
+
+A-1 is validated by this audit and by TestPeerReadPanicIsolation, where a
+second peer keeps exchanging messages after the first one's read path panicked.
+AC-6 consequence: after the fixes the panicking frame can no longer hold
+`writeMu` when the guard runs, so TestSessionReadPanicWriteLockHeld models the
+remaining holder, another writer, and `tryNotificationWithin` bounds the wait.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -399,6 +472,19 @@ in phase 2, because a held shared lock would stall every peer (AC-4).
 - Shared state a panic leaves half-updated (A-3) is resynced only by the unit
   restart; a site that phase work shows cannot be resynced is listed here by that
   phase, and containment never claims it.
+- RSVP-TE: a label allocated but not yet recorded on the LSP when the panic
+  fires is not returned; it is never reused (phase 4).
+- Commit-confirm worker: a write that panics after part of the change applied
+  leaves that part applied. The caller is told so in plain words, and the
+  operator compares the running configuration before writing again.
+- A Ze defect that repeats on every tick or every packet re-panics each time:
+  each one is logged, counted and crash-recorded, bounded only by the crash
+  record rotation (`crashlog.rotateRecoveredFiles`) and the component's backoff (R-2).
+- Third-party goroutines Ze does not own keep their own log-only recovers:
+  charm.land/ssh `recoverAndLog` (PTY copy and request goroutines) and the
+  wish/bubbletea window-change goroutine.
+- No SDK `Go` helper was built for goroutines an external plugin starts: they
+  belong to the plugin author, and no AC asks for one.
 
 ## RFC Documentation
 
@@ -412,7 +498,8 @@ L2TP RFC 2661).
 
 | Question | Options | Reading this spec proceeds under |
 |----------|---------|----------------------------------|
-| Is a lab interop scenario that injects a panic owed, given it needs an injection compiled only under a non-shipped build tag (`ze_le`) in the binary the lab runs? | (a) the Go wire test plus the existing Cease interop coverage is the evidence; (b) add a `ze_le`-only injection and a `bgp-panic-cease` scenario | (a): no injection code outside `_test.go` files |
+| Is a lab interop scenario that injects a panic owed, given it needs an injection compiled only under a non-shipped build tag (`ze_le`) in the binary the lab runs? | (a) the Go wire test plus the existing Cease interop coverage is the evidence; (b) add a `ze_le`-only injection and a `bgp-panic-cease` scenario | Decided (b), by `ai/rules/interop-and-goal-validation.md`: a protocol behaviour change owes an interop test, and the Cease-on-panic is one. The injection compiles only under the `ze_le` build tag, which no shipped binary sets, so no production build carries a hook. Phase 2 owns the injection and the `bgp-panic-cease` scenario |
+| The IS-IS end path (`isis/panic_guard.go` `endReceivePanic`) quotes "If the holding timer expires before another accepted IIH arrives, the IS MUST purge the adjacency and report adjacencyStateChange Down." from `rfc/full/iso-iec-10589.txt` Section 10.6. That file is a project-written "Independent Reconstruction", not ISO/IEC 10589. Is it an acceptable source for an RFC-style quote? | (a) keep it, and label every such quote as from the reconstruction; (b) obtain the ISO text and re-quote; (c) drop the quote and cite the section only | Open for Thomas. The code does not depend on the answer: the teardown follows the adjacency state machine either way |
 
 ## Disposition
 
@@ -436,7 +523,65 @@ phased audit above.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during implementation)
+- `internal/core/taskguard` (bfe10ac9c4): one boundary, `Task.Contain`, deferred
+  directly at a task entry; logs at ERROR, counts
+  `ze_task_panics_total{component,task}`, writes a recovered crash record
+  (`crashlog.RecordRecoveredPanic`, `KindRecovered`, listed by `ze show crashes`).
+  `crashlog.appendValue` prints every panic value (16480c0684).
+- BGP (f258023eb5, 8fc41a50d9): inner `read` guard in `Session.Run` sends
+  Cease / Unspecific through `ceaseAfterPanic` without blocking
+  (`tryNotificationWithin`); `connect`, `cancel`, `delivery` and `accept` moved
+  onto the guard; the delivery panic sends Unspecific. Lock fixes in
+  `reactor_notify.go` and `aigp_readvertise.go`.
+- Interop `bgp-panic-cease` (cefef77f15, 27d7e4f0ea, docs 523891fbf2): the
+  `ze_le` lab daemon, the read-path panic seam reached by both readers, the
+  checker, and interop.md row 60. Evidence under "Interop Tests".
+- Siblings, one boundary per task in the audit table: RTR and BMP (24ff93be83),
+  DNS (b505e144ab), LDP (d9fa580dce), RSVP-TE (f11f9eb9dc, 1f2ec7260a,
+  e4bf3104a6), OSPF (a736ea0800, 3007251b43, b90a703ab5, bce5fe4915), OSPFv3
+  (e89eae05b1), IS-IS (4222fb02a9, f02d11be14), BFD (3417534caf), VRRP
+  (0b9e085901), L2TP (2de545d809), PPPoE (558c13f782), IKE (91502e4f4a),
+  RADIUS (2974d67589), CoA (cef77391f7), DHCP (c5e7232a16), TFTP (1c189da8be),
+  TACACS+ (dfe8925c99), plugin IPC (629502dff5, 3294897b53, 895f153c5e,
+  07e6474dfa), SSH (56e4e6a9e1), gNMI (5b0daf545c).
+- L2TP RADIUS login and accounting boundaries (2c0b7e2e01), the RFC 5176, 8907
+  and 1350 discrimination re-records (b8ef092763, eb2c45ea85), and the tacacs
+  `nolint` (f49d320bde).
+- Closure review (uncommitted, commit A): the commit-confirm worker boundary
+  (`config/confirm/panic_guard.go`, `Window.write`, metrics bound in
+  `cmd/ze/hub/confirm_window.go`), and the OSPF graceful-restart lock fix
+  (`gr_helper.go` `addHelperSession`, `removeHelperSession`, `updateGrace`;
+  `gr_restarter.go` `leaveRestart`).
+
+### Bugs Found/Fixed
+- Silent swallows: DNS `Authoritative`/`Recursive` and the OSPF registry
+  wrappers dropped a panic with no record when no `onPanic` was passed
+  (TestQueryPanicNeverSilent, TestOSPFRenderPanicNeverSilent).
+- Locks a panic could leave held: BGP, RTR, L2TP, RSVP-TE, OSPF (engine and
+  graceful restart), IS-IS ("Lock audit (A-1)", each with a lock test).
+- PPPoE `PppoxFD` zero closed fd 0 (558c13f782). RSVP-TE zero role was ingress
+  (e4bf3104a6). RSVP-TE admission charge leaked on a contained panic
+  (`releaseEverywhere`, 1f2ec7260a). TACACS+ `trySend` leaked a connection on
+  any unwind (dfe8925c99). The gNMI Set draft leaked on an unwind (5b0daf545c).
+
+### Documentation Updates
+- `docs/guide/monitoring.md` "Contained Panics": one row per task with its
+  source anchor; `docs/architecture/diagnostics/crash-capture.md` "Recovered
+  panics"; `docs/plugin-development/metrics.md`; `peer-lifecycle.md`, `fsm.md`,
+  `rib-storage-design.md` (BGP); each sibling's design page named in its commit;
+  `process-protocol.md` and `fleet-config.md` (plugin IPC); at closure
+  `docs/guide/config-editor.md` "Commit Confirmed" (worker boundary) and the
+  DirectBridge sentence of `process-protocol.md`.
+
+### Deviations from Plan
+- The audit grew by rows the 043c682d24 audit missed (engine-op, LDP discovery,
+  RADIUS accounting, commit-confirm worker, the OSPF registry wrappers, RSVP-TE
+  and OSPF/IS-IS engine workers as separate rows).
+- BGP gained a lab scenario (`bgp-panic-cease`) the plan had as an owner
+  question; decided by the interop rule.
+- L2TP's boundary sits at `reactor.handle`, not at `listener.go`: the readers
+  copy and queue only. IKE's sits in the engine, not `transport/udp.go`, for
+  the same reason.
 
 ## Review Gate
 
@@ -446,22 +591,187 @@ phased audit above.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/improve-5-panic-boundaries-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md` (12 files, verdict clean) |
+| `./le spec review check` | `review_gate: OK (7 code files, clean, hashes match ...)` |
+| Rounds | 4 |
+| Reviewer lenses used | AC-8 re-walk of every network-input loop (a goroutine or worker that runs request work for network input), lock reachability from each guarded task, guard placement (deferred directly, task entry only, no per-message defer inside a read loop), goroutine lifecycle, error leakage to remote clients, docs against source |
+
+### Run 1 (closure review, independent of every implementation phase)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | AC-8: every config write (gNMI Set, SSH, web and API commit, accept, abort, managed push) runs on the commit-confirm worker goroutine, outside the gNMI, SSH and web boundaries, so a Ze defect in a commit apply still ended the daemon | `config/confirm/confirm.go` `Window.do` | fixed (uncommitted): `panic_guard.go` `Window.write`, task `config-confirm/write` |
+| 2 | ISSUE | A-1: the graceful-restart `m.mu` is held without `defer` across metric calls in `helperEnter`, `updateGrace`, `helperExit` and `exitRestart`, which the OSPF receive worker reaches; the phase 5 premise that origination never runs there is false | `ospf/gr_helper.go`, `ospf/gr_restarter.go` | fixed (uncommitted): `addHelperSession`, `removeHelperSession`, `updateGrace`, `leaveRestart` release by `defer` |
+| 3 | NOTE | `process-protocol.md` said no engine boundary contains a DirectBridge call from a goroutine the plugin started; the calling task's own boundary does whenever that goroutine reads network input | `docs/architecture/api/process-protocol.md` | corrected in one edit |
+| 4 | NOTE | Every one of the 61 `Contain` sites is `defer X.Contain(...)` (grep over `internal`, `pkg`, `cmd`, no non-deferred call); the remaining raw `recover()` sites in the touched packages are the internal rows of the audit table | - | none needed |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Finding 1. Root cause: `Window.do` (`config/confirm/confirm.go`) hands the
+  request closure to `Window.run`, a long-lived worker with no recover, so the
+  caller's boundary (gNMI `containUnaryPanic`, the SSH middleware, `net/http`)
+  sits on another goroutine. `[workaround]` run the apply on the caller's
+  goroutine; `[source]` a boundary on the worker per request. Not the
+  workaround: the worker exists to serialise writes against the window
+  (owner decision 2026-10-12). Fix: `Window.write` defers
+  `writeTask.Contain`, answers the caller a plain error (no panic value) naming
+  the crash record and saying the write may be partly applied;
+  `confirm.SetPanicMetrics` bound in `startConfirmWindow`; docs
+  `config-editor.md`, `monitoring.md`. TestConfirmWritePanicContained: green
+  `-race`; red by overlay (`answer <- fn()`): "panic: boom: apply defect" ends
+  the test binary.
+- Finding 2. Root cause: `grManager.helperEnter`, `helperExit`, `updateGrace`
+  and `exitRestart` unlock by hand after metric calls; `handleLSUpdate` ->
+  `grInspectV6Update` -> `onGraceReceived` and the content-change observer
+  reach them on the receive worker. `[workaround]` none safe (TryLock in the
+  end path guesses ownership); `[source]` release by `defer` in extracted
+  helpers. TestGRLockReleasedAfterContainedPanic (nil metric under `m.mu`,
+  three cases): green `-race`; red by overlay of HEAD's two files: "m.mu is
+  still held after the panic under it was recovered" in all three.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+### Run 3 (independent review of the two round-1 fixes)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | A `commit confirmed` whose apply panics, contained by `Window.write`, left its window record on disk (saved before the apply) but no window in memory and no timer: the part-applied commit had no revert behind it, and the stale record would revert every later write at the next daemon start. The force path left the record's deadline apart from the armed one | `config/confirm/confirm.go` `Window.open`, `Window.Confirmed` | fixed: `Window.applyArmed`, reviewed clean in Run 4, arms the recorded window when Apply panics; TestConfirmedApplyPanicArmsWindow (open and force cases) |
+| 2 | NOTE | OSPF graceful-restart lock: lock order unchanged (`originateSelfLSAs`, `grOriginateGraceLSAs`, `triggerAllSPF` still run after `m.mu` is released), behaviour unchanged; TestGRLockReleasedAfterContainedPanic green `-race`, red 3/3 on HEAD's two files | `ospf/gr_helper.go`, `ospf/gr_restarter.go` | none needed |
+| 3 | NOTE | The deadline revert (`Window.run` -> `deadlineRevert`) is not a request and runs outside `Window.write`: a Ze defect in the revert still ends the daemon, and `RecoverOnStart` reverts at the next start. It is a timer task, not network input, so outside AC-8 | `config/confirm/confirm.go` `Window.run` | none in this spec |
+
+- Run 3 finding 1. Root cause: `open` saves the record, then Apply; only the
+  error return clears it, and `arm` runs only after a normal return, so a
+  panic unwinding through `Window.write` skips both. `[workaround]` clear the
+  record on panic, which leaves a part-applied commit with no revert;
+  `[source]` arm the recorded window on the way out, which keeps the invariant
+  `open` states (no commit applied with no revert behind it) and matches what a
+  daemon crash did before the guard (the next start reverted). Docs:
+  `config-editor.md` Commit Confirmed paragraph. TestConfirmedApplyPanicArmsWindow:
+  green `-race -count=3` over the package; red by overlay of the pre-fix
+  `confirm.go` (HEAD plus the `w.write(fn)` route): "no window is open after the
+  panicked apply" (open) and "the window's deadline is 59m59.9s away" (force).
+  TestConfirmWritePanicContained: green; red by overlay of HEAD's `confirm.go`
+  ("panic: boom: apply defect" ends the test binary).
+
+### Run 4 (independent review of the Run 3 fix, `Window.applyArmed`)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | Panic: the deferred `arm(p)` runs once and the panic unwinds past the caller's `Clear` / `Save(previous)`, so the record on disk and the armed window are the same `Pending` value (force path: `next`, first rollback kept). Error: `panicked` is false, nothing is armed, the caller clears (open) or restores `previous` (force), and the previous window and timer stay. Success: one `arm`. No double arm or double clear is reachable. A later `accept`, `abort` or deadline acts on the armed window as on any other | `config/confirm/confirm.go` `Window.applyArmed` | none needed |
+| 2 | NOTE | Restart: `recoverConfirmWindow` (`cmd/ze/hub/confirm_window.go`) loads the record before the config is read and `RecoverOnStart` reverts it, the same as any window open at shutdown (AC-19); there is no resume path, by design | `cmd/ze/hub/confirm_window.go` | none needed |
+| 3 | NOTE | TestConfirmedApplyPanicArmsWindow: green `-race -count=3`, package green `-race`; red under the pre-fix overlay in both cases ("no window is open after the panicked apply", "the window's deadline is 59m59.999s away"). It does not compare the saved record's deadline with the shown one; the code passes the same value to both | `config/confirm/panic_guard_test.go` | none needed |
+
+### Run 2 (over the Run 1 fixes only)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | `Window.write` is deferred directly at the per-request entry on the worker; `deadlineRevert` stays unguarded as a timer task with no network input; worker state is touched only on the worker | `config/confirm/panic_guard.go` | none |
+| 2 | NOTE | `leaveRestart` snapshots `cfg.RestartInterval` and `reason` under the lock, as the old code did; `exitRestart`'s later actions are unchanged | `ospf/gr_restarter.go` | none |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Commit-confirm worker outside every boundary | `config/confirm/confirm.go` `Window.do` | `config/confirm/panic_guard.go` `Window.write` (uncommitted, commit A) |
+| 2 | ISSUE | Graceful-restart `m.mu` held across calls on the receive worker's path | `ospf/gr_helper.go`, `ospf/gr_restarter.go` | deferred helpers (uncommitted, commit A) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| BGP: peer told why (NOTIFICATION), metric, message type, crash record, read-path test | Done | `bgp/reactor/session.go` `Run`, `session_connection.go` `ceaseAfterPanic` | f258023eb5 |
+| Every sibling network-input task contained | Done | audit table, every row DONE | 40 commits, plus the closure fixes in commit A |
+| One policy, one shared guard | Done | `internal/core/taskguard/guard.go` `Task.Contain` | 61 deferred call sites |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | TestSessionReadPanicSendsCeaseAndCloses, TestSessionReadPanicCoalesced; interop `bgp-panic-cease` | wire octets asserted |
+| AC-2 | Done | TestGuardRecordsPanic; each sibling test asserts count and a `KindRecovered` record | log fields in the taskguard test |
+| AC-3 | Done | TestSessionReadPanicSendsCeaseAndCloses (`bufMuxStd.Stats()` balanced) | |
+| AC-4 | Done | TestPeerReadPanicIsolation | |
+| AC-5 | Done | TestDeliveryPanicSendsCeaseUnspecific; TestOwedKeyPublicationFailureTearsDownSource keeps Out of Resources for no receiver | |
+| AC-6 | Done | TestSessionReadPanicWriteLockHeld | after the A-1 fixes the panicking frame cannot hold `writeMu`; the test models another writer |
+| AC-7 | Done | every Test cell of the audit table | |
+| AC-8 | Done | audit table: no row reads "lacks" | closure added the commit-confirm row |
+| AC-9 | Done | TestGuardNoPanicIsSilent; every reader loops over a guarded pass (`for x.receive() {}`), never a defer per message inside a read loop | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestGuardRecordsPanic, TestGuardNoPanicIsSilent | Done | `internal/core/taskguard/guard_test.go` | |
+| TestSessionReadPanic* (3), TestPeerReadPanicIsolation | Done | `bgp/reactor/session_panic_test.go` | |
+| TestDeliveryPanicSendsCeaseUnspecific | Done | `bgp/reactor/panic_recovery_test.go` | |
+| Sibling tests | Done | the Test column of the audit table | 46 named tests, all present (grep at closure) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/taskguard/guard.go`, `guard_test.go` | Done | |
+| `bgp/reactor/session_panic_test.go` | Done | |
+| `l2tp/listener.go`, `ike/transport/udp.go`, `ike/engine/inbound.go`, `tftpserver/socket_linux.go` | Changed | boundary placed where the work happens: `l2tp/reactor.go` `handle`, `ike/engine/panic_guard.go`, `tftpserver/handler.go` |
+
+### Audit Summary
+- **Total items:** 9 ACs, 3 task requirements, every audit row
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** boundary locations, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer cannot panic the daemon through BGP, and is told why | interop | `bgp-panic-cease` green twice (FRR receives Cease / Unspecific, session returns, BIRD session never drops); red with the Cease send removed (assertion 5) |
+| Every sibling network-input task ends only its unit | unit at the real entry | the audit table's tests, each red by overlay with its guard removed (binary died) and green with it; e.g. TestOSPFReceivePanicContained keeps the eth1 neighbor while eth0's goes Down |
+| A contained panic is visible to the operator | unit + docs | TestGuardRecordsPanic (ERROR line, metric, crash record); `monitoring.md` "Contained Panics" lists every task |
+| No lock left held turns containment into a hang | unit | the lock tests in "Lock audit (A-1)", each red on the old code |
+| No behaviour change without a panic | functional | `./le test bfd`, `vrrp`, `rsvpte`, `ldp`, `isis`, `ospfv3`, `ospf`, `pppoe`, `dhcp` green in their phases |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every audit row is DONE; the closure fixes land in commit A | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/taskguard/guard.go`, `guard_test.go` | yes | `ls internal/core/taskguard/` at closure |
+| `internal/component/bgp/reactor/session_panic_test.go` | yes | grep found TestSessionReadPanicSendsCeaseAndCloses there |
+| `internal/component/config/confirm/panic_guard.go`, `panic_guard_test.go`, `internal/plugins/ospf/gr_lock_panic_test.go` | yes | written at closure, tests run |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-7, AC-8 | every audit row has its test | closure grep: all 57 test names present, file per name |
+| AC-8 | the commit-confirm worker is contained | `go test -race ./internal/component/config/confirm/`: ok; overlay red "panic: boom: apply defect" |
+| AC-9 | guards deferred directly | grep: 61 `defer ... .Contain(`, 0 non-deferred `.Contain(` |
+| A-1 | GR lock released | `go test -race -tags ze_ospf -run 'TestGRLock\|TestHelper\|GR\|Grace' ./internal/plugins/ospf/`: ok; overlay red in 3 of 3 cases |
+| AC-8 | a panicked `commit confirmed` keeps its revert | `go test -race -count=3 -run TestConfirmedApplyPanicArmsWindow ./internal/component/config/confirm/`: ok; overlay of the pre-fix `confirm.go` red in both cases (open, force) |
+| - | scoped lint over the 40 packages the spec's commits touched, plus `config/confirm` | 53 findings, one on this spec's lines (`bfd/engine/loop.go` `serve`, gocritic ptrToRefParam), exempted with its reason in its own commit; the rest are on lines other commits wrote (DelayOpen, IKE, L2TP drain, interoplab goconst) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| UPDATE read by `Session.Run` | none: a panic needs a seam no shipped binary holds; the lab scenario `test/interop/scenarios/bgp-panic-cease` drives the real daemon (`ze_le`) | green twice, red once |
+| sibling entries | none (same reason); each Go test drives the real socket, pipe or handler | read at closure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, then fixed | Lock audit (A-1) table: six components fixed with lock tests; Mistake Log |
+| A-2 | confirmed | one defer per task or per dispatched event; AC-9 grep |
+| A-3 | confirmed with limits | Known Limitations names each residual |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `monitoring.md` `config-confirm`/`write` row | `config/confirm/panic_guard.go` `writeTask`, `writeEndedByPanic` | yes |
+| `config-editor.md` worker paragraph | `Window.do` -> `Window.write` | yes |
+| `process-protocol.md` DirectBridge sentence | DirectBridge runs on the caller (`pkg/plugin/rpc/bridge.go`); BMP `handleSession` guard | yes |
+| `./le doc check all` | exit 1 (Run 4 rerun, after the `applyArmed` doc sentence): every finding is foreign, none names a file of this spec: the published `dns-resolver` command pages missing from `../gh-pages`, and three anchors in `core-design.md`, `ipsec-9-ikev2-eap-nat.md`, `ci-workflows.md`. The `config-editor.md` anchors (`Window.write`, `writeEndedByPanic`, `Window.applyArmed`) resolve. The earlier own finding (`l2tp.md` `coa.go` anchor) was fixed | yes |
 
 ## Checklist
 

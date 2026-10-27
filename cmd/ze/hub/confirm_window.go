@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // daemonConfirmWindow is the running daemon's confirmed-commit window, or nil
@@ -33,6 +34,9 @@ func startConfirmWindow(store storage.Storage, configPath string, reload func() 
 		return nil
 	}
 	window := confirm.NewWindow(confirmRevert(store, configPath, reload), confirm.NewStoreRecorder(store, configPath))
+	if reg := registry.GetMetricsRegistry(); reg != nil {
+		confirm.SetPanicMetrics(reg)
+	}
 	daemonConfirmWindow.Store(window)
 	return window
 }

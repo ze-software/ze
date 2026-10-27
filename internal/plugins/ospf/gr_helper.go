@@ -181,17 +181,26 @@ func (m *grManager) onGraceReceived(g graceReceived) {
 // self-LSAs so the topology builder starts advertising X's adjacency (and X as DR when wasDR).
 func (m *grManager) helperEnter(key helperKey, g graceReceived, wasDR bool, addr netip.Addr, ifaceID uint32) {
 	graceEnd := m.now().Add(time.Duration(int64(g.gracePeriod)-int64(g.lsAge)) * time.Second)
+	m.addHelperSession(key, &helperSession{iface: key.iface, router: key.router, address: addr, ifaceID: ifaceID, graceEnd: graceEnd, wasDR: wasDR})
+	// Advertise X's adjacency now (the topology builder consults isHelping).
+	m.e.originateSelfLSAs()
+}
+
+// addHelperSession records s under key and publishes the helper gauges. It
+// holds m.mu across the metric calls, so it releases it by defer: a Grace-LSA
+// reaches this from the receive worker, and a panic it contains (task
+// ospf/receive) must not leave m.mu held for the next Grace-LSA and for
+// suppressOrigination.
+func (m *grManager) addHelperSession(key helperKey, s *helperSession) {
 	m.mu.Lock()
-	s := &helperSession{iface: key.iface, router: key.router, address: addr, ifaceID: ifaceID, graceEnd: graceEnd, wasDR: wasDR}
-	if d := graceEnd.Sub(m.now()); d > 0 {
+	defer m.mu.Unlock()
+
+	if d := s.graceEnd.Sub(m.now()); d > 0 {
 		s.timer = time.AfterFunc(d, func() { m.helperGraceExpired(key) })
 	}
 	m.helping[key] = s
 	m.metrics.helperSessions.With(m.e.grFamilyLabel(), key.iface).Set(float64(m.sessionsOnIfaceLocked(key.iface)))
 	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "received").Set(float64(len(m.helping)))
-	m.mu.Unlock()
-	// Advertise X's adjacency now (the topology builder consults isHelping).
-	m.e.originateSelfLSAs()
 }
 
 // updateGrace extends an existing helper session's grace window on a re-received Grace-LSA
@@ -199,9 +208,10 @@ func (m *grManager) helperEnter(key helperKey, g graceReceived, wasDR bool, addr
 func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 	graceEnd := m.now().Add(time.Duration(int64(g.gracePeriod)-int64(g.lsAge)) * time.Second)
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	s, ok := m.helping[key]
 	if !ok {
-		m.mu.Unlock()
 		return
 	}
 	s.graceEnd = graceEnd
@@ -211,7 +221,6 @@ func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 	if d := graceEnd.Sub(m.now()); d > 0 {
 		s.timer = time.AfterFunc(d, func() { m.helperGraceExpired(key) })
 	}
-	m.mu.Unlock()
 }
 
 // helperGraceExpired is the RFC 3623 sec 3.2 grace-expiry exit trigger (the grace clock, LS age
@@ -223,11 +232,27 @@ func (m *grManager) helperGraceExpired(key helperKey) { m.helperExit(key, nil, g
 // recalc + Router/Network-LSA re-origination). A non-nil expected session prevents
 // an exit derived from an old snapshot from removing a replacement at the same key.
 func (m *grManager) helperExit(key helperKey, expected *helperSession, reason string) {
-	m.mu.Lock()
-	s, ok := m.helping[key]
-	if !ok || (expected != nil && s != expected) {
-		m.mu.Unlock()
+	if !m.removeHelperSession(key, expected, reason) {
 		return
+	}
+	m.e.originateSelfLSAs()
+	m.e.triggerAllSPF()
+}
+
+// removeHelperSession drops the session at key, when it is still the expected
+// one, publishes the helper gauges, and answers whether it removed one. It
+// releases m.mu by defer for the reason addHelperSession gives: the LSDB
+// content-change observer reaches it from the receive worker.
+func (m *grManager) removeHelperSession(key helperKey, expected *helperSession, reason string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	s, ok := m.helping[key]
+	if !ok {
+		return false
+	}
+	if expected != nil && s != expected {
+		return false
 	}
 	if s.timer != nil {
 		s.timer.Stop()
@@ -236,9 +261,7 @@ func (m *grManager) helperExit(key helperKey, expected *helperSession, reason st
 	m.metrics.helperSessions.With(m.e.grFamilyLabel(), key.iface).Set(float64(m.sessionsOnIfaceLocked(key.iface)))
 	m.metrics.helperExits.With(m.e.grFamilyLabel(), reason).Inc()
 	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "received").Set(float64(len(m.helping)))
-	m.mu.Unlock()
-	m.e.originateSelfLSAs()
-	m.e.triggerAllSPF()
+	return true
 }
 
 // onContentChange is the RFC 3623 sec 3.2 strict-LSA-checking exit driver (fed by the LSDB

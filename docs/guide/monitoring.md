@@ -381,6 +381,8 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/component/ssh/panic_guard.go -- sessionTask, authTask, endSessionAfterPanic -->
 | `gnmi` | `rpc` | One gNMI call (Capabilities, Get, Set) or one Subscribe stream: it ends with status `Internal` and a plain message naming the `ze show crashes` command, and a Set's uncommitted edits are discarded; the listener and every other call and stream keep running |
 <!-- source: internal/component/gnmi/panic_guard.go -- rpcTask, endRPCAfterPanic -->
+| `config-confirm` | `write` | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the `ze show crashes` command; the worker serves the next write and the open window's deadline |
+<!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->

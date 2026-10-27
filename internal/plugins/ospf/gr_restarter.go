@@ -266,26 +266,10 @@ func (m *grManager) graceExpired() {
 // route install so SPF re-programs the FIB (the fib-kernel sweep refreshes the RTPROT_ZE
 // routes instead of deleting them), flush the router's own Grace-LSAs, and clear the NVS fact.
 func (m *grManager) exitRestart(reason string) {
-	m.mu.Lock()
-	if !m.restarting {
-		m.mu.Unlock()
+	restartInterval, exitReason, exited := m.leaveRestart(reason)
+	if !exited {
 		return
 	}
-	m.restarting = false
-	m.gracefulStop = false
-	if m.restartTimer != nil {
-		m.restartTimer.Stop()
-		m.restartTimer = nil
-	}
-	// Snapshot the fields the post-unlock exit actions read WHILE the lock is held: a
-	// concurrent configure() can rewrite m.cfg and enterRestart() can rewrite m.reason, so
-	// reading them after the Unlock would be a data race (they feed grOriginateGraceLSAs below).
-	restartInterval := m.cfg.RestartInterval
-	exitReason := m.reason
-	m.metrics.restarterActive.With(m.e.grFamilyLabel()).Set(0)
-	m.metrics.restarterExits.With(m.e.grFamilyLabel(), reason).Inc()
-	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "originated").Set(0)
-	m.mu.Unlock()
 
 	// Re-originate self-LSAs now that suppression is cleared (RFC 3623 sec 2.3). This also
 	// re-runs the normal stale-flush of self-LSAs the origination path performs.
@@ -297,6 +281,32 @@ func (m *grManager) exitRestart(reason string) {
 	m.e.triggerAllSPF()
 	// Clear the NVS fact so a later unrelated restart does not re-enter in-restart (R-10).
 	m.clearFact()
+}
+
+// leaveRestart clears the in-restart state under m.mu and answers the fields
+// exitRestart's later actions read, and whether this call left the restart. It
+// snapshots them WHILE the lock is held: a concurrent configure() can rewrite
+// m.cfg and enterRestart() can rewrite m.reason, so reading them after the
+// unlock would be a data race. It releases m.mu by defer because it calls the
+// metrics under it, and a neighbor reaching Full on the receive worker reaches
+// it: a panic the ospf/receive boundary contains must not leave m.mu held.
+func (m *grManager) leaveRestart(reason string) (restartInterval uint16, exitReason uint8, exited bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if !m.restarting {
+		return 0, 0, false
+	}
+	m.restarting = false
+	m.gracefulStop = false
+	if m.restartTimer != nil {
+		m.restartTimer.Stop()
+		m.restartTimer = nil
+	}
+	m.metrics.restarterActive.With(m.e.grFamilyLabel()).Set(0)
+	m.metrics.restarterExits.With(m.e.grFamilyLabel(), reason).Inc()
+	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "originated").Set(0)
+	return m.cfg.RestartInterval, m.reason, true
 }
 
 // persistFact refuses a planned restart unless its fact is durably acknowledged.

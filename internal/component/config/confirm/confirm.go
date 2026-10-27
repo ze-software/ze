@@ -277,11 +277,13 @@ func (w *Window) deadlineRevert() {
 	w.shown.Store(&shown)
 }
 
-// do runs fn on the worker and returns its answer, or ErrStopped.
+// do runs fn on the worker and returns its answer, or ErrStopped. The worker
+// runs fn under the write boundary (panic_guard.go), so a Ze defect fn meets
+// answers this caller with an error and never ends the daemon.
 func (w *Window) do(fn func() error) error {
 	answer := make(chan error, 1)
 	select {
-	case w.requests <- func() { answer <- fn() }:
+	case w.requests <- func() { answer <- w.write(fn) }:
 		return <-answer
 	case <-w.quit:
 		return ErrStopped
@@ -356,10 +358,9 @@ func (w *Window) Confirmed(user string, seconds time.Duration, force bool, commi
 		if err := w.record.Save(next); err != nil {
 			return err
 		}
-		if err := commit.Apply(); err != nil {
+		if err := w.applyArmed(next, commit); err != nil {
 			return errors.Join(err, w.record.Save(previous))
 		}
-		w.arm(next)
 		return nil
 	})
 }
@@ -368,7 +369,8 @@ func (w *Window) Confirmed(user string, seconds time.Duration, force bool, commi
 // record is saved BEFORE the commit applies, so no commit is ever applied
 // with no revert behind it: a failed save applies nothing, and a daemon that
 // dies after the apply boots the rollback (AC-19). A commit that fails to
-// apply clears the record again. Called on the worker.
+// apply clears the record again; one whose apply panics opens the window
+// (applyArmed). Called on the worker.
 func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 	rollback, err := commit.Snapshot()
 	if err != nil {
@@ -378,8 +380,32 @@ func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 	if err := w.record.Save(p); err != nil {
 		return err
 	}
-	if err := commit.Apply(); err != nil {
+	if err := w.applyArmed(p, commit); err != nil {
 		return errors.Join(err, w.record.Clear())
+	}
+	return nil
+}
+
+// applyArmed applies commit, whose window p is already recorded, and arms p
+// once it applies. An Apply that panics may have applied part of the commit,
+// and p is on disk, so p is armed on the way out as well: its deadline, or
+// the owner's abort, reverts what applied, as a restart would. Without it the
+// part-applied commit would stay with no revert behind it, and the record
+// left on disk would revert every later write at the next start. An error
+// Apply returns leaves p unarmed, and the caller puts the record back. Called
+// on the worker.
+func (w *Window) applyArmed(p Pending, commit Commit) error {
+	panicked := true
+	defer func() {
+		if panicked {
+			w.arm(p)
+		}
+	}()
+
+	err := commit.Apply()
+	panicked = false
+	if err != nil {
+		return err
 	}
 	w.arm(p)
 	return nil

@@ -1044,9 +1044,13 @@ writes a crash record that `ze show crashes` lists
 No boundary restarts a plugin: the engine releases it as it releases any
 plugin that exited, and a reload starts it again. A request that arrives over
 `DirectBridge` runs synchronously on the calling plugin's goroutine, not under
-`engine-op`. A panic in it is contained by the `run` boundary when the call
-came from the plugin's run goroutine. When it came from a goroutine the plugin
-started itself, no engine boundary contains it.
+`engine-op`. A panic in it unwinds the calling goroutine, so the boundary of
+that goroutine's task contains it: the `run` boundary when the call came from
+the plugin's run goroutine, and the task's own boundary when it came from a
+goroutine the plugin started to read network input (each such reader has its
+own task in "Contained Panics", for example `bmp`/`receive`). A goroutine a
+plugin starts for its own internal work carries no engine boundary, as the
+plugin's other internal workers do not.
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchPluginRPC -->
 <!-- source: internal/component/plugin/server/panic_guard.go -- engineOpPanics, engineOpPanicMessage -->
 <!-- source: pkg/plugin/rpc/panic_guard.go -- readerPanics -->
