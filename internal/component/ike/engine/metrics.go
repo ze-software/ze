@@ -249,6 +249,9 @@ const metricLabelPeer = "peer"
 const metricLabelIfID = "if_id"
 
 func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
+	// The contained-panic counter, ze_task_panics_total{component="ike"}
+	// (panic_guard.go).
+	ikePanics().guard.SetMetricsRegistry(reg)
 	return &IPsecMetrics{
 		saCount:        reg.Gauge("ze_ipsec_sa_count", "Number of active IKE Security Associations"),
 		tunnelUp:       reg.GaugeVec("ze_ipsec_tunnel_up", "Whether a peer tunnel is established and carries ESP (1=up, 0=down or degraded)", []string{metricLabelPeer}),

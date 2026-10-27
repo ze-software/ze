@@ -357,7 +357,9 @@ func (ps *PeerSession) maintainSA(
 			// refusal for this SA's peer sends the DF-clear copy at once (AC-11).
 			ps.handleSizeRefusal(sa, tr, refusal, log)
 		case pkt := <-ps.inbound:
-			out := ps.handleOwnedInbound(sa, pkt, tr, dp, log)
+			// A panic while this message is handled answers reestablish, so it takes
+			// the exit below and the peer is sent the Delete (panic_guard.go).
+			out := ps.handleOwnedInboundGuarded(sa, pkt, tr, dp, log)
 			// RFC 7296 Section 4: the peer refused a rekey with NO_ADDITIONAL_SAS, so
 			// the required fallback is to delete the old SA and create a new one.
 			// Dropping the Child SA and ending the owner loop is that fallback: the
@@ -823,7 +825,9 @@ func (ps *PeerSession) waitForRequestWindow(sa *SA, tr *transport.UDPTransport, 
 	for {
 		select {
 		case pkt := <-ps.inbound:
-			out := ps.handleOwnedInbound(sa, pkt, tr, dp, log)
+			// The session is already being destroyed, so a contained panic here
+			// changes nothing: the wait goes on until the window frees or the deadline.
+			out := ps.handleOwnedInboundGuarded(sa, pkt, tr, dp, log)
 			if out.newSA != nil {
 				// RFC 7296 Section 2.12: an SA nobody will adopt still holds SK_*
 				// and the material that recomputes them.

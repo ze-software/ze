@@ -328,6 +328,9 @@ at zero from the moment the component has a metrics registry.
 | `pppoe` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
 | `pppoe` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
 <!-- source: internal/component/l2tp/pppoe/panic_guard.go -- newPPPoEPanicTasks, endAdmissionAfterPanic -->
+| `ike` | `inbound` | One received IKE datagram, dropped: the socket's dispatch goroutine reads the next one, and the peer retransmits its request |
+| `ike` | `established` | One IKE SA: the peer is sent a Delete for it (unless it stopped answering), its Child SAs go with it, and Ze sets it up again through IKE_SA_INIT and IKE_AUTH; every other SA keeps running |
+<!-- source: internal/component/ike/engine/panic_guard.go -- newIKEPanicTasks, deliverDatagram, handleOwnedInboundGuarded -->
 | `bfd` | `receive` | One received BFD packet, dropped: the socket reader reads the next one, and no session changes state |
 <!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
 | `bfd` | `express` | The BFD session the loop was serving, when it was serving one: it goes Down with diagnostic 0 (No Diagnostic) and comes back Up through the three-way handshake; every other session on the loop keeps running |

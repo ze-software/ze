@@ -34,6 +34,23 @@ passes through decryption and authentication before it acts on the message.
 <!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound, handleCreateChildSAOwned -->
 <!-- source: internal/component/ike/engine/sa_init_retry.go -- retryCause.String, retrySAInit -->
 
+**A panic ends the one datagram or the one IKE SA it reached, never the
+engine.** Each socket's dispatch goroutine (`dispatchInbound`,
+`dispatchNATTInbound`) hands every datagram that passed the header checks to
+`deliverDatagram`, the `ike/inbound` task of the shared panic guard: a panic
+there drops that datagram and the goroutine reads the next one. A responder
+handshake it interrupted holds its peer's half-open slot only until
+`responderHandshakeTimeout`, as an abandoned handshake does. An established
+SA's owner loop handles each message through `handleOwnedInboundGuarded`, the
+`ike/established` task: the SA's state is unknown after a panic, so the outcome
+is `reestablish`, the exit that sends the Delete through `sayGoodbye` (RFC 7296
+Section 2.4) and sets the SA up again. Both are logged, counted in
+`ze_task_panics_total` and crash-recorded (`docs/guide/monitoring.md`,
+"Contained Panics").
+
+<!-- source: internal/component/ike/engine/panic_guard.go -- deliverDatagram, handleOwnedInboundGuarded -->
+<!-- source: internal/component/ike/engine/established.go -- maintainSA, waitForRequestWindow -->
+
 The same distinction applies to the engine's typed configuration and selectors.
 Plugin JSON becomes a config tree before the parsers choose authentication
 modes, SPD actions and directions. Port selectors come from those parsers or

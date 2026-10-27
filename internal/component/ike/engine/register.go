@@ -661,24 +661,8 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			NATT: pkt.NATT,
 		}
 
-		sa := table.lookupInbound(iSPI, rSPI)
-		if sa == nil {
-			if tryResponderSAInit(nattPkt, iSPI, rSPI, table, tr, log) {
-				continue
-			}
-			log.Debug("ike: no SA for NAT-T packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
-			// RFC 7296 Section 2.21.4 gives a MAY here.
-			// A message received outside the context of a known IKE SA, and that is
-			// not a request to start one, can draw an unprotected INVALID_IKE_SPI.
-			// answerOutOfSA holds each guard.
-			answerOutOfSA(tr, nattPkt, true, notifyLimiter, log)
-			// RFC 7296 Section 2.21.4 SHOULD, beside that MAY: when the source holds an
-			// IKE SA, tell the peer over that SA (notify_suspicious.go).
-			noteSuspicious(nattPkt)
-			continue
-		}
-
-		routeInbound(sa, nattPkt, table, tr, log)
+		// The inbound task's panic boundary (panic_guard.go).
+		deliverDatagram(nattPkt, iSPI, rSPI, true, table, tr, notifyLimiter, log)
 	}
 }
 
@@ -887,21 +871,9 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 			continue
 		}
 
-		sa := table.lookupInbound(iSPI, rSPI)
-		if sa == nil {
-			if tryResponderSAInit(pkt, iSPI, rSPI, table, tr, log) {
-				continue
-			}
-			log.Debug("ike: no SA for packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
-			// RFC 7296 Section 2.21.4, as on the NAT-T path. This socket carries no
-			// non-ESP marker.
-			answerOutOfSA(tr, pkt, false, notifyLimiter, log)
-			// RFC 7296 Section 2.21.4, as on the NAT-T path (notify_suspicious.go).
-			noteSuspicious(pkt)
-			continue
-		}
-
-		routeInbound(sa, pkt, table, tr, log)
+		// The inbound task's panic boundary (panic_guard.go). This socket carries
+		// no non-ESP marker.
+		deliverDatagram(pkt, iSPI, rSPI, false, table, tr, notifyLimiter, log)
 	}
 }
 
