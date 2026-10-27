@@ -256,7 +256,7 @@ func hostPrefixOf(address string) *net.IPNet {
 func innerSelectorPairOf(child *ChildSA, pair tsPair, configured []policyPair,
 	configuredHost *policyPair,
 ) (innerSelectorPair, bool) {
-	pp, _, ok := childPolicyPair(child, pair)
+	pp, ok := childPolicyPair(child, pair)
 	if !ok {
 		return innerSelectorPair{}, false
 	}

@@ -62,8 +62,8 @@
     "claim-sha": "410bc88451cc8ce4",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::childPolicyPair",
-    "producer-sha": "437b2ff1b82f17df",
-    "break": "line 712: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+    "producer-sha": "c0bcdd555d9df036",
+    "break": "line 762: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
   },
   {
     "rid": "RFC4301-4.4.2-2",
@@ -73,8 +73,8 @@
     "claim-sha": "a8ff924318077737",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::childPolicyPair",
-    "producer-sha": "437b2ff1b82f17df",
-    "break": "line 712: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+    "producer-sha": "c0bcdd555d9df036",
+    "break": "line 762: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
   },
   {
     "rid": "RFC4301-4.4.2-2",

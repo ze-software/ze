@@ -695,7 +695,7 @@ func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
 	}
 	out := make([]dataplane.SPParams, 0, len(child.Selectors))
 	for _, pair := range child.Selectors {
-		pp, _, ok := childPolicyPair(child, pair)
+		pp, ok := childPolicyPair(child, pair)
 		if !ok {
 			continue
 		}
@@ -704,11 +704,11 @@ func childPolicies(child *ChildSA, dir dataplane.SADir) []dataplane.SPParams {
 	return out
 }
 
-// childPolicyPair converts one negotiated pair of child to this node's orientation, and
-// returns its remote half as negotiated. ok is false for a pair that installs no policy.
-// childPolicies and the cross-peer registry (innerSelectorPairOf) both build from it, so
-// what the registry compares is what the dataplane installs.
-func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, tsSelector, bool) {
+// childPolicyPair converts one negotiated pair of child to this node's orientation. ok
+// is false for a pair that installs no policy. childPolicies and the cross-peer registry
+// (innerSelectorPairOf) both build from it, so what the registry compares is what the
+// dataplane installs.
+func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, bool) {
 	// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half
 	// is ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half
 	// keys this pair -- and it flips at a rekey the peer starts while the selectors
@@ -728,7 +728,7 @@ func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, tsSelector, bool)
 	// and installs no policy. crossPairs and acceptablePairs never produce one.
 	proto, ok := intersectProto(pair.I.Proto, pair.R.Proto)
 	if !ok {
-		return policyPair{}, tsSelector{}, false
+		return policyPair{}, false
 	}
 	return policyPair{
 		local:      local.Net,
@@ -736,7 +736,7 @@ func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, tsSelector, bool)
 		upperProto: proto,
 		localPort:  selectorPort(local),
 		remotePort: selectorPort(remote),
-	}, remote, true
+	}, true
 }
 
 // policyPair is one negotiated selector pair in this node's orientation, in the form a
