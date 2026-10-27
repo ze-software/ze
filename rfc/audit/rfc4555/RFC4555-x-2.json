@@ -2,8 +2,8 @@
   "note": "Forbidden: a MOBIKE plus NAT-T implementation staying on port 500 for IKE_AUTH when no NAT is detected. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake) binds only NAT-T sockets, targets the port-500 stand-in at respTr-1, fails if ini.NATDetected, and requires the IKE_AUTH to arrive on respTr (mbReceive) with the non-ESP marker. Without the float the packet reaches no listener and the test goes red. Negative: internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE shows that with no NAT-T support the condition does not hold and no MOBIKE offer is made.",
   "requirement_sha": "025d761c12606c0c",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "7591039c742210b3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "5417bcb61dc7143f"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",

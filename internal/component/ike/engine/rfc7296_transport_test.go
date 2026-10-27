@@ -194,7 +194,10 @@ func TestTransportModeUsesExactlyOneAddress(t *testing.T) {
 
 	// A responder narrowing under transport mode refuses a proposal wider than a host.
 	wide := &SA{PeerCfg: transportPeer(), IsInitiator: false}
-	wide.PeerRequestedTransport = true
+	wide.UseTransportMode = decideResponderTransportMode(wide, true) == modeTransport
+	if !wide.UseTransportMode {
+		t.Fatal("setup: a transport-mode request to a transport-mode peer was declined; the refusal below would test tunnel narrowing")
+	}
 	if err := narrowChildSelectors(wide,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.0.0/16"),
 		tsPayload(t, wire.PayloadTypeTSr, "10.2.0.0/16"),
@@ -206,31 +209,77 @@ func TestTransportModeUsesExactlyOneAddress(t *testing.T) {
 // TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted drives RFC 7296 Section 1.3.1's
 // first MUST.
 //
-// VALIDATES: a request Ze accepts yields UseTransportMode true (the response then carries
-// the notification), and a request Ze declines yields false and a tunnel-mode Child SA.
+// transportRequestAuth runs IKE_SA_INIT, then sends an IKE_AUTH request carrying
+// USE_TRANSPORT_MODE (the initiator is configured for transport, so buildAuthRequest adds
+// it) through the production responder, handleAuthRequest, whose peer is configured for
+// respMode. It returns the established responder SA and the decrypted response.
+func transportRequestAuth(t *testing.T, respMode uint8) (*SA, []wire.PayloadEntry) {
+	t.Helper()
+	log := slogutil.DiscardLogger()
+	ikeGroup := testIKEGroup()
+	espGroup := testESPGroup()
+	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "transport-psk")
+	iniPeer.Mode = dataplane.ModeTransport
+	respPeer.Mode = respMode
+
+	table := NewSATable()
+	ini, err := newInitiatorSA("ze", iniPeer, ikeGroup, espGroup)
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+	table.Insert(ini)
+	saInitReq := buildSAInitRequest(ini, ikeGroup)
+	ini.InitiatorSAInitMsg = saInitReq
+	ini.State = StateSAInitSent
+
+	resp, err := newResponderSA("ze", respPeer, ikeGroup, espGroup, ini.InitiatorSPI)
+	if err != nil {
+		t.Fatalf("newResponderSA: %v", err)
+	}
+	handleSAInitRequest(resp, parseMsg(t, saInitReq), saInitReq, nil, nil, log)
+	handleSAInitResponse(ini, parseMsg(t, resp.LastSentMsg), resp.LastSentMsg, table, nil, nil, log)
+	if !notifyIn(mbDecrypt(t, resp, ini.LastSentMsg), wire.NotifyUseTransportMode) {
+		t.Fatal("setup: the IKE_AUTH request carries no USE_TRANSPORT_MODE; the responder would decide on no request")
+	}
+
+	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: espGroup}
+	ps.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, nil, nil, log)
+	if resp.State != StateEstablished {
+		t.Fatalf("responder state = %v, want established", resp.State)
+	}
+	return resp, mbDecrypt(t, ini, resp.LastSentMsg)
+}
+
+// VALIDATES: an IKE_AUTH request carrying USE_TRANSPORT_MODE, answered by the production
+// responder (handleAuthRequest), leaves UseTransportMode true and puts the notification
+// in the response when the peer is configured for transport, and leaves it false with no
+// notification when the peer is configured for tunnel.
 // PREVENTS: the responder echoing USE_TRANSPORT_MODE unconditionally, which would make
-// acceptance an echo rather than a decision.
+// acceptance an echo rather than a decision, and the responder dropping or inverting the
+// decision it stores for the Child SA its later rounds create.
 func TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted(t *testing.T) {
 	// RFC requirement: RFC7296-1.3.1-1 positive -- "If the request is accepted, the
 	// response MUST also include a notification of type USE_TRANSPORT_MODE" (RFC 7296
-	// S1.3.1, rfc/full/rfc7296.txt:802-806). Acceptance sets the flag buildAuthResponse
-	// reads to append that notification.
-	accept := &SA{PeerCfg: transportPeer()}
-	accept.PeerRequestedTransport = true
-	decideResponderTransportMode(accept)
+	// S1.3.1, rfc/full/rfc7296.txt:802-806). The request reaches handleAuthRequest, and
+	// both the decision it stores and the decrypted response are asserted.
+	accept, acceptResponse := transportRequestAuth(t, dataplane.ModeTransport)
 	if !accept.UseTransportMode {
-		t.Error("a transport-mode request to a transport-mode peer was declined; the response would omit USE_TRANSPORT_MODE")
+		t.Error("a transport-mode request to a transport-mode peer was declined; the Child SA would be installed in tunnel mode")
+	}
+	if !notifyIn(acceptResponse, wire.NotifyUseTransportMode) {
+		t.Error("an accepted transport-mode request was answered without USE_TRANSPORT_MODE")
 	}
 
 	// RFC requirement: RFC7296-1.3.1-1 negative -- the discriminator. A peer configured for
 	// TUNNEL mode DECLINES the request: no notification is echoed and the Child SA is
 	// established in tunnel mode, which is the outcome S1.3.1 names for a decline. This
 	// separates "accepted" from "echoed whatever the peer asked for".
-	decline := &SA{PeerCfg: ipsec.SiteToSitePeer{Name: "d", Mode: dataplane.ModeTunnel}}
-	decline.PeerRequestedTransport = true
-	decideResponderTransportMode(decline)
+	decline, declineResponse := transportRequestAuth(t, dataplane.ModeTunnel)
 	if decline.UseTransportMode {
 		t.Error("a transport-mode request was accepted for a tunnel-mode peer; acceptance is an echo rather than a decision")
+	}
+	if notifyIn(declineResponse, wire.NotifyUseTransportMode) {
+		t.Error("a declined transport-mode request was answered with USE_TRANSPORT_MODE")
 	}
 
 	// A Child SA built from the declining SA is installed in tunnel mode.
@@ -259,37 +308,80 @@ func TestTransportRequiredDeletesTheSAOnDecline(t *testing.T) {
 	required := transportPeer()
 	required.TransportRequired = true
 	sa := &SA{PeerCfg: required}
-	if !recordInitiatorTransportMode(sa, false) {
+	mode, deleteSA := recordInitiatorTransportMode(sa, false)
+	if !deleteSA {
 		t.Error("a declined transport-mode request with transport-required set did not delete the SA")
 	}
-	if sa.UseTransportMode {
-		t.Error("a declined request still recorded transport mode; the Child SA would be installed in the wrong mode")
+	if mode != modeTunnel {
+		t.Errorf("a declined request answered mode %d, want tunnel (%d); the Child SA would be installed in the wrong mode", mode, modeTunnel)
 	}
 
 	// RFC requirement: RFC7296-1.3.1-2 negative -- the discriminator. WITHOUT
 	// transport-required the same decline keeps the SA, in tunnel mode. This proves the
 	// delete is conditional on the operator's statement rather than on the decline alone.
 	optional := &SA{PeerCfg: transportPeer()}
-	if recordInitiatorTransportMode(optional, false) {
+	mode, deleteSA = recordInitiatorTransportMode(optional, false)
+	if deleteSA {
 		t.Error("a declined request deleted the SA with transport-required unset; every peer without transport mode would lose its tunnel")
 	}
-	if optional.UseTransportMode {
-		t.Error("a declined request recorded transport mode")
+	if mode != modeTunnel {
+		t.Errorf("a declined request answered mode %d, want tunnel (%d)", mode, modeTunnel)
 	}
 
-	// An ACCEPTED request keeps the SA and records transport mode.
+	// An ACCEPTED request keeps the SA and answers transport mode.
 	accepted := &SA{PeerCfg: required}
-	if recordInitiatorTransportMode(accepted, true) {
+	mode, deleteSA = recordInitiatorTransportMode(accepted, true)
+	if deleteSA {
 		t.Error("an accepted transport-mode request deleted the SA")
 	}
-	if !accepted.UseTransportMode {
-		t.Error("an accepted request did not record transport mode")
+	if mode != modeTransport {
+		t.Errorf("an accepted request answered mode %d, want transport (%d)", mode, modeTransport)
 	}
 
 	// A tunnel-mode peer is unaffected by a response that carries no notification.
 	tunnel := &SA{PeerCfg: ipsec.SiteToSitePeer{Name: "t", Mode: dataplane.ModeTunnel, TransportRequired: false}}
-	if recordInitiatorTransportMode(tunnel, false) {
+	mode, deleteSA = recordInitiatorTransportMode(tunnel, false)
+	if deleteSA {
 		t.Error("a tunnel-mode peer was deleted for a response with no USE_TRANSPORT_MODE")
+	}
+	if mode != modeTunnel {
+		t.Errorf("a tunnel-mode peer answered mode %d, want tunnel (%d)", mode, modeTunnel)
+	}
+
+	// The decision is a value of the exchange: it writes no IKE SA flag a later exchange
+	// could read as the mode of an installed Child SA.
+	for name, s := range map[string]*SA{"required": sa, "optional": optional, "accepted": accepted, "tunnel": tunnel} {
+		if s.UseTransportMode {
+			t.Errorf("%s: recordInitiatorTransportMode wrote UseTransportMode; adoptAuthResponseNegotiation owns that IKE_AUTH carrier", name)
+		}
+	}
+
+	// The same decisions through the IKE_AUTH entry point, adoptAuthResponseNegotiation,
+	// with a valid one-pair answer: it keeps the decided mode on the SA (UseTransportMode)
+	// for createFirstChildSA, and deletes the SA only on a decline with transport-required.
+	quiet := slogutil.DiscardLogger()
+	answerI := tsPayload(t, wire.PayloadTypeTSi, "10.0.0.1/32")
+	answerR := tsPayload(t, wire.PayloadTypeTSr, "10.0.0.2/32")
+	adopted := &SA{PeerCfg: required, IsInitiator: true}
+	if ok, notify := adoptAuthResponseNegotiation(adopted, true, true, answerI, answerR, quiet); !ok {
+		t.Fatalf("an accepted transport-mode answer with one host pair was refused (notify %d)", notify)
+	}
+	if !adopted.UseTransportMode {
+		t.Error("an accepted transport-mode answer left UseTransportMode false; createFirstChildSA would install tunnel mode")
+	}
+	keptTunnel := &SA{PeerCfg: transportPeer(), IsInitiator: true}
+	if ok, notify := adoptAuthResponseNegotiation(keptTunnel, false, true, answerI, answerR, quiet); !ok {
+		t.Fatalf("a declined answer with transport-required unset deleted the SA (notify %d)", notify)
+	}
+	if keptTunnel.UseTransportMode {
+		t.Error("a declined answer left UseTransportMode true; createFirstChildSA would install transport mode the responder refused")
+	}
+	deleted := &SA{PeerCfg: required, IsInitiator: true}
+	if ok, notify := adoptAuthResponseNegotiation(deleted, false, true, answerI, answerR, quiet); ok || notify != 0 {
+		t.Errorf("a declined answer with transport-required set = (%v, %d), want (false, 0): delete the SA with no error notification", ok, notify)
+	}
+	if deleted.UseTransportMode {
+		t.Error("a declined answer with transport-required set left UseTransportMode true")
 	}
 }
 
@@ -463,9 +555,12 @@ func TestEAPResponderNarrowsToo(t *testing.T) {
 // already documents: createFirstChildSA is their only other writer, so a replacement that
 // drops them silently changes what the tunnel does.
 //
-// VALIDATES: a rekeyed Child SA keeps the negotiated mode and the negotiated selector set.
-// PREVENTS: a transport-mode tunnel silently becoming tunnel-mode at its first rekey, and
-// the NEXT rekey losing the RFC 7296 Section 2.9.2 floor because the scope in use was not
+// VALIDATES: a rekeyed Child SA installs the mode its rekey exchange negotiated (the
+// caller computes it: respondChildRekey from the request's notify and the retired mode,
+// applyChildRekeyResponse from the retired mode), and keeps the negotiated selector set.
+// PREVENTS: a transport-mode tunnel silently becoming tunnel-mode at its first rekey, the
+// constructor installing the retired mode over the one the exchange negotiated, and the
+// NEXT rekey losing the RFC 7296 Section 2.9.2 floor because the scope in use was not
 // carried forward.
 func TestRekeyedChildInheritsModeAndSelectors(t *testing.T) {
 	old := &ChildSA{
@@ -480,10 +575,17 @@ func TestRekeyedChildInheritsModeAndSelectors(t *testing.T) {
 
 	// The rekey negotiated no selector of its own, so the replacement carries the scope in
 	// use forward and the NEXT rekey still has a floor.
-	fresh := newRekeyedChild(old, 3, 4, nil, true, nil)
+	fresh := newRekeyedChild(old, 3, 4, nil, true, nil, modeTransport)
 	if fresh.Mode != modeTransport {
 		t.Errorf("rekeyed child mode = %d, want transport (%d); a transport tunnel would become a tunnel-mode one at its first rekey",
 			fresh.Mode, modeTransport)
+	}
+	// A rekey that negotiated tunnel (RFC 7296 Section 1.3.1: no USE_TRANSPORT_MODE in the
+	// request) installs tunnel even though the retired SA ran transport.
+	tunneled := newRekeyedChild(old, 5, 6, nil, true, nil, modeTunnel)
+	if tunneled.Mode != modeTunnel {
+		t.Errorf("rekeyed child mode = %d, want the negotiated tunnel (%d); the constructor installed the retired mode",
+			tunneled.Mode, modeTunnel)
 	}
 	if len(fresh.Selectors) != 1 {
 		t.Fatalf("rekeyed child carried %d selectors, want 1; the next rekey would have no RFC 7296 S2.9.2 floor", len(fresh.Selectors))

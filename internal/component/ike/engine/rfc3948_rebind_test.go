@@ -77,6 +77,23 @@ func rbOwner(t *testing.T, o rbOptions) *rbFixture {
 	f.local.floatToNATTPort()
 	f.local.NATDetected = true
 	f.local.UseTransportMode = o.transport
+	if o.transport {
+		// Production sets UseTransportMode only for a peer configured for transport
+		// (wantsTransportMode, transport_mode.go), and a transport-mode Child SA carries
+		// exactly one address on each side (RFC 7296 Section 2.23.1, which the peer's
+		// respondChildRekey enforces on the rekey). Both ends hold that one host pair,
+		// the IKE endpoints the fixture sends between, which is what a transport-mode
+		// rekey proposes (initiateChildRekey).
+		f.local.PeerCfg.Mode = dataplane.ModeTransport
+		f.peer.PeerCfg.Mode = dataplane.ModeTransport
+		hosts := []tsPair{{
+			I: hostSel(t, nttPeerAddr(t, f.myTr).IP.String()),
+			R: hostSel(t, nttPeerAddr(t, f.peerTr).IP.String()),
+		}}
+		for _, sa := range []*SA{f.local, f.peer} {
+			sa.NegotiatedPairs, sa.NegotiatedTSi, sa.NegotiatedTSr = hosts, hosts[0].I.Net, hosts[0].R.Net
+		}
+	}
 	f.local.peerEndpoint = nttPeerAddr(t, f.peerTr)
 	if o.migrator {
 		f.migrator = &rbDataplane{err: o.migrateErr}
@@ -98,9 +115,8 @@ func rbOwner(t *testing.T, o rbOptions) *rbFixture {
 	}
 	// Both ends of one Child SA run one mode. A transport-mode rekey asks for transport
 	// with USE_TRANSPORT_MODE, and ze refuses an answer from a tunnel-mode peer (RFC 7296
-	// Section 1.3.1), so the peer's Child SA runs transport mode too. Only the Child SA's
-	// mode is set: the peer's selectors stay the fixture's wildcard scope, which the
-	// rekey narrows exactly as before.
+	// Section 1.3.1), so the peer's Child SA runs transport mode too, over the one host
+	// pair set above.
 	if o.transport {
 		peerChild.Mode = modeTransport
 	}

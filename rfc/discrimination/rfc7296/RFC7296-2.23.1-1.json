@@ -2,6 +2,17 @@
   {
     "rid": "RFC7296-2.23.1-1",
     "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_transport_nat_rekey_test.go::TestTransportChildRekeyAfterIKERekeyHoldsOneAddress",
+    "unit-sha": "2c0b766fac739061",
+    "claim-sha": "e5d93159dfc76f39",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "069840ba181d43c6",
+    "break": "line 793: \"mode = modeTransport\" -\u003e \"mode = modeTunnel\""
+  },
+  {
+    "rid": "RFC7296-2.23.1-1",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT",
     "unit-sha": "b1e9ca6dbd92f3c2",
     "claim-sha": "60fe5b55c6e417df",

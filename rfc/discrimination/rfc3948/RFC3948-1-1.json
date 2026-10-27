@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC3948-1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/child_test.go::TestTunnelModeIsTheChildSADefault",
+    "unit-sha": "7e303783735e5610",
+    "claim-sha": "39398e093f9c1108",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+    "producer-sha": "4a0d9550c310be22",
+    "break": "line 644: \"== modeTransport\" -\u003e \"!= modeTransport\""
+  }
+]

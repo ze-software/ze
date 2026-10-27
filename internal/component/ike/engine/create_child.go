@@ -378,12 +378,13 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
 	// a notification of type USE_TRANSPORT_MODE." Acceptance is this node's decision
 	// (decideResponderTransportMode), and it is made before the selectors are narrowed,
-	// because transport mode narrows to single addresses.
-	sa.PeerRequestedTransport = req.transport
-	decideResponderTransportMode(sa)
+	// because transport mode narrows to single addresses. The decision is this
+	// exchange's own value: it is never kept on the IKE SA, which later exchanges share.
+	mode := decideResponderTransportMode(sa, req.transport)
 	// RFC 7296 Section 2.9: narrow the initiator's proposal to the operator's policy. A
 	// creation replaces no SA, so there is no scope in use and no floor.
-	if err := narrowChildSelectors(sa, req.tsi, req.tsr, nil); err != nil {
+	// RFC 7296 Section 2.23.1
+	if err := narrowChildSelectorsIn(sa, req.tsi, req.tsr, nil, mode); err != nil {
 		return nil, nil, err
 	}
 	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
@@ -421,10 +422,6 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 		return nil, nil, err
 	}
 
-	mode := modeTunnel
-	if sa.UseTransportMode {
-		mode = modeTransport
-	}
 	tsLocal, tsRemote := negotiatedChildTS(sa.NegotiatedPairs, false)
 	child, err := newChildSA(sa, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, &childSpec{
 		inSPI:    inSPI,
@@ -461,9 +458,9 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 		})
 	}
 	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
-	// a notification of type USE_TRANSPORT_MODE." sa.UseTransportMode is the acceptance
-	// decideResponderTransportMode recorded above.
-	if sa.UseTransportMode {
+	// a notification of type USE_TRANSPORT_MODE." mode is the acceptance
+	// decideResponderTransportMode answered above.
+	if mode == modeTransport {
 		out = append(out, wire.PayloadEntry{Payload: transportModeNotify()})
 	}
 	out = append(out, wire.PayloadEntry{Payload: tsi}, wire.PayloadEntry{Payload: tsr})
@@ -1035,12 +1032,15 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	}
 	// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator, the initiator
 	// MUST delete the SA." recordInitiatorTransportMode answers whether it is.
-	if recordInitiatorTransportMode(sa, transportAccepted) {
+	// The mode is this exchange's own value, never kept on the IKE SA.
+	mode, deleteSA := recordInitiatorTransportMode(sa, transportAccepted)
+	if deleteSA {
 		return nil, errChildTransportDeclined
 	}
 	// RFC 7296 Section 2.9: the answer's TS payloads are the narrowed scope this node
 	// installs. A creation replaces no SA, so there is no floor.
-	if err := recordInitiatorSelectors(sa, respTSi, respTSr, nil); err != nil {
+	// RFC 7296 Section 2.23.1
+	if err := recordInitiatorSelectorsIn(sa, respTSi, respTSr, nil, mode); err != nil {
 		return nil, fmt.Errorf("child creation response: %w", err)
 	}
 	// RFC 7296 Section 3.3.6: the accepted proposal must be one this node offered.
@@ -1063,10 +1063,6 @@ func applyChildCreateResponse(sa *SA, pending *pendingRekey, inner []wire.Payloa
 	if err != nil {
 		keys.Clear()
 		return nil, fmt.Errorf("%w: %w", errChildBinding, err)
-	}
-	mode := modeTunnel
-	if sa.UseTransportMode {
-		mode = modeTransport
 	}
 	// This node sent Ni, so its side is TSi in the set recorded above and it keys the pair
 	// as the exchange's initiator, whatever its IKE SA role.

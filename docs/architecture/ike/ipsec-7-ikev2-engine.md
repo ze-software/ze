@@ -429,6 +429,13 @@ threshold rather than the path (`plan/post-release/features/spec-ike-fragmentati
   they arrived, before that substitution replaced them. Section 2.23.1 requires
   the originals kept for the [UDPENCAPS] "real source and destination address"
   and for the TCP/UDP checksum fixup.
+- `UseTransportMode` is the IKE_AUTH exchange's negotiated Child SA mode and
+  the input to the first Child SA only (`createFirstChildSA`). The IKE SA rekey
+  producers build the successor without it, which RFC 7296 Section 2.8 allows
+  because the successor "inherits all of the original IKE SA's Child SAs": the
+  mode of an installed Child SA is `ChildSA.Mode`. Every CREATE_CHILD_SA
+  computes its own mode and passes it as an argument, so no exchange but
+  IKE_AUTH reads the field.
 - RFC 7296 Section 2.21.2 lets a responder authenticate in IKE_AUTH while it
   refuses the piggybacked Child SA, sending an error notify such as
   `NO_PROPOSAL_CHOSEN` where SAr2 would be, and makes the IKE SA established.
@@ -465,7 +472,13 @@ A missing or mismatched COOKIE2 closes the IKE SA.
 The MOBIKE role belongs to the first IKE SA, not the latest IKE rekey's initiator.
 `inheritSendPath` retains that role. Only the original initiator selects a new
 address pair; a responder accepts an explicit `UPDATE_SA_ADDRESSES` and checks
-return routability before changing the Child SA.
+return routability before changing the Child SA. It refuses the update with
+`UNACCEPTABLE_ADDRESSES` when the session's installed Child SA runs transport mode
+(RFC 4555 Section 1.1: "(transport mode IPsec SAs are beyond the scope of this
+document)."). `acceptMobikeUpdate` reads that mode from the Child SA itself
+(`getChildSA`), never from an IKE SA flag, so an IKE SA rekey cannot bypass the
+refusal, and a tunnel-mode Child SA on a peer configured for transport proceeds to
+the address checks.
 Promotion refreshes that path from the old SA: a COOKIE2 check started while an
 IKE replacement awaited Delete is reissued under the new keys and Message ID.
 

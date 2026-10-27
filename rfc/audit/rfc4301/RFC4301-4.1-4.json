@@ -2,7 +2,7 @@
   "note": "inbound and outbound SA of one IKE pair both asserted modeTunnel, so the pair is same-mode; single-polarity annotated",
   "requirement_sha": "0b810163c97a99f9",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "cde4b65c1f5b67d5"
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "c73ed3c86a44bf44"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"

@@ -68,7 +68,7 @@ func TestChildInstallRollbackFailureIsRecordedInTheSPDLedger(t *testing.T) {
 	if !warnSPDLeft(&xfrmCommandDP{}, log) {
 		t.Error("warnSPDLeft reports nothing left, so releaseSPD would remove the catch-all beneath the stuck entry")
 	}
-	if !strings.Contains(logged.String(), "could not roll back a policy") {
+	if !strings.Contains(logged.String(), "could not remove a failed tunnel's policy") {
 		t.Errorf("the failed rollback removal was not logged:\n%s", logged.String())
 	}
 }

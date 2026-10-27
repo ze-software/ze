@@ -2,7 +2,7 @@
   "note": "Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).",
   "requirement_sha": "9cdd473899bd3f27",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "cde4b65c1f5b67d5"
+    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "c73ed3c86a44bf44"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"

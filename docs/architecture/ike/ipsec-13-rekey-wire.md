@@ -174,8 +174,11 @@ charon programmed `10.1.0.0/24 === 10.2.0.0/25` while ze kept `10.2.0.0/24 <->
 **A rekey across a NAT compares both sides in the SAME address space.** Both
 producers substitute the transport-mode selector addresses before they compare
 anything, on the roles RFC 7296 Section 2.23.1 gives each:
-`narrowChildSelectors` above the policy match, `recordInitiatorSelectors` above
-`checkAnswerWithin` and `coversFloor`. The floor is `old.Selectors`, which the
+`narrowChildSelectorsIn` above the policy match, `recordInitiatorSelectorsIn` above
+`checkAnswerWithin` and `coversFloor`. Both are gated on the mode the rekey's Child
+SA installs, which `respondChildRekey` and `applyChildRekeyResponse` pass
+explicitly, so a rekey after an IKE SA rekey substitutes exactly like one before
+it. The floor is `old.Selectors`, which the
 first exchange already recorded in substituted form, so the scope in use and the
 new answer are stated in the same addresses.
 

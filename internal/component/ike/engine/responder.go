@@ -562,6 +562,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	var certPayloads []*wire.PayloadCERT
 	var setWindowSize *wire.PayloadNotify
 	var cps []*wire.PayloadCP
+	var transportRequested bool
 	// RFC 7296 Section 2.5 forbids rejecting a message over payload order, so this walk
 	// only collects and every check runs after it.
 	for _, pe := range inner {
@@ -597,7 +598,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 			// tunnel mode for the SA created." Recording the ASK is separate from
 			// deciding it; decideResponderTransportMode below makes the decision.
 			if p.NotifyMsgType == wire.NotifyUseTransportMode {
-				sa.PeerRequestedTransport = true
+				transportRequested = true
 			}
 		case *wire.PayloadSA:
 			remoteSAi2 = p
@@ -638,8 +639,9 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 
 	// RFC 7296 Section 1.3.1: decide the Child SA mode BEFORE the selectors are narrowed,
 	// because transport mode constrains them to a single address (Section 2.23.1). Both
-	// the direct and the EAP path below read the decision.
-	decideResponderTransportMode(sa)
+	// the direct and the EAP path below read the decision. It is the IKE_AUTH exchange's
+	// alone, kept on the SA because its Child SA is built after the EAP rounds.
+	sa.UseTransportMode = decideResponderTransportMode(sa, transportRequested) == modeTransport
 	// RFC 7296 Section 4: the CFG_REQUEST is parsed in the first IKE_AUTH on both paths;
 	// the address is granted only after authentication (selectAuthChildSA).
 	sa.cpRequest = decideCPRequest(cps)

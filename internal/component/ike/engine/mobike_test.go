@@ -1868,3 +1868,53 @@ func TestMobikeNoNATsDataIsTheSendTuple(t *testing.T) {
 		}
 	}
 }
+
+// TestMobikeUpdateRefusedForTransportChildAfterIKERekey covers AC-9.
+//
+// VALIDATES: after a real IKE SA rekey, an UPDATE_SA_ADDRESSES is refused with
+// UNACCEPTABLE_ADDRESSES when the session's installed Child SA runs transport mode, and
+// proceeds past the mode check (answer 0) when it runs tunnel mode.
+//
+// Goal: RFC 4555 Section 1.1 leaves transport mode out of scope "(transport mode IPsec
+// SAs are beyond the scope of this document).", and the refusal is about the Child SA
+// installed, so an IKE SA rekey cannot bypass it. Method: the IKE_AUTH mode reaches the
+// first Child SA through createFirstChildSA, the session holds it, and the successor SA
+// from rekeyIKEPair answers the update.
+// PREVENTS: a MOBIKE move of a transport-mode Child SA accepted because the successor IKE
+// SA carries no record of the IKE_AUTH mode.
+func TestMobikeUpdateRefusedForTransportChildAfterIKERekey(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		transport bool
+		want      uint16
+	}{
+		{"transport", true, wire.NotifyUnacceptableAddresses},
+		{"tunnel", false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ini, resp, ps := establishPSK(t)
+			resp.UseTransportMode = tc.transport
+			if tc.transport {
+				resp.PeerCfg.Mode = dataplane.ModeTransport
+			}
+			child, err := createFirstChildSA(resp, testESPGroup(), resp.PeerCfg.LocalAddress, resp.PeerCfg.RemoteAddress,
+				1, nil, slogutil.DiscardLogger())
+			if err != nil {
+				t.Fatalf("createFirstChildSA: %v", err)
+			}
+			t.Cleanup(child.Clear)
+			ps.setChildSA(child)
+			resp.mobike.enabled = true
+			_, next := rekeyIKEPair(t, ini, resp)
+			if next.UseTransportMode {
+				t.Fatal("setup: the successor IKE SA carries UseTransportMode")
+			}
+			next.replyLocal = &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4500}
+			next.replyRemote = &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2), Port: 4500}
+			got := ps.acceptMobikeUpdate(next, []wire.PayloadEntry{mbNotify(wire.NotifyUpdateSAAddresses, nil)})
+			if got != tc.want {
+				t.Errorf("acceptMobikeUpdate with a %s Child SA = %d, want %d", tc.name, got, tc.want)
+			}
+		})
+	}
+}

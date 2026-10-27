@@ -561,7 +561,12 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// read no TS payload at all before, and inherited old.Selectors.
 	//
 	// It runs BEFORE the key derivation below, so a refused answer costs no keying.
-	if err := recordInitiatorSelectors(sa, respTSi, respTSr, floor); err != nil {
+	//
+	// The mode is the retired SA's: initiateChildRekey asked for transport exactly when it
+	// runs transport, and the refusal above holds a transport rekey to a transport answer.
+	// It is read from the Child SA, never from the IKE SA, which an IKE SA rekey rebuilt.
+	// RFC 7296 Section 2.23.1
+	if err := recordInitiatorSelectorsIn(sa, respTSi, respTSr, floor, old.Mode); err != nil {
 		return nil, fmt.Errorf("child rekey response: %w", err)
 	}
 	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the ESP
@@ -586,7 +591,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	}
 	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator, and this node's
 	// side is TSi in the set recorded above.
-	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true, sa.NegotiatedPairs)
+	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true, sa.NegotiatedPairs, old.Mode)
 	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
 	child.takePeerTunnelAddress(sa)
 	if err := child.takeEncapPorts(sa); err != nil {
@@ -770,10 +775,26 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	if old.SelectorsLocalIsTSi {
 		floor = swapPairs(floor)
 	}
-	// RFC 3948 Section 5.1: the replacement installs old.Mode, so the cross-peer filter
-	// judges the answer in it; after an IKE SA rekey sa.UseTransportMode no longer says
-	// a transport-mode child was negotiated.
-	if err := narrowChildSelectorsIn(sa, reqTSi, reqTSr, floor, old.Mode); err != nil {
+	// RFC 7296 Section 1.3.3: "The notifications described in Section 1.3.1 may also be
+	// sent in a rekeying exchange." A rekey creates a Child SA, so its request decides
+	// the replacement's mode as a creation does. RFC 7296 Section 1.3.1: "Except when
+	// using this option to negotiate transport mode, all Child SAs will use tunnel mode."
+	// A request without the notify is answered in tunnel mode whatever the retired SA
+	// ran, and a transport request on a tunnel SA is declined, so transport is granted
+	// only when both the request and the retired SA name it.
+	//
+	// The mode is computed here, once, from the request and the Child SA being replaced,
+	// never from the IKE SA: an IKE SA rekey builds the successor with no record of any
+	// Child SA's mode (RFC 7296 Section 2.8). The narrowing below, the replacement and
+	// the answer's notify all read this one value.
+	mode := modeTunnel
+	if transportRequested {
+		if old.Mode == modeTransport {
+			mode = modeTransport
+		}
+	}
+	// RFC 7296 Section 2.23.1, RFC 3948 Section 5.1
+	if err := narrowChildSelectorsIn(sa, reqTSi, reqTSr, floor, mode); err != nil {
 		return nil, nil, err
 	}
 
@@ -824,7 +845,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 
 	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder, and the peer's
 	// side is TSi in the set narrowChildSelectors recorded.
-	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs)
+	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs, mode)
 	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
 	child.takePeerTunnelAddress(sa)
 	if err := child.takeEncapPorts(sa); err != nil {
@@ -848,12 +869,12 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		})
 	}
 	// RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include
-	// a notification of type USE_TRANSPORT_MODE." The replacement installed above inherits
-	// the retired SA's mode, so a transport-mode request is accepted exactly when that mode
-	// is transport. An answer without the notify tells the peer the replacement runs tunnel
-	// mode: strongSwan 5.9.14 then installs tunnel mode (child_create.c process_payloads
-	// defaults to MODE_TUNNEL) opposite ze's transport-mode replacement.
-	if transportRequested && child.Mode == modeTransport {
+	// a notification of type USE_TRANSPORT_MODE." The replacement installed above runs
+	// mode, so the notify is sent exactly when mode is transport. An answer without the
+	// notify tells the peer the replacement runs tunnel mode: strongSwan 5.9.14 then
+	// installs tunnel mode (child_create.c process_payloads defaults to MODE_TUNNEL), so
+	// the notify and the installed mode must be the one value.
+	if mode == modeTransport {
 		inner2 = append(inner2, wire.PayloadEntry{Payload: transportModeNotify()})
 	}
 	inner2 = append(inner2, wire.PayloadEntry{Payload: tsi}, wire.PayloadEntry{Payload: tsr})
@@ -884,7 +905,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 // and the scope the peer was told are then one value rather than two that agree by
 // accident. RFC 7296 Section 2.9 makes TSi the side of the end that sent Ni, so
 // localIsInitiator is also the orientation of that answer.
-func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool, negotiated []tsPair) *ChildSA {
+//
+// mode is the mode the rekey exchange negotiated (respondChildRekey computes it from the
+// request; applyChildRekeyResponse passes the retired SA's, which its refusal holds).
+func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool, negotiated []tsPair, mode uint8) *ChildSA {
 	// An exchange that negotiated no selector leaves the retired pair's scope in place. A
 	// Child SA whose peer answered no TS payload carries none, and dropping the retired
 	// pair's set would give the next rekey no RFC 7296 Section 2.9.2 floor.
@@ -946,11 +970,10 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// replacement that carried no set would give that rekey no floor, so the second
 		// rekey of a tunnel could shrink it.
 		//
-		// Mode is inherited for the same reason as UDPEncap above: createFirstChildSA is
-		// its only other writer. It decides the encapsulation of every state and policy the
-		// replacement installs. A replacement that dropped it would fall back to tunnel, so
-		// a transport-mode tunnel would silently become a tunnel-mode one at its first
-		// rekey -- the wrong-mode-without-an-error failure this package removes.
+		// Mode is the mode the rekey exchange negotiated, never a default: it decides the
+		// encapsulation of every state and policy the replacement installs, and a
+		// replacement left at the zero value would run tunnel opposite a peer that agreed
+		// transport -- the wrong-mode-without-an-error failure this package removes.
 		Selectors: selectors,
 		// The orientation travels with the selectors it describes, so it names the exchange
 		// that produced THEM. It is NOT LocalIsInitiator below, which is the KEYMAT role of
@@ -958,7 +981,7 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// company for an inherited one, and reading the KEYMAT role for an inherited set
 		// swaps the policy's ports at the first rekey the other end initiates.
 		SelectorsLocalIsTSi: selectorsLocalIsTSi,
-		Mode:                old.Mode,
+		Mode:                mode,
 		LocalIsInitiator:    localIsInitiator,
 	}
 	return child

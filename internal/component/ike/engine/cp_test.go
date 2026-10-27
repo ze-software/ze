@@ -788,8 +788,7 @@ func TestCreateChildUsesLease(t *testing.T) {
 // mode is answered in tunnel mode.
 func TestPoolBoundPeerDeclinesTransportMode(t *testing.T) {
 	sa := &SA{PeerCfg: ipsec.SiteToSitePeer{VirtualIP: &ipsec.VirtualIPBinding{Pool: "rw"}}}
-	sa.PeerRequestedTransport = true
-	decideResponderTransportMode(sa)
+	sa.UseTransportMode = decideResponderTransportMode(sa, true) == modeTransport
 	if sa.UseTransportMode {
 		t.Fatal("a pool-bound peer was granted transport mode")
 	}

@@ -465,7 +465,11 @@ type SA struct {
 	OriginalTSiAddr net.IP
 	OriginalTSrAddr net.IP
 
-	// UseTransportMode records that this SA's Child SAs run in transport mode.
+	// UseTransportMode is the IKE_AUTH exchange's negotiated Child SA mode, and the input
+	// to the first Child SA only (createFirstChildSA). It is NOT the mode of an installed
+	// Child SA, which is ChildSA.Mode: an IKE SA rekey builds its successor without this
+	// field (RFC 7296 Section 2.8), and every CREATE_CHILD_SA computes its own mode, so no
+	// exchange but IKE_AUTH writes or reads it.
 	//
 	// RFC 7296 Section 1.3.1: transport mode is negotiated with the USE_TRANSPORT_MODE
 	// notification, and "Except when using this option to negotiate transport mode, all
@@ -473,10 +477,6 @@ type SA struct {
 	// sent and echoed, so an unanswered request leaves tunnel mode, which is the RFC's
 	// own outcome for a declined request.
 	UseTransportMode bool
-
-	// PeerRequestedTransport records that the peer asked for transport mode on this
-	// exchange. The responder reads it to decide whether to echo USE_TRANSPORT_MODE.
-	PeerRequestedTransport bool
 }
 
 // GenerateSPI generates a random 8-byte SPI value using crypto/rand.

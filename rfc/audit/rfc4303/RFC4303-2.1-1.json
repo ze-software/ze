@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-10 against RFC 4303 S2.1 \"The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.\" after e2e724cf57 changed TestResponderRefusesPeerSPIZero: it now asserts no first Child SA, an IKE_AUTH response with no SA payload and a NO_PROPOSAL_CHOSEN refusal, and no longer the IKE SA state, which RFC 7296 S2.21.2 governs and this row does not. The SPI is still isolated (same re-encrypted request as TestResponderUsesPeerSPI, which pins outbound 0x0a0b0c0d), and removing both refusals (selectAuthChildSA, createFirstChildSA) builds a Child SA on SPI 0 and reddens it. Every other producer unchanged and proven both ways: own SPI TestGenerateESPSPISkipsTheReservedZero (three zero draws, spi != 0 mutant recorded); peer SPI initiator SAr2, rekey request and rekey response refuse 0 with no Child SA and no ESP state and install exactly 0x0a0b0c0d; OSPF TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295 (mutant recorded). Caveats, not gaps: TestGenerateESPSPI cannot fail on its own, and TestIPsecSPIBoundary's 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule.",
   "requirement_sha": "c418a1e1b70a05e8",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "cde4b65c1f5b67d5",
-    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "cde4b65c1f5b67d5",
+    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "c73ed3c86a44bf44",
+    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "c73ed3c86a44bf44",
     "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "7b5435c4a4fb1730",
     "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "7b5435c4a4fb1730",
     "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "7b5435c4a4fb1730",

@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-10 against RFC 3948 S2.1 \"The SPI field in the ESP header MUST NOT be a zero value.\" after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer's 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA's ChildOutboundSPI==0 and createFirstChildSA's) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.",
   "requirement_sha": "96eb64607ceba544",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "cde4b65c1f5b67d5",
-    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "cde4b65c1f5b67d5",
+    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "c73ed3c86a44bf44",
+    "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "c73ed3c86a44bf44",
     "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "90be745644c57513",
     "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "90be745644c57513",
     "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "90be745644c57513",

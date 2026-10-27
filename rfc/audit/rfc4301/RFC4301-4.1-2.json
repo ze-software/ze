@@ -2,7 +2,7 @@
   "note": "TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated",
   "requirement_sha": "c83d3cb5958ed0e8",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "cde4b65c1f5b67d5"
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "c73ed3c86a44bf44"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"

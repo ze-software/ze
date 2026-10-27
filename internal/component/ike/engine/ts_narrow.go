@@ -598,18 +598,19 @@ func netRange(n *net.IPNet) (start, end []byte) {
 // not cover the floor is one of those cases, so the answer this function records is
 // always a set the caller can install unchanged.
 //
-// The answer is judged for a Child SA in the mode this node decided for the IKE SA
-// (decidedChildMode). A Child SA rekey installs the retired Child SA's mode instead, so
-// respondChildRekey calls narrowChildSelectorsIn with that mode.
+// It serves the IKE_AUTH exchange only, whose Child SA mode is the IKE_AUTH decision
+// (decidedChildMode). Every CREATE_CHILD_SA computes its own mode and calls
+// narrowChildSelectorsIn with it: respondNewChild from its decision, respondChildRekey
+// from the rekey request and the retired Child SA.
 func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
 	return narrowChildSelectorsIn(sa, tsi, tsr, floor, decidedChildMode(sa))
 }
 
-// decidedChildMode is the mode a Child SA this node creates for sa installs.
+// decidedChildMode is the mode the IKE_AUTH exchange's Child SA installs.
 // RFC 7296 Section 1.3.1: "Except when using this option to negotiate transport mode,
 // all Child SAs will use tunnel mode." The mode is transport only when USE_TRANSPORT_MODE
-// was both requested and echoed (sa.UseTransportMode), which is what createFirstChildSA
-// installs.
+// was both requested and echoed in IKE_AUTH (sa.UseTransportMode), which is what
+// createFirstChildSA installs. No later exchange reads it.
 func decidedChildMode(sa *SA) uint8 {
 	if sa.UseTransportMode {
 		return modeTransport
@@ -617,8 +618,9 @@ func decidedChildMode(sa *SA) uint8 {
 	return modeTunnel
 }
 
-// narrowChildSelectorsIn is narrowChildSelectors for a Child SA that installs mode, the
-// mode the cross-peer filter judges the answer in (dropForeignInnerOverlaps).
+// narrowChildSelectorsIn is narrowChildSelectors for a Child SA that installs mode. The
+// substitution, the single-address filter and the cross-peer filter all judge the answer
+// in that mode, so the exchange's one decision gates all three.
 func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mode uint8) error {
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
@@ -636,7 +638,7 @@ func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mo
 	//
 	// It is a no-op for tunnel mode and for a NAT-free path, so every other exchange
 	// narrows exactly as it did before (ts_nat_substitute.go).
-	proposedI, proposedR = substituteResponderSelectors(sa, proposedI, proposedR)
+	proposedI, proposedR = substituteResponderSelectors(sa, mode, proposedI, proposedR)
 
 	// RFC 3948 Section 5.1: the peer's proposed inner selector is narrowed to the lease,
 	// and a proposed selector that does not contain the lease is dropped, because RFC 7296
@@ -667,10 +669,10 @@ func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mo
 	// RFC 7296 Section 2.23.1 MUST: "For transport mode, it MUST use exactly one IP
 	// address in the TSi and TSr payloads." A selector wider than a host cannot satisfy
 	// it, so a transport-mode exchange refuses rather than narrows silently.
-	// It is gated on transportSelectorsInPlay (ts_nat_substitute.go), the predicate the
-	// substitution above uses, so a pool-bound peer whose request was declined is
-	// answered in tunnel mode instead of being refused here.
-	if transportSelectorsInPlay(sa) {
+	// It is gated on mode, the gate of the substitution above, so the two decide together
+	// and a request this node declined (a pool-bound peer's, or one its operator
+	// configured for tunnel) is answered in tunnel mode instead of being refused here.
+	if mode == modeTransport {
 		narrowed = keepSingleAddress(narrowed)
 		if len(narrowed) == 0 {
 			return errTSUnacceptable
@@ -688,9 +690,7 @@ func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mo
 	//
 	// The mode judged is mode, the one the Child SA this answer creates installs, never
 	// the peer's request: a transport request this node declines still installs a tunnel
-	// (RFC 7296 Section 1.3.1), so it is judged as one. A Child SA rekey installs the
-	// retired Child SA's mode, which an IKE SA rekey leaves out of sa.UseTransportMode,
-	// so respondChildRekey passes that mode. The claim at install (installChildSA)
+	// (RFC 7296 Section 1.3.1), so it is judged as one. The claim at install (installChildSA)
 	// refuses again whatever this filter passed, because another peer can install in
 	// between (dropForeignInnerOverlaps).
 	narrowed, err = dropForeignInnerOverlaps(sa, narrowed, mode)
@@ -811,7 +811,18 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 // hand, which applyChildRekeyResponse (rekey.go) establishes before it calls. An answer
 // that does not cover it is refused, so the set this function records is always one the
 // caller can install unchanged.
+//
+// It serves the IKE_AUTH exchange only, whose Child SA mode is the IKE_AUTH decision
+// (decidedChildMode), as narrowChildSelectors does for the responder. Every
+// CREATE_CHILD_SA calls recordInitiatorSelectorsIn with the mode its own Child SA
+// installs.
 func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
+	return recordInitiatorSelectorsIn(sa, tsi, tsr, floor, decidedChildMode(sa))
+}
+
+// recordInitiatorSelectorsIn is recordInitiatorSelectors for a Child SA that installs
+// mode. The substitution and the one-pair refusal judge the answer in that mode.
+func recordInitiatorSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mode uint8) error {
 	// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be initially
 	// populated with the value or values negotiated at the time the SA was created".
 	// The answer IS the negotiated value, so it is read exactly (answerSelectors), never
@@ -837,7 +848,7 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 	// without this the ceiling test refuses an answer that is correct.
 	//
 	// It is a no-op for tunnel mode and for a NAT-free path (ts_nat_substitute.go).
-	iSels, rSels = substituteInitiatorSelectors(sa, iSels, rSels)
+	iSels, rSels = substituteInitiatorSelectors(sa, mode, iSels, rSels)
 
 	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/evidence.md). Both exits
 	// below used to `return nil`, which skipped checkAnswerWithin AND left
@@ -882,7 +893,7 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) 
 	// answer again here would leave the peer sending traffic this node drops, so the
 	// answer is refused and the caller deletes the Child SA (adoptAuthResponseNegotiation,
 	// transport_mode.go), never installs it.
-	if sa.UseTransportMode && len(pairs) > 1 {
+	if mode == modeTransport && len(pairs) > 1 {
 		return fmt.Errorf("%w: the responder answered %s", errTSTransportPairs, pairsText(pairs))
 	}
 

@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 4555 4.2.6: \"The Notify Message Type for this message is 16402.  The notification data contains the IP addresses and ports from/to which the packet was sent.\" Type clause, now enforced: TestMobikeNoNATsDataIsTheSendTuple decrypts the NO_NATS_ALLOWED notify off a real update and requires NotifyMsgType == 16402 as a literal, so a wrong shared wire.NotifyNoNATsAllowed constant is red (mbRequireNotify finds the notify by the constant, then the literal disagrees) and a producer writing another type is red at mbRequireNotify. Data clause: the 12-octet IPv4 data equals the received packet's source address, destination address, source port and destination port field by field, and noNATsAllowedMatches accepts that tuple. Negative: noNATsAllowedMatches refuses a changed source address, a changed destination address, swapped ports, a changed source port, and now the packet's own addresses and ports written at the 16-octet width; because net.IP.Equal treats the IPv4-mapped form as equal, the length test is the only thing that refuses that last case, so it isolates the width. Revert records on mobike.go::noNATsAllowedPayload (positive) and noNATsAllowedMatches (negative). Both defects of the earlier weak verdict are resolved.",
   "requirement_sha": "11c0b4de2a5d71e7",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple#2": "7591039c742210b3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple#2": "5417bcb61dc7143f"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple": "eecbaaac42a312fb",

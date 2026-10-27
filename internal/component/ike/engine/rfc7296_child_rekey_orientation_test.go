@@ -91,7 +91,7 @@ func TestRekeyKeepsThePolicyOrientationOfTheRetiredPair(t *testing.T) {
 			if old.SelectorsLocalIsTSi != tc.rekeyInitiator {
 				negotiated = swapPairs(negotiated)
 			}
-			replacement := newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, tc.rekeyInitiator, negotiated)
+			replacement := newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, tc.rekeyInitiator, negotiated, old.Mode)
 
 			for _, side := range []struct {
 				name  string

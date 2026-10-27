@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-10-15 after b457ba88cf rewrote TestChildSANATTEncapPorts. RFC 7296 Section 2.23: 'However, if a NAT is detected, both devices MUST use UDP encapsulation for ESP.' With NATDetected and the IKE SA floated to its NAT-T socket, the test runs createFirstChildSA and requires exactly two installed states, inbound and outbound, each with UDPEncap true, so a NAT-detected Child SA installed without UDP encapsulation on either direction fails. The rewrite added port assertions (the IKE SA's ports, both fixtures off 4500) that serve RFC 3948 Section 2.1 and do not weaken the UDPEncap assertion. No receive-side refusal is legitimate (RFC7296-2.23-10 requires plain ESP to stay accepted), so TestChildSANoNATNoEncap stays a supplementary no-NAT guard. Rekey still carries NATDetected and UDPEncap from the old child (rekey.go newRekeyedChild), asserted by the untagged TestRekeyKeepsBothESPFormAcceptance outside this fingerprint.",
   "requirement_sha": "bb6afe31983215b2",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "cde4b65c1f5b67d5",
+    "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "c73ed3c86a44bf44",
     "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
   },
   "units": {

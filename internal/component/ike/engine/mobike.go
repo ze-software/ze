@@ -57,10 +57,13 @@ func childMigrationAvailable(sa *SA) bool {
 	return sa.mobike.canMigrate && !childTransportMode(sa) && sa.nattSocket != nil
 }
 
-// childTransportMode reports whether the SA's Child SAs are transport mode, either asked
-// for by this node's configuration or accepted from the peer's USE_TRANSPORT_MODE.
+// childTransportMode reports whether this node's configuration asks for transport-mode
+// Child SAs. Ze accepts transport mode only when its operator configured it
+// (decideResponderTransportMode, recordInitiatorTransportMode), so a configuration of
+// tunnel never runs a transport Child SA. The installed Child SA's own mode is
+// ChildSA.Mode, which acceptMobikeUpdate reads.
 func childTransportMode(sa *SA) bool {
-	return wantsTransportMode(sa) || sa.UseTransportMode
+	return wantsTransportMode(sa)
 }
 
 func mobikeAuthOffer(sa *SA) []wire.PayloadEntry {
@@ -368,7 +371,21 @@ func (ps *PeerSession) acceptMobikeUpdate(sa *SA, inner []wire.PayloadEntry) uin
 	if !sa.mobike.enabled || notifyOf(inner, wire.NotifyUpdateSAAddresses) == nil {
 		return 0
 	}
-	if sa.mobike.originalInitiator || sa.UseTransportMode || sa.replyLocal == nil || sa.replyRemote == nil {
+	if sa.mobike.originalInitiator {
+		return wire.NotifyUnacceptableAddresses
+	}
+	// RFC 4555 Section 1.1: "(transport mode IPsec SAs are beyond the scope of this
+	// document)." The refusal reads the installed Child SA, never an IKE SA flag, so an
+	// IKE SA rekey, whose successor carries no record of the mode, cannot bypass it.
+	// getChildSA takes ps.mu, which the only caller (handleInformationalOwned) does not
+	// hold, so a caller that holds it MUST NOT reach this function.
+	if child := ps.getChildSA(); child != nil && child.Mode == modeTransport {
+		return wire.NotifyUnacceptableAddresses
+	}
+	if sa.replyLocal == nil {
+		return wire.NotifyUnacceptableAddresses
+	}
+	if sa.replyRemote == nil {
 		return wire.NotifyUnacceptableAddresses
 	}
 	if !sa.replyLocal.IP.IsGlobalUnicast() && !sa.replyLocal.IP.IsLoopback() {

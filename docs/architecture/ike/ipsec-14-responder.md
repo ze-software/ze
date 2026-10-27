@@ -206,8 +206,12 @@ of calling `createFirstChildSA`.
 lookup.** RFC 7296 Section 2.23.1: "the server should first check that the
 initiator requested transport mode, and then do address substitution on the
 Traffic Selectors", after which "the server does SPD lookup based on those new
-Traffic Selectors". In Ze the policy match inside `narrowChildSelectors` IS that
-SPD lookup, so `substituteResponderSelectors` runs immediately above it.
+Traffic Selectors". In Ze the policy match inside `narrowChildSelectorsIn` IS that
+SPD lookup, so `substituteResponderSelectors` runs immediately above it. Ze decides
+from its configuration whether it accepts the request before that lookup
+(`decideResponderTransportMode`), so the substitution runs only when the decided
+mode is transport; a declined request narrows the real selectors, the tunnel-mode
+outcome the section gives for an SPD entry that "does not allow transport mode".
 
 The verdict it reads is on the SA before any selector arrives: `detectResponderNAT`
 runs during IKE_SA_INIT and writes `PeerBehindNAT` on a NAT_DETECTION_SOURCE_IP
@@ -267,11 +271,12 @@ records that as the ceiling. `recordInitiatorSelectors` then calls
 prefix, the wildcard or anything else but a lease host, before the ceiling
 check, so the configured-policy fallback ceiling cannot admit it either. A
 pool-bound peer that asks for transport mode is declined
-(`decideResponderTransportMode`) and answered in tunnel mode, because
-`transportSelectorsInPlay` treats its request as not in play.
+(`decideResponderTransportMode`) and answered in tunnel mode: the decision returns
+tunnel, and that returned mode is the gate of the narrowing, so no transport-mode
+substitution or single-address filter runs for the declined request.
 
 <!-- source: internal/component/ike/engine/cp.go -- proposeLeasedChildTSPayloads, answerNamesOnlyLeases -->
-<!-- source: internal/component/ike/engine/ts_nat_substitute.go -- transportSelectorsInPlay -->
+<!-- source: internal/component/ike/engine/transport_mode.go -- decideResponderTransportMode -->
 
 `substituteVirtualIP` narrows the peer's proposed inner selector to the lease
 in `narrowChildSelectors`, before the policy match, so the SPD lookup judges the

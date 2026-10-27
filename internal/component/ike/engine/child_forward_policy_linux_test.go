@@ -84,7 +84,7 @@ func TestChildTunnelForwardsProtectedHostTraffic(t *testing.T) {
 		t.Fatalf("valid protected traffic changed XfrmInNoPols: %d -> %d", noPolicy, got)
 	}
 
-	replacement := newRekeyedChild(child, 0x71950001, 0x71950002, child.Keys, true, nil)
+	replacement := newRekeyedChild(child, 0x71950001, 0x71950002, child.Keys, true, nil, child.Mode)
 	refusing := &forwardKernelRefusalDP{Dataplane: dataplane.Get()}
 	err = installChildSA(replacement, ipsec.ESPProposal{Number: 1, Encryption: ipsec.EncryptionAES256GCM},
 		refusing, slogutil.DiscardLogger())

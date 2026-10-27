@@ -2,10 +2,10 @@
   "note": "Forbidden: an address-updating message sent without NO_NATS_ALLOWED when NAT is prohibited. Ze sends two kinds, the first IKE_AUTH and the INFORMATIONAL carrying UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES. It never sends ADDITIONAL_IP4/IP6 (startMobikeRequest, mobike.go). First IKE_AUTH: mbAuthHandshake under policy prohibit (from internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy) requires NO_NATS_ALLOWED with the actual tuple, and internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple covers the retransmission. The INFORMATIONAL update is covered by TestMobikeConfiguredNATPolicy (notification == nil goes red) and by internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange (Linux only) for original and replacement updates. Negative: allow and default policies send none.",
   "requirement_sha": "802c48f032448ae2",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy#2": "7591039c742210b3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy#2": "5417bcb61dc7143f"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "89141dce87d91dd5",

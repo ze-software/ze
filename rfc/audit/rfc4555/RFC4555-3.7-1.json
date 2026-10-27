@@ -2,9 +2,9 @@
   "note": "Forbidden: answering an INFORMATIONAL request that carries COOKIE2 without the notification, or with altered data. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds requires, for 8- and 64-octet cookies, that the decrypted response holds only COOKIE2 with byte-identical data (mbOnlyNotify). With no COOKIE2 it requires an empty response. internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket asserts bytes.Equal(echo, cookie) through the owner handoff, and asserts that a replay returns the identical cached response.",
   "requirement_sha": "f3a7513c231a38cf",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket": "7591039c742210b3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket": "5417bcb61dc7143f"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "0340f8e160dcb516",

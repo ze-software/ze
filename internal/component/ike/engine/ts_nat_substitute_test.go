@@ -69,7 +69,6 @@ func natHostPolicy(t *testing.T, local, remote string) []ipsec.TrafficSelectorPo
 // natResponderSA builds a server-role SA with the NAT verdict the arguments name.
 func natResponderSA(peerBehindNAT, behindNAT bool) *SA {
 	sa := &SA{PeerCfg: natServerPeer(), IsInitiator: false}
-	sa.PeerRequestedTransport = true
 	sa.UseTransportMode = true
 	sa.NATDetected = peerBehindNAT || behindNAT
 	sa.PeerBehindNAT = peerBehindNAT
@@ -538,4 +537,85 @@ func TestTransportProposalUsesObservedIKEAddresses(t *testing.T) {
 		t.Errorf("proposal TSr = %v, want the observed 198.51.100.4/32; the address came from config",
 			movedPairs[0].R.Net)
 	}
+}
+
+// declinedTransportPolicy is a tunnel-mode operator policy: the peer's inner range on the
+// remote side, anything the peer asks for, and ze's own inner network locally.
+func declinedTransportPolicy(t *testing.T) []ipsec.TrafficSelectorPolicy {
+	t.Helper()
+	return []ipsec.TrafficSelectorPolicy{{
+		Number:       "1",
+		LocalPrefix:  mustNet(t, "10.2.0.0/16"),
+		LocalPort:    ipsec.AnyPort(),
+		RemotePrefix: mustNet(t, "0.0.0.0/0"),
+		RemotePort:   ipsec.AnyPort(),
+	}}
+}
+
+// TestDeclinedTransportRequestNarrowsRealSelectors covers AC-7.
+//
+// VALIDATES: a responder whose operator configured tunnel mode declines the peer's
+// transport-mode request and narrows the proposal's REAL selectors, on IKE_AUTH and on a
+// new-child CREATE_CHILD_SA, with a NAT detected: TSi 10.1.0.0/24 stays a /24, no
+// TS_UNACCEPTABLE, no USE_TRANSPORT_MODE.
+//
+// Goal: RFC 7296 Section 2.23.1, "If an entry is found but it does not allow transport
+// mode, then the server MAY undo the address substitution and redo the SPD lookup using
+// the original Traffic Selectors.  If the second lookup succeeds, the server will create
+// an SA in tunnel mode using real Traffic Selectors sent by the other end." Ze decides the
+// mode from configuration before the lookup, so a declined request is narrowed as sent.
+// Method: the IKE_AUTH half runs the decision and narrowChildSelectors; the new-child half
+// runs respondNewChild on an established SA. The peer is observed at a public address, so
+// a substitution would replace the /24 with that /32.
+// PREVENTS: a declined request answered with the peer's observed /32 in a tunnel-mode SA,
+// which shrinks the tunnel to one host.
+func TestDeclinedTransportRequestNarrowsRealSelectors(t *testing.T) {
+	proposalTSi := func() *wire.PayloadTS { return tsPayload(t, wire.PayloadTypeTSi, "10.1.0.0/24") }
+	proposalTSr := func() *wire.PayloadTS { return tsPayload(t, wire.PayloadTypeTSr, natServerReal+"/32") }
+
+	t.Run("IKE_AUTH", func(t *testing.T) {
+		sa := natResponderSA(true, false)
+		sa.PeerCfg.Mode = dataplane.ModeTunnel
+		sa.PeerCfg.TrafficSelectors = declinedTransportPolicy(t)
+		sa.UseTransportMode = decideResponderTransportMode(sa, true) == modeTransport
+		if sa.UseTransportMode {
+			t.Fatal("a tunnel-mode responder accepted transport mode")
+		}
+		if err := narrowChildSelectors(sa, proposalTSi(), proposalTSr(), nil); err != nil {
+			t.Fatalf("the declined request was refused: %v", err)
+		}
+		if got := sa.NegotiatedTSi.String(); got != "10.1.0.0/24" {
+			t.Errorf("negotiated TSi = %s, want the real 10.1.0.0/24", got)
+		}
+	})
+
+	t.Run("CREATE_CHILD_SA", func(t *testing.T) {
+		ini, resp, _ := establishPSK(t)
+		resp.PeerCfg.Mode = dataplane.ModeTunnel
+		resp.PeerCfg.TrafficSelectors = declinedTransportPolicy(t)
+		resp.NATDetected, resp.PeerBehindNAT = true, true
+		resp.peerEndpoint = &net.UDPAddr{IP: net.ParseIP(natClientPublic), Port: 4500}
+		resp.nattSocket = mbTransport(t, "127.0.0.1:0", true)
+		inner := []wire.PayloadEntry{
+			{Payload: espSAPayload(0x01020304)},
+			{Payload: &wire.PayloadNonce{NonceData: testNonce(4)}},
+			{Payload: transportModeNotify()},
+			{Payload: proposalTSi()},
+			{Payload: proposalTSr()},
+		}
+		answer, child, err := respondNewChild(resp, inner, testESPGroup(), resp.ExpectedMsgID, &mockDP{}, slogutil.DiscardLogger())
+		if err != nil {
+			t.Fatalf("the declined request was refused: %v", err)
+		}
+		defer child.Clear()
+		if child.Mode != modeTunnel {
+			t.Errorf("the Child SA runs mode %d, want tunnel (%d)", child.Mode, modeTunnel)
+		}
+		if got := resp.NegotiatedTSi.String(); got != "10.1.0.0/24" {
+			t.Errorf("negotiated TSi = %s, want the real 10.1.0.0/24", got)
+		}
+		if cctCarriesTransportNotify(mbDecrypt(t, ini, answer)) {
+			t.Error("the answer to a declined request carries USE_TRANSPORT_MODE")
+		}
+	})
 }

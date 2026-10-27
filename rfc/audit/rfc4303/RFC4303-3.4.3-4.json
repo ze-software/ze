@@ -2,7 +2,7 @@
   "note": "Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.",
   "requirement_sha": "9f0c722acb1267d6",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "cde4b65c1f5b67d5"
+    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "c73ed3c86a44bf44"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"

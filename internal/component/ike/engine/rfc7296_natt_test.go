@@ -567,7 +567,7 @@ func TestNattRekeyedChildKeepsUDPEncap(t *testing.T) {
 			UDPEncap:    encap,
 		}
 		// The rekey negotiated no selector, so the replacement keeps the retired pair's.
-		got := newRekeyedChild(old, 0x11111111, 0x22222222, nil, true, nil)
+		got := newRekeyedChild(old, 0x11111111, 0x22222222, nil, true, nil, old.Mode)
 		if got.UDPEncap != encap {
 			t.Errorf("rekeyed child UDPEncap = %v, want %v; installChildSA gates the "+
 				"ESP-in-UDP template on this field, so a rekey that drops it installs a "+

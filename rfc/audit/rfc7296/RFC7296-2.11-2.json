@@ -2,7 +2,7 @@
   "note": "TestRFC7296ReplyLandsOnTheRequestSourcePort reads the reply datagram on the socket bound to the request's odd source port (response flag, request Message ID, decrypts under the IKE SA). The negative is now TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint alone: the configured remote, the violating destination, receives nothing. The NAT-T unauthenticated-packet unit moved to RFC7296-2.23-13, the row it proves. The older natt positive asserts only the stored endpoint and is supplementary.",
   "requirement_sha": "0d57af8ddbfd3571",
   "tests": {
-    "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "c80ce9c50f9d983a",
+    "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "6070547cac160716",
     "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "10566beea1d5b441",
     "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "10566beea1d5b441"
   },

@@ -95,15 +95,28 @@ behind a NAT, and the TSr address becomes this node's own address when this node
 is. On the initiator the two are mirrored, so the answer comes back into this
 node's address space before anything reads it.
 
-The substitution runs inside `narrowChildSelectors` and `recordInitiatorSelectors`,
-which are the single entry points of their roles. Placing it at each of the five
-call sites would reintroduce the drift those two functions exist to prevent, and
-the EAP responder path is the one that gets forgotten.
+The substitution runs inside `narrowChildSelectorsIn` and
+`recordInitiatorSelectorsIn`, which are the single entry points of their roles.
+`narrowChildSelectors` and `recordInitiatorSelectors` are their IKE_AUTH forms,
+passing the IKE_AUTH decision (`decidedChildMode`). Placing it at each of the five
+call sites would reintroduce the drift those functions exist to prevent, and the
+EAP responder path is the one that gets forgotten.
 
 Two properties bound it:
 
-- **The gate is transport mode AND a NAT verdict.** A tunnel-mode exchange and a
-  NAT-free path both take the identity path, so neither changed when this landed.
+- **The gate is transport mode AND a NAT verdict.** Transport mode is the mode the
+  Child SA of the exchange in hand installs, which each exchange computes once and
+  passes as an argument: the IKE_AUTH decision, the new-child decision
+  (`decideResponderTransportMode`, `recordInitiatorTransportMode`), and for a Child
+  SA rekey transport only when the request carries USE_TRANSPORT_MODE and the
+  retired Child SA runs transport (`respondChildRekey`), or the retired Child SA's
+  mode on Ze's own rekey (`applyChildRekeyResponse`). No IKE SA flag is read, so a
+  Child SA rekey after an IKE SA rekey is judged exactly like one before it. The
+  single-address filter and the one-pair refusal share that gate. A transport
+  request the responder declines (a pool-bound peer, or an operator who configured
+  tunnel) narrows the real selectors, which is the tunnel-mode outcome Section
+  2.23.1 names. A tunnel-mode exchange and a NAT-free path both take the identity
+  path.
 - **The address is one this node observed, never one the peer asserted.**
   `observedLocalAddress` reads the configured local address, which is what the IKE
   sockets bind. `observedRemoteAddress` reads `sa.peerEndpoint`, whose only writer

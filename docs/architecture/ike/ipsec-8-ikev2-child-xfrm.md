@@ -510,11 +510,12 @@ proposing TSi 198.18.0.9/32 and TSr 0.0.0.0/0 while the transport-mode peer at
 at one priority, which is the Section 5.1 confusion, so it is refused, and so is
 a transport-mode connection inside another peer's tunnel, in either arrival
 order, at narrowing and at install. Narrowing judges the answer in the mode the
-Child SA it creates installs: the mode this node decided for the IKE SA
-(`decidedChildMode`, `sa.UseTransportMode`) for a new Child SA, and the retired
-Child SA's mode for a Child SA rekey (`respondChildRekey` calls
-`narrowChildSelectorsIn` with `old.Mode`), because an IKE SA rekey leaves
-`UseTransportMode` unset on the replacement SA. The refusal names both peers and
+Child SA it creates installs, which each exchange computes once and passes to
+`narrowChildSelectorsIn`: the IKE_AUTH decision (`decidedChildMode`,
+`sa.UseTransportMode`, read by no later exchange), the new-child decision
+(`respondNewChild`), and for a Child SA rekey the mode the rekey negotiates
+(`respondChildRekey`), so an IKE SA rekey, whose successor carries no IKE_AUTH
+decision, changes nothing. The refusal names both peers and
 the selector or pool fix on the tunnel peer. Only the overlap of two
 transport-mode pairs is left to `claim` above (`conflictLocked`,
 `bothTransport`), so it is refused once, with `TransportSelectorConflictError`.
@@ -735,19 +736,31 @@ carrying none means the peer installed the new pair, so when this node refuses i
 response handler sends a Delete listing its own inbound SPI of the new pair (RFC
 7296 Section 1.4.1), logs `childRekeyFixAnswer`, and keeps the Child SA in use.
 
-A rekey keeps the mode of the Child SA it replaces, so it says which mode that is.
-`initiateChildRekey` puts `N(USE_TRANSPORT_MODE)` after `N(REKEY_SA)` when the
-retired SA runs transport mode (RFC 7296 Section 1.3.3: "when rekeying a transport
-mode SA, the USE_TRANSPORT_MODE notification will be used"), and
-`respondChildRekey` echoes it when the request carried it and the replacement runs
-transport mode. A request without it asks for tunnel mode, and a peer behind a NAT
+A rekey installs the mode its own exchange negotiates, and a Child SA rekey is a
+Child SA creation for that purpose. `initiateChildRekey` puts
+`N(USE_TRANSPORT_MODE)` after `N(REKEY_SA)` when the retired SA runs transport mode
+(RFC 7296 Section 1.3.3: "when rekeying a transport mode SA, the
+USE_TRANSPORT_MODE notification will be used"). `respondChildRekey` computes the
+mode once: transport only when the request carries the notification and the retired
+SA runs transport, tunnel otherwise (Section 1.3.1: "Except when using this option
+to negotiate transport mode, all Child SAs will use tunnel mode."). That one value
+gates the Section 2.23.1 substitution and single-address rule, builds the
+replacement (`newRekeyedChild` takes it), and decides the echo, so a request without
+the notification for a transport SA is answered without it and installs tunnel at
+both ends, and a transport request on a tunnel SA is declined the same way. A
+request without it asks for tunnel mode, and a peer behind a NAT
 then skips its own Section 2.23.1 substitution: strongSwan 5.9.14 answered such a
 rekey with TS_UNACCEPTABLE after a NAT rebind. An answer to a transport-mode rekey
 that leaves the notification out established a tunnel-mode SA at the peer (Section
 1.3.1), so `applyChildRekeyResponse` refuses it with
 `errChildRekeyTransportDeclined`, and the handler deletes the new pair, holds the
 next attempt for `rekeyRefusedWait` (the peer's configuration decides the answer,
-so an immediate retry draws the same one), and logs `childRekeyFixTransport`.
+so an immediate retry draws the same one), and logs `childRekeyFixTransport`. An
+answer that keeps transport mode is read in transport mode whatever the IKE SA
+went through: `applyChildRekeyResponse` passes the retired SA's mode to
+`recordInitiatorSelectorsIn`, which substitutes a NATed answer back into this
+node's address space (Section 2.23.1) and refuses more than one pair
+(`errTSTransportPairs`).
 
 <!-- source: internal/component/ike/engine/rekey.go -- initiateChildRekey, applyChildRekeyResponse, respondChildRekey, errChildRekeyTransportDeclined -->
 

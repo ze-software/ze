@@ -7,6 +7,7 @@ package engine
 import (
 	"encoding/binary"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
@@ -269,4 +270,89 @@ func ctrDeletesESP(inner []wire.PayloadEntry, spi uint32) bool {
 		}
 	}
 	return false
+}
+
+// withoutTransportNotify returns a decrypted chain with every USE_TRANSPORT_MODE notify
+// removed.
+func withoutTransportNotify(inner []wire.PayloadEntry) []wire.PayloadEntry {
+	out := make([]wire.PayloadEntry, 0, len(inner))
+	for i := range inner {
+		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok && n.NotifyMsgType == wire.NotifyUseTransportMode {
+			continue
+		}
+		out = append(out, inner[i])
+	}
+	return out
+}
+
+// VALIDATES: AC-5. A Child SA rekey request that carries no USE_TRANSPORT_MODE, for a
+// transport-mode Child SA, installs a tunnel-mode replacement and answers without the
+// notify, with the proposal narrowed unsubstituted.
+//
+// Goal: the two ends of the replacement run the mode the rekey exchange negotiated. RFC
+// 7296 Section 1.3.1: "Except when using this option to negotiate transport mode, all
+// Child SAs will use tunnel mode." Method: ze's real rekey request of a transport-mode
+// Child SA, with the notify taken out, is answered by the peer's real respondChildRekey.
+//
+// PREVENTS: the responder installing the retired SA's transport mode while its answer,
+// carrying no notify, tells the initiator the replacement is tunnel mode.
+func TestChildRekeyWithoutTransportNotifyInstallsTunnel(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := ctrSetup(t, true, true)
+	raw, pending, err := initiateChildRekey(r.ini, r.zeChild)
+	if err != nil {
+		t.Fatalf("initiateChildRekey: %v", err)
+	}
+	defer pending.clear()
+	answer, next, err := respondChildRekey(r.resp, withoutTransportNotify(mbDecrypt(t, r.resp, raw)), r.peerChild,
+		parseMsg(t, raw).Header.MessageID, &mockDP{}, log)
+	if err != nil {
+		t.Fatalf("respondChildRekey refused a rekey without USE_TRANSPORT_MODE: %v", err)
+	}
+	defer next.Clear()
+	if next.Mode != modeTunnel {
+		t.Errorf("the replacement runs mode %d, want tunnel (%d)", next.Mode, modeTunnel)
+	}
+	if cctCarriesTransportNotify(mbDecrypt(t, r.ini, answer)) {
+		t.Error("the answer to a rekey request without USE_TRANSPORT_MODE carries it")
+	}
+	if got, want := pairsText(next.Selectors), pairsText(r.ini.NegotiatedPairs); got != want {
+		t.Errorf("the replacement selectors = %s, want the proposal narrowed unchanged %s", got, want)
+	}
+}
+
+// VALIDATES: AC-6. A Child SA rekey request that carries USE_TRANSPORT_MODE for a
+// tunnel-mode Child SA, on a NATed IKE SA, is declined: a tunnel replacement, no notify in
+// the answer, and the selectors left unsubstituted.
+//
+// Goal: a peer cannot obtain transport mode, or the transport-mode address substitution,
+// on a tunnel-mode Child SA by asking at the rekey. RFC 7296 Section 1.3.1: "If the
+// responder declines the request, the Child SA will be established in tunnel mode."
+// Method: the peer is observed at 198.51.100.7, so a substitution would move TSi there;
+// the real rekey request gains the notify before the real respondChildRekey answers it.
+func TestTransportRequestOnTunnelChildRekeyIsDeclined(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := ctrSetup(t, false, false)
+	r.resp.NATDetected, r.resp.PeerBehindNAT, r.resp.BehindNAT = true, true, true
+	r.resp.peerEndpoint = &net.UDPAddr{IP: net.IPv4(198, 51, 100, 7), Port: 4500}
+	raw, pending, err := initiateChildRekey(r.ini, r.zeChild)
+	if err != nil {
+		t.Fatalf("initiateChildRekey: %v", err)
+	}
+	defer pending.clear()
+	inner := append(mbDecrypt(t, r.resp, raw), wire.PayloadEntry{Payload: transportModeNotify()})
+	answer, next, err := respondChildRekey(r.resp, inner, r.peerChild, parseMsg(t, raw).Header.MessageID, &mockDP{}, log)
+	if err != nil {
+		t.Fatalf("respondChildRekey: %v", err)
+	}
+	defer next.Clear()
+	if next.Mode != modeTunnel {
+		t.Errorf("the replacement runs mode %d, want tunnel (%d)", next.Mode, modeTunnel)
+	}
+	if cctCarriesTransportNotify(mbDecrypt(t, r.ini, answer)) {
+		t.Error("the answer to a transport request on a tunnel-mode Child SA carries USE_TRANSPORT_MODE")
+	}
+	if got, want := pairsText(next.Selectors), pairsText(r.ini.NegotiatedPairs); got != want {
+		t.Errorf("the replacement selectors = %s, want the unsubstituted %s", got, want)
+	}
 }

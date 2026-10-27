@@ -89,8 +89,11 @@ func transportModeNotify() *wire.PayloadNotify {
 	return &wire.PayloadNotify{NotifyMsgType: wire.NotifyUseTransportMode}
 }
 
-// decideResponderTransportMode records whether this responder ACCEPTS the peer's
-// transport-mode request, and it must run before the selectors are narrowed.
+// decideResponderTransportMode answers the mode of the Child SA this responder creates
+// for a request that did (requested) or did not carry USE_TRANSPORT_MODE, and it must
+// run before the selectors are narrowed, which judge them in that mode. It writes
+// nothing: each exchange holds its own decision, and only IKE_AUTH keeps it on the SA
+// (UseTransportMode), for the Child SA its later rounds create.
 //
 // RFC 7296 Section 1.3.1: "If the request is accepted, the response MUST also include a
 // notification of type USE_TRANSPORT_MODE. If the responder declines the request, the
@@ -98,17 +101,22 @@ func transportModeNotify() *wire.PayloadNotify {
 //
 // Acceptance is a DECISION, never an echo. Ze accepts only when the operator configured
 // this peer for transport mode, so a peer cannot talk Ze out of the mode its operator
-// chose. A request Ze declines leaves UseTransportMode false, and the Child SA is
-// established in tunnel mode with no notification in the response, which is exactly the
-// outcome the RFC names for a decline.
-func decideResponderTransportMode(sa *SA) {
+// chose. A request Ze declines answers tunnel, and the Child SA is established in tunnel
+// mode with no notification in the response, which is exactly the outcome the RFC names
+// for a decline.
+func decideResponderTransportMode(sa *SA, requested bool) uint8 {
 	// RFC 7296 Section 1.3.1 lets the responder decline. A pool-bound peer is declined:
 	// its leased inner address is a tunnel-mode concept.
 	if sa.PeerCfg.VirtualIPPoolName() != "" {
-		sa.UseTransportMode = false
-		return
+		return modeTunnel
 	}
-	sa.UseTransportMode = sa.PeerRequestedTransport && wantsTransportMode(sa)
+	if !requested {
+		return modeTunnel
+	}
+	if !wantsTransportMode(sa) {
+		return modeTunnel
+	}
+	return modeTransport
 }
 
 // adoptAuthResponseNegotiation records what the responder answered on the initiator's
@@ -132,7 +140,11 @@ func decideResponderTransportMode(sa *SA) {
 // childOffered says the response carried SAr2. A response that accepts a Child SA and
 // names no traffic selector is refused here (see below), never adopted with none.
 func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, tsi, tsr *wire.PayloadTS, log *slog.Logger) (ok bool, notify uint16) {
-	if recordInitiatorTransportMode(sa, transportAccepted) {
+	// The IKE_AUTH mode is kept on the SA (UseTransportMode) for createFirstChildSA,
+	// which builds the Child SA after this returns; no other exchange reads it.
+	mode, deleteSA := recordInitiatorTransportMode(sa, transportAccepted)
+	sa.UseTransportMode = mode == modeTransport
+	if deleteSA {
 		log.Warn("ike: peer declined transport mode and transport-required is set, deleting the SA",
 			"peer", sa.PeerName)
 		// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator, the initiator
@@ -177,7 +189,7 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 			"peer", sa.PeerName, "fix", childResponseFixNoTS)
 		return false, wire.NotifyInvalidSyntax
 	}
-	if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
+	if err := recordInitiatorSelectorsIn(sa, tsi, tsr, nil, mode); err != nil {
 		log.Warn("ike: the responder's traffic selectors cannot be adopted, deleting the SA",
 			"peer", sa.PeerName, "error", err)
 		// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
@@ -187,8 +199,9 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 	return true, 0
 }
 
-// recordInitiatorTransportMode reads the responder's answer to a transport-mode request
-// and reports whether the SA must be deleted.
+// recordInitiatorTransportMode reads the responder's answer to a transport-mode request:
+// it answers the mode the Child SA installs and whether the SA must be deleted. It writes
+// nothing; the caller keeps the mode for the exchange it serves.
 //
 // RFC 7296 Section 1.3.1: "If the responder declines the request, the Child SA will be
 // established in tunnel mode. If this is unacceptable to the initiator, the initiator
@@ -201,14 +214,12 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 // peer does not implement transport mode.
 //
 // It returns false whenever Ze never asked, so a tunnel-mode peer is unaffected.
-func recordInitiatorTransportMode(sa *SA, responseHasNotify bool) (deleteSA bool) {
+func recordInitiatorTransportMode(sa *SA, responseHasNotify bool) (mode uint8, deleteSA bool) {
 	if !wantsTransportMode(sa) {
-		sa.UseTransportMode = false
-		return false
+		return modeTunnel, false
 	}
-	sa.UseTransportMode = responseHasNotify
 	if responseHasNotify {
-		return false
+		return modeTransport, false
 	}
-	return sa.PeerCfg.TransportRequired
+	return modeTunnel, sa.PeerCfg.TransportRequired
 }

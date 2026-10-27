@@ -59,7 +59,7 @@ func TestChildForwardPolicySurvivesRekey(t *testing.T) {
 		t.Fatal("forward policy differs from the inbound selectors, template or owner")
 	}
 
-	replacement := newRekeyedChild(child, 0x71920001, 0x71920002, child.Keys, true, nil)
+	replacement := newRekeyedChild(child, 0x71920001, 0x71920002, child.Keys, true, nil, child.Mode)
 	if err := installChildSA(replacement, group.Proposals[0], dp, log); err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestChildFailedRekeyPreservesForwardPolicies(t *testing.T) {
 	t.Cleanup(child.Clear)
 	policies := maps.Clone(dp.policies)
 	states := maps.Clone(dp.states)
-	replacement := newRekeyedChild(child, 0x71940001, 0x71940002, child.Keys, true, nil)
+	replacement := newRekeyedChild(child, 0x71940001, 0x71940002, child.Keys, true, nil, child.Mode)
 	dp.reject = dataplane.SADirOut
 	replacement.RemoteAddr = net.ParseIP("10.0.0.3")
 	err = installChildSA(replacement, group.Proposals[0], dp, log)
@@ -303,7 +303,7 @@ func TestChildRekeyPredecessorCleared(t *testing.T) {
 			old := mustInnerChild(t, innerPeerSA(t, reg, "forward-peer", "198.18.0.7"), dp,
 				[]string{"10.1.2.3/32"}, []string{"10.2.0.0/24"})
 			t.Cleanup(old.Clear)
-			replacement := newRekeyedChild(old, 0x71960001, 0x71960002, old.Keys, true, nil)
+			replacement := newRekeyedChild(old, 0x71960001, 0x71960002, old.Keys, true, nil, old.Mode)
 			var backend dataplane.Dataplane
 			switch outcome {
 			case "unsupported":
@@ -355,7 +355,7 @@ func TestChildFailedRekeyReportsRestoreFailure(t *testing.T) {
 		[]string{"10.1.2.3/32"}, []string{"10.2.0.0/24"})
 	t.Cleanup(old.Clear)
 	states := maps.Clone(dp.states)
-	replacement := newRekeyedChild(old, 0x71970001, 0x71970002, old.Keys, true, nil)
+	replacement := newRekeyedChild(old, 0x71970001, 0x71970002, old.Keys, true, nil, old.Mode)
 	refusing := &forwardRestoreRefusalDP{forwardPolicyDP: dp, oldSPI: old.InboundSPI}
 	err := installChildTolerant(replacement, testESPGroup().Proposals[0], refusing, slogutil.DiscardLogger())
 	if !errors.Is(err, dataplane.ErrNotSupported) || !errors.Is(err, syscall.EIO) ||
@@ -436,13 +436,13 @@ func TestChildFailedRekeyAfterRestoreFailure(t *testing.T) {
 	t.Cleanup(old.Clear)
 	policies := maps.Clone(dp.policies)
 	states := maps.Clone(dp.states)
-	first := newRekeyedChild(old, 0x71980001, 0x71980002, old.Keys, true, nil)
+	first := newRekeyedChild(old, 0x71980001, 0x71980002, old.Keys, true, nil, old.Mode)
 	refusing := &forwardRestoreRefusalDP{forwardPolicyDP: dp, oldSPI: old.InboundSPI}
 	err = installChildTolerant(first, testESPGroup().Proposals[0], refusing, slogutil.DiscardLogger())
 	if !errors.Is(err, errChildPolicyRollback) {
 		t.Fatalf("first replacement error=%v, want restoration failure", err)
 	}
-	next := newRekeyedChild(old, 0x71980003, 0x71980004, old.Keys, true, nil)
+	next := newRekeyedChild(old, 0x71980003, 0x71980004, old.Keys, true, nil, old.Mode)
 	dp.reject = dataplane.SADirOut
 	err = installChildSA(next, testESPGroup().Proposals[0], dp, slogutil.DiscardLogger())
 	if !errors.Is(err, errForwardPolicyInstall) {
@@ -529,7 +529,7 @@ func TestChildFailedRekeyHealthPublication(t *testing.T) {
 	}()
 	<-ready
 	runtime.Gosched()
-	replacement := newRekeyedChild(old, 0x71990001, 0x71990002, old.Keys, true, nil)
+	replacement := newRekeyedChild(old, 0x71990001, 0x71990002, old.Keys, true, nil, old.Mode)
 	err = installChildTolerant(replacement, testESPGroup().Proposals[0],
 		&forwardRestoreRefusalDP{forwardPolicyDP: dp, oldSPI: old.InboundSPI}, slogutil.DiscardLogger())
 	close(stop)

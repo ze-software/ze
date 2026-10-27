@@ -2,7 +2,7 @@
   "note": "Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin > 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.",
   "requirement_sha": "16584ecb77b304f8",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "cde4b65c1f5b67d5",
+    "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "c73ed3c86a44bf44",
     "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowCarriesIntegrity": "01b10f93731e39a0",
     "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused": "01b10f93731e39a0"
   },

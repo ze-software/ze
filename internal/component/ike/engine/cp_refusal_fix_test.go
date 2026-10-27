@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- the Configuration payload in IKE_AUTH
-// Related: create_child.go -- childRefusedResponderFix; ts_nat_substitute.go -- transportSelectorsInPlay
+// Related: create_child.go -- childRefusedResponderFix; transport_mode.go -- decideResponderTransportMode
 // VALIDATES: a virtual-IP refusal names its own fix, and a pool-bound peer asking for
 // transport mode is answered in tunnel mode.
 // PREVENTS: a log that tells the operator to fix proposals for a missing CFG_REQUEST, and
@@ -58,8 +58,7 @@ func TestPoolBoundTransportRequestAnsweredInTunnelMode(t *testing.T) {
 		RemotePort:   ipsec.AnyPort(),
 	}}
 	lease := leaseOnto(t, vip, sa)
-	sa.PeerRequestedTransport = true
-	decideResponderTransportMode(sa)
+	sa.UseTransportMode = decideResponderTransportMode(sa, true) == modeTransport
 	if sa.UseTransportMode {
 		t.Fatal("a pool-bound peer's transport request was accepted, want declined")
 	}

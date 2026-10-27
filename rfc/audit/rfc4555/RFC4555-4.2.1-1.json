@@ -2,8 +2,8 @@
   "note": "Forbidden: sending MOBIKE_SUPPORTED with non-empty data, or acting on (for example rejecting) received data. mbAuthOfferEmpty in internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation requires zero-length data, protocol 0 and no SPI on both generated IKE_AUTH offers. The request-extension-data and response-extension-data cases inject non-empty data in each direction and require that negotiation still enables COOKIE2 echo (mbOnlyNotify), which goes red if the data were not ignored.",
   "requirement_sha": "03bd59316a2d1e31",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "7591039c742210b3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "7591039c742210b3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "5417bcb61dc7143f",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "5417bcb61dc7143f"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",

@@ -518,14 +518,18 @@ func TestTunnelModeIsTheChildSADefault(t *testing.T) {
 
 	// RFC requirement: RFC3948-1-1 negative -- the peer cannot talk Ze out of tunnel mode.
 	// A peer that asks for USE_TRANSPORT_MODE while the operator configured tunnel leaves
-	// UseTransportMode false (transport_mode.go:96-98), so the Child SA still installs in
-	// tunnel mode with its endpoints, and tunnel-mode support is not conditional on what
+	// UseTransportMode false: the request goes through the production responder,
+	// handleAuthRequest, which stores decideResponderTransportMode's answer
+	// (transport_mode.go). The Child SA built from that responder SA still installs in
+	// tunnel mode with its endpoints, so tunnel-mode support is not conditional on what
 	// the peer requested.
-	peerAsks := testSA()
-	peerAsks.IsInitiator = true
-	peerAsks.PeerCfg.Mode = dataplane.ModeTunnel
-	peerAsks.PeerRequestedTransport = true
-	decideResponderTransportMode(peerAsks)
+	//
+	// The control: the same request to a transport-configured peer is accepted, so the
+	// responder stores its decision and a false below is a decline, not a missing store.
+	if accepted, _ := transportRequestAuth(t, dataplane.ModeTransport); !accepted.UseTransportMode {
+		t.Fatal("setup: a transport-mode request to a transport-mode peer left UseTransportMode false; the decline below would prove nothing")
+	}
+	peerAsks, _ := transportRequestAuth(t, dataplane.ModeTunnel)
 	if peerAsks.UseTransportMode {
 		t.Fatal("a transport-mode request was accepted against a tunnel-mode configuration; the negative below would assert nothing")
 	}

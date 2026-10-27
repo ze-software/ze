@@ -89,7 +89,7 @@ func TestSpdUnstatedOrderTakesTheDefaultRank(t *testing.T) {
 	}
 
 	// A rekey replaces the states and keeps the entry, so the rank travels with it.
-	replacement := newRekeyedChild(child, child.InboundSPI+1, child.OutboundSPI+1, nil, child.LocalIsInitiator, child.Selectors)
+	replacement := newRekeyedChild(child, child.InboundSPI+1, child.OutboundSPI+1, nil, child.LocalIsInitiator, child.Selectors, child.Mode)
 	for _, dir := range bothDirections {
 		if got := childPolicies(replacement, dir)[0].Priority; got != dataplane.PriorityChildSA {
 			t.Errorf("the rekeyed %s entry ranks %d, and the retired one ranked %d",

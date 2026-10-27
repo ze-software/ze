@@ -41,38 +41,6 @@ func observedRemoteAddress(sa *SA) net.IP {
 	return net.ParseIP(sa.PeerCfg.RemoteAddress)
 }
 
-// transportSelectorsInPlay reports whether the exchange in hand is negotiating a
-// TRANSPORT-mode Child SA, on either role.
-//
-// RFC 7296 Section 2.23.1 opens the responder's procedure with the same test: "the server
-// should first check that the initiator requested transport mode, and then do address
-// substitution on the Traffic Selectors." PeerRequestedTransport is that request, read
-// by the responder before it has decided whether to accept. UseTransportMode is the
-// decision itself, and it is what the client rules turn on: "If transport mode for the SA
-// was selected (that is, if the server included USE_TRANSPORT_MODE notification in its
-// response)."
-//
-// PeerRequestedTransport is a responder-side field and is false on every initiator SA, so
-// one predicate serves both roles. keepSingleAddress is gated on the same pair
-// (ts_narrow.go), which keeps the single-address filter and the substitution deciding
-// together: a substituted host address that the filter then dropped would answer
-// TS_UNACCEPTABLE to a proposal the substitution had just made acceptable.
-//
-// A pool-bound peer's request is the one decided before narrowing:
-// decideResponderTransportMode declines it unconditionally, because the lease is a
-// tunnel-mode inner address, and RFC 7296 Section 1.3.1 says "If the responder declines
-// the request, the Child SA will be established in tunnel mode." Its request is therefore
-// not in play, so the single-address filter does not refuse the tunnel answer.
-func transportSelectorsInPlay(sa *SA) bool {
-	if sa.UseTransportMode {
-		return true
-	}
-	if sa.PeerCfg.VirtualIPPoolName() != "" {
-		return false
-	}
-	return sa.PeerRequestedTransport
-}
-
 // storeOriginalSelectorAddresses records the traffic-selector addresses as they arrived,
 // before any substitution replaces them.
 //
@@ -121,8 +89,17 @@ func firstSelectorAddress(sels []tsSelector) net.IP {
 // A nil observed address leaves that half alone. A substitution with no address is not
 // available, and answering with a zero selector would be worse than answering with the
 // one the peer sent (ai/rules/principles.md).
-func substituteResponderSelectors(sa *SA, iSels, rSels []tsSelector) ([]tsSelector, []tsSelector) {
-	if !transportSelectorsInPlay(sa) {
+//
+// mode is the mode the Child SA this answer creates installs, decided before narrowing by
+// the caller. RFC 7296 Section 2.23.1: "In this case, the server should first check that
+// the initiator requested transport mode, and then do address substitution on the
+// Traffic Selectors." A request this node declines, a pool-bound peer's among them, is
+// answered in tunnel mode with the real selectors: "If the second lookup succeeds, the
+// server will create an SA in tunnel mode using real Traffic Selectors sent by the other
+// end." So the gate is the decided mode, never the request. The single-address filter
+// shares the gate (ts_narrow.go), so a substituted host address is never then refused.
+func substituteResponderSelectors(sa *SA, mode uint8, iSels, rSels []tsSelector) ([]tsSelector, []tsSelector) {
+	if mode != modeTransport {
 		return iSels, rSels
 	}
 	storeOriginalSelectorAddresses(sa, iSels, rSels)
@@ -162,8 +139,13 @@ func substituteResponderSelectors(sa *SA, iSels, rSels []tsSelector) ([]tsSelect
 // substitution puts the answer back into that same space. A responder that answers an
 // address neither observed address covers still lands outside the ceiling and is refused
 // with errTSWidened (ts_narrow.go).
-func substituteInitiatorSelectors(sa *SA, iSels, rSels []tsSelector) ([]tsSelector, []tsSelector) {
-	if !transportSelectorsInPlay(sa) {
+//
+// mode is the mode the Child SA this answer creates installs. RFC 7296 Section 2.23.1,
+// client rules: "If transport mode for the SA was selected (that is, if the server
+// included USE_TRANSPORT_MODE notification in its response):" the caller has checked
+// the answer against its request before it passes transport.
+func substituteInitiatorSelectors(sa *SA, mode uint8, iSels, rSels []tsSelector) ([]tsSelector, []tsSelector) {
+	if mode != modeTransport {
 		return iSels, rSels
 	}
 	storeOriginalSelectorAddresses(sa, iSels, rSels)

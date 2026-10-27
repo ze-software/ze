@@ -652,8 +652,7 @@ func TestInnerSelectorDeclinedTransportRequestFiltered(t *testing.T) {
 	reg := newInnerSelectorRegistry()
 	mustInnerChild(t, innerPeerSA(t, reg, "a", "198.18.0.7"), &mockDP{}, []string{"10.1.2.3/32"}, []string{"0.0.0.0/0"})
 	b := innerPeerSA(t, reg, "b", "198.18.0.9")
-	b.PeerRequestedTransport = true
-	decideResponderTransportMode(b)
+	b.UseTransportMode = decideResponderTransportMode(b, true) == modeTransport
 	if b.UseTransportMode {
 		t.Fatal("setup: a tunnel-mode peer's transport request was accepted")
 	}

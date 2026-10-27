@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 3.1.1: \"Depending on local policy, one of the following MUST be done:\" and option 1: \"If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy.\" TestChildInboundPolicyDefinesTheValidInnerSourceSpace changed only in its comment, which now matches installChildSA (one inbound policy per pair, one here), closing the prior judge's stale-comment finding; it still drives createFirstChildSA and asserts the protect inbound policy Src is the negotiated remote selector. In transport mode the inbound state selector is now exactly that one pair, so the defined source space is no longer widened by a cover. TestChildSAInboundPolicyUsesNegotiatedTS unchanged. Both PASS at HEAD. Verdict stands.",
   "requirement_sha": "5cc3af212139b3f1",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "cde4b65c1f5b67d5",
+    "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "c73ed3c86a44bf44",
     "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "34fb5dd58579c3b0"
   },
   "units": {
