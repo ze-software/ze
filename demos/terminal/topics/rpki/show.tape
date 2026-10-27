@@ -76,7 +76,7 @@ Sleep 4s
 Type "ze cli -c 'show bgp rpki status | yaml | no-more'"
 Enter
 Wait+Screen /sessions-synced: 1/
-Type "ze cli -c 'show bgp peer detail transit | yaml | no-more'"
+Type "ze cli -c 'show bgp peer detail transit | yaml | match connections-established | no-more'"
 Enter
 Wait+Screen /connections-established: 1/
 Sleep 4s

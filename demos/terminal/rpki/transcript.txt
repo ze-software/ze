@@ -54,7 +54,7 @@ $ ze-demo card topic-rpki recovery
 $ ze-demo run showcase-lab control rtr-cache start
 $ ze cli -c 'show log recent component bgp.rpki count 4 | yaml | no-more'
 $ ze cli -c 'show bgp rpki status | yaml | no-more'
-$ ze cli -c 'show bgp peer detail transit | yaml | no-more'
+$ ze cli -c 'show bgp peer detail transit | yaml | match connections-established | no-more'
 
 These are the authored walkthrough steps. Runtime validation and recording
 must succeed before this source is published as a recording.
