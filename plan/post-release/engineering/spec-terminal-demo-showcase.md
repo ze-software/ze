@@ -63,6 +63,15 @@ changes outside that publication. Obsolete browser video and superseded media
 were removed through the native commit script. Neither commit authorizes a
 push or proves the public site changed.
 
+The fresh screenshot-only renderer image subsequently built in 1,446 seconds.
+A direct producer smoke inside that image verified the `ffmpeg` executable was
+absent, then completed the real browser edit/save/commit/reload flow and wrote
+a 1680×1008 WebP. The writable isolated demo directory retained a successful
+`config-commit` audit row; the daemon stopped and its owned container was
+removed. `scratch/webp-image-native-20261027/receipt.json` records the immutable
+image, source and screenshot hashes, invocation and logs. This is producer
+proof with existing staged binaries, not a new publication or full gallery run.
+
 The terminal-demo package passed its race-enabled checks (10.436 seconds).
 The site package run reached its aggregate ten-minute timeout while processing
 the RFC compliance index; it is not a passing package result. The separately
