@@ -419,10 +419,10 @@ func plugin15RPKICacheFailover(ctx context.Context, p *sdk.Plugin) error {
 		{"after fail-back to the preferred cache", 1, false, addrLoopback, ""},
 	}
 	for _, step := range steps {
-		if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", step.state, step.ineligible, step.label); err != nil {
+		if err := plugin15AssertSyncedCache(ctx, p, step.synced, step.label); err != nil {
 			return err
 		}
-		if err := plugin15AssertSyncedCache(ctx, p, step.synced, step.label); err != nil {
+		if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", step.state, step.ineligible, step.label); err != nil {
 			return err
 		}
 		if step.release == "" {
