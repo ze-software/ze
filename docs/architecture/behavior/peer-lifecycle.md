@@ -165,8 +165,8 @@ NOTIFICATION is sent, the log says so, and the connection is closed raw so the
 stuck writer's write fails and releases the lock.
 
 No lock is held across a call that can panic in the read path: a reactor-wide
-lock left held by the panicking frame would stall every other peer (lock audit
-in `plan/release/fixes/spec-improve-5-panic-boundaries.md`, A-1).
+lock left held by the panicking frame would stall every other peer
+(`plan/learned/044-panic-boundaries.md`, "What outlives the spec").
 
 <!-- source: internal/component/bgp/reactor/panic_guard.go — bgpPanicTasks, bgpPanics -->
 <!-- source: internal/component/bgp/reactor/session.go — Session.Run, describeRead -->

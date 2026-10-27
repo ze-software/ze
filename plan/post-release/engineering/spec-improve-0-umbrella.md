@@ -37,7 +37,7 @@ any external behavior that shapes a design decision against primary sources dire
 | 2 | `spec-improve-2-gnmi-state.md` | Operational-state provider fanout; gNMI Get honors CONFIG/STATE/OPERATIONAL/ALL | - |
 | 3 | `spec-improve-3-event-replay` (closed 2026-09-05, `d74f428b47` / `99bbe13ab7`) | Opt-in JSONL protocol event capture and message-driven replay; timer-driven and multi-peer remainder owned by `plan/post-release/engineering/spec-improve-3-event-replay-deferred-deterministic-scheduler.md` | - |
 | 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | - (capture/replay prerequisite fulfilled) |
-| 5 | `plan/release/fixes/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
+| 5 | `spec-improve-5-panic-boundaries` (closed 2026-10-27, `plan/learned/044-panic-boundaries.md`) | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
 | 7 | `spec-improve-7-yang-handler-gate` (CLOSED 2026-08-29) | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review). Shipped: `claims.Audit` (`internal/component/config/claims/claims.go`), `./le config claims` in both verify-stage populations, `checkConfigClaims` (`internal/component/doctor/checks_config_claims.go`), `test/ui/doctor-config-claims.ci` | - |
 | 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
