@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: an update from one cache applied to another cache's data (unmarked source). TestRTRCacheSwitchKeepsSerialBasesSeparate gives both caches the same Session ID and serial; after switching 2->3->2 it asserts the query sequence ends {2, pduResetQuery} (not a Serial Query against the other cache's base) and that only the selected cache's prefix and ASPA provider validate (roas.Validate / aspas.isProvider per candidate), so a merge or reuse goes red.",
+  "note": "Forbidden by RFC 8210 Section 10, 'A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data.': an update from one cache applied to another cache's data. TestRTRCacheSwitchKeepsSerialBasesSeparate changed under a ze-test-judge approval only in pacing: both caches now announce a 1s Retry Interval and each round sleeps until the failed preferred cache may be asked, as Section 6 requires. Assertions unchanged: both caches share Session ID and serial; after switching 2 to 3 to 2 the query sequence must be Reset, Serial, Reset (cache 3), Reset (cache 2), so cache 2 is never Serial-queried against cache 3's base, and each round only the selected cache's prefix and ASPA provider validate (roas.Validate, aspas.isProvider per candidate), so a merge or reuse goes red.",
   "requirement_sha": "106112228a6dabf0",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "10cf5113e59b2bd7",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "10cf5113e59b2bd7"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "9fb00f8591af5e2a",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "9fb00f8591af5e2a"
   },
   "units": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "c1679960dc16d025",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "c1679960dc16d025"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "f5823e2864ade2b4",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "f5823e2864ade2b4"
   },
   "verdict": "enforced"
 }

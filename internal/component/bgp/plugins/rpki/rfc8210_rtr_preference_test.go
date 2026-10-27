@@ -155,6 +155,8 @@ func TestRTRCacheSwitchKeepsSerialBasesSeparate(t *testing.T) {
 			response[0], end[0] = 2, 2
 			// Both caches deliberately use the same session ID and serial.
 			binary.BigEndian.PutUint32(end[8:12], 1)
+			// A one-second Retry Interval lets the third round ask the failed cache again.
+			binary.BigEndian.PutUint32(end[16:20], 1)
 			prefix := []byte{2, pduIPv4Prefix, 0, 0, 0, 0, 0, 20, 1, 24, 24, 0, 192, 0, octet, 0, 0, 0, 0xfb, 0xf4}
 			for _, pdu := range [][]byte{response, prefix, aspaPDU(64500, provider), end} {
 				if _, err := conn.Write(pdu); err != nil {
@@ -173,6 +175,9 @@ func TestRTRCacheSwitchKeepsSerialBasesSeparate(t *testing.T) {
 		newTestRTRSession(t, "127.0.0.1", second, 20, "", roas, aspas, stop),
 	}, stop)
 	for _, selected := range []int{2, 3, 2} {
+		// RFC 8210 Section 6: a round does not ask a failed cache again before its Retry
+		// Interval runs out, so each round starts once the preferred cache may be asked.
+		time.Sleep(time.Until(group.retryAt[0]))
 		group.poll()
 		for _, candidate := range []int{2, 3} {
 			prefix := "192.0.2.0/24"
@@ -230,7 +235,17 @@ func TestRTRCacheResetReturnsToPreferredCache(t *testing.T) {
 		}
 		queries <- query[1]
 		attempt++
-		if attempt < 3 {
+		switch attempt {
+		case 1:
+			// The first load teaches the router this cache's two-second Retry Interval.
+			first := slices.Concat(cacheResponsePDU(),
+				ipv4AnnouncePDU([4]byte{192, 0, 2, 0}, 64501),
+				endOfDataTimed(3, 1, 2))
+			if _, err := conn.Write(first); err != nil {
+				replies <- err
+				return
+			}
+		case 2:
 			// No Data Available leaves the socket open: Ze, not the fake
 			// peer's disconnect, must end this attempt and try the standby.
 			noData := []byte{rtrVersionMax, pduErrorRpt, 0, 2, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -238,7 +253,7 @@ func TestRTRCacheResetReturnsToPreferredCache(t *testing.T) {
 				replies <- err
 				return
 			}
-		} else {
+		default:
 			partial := slices.Concat(cacheResponsePDU(),
 				ipv4AnnouncePDU([4]byte{192, 0, 2, 0}, 64501),
 				ipv4AnnouncePDU([4]byte{198, 51, 100, 0}, 64501))
@@ -284,18 +299,31 @@ func TestRTRCacheResetReturnsToPreferredCache(t *testing.T) {
 
 	// RFC 8210 Sections 8.3 and 10: use normal rounds without modifying
 	// timers, forcing holder/serial state, or changing reconnect policy.
-	require.Equal(t, 3600*time.Second, group.poll())
+	require.Equal(t, time.Second, group.poll())
 	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, queries, 1))
+
+	require.Equal(t, 3600*time.Second, group.poll())
+	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, queries, 1))
 	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1))
 	require.Equal(t, held, states(), "the standby's wire load must supply the initial validation state")
 
-	require.Equal(t, 600*time.Second, group.poll())
-	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, queries, 1))
-	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, standbyQueries, 1))
+	// RFC 8210 Section 6: the preferred cache failed less than its two-second Retry Interval
+	// ago, so this round passes over it. RFC 8210 Section 8.3: with no more-preferred cache
+	// available, the standby's Cache Reset is followed by a Reset Query to the standby itself,
+	// which the script answers with nothing. The round then waits only until the preferred
+	// cache may be asked again, and the next round runs after that wait.
+	delay := group.poll()
+	require.Equal(t, []byte{pduSerialQuery, pduResetQuery}, takeQueries(t, standbyQueries, 2))
+	require.LessOrEqual(t, delay, 2*time.Second, "the next round must not wait past the preferred Retry Interval")
+	select {
+	case query := <-queries:
+		t.Fatalf("the preferred cache was asked inside its Retry Interval: PDU %d", query)
+	default:
+	}
 	require.Equal(t, held, states(), "Cache Reset must retain the last complete set")
+	time.Sleep(delay)
 
 	done := make(chan struct{})
-	var delay time.Duration
 	go func() {
 		defer close(done)
 		delay = group.poll()
