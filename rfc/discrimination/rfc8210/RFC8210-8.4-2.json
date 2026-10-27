@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-8.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestNoDataAvailableMovesToNextCacheInPreferenceOrder",
+    "unit-sha": "3687e845f7d4e39f",
+    "claim-sha": "f6167cb1ec189897",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::load",
+    "producer-sha": "28b94524b5f5faf1",
+    "break": "body of load replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestNoDataAvailableMovesToNextCacheInPreferenceOrder",
+    "unit-sha": "3687e845f7d4e39f",
+    "claim-sha": "928635c3048e9891",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::load",
+    "producer-sha": "28b94524b5f5faf1",
+    "break": "body of load replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

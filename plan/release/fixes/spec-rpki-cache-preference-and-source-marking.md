@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Cache preference and source isolation must prevent one cache withdrawal corrupting another cache's validation data. |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3 |
 | Handoff | - |
 | Updated | 2026-10-27 |
 

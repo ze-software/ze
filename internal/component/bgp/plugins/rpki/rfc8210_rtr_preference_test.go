@@ -604,3 +604,142 @@ func TestCacheGroupFullRoundWaitsForRetryInterval(t *testing.T) {
 	requireNoQuery(t, standbyQueries, 100*time.Millisecond,
 		"the standby was asked although the preference 10 cache answered")
 }
+
+// ipv4WithdrawPDU is an IPv4 Prefix PDU withdrawing prefix/24, Max Length 24, for asn.
+func ipv4WithdrawPDU(prefix [4]byte, asn uint32) []byte {
+	pdu := ipv4AnnouncePDU(prefix, asn)
+	pdu[8] = 0
+	return pdu
+}
+
+// TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData feeds two sessions of one cache group,
+// PDU by PDU, through the session's own handler: the old cache loads a set, then the router
+// switches to the new cache, whose load withdraws a VRP and an ASPA the old cache announced.
+// Validation is read after every step of the switch.
+//
+// VALIDATES: RFC 8210 Section 10, "A client may hold data from multiple caches but MUST keep the
+// data marked as to source, as later updates MUST affect the correct data.": the new cache's
+// withdraws never reach the old cache's records, its End of Data replaces the set exactly, and a
+// later delta from the old cache no longer touches the set in use. The same section, "The client
+// SHOULD attempt to maintain at least one set of data, regardless of whether it has chosen a
+// different cache or established a new connection to the previous cache." and "If a client loses
+// connectivity to a cache it is using or otherwise decides to switch to a new cache, it SHOULD
+// retain the data from the previous cache until it has a full set of data from one or more other
+// caches.": until End of Data, validation answers from the old set, unchanged, ROAs and ASPAs alike.
+// PREVENTS: a staged withdraw or announcement reaching the store before End of Data, an End of
+// Data that merges the two caches' sets, and the old cache's withdraw deleting the new cache's VRP.
+func TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData(t *testing.T) {
+	// RFC requirement: RFC8210-10-2 positive -- the new cache's End of Data leaves exactly its own VRP and ASPA in the stores, ROAs and ASPAs alike.
+	// RFC requirement: RFC8210-10-2 negative -- the new cache's withdraw of the old cache's VRP and ASPA changes nothing before End of Data, and a later delta withdraw from the old cache is refused and leaves the new cache's VRP valid.
+	// RFC requirement: RFC8210-10-3 positive -- while the switch is in progress, validation answers Valid for every VRP and ASPA provider of the old cache's set.
+	// RFC requirement: RFC8210-10-3 negative -- no step of the switch before End of Data leaves the stores empty or holding the new cache's VRP or ASPA.
+	// RFC requirement: RFC8210-10-4 positive -- the old cache's set stays the one validation uses until the new cache's End of Data.
+	// RFC requirement: RFC8210-10-4 negative -- the new cache's staged announcements do not validate before its End of Data.
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	oldCache := newTestRTRSession(t, "127.0.0.1", 3323, 10, "", roas, aspas, stop)
+	newCache := newTestRTRSession(t, "127.0.0.1", 3324, 20, "", roas, aspas, stop)
+	newCacheGroup([]*RTRSession{oldCache, newCache}, stop)
+
+	// The old cache's set: two VRPs, and two customers with one provider each.
+	oldCache.startFullSync()
+	for _, pdu := range [][]byte{
+		cacheResponsePDU(),
+		ipv4AnnouncePDU([4]byte{192, 0, 2, 0}, 64500),
+		ipv4AnnouncePDU([4]byte{198, 51, 100, 0}, 64501),
+		aspaPDU(64500, 64501),
+		aspaPDU(64510, 64511),
+	} {
+		applyPDU(t, oldCache, pdu, false)
+	}
+	applyPDU(t, oldCache, endOfDataPDU(), true)
+
+	requireOldSet := func(step string) {
+		t.Helper()
+		require.Equal(t, ValidationValid, roas.Validate("192.0.2.0/24", 64500), "%s: old VRP 192.0.2.0/24", step)
+		require.Equal(t, ValidationValid, roas.Validate("198.51.100.0/24", 64501), "%s: old VRP 198.51.100.0/24", step)
+		require.Equal(t, ValidationNotFound, roas.Validate("203.0.113.0/24", 64502), "%s: new VRP 203.0.113.0/24", step)
+		require.True(t, aspas.isProvider(64500, 64501), "%s: old ASPA of customer 64500", step)
+		require.True(t, aspas.isProvider(64510, 64511), "%s: old ASPA of customer 64510", step)
+		require.False(t, aspas.isProvider(64520, 64521), "%s: new ASPA of customer 64520", step)
+		v4, v6 := roas.Count()
+		require.Equal(t, 2, v4+v6, "%s: the store holds the old cache's two VRPs and nothing else", step)
+	}
+	requireOldSet("old cache loaded")
+
+	// The switch: the new cache's load withdraws the old cache's 192.0.2.0/24 and the ASPA of
+	// customer 64500, and announces its own VRP and ASPA. End of Data has not arrived.
+	newCache.startFullSync()
+	for _, step := range []struct {
+		name string
+		pdu  []byte
+	}{
+		{"Cache Response", cacheResponsePDU()},
+		{"withdraw of the old VRP", ipv4WithdrawPDU([4]byte{192, 0, 2, 0}, 64500)},
+		{"announcement of the new VRP", ipv4AnnouncePDU([4]byte{203, 0, 113, 0}, 64502)},
+		{"withdraw of the old ASPA", aspaWithdrawPDU(64500)},
+		{"announcement of the new ASPA", aspaPDU(64520, 64521)},
+	} {
+		applyPDU(t, newCache, step.pdu, false)
+		requireOldSet(step.name)
+	}
+
+	applyPDU(t, newCache, endOfDataPDU(), true)
+	assert.Equal(t, ValidationNotFound, roas.Validate("192.0.2.0/24", 64500), "the old VRP survived the switch")
+	assert.Equal(t, ValidationNotFound, roas.Validate("198.51.100.0/24", 64501),
+		"the old VRP the new cache never named survived the switch: the two sets merged")
+	assert.Equal(t, ValidationValid, roas.Validate("203.0.113.0/24", 64502), "the new cache's VRP is not in use")
+	v4, v6 := roas.Count()
+	assert.Equal(t, 1, v4+v6, "the store does not hold exactly the new cache's set")
+	assert.False(t, aspas.isProvider(64500, 64501), "the old ASPA of customer 64500 survived the switch")
+	assert.False(t, aspas.isProvider(64510, 64511), "the old ASPA of customer 64510 survived the switch")
+	assert.True(t, aspas.isProvider(64520, 64521), "the new cache's ASPA is not in use")
+
+	// A later delta from the old cache withdraws a VRP the new cache also announced. It is an
+	// update to the old cache's data, which is no longer held, so it must not reach the store.
+	for _, pdu := range [][]byte{cacheResponsePDU(), ipv4WithdrawPDU([4]byte{203, 0, 113, 0}, 64502)} {
+		applyPDU(t, oldCache, pdu, false)
+	}
+	hdr, err := parseHeader(endOfDataPDU()[:pduHeaderLen])
+	require.NoError(t, err)
+	_, err = oldCache.handlePDU(hdr, endOfDataPDU())
+	require.ErrorIs(t, err, errRtrDataExpired, "the old cache's delta was applied to the new cache's set")
+	assert.Equal(t, ValidationValid, roas.Validate("203.0.113.0/24", 64502),
+		"the old cache's withdraw deleted the new cache's VRP")
+}
+
+// TestNoDataAvailableMovesToNextCacheInPreferenceOrder runs two caches in one group. The
+// preference 10 cache holds the data, then answers the next poll with No Data Available.
+//
+// VALIDATES: RFC 8210 Section 8.4, "When a router receives this kind of error, the router SHOULD
+// attempt to connect to any other caches in its cache list, in preference order.": in the same
+// round the preference 20 cache receives a Reset Query and its set replaces the old one.
+// PREVENTS: a round that ends on No Data Available and leaves the router on a cache that has no
+// data to give until the next Retry Interval.
+func TestNoDataAvailableMovesToNextCacheInPreferenceOrder(t *testing.T) {
+	// RFC requirement: RFC8210-8.4-2 positive -- in the round where the preference 10 cache answers No Data Available, the preference 20 cache receives a Reset Query and its VRP then validates.
+	// RFC requirement: RFC8210-8.4-2 negative -- the preference 20 cache is not asked while the preference 10 cache answers, and after the switch the preference 10 cache's VRP no longer validates.
+	preferredPort, preferredQueries := outageRTRCache(t,
+		preferredLoad(2, 1, 3600, 600), errorReportPDU(2, errNoDataAvail))
+	standbyPort, standbyQueries := outageRTRCache(t, standbyLoad())
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	group := newCacheGroup([]*RTRSession{
+		newTestRTRSession(t, "127.0.0.1", preferredPort, 10, "", roas, aspas, stop),
+		newTestRTRSession(t, "127.0.0.1", standbyPort, 20, "", roas, aspas, stop),
+	}, stop)
+
+	require.Equal(t, 3600*time.Second, group.poll(), "the preference 10 cache's load ends the first round")
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, preferredQueries, 1))
+	requireNoQuery(t, standbyQueries, 100*time.Millisecond,
+		"the preference 20 cache was asked although the preference 10 cache answered")
+	require.Equal(t, ValidationValid, roas.Validate("192.0.2.0/24", 64501), "the preference 10 cache's set is not in use")
+
+	require.Equal(t, 3600*time.Second, group.poll(),
+		"the round ended on No Data Available instead of loading the preference 20 cache")
+	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, preferredQueries, 1))
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1))
+	assert.Equal(t, ValidationValid, roas.Validate("203.0.113.0/24", 64500), "the preference 20 cache's set is not in use")
+	assert.Equal(t, ValidationNotFound, roas.Validate("192.0.2.0/24", 64501),
+		"the preference 10 cache's set survived the switch")
+}

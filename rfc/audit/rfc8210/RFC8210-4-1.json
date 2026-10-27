@@ -2,10 +2,10 @@
   "note": "Re-read RFC 8210 Section 4: 'The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI.' Forbidden: selecting a cache other than the most preferred one that answers. TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers (unit unchanged) lists the standby (preference 200) first and the preferred (10) second, waits for the preferred accept and fails if the standby accepts within 500ms; its failover subtest has the next cache in preference order carry the load when the preferred refuses. New unit TestCacheGroupCacheResetFromPreferredReloadsIt goes through the real config path, rpkiPlugin.startSessions, with the preference 20 cache written first: positive, the preference 10 cache receives Reset, Serial, Reset and its reload (192.0.3.0/24 AS64501) becomes Valid; negative, requireNoQuery on the preference 20 cache for 500ms after that reload and its 203.0.113.0/24 stays NotFound. A config-order pass would query the preference 20 cache first and never reach the three preferred queries, and a Cache Reset handed to the less-preferred cache would query it, so both go red. Positive and negative are distinct assertions. The 'or set of caches' alternative is a permission, not a forbidden behaviour.",
   "requirement_sha": "f1776b40118c197f",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "9fb00f8591af5e2a",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "9fb00f8591af5e2a",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "9fb00f8591af5e2a",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "9fb00f8591af5e2a"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "84e094fc76ebba35"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "2bf64b702e875904",

@@ -128,8 +128,14 @@ server.";
         leaf preference {
           type uint8;
           default "100";
-          description "Lower values are tried first. Each polling round starts with the most preferred cache.";
-          ze:help "Preference of this cache server.";
+          description "The lower the value, the more preferred the cache (RFC 8210 Section 10).
+Each polling round starts with the most preferred cache, and ze loads its data from
+the first cache that completes a synchronization; caches with equal values keep their
+configuration order. A cache that fails, or answers No Data Available, hands the round
+to the next one in preference order. While a less-preferred cache holds the data, a
+more-preferred cache is asked again when its own Retry Interval runs out, and takes
+over once it completes a full load.";
+          ze:help "Cache selection order: a lower value is preferred.";
         }
         leaf source-address {
           type zt:ip-address;

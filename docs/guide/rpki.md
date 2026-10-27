@@ -144,7 +144,8 @@ root keeps its committed value; an explicitly removed root does not.
 | `rpki / aspa / action / invalid` | enum | reject | Action for ASPA Invalid routes: reject, log-only, accept |
 | `rpki / aspa / action / unknown` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
-Multiple cache servers are supported for redundancy. Ze tries them in preference order and uses the most preferred server that answers. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set.
+Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 
 #### Per-peer and per-group actions

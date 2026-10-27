@@ -20,5 +20,27 @@
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::load",
     "producer-sha": "28b94524b5f5faf1",
     "break": "body of load replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers",
+    "unit-sha": "6f5d6b11787010ea",
+    "claim-sha": "6c079f0a1a443b78",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::startSessions",
+    "producer-sha": "459a79bca9377272",
+    "break": "body of startSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers",
+    "unit-sha": "6f5d6b11787010ea",
+    "claim-sha": "b7efe09b070c7c3f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::startSessions",
+    "producer-sha": "459a79bca9377272",
+    "break": "body of startSessions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

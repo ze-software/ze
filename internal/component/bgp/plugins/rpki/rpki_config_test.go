@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -512,4 +513,25 @@ func TestRPKIValidationTimeoutRejectsInvalidValues(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+// TestPreferenceHelpStatesOrder reads the `preference` leaf of `bgp rpki cache-server` from the
+// schema the CLI and the web UI show, and checks that its help states which way the order runs.
+//
+// VALIDATES: the help and the description say what RFC 8210 Section 10 says the value means,
+// "the lower the value, the more preferred", which is the order startSessions sorts by.
+// PREVENTS: a help line that names the leaf without its direction, leaving an operator to guess
+// whether 10 or 200 is the cache ze loads from.
+func TestPreferenceHelpStatesOrder(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+
+	node, err := schema.Lookup("bgp/rpki/cache-server/preference")
+	require.NoError(t, err)
+	leaf, ok := node.(*config.LeafNode)
+	require.True(t, ok, "bgp/rpki/cache-server/preference is a %T, not a leaf", node)
+	assert.Contains(t, leaf.ShortHelp, "lower value is preferred")
+	assert.Contains(t, leaf.Description, "The lower the value, the more preferred")
+	assert.Contains(t, leaf.Description, "Retry Interval",
+		"the description does not say when a more-preferred cache takes the data back")
 }

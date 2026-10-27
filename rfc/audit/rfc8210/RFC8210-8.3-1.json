@@ -2,8 +2,8 @@
   "note": "Judges the MUST only: RFC 8210 Section 8.3, 'If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' TestRTRCacheResetReloadsTheWholeSet and TestCacheResetTriggersResetQuery are byte-identical to the last judgement (one-session group: Reset, Serial, Reset after the Cache Reset; the new VRP Valid and the old NotFound; negative keeps Serial Queries and merges a delta). New unit TestCacheGroupCacheResetFromPreferredReloadsIt adds the two-cache case through startSessions, where the cache sending Cache Reset is the most preferred: positive asserts its query sequence Reset, Serial, Reset in the same round (load in rtr_session.go issues the second syncOnce), that the reload's 192.0.3.0/24 becomes Valid and the reset set's 192.0.2.0/24 becomes NotFound, so the new load replaces rather than merges; negative asserts the preference 20 cache receives no query and its VRP never validates. The pre-fix poll, which treated Cache Reset as a failure and moved to the less-preferred cache, fails both (no third preferred query, a standby query). Revert record on load exists.",
   "requirement_sha": "d6a8cd3857fb271e",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "9fb00f8591af5e2a",
-    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "9fb00f8591af5e2a",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "84e094fc76ebba35",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "84e094fc76ebba35",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
     "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
