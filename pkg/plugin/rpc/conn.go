@@ -242,8 +242,13 @@ func (c *Conn) startReader() {
 // connection and pushes successful frames to frameCh. On error (EOF, broken
 // pipe, close), it stores the error atomically and exits. The deferred
 // close(readerDone) fires after readerErr is stored.
+//
+// The task's panic boundary is deferred last so it runs first: a contained
+// panic stores itself as readerErr and closes the connection before
+// readerDone closes.
 func (c *Conn) readLoop() {
 	defer close(c.readerDone)
+	defer readerPanics().read.Contain(c.describeConn, c.endAfterPanic)
 	for {
 		data, err := c.reader.Read()
 		if err != nil {

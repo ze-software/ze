@@ -480,7 +480,10 @@ func (m *MuxConn) Done() <-chan struct{} {
 func (m *MuxConn) readLoop() {
 	defer close(m.requestCh) // Unblock ReadRequest callers.
 	defer m.endPendingAnswers()
-	defer close(m.done) // Runs first: CallAnswer re-checks it after it registers.
+	defer close(m.done) // Runs after the boundary: CallAnswer re-checks it after it registers.
+	// The panic boundary runs first: a contained panic stores itself as
+	// readerErr and closes the connection before the exits above announce it.
+	defer readerPanics().route.Contain(m.conn.describeConn, m.endAfterPanic)
 
 	for {
 		data, err := m.conn.readFrame(context.Background())
