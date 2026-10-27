@@ -80,7 +80,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
 | BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (`ai/META-DECISIONS.md`); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's `String()`, and an Extended Communities attribute also through its `MarshalJSON`, because `String()` writes an IPv4-address-specific Route Target and Route Origin alike | eBGP, route injection and verification |
-| StayRTR | 0.6.4 | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
+| StayRTR | 0.6.4, patched to write its queued Error Report before it closes | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
 | ExaBGP | API 6.0.0 contract fixtures | Compiled Go wire server | Wire byte comparison | Byte-for-byte encoding across all address families |
 <!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
@@ -1338,6 +1338,19 @@ error, so Ze can reconnect at the advertised supported version.
 sends Ze in End of Data are `-rtr.refresh 10` and `-rtr.retry 10` (StayRTR's
 defaults are 3600 and 600 seconds), so Ze polls a cache every 10 seconds and
 asks a failed cache again after 10.
+Those 10 seconds apply only after a cache's first End of Data. Before it, RFC
+8210 Section 6 has Ze retry a cache it never reached after the default Retry
+Interval of 600 seconds, as BIRD and rtrlib do, so a first query that fails
+costs that cache ten minutes, longer than any checker waits. Two lab defects
+made that first query fail. The image patches the first: unpatched v0.6.4
+refuses Ze's version-2 query by queueing its Error Report and cancelling the
+connection at once, its send loop picks between the two at random, and Ze
+sometimes reads a bare close ("read header: EOF") with no version to retry
+at. The readiness probe (`stayRTRReadyCommand`) handles the second: StayRTR
+answers `/rpki.json` with status 200 and `"roas":null` before it reads its VRP
+file and binds the RTR port, so the probe also requires a prefix in the export
+and an open RTR port.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- stayRTRReadyCommand -->
 The `rtr-stayrtr` checker then requires two IPv4 and two IPv6 VRPs and checks
 the per-prefix validation answers. HTTP readiness alone proves no RTR transfer.
 A changed cache command requires an image rebuild; `NO_BUILD=1` retains the

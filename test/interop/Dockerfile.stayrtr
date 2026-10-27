@@ -20,7 +20,55 @@
 
 FROM golang:1.27-alpine3.24 AS builder
 
-RUN go install github.com/bgp/stayrtr/cmd/stayrtr@v0.6.4
+# The release source, fetched through the module proxy and checked against the
+# checksum database, then patched before the build.
+#
+# THE PATCH. StayRTR v0.6.4 speaks RTR versions 0 and 1, so it refuses Ze's
+# first query, which asks for version 2. It refuses by queueing an Error Report
+# (Error Code 4, Unsupported Protocol Version) on the client's transmit channel
+# and cancelling the client's context at once (lib/server.go, checkVersion,
+# SendWrongVersionError, Disconnect). Its sendLoop then selects between the
+# queued PDU and the cancel, and Go picks at random among ready cases, so the
+# Error Report is sometimes never written and Ze reads a bare close.
+# draft-ietf-sidrops-8210bis Section 7 says the cache "MUST send an Error Report
+# PDU with Protocol Version C and Error Code 4". With no Error Report there is
+# no version for Ze to retry at, so the attempt fails, and RFC 8210 Section 6
+# has Ze wait the default Retry Interval of 600 seconds before it asks that
+# cache again, as BIRD's proto/rpki and rtrlib also do. Observed in
+# rtr-stayrtr-preference: the standby cache's first contact read "read header:
+# EOF" with one connection in StayRTR's log, and the scenario timed out. The
+# patch has sendLoop write what is already queued before it returns.
+COPY <<'EOF' /stayrtr-send-queued-before-close.patch
+--- a/lib/server.go
++++ b/lib/server.go
+@@ -759,7 +759,16 @@
+ 		select {
+ 		case pdu := <-c.transmits:
+ 			c.wr.Write(pdu.Bytes())
+ 		case <-ctx.Done():
+-			return ctx.Err()
++			// Write what was queued before the cancel, so an Error Report
++			// queued just before Disconnect reaches the client.
++			for {
++				select {
++				case pdu := <-c.transmits:
++					c.wr.Write(pdu.Bytes())
++				default:
++					return ctx.Err()
++				}
++			}
+ 		}
+ 	}
+EOF
+
+RUN set -eu; \
+    apk add --no-cache patch; \
+    module=$(go mod download -json github.com/bgp/stayrtr@v0.6.4 | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p'); \
+    cp -R "$module" /src; \
+    chmod -R u+w /src; \
+    cd /src; \
+    patch -p1 < /stayrtr-send-queued-before-close.patch; \
+    go build -o /go/bin/stayrtr ./cmd/stayrtr
 
 FROM alpine:3.24.3
 

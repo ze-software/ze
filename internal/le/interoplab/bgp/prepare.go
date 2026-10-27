@@ -23,8 +23,30 @@ import (
 const (
 	baseIPv4Prefix = "172.30.0."
 	baseIPv6Prefix = "fd00:1e:0::"
-	stayRTRPort    = 9847
+	// stayRTRExportPort serves StayRTR's HTTP VRP export, /rpki.json.
+	stayRTRExportPort = 9847
+	// stayRTRServePort is StayRTR's RTR listener, the port each scenario's
+	// ze.conf names for its cache-server.
+	stayRTRServePort = 8282
 )
+
+// stayRTRReadyCommand is the readiness probe of a StayRTR cache: its VRP
+// export holds a prefix, and its RTR listener accepts.
+//
+// The export alone proves neither. StayRTR v0.6.4 starts the HTTP export
+// before it reads the VRP file, answers it with status 200 and `"roas":null`
+// until then, and binds the RTR listener only after the read. Ze started on
+// that answer queries a cache that refuses the connection or answers No Data
+// Available, and RFC 8210 Section 6 then has Ze wait the default Retry
+// Interval, 600 seconds, before it asks that cache again: "If the router has
+// never issued a successful query against a particular cache, it SHOULD retry
+// periodically using the default Retry Interval, above."
+func stayRTRReadyCommand() []string {
+	var script textbuf.Buffer
+	script.Str("wget -q -O - http://127.0.0.1:").Int(stayRTRExportPort).
+		Str(`/rpki.json | grep -q '"prefix"' && nc -z 127.0.0.1 `).Int(stayRTRServePort)
+	return []string{"sh", "-c", script.String()}
+}
 
 const zeCLIConfig = `
 system {
@@ -325,14 +347,13 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	}
 	if path := filepath.Join(scenario, "vrps.json"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTR, Container: containerName(peerStayRTR, suffix), Image: peerStayRTR, Host: 12,
-			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready("wget", "-q", "-O", "-", rendered.Str("http://127.0.0.1:").Int(stayRTRPort).Str("/rpki.json").String())})
+			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready(stayRTRReadyCommand()...)})
 	}
 	// A second cache serving its own VRP set, for the failover and fail-back
 	// between caches of different preference (rtr-stayrtr-preference).
 	if path := filepath.Join(scenario, "vrps-standby.json"); regularFile(path) {
-		var probe textbuf.Buffer
 		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTRStandby, Container: containerName(peerStayRTRStandby, suffix), Image: peerStayRTR, Host: 14,
-			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready("wget", "-q", "-O", "-", probe.Str("http://127.0.0.1:").Int(stayRTRPort).Str("/rpki.json").String())})
+			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready(stayRTRReadyCommand()...)})
 	}
 	if path := filepath.Join(scenario, "rpki-server"); regularFile(path) {
 		arguments, err := readArguments(scenario, "rpki-server")
