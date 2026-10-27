@@ -216,6 +216,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
   A private preview is an intermediate review artifact. Local regeneration
   does not authorize a push or deployment.
+- Website screenshots use WebP, alongside lightweight terminal-event playback
+  for application demonstrations. Encoded video assets are not published on the
+  website or stored in the repository, and CI/CD does not generate videos.
+- The README links to lightweight playback with a screenshot rather than
+  producing an encoded-video or large animated-SVG carrier.
 
 ## How agents work
 
