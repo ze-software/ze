@@ -206,10 +206,11 @@ func TestDelayOpenActiveOnlyRefusesPending(t *testing.T) {
 	local, pending := net.Pipe()
 	t.Cleanup(func() { closeConnQuietly(pending) })
 	r := &Reactor{clock: clock.RealClock{}}
-	r.acceptOrReject(local, peer, nil)
+	// Arm the read deadline before rejection closes the pipe.
 	if err := pending.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
+	r.acceptOrReject(local, peer, nil)
 	var octet [1]byte
 	if n, err := pending.Read(octet[:]); n != 0 || !errors.Is(err, io.EOF) {
 		t.Fatalf("active-only accepted pending socket: bytes=%d error=%v", n, err)
