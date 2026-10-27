@@ -84,6 +84,10 @@ Test files that carry tags of two owners. A child edits one only while the other
 
 Copied verbatim from the parent. A row leaves this table when its re-judged verdict is `enforced`, recorded here with the date, or in the stem's audit file if the stem is enrolled first.
 
+The R-7 and fix-round tables below retain their dated 2026-10-11 state, not a
+current freshness certificate. The 2026-10-27 correction supersedes only the
+EAP judgments it names; old pending verdicts and owner questions are historical.
+
 | ID | Verdict | Unit | What the test fails to prove |
 |----|---------|------|------------------------------|
 | RFC9190-1-1 | weak | `TestEAPTLSCapsBothRolesAtTLS13`, `TestEAPTLSVersionCapLeavesTLS12Reachable` (`internal/core/eap/rfc9190_version_cap_test.go`) | a refusal above TLS 1.3: the negative proves the neighbouring not-a-pin rule, and no `{single-polarity}` marker says why none can exist |
@@ -285,7 +289,7 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 | Row | State | Units |
 |-----|-------|-------|
 | 2.1.1-1 | both polarities, recorded | `TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate`, `TestEAPTLSAuthenticatorWithoutACertificateIsRefused` (`internal/core/eap/rfc9190_handshake_rules_test.go`) |
-| 2.1.2-2 | both, recorded | negative added on `TestEAPTLS13RefusesATicketPastTheSection57Lifetime` |
+| 2.1.2-2 | positive-only, corrected in `49000ee303` | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems` proves an accepted and reusable ticket through Go's lifetime-rejecting client. The expiry test retains its 5.7-5 tag but no longer claims to test the server's issuance limit |
 | 2.1.3-2 | both, recorded | positive added on `TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth` (wire psk_key_exchange_modes is psk_dhe_ke alone), negative on `TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode` |
 | 2.1-8 | both, recorded | tags added on the two record-version units of the next row |
 | 2.1.4-1, 2.1.4-2 | both, recorded | `TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`, `TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion` |
@@ -310,9 +314,37 @@ Progress by row (the gated MUST rows that lacked a test in one or both polaritie
 
 Thomas, 2026-10-11, "Test Ze's TLS config + name Go TLS (Recommended)": for rows Go crypto/tls enforces with no Ze setting, the tests assert the configuration Ze hands to crypto/tls and each row names Go crypto/tls as the layer that performs it. The gate doc refuses `{lower-layer}` beside a tagged test (`check_core.go`, "the annotation is stale"), so these rows name Go crypto/tls in a `{single-polarity: positive; ...}` annotation, used only where no input to Ze can produce the violation a negative test would need. The positive is tagged and recorded. Discrimination for these rows is a revert of the producer that builds the config: the mutant route needs a gomu report (`./le rfc discriminate ... report <path>`), which no run in this session produced.
 
-The rows still open, and what each needs, are in the per-spec session state handoff of 2026-10-11; rows move into the table above as they close.
+The current bounded judgments below supersede the earlier pending R-7 judgments. RFC9190 enrolment remains separate work; no current corpus-wide freshness result is claimed here.
+
+### Independent EAP evidence correction, 2026-10-27
+
+`49000ee303` lands the test correction, native discrimination records and the
+independent RFC5216 rejudgment. The independent reviewer did not author the tests.
+
+| Row | Independent judgment | Evidence and limit |
+|-----|----------------------|--------------------|
+| RFC9190-2.1.2-2 | enforced, positive-only | An accepted-ticket oracle plus inspected patched Go 1.27.3 issuance and client rejection. This is not a direct wire-lifetime measurement |
+| RFC9190-2.1.3-1 | earlier enforced judgment retained | The existing second exchange requires TLS 1.3 resumption on both roles; no new run or freshness certificate is claimed |
+| RFC9190-2.3-1 | partial; zero whole-requirement credit | Both TLS 1.3 tagged tests now compare MSK and EMSK on both roles against independent literal-label exporter output. Method-Id remains absent |
+| RFC9190-2.3-4 | unimplemented | `exportEAPTLSKeys` does not derive `EXPORTER_EAP_TLS_Method-Id`; the gap remains explicit |
+| RFC9190-5.7-1 | enforced semantic judgment | Revoked-chain tests require resumption and the valid-cache test requires successful resumption on both roles. Its four existing records were inspected, not newly executed or certified fresh |
+| RFC5216-2.3-1 | enforced, independently rejudged and stamped | All three tagged units and both stored-key consumers reviewed; the native stamp is in `rfc/audit/rfc5216/RFC5216-2.3-1.json` |
+
+RFC9190 Section 2.3 says: "When EAP-TLS is used with TLS version 1.3, the
+Key_Material and Method-Id SHALL be derived from the exporter_secret using the
+TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of
+[RFC8446])." Testing both key halves does not implement Method-Id or satisfy
+the whole sentence. AC-C7's whole-row `enforced` condition is not claimed met.
+
+The implementation worker reported three green/red discrimination pairs and
+the bounded issuance/expiry race pass. The reviewer inspected the native
+records, private overlays and execution transcript; raw ordinary-job logs
+were not retained. No RFC9190 enrolment or audit stamp was performed.
 
 ### Deferred items the parent's tables missed
+
+This is a historical inventory. The RFC9190-5.7-1 tag on the valid-cache test
+is now present, as recorded in the 2026-10-27 judgment above.
 
 | Item | What is owed | Group |
 |------|--------------|-------|
@@ -647,7 +679,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 ### Goal Gates (MUST pass)
 - [ ] AC-C1..AC-C7 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] Scoped `./le verify changed` evidence recorded after closing commits; full verification remains Thomas's separate release check
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
@@ -698,6 +730,11 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 ## Implementation Audit
 
 ### Acceptance Criteria
+
+AC-C1 through AC-C6 below record the 2026-10-11 audit state, not a current
+count, pending-decision list or freshness certificate. AC-C7 records the bounded
+2026-10-27 result.
+
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-C1 | Done | the "Derived listing" filter at HEAD, 2026-10-11, returns RFC3948-2.1-2 (wrong), RFC4301-4.4.2.1-3 (wrong), RFC5216-2.1.1-4 (wrong), RFC5216-2.1.1-5 (weak), RFC5216-2.1.2-1 (weak); four are in AC rows of `spec-ike-eap-rfc-defects`, RFC4301-4.4.2.1-3 in AC-7 of `plan/release/fixes/spec-ipsec-lifetime-volume.md` | |
@@ -706,9 +743,14 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | AC-C4 | Done | the five blocked verdicts sit in their owning specs' ACs | |
 | AC-C5 | Done | `./le rfc check` 2026-10-11: the rfc5216 file-name violation is gone and no violation names an ike-eap stem | |
 | AC-C6 | Rows done, verdicts owed | "Row work outcomes, 2026-10-11": every row of the row-quality table has an outcome; twelve RFC7296 rows and `RFC4301-4.4.1-6` widened or re-quoted with a dated correction each; mistagged units moved earlier (`1075b8992f` and the 2026-09-30 corrections) | thirteen STALE verdicts wait for an independent judge; four level rows wait for the owner (`RFC7296-1.4-1`, `RFC2759-x-3`, `x-10`, `x-12`) |
-| AC-C7 | Rows done, verdicts owed | `RFC9190-2.3-4` `{gap}` split from 2.3-1; `TestRFC9190MSKIsTheExportUnderTheRFCLabel` recorded; pending skeleton for `rfc/audit/rfc9190.json` written | 2.1.2-2, 2.1.3-1, 2.3-1, 5.7-1 and 2.3-4 wait for an independent judge, who creates the audit file through `audit-stamp` |
+| AC-C7 | Independent judgments recorded; whole-row condition open | Current table above records all five R-7 judgments. `49000ee303` proves both key halves and corrects ticket issuance attribution | RFC9190-2.3-1 remains partial because Method-Id is absent; RFC9190 is not enrolled, so no audit file or whole-requirement credit is claimed |
 
 ## Goal Validation (BLOCKING)
+
+These rows retain the 2026-10-11 evidence report. The old-host logs for the
+18/18 interop result were unavailable to the current reviewer; it is historical
+acceptance evidence, not newly certified discrimination or a current ledger check.
+
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | AC-C1: the derived listing holds only "Blocked by" ids | ledger query | 5 rows, each in an owning spec's AC |
@@ -720,7 +762,7 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 |-------------------|-----|---------------------------|
 | RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `spec-ike-eap-rfc-defects` (closed 2026-10-21, `plan/learned/032-ike-eap-rfc-defects.md`) |
 | RFC4301-4.4.2.1-3 | Ze keeps no byte-count lifetime | `plan/release/fixes/spec-ipsec-lifetime-volume.md` AC-7 |
-| `./le verify worktree` | needs a quiet machine | this spec, before closure |
+| Scoped committed verification | No scoped certificate is claimed for this work | This spec; `./le verify changed` is owed after closing commits. Full verification is Thomas's separate release check |
 
 ## Review Gate
 
