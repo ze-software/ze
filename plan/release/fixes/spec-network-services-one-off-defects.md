@@ -191,6 +191,8 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `claim-outlives-the-evidence-it-cites` | 2026-10-19 | `TestDHCPv6PDLengthRequestsDelegatedPrefix` starts at `dHCPConfig`, not config |
 | `declared-format-contradicts-payload` | 2026-08-19 | flowspec-firewall `handleEvent` reads a flat envelope the daemon never emits |
 | `library-default-left-in-place` | 2026-10-26 | dnsserver UDP listener keeps the 512-octet `UDPSize` default, no EDNS0 (RFC4035-3-1, RFC4035-3-2) |
+| `validate-accepts-what-start-refuses` | 2026-10-27 | firewall `validateAction` self-jump, jump cycle, jump to base chain |
+| `kernel-refuses-what-the-installer-sends` | 2026-10-27 | Ze kernel lacks `CONFIG_NF_FLOW_TABLE`; firewall flowtable refused |
 
 ## Rows found already fixed
 

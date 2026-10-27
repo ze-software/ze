@@ -501,6 +501,103 @@ func TestApplyAcceptsAJumpToAChainListedLater(t *testing.T) {
 	})
 }
 
+// VALIDATES: a table whose forward chain offloads to a flowtable of the same
+// table applies, and the rule reads back naming that flowtable.
+// PREVENTS: a flow-offload config the operator can commit but the kernel
+// refuses. On 2026-10-27 it was red in Ze's 7.2.9 guest with ENOENT, with the
+// flowtables added either after or before the rules: Ze's kernel config
+// leaves CONFIG_NF_FLOW_TABLE unset (journal row in
+// kernel-refuses-what-the-installer-sends.md). Once the kernel carries
+// flowtables, it is also the probe for whether applyTable must add them
+// before the rules that name them, which no run has yet shown.
+// The method: one Apply of a flowtable on lo and a forward base chain whose
+// rule offloads to it, then a read of the flowtable and of the offload
+// expression the rule carries.
+func TestApplyAcceptsAFlowOffloadToATableFlowtable(t *testing.T) {
+	withNftNetNS(t, func() {
+		b := newNftIntegrationBackend(t)
+
+		desired := []firewall.Table{{
+			Name:   "ze_fw_flow_offload",
+			Family: firewall.FamilyInet,
+			Chains: []firewall.Chain{{
+				Name:     "forward",
+				IsBase:   true,
+				Type:     firewall.ChainFilter,
+				Hook:     firewall.HookForward,
+				Priority: 0,
+				Policy:   firewall.PolicyAccept,
+				Terms: []firewall.Term{{
+					Name:    "offload",
+					Actions: []firewall.Action{firewall.FlowOffload{FlowtableName: "ft"}},
+				}},
+			}},
+			Flowtables: []firewall.Flowtable{{
+				Name:     "ft",
+				Hook:     firewall.HookIngress,
+				Priority: 0,
+				Devices:  []string{"lo"},
+			}},
+		}}
+
+		if err := b.Apply(desired); err != nil {
+			t.Fatalf("apply of a flow offload to a table flowtable: %v", err)
+		}
+		if got := nftIntegrationRuleCount(t, "ze_fw_flow_offload", "forward"); got != 1 {
+			t.Fatalf("chain forward holds %d rules, want 1", got)
+		}
+		if target := nftIntegrationOffloadTarget(t, "ze_fw_flow_offload", "forward"); target != "ft" {
+			t.Fatalf("the forward rule offloads to %q, want %q", target, "ft")
+		}
+	})
+}
+
+// nftIntegrationOffloadTarget returns the flowtable the single flow offload
+// expression of tableName/chainName names, after checking the table holds a
+// flowtable of that name. It fails the test when either is missing.
+func nftIntegrationOffloadTarget(t *testing.T, tableName, chainName string) string {
+	t.Helper()
+
+	conn, err := nftables.New()
+	if err != nil {
+		t.Fatalf("nftables.New: %v", err)
+	}
+	tables, err := conn.ListTables()
+	if err != nil {
+		t.Fatalf("list nft tables: %v", err)
+	}
+	for _, table := range tables {
+		if table.Name != tableName {
+			continue
+		}
+		flowtables, err := conn.ListFlowtables(table)
+		if err != nil {
+			t.Fatalf("list flowtables of %q: %v", tableName, err)
+		}
+		rules, err := conn.GetRules(table, &nftables.Chain{Name: chainName, Table: table})
+		if err != nil {
+			t.Fatalf("get rules of %q/%q: %v", tableName, chainName, err)
+		}
+		for _, rule := range rules {
+			for _, e := range rule.Exprs {
+				offload, ok := e.(*expr.FlowOffload)
+				if !ok {
+					continue
+				}
+				for _, ft := range flowtables {
+					if ft.Name == offload.Name {
+						return offload.Name
+					}
+				}
+				t.Fatalf("the rule offloads to %q, which table %q does not hold", offload.Name, tableName)
+			}
+		}
+		t.Fatalf("chain %q/%q holds no flow offload expression", tableName, chainName)
+	}
+	t.Fatalf("nft table %q is absent", tableName)
+	return ""
+}
+
 // nftIntegrationJumpTarget returns the chain the single jump verdict of
 // tableName/chainName names, and fails the test when the chain holds none.
 func nftIntegrationJumpTarget(t *testing.T, tableName, chainName string) string {
