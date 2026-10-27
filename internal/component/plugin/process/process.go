@@ -20,7 +20,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -559,11 +559,13 @@ func (p *Process) startInternal() error {
 		// defer of its own have finished, release included.
 		defer close(p.engineDone)
 		defer p.running.Store(false)
-		defer func() {
-			if rec := recover(); rec != nil {
-				logger().Error("internal plugin panic", "plugin", p.config.Name, "panic", rec, "stack", string(debug.Stack()))
-			}
-		}()
+		// The panic boundary: a panic in the plugin's own code is logged,
+		// counted and crash-recorded, and the goroutine then returns as a
+		// plugin that ended does. It covers this goroutine only: a goroutine
+		// the plugin starts carries its own recover or none.
+		defer runnerPanics().run.Contain(func() taskguard.Context {
+			return taskguard.Context{Unit: "internal plugin " + p.config.Name}
+		}, nil)
 		defer func() {
 			if err := bridgedPluginSide.Close(); err != nil {
 				logger().Debug("close plugin side", "error", err)
