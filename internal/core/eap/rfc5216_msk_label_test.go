@@ -32,11 +32,12 @@ func exportFrom(cs tls.ConnectionState) func(label string, context []byte, lengt
 
 // mskLabelHandshake drives a full EAP-TLS exchange with the authenticator's TLS
 // version pinned to one value, and returns the completed method and peer so a
-// caller can run the TLS exporter itself over the same connections.
+// caller can run the TLS exporter itself over the same connections. The final
+// result is the authenticator's stored EMSK, copied before cleanup erases it.
 //
 // The pin is applied to the method's own tls.Config before Begin, which is the
 // call that starts the TLS engine goroutine.
-func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, [64]byte, [64]byte) {
+func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, [64]byte, [64]byte, [64]byte) {
 	t.Helper()
 
 	pki := newEAPTLSPKI(t)
@@ -99,7 +100,7 @@ func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, 
 	if serverState.Version != version {
 		t.Fatalf("authenticator negotiated TLS %#04x, want the pinned %#04x", serverState.Version, version)
 	}
-	return method, peer, serverMSK, peerMSK
+	return method, peer, serverMSK, peerMSK, sess.emsk
 }
 
 // TestRFC5216MSKIsTheExportUnderTheRFCLabel pins the TLS 1.2 derivation to the
@@ -114,7 +115,7 @@ func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, 
 // encryption" with no context, so the derivation uses that label and no other
 // (eap_tls.go exportEAPTLSKeys).
 func TestRFC5216MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
-	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS12)
+	method, peer, serverMSK, peerMSK, _ := mskLabelHandshake(t, tls.VersionTLS12)
 
 	// The literal the RFC spells, written out here so the assertion does not read
 	// the same constant the producer reads.
@@ -156,11 +157,11 @@ func TestRFC5216MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 // Key_Material in the same manner as with EAP-TLS [RFC5216], Section 2.3."
 //
 // RFC requirement: RFC9190-2.3-1 positive -- over a TLS 1.3 session both sides'
-// MSK is the first 64 octets of the 128-octet TLS export for the label
-// "EXPORTER_EAP_TLS_Key_Material" with the EAP Type octet as context
+// MSK and EMSK are respectively the first and last 64 octets of the 128-octet
+// TLS export for "EXPORTER_EAP_TLS_Key_Material" with the EAP Type octet as context
 // (eap_tls.go exportEAPTLSKeys).
 func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
-	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS13)
+	method, peer, serverMSK, peerMSK, serverEMSK := mskLabelHandshake(t, tls.VersionTLS13)
 
 	const rfc9190Label = "EXPORTER_EAP_TLS_Key_Material"
 	typeCode := []byte{TypeTLS}
@@ -172,6 +173,9 @@ func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 	if [64]byte(want[:64]) != serverMSK {
 		t.Fatalf("authenticator MSK = %x,\n                want %x (first 64 octets of the export under %q)", serverMSK, want[:64], rfc9190Label)
 	}
+	if [64]byte(want[64:]) != serverEMSK {
+		t.Fatalf("authenticator EMSK = %x,\n                 want %x (last 64 octets of the export under %q)", serverEMSK, want[64:], rfc9190Label)
+	}
 
 	peerWant, err := exportFrom(peer.tlsConn.ConnectionState())(rfc9190Label, typeCode, 128)
 	if err != nil {
@@ -179,6 +183,9 @@ func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 	}
 	if [64]byte(peerWant[:64]) != peerMSK {
 		t.Fatalf("peer MSK = %x,\n     want %x", peerMSK, peerWant[:64])
+	}
+	if [64]byte(peerWant[64:]) != peer.emsk {
+		t.Fatalf("peer EMSK = %x,\n      want %x", peer.emsk, peerWant[64:])
 	}
 
 	// The Type octet is part of the derivation, not decoration: the same label with
@@ -190,6 +197,9 @@ func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 	if [64]byte(other[:64]) == serverMSK {
 		t.Fatal("the TLS exporter ignored the context; this fixture cannot see a wrong Type octet")
 	}
+	if [64]byte(other[64:]) == serverEMSK {
+		t.Fatal("the TLS exporter ignored the context for EMSK; this fixture cannot see a wrong Type octet")
+	}
 }
 
 // TestRFC9190MSKIsNotThePreTLS13Derivation is the negative of the test above:
@@ -197,19 +207,22 @@ func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 // earlier versions, and does not drop the Type octet from the export context.
 //
 // RFC requirement: RFC9190-2.3-1 negative -- over a TLS 1.3 session neither
-// side's MSK is the export under the RFC 5216 label "client EAP encryption", nor
-// the export under "EXPORTER_EAP_TLS_Key_Material" with no context, so a session
-// that took either derivation would be refused by this test.
+// side's MSK or EMSK is its respective half of the export under the RFC 5216
+// label "client EAP encryption", nor the export under
+// "EXPORTER_EAP_TLS_Key_Material" with no context, so a session that took either
+// derivation for either key would be refused by this test.
 func TestRFC9190MSKIsNotThePreTLS13Derivation(t *testing.T) {
-	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS13)
+	method, peer, serverMSK, peerMSK, serverEMSK := mskLabelHandshake(t, tls.VersionTLS13)
 
 	for name, cs := range map[string]tls.ConnectionState{
 		"authenticator": method.conn.ConnectionState(),
 		"peer":          peer.tlsConn.ConnectionState(),
 	} {
 		msk := serverMSK
+		emsk := serverEMSK
 		if name == "peer" {
 			msk = peerMSK
+			emsk = peer.emsk
 		}
 		for _, wrong := range []struct {
 			label   string
@@ -224,6 +237,10 @@ func TestRFC9190MSKIsNotThePreTLS13Derivation(t *testing.T) {
 			}
 			if [64]byte(got[:64]) == msk {
 				t.Errorf("%s MSK is the export under %q with context %x, a derivation RFC 9190 Section 2.3 replaces for TLS 1.3",
+					name, wrong.label, wrong.context)
+			}
+			if [64]byte(got[64:]) == emsk {
+				t.Errorf("%s EMSK is the export under %q with context %x, a derivation RFC 9190 Section 2.3 replaces for TLS 1.3",
 					name, wrong.label, wrong.context)
 			}
 		}

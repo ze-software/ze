@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC9190-2.1.2-2",
-    "polarity": "negative",
-    "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesATicketPastTheSection57Lifetime",
-    "unit-sha": "8416c2268e64221e",
-    "claim-sha": "88e7063f2d739040",
-    "route": "revert",
-    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "9d4ae49c78228895",
-    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC9190-2.1.2-2",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
     "unit-sha": "144c79f5935885d9",

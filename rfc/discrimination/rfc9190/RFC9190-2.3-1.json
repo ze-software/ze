@@ -3,22 +3,22 @@
     "rid": "RFC9190-2.3-1",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC9190MSKIsNotThePreTLS13Derivation",
-    "unit-sha": "c50854abee45a243",
-    "claim-sha": "8959d205d24aca0f",
-    "route": "revert",
+    "unit-sha": "59da925d69b81fc8",
+    "claim-sha": "2f6b6f0d3997a809",
+    "route": "mutant",
     "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
     "producer-sha": "98b4d1240b3a48b9",
-    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 318: \"copy(emsk[:], material[eapTLSKeyLen:])\" -\u003e \"wrong, exportErr := cs.ExportKeyingMaterial(eapTLSLabelRFC9190, nil, eapTLSKeyMaterialLen); if exportErr != nil { return msk, emsk, exportErr }; copy(emsk[:], wrong[eapTLSKeyLen:])\""
   },
   {
     "rid": "RFC9190-2.3-1",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC9190MSKIsTheExportUnderTheRFCLabel",
-    "unit-sha": "25d58d7b36c767ae",
-    "claim-sha": "941020c5f1c7e848",
-    "route": "revert",
+    "unit-sha": "92749aacb55e5e45",
+    "claim-sha": "77e392fff5395426",
+    "route": "mutant",
     "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
     "producer-sha": "98b4d1240b3a48b9",
-    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 318: \"copy(emsk[:], material[eapTLSKeyLen:])\" -\u003e \"wrong, exportErr := cs.ExportKeyingMaterial(eapTLSLabelRFC9190, nil, eapTLSKeyMaterialLen); if exportErr != nil { return msk, emsk, exportErr }; copy(emsk[:], wrong[eapTLSKeyLen:])\""
   }
 ]

@@ -130,11 +130,6 @@ func TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey(t *testing.T) {
 // RFC requirement: RFC9190-5.7-5 negative -- the ceiling is enforced on the
 // redeeming side too: at 604800 seconds and one second the ticket is refused,
 // and the exchange falls back to a full handshake instead of failing.
-//
-// RFC requirement: RFC9190-2.1.2-2 negative -- the 604800-second ceiling binds
-// the tickets the authenticator issued: one presented a second past it is not
-// honored, so no ticket of ze's outlives the limit whatever the peer does with
-// it.
 func TestEAPTLS13RefusesATicketPastTheSection57Lifetime(t *testing.T) {
 	pki := newEAPTLSPKIValidFor(t, resumptionPKIValidity)
 	server := NewResumption(time.Now, true)

@@ -25,11 +25,11 @@
     "rid": "RFC5216-2.3-1",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel",
-    "unit-sha": "d5aa472625442587",
+    "unit-sha": "5197a273ef7fdd02",
     "claim-sha": "f484b408decc4ca1",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
     "producer-sha": "98b4d1240b3a48b9",
-    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 301: \"cs.ExportKeyingMaterial(eapTLSLabelRFC5216, nil, eapTLSKeyMaterialLen)\" -\u003e \"cs.ExportKeyingMaterial(eapTLSLabelRFC9190, nil, eapTLSKeyMaterialLen)\""
   }
 ]
