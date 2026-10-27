@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-dns-resolver-cmd.yang
+var ZeDNSResolverCmdYANG string
+
 //go:embed ze-dns-resolver-conf.yang
 var ZeDNSResolverConfYANG string

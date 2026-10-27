@@ -7,5 +7,6 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-dns-resolver-cmd.yang", ZeDNSResolverCmdYANG)
 	configyang.RegisterModule("ze-dns-resolver-conf.yang", ZeDNSResolverConfYANG)
 }

@@ -44,6 +44,7 @@ func registerResolverConfigTx(p *sdk.Plugin, tx *sdk.ConfigTx[resolverConfig], i
 // on its own.
 type resolverInstaller struct {
 	srv *resolverServer
+	res *resolver
 	log *slog.Logger
 
 	// boot is true only while the Stage 2 configure installs, whose binds are
@@ -70,6 +71,10 @@ func (in *resolverInstaller) install(cfg resolverConfig) error {
 	if in.boot {
 		policy = dnsserver.BindLenient
 	}
+	// The policy is published before the listeners change, so a listener
+	// bound by this install never answers under the previous allow-from.
+	// A failed reload installs the running config again, policy included.
+	in.res.apply(&cfg)
 	if err := in.srv.reconcile(cfg, policy); err != nil {
 		if !in.boot {
 			if errors.Is(err, dnsserver.ErrPreviousListenersLost) {
