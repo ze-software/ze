@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -108,7 +109,23 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 // returns an explicit "unknown method" error per ze's fail-on-unknown rule. The
 // serve wrapper (serveEngineOpJSON) owns the shared unmarshal/dispatch/SendResult
 // plumbing so every built-in op is exactly one registry entry.
+//
+// Each request runs on its own goroutine, so a panic in an engine op reached
+// from plugin input would end the daemon. The boundary below contains it to
+// that request: the request is answered with an error and is not applied,
+// while the plugin connection and its other requests carry on.
 func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	defer engineOpPanics().request.Contain(
+		func() taskguard.Context {
+			return taskguard.Context{Unit: "request from plugin " + proc.Name(), MessageType: req.Method}
+		},
+		func(p *taskguard.Panic) {
+			if err := conn.SendError(s.replyContext(), req.ID, engineOpPanicMessage(req.Method, p)); err != nil {
+				logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
+			}
+		},
+	)
+
 	if op := lookupEngineOp(req.Method); op != nil {
 		s.serveEngineOpJSON(proc, conn, req, op)
 		return

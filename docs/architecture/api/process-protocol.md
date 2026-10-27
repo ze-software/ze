@@ -1025,6 +1025,34 @@ Includes filter name so the plugin can dispatch to the correct handler.
 
 All methods are prefixed with `ze-plugin-engine:`.
 
+#### Panic containment
+
+A panic in the engine's side of the protocol ends one unit, never the daemon.
+Each boundary counts the panic in
+`ze_task_panics_total{component="plugin",task=...}`, logs it at ERROR and
+writes a crash record that `ze show crashes` lists
+(`docs/guide/monitoring.md`, "Contained Panics").
+
+| Task | Where | What one panic ends |
+|------|-------|---------------------|
+| `engine-op` | `dispatchPluginRPC`, one goroutine per plugin-to-engine request | That request. The plugin's call fails with `internal Ze defect while handling <method>: the request was not applied and may be sent again; the plugin connection stays open`, followed by the crash record's name. The panic value is never sent to the plugin. The plugin's other requests are still served |
+| `rpc-read` | `Conn.readLoop`, the frame reader | The connection. Its read error is the panic, the engine releases the plugin as it does one whose process exited, and the plugin reads EOF |
+| `rpc-route` | `MuxConn.readLoop`, which routes answers and requests | The same connection, and the plugin's calls in flight fail |
+| `connect-back` | `PluginAcceptor.handleConn`, before the `#0 auth` handshake completes | That connection. The plugin then fails to start, as one that never connected |
+| `run` | the goroutine `startInternal` runs an in-process plugin on | The plugin, which ends as if its run function had returned |
+
+No boundary restarts a plugin: the engine releases it as it releases any
+plugin that exited, and a reload starts it again. A request that arrives over
+`DirectBridge` runs synchronously on the calling plugin's goroutine, not under
+`engine-op`. A panic in it is contained by the `run` boundary when the call
+came from the plugin's run goroutine. When it came from a goroutine the plugin
+started itself, no engine boundary contains it.
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchPluginRPC -->
+<!-- source: internal/component/plugin/server/panic_guard.go -- engineOpPanics, engineOpPanicMessage -->
+<!-- source: pkg/plugin/rpc/panic_guard.go -- readerPanics -->
+<!-- source: internal/component/plugin/ipc/panic_guard.go -- acceptorPanics -->
+<!-- source: internal/component/plugin/process/panic_guard.go -- runnerPanics -->
+
 #### Persistent runtime state
 
 Plugins call `StateGet`, `StatePut`, `StateRemove`, `StateList` and

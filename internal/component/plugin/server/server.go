@@ -262,6 +262,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		rpc.SetWriteWatchdogHook(func(transport, _ string) {
 			wd.With(transport).Inc()
 		})
+		setPluginPanicMetrics(config.MetricsRegistry)
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.
@@ -465,6 +466,9 @@ func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
 func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	if s.config != nil {
 		s.config.MetricsRegistry = reg
+	}
+	if reg != nil {
+		setPluginPanicMetrics(reg)
 	}
 	if setter, ok := s.spawner.(interface{ SetMetricsRegistry(metrics.Registry) }); ok && reg != nil {
 		setter.SetMetricsRegistry(reg)

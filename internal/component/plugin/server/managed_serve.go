@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -157,6 +158,8 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	reg := cfg.Metrics
 	if reg == nil {
 		reg = metrics.NopRegistry{}
+	} else {
+		managedPanics().guard.SetMetricsRegistry(reg)
 	}
 	return &ManagedServer{
 		svc: newManagedConfigService(cfg.ReadConfig),
@@ -322,7 +325,21 @@ func (s *ManagedServer) acceptLoop(ln net.Listener) {
 	}
 }
 
+// handleConn authenticates one managed client and serves its RPCs until it
+// disconnects. A panic while it does so is contained here: the deferred
+// cleanup below has already closed the connection and released the client's
+// name when the boundary runs, and the server keeps serving every other
+// client.
 func (s *ManagedServer) handleConn(conn net.Conn) {
+	defer managedPanics().client.Contain(
+		func() taskguard.Context {
+			return taskguard.Context{Unit: "managed client connection from " + conn.RemoteAddr().String()}
+		},
+		func(*taskguard.Panic) {
+			conn.Close() //nolint:errcheck,gosec // closes a connection the panic hit before the MuxConn owned it
+		},
+	)
+
 	authCtx, cancel := context.WithTimeout(s.ctx, managedAuthTimeout)
 	defer cancel()
 

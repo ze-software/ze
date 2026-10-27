@@ -227,6 +227,16 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 10. Heartbeat: `ping` every 30 seconds, timeout after 3 missed (90 seconds)
 11. On a write through the hub's own store: hub sends `config-changed` to the connected client. See "Config Storage (Hub Side)" for which writes reach that store
 
+A panic while the hub serves one client ends that client's connection only.
+The connection closes, the client's name is released so it can authenticate
+again, and the client reconnects under "Reconnect" below; every other client
+keeps its connection. The panic is counted in
+`ze_task_panics_total{component="plugin",task="managed-client"}`, logged at
+ERROR and recorded for `ze show crashes` (`docs/guide/monitoring.md`,
+"Contained Panics").
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleConn -->
+<!-- source: internal/component/plugin/server/panic_guard.go -- managedPanics -->
+
 ### Config Change (Two-Phase)
 
 | Phase | Action |

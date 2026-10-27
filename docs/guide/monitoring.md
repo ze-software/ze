@@ -325,6 +325,7 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/plugins/ospf/v3/transport/panic_guard.go -- receivePanics -->
 | `ospf` | `consumer` | One call into a callback another package registered with the OSPF engine (an opaque LSA consumer, a Router Information TLV builder, an Extended Link or Prefix sub-TLV codec): its contribution to that one LSA or origination is dropped, its own error counter rises, and it is called again on the next one |
 | `ospf` | `show-decode` | One LSA body decoded or rendered for a `show ospf database` command: that row is shown undecoded |
+| `ospf` | `receive` | One received OSPFv2 or OSPFv3 packet: it is dropped and its sending neighbor goes Down (KillNbr), its next Hello brings it back, and every other neighbor keeps its state |
 <!-- source: internal/plugins/ospf/panic_guard.go -- enginePanics -->
 | `isis` | `interface-read` | One IS-IS circuit's socket reader: the circuit leaves IS-IS, its adjacencies go Down, and the 30-second rescan reopens it |
 | `isis` | `interface-fan-in` | The same circuit, when the transport's per-circuit fan-in panicked: same recovery |
@@ -340,6 +341,16 @@ at zero from the moment the component has a metrics registry.
 | `ike` | `inbound` | One received IKE datagram, dropped: the socket's dispatch goroutine reads the next one, and the peer retransmits its request |
 | `ike` | `established` | One IKE SA: the peer is sent a Delete for it (unless it stopped answering), its Child SAs go with it, and Ze sets it up again through IKE_SA_INIT and IKE_AUTH; every other SA keeps running |
 <!-- source: internal/component/ike/engine/panic_guard.go -- newIKEPanicTasks, deliverDatagram, handleOwnedInboundGuarded -->
+| `plugin` | `rpc-read` | One plugin connection, when its reader panicked: the connection closes and the engine releases the plugin as it does one whose process exited; every other plugin keeps its connection |
+| `plugin` | `rpc-route` | The same connection, when the reader that routes answers and requests panicked: same recovery, and the plugin's calls in flight fail |
+<!-- source: pkg/plugin/rpc/panic_guard.go -- readerPanics -->
+| `plugin` | `connect-back` | One external plugin's connect-back, before its handshake: the connection closes, and that plugin fails to start as one that never connected |
+<!-- source: internal/component/plugin/ipc/panic_guard.go -- acceptorPanics -->
+| `plugin` | `run` | One in-process plugin: it ends as if it had returned, and the engine releases it as it does any plugin that exited |
+<!-- source: internal/component/plugin/process/panic_guard.go -- runnerPanics -->
+| `plugin` | `engine-op` | One request a plugin sent the engine: it is answered with an error and is not applied; the plugin keeps its connection and its other requests are served |
+| `plugin` | `managed-client` | One managed client's connection: it closes and the client's name is released; the client connects again on its own schedule, and every other client keeps its connection |
+<!-- source: internal/component/plugin/server/panic_guard.go -- engineOpPanics, managedPanics -->
 | `bfd` | `receive` | One received BFD packet, dropped: the socket reader reads the next one, and no session changes state |
 <!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
 | `bfd` | `express` | The BFD session the loop was serving, when it was serving one: it goes Down with diagnostic 0 (No Diagnostic) and comes back Up through the three-way handshake; every other session on the loop keeps running |
@@ -354,6 +365,9 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
 | `dhcp` | `request` | One DHCP request, unanswered: the client retransmits it, and the listener serves the next one |
 <!-- source: internal/plugins/dhcpserver/panic_guard.go -- requestTask -->
+| `tftp` | `request` | One TFTP request: its client is sent an ERROR (code 0), and the listener serves the next request |
+| `tftp` | `transfer` | One file transfer: its client is sent an ERROR (code 0) on the transfer's socket and the transfer ends; every other transfer runs on |
+<!-- source: internal/plugins/tftpserver/panic_guard.go -- requestTask, transferTask -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
