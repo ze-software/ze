@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	tftpyang "github.com/ze-software/ze/internal/plugins/tftpserver/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -45,6 +46,7 @@ func init() {
 			loggerPtr.Store(l)
 		}
 	}
+	reg.ConfigureMetrics = func(metricsRegistry metrics.Registry) { tftpGuard.SetMetricsRegistry(metricsRegistry) }
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "tftpserver: registration failed: %v\n", err)
 		os.Exit(1)

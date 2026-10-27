@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // RFC 1350 Section 2: TFTP opcodes.
@@ -210,11 +212,33 @@ func resolvePath(rootDir, filename string) (string, error) {
 func serve(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, log *slog.Logger) {
 	// RFC 2347: RRQ with options can be up to 512 octets.
 	buf := make([]byte, 516)
-	for {
-		n, clientAddr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			return
+	for serveRequests(generation, conn, rootDir, sem, buf, log) {
+		// The pass ended on a contained panic; the next one reads on.
+	}
+}
+
+// serveRequests is the request task: it answers requests until conn closes,
+// answering false, or until a panic ends the pass, answering true. The client
+// whose request was being handled is then sent an ERROR, RFC 1350 Section 2.
+func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, buf []byte, log *slog.Logger) (again bool) {
+	var clientAddr *net.UDPAddr // the sender of the request being handled
+	describe := func() taskguard.Context {
+		return taskguard.Context{Unit: "request from " + clientAddr.String()}
+	}
+	// RFC 1350 Section 2
+	defer requestTask.Contain(describe, func(*taskguard.Panic) {
+		again = true
+		if clientAddr != nil {
+			signalPanic(conn, clientAddr)
 		}
+	})
+
+	for {
+		n, from, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			return false
+		}
+		clientAddr = from
 		if n < 4 {
 			continue
 		}
@@ -287,39 +311,69 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 
 	select {
 	case sem <- struct{}{}:
-		go func() {
-			defer func() { <-sem }()
-
-			transferConn, dialErr := net.DialUDP("udp4", nil, clientAddr)
-			if dialErr != nil {
-				log.Debug("tftpserver: dial failed", "client", clientAddr, "error", dialErr)
-				return
-			}
-			// A config change ends generation, which closes the socket and
-			// cuts the transfer before the reload returns. A transfer whose
-			// listener served a config already replaced is refused here.
-			if !generation.join(transferConn) {
-				closeLogged(transferConn, log, "transfer socket")
-				return
-			}
-			// When the transfer ends first, leave hands the close back to it.
-			defer func() {
-				if generation.leave(transferConn) {
-					closeLogged(transferConn, log, "transfer socket")
-				}
-			}()
-
-			if hasOptions {
-				if !sendOACKAndWait(transferConn, resolved, opts, negotiatedBlksize, log) {
-					return
-				}
-			}
-
-			serveFile(transferConn, resolved, negotiatedBlksize, log)
-		}()
+		t := &transfer{
+			clientAddr: clientAddr,
+			path:       resolved,
+			opts:       opts,
+			hasOptions: hasOptions,
+			blksize:    negotiatedBlksize,
+		}
+		go runTransfer(generation, t, sem, log)
 	default:
 		sendErr(errNotDefined, "service unavailable")
 	}
+}
+
+// transfer is one accepted read request: what runTransfer serves.
+type transfer struct {
+	clientAddr *net.UDPAddr
+	path       string // resolved by resolvePath
+	opts       rrqOptions
+	hasOptions bool
+	blksize    int // negotiated, within [blksizeMin, blksizeEthernet]
+}
+
+// runTransfer serves one transfer on its own socket and frees its sem slot
+// when it ends. The transfer joins generation and is cut when generation
+// ends. It is the transfer task: a panic ends this transfer only, after its
+// client is sent an ERROR on the transfer's socket, RFC 1350 Section 2.
+func runTransfer(generation *transferGeneration, t *transfer, sem chan struct{}, log *slog.Logger) {
+	defer func() { <-sem }()
+
+	transferConn, dialErr := net.DialUDP("udp4", nil, t.clientAddr)
+	if dialErr != nil {
+		log.Debug("tftpserver: dial failed", "client", t.clientAddr, "error", dialErr)
+		return
+	}
+	// A config change ends generation, which closes the socket and cuts the
+	// transfer before the reload returns. A transfer whose listener served a
+	// config already replaced is refused here.
+	if !generation.join(transferConn) {
+		closeLogged(transferConn, log, "transfer socket")
+		return
+	}
+	// When the transfer ends first, leave hands the close back to it.
+	defer func() {
+		if generation.leave(transferConn) {
+			closeLogged(transferConn, log, "transfer socket")
+		}
+	}()
+
+	// Deferred after leave, so it runs first: the socket is still open for
+	// the ERROR. serveFile closes its file by defer, so the unwind leaks none.
+	describe := func() taskguard.Context {
+		return taskguard.Context{Unit: "transfer of " + t.path + " to " + t.clientAddr.String()}
+	}
+	// RFC 1350 Section 2
+	defer transferTask.Contain(describe, func(*taskguard.Panic) { signalPanic(transferConn, nil) })
+
+	if t.hasOptions {
+		if !sendOACKAndWait(transferConn, t.path, t.opts, t.blksize, log) {
+			return
+		}
+	}
+
+	serveFile(transferConn, t.path, t.blksize, log)
 }
 
 // RFC 2347: send OACK, wait for ACK block 0.

@@ -76,6 +76,25 @@ interface that appears later is not bound until the next reload.
 <!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.restore, bindTFTP; pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/tftpserver/handler.go -- handleRRQ -->
 
+## Panic containment
+
+A Ze defect met while serving one client costs that client only. The `tftp`
+guard wraps two tasks, and each contained panic is logged, counted in
+`ze_task_panics_total{component="tftp",task=...}` and crash-recorded.
+
+| Task | Wraps | After a panic |
+|------|-------|---------------|
+| `request` | `serveRequests`, the listener's read loop and `handleRRQ` | The client is sent an ERROR with code 0 from the listening socket, and `serve` starts the next pass on the same socket |
+| `transfer` | `runTransfer`, one transfer on its own socket | The client is sent an ERROR with code 0 on the transfer's socket, which is still open, then the socket leaves its generation and closes and the semaphore slot is freed by `defer` |
+
+RFC 1350 section 2 says most errors end the connection and are signaled by an
+error packet that is never acknowledged or retransmitted, so a lost ERROR costs
+the client its timeout. `serveFile` closes its file by `defer`, and the
+generation's mutex is released by `defer`, so the unwind leaks no file and
+holds no lock.
+<!-- source: internal/plugins/tftpserver/panic_guard.go -- tftpGuard, requestTask, transferTask, signalPanic -->
+<!-- source: internal/plugins/tftpserver/handler.go -- serveRequests, runTransfer -->
+
 ## Traps
 
 - **Block numbers wrap at 65535**, which caps a single transfer near 32 MB at
