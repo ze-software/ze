@@ -40,10 +40,18 @@ import (
 // compute a hash. The shell half can write it, and the attach rule reads it.
 const Unknown = "unknown"
 
-// gitTimeout limits each of the three git commands used to build the hash. A
-// `git diff HEAD` for this checkout usually takes hundreds of milliseconds.
-// A command that exceeds this limit is wedged, not slow. Such a command must
-// not delay a job indefinitely.
+// gitTimeout limits each of the three git commands used to build the hash, so
+// a wedged git cannot delay a job indefinitely.
+//
+// On the host's own disk a `git diff HEAD` for this checkout takes hundreds of
+// milliseconds. The bound does NOT hold for every machine that sees the
+// checkout: in a QEMU guest mounting it over 9p, the stat data in git's index
+// matches no file, so git reads every tracked file and the diff runs for
+// minutes. On 2026-10-27 that killed `le test firewall` in the guest at
+// admission. No guest le measures here: a guest command runs inside the slot
+// the host's `test qemu run` holds, which the guest names as its job parent
+// (admitQEMURun and guestRunParentSetup, internal/le/test/qemu), and an
+// admission inside a parent measures nothing.
 const gitTimeout = 60 * time.Second
 
 // noHead stands in for the commit when git cannot name one. It is what the

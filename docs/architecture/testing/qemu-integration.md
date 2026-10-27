@@ -130,22 +130,20 @@ tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
 
 ### Running ONE `.ci` test in a throwaway guest
 
-For a single Linux-only test, reproduce the shim and admission parent that
-`test qemu all` normally creates. Build the target binaries first; the QEMU action
-builds the guest `le` itself. Keep the parent marker in the guest, not in the
-shared checkout:
+For a single Linux-only test, reproduce the shim that `test qemu all` normally
+creates. Build the target binaries first; the QEMU action builds the guest `le`
+itself:
 
 ```bash
-./le job run label qemu-one quiet command ./le test qemu run \
+./le test qemu run \
   kernel tmp/kernel/build/vmlinuz packages "iproute2" command '
     set -e
     shim=$(mktemp -d /tmp/ze-bgp.XXXXXX)
     ln -s /workspace/bin/ze-linux-arm64 "$shim/ze"
     ln -s /workspace/tmp/qemu/linux-arm64/le "$shim/le"
     ln -s /workspace/bin/ze-stripped-linux-arm64 "$shim/ze-stripped"
-    printf "%s\n" "LABEL=qemu (held by the host)" > "$shim/host-job"
     cd /workspace
-    PATH="$shim:$PATH" ZE_RUN_JOB="$shim/host-job" LE_TEST_NO_BUILD=1 \
+    PATH="$shim:$PATH" LE_TEST_NO_BUILD=1 \
       ZE_BIN=/workspace/bin/ze-linux-arm64 "$shim/le" test bgp plugin <test-name>
   '
 ```
@@ -158,9 +156,20 @@ cross-building a broken ze, or by an overlay, never reaches the test, and the
 green it reports proves nothing. `test qemu all` sets both for every suite
 (`environment`, `internal/le/test/qemu/alltests.go`).
 
-The outer `job run` holds the host's admission slot. `ZE_RUN_JOB` tells the
-guest runner to use that parent instead of touching the host's PID registry:
-neither machine can judge whether a process on the other is alive.
+`./le test qemu run` holds the host's admission slot itself, under the label
+`qemu-run`, and its guest setup writes a stand-in entry in the guest's own
+`/tmp` and exports it as `ZE_RUN_JOB`, so the guest runner runs inside that slot
+instead of touching the host's PID registry: neither machine can judge whether
+a process on the other is alive. A guest le that admitted itself would also
+fingerprint the whole checkout over 9p, where `git diff HEAD` reads every
+tracked file because the index's stat data matches none of them; on 2026-10-27
+that ran past the 60-second git limit and killed `le test firewall` before its
+first test. The run never attaches to another run's verdict: its kernel image
+and cross-built binaries are untracked, so equal words over an equal tree can
+still judge different code.
+
+<!-- source: internal/le/test/qemu/run_admit.go -- admitQEMURun, runArgv -->
+<!-- source: internal/le/test/qemu/guestle.go -- guestRunParentSetup, guestRunJobParent -->
 
 <!-- source: internal/le/test/qemu/actions.go -- test qemu all is registered as a guest action -->
 <!-- source: internal/le/test/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->

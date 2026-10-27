@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/linuxle"
@@ -89,6 +91,25 @@ func guestLeLink(dir string) (string, error) {
 // in for the host job holding this guest's slot.
 const guestJobParentName = "host-job"
 
+// guestJobParentEntry is the body of every stand-in parent entry a guest
+// names: the label job.insideParent reports as the slot it runs inside.
+const guestJobParentEntry = "LABEL=qemu (held by the host)\n"
+
+// guestRunJobParent is the stand-in the `test qemu run` setup writes in the
+// guest's own /tmp, never in the shared checkout, and names as the guest
+// command's job parent (guestRunParentSetup).
+const guestRunJobParent = "/tmp/ze-" + guestJobParentName
+
+// guestRunParentSetup answers the setup step that writes the stand-in parent
+// at path and exports it under job.ParentVariable, so every le the guest
+// command starts runs inside the slot the host's `test qemu run` holds
+// (admitQEMURun) and never admits itself against the host's registry.
+func guestRunParentSetup(path string) string {
+	var b textbuf.Buffer
+	return b.Str("printf '").Str(strings.TrimSuffix(guestJobParentEntry, "\n")).Str("\\n' > ").Str(shellQuote(path)).
+		Str(" && export ").Str(job.ParentVariable).Byte('=').Str(shellQuote(path)).String()
+}
+
 // guestJobParent writes the stand-in parent entry into dir and answers the
 // environment entry that names it (job.ParentVariable).
 //
@@ -100,7 +121,7 @@ const guestJobParentName = "host-job"
 // parent, the entry makes every suite run inside the host's slot (AC-45).
 func guestJobParent(dir string) (string, error) {
 	path := filepath.Join(dir, guestJobParentName)
-	if err := os.WriteFile(path, []byte("LABEL=qemu (held by the host)\n"), 0o644); err != nil { //nolint:gosec // read by the credential-dropped test group
+	if err := os.WriteFile(path, []byte(guestJobParentEntry), 0o644); err != nil { //nolint:gosec // read by the credential-dropped test group
 		return "", err
 	}
 	return job.ParentVariable + "=" + path, nil

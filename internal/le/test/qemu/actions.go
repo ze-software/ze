@@ -85,21 +85,12 @@ var actions = leaction.New(area,
 		" artifact. amd64 only; self-skips like vpp-hugepages",
 		Answer: runCrashOTAUnaffectedHere},
 	leaction.Action{
-		Verb:    "run",
+		Verb:    runVerb,
 		Summary: "run one command in a QEMU guest sharing the tree",
 		Why: "boot an Alpine Linux guest, share this checkout, install the requested" +
 			" packages, and run one command over SSH. The host process owns the ISO" +
 			" cache, QEMU lifecycle, bounded waits, and cleanup",
-		Parameters: []leaction.Parameter{
-			// A run needs command or keep-alive, and parseRunArguments is
-			// what refuses one carrying neither. The keyword is optional
-			// because the switch beside it can answer for it.
-			{Keyword: keywordCommand, Kind: leaction.KindString, Help: "the shell command to run in the guest", Value: "command", Requirement: leaction.Optional},
-			{Keyword: keywordPackages, Kind: leaction.KindString, Help: "Alpine packages to install first, separated by spaces", Value: "space-separated-packages", Requirement: leaction.Optional},
-			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
-			{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "the kernel image to boot instead of the default", Value: "path", Requirement: leaction.Optional},
-			{Keyword: "keep-alive", Kind: leaction.KindSwitch, Help: "leave the guest running after the command"},
-		},
+		Parameters: runParameters,
 		AnswerArgs: runQEMUHere,
 	},
 	leaction.Action{
@@ -320,7 +311,22 @@ func runCrashCaptureHere(lab CrashLab) (any, int) {
 	return report, 0
 }
 
-// runQEMUHere runs the host harness over this checkout.
+// runParameters are the keywords `test qemu run` takes. The action declares
+// them, and runArgv spells a parsed line back from the same list, so the run a
+// claimed slot re-executes is the run that was typed (run_admit.go).
+var runParameters = []leaction.Parameter{
+	// A run needs command or keep-alive, and parseRunArguments is
+	// what refuses one carrying neither. The keyword is optional
+	// because the switch beside it can answer for it.
+	{Keyword: keywordCommand, Kind: leaction.KindString, Help: "the shell command to run in the guest", Value: "command", Requirement: leaction.Optional},
+	{Keyword: keywordPackages, Kind: leaction.KindString, Help: "Alpine packages to install first, separated by spaces", Value: "space-separated-packages", Requirement: leaction.Optional},
+	{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
+	{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "the kernel image to boot instead of the default", Value: "path", Requirement: leaction.Optional},
+	{Keyword: "keep-alive", Kind: leaction.KindSwitch, Help: "leave the guest running after the command"},
+}
+
+// runQEMUHere admits the run on the host, then runs the host harness over this
+// checkout inside that slot (admitQEMURun, run_admit.go).
 func runQEMUHere(args leaction.Arguments) (any, int) {
 	options, err := parseRunArguments(args)
 	if err != nil {
@@ -332,6 +338,12 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	return admitQEMURun(root, runArgv(args), func() (any, int) { return runQEMUInSlot(root, options) })
+}
+
+// runQEMUInSlot runs the host harness over this checkout. The caller holds the
+// job slot the run uses, or runs inside its parent's.
+func runQEMUInSlot(root string, options RunOptions) (any, int) {
 	// The guest runs every harness command as `le test <name>` from this
 	// build, so the harness it runs is the harness of this checkout.
 	if err := buildGuestLe(context.Background(), root, GuestArch()); err != nil {

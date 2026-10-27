@@ -1514,7 +1514,16 @@ children, so each repetition runs inside that slot rather than attaching to the
 first child's verdict (`admitRun`, `internal/le/test/stressrepro/run.go`). With
 no checkout, in a container, a runner runs unadmitted. A QEMU guest names a stand-in for the host's slot as its
 parent (`guestJobParent`, `internal/le/test/qemu/guestle.go`), because the guest
-sees the host's registry through `/workspace` but not the host's processes. The
+sees the host's registry through `/workspace` but not the host's processes.
+`./le test qemu run` holds that slot on the host under the label `qemu-run`,
+never attaching to another run's verdict, and its guest setup exports the
+stand-in as `ZE_RUN_JOB` before the command runs, so a `./le test <suite>`
+typed in the command runs inside it (`admitQEMURun`,
+`internal/le/test/qemu/run_admit.go`; `guestRunParentSetup`). A guest le
+that admitted itself instead would also fingerprint the whole checkout over
+9p, where git's index stat data matches no file and `git diff HEAD` reads every
+tracked file, past the 60-second git limit (`gitTimeout`,
+`internal/le/job/treehash.go`). The
 pretool hook reads a runner as heavy for the lossy-pipe refusal, and a helper as
 light, from the same registration (`leroot.Admits`). Anything else is admitted by
 typing it after `./le job run label <label> command`. The rest of the heavy

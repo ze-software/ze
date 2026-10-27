@@ -819,6 +819,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"git config --global --add safe.directory '*' 2>/dev/null || true",
 		guestPatchedTree,
 		"mkdir -p /workspace/tmp/evidence", "mount -t tmpfs tmpfs /workspace/tmp/evidence",
+		guestRunParentSetup(guestRunJobParent),
 	)
 	return strings.Join(parts, " && "), nil
 }
