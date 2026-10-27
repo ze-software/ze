@@ -362,6 +362,17 @@ remain valid historical evidence, but do not clear this live failure. Main
 owns evidence preservation, diagnosis and runtime capture; no rerun to confirm,
 carrier relocation or RFC-record change follows from this result.
 
+The strict implementation and its owned proof records landed as `c987777bb8`,
+with this live failure named in the commit. The runner had already removed
+the failed workdir. Its exec step is recorded before process start, so that
+step alone does not establish that the daemon ran. One timing trace and ten
+untraced deadline-capture attempts subsequently passed without producing a
+stall or failure stacks. These diagnostic passes do not clear TIME30.
+The session retains `scratch/strict-delayopen-functional/exec-events-20261027-135508/`
+and `scratch/strict-delayopen-functional/untraced-20261027-140225/`.
+No deadline, assertion or product behavior changed for these diagnostics;
+no privileged command is required.
+
 Main also owns applicable BGP/plugin integration gates, source-anchor index
 maintenance and committed `./le verify changed`.
 This spec stays in progress: base `bgp-delay-open`'s original promoted TIME30
