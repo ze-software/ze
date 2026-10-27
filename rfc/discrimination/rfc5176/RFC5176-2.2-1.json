@@ -17,8 +17,8 @@
     "unit-sha": "aa811659ca7c3f0b",
     "claim-sha": "af69f11532db9897",
     "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-    "producer-sha": "42e6f89d73a21db5",
-    "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::answerRequest",
+    "producer-sha": "98ab9d5cca188aff",
+    "break": "body of answerRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

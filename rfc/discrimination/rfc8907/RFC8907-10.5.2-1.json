@@ -7,8 +7,8 @@
     "claim-sha": "2aca54a4e13e8b43",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::trySend",
-    "producer-sha": "521ecbc2921e4804",
-    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5a4db0f688c5f951",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8907-10.5.2-1",
@@ -18,8 +18,8 @@
     "claim-sha": "59e8a6bdcac0f073",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::trySend",
-    "producer-sha": "521ecbc2921e4804",
-    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5a4db0f688c5f951",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8907-10.5.2-1",
@@ -40,7 +40,7 @@
     "claim-sha": "ec13a7df1abc0263",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::trySend",
-    "producer-sha": "521ecbc2921e4804",
-    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5a4db0f688c5f951",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

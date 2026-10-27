@@ -40,7 +40,7 @@
     "claim-sha": "294714f01e6c2c09",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::SendAccounting",
-    "producer-sha": "087ac7295f08c7c1",
-    "break": "body of SendAccounting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ecb4b4c2f8589f0a",
+    "break": "body of SendAccounting replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

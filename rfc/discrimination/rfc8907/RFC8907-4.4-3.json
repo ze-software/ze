@@ -18,7 +18,7 @@
     "claim-sha": "14e7bf8350a2868c",
     "route": "revert",
     "producer": "internal/component/tacacs/client.go::trySend",
-    "producer-sha": "521ecbc2921e4804",
-    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5a4db0f688c5f951",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
