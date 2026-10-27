@@ -374,6 +374,10 @@ var integrationPackages = []string{
 	// clamp confirmed on the wire, the ladder and bisection with the router's
 	// ICMP errors dropped, and force disagreeing with a poisoned cache.
 	"./internal/component/mtu/cmd",
+	// Added 2026-10-27 with rfc5082_listener_integration_linux_test.go, which
+	// proves the GTSM listen term in the kernel: a TTL 254 SYN to the protected
+	// port is dropped and a TTL 255 SYN is accepted.
+	"./internal/component/gtsm",
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and
