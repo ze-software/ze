@@ -7,9 +7,9 @@
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | - |
+| Phase | 5/7 — native amd64 traffic proved; arm64 and live discrimination pending |
 | Handoff | - |
-| Updated | 2026-10-12 |
+| Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -168,7 +168,7 @@ State of each VPN symbol in the arm64 emitted config:
 | A-2 | gokrazy cannot load a `=m` transform (no `modprobe` helper) | `conntrack_setup_appliance_linux.go` comment; gokrazy image holds two ze binaries plus randomd/heartbeat | `=m` would be enough and `=y` costs only kernel size | `ls /sbin/modprobe` in a booted guest | unvalidated |
 | A-3 | `ecb(cipher_null)` is the spelling the 7.2 kernel accepts for NULL ESP | `xfrm_linux.go` NOTE says unverified | NULL ESP install fails even with `CONFIG_CRYPTO_NULL=y` | AC-6 installs a NULL-ESP SA; a refusal is a defect in the name table, fixed here | unvalidated |
 | A-4 | Kconfig for 7.2 exposes `CONFIG_CRYPTO_CHACHA20POLY1305` and `CONFIG_CRYPTO_NULL` as user-selectable on both arches | emitted config prints them as "is not set" (so they exist on arm64) | the symbol name changed; requirement must name the 7.2 symbol | AC-5 emitted configs | validated 2026-10-12: both 7.2.9 emitted configs read `CONFIG_CRYPTO_CHACHA20POLY1305=y` and `CONFIG_CRYPTO_NULL=y` (AC-5 Evidence) |
-| A-5 | `ipsec-mobike-test` can install SAs with a chosen ESP transform | the lab runs Ze IKE in a guest on Ze's kernel | a new lab is needed | read `internal/le/test/deployment/mobike.go` at implementation | unvalidated |
+| A-5 | `ipsec-mobike-test` can install SAs with a chosen ESP transform | the lab runs Ze IKE in a guest on Ze's kernel | a new lab is needed | read `internal/le/test/deployment/mobike.go` at implementation | broken 2026-10-25: `RunMOBIKENetns` runs only `mobike-initiator` and `mobike-responder`; the QEMU wrapper supplies an Alpine package environment, not the default appliance image |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -193,7 +193,7 @@ State of each VPN symbol in the arm64 emitted config:
 |-------------|---|--------------|------|
 | `ze appliance kernel --target runtime` | → | `enforceKernelRequirements` over the emitted config | `TestRuntimeFloorCarriesVPNSymbols` (`internal/appliance/kernelreq_test.go`) |
 | Ze IKE SA install | → | `xfrmEncName` / `xfrmAEADName` / `xfrmAuthName` → kernel transform | `TestXfrmTransformsHaveRequiredKernelSymbol` (`internal/component/ike/dataplane/xfrm_kernelsym_test.go`) |
-| booted Ze runtime kernel | → | IKE SA per transform + WireGuard link | `./le test qemu ipsec-mobike-test` extended, plus the WireGuard lab named in AC-6 |
+| booted Ze runtime kernel | → | IKE SA per transform + WireGuard link | `./le test qemu vpn-kernel-test`, using the existing docker-host guest and interop infrastructure |
 
 ## Acceptance Criteria
 
@@ -224,8 +224,8 @@ N-A: no numeric input.
 ### Functional Tests
 | Test | Location | Validates |
 |------|----------|-----------|
-| `./le test qemu ipsec-mobike-test` (transform matrix added) | `internal/le/test/qemu/mobike.go`, `internal/le/test/deployment/mobike.go` | AC-6 IPsec |
-| WireGuard guest lab (extend `plan/release/validation/spec-wireguard-runtime-proof.md`'s lab if it exists at implementation, else a guest step in the same lab) | `internal/le/test/qemu/` | AC-6 WireGuard |
+| `./le test qemu vpn-kernel-test` (five-transform matrix) | `internal/le/test/qemu/vpnproof.go`, `internal/le/test/deployment/vpnproof.go`, `internal/le/interoplab/ipsec/vpnproof.go` | AC-6 IPsec |
+| WireGuard guest step in the same action | `internal/le/test/deployment/wireguardproof.go` | AC-6 WireGuard, handshake and received ping traffic, no module loading |
 
 ### Interop Tests (Scope: protocol)
 N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates. The IPsec interop suites keep their peers.
@@ -298,7 +298,7 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 |-------------|---------------------|
 | fragment + manifest + floor | `grep` of the three files, AC-2 test |
 | both emitted configs | pasted symbol lines (AC-5) |
-| guest proof | `./le test qemu ipsec-mobike-test` output |
+| guest proof | `./le test qemu vpn-kernel-test` output on native arm64/HVF; native amd64/KVM is additional evidence |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -392,6 +392,107 @@ CONFIG_CRYPTO_SHA256=y
 CONFIG_CRYPTO_SHA512=y
 ```
 
+## AC-6 Implementation and Native Proof
+
+Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the required arm64/HVF run and the live discriminating breaks below. The implementation findings that led to the harness follow.
+
+- `internal/le/test/qemu/mobike.go` `runIPsecMOBIKEHere` boots through
+  `NewRun` with `iproute2 iputils util-linux strongswan`. This is the Alpine
+  guest path. A supplied Ze kernel does not establish default appliance image
+  provenance.
+- `internal/le/interoplab/ipsec/mobike_netns_linux.go` `RunMOBIKENetns`
+  enumerates only the two movement scenarios. Its namespace/process adapter
+  can be reused, but it does not expose the five-transform matrix.
+- NULL already has a source-backed name in `xfrmEncNames`:
+  `ecb(cipher_null)`. The existing `checkESPIntegrityOnlyNull` selects NULL,
+  reads the negotiated Child SA, waits for kernel SAs, and tests traffic.
+  This audit neither changes that spelling nor treats the existing checker
+  as a passed default-image guest proof.
+- `plan/release/validation/spec-wireguard-runtime-proof.md` is a skeleton,
+  not an implemented guest ping lab. The VPP interface deployment scenario
+  reads an interface, not Linux WireGuard tunnel traffic.
+- The phase brief initially required the default application image for AC-6.
+  The main thread corrected that interpretation: AC-6 may use Ze's docker-host
+  image (Ze kernel and gokrazy base); AC-7 separately owns the default
+  `ze appliance build` image's packaged config. No product shell RPC or
+  default-image guest execution adapter is needed.
+- `./le test qemu vpn-kernel-test` uses the existing `docker-lab` path,
+  with no kernel or image override. The deployment action runs the existing
+  `psk-site-to-site` and `esp-integrity-only-null` scenarios plus
+  `esp-aes-cbc-sha256`, `esp-chacha20poly1305`, and `esp-3des-sha1`.
+  Their `checkESPKernel` checker reads negotiated encryption and installed
+  transforms and uses the existing four-direction ESP traffic oracle.
+- Its WireGuard step creates two isolated Linux kernel peers, requires a
+  successful tunnel ping, checks each peer's handshake and received bytes,
+  and checks `/sbin/modprobe` inside the Docker host's root. The QEMU caller
+  makes that host Ze's guest. This does not claim WireGuard config-commit
+  coverage from the separate runtime-proof spec.
+- Initial audit found that `buildEncryptionRegistry` admitted AES variants,
+  `espOnlyEncryptionRegistry` admitted only NULL, and the integrity/PRF
+  registries admitted SHA2 only. `parseESPProposal` therefore refused two
+  combinations the AC had assumed were already accepted. This was a product
+  prerequisite, not permission to substitute manually installed SAs.
+- Owner decision, 2026-10-26: **"Implement both ESP combinations"**.
+  This one-off approval adds ChaCha20-Poly1305 and 3DES/SHA1 for ESP; it does
+  not expand IKE control-channel algorithms. The main thread assigned the
+  product changes separately. The harness includes all five negotiated
+  scenarios and does not skip unsupported combinations.
+- The main thread approved preparation only inside the disposable proof
+  guest: disable future module loading, refuse preloaded modules, remove
+  `/sbin/modprobe`, and require emitted config symbols to be built in.
+  `vpnGuestPreparation` runs before services through the existing cidata
+  boot script. Normal `docker-lab` behavior and the shipped image are
+  unchanged. `vpnKernelConfig` reads the resolver's emitted config and both
+  manifests; the WireGuard checker rechecks the guest's loader state.
+- The native amd64/KVM run below cannot replace the arm64/HVF condition.
+  No native arm64 host was available for this work.
+
+### Wrong Assumptions
+
+| Date | Assumption | Producer | Consequence |
+|------|------------|----------|-------------|
+| 2026-10-25 | A-5: the existing MOBIKE action already selects arbitrary ESP transforms in the required image | `runIPsecMOBIKEHere`, `RunMOBIKENetns` | Use Ze's docker-host guest and the existing interop scenarios. The remaining two transforms need product support, not another guest base. |
+
+### Phase 5 Verification
+
+`./le --name vpn-proof test qemu vpn-kernel-test timeout 30m` passed on native
+amd64/KVM. The same command remains owed on native arm64/HVF.
+
+The focused CBC transform, WireGuard receipt, built-in floor, guest preparation
+and scenario-input tests passed with race detection. The separate
+`TestVPNCleanupFailureRefusesPassingTraffic` also passed. These results are
+recorded with the harness in `22f782e1c2`; they were not rerun for this update.
+- Discriminating breaks: replace the CBC cipher with GCM in one peer;
+  replace SHA256 with SHA1 in installed-state observations; remove the
+  WireGuard receiving peer's allowed IP or give it the wrong public key;
+  make `/sbin/modprobe` exist in a disposable guest image. None may pass
+  the corresponding live assertion. No discrimination run was performed.
+
+### Native amd64 result, 2026-10-27
+
+The actual `test qemu vpn-kernel-test` entry point passed all five negotiated
+ESP scenarios and the Linux WireGuard traffic check. The outer report named
+KVM, check and lab exit zero, no leftover resources, and a stopped VM.
+
+| Evidence | Observed result |
+|----------|-----------------|
+| `psk-site-to-site`, `esp-aes-cbc-sha256`, `esp-chacha20poly1305`, `esp-3des-sha1`, `esp-integrity-only-null` | Each passed its installed-transform and bidirectional traffic assertions |
+| WireGuard | Tunnel traffic, matching-peer handshake and received bytes passed with module loading disabled, no loaded modules and no `/sbin/modprobe` |
+| Guest provenance | Ze kernel `7.2.9-ze`, cached amd64 image `c8263f4fef5e9c76`, runtime kernel key `7.2.9-runtime-amd64-runtime-docker-36272e92-34cba457` |
+| Initial failure and correction | NULL established its Child SA but its proposal log was buffered. `8544ee50de` selects stderr and `flush_line`; assertions, proposals and deadlines are unchanged |
+| Product prerequisites | `ba03d7c2c7` lands ESP transform and MTU changes with scoped race and RFC5282 evidence |
+| Reproducible harness | `22f782e1c2`; run the native command above |
+
+Main read the complete successful outer report in
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/vpn-native-guest-proof-green-20261027.log`.
+The failed aggregate took 623.02 seconds; its corrected aggregate took 451.97
+seconds. These are run durations, not a performance comparison.
+
+This proves neither arm64/HVF nor the separate product WireGuard configuration
+workflow. It does not claim external both-role rekey coverage. The later default
+appliance image readback is recorded by `34eede6b0c` in the parent appliance
+spec; it is separate from this Docker-host traffic proof.
+
 ## Known Limitations
 - N100 hardware boot: owner-deferred (decision above), not evidence for this spec.
 - GPLv2 source offer: decided by the owner 2026-10-09, carried by `spec-appliance-ships-ze-kernel.md` AC-17.
@@ -414,7 +515,7 @@ CONFIG_CRYPTO_SHA512=y
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] Scoped `./le verify changed` evidence recorded after the closing commits; full verification remains Thomas's release check, not an agent closure gate
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
