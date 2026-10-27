@@ -456,7 +456,9 @@ Native amd64/KVM traffic passed on 2026-10-27. AC-6 remains open for the require
 ### Phase 5 Verification
 
 `./le --name vpn-proof test qemu vpn-kernel-test timeout 30m` passed on native
-amd64/KVM. The arm64/HVF attempt stopped during preparation; its traffic proof remains owed.
+amd64/KVM. Both arm64/HVF attempts stopped during preparation; the second
+confirmed a loaded `pwm_fan` module. The configuration repair and traffic proof
+still need native validation.
 
 The focused CBC transform, WireGuard receipt, built-in floor, guest preparation
 and scenario-input tests passed with race detection. The separate
@@ -508,8 +510,9 @@ The retained input is `tmp/mac-vpn-proof-2026-10-27/`: `FINDINGS.md`,
 `kernel-config-arm64`. Linux traced the script through `vpnGuestPreparation`,
 `dockerLabGuest.cidataFiles` and `serveForever`. The pinned gokrazy
 `loadModules` attempts `pwm-fan.ko` before that preparation, and the Mac built
-that module. Successful insertion remains unproved without the guest module
-list; built-in VPN requirements alone do not exclude unrelated loaded modules.
+that module. At this first-run stage, successful insertion remained unproved
+without the guest module list; built-in VPN requirements alone do not exclude
+unrelated loaded modules.
 
 The bounded repair preserves every module guard, traces only the fixed
 preparation block and checks both procfs reads before testing their values.
@@ -523,8 +526,74 @@ The post-fix package run stopped at unrelated unfinished
 `internal/plugins/dnsresolver` references, including `flightTable`, `limiter`
 and `resolverStats`; no post-fix package pass is claimed. The exact logs and
 direct-shell receipts are recorded in this spec's session state. Handover 27
-now describes one bounded diagnostic Mac rerun, with no timeout increase,
+then requested one bounded diagnostic Mac rerun, with no timeout increase,
 module exception or manual cache override.
+
+### Native arm64 diagnostic rerun, 2026-10-27
+
+The second Mac run at `835d147952` includes the diagnostic guard repair
+`c135dceac6`. Evidence is retained in `tmp/mac-vpn-proof-2026-10-27-rerun/`
+(`host.txt`, `commit.txt`, `image-build.log`, `vpn-kernel.log` and
+`docker-lab-console-2223.log`), without replacing the first-run evidence.
+It reused image `a6574e77e607b55b`, passed the emitted-config prerequisite and
+booted under HVF. The console recorded `modules_disabled=1`, followed by
+`loaded_modules='pwm_fan 20480 0 - Live 0xffff80007b830000'`.
+The strict `test -z` then failed. The modprobe guards, Docker readiness and
+all five ESP cases and WireGuard traffic were not reached. Cleanup completed
+and the VM stopped. Outer zero exit fields are not evidence for those
+unreached steps.
+
+This confirms the loaded-module blocker. The pinned gokrazy startup path
+calls `loadModules` before services; that function opens `pwm-fan.ko` and
+calls `FinitModule`. The console does not identify the actual syscall caller.
+The original arm64 config has `CONFIG_SENSORS_PWM_FAN=m`.
+
+### Built-in fan repair: local implementation, native proof pending
+
+The repair preserves fan functionality without changing the guest guards:
+`runtime.config` requests `CONFIG_HWMON=y`, `CONFIG_PWM=y` and
+`CONFIG_SENSORS_PWM_FAN=y`, and `runtime.require` enforces all three.
+The independent compiled runtime floor also requires `CONFIG_SENSORS_PWM_FAN`.
+The regression contract accepts the built-in driver and refuses modular,
+disabled or absent fan configurations even when the supplied manifest omits
+the fan requirement. Eight focused enforcement, pairing and cache tests passed.
+Independent review then found that the existing PPPoE rejection fixture omitted
+other floor entries too. Its observed failure named the newly required fan
+instead of PPPoE. Deriving the fixture from the complete runtime config and
+removing only PPPoE preserved its original assertion; the affected
+`internal/appliance` package then passed, including that entry-point test.
+
+A bounded native amd64 smoke checked the pinned Linux 7.2.9 tarball digest,
+applied the tracked patches, merged both current fragments and ran
+`olddefconfig`. All 156 distinct symbols in the two manifests resolved to `=y`,
+including HWMON, PWM and SENSORS_PWM_FAN, with MODULES retained and neither OF
+nor COMPILE_TEST enabled. The fan object compiled with a built-in initcall.
+The receipt and emitted config are in
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/builtin-fan-native-amd64/`.
+This was not a full kernel link, installed module tree, image build, boot or
+arm64 proof. The disposable container was removed.
+
+The smoke's initial CPU-quota refusal and inaccessible cache-symlink mount
+were invocation setup failures, not kernel results. The successful invocation
+removed only the added quota and mounted the resolved source tar read-only;
+compilation remained limited to two jobs. Both independent source and proof
+reviews are clear after the fixture correction. Exact test and smoke logs are
+retained in this spec's session state. No broad verifier was rerun.
+
+Handover 27 now requests one native arm64 image build and HVF proof through the
+existing commands. The normal resolver must select the changed kernel key and
+an image key other than `a6574e77e607b55b`; no forced cold build, cache purge or
+old-key override is requested. Return the actual emitted config path with all
+three fan-related symbols `=y`, the installed `modules.builtin` manifest naming
+the fan driver, and evidence that the same new kernel tree has no loadable
+`pwm-fan.ko`. Then establish empty `/proc/modules`, `modules_disabled=1` and
+successful modprobe absence guards before the actual five ESP traffic cases,
+WireGuard handshake and received ping traffic, and cleanup.
+
+This is a local source repair, not a verified Mac fix. AC-6, its live
+discriminating breaks and every other open acceptance criterion remain open.
+The earlier AC-5 configs remain historical evidence, not native proof of the
+new fan configuration.
 
 
 ## Known Limitations

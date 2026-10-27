@@ -52,8 +52,12 @@ var universalKernelRequirements = []string{
 // sampling filter installation failing with ENOENT.
 // Subscriber upload policing likewise needs act_police beside the classifier;
 // its absence must be refused even when an edited manifest omits it.
+//
+// gokrazy attempts to load pwm-fan before services can disable module loading.
+// Keep fan control built in rather than loading a module before that guard.
 var runtimeKernelRequirements = []string{
 	"CONFIG_MODULES",
+	"CONFIG_SENSORS_PWM_FAN",
 	"CONFIG_PPP",
 	"CONFIG_PPPOE",
 	"CONFIG_L2TP",

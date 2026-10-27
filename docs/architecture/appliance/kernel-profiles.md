@@ -161,6 +161,25 @@ selected by `INET_ESP` through `XFRM_ESP` in Linux 7.2.
 <!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmTransformKernel -->
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
+PWM fan control requires built-in `CONFIG_SENSORS_PWM_FAN`, with `CONFIG_HWMON`
+and `CONFIG_PWM` built in. The runtime fragment requests all three, and the
+manifest checks their emitted values. The compiled floor also requires the fan
+driver, even if an edited manifest omits it. This preserves fan control without
+loading a module: gokrazy's `Boot` calls `loadModules` before services, and that
+loader attempts to insert `pwm-fan.ko`.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_HWMON, CONFIG_PWM, CONFIG_SENSORS_PWM_FAN -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_HWMON, CONFIG_PWM, CONFIG_SENSORS_PWM_FAN -->
+<!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/gokrazy.go -- Boot -->
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules, loadModule -->
+
+The fan configuration change still needs native build and boot evidence,
+including the arm64 Mac rerun. Source checks do not prove that the emitted
+kernel keeps these symbols built in or that the guest reaches VPN traffic
+with an empty loaded-module list. Keep the strict no-modules guard in that proof.
+<!-- source: internal/appliance/kernelreq_test.go -- TestRuntimeFloorRequiresBuiltInPWMFan -->
+<!-- source: docs/architecture/testing/qemu-integration.md -- VPN facilities without module loading -->
+
 TCP-MD5 sessions require built-in `CONFIG_TCP_MD5SIG`. The runtime fragment
 requests it and the runtime manifest verifies the emitted value. Ze configures
 the socket through `setTCPMD5Sig`; a kernel without this feature refuses that

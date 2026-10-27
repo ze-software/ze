@@ -11,29 +11,39 @@
 - The Linux session continues its own fixes and native proofs. Do not copy its scratch binaries, private overlays or cached amd64 kernel onto the Mac.
 - The website decision is WebP screenshots plus lightweight terminal playback. No video conversion, upload or website publication is part of this handover.
 
-## First Mac result and the next run
+## Mac results and the next run
 
 The first run at `7aa2f4849e` built the arm64 kernel and image, passed the
 emitted-config prerequisite and booted under HVF. Preparation exited with
 `Lima boot.sh: exit status 1`; Docker never became ready. No VPN traffic
 case ran. Evidence returned to Linux is in `tmp/mac-vpn-proof-2026-10-27/`.
 
-The preparation now traces only its fixed module checks and refuses failed
-procfs reads before testing their values. It still rejects every loaded module
-and requires `/sbin/modprobe` to be absent. This is a diagnostic and guard
-repair, not a claim that the Mac failure is fixed.
+The diagnostic rerun at `835d147952` (including `c135dceac6`) reused image
+`a6574e77e607b55b`, passed the emitted-config check and booted under HVF.
+Its console confirmed `modules_disabled=1`, then
+`loaded_modules='pwm_fan 20480 0 - Live 0xffff80007b830000'`.
+The strict `test -z` failed. The modprobe guards, Docker readiness and all VPN
+traffic checks were not reached. The VM stopped and cleanup completed.
+Keep this evidence in `tmp/mac-vpn-proof-2026-10-27-rerun/` as well as the first run.
 
-After Thomas authorizes the next Mac run, pull the commit carrying this repair
-and execute the block below once. Keep the original evidence; the block makes
-a new evidence directory. Let the normal resolver choose valid cached artifacts,
-without forcing a rebuild or selecting an old image by hand.
+The pinned gokrazy `loadModules` attempts `pwm-fan.ko` before services start.
+The console proves the loaded module, not the identity of the syscall caller.
+The source repair makes the fan driver built in, preserving fan functionality:
+`runtime.config` requests `CONFIG_HWMON=y`, `CONFIG_PWM=y` and
+`CONFIG_SENSORS_PWM_FAN=y`; `runtime.require` requires all three; the independent
+runtime floor also protects `CONFIG_SENSORS_PWM_FAN`. Local implementation is
+not yet a verified Mac fix.
 
-Return the complete console trace even if preparation fails again. In
-particular, retain the module list and the last traced assertion. The pinned
-gokrazy `loadModules` attempts `pwm-fan.ko` before this preparation, and the
-Mac image contains it; successful loading is only a hypothesis until the
-guest's module list establishes it. Do not unload modules, add an exception,
-change the kernel or relax a guard to get past the refusal.
+After Thomas authorizes the next Mac run, pull the commit carrying the built-in
+fan repair and execute the block below once. Keep both earlier evidence sets;
+the block makes a new evidence directory. Use the normal native arm64 image
+build and resolver. The changed kernel configuration must produce a new kernel
+key and an image key other than `a6574e77e607b55b`; do not force a cold build,
+purge caches or override the selection with an old key.
+
+Return the complete console trace even if preparation fails again. Do not unload
+modules, add an exception, disable module support, change timeouts or relax a
+guard to get past a refusal.
 
 
 ## Before running
@@ -88,11 +98,24 @@ Send the evidence-directory path and these files, privately:
 - the guest console file named by the native report, especially for a failed run;
 - the shell's exit status if it failed or was interrupted.
 
-Keep the emitted kernel `config`, `kernel.version` and the generated image/cache entry until the evidence has been reconciled. Use the paths from this run; do not choose a different cached kernel by date. Do not publish raw credentials or key material if a diagnostic contains them.
+Keep the emitted kernel `config`, `kernel.version`, installed `modules.builtin`
+manifest and generated image/cache entry until the evidence has been reconciled.
+Return their actual paths from this run, the three fan-related `=y` config lines,
+the fan entry in `modules.builtin`, and evidence that this new tree contains no
+loadable `pwm-fan.ko`. Record the selected kernel key and the image key, which
+must differ from `a6574e77e607b55b`. Do not choose a different cached kernel by
+date. Do not publish raw credentials or key material if a diagnostic contains them.
 
 ## What constitutes acceptance
 
-The native outer report must identify the arm64 image and HVF, a passing kernel check, successful lab execution and completed cleanup with no leftover resources. The inner report must pass every ESP traffic case and the WireGuard handshake/received-traffic proof. A boot or SA installation without traffic is insufficient; an interrupted or setup-only run is not a protocol verdict.
+The native outer report must identify the new arm64 image and HVF, a passing
+kernel check, successful lab execution and completed cleanup with no leftover
+resources. The console must show `modules_disabled=1`, an empty `/proc/modules`
+and successful modprobe absence guards before Docker and traffic run. The inner
+report must pass all five ESP traffic cases (AES-GCM, AES-CBC+SHA256,
+ChaCha20-Poly1305, 3DES+SHA1 and NULL+SHA256) and the WireGuard
+handshake/received-ping-traffic proof. A boot or SA installation without traffic
+is insufficient; an interrupted or setup-only run is not a protocol verdict.
 
 Before boot, the action checks the emitted native kernel configuration against `gokrazy/kernel/kernel.require` and `runtime.require`. In its disposable guest snapshot it disables module loading, refuses already-loaded modules and removes `/sbin/modprobe`; it does not modify the cached parent image. These assertions are performed by the native action, not supplied manually by this handover.
 
@@ -112,4 +135,11 @@ Before boot, the action checks the emitted native kernel configuration against `
 - `docs/guide/appliance.md`, “VPN Kernel Proof”.
 - Native `le help setup docker host build`: verified `arch arm64` and image-build action.
 
-**Verification limit:** The first Mac run established build, configuration and boot evidence only. The Linux sandbox exercises the repaired shell guards, not arm64 BusyBox or VPN traffic. The diagnostic Mac rerun and full native arm64 traffic proof remain owed.
+**Verification limit:** The first run established build, configuration and boot
+evidence only. The second confirmed the loaded `pwm_fan` blocker before the
+modprobe guards or traffic. The repaired appliance package and focused
+enforcement/cache checks passed on Linux. A native amd64 Kconfig smoke resolved
+all 156 required symbols to `=y` and compiled the fan object with a built-in
+initcall, without OF or COMPILE_TEST. It did not build a full kernel or image.
+The new arm64 emitted config, installed module tree and full HVF traffic pass
+remain owed; Linux evidence does not replace them.

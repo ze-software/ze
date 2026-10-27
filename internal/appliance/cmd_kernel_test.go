@@ -1083,8 +1083,8 @@ func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(spec.outDir, "vmlinuz"), []byte("x"), 0o644); err != nil {
 			return err
 		}
-		// Missing CONFIG_PPPOE: floor must reject.
-		cfg := "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n"
+		// Omit only CONFIG_PPPOE so other floor requirements cannot mask its refusal.
+		cfg := strings.ReplaceAll(fakeRuntimeConfig(), "CONFIG_PPPOE=y\n", "")
 		return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(cfg), 0o644)
 	})
 

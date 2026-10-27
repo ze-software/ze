@@ -21,6 +21,11 @@ CONFIG_XFRM_INTERFACE
 CONFIG_XFRM_MIGRATE
 CONFIG_TCP_MD5SIG
 
+# Fan control must not depend on gokrazy's pre-service module loader.
+CONFIG_HWMON
+CONFIG_PWM
+CONFIG_SENSORS_PWM_FAN
+
 # The interface kinds, policy routing and traffic control ze programs. Each has
 # a producer named in runtime.config beside its request. A `=y` line in a
 # fragment is a request and kconfig may answer `=m`, which is the same as absent
