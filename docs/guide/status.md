@@ -58,7 +58,9 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 | bgp-watchdog | Working -- deferred route announcement |
 | All NLRI plugins (9) | Working -- decode and encode for their families |
 | ospf | Partial -- config schema, validators, event namespace, raw-socket enrolment skeleton |
+| dnsresolver (LAN DNS resolver) | Partial -- caching forwarder for LAN clients with allow-from, failover, answer and negative caches and work limits; no recursion from the root, no DNSSEC validation, no interop scenario yet |
 <!-- source: internal/plugins/ospf/register.go -- OSPF registry entry and lifecycle -->
+<!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registry entry -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- OSPF config schema -->
 <!-- source: internal/component/bgp/plugins/ -- all plugin register.go files -->
 

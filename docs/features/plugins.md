@@ -102,11 +102,13 @@ Three filter categories:
 | traffic | Traffic control lifecycle and backend dispatch. |
 | vpp | VPP lifecycle and telemetry. |
 | cos | 802.1p class-of-service profile definitions. Named QoS maps, dynamic per-subscriber CoS via RADIUS. |
+| dnsresolver | LAN DNS resolver (`service dns-resolver`): a caching forwarder that answers recursive queries from `allow-from` prefixes on the configured listeners. No recursion from the root, no DNSSEC validation. [Guide](../guide/dns-resolver.md) |
 | crashes | Crash capture: recovers the kernel crash record the previous boot left, once at daemon start, and serves `show crashes`. Its engine is a no-op that nothing auto-loads. |
 | bgp-nlri-srpolicy | SR-Policy NLRI (SAFI 73) with Tunnel Encapsulation attribute. |
 
 <!-- source: internal/component/iface/register.go -- interface -->
 <!-- source: internal/plugins/crashes/register.go -- crashes -->
+<!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver -->
 <!-- source: internal/plugins/iface/ra/register.go -- iface-ra -->
 <!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed: main-table Loc-RIB path, named-table direct write -->
 <!-- source: internal/plugins/connected/events/events.go -- RegisterOSInstalled declaration -->

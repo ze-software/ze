@@ -3740,6 +3740,47 @@ See the [Self-Update Guide](self-update.md) for server setup and fleet deploymen
 <!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 
+### LAN DNS Resolver
+
+`service { dns-resolver { } }` runs a caching DNS resolver for the hosts behind
+Ze. It is separate from `system { name-server }` above, which only Ze's own
+lookups use. It answers recursive queries on the `listener` addresses, from
+the `allow-from` prefixes only, by forwarding to the `forward server` entries
+in the order written. It does not recurse from the root and does not validate
+DNSSEC.
+
+```
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.168.1.1
+		}
+		allow-from [ 192.168.1.0/24 ]
+		forward {
+			server 192.0.2.53
+			server 198.51.100.53
+		}
+	}
+}
+```
+
+| Leaf | Default | Description |
+|------|---------|-------------|
+| `enabled` | `false` | true needs a `listener`, an `allow-from` prefix and a `forward server` |
+| `listener <name> ip`, `port` | port `53` | UDP and TCP endpoint; a wildcard address is refused |
+| `allow-from` | (none) | client source prefixes; any other source gets REFUSED |
+| `mode` | `forward` | the only mode |
+| `forward server <ip>`, `port` | port `53` | upstream resolvers, at most 8, tried in order |
+| `cache size`, `max-ttl`, `max-negative-ttl` | `100000`, `86400`, `3600` | entries per cache, and TTL caps in seconds |
+| `timeout` | `10` | seconds for one whole resolution, 1-60 |
+| `limit outstanding`, `per-client-rate` | `2048`, `0` | resolutions in flight, and queries per second per source (0 for none) |
+
+Every leaf, refusal and command is in the [LAN DNS Resolver guide](dns-resolver.md).
+
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang -- service dns-resolver -->
+<!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
+
 ### NTP Client
 
 Configure NTP under `environment { ntp { } }`:

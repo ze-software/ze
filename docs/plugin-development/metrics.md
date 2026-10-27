@@ -225,6 +225,14 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
+| `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
+| `ze_dns_resolver_refused_total` | CounterVec | reason | dnsresolver: one per REFUSED answer, `acl` or `rd-clear` |
+| `ze_dns_resolver_rate_limited_total` | Counter | | dnsresolver: one per query dropped by `limit per-client-rate` |
+| `ze_dns_resolver_dropped_total` | Counter | | dnsresolver: one per query dropped at `limit outstanding` |
+| `ze_dns_resolver_outstanding` | Gauge | | dnsresolver: resolutions in progress |
+| `ze_dns_resolver_cache_entries` | GaugeVec | cache | dnsresolver: entries in the `answer` and `negative` caches |
+| `ze_dns_resolver_cache_hits_total` | Counter | | dnsresolver: one per query answered from the cache |
+| `ze_dns_resolver_upstream_queries_total` | CounterVec | result | dnsresolver: one per upstream exchange, `answered`, `timeout`, `error`, `failure` or `truncated` |
 
 The three iface link-event counters answer the same question from different
 points on the path, and none of them reports a lost final state. A rising
@@ -263,6 +271,16 @@ hosts join the link.
 
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+
+The LAN resolver's `ze_dns_resolver_queries_total` counts answered queries
+only: a query dropped by the rate or the outstanding bound gets no reply and
+is counted by `ze_dns_resolver_rate_limited_total` or
+`ze_dns_resolver_dropped_total` instead. `ze_dns_resolver_cache_entries` is
+published by the resolver's sweeper every 10 seconds and by a cache clear, so
+it can lag the cache by that interval. What each label value means is in
+[the LAN resolver design](../architecture/dns/lan-resolver.md#metrics).
+
+<!-- source: internal/plugins/dnsresolver/metrics.go -- buildMetrics, countQuery, cacheGauges -->
 
 `ze_plugin_write_watchdog_total` increments when a plugin RPC write on a
 transport that does not support `SetWriteDeadline` (SSH channels, `io.Pipe`)

@@ -1427,6 +1427,26 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
+### show dns-resolver / clear dns-resolver cache all
+
+The LAN DNS resolver (`service dns-resolver`, [guide](dns-resolver.md)), which
+answers the hosts behind Ze. It is separate from the `show dns` and
+`clear dns` commands above, which cover the resolver Ze uses for its own
+lookups.
+
+```
+ze show dns-resolver                   # Config in force, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+```
+
+`clear dns-resolver cache` alone has no handler and empties nothing: emptying
+needs the word `all`. `show dns-resolver` answers `running false` while the
+plugin is not running, and `clear dns-resolver cache all` answers an error that
+names the config to commit.
+
+<!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
+
 ### clear peeringdb cache / clear irr cache / clear cymru cache
 
 Each owner of a resolver client clears the client it uses now. The hub clears
