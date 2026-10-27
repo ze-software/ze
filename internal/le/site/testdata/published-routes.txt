@@ -138,6 +138,7 @@
 /labs/pppoe-interop/architecture/
 /labs/vlan-qos/
 /labs/vpp-dataplane/
+/legal/
 /license/
 /performance/
 /performance/bgp/

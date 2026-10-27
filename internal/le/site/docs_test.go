@@ -176,7 +176,9 @@ func repositoryRoot(t *testing.T) string {
 // reasons: a worktree is not part of this repository, so a machine without one
 // would run a different test, and the parity target is that COMMIT rather than
 // whatever the worktree holds now. Its 712 entries are the count `./le site
-// check` reported when phase 1 armed the coverage arithmetic.
+// check` reported when phase 1 armed the coverage arithmetic, plus /legal/,
+// the one page added to the site since, which brings it to 713. A page added
+// later is appended here by name and counted, never by refreshing the list.
 //
 // It MUST stay at that commit. It is the OUTPUT half of a pair whose INPUT half
 // is pinned there too. published-plugin-registry.json and
@@ -194,8 +196,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 712 {
-		t.Fatalf("the published route fixture holds %d routes, want 712", len(routes))
+	if len(routes) != 713 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/", len(routes))
 	}
 	return routes
 }

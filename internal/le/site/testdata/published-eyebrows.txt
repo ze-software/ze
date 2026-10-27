@@ -119,6 +119,7 @@ guides/ze-install/index.html	Guide
 labs/l2tp-interop/architecture/index.html	Lab details
 labs/netlab/index.html	Guide
 labs/pppoe-interop/architecture/index.html	Lab details
+legal/index.html	Legal
 license/index.html	License
 performance/bgp/index.html	Performance
 project/history/index.html	Documentation
