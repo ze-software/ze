@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181TruncatedWhenRRSetDoesNotFit",
+    "unit-sha": "d2518cbb30863742",
+    "claim-sha": "101b858df0b0896c",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"_ = datagramLimit\""
+  },
+  {
+    "rid": "RFC2181-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181TruncatedWhenRRSetDoesNotFit",
+    "unit-sha": "d2518cbb30863742",
+    "claim-sha": "19666f48d6751fd5",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 134: \"isDatagram(w)\" -\u003e \"true\""
+  }
+]

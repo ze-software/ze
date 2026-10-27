@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-5.4.1-9",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/rfc2181_aa_test.go::TestRFC2181AuthoritativeReplySetsAA",
+    "unit-sha": "f3f4a9c7f3bb3dd4",
+    "claim-sha": "dcd5517c9ff1deeb",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::shapeAuthoritative",
+    "producer-sha": "8bfb49657cfb493c",
+    "break": "line 216: \"msg.Authoritative = msg.Rcode != dns.RcodeRefused\" -\u003e \"msg.Authoritative = false\""
+  },
+  {
+    "rid": "RFC2181-5.4.1-9",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181ReplyAAClear",
+    "unit-sha": "1fb8220b15fdc53d",
+    "claim-sha": "15871a37204d5357",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+    "producer-sha": "20319f40a6bf778e",
+    "break": "line 120: \"msg.Authoritative = false\" -\u003e \"msg.Authoritative = true\""
+  }
+]

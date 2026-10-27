@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-5.3.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181SectionSIGNotCached",
+    "unit-sha": "dcb561dd54b24bea",
+    "claim-sha": "40f89f63f5607cb2",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
+    "producer-sha": "5c149de68c30d629",
+    "break": "line 186: \"sets := groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"sets := groupAnswer(reply.Answer, q.Qclass); for _, extra := range groupAnswer(reply.Extra, q.Qclass) { r.storeRRset(pol, extra, rankAnswer, now) }\""
+  },
+  {
+    "rid": "RFC2181-5.3.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181WholeSIGRRSet",
+    "unit-sha": "2807ac083e5b61e1",
+    "claim-sha": "119739509129e922",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::storeRRset",
+    "producer-sha": "59e725a96316559f",
+    "break": "line 288: \"stored := withTTL(rrs, ttl)\" -\u003e \"stored := withTTL(rrs, ttl); if rrs[0].Header().Rrtype == dns.TypeRRSIG { return stored }\""
+  }
+]

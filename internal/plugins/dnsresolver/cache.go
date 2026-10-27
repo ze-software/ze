@@ -47,26 +47,44 @@ type rank uint8
 const (
 	rankUnspecified rank = iota
 	// rankAnswer is the answer section of a non-authoritative reply, which
-	// is what a forwarding upstream sends.
+	// is what a forwarding upstream sends, and every RRset in the answer
+	// section of an authoritative reply that the name sought does not own.
 	rankAnswer
-	// rankAnswerAuthoritative is the answer section of a reply with AA set.
+	// rankAnswerAuthoritative is the RRset owned by the name sought in the
+	// answer section of a reply with AA set.
 	rankAnswerAuthoritative
 )
 
-// rankOf is the rank of answer-section data in reply.
+// rankOf is the rank of the answer-section RRset owned by owner in reply, a
+// reply to a query for sought.
 //
 // RFC 2181 Section 5.4.1: "An authoritative answer from a reply should
 // replace cached data that had been obtained from additional information in
 // an earlier reply."
 //
+// RFC 2181 Section 5.4.1: "However when the name sought is an alias (see
+// section 10.1.1) only the record describing that alias is necessarily
+// authoritative.  Clients should assume that other records may have come
+// from the server's cache."
+//
+// RFC 2181 Section 5.4.1 ranks "Data from the answer section of a
+// non-authoritative answer, and non-authoritative data from the answer
+// section of authoritative answers," together, so an RRset on a CNAME chain
+// past the name sought ranks as a non-authoritative answer even when AA is
+// set: only the RRset sought owns, the alias record or the answer itself,
+// takes the authoritative rank.
+//
 // Only answer-section data is ranked: the resolver caches nothing from the
 // authority or additional section but the SOA of a negative answer, so
 // additional data can never be returned as an answer.
-func rankOf(reply *dns.Msg) rank {
-	if reply.Authoritative {
-		return rankAnswerAuthoritative
+func rankOf(reply *dns.Msg, owner, sought string) rank {
+	if !reply.Authoritative {
+		return rankAnswer
 	}
-	return rankAnswer
+	if !strings.EqualFold(dns.Fqdn(owner), dns.Fqdn(sought)) {
+		return rankAnswer
+	}
+	return rankAnswerAuthoritative
 }
 
 // cacheEntry is one cached RRset, or one negative answer whose rrs hold the

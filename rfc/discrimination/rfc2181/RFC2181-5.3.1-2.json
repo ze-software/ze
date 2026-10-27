@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-5.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181SectionSIGNotTheRRSet",
+    "unit-sha": "92c5a4d298e57114",
+    "claim-sha": "60b00c08752c4fd8",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
+    "producer-sha": "5c149de68c30d629",
+    "break": "line 186: \"groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"groupAnswer(append(reply.Answer, reply.Extra...), q.Qclass)\""
+  },
+  {
+    "rid": "RFC2181-5.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_test.go::TestRFC2181WholeSIGRRSet",
+    "unit-sha": "2807ac083e5b61e1",
+    "claim-sha": "6a40ba02072252ee",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
+    "producer-sha": "5c149de68c30d629",
+    "break": "line 192: \"r.storeRRset(pol, rrs, rankOf(reply, current, name), now)\" -\u003e \"r.storeRRset(pol, rrs[:1], rankOf(reply, current, name), now)\""
+  }
+]

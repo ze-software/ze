@@ -260,12 +260,15 @@ func TestTrustRanking(t *testing.T) {
 		t.Fatalf("upstream saw %d queries, want 2: additional data answered b.test", n)
 	}
 
-	// The AA bit reaches the rank: y.test's authoritative RRset, cached from
-	// x.test's chain, survives a non-authoritative copy in z.test's chain.
+	// The AA bit reaches the rank: y.test's RRset from an authoritative reply
+	// to a y.test query survives a non-authoritative copy in z.test's chain.
+	// The name sought must own it: RFC 2181 Section 5.4.1 makes only the alias
+	// record of an authoritative reply to an alias authoritative, so data at
+	// a CNAME target ranks as a non-authoritative answer.
 	chains := scriptedUpstream(t, func(q *dns.Msg) *dns.Msg {
 		switch q.Question[0].Name {
-		case "x.test.":
-			m := answerWith(q, "x.test. 300 IN CNAME y.test.", "y.test. 300 IN A 192.0.2.1")
+		case "y.test.":
+			m := answerWith(q, "y.test. 300 IN A 192.0.2.1")
 			m.Authoritative = true
 			return m
 		default:
@@ -273,7 +276,7 @@ func TestTrustRanking(t *testing.T) {
 		}
 	})
 	r = newTestResolver(t, testConfig(chains), newTestClock())
-	ask(r, query("x.test", dns.TypeA), "127.0.0.1", false)
+	ask(r, query("y.test", dns.TypeA), "127.0.0.1", false)
 	ask(r, query("z.test", dns.TypeA), "127.0.0.1", false)
 	reply = ask(r, query("y.test", dns.TypeA), "127.0.0.1", false)
 	if got := ips(reply.Answer); len(got) != 1 || got[0] != "192.0.2.1" {

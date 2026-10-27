@@ -183,13 +183,13 @@ type step struct {
 // data about a name nobody asked for.
 func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Question, b *budget, seen *[]string) step {
 	now := r.now()
-	rk := rankOf(reply)
 	sets := groupAnswer(reply.Answer, q.Qclass)
 	var s step
 	current := name
 	for {
 		if rrs, ok := sets[keyOf(current, q.Qtype, q.Qclass)]; ok {
-			s.answer = append(s.answer, r.storeRRset(pol, rrs, rk, now)...)
+			// RFC 2181 Section 5.4.1
+			s.answer = append(s.answer, r.storeRRset(pol, rrs, rankOf(reply, current, name), now)...)
 			s.kind, s.rcode = stepDone, dns.RcodeSuccess
 			return s
 		}
@@ -204,7 +204,8 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 		if target == "" {
 			break
 		}
-		s.answer = append(s.answer, r.storeRRset(pol, rrs, rk, now)...)
+		// RFC 2181 Section 5.4.1
+		s.answer = append(s.answer, r.storeRRset(pol, rrs, rankOf(reply, current, name), now)...)
 		if !b.spendRestart() {
 			s.kind = stepFailed
 			return s

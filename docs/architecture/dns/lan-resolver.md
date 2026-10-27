@@ -156,7 +156,7 @@ SOA says the target is empty, the resolver asks again for the target.
 | TTL 0 | not cached |
 | Aging | a hit returns the records with the TTL left, in whole seconds; an expired entry is a miss |
 | Replace | a new RRset replaces the cached one whole, and is never merged with it (RFC 2181 Section 5.4) |
-| Rank | an answer from a reply with AA set outranks one without; a live entry of the higher rank is kept and the lower-ranked RRset ignored (RFC 2181 Section 5.4.1) |
+| Rank | the RRset owned by the name a reply was sought for, in a reply with AA set, outranks every other answer-section RRset; in an authoritative reply to an alias only the CNAME is authoritative, and the data at its target ranks as a non-authoritative answer; a live entry of the higher rank is kept and the lower-ranked RRset ignored (RFC 2181 Section 5.4.1) |
 | Bound | `cache size` entries; the least recently used entry is evicted to make room; 0 caches nothing |
 
 A forwarding upstream answers without AA, and RFC 2181 Section 5.2 lets a
@@ -170,6 +170,7 @@ of the chain is missing, the whole question is resolved again from the start.
 <!-- source: internal/plugins/dnsresolver/cache.go -- keyOf, rankOf, lru.put, lru.get, receivedTTL, resolver.lookup -->
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.storeRRset -->
 <!-- test: internal/plugins/dnsresolver/cache_test.go -- TestCacheTTLDecrement, TestCacheCaseFold, TestCacheReplaceNotMerge, TestTTLHighBit, TestCacheMaxTTL, TestTrustRanking -->
+<!-- test: internal/plugins/dnsresolver/rfc2181_resolver_test.go -- TestRFC2181LowerTrustNeverDisplacesHigher, TestRFC2181HigherTrustReplacesLower, TestRFC2181AliasTargetNotAuthoritative, TestRFC2181WholeSIGRRSet, TestRFC2181SectionSIGNotTheRRSet, TestRFC2181SectionSIGNotCached -->
 
 ## The negative cache
 
