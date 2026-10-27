@@ -626,7 +626,7 @@ addresses rather than different ports:
 
 ```
 le mock rtr --address 127.0.0.1 --port 3323 --vrp 10.0.0.0/8,24,65001 \
-    --refresh 1 --retry 1 --outage-after 1 --outage-release preferred.release
+    --refresh 1 --retry 1 --outage-start preferred.down --outage-release preferred.up
 le mock rtr --address 127.0.0.2 --port 3323 --vrp 10.0.0.0/8,24,65999 \
     --refresh 1 --retry 1
 ```
@@ -635,11 +635,14 @@ le mock rtr --address 127.0.0.2 --port 3323 --vrp 10.0.0.0/8,24,65999 \
 |------|---------|--------|
 | `--address` | `127.0.0.1` | IP address to listen on |
 | `--refresh`, `--retry` | 3600, 600 | Refresh and Retry Intervals in seconds, sent in End of Data |
-| `--outage-after N` | 0 (never) | Close the listener once N queries were answered, so the router's next connection is refused |
-| `--outage-release FILE` | none | Listen again on the same address and port once FILE exists. Required with `--outage-after` |
+| `--outage-start FILE` | none | Close the listener once FILE exists, so the router's next connection is refused |
+| `--outage-release FILE` | none | Listen again on the same address and port once FILE exists. The two outage flags go together |
 
-Creating the release file ends the outage, and the router fails back to the
-preferred cache at its Retry Interval. `le mock rtr help` prints every flag.
+The test writes the start file once it has seen the state it needs from the
+preferred cache, so the outage follows what the test observed rather than a
+clock. Creating the release file ends the outage, and the router fails back to
+the preferred cache at its Retry Interval. Each file is waited for at most 30
+seconds. `le mock rtr help` prints every flag.
 <!-- source: internal/test/mock/rtr/rtr.go -- Run, rtrMockOutage -->
 
 ## Testing RPKI Locally

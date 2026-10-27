@@ -48,8 +48,8 @@ func TestRTRMockASPAPDUWireFormat(t *testing.T) {
 
 // TestRTRMockRunRefusesWhatItCannotServe checks the words and flags Run answers without
 // serving: a lone help word prints the flags and succeeds, a stray word and an address that
-// is not an IP are refused, and an outage with no release file is refused. Each case returns,
-// so a case that started serving instead would hang the test.
+// is not an IP are refused, and an outage missing its start or its release file is refused.
+// Each case returns, so a case that started serving instead would hang the test.
 func TestRTRMockRunRefusesWhatItCannotServe(t *testing.T) {
 	cases := []struct {
 		args []string
@@ -58,7 +58,8 @@ func TestRTRMockRunRefusesWhatItCannotServe(t *testing.T) {
 		{[]string{"help"}, 0},
 		{[]string{"serve"}, 1},
 		{[]string{"--address", "localhost"}, 1},
-		{[]string{"--outage-after", "1"}, 1},
+		{[]string{"--outage-start", "start"}, 1},
+		{[]string{"--outage-release", "release"}, 1},
 	}
 	for _, c := range cases {
 		if got := Run(c.args); got != c.want {
@@ -67,9 +68,10 @@ func TestRTRMockRunRefusesWhatItCannotServe(t *testing.T) {
 	}
 }
 
-// TestRTRMockOutageClosesAndReopensOnTheSameAddress drives one outage: the first query is
-// answered through End of Data, the listener is then closed so a new connection is refused,
-// and once the release file exists the same address and port accept and answer again.
+// TestRTRMockOutageClosesAndReopensOnTheSameAddress drives one outage: queries are answered
+// through End of Data until the start file exists, the listener is then closed so a new
+// connection is refused, and once the release file exists the same address and port accept
+// and answer again.
 func TestRTRMockOutageClosesAndReopensOnTheSameAddress(t *testing.T) {
 	t.Parallel()
 	ln, err := rtrMockListen(netip.MustParseAddrPort("127.0.0.1:0"))
@@ -77,7 +79,8 @@ func TestRTRMockOutageClosesAndReopensOnTheSameAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	bound := ln.Addr().String()
-	release := filepath.Join(t.TempDir(), "release")
+	dir := t.TempDir()
+	start, release := filepath.Join(dir, "start"), filepath.Join(dir, "release")
 	cache := &rtrMockCache{serial: 7, refresh: 1, retry: 1}
 
 	type outcome struct {
@@ -86,12 +89,17 @@ func TestRTRMockOutageClosesAndReopensOnTheSameAddress(t *testing.T) {
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		again, outageErr := rtrMockOutage(ln, cache, 1, release)
+		again, outageErr := rtrMockOutage(ln, cache, start, release)
 		done <- outcome{again, outageErr}
 	}()
 
-	if serial := rtrMockQueryForTest(t, bound); serial != 7 {
-		t.Fatalf("End of Data serial = %d, want 7", serial)
+	for range 2 {
+		if serial := rtrMockQueryForTest(t, bound); serial != 7 {
+			t.Fatalf("End of Data serial = %d, want 7", serial)
+		}
+	}
+	if err := os.WriteFile(start, nil, 0o600); err != nil {
+		t.Fatal(err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {

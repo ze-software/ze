@@ -130,9 +130,10 @@ func Run(args []string) int {
 	syncRelease := fs.String("sync-release", "", "wait for this file before answering a query")
 	refresh := fs.Uint("refresh", 3600, "Refresh Interval in seconds, sent in End of Data")
 	retry := fs.Uint("retry", 600, "Retry Interval in seconds, sent in End of Data")
-	// An outage takes the cache down after it answered this many queries: the listener closes,
-	// so the router's next connection is refused, until the outage release file appears.
-	outageAfter := fs.Uint("outage-after", 0, "close the listener after answering this many queries (0 = never)")
+	// An outage is driven by files the test observer writes, never by a count or a clock, so the
+	// observer decides when the cache goes down from the state it has already seen: the listener
+	// closes once the start file exists, and listens again once the release file exists.
+	outageStart := fs.String("outage-start", "", "close the listener once this file exists")
 	outageRelease := fs.String("outage-release", "", "listen again once this file exists")
 
 	fs.Usage = func() {
@@ -140,9 +141,10 @@ func Run(args []string) int {
 			"Mock RTR cache server for RPKI testing. Every Reset Query and Serial Query is\n"+
 			"answered with the whole set: Cache Response, the --vrp and --aspa records, and\n"+
 			"End of Data carrying --serial, --refresh and --retry.\n\n"+
-			"An outage (--outage-after N --outage-release FILE) closes the listener once N\n"+
-			"queries were answered, so the router's next connection is refused, and listens\n"+
-			"again on the same address and port once FILE exists.\n\nFlags:\n")
+			"An outage (--outage-start START --outage-release RELEASE) closes the listener\n"+
+			"once START exists, so the router's next connection is refused, and listens again\n"+
+			"on the same address and port once RELEASE exists. Each file is waited for at\n"+
+			"most 30 seconds.\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -163,8 +165,12 @@ func Run(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: --address", *addressFlag, "is not an IP address:", err)
 		return 1
 	}
-	if *outageAfter > 0 && *outageRelease == "" {
-		fmt.Fprintln(os.Stderr, "error: --outage-after needs --outage-release, the file that ends the outage")
+	if *outageStart != "" && *outageRelease == "" {
+		fmt.Fprintln(os.Stderr, "error: --outage-start needs --outage-release, the file that ends the outage")
+		return 1
+	}
+	if *outageRelease != "" && *outageStart == "" {
+		fmt.Fprintln(os.Stderr, "error: --outage-release needs --outage-start, the file that begins the outage")
 		return 1
 	}
 	cache := &rtrMockCache{
@@ -184,8 +190,8 @@ func Run(args []string) int {
 	bound := ln.Addr().String()
 	fmt.Fprintln(os.Stderr, "le mock rtr: listening on", bound, "with", len(vrps), "VRPs,", len(aspas), "ASPAs")
 
-	if *outageAfter > 0 {
-		if ln, err = rtrMockOutage(ln, cache, *outageAfter, *outageRelease); err != nil {
+	if *outageStart != "" {
+		if ln, err = rtrMockOutage(ln, cache, *outageStart, *outageRelease); err != nil {
 			fmt.Fprintln(os.Stderr, "error: outage:", err)
 			return 1
 		}
@@ -196,24 +202,22 @@ func Run(args []string) int {
 	return 0
 }
 
-// rtrMockOutage serves on ln until the cache answered `after` queries, closes ln, waits for
-// the release file, and answers a new listener on the same address and port. The caller MUST
-// serve or close the listener it returns.
-func rtrMockOutage(ln net.Listener, cache *rtrMockCache, after uint, release string) (net.Listener, error) {
+// rtrMockOutage serves on ln until the start file exists, closes ln, waits for the release
+// file, and answers a new listener on the same address and port. The caller MUST serve or
+// close the listener it returns.
+func rtrMockOutage(ln net.Listener, cache *rtrMockCache, start, release string) (net.Listener, error) {
 	bound, err := netip.ParseAddrPort(ln.Addr().String())
 	if err != nil {
 		_ = ln.Close()
 		return nil, fmt.Errorf("listening address %s: %w", ln.Addr(), err)
 	}
-	// Each handler reports one answered query; the buffer holds the reports the outage
-	// counts, and a handler never blocks on a full buffer.
-	cache.answered = make(chan struct{}, after)
 	go rtrMockServe(ln, cache)
-	for range after {
-		<-cache.answered
+	if err := rtrMockWaitRelease(start); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("wait for the outage start %s: %w", start, err)
 	}
 	_ = ln.Close()
-	fmt.Fprintln(os.Stderr, "le mock rtr: down after", after, "answered queries, until", release, "exists")
+	fmt.Fprintln(os.Stderr, "le mock rtr: down until", release, "exists")
 	if err := rtrMockWaitRelease(release); err != nil {
 		return nil, fmt.Errorf("wait for the outage release %s: %w", release, err)
 	}
@@ -225,7 +229,7 @@ func rtrMockOutage(ln net.Listener, cache *rtrMockCache, after uint, release str
 }
 
 // rtrMockCache is what the mock answers every query with. Safe for concurrent use: the
-// handlers only read it, and answered is a channel.
+// handlers only read it.
 type rtrMockCache struct {
 	vrps        vrpList
 	aspas       aspaList
@@ -233,7 +237,6 @@ type rtrMockCache struct {
 	refresh     uint32
 	retry       uint32
 	syncRelease string
-	answered    chan struct{} // nil unless an outage counts the answered queries
 }
 
 func rtrMockListen(addrPort netip.AddrPort) (net.Listener, error) {
@@ -285,12 +288,6 @@ func rtrMockHandleConn(conn net.Conn, cache *rtrMockCache) {
 			}
 			if err := rtrMockSendResponse(conn, cache, clientVersion); err != nil {
 				return
-			}
-			if cache.answered != nil {
-				select {
-				case cache.answered <- struct{}{}:
-				default: // The outage has counted every report it waits for.
-				}
 			}
 		default:
 		}
