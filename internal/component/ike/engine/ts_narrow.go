@@ -74,7 +74,7 @@ type tsPair struct {
 //
 // A proposal that covers no floor pair falls through to the two branches below, and both
 // answer a set derived from the proposal alone. That set is NARROWER than the floor, and
-// this function does not refuse it. narrowChildSelectors does, and it is the only caller.
+// this function does not refuse it. narrowChildSelectorsIn does, and it is the only caller.
 // The refusal lives there because the transport-mode filter runs there and can drop a
 // pair as well.
 //
@@ -582,24 +582,11 @@ func netRange(n *net.IPNet) (start, end []byte) {
 	return start, end
 }
 
-// narrowChildSelectors narrows a received TSi/TSr pair against the peer's configured
-// policy and records the result on the SA.
-//
-// It is the single entry point every responder producer uses, so the two producers
-// (buildAuthResponse and startResponderEAP) cannot drift apart. A second producer that
-// skipped narrowing would leave the EAP path answering with the old wildcard.
-//
-// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA. It is
-// in the orientation of the exchange in hand, which respondChildRekey establishes before
-// it calls.
-//
-// It returns errTSUnacceptable when nothing is acceptable, and notifyForRefusal maps
-// that to the TS_UNACCEPTABLE notify RFC 7296 Section 2.9 asks for. A result that does
-// not cover the floor is one of those cases, so the answer this function records is
-// always a set the caller can install unchanged.
-//
-// It serves the IKE_AUTH exchange only, whose Child SA mode is the IKE_AUTH decision
-// (decidedChildMode). Every CREATE_CHILD_SA computes its own mode and calls
+// narrowChildSelectors is the IKE_AUTH form of narrowChildSelectorsIn: the Child SA it
+// narrows for installs the IKE_AUTH decision (decidedChildMode). Both IKE_AUTH responder
+// producers (buildAuthResponse and startResponderEAP) call it, so they cannot drift
+// apart; a second producer that skipped narrowing would leave the EAP path answering
+// with the old wildcard. Every CREATE_CHILD_SA computes its own mode and calls
 // narrowChildSelectorsIn with it: respondNewChild from its decision, respondChildRekey
 // from the rekey request and the retired Child SA.
 func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
@@ -618,9 +605,24 @@ func decidedChildMode(sa *SA) uint8 {
 	return modeTunnel
 }
 
-// narrowChildSelectorsIn is narrowChildSelectors for a Child SA that installs mode. The
-// substitution, the single-address filter and the cross-peer filter all judge the answer
-// in that mode, so the exchange's one decision gates all three.
+// narrowChildSelectorsIn narrows a received TSi/TSr pair against the peer's configured
+// policy and records the result on the SA, for a Child SA that installs mode.
+//
+// It is the single entry point every responder producer uses: IKE_AUTH through the
+// narrowChildSelectors wrapper and every CREATE_CHILD_SA directly, so no responder
+// path can answer without narrowing.
+//
+// The substitution, the single-address filter and the cross-peer filter all judge the
+// answer in mode, so the exchange's one decision gates all three.
+//
+// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA. It is
+// in the orientation of the exchange in hand, which respondChildRekey establishes before
+// it calls.
+//
+// It returns errTSUnacceptable when nothing is acceptable, and notifyForRefusal maps
+// that to the TS_UNACCEPTABLE notify RFC 7296 Section 2.9 asks for. A result that does
+// not cover the floor is one of those cases, so the answer this function records is
+// always a set the caller can install unchanged.
 func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mode uint8) error {
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
@@ -660,7 +662,7 @@ func narrowChildSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mo
 	// sa.IsInitiator true while this node responds. Orienting the policy by the IKE SA
 	// role there compared the local prefix against the peer's, found no intersection, and
 	// answered TS_UNACCEPTABLE to every rekey the peer started. The initiator's own
-	// adoption path is recordInitiatorSelectors below, which orients by true.
+	// adoption path is recordInitiatorSelectorsIn below, which orients by true.
 	narrowed, ok := narrowSelectors(proposedI, proposedR, policyPairs(sa.PeerCfg, false), floor)
 	if !ok {
 		return errTSUnacceptable
@@ -768,8 +770,17 @@ var errTSWidened = errors.New("ike: the responder answered with traffic selector
 // legal and simply outside what this backend can express.
 var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be adopted")
 
-// recordInitiatorSelectors stores the selectors a responder answered with. It first makes
-// sure the answer widened nothing.
+// recordInitiatorSelectors is the IKE_AUTH form of recordInitiatorSelectorsIn: the Child
+// SA it records for installs the IKE_AUTH decision (decidedChildMode), as
+// narrowChildSelectors does for the responder. adoptAuthResponseNegotiation calls it.
+// Every CREATE_CHILD_SA calls recordInitiatorSelectorsIn with the mode its own Child SA
+// installs.
+func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
+	return recordInitiatorSelectorsIn(sa, tsi, tsr, floor, decidedChildMode(sa))
+}
+
+// recordInitiatorSelectorsIn stores the selectors a responder answered with, for a Child
+// SA that installs mode. It first makes sure the answer widened nothing.
 //
 // RFC 7296 Section 2.9 lets the responder narrow, so the answer can be a strict subset of
 // what Ze proposed. The INITIATOR installs the answer rather than its own proposal, or
@@ -807,21 +818,14 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 // such a selector, because it is installed as the exact set of prefixes tiling it.
 //
 // floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA, exactly
-// as it is for narrowChildSelectors above. It is in the orientation of the exchange in
+// as it is for narrowChildSelectorsIn above. It is in the orientation of the exchange in
 // hand, which applyChildRekeyResponse (rekey.go) establishes before it calls. An answer
 // that does not cover it is refused, so the set this function records is always one the
 // caller can install unchanged.
 //
-// It serves the IKE_AUTH exchange only, whose Child SA mode is the IKE_AUTH decision
-// (decidedChildMode), as narrowChildSelectors does for the responder. Every
-// CREATE_CHILD_SA calls recordInitiatorSelectorsIn with the mode its own Child SA
-// installs.
-func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
-	return recordInitiatorSelectorsIn(sa, tsi, tsr, floor, decidedChildMode(sa))
-}
-
-// recordInitiatorSelectorsIn is recordInitiatorSelectors for a Child SA that installs
-// mode. The substitution and the one-pair refusal judge the answer in that mode.
+// The substitution and the one-pair refusal judge the answer in mode, so a
+// CREATE_CHILD_SA or rekey answer carrying two pairs for a transport Child SA is refused
+// here.
 func recordInitiatorSelectorsIn(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair, mode uint8) error {
 	// RFC 4301 Section 4.4.2: "the entry for an inbound SA in the SAD MUST be initially
 	// populated with the value or values negotiated at the time the SA was created".

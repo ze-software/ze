@@ -412,7 +412,7 @@ type SA struct {
 	// every conformant answer.
 	//
 	// The orientation is the LAST exchange's, not the IKE SA's. Every responder narrowing
-	// overwrites this field (narrowChildSelectors, ts_narrow.go). RFC 7296 Section 2.9
+	// overwrites this field (narrowChildSelectorsIn, ts_narrow.go). RFC 7296 Section 2.9
 	// makes TSi the selector of whoever STARTED the exchange, and Section 1.3.2 lets
 	// either end start a CREATE_CHILD_SA. A rekey the peer starts therefore leaves the
 	// peer's side as TSi here, on a tunnel this node initiated.
@@ -436,7 +436,7 @@ type SA struct {
 	// an initiator's Child SA proposal.
 	//
 	// RFC 7296 Section 2.9 lets a responder NARROW the proposal, and never widen it. This is
-	// therefore the ceiling for the answer (recordInitiatorSelectors, ts_narrow.go).
+	// therefore the ceiling for the answer (recordInitiatorSelectorsIn, ts_narrow.go).
 	// Without it the initiator installed whatever selectors came back. A hostile or buggy
 	// responder then chose the traffic Ze forwards into the tunnel.
 	//

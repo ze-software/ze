@@ -287,7 +287,7 @@ Section 5.1). `newPeerSession` hands it to the session, the session sets it on
 every SA it creates (`runInitiator`, the responder's `newResponderSA` site), an
 IKE-SA rekey copies it, and every Child SA built on the SA carries it with its
 peer's configured remote selectors (`innerSelectorGuard`), which a rekeyed
-Child SA inherits. `narrowChildSelectors` reads it to drop conflicting pairs,
+Child SA inherits. `narrowChildSelectorsIn` reads it to drop conflicting pairs,
 `installChildSA` checks and records under one mutex before any dataplane call
 and releases on a failed install, and `removeChildSAExcept`, the funnel every
 removal path reaches, releases before its nil-dataplane return. Same-peer pairs

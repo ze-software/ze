@@ -431,7 +431,7 @@ func respondNewChild(sa *SA, inner []wire.PayloadEntry, espGroup ipsec.ESPGroup,
 		ifID:     ifID,
 		tsLocal:  tsLocal,
 		tsRemote: tsRemote,
-		// The peer sent Ni here, so its side is TSi in the set narrowChildSelectors
+		// The peer sent Ni here, so its side is TSi in the set narrowChildSelectorsIn
 		// recorded, and this node's is TSr.
 		selectors:           sa.NegotiatedPairs,
 		selectorsLocalIsTSi: false,

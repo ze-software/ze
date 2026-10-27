@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md -- RFC 7296 Section 2.23.1 transport mode NAT traversal
 // Related: rekey.go -- respondChildRekey and applyChildRekeyResponse, the two rekey roles
-// Related: ts_narrow.go -- narrowChildSelectorsIn and recordInitiatorSelectors, gated on the exchange's mode
+// Related: ts_narrow.go -- narrowChildSelectorsIn and recordInitiatorSelectorsIn, gated on the exchange's mode
 // Related: ts_nat_substitute.go -- the substitution producers
 // VALIDATES: a transport-mode Child SA behind a NAT is rekeyed, in either role, on the
 // successor of a real IKE SA rekey with the RFC 7296 Section 2.23.1 address substitution

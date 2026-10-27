@@ -137,7 +137,7 @@ wire and the scope in the kernel are one value rather than two that agree by
 accident. It also takes that set's orientation from the exchange role: the end
 that sent Ni is TSi.
 
-`narrowChildSelectors` keeps the two as one set on the responder. It answers the scope in use
+`narrowChildSelectorsIn` keeps the two as one set on the responder. It answers the scope in use
 while the peer's proposal covers it, and it refuses the exchange with
 TS_UNACCEPTABLE when the narrowing does not cover that scope. Section 2.9.2
 leaves no third answer: "The responder MUST NOT narrow down the Traffic Selectors
@@ -148,7 +148,7 @@ carried the retired pair's set. The peer then programmed one policy and Ze
 programmed another, and traffic inside the difference was dropped at one end with
 no notification.
 
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, coversFloor -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectorsIn, coversFloor -->
 <!-- source: internal/component/ike/engine/rekey.go -- respondChildRekey, newRekeyedChild -->
 
 **The answer the INITIATOR reads.** The same Section 2.9 sentence binds the other

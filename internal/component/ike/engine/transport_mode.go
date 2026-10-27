@@ -189,7 +189,6 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted, childOffered bool, 
 			"peer", sa.PeerName, "fix", childResponseFixNoTS)
 		return false, wire.NotifyInvalidSyntax
 	}
-	//
 	// recordInitiatorSelectors judges the answer in the IKE_AUTH mode it reads back from
 	// sa.UseTransportMode, which the top of this function set from mode.
 	if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {

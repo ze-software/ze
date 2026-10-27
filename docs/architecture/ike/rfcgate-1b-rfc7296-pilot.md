@@ -36,7 +36,7 @@ for because no summary listed them:
   four-message IKE_SA_INIT and IKE_AUTH exchanges establishing two SAs (one for
   IKE, one for ESP or AH) (Section 4)
 
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors, recordInitiatorSelectors, checkAnswerWithin -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectorsIn, recordInitiatorSelectorsIn, checkAnswerWithin -->
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- TrafficSelectorPolicy, ValidateTrafficSelectors, validatePeerSelectors -->
 
 ## Decisions
@@ -50,14 +50,14 @@ both its halves in prefix, port and protocol (`pairWithinAny`), so an any/any
 scope in use is never answered to a TCP/80 proposal; that rekey is refused.
 
 **The initiator checks the answer, it does not trust it.**
-`recordInitiatorSelectors` and `checkAnswerWithin` reject a response whose
+`recordInitiatorSelectorsIn` and `checkAnswerWithin` reject a response whose
 selectors are wider than the proposal. `errTSWidened` is that refusal.
 
 **The initiator INSTALLS the answer, on a rekey as well as on IKE_AUTH.**
 Section 2.9 makes the response TS payloads the criteria for packets forwarded
 over the new SA, so the answer is what the initiator programs.
-`recordInitiatorSelectors` therefore takes the same rekey FLOOR that
-`narrowChildSelectors` takes, and `coversFloor` refuses an answer below the
+`recordInitiatorSelectorsIn` therefore takes the same rekey FLOOR that
+`narrowChildSelectorsIn` takes, and `coversFloor` refuses an answer below the
 scope in use: Section 2.9.2 binds the new SA, so it binds the end that installs
 one as much as the end that answers. `applyChildRekeyResponse`
 (`internal/component/ike/engine/rekey.go`) passes that floor and hands the
@@ -113,7 +113,13 @@ Two properties bound it:
   SA rekey transport only when the request carries USE_TRANSPORT_MODE and the
   retired Child SA runs transport (`respondChildRekey`), or the retired Child SA's
   mode on Ze's own rekey (`applyChildRekeyResponse`). No IKE SA flag is read, so a
-  Child SA rekey after an IKE SA rekey is judged exactly like one before it. The
+  Child SA rekey after an IKE SA rekey is judged exactly like one before it;
+  `real-nat-transport-rekey-after-ike-rekey` proves it against strongSwan behind a
+  real NAT, with Ze responding. `real-nat-transport-ze-initiator-rekey-after-ike-rekey`
+  runs the initiator half and proves only that it works over a real NAT: strongSwan's
+  answer already names Ze's own addresses, so it passes with the fix broken, and the
+  discriminating proof is
+  `TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys`. The
   single-address filter and the one-pair refusal share that gate. A transport
   request the responder declines (a pool-bound peer, or an operator who configured
   tunnel) narrows the real selectors, which is the tunnel-mode outcome Section
@@ -154,14 +160,14 @@ substitution is the identity.
 substitution and before the policy match.** For a responder SA that holds a
 lease from a remote-access pool, `substituteVirtualIP` narrows each proposed
 initiator selector that contains a leased host address to that host, inside
-`narrowChildSelectors`, so every caller of that entry point gets it: the direct
-and EAP IKE_AUTH, the childless path, and a CREATE_CHILD_SA or Child SA rekey the
-peer starts. The SPD match then judges the lease, and the narrowed TSi names it.
+`narrowChildSelectorsIn`, so every caller of that entry point gets it: the direct
+and EAP IKE_AUTH (through its `narrowChildSelectors` wrapper), the childless path,
+and a CREATE_CHILD_SA or Child SA rekey the peer starts. The SPD match then judges the lease, and the narrowed TSi names it.
 Two peers that request the same address therefore get two distinct remote
 selectors, which prevents the duplicate inner address RFC 3948 Section 5.1 warns
 of. A Child SA request Ze starts on that IKE SA, a new one or a rekey, proposes
 the lease host as the peer's side (`proposeLeasedChildTSPayloads`), and
-`answerNamesOnlyLeases`, called from `recordInitiatorSelectors`, refuses an
+`answerNamesOnlyLeases`, called from `recordInitiatorSelectorsIn`, refuses an
 answer whose peer side is anything but a lease host, whatever ceiling was
 recorded. A proposed selector
 that does not contain the lease of its family (read from the mask length, so an
@@ -181,7 +187,7 @@ them; at one value the second is refused.
 
 <!-- source: internal/component/ike/engine/cp.go -- substituteVirtualIP -->
 <!-- source: internal/component/ike/engine/inner_selectors.go -- dropForeignInnerOverlaps -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectorsIn -->
 
 ## Traps this code exists to avoid
 

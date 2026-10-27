@@ -253,7 +253,7 @@ func anyChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 // It also RECORDS what it proposed on the SA.
 //
 // RFC 7296 Section 2.9 lets the responder narrow the proposal, and never widen it.
-// recordInitiatorSelectors (ts_narrow.go) checks the answer against this record. A proposal
+// recordInitiatorSelectorsIn (ts_narrow.go) checks the answer against this record. A proposal
 // that is not recorded here is a ceiling the initiator cannot enforce. The producer writes
 // the record for that reason, rather than the consumer rebuilding it.
 func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
@@ -557,9 +557,10 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	//
 	// recordInitiatorSelectorsIn is the producer the IKE_AUTH initiator adopts an answer
 	// through as well (recordInitiatorSelectors, its IKE_AUTH form, called from
-	// adoptAuthResponseNegotiation in transport_mode.go). It refuses an answer wider than what ze proposed and an
-	// answer below the floor, so what it records is always installable unchanged. This path
-	// read no TS payload at all before, and inherited old.Selectors.
+	// adoptAuthResponseNegotiation in transport_mode.go). It refuses an answer wider than
+	// what ze proposed and an answer below the floor, so what it records is always
+	// installable unchanged. This path read no TS payload at all before, and inherited
+	// old.Selectors.
 	//
 	// It runs BEFORE the key derivation below, so a refused answer costs no keying.
 	//
@@ -831,7 +832,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// TSi/TSr orientation.
 	//
 	// The answer and the install are one set on every path that reaches here.
-	// narrowChildSelectors ran for THIS request and wrote sa.NegotiatedPairs, and that is
+	// narrowChildSelectorsIn ran for THIS request and wrote sa.NegotiatedPairs, and that is
 	// the value both the payloads below and newRekeyedChild are built from.
 	//
 	// A scope no TS payload can carry is refused rather than answered, as the IKE_AUTH
@@ -845,7 +846,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	}
 
 	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder, and the peer's
-	// side is TSi in the set narrowChildSelectors recorded.
+	// side is TSi in the set narrowChildSelectorsIn recorded.
 	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs, mode)
 	// RFC 4555 Section 3.3, RFC 3948 Section 2.1
 	child.takePeerTunnelAddress(sa)

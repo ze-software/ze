@@ -1679,13 +1679,24 @@ load-bearing:
   mid exchange, so a port-scoped rule would translate the handshake and drop the
   ESP that follows.
 
-Three scenarios use it, and they differ in one variable each. The two transport
+Three of the scenarios that use it differ in one variable each. The two transport
 scenarios differ in ROLE, because the substitution has two producers and a single
 scenario cannot fail on one of them. `real-nat-tunnel-control` differs from them in
 MODE, and it does two jobs: it proves the substitution stays out of tunnel mode, and
 it makes a red transport scenario readable, because a broken topology reds it too.
 Its selectors are INNER addresses the box never sees, which is the one selector pair
 in this lab a translation cannot move.
+
+Two more transport scenarios rekey across the box after an IKE SA rekey, one per
+role. `real-nat-transport-rekey-after-ike-rekey` has strongSwan rekey the IKE SA and
+then the transport Child SA, so Ze's responder judges a Child SA rekey on the
+successor IKE SA exactly as one before it. `real-nat-transport-ze-initiator-rekey-after-ike-rekey`
+has strongSwan rekey the IKE SA and Ze's own Child SA lifetime rekey the transport
+Child SA; it proves the working path only, because strongSwan's answer already names
+Ze's own addresses and the scenario passes with the fix broken. Its discriminating
+proof is the unit test
+`TestTransportChildRekeyAfterIKERekeySubstitutesBehindNAT/ze_rekeys`
+(`internal/component/ike/engine`).
 
 #### The port column and the rebind step
 

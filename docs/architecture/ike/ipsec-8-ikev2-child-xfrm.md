@@ -190,7 +190,7 @@ SA pair" (Section 3.13), so `ze config verify` refuses it
 
 **The initiator installs the answer exactly, or refuses it.** The responder's TS
 payloads are the negotiated values (RFC 4301 Section 4.4.2), so
-`recordInitiatorSelectors` reads them through `answerSelectors`, never through the
+`recordInitiatorSelectorsIn` reads them through `answerSelectors`, never through the
 responder's narrowing `wireToSelectors`. An answered address range that is not one
 prefix becomes the exact set of prefixes tiling it (`rangePrefixes`), one pair each,
 and an answer expanding past `answerPairsMax` (64) policies is refused. A port range
@@ -200,7 +200,7 @@ strongSwan answers for such a policy, has no exact form short of 64512 policies.
 neither dataplane can program (an OPAQUE port) refuses the whole answer rather than
 being dropped. A refusal is TS_UNACCEPTABLE on IKE_AUTH, a deleted pair on a creation,
 and a Delete for the new pair on a rekey. The responder installs what it answers
-(`narrowChildSelectors` sets `NegotiatedPairs`, which both `pairsToWire` and the
+(`narrowChildSelectorsIn` sets `NegotiatedPairs`, which both `pairsToWire` and the
 policies read), so its narrowing is never a gap between the ends.
 
 **An IKE_AUTH response that accepts a Child SA without naming its traffic is
@@ -219,11 +219,12 @@ pair (Linux limitation `LL-XFRM-STATE-ONE-SELECTOR`,
 `docs/architecture/linux-limitations.md`): RFC 4301 Section 5.2 requires such a
 packet to be discarded. Both negotiation ends therefore keep one pair. The
 responder narrows a transport-mode answer to its first pair
-(`oneTransportPair`, `narrowChildSelectors`), which RFC 7296 Section 2.9 permits
+(`oneTransportPair`, `narrowChildSelectorsIn`), which RFC 7296 Section 2.9 permits
 ("the responder arbitrarily chooses one of them") and which keeps the initiator's
 first choice the same section requires. The initiator refuses a transport-mode
-answer of several pairs (`recordInitiatorSelectors`, `errTSTransportPairs`): the
-IKE_AUTH path deletes the SA with TS_UNACCEPTABLE, a CREATE_CHILD_SA creation
+answer of several pairs (`recordInitiatorSelectorsIn`, `errTSTransportPairs`), on
+IKE_AUTH through its `recordInitiatorSelectors` wrapper and on every CREATE_CHILD_SA
+and rekey directly: the IKE_AUTH path deletes the SA with TS_UNACCEPTABLE, a CREATE_CHILD_SA creation
 deletes the pair and names the fix (`childResponseFixTransportPairs`), and a refused
 rekey keeps the Child SA in use. `inboundStateSelector` then copies
 the one inbound policy into the state, and refuses a transport-mode Child SA of
@@ -247,7 +248,7 @@ SAD data item Ze installs is asserted one item at a time in
 `internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
 
 <!-- source: internal/component/ike/engine/child.go -- installChildSA, childPolicies, inboundStateSelector -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, oneTransportPair, recordInitiatorSelectors, answerSelectors, answerPairs, rangePrefixes, crossPairs, closedSubset, pairsToWire -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, narrowChildSelectorsIn, oneTransportPair, recordInitiatorSelectors, recordInitiatorSelectorsIn, answerSelectors, answerPairs, rangePrefixes, crossPairs, closedSubset, pairsToWire -->
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- adoptAuthResponseNegotiation -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->

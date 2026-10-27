@@ -334,7 +334,7 @@ func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) 
 
 // proposeLeasedChildTSPayloads builds the TSi/TSr of a Child SA request this node sends on
 // a pool-bound peer's IKE SA, a rekey or a new Child SA, and records the proposal as the
-// ceiling recordInitiatorSelectors judges the answer against. This node sends Ni, so its
+// ceiling recordInitiatorSelectorsIn judges the answer against. This node sends Ni, so its
 // own side is TSi and the peer's side, the lease, is TSr.
 //
 // RFC 3948 Section 5.1: "Implementors MUST devise ways of preventing this from occurring."
@@ -350,8 +350,8 @@ func leaseHostIn(grant *virtualIPGrant, proposed *net.IPNet) (*net.IPNet, bool) 
 // stays held until the SA closes, so the second case is reachable. The wildcard is sent with
 // no recorded ceiling. With no lease, answerNamesOnlyLeases refuses every answer. With a
 // lease outside the configured prefixes, answerNamesOnlyLeases admits only an answer naming
-// that lease host, and the configured policy, which recordInitiatorSelectors falls back to
-// as the ceiling, refuses it, because no configured prefix contains it. Every answer is
+// that lease host, and the configured policy, which recordInitiatorSelectorsIn falls back
+// to as the ceiling, refuses it, because no configured prefix contains it. Every answer is
 // therefore refused.
 func proposeLeasedChildTSPayloads(sa *SA, pairs []tsPair) (*wire.PayloadTS, *wire.PayloadTS) {
 	leased := leasedProposalPairs(sa.leaseGrant(), pairs)

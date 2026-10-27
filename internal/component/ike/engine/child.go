@@ -1272,8 +1272,8 @@ func selectorPort(side tsSelector) dataplane.PortMatch {
 // limitation LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md), so the
 // state holds the negotiated values exactly only when exactly one pair was negotiated.
 // Both producers guarantee that in transport mode: the responder narrows to one pair
-// (narrowChildSelectors) and the initiator refuses an answer of several
-// (recordInitiatorSelectors, ts_narrow.go). Several policies here are therefore a Ze
+// (narrowChildSelectorsIn) and the initiator refuses an answer of several
+// (recordInitiatorSelectorsIn, ts_narrow.go). Several policies here are therefore a Ze
 // defect, refused rather than widened: a selector wider than the pairs would admit a
 // decrypted packet the SA never negotiated (RFC 4301 Section 5.2).
 func inboundStateSelector(policies []dataplane.SPParams) (*dataplane.SASelector, error) {

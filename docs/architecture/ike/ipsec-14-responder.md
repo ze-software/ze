@@ -280,7 +280,7 @@ substitution or single-address filter runs for the declined request.
 <!-- source: internal/component/ike/engine/transport_mode.go -- decideResponderTransportMode -->
 
 `substituteVirtualIP` narrows the peer's proposed inner selector to the lease
-in `narrowChildSelectors`, before the policy match, so the SPD lookup judges the
+in `narrowChildSelectorsIn`, before the policy match, so the SPD lookup judges the
 leased address and two peers proposing the same address get two distinct
 selectors (RFC 3948 Section 5.1). It keeps the lease only for a proposed TSi
 that contains it, of the same family read from the mask length, and drops the
@@ -318,7 +318,7 @@ INFORMATIONAL CFG_REQUEST also gets no CP: Section 2.20 allows "no CP payload"
 as the decline of a version request.
 
 <!-- source: internal/component/ike/engine/cp.go -- decideCPRequest, cpHandlers, assignVirtualIP, buildCFGReply, substituteVirtualIP, moveVirtualIP -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, narrowChildSelectorsIn -->
 <!-- source: internal/component/ike/engine/established.go -- adoptRekeyedIKESA -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- decideResponderTransportMode -->
 
