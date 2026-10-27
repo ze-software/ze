@@ -568,7 +568,11 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	// running only sleep, is the LAN host whose kdig and dhcpcd the checker
 	// drives (test/interop/Dockerfile.knot). dhcpcd needs NET_ADMIN to
 	// install its lease; NET_RAW, for its raw DHCP socket, is in Docker's
-	// default set. One that also carries unbound.conf puts Unbound between
+	// default set. dhcpcd's Linux if_init writes
+	// net.ipv4.conf.<if>.promote_secondaries unless it already reads 1, and
+	// /proc/sys is read-only in the container ("if_init_os: Read-only file
+	// system"), so the default the new eth0 inherits is set to 1 at start.
+	// One that also carries unbound.conf puts Unbound between
 	// ze and Knot (test/interop/Dockerfile.unbound). Readiness is the
 	// container's link; each checker waits for its first answer.
 	if path := filepath.Join(scenario, knotConfigFile); regularFile(path) {
@@ -576,7 +580,8 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			interoplab.PeerConfig{Name: peerKnot, Container: containerName(peerKnot, suffix), Image: peerKnot, Host: knotHostNumber,
 				Mounts: []interoplab.Mount{mount(path, "/etc/knot/knot.conf"), mount(filepath.Join(scenario, knotZoneFile), "/etc/knot/"+knotZoneFile)}, Ready: ready("ip", ipObjectLink)},
 			interoplab.PeerConfig{Name: peerDNSClient, Container: containerName(peerDNSClient, suffix), Image: peerKnot, Host: dnsClientHostNumber,
-				Capabilities: []string{capabilityNetAdmin}, Command: []string{"sleep", "infinity"}, Ready: ready("ip", ipObjectLink)})
+				Capabilities: []string{capabilityNetAdmin}, Arguments: []string{"--sysctl", "net.ipv4.conf.default.promote_secondaries=1"},
+				Command: []string{"sleep", "infinity"}, Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, unboundConfigFile); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerUnbound, Container: containerName(peerUnbound, suffix), Image: peerUnbound, Host: unboundHostNumber,
