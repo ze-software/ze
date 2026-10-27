@@ -975,7 +975,10 @@ const dirSendReceive = "send/receive"
 //   - capability: add-path { send true; receive true; } (direction)
 //   - neighbor: add-path { ipv4 unicast; ipv4 unicast limit 10; } (per-family + optional limit)
 //
-// Ze unified: capability { add-path { direction send/receive; family { ipv4/unicast { limit 10; } } } }.
+// Ze unified: capability { add-path { direction send/receive; family { ipv4/unicast { limit { receive 10; } } } } }.
+// ExaBGP's per-family limit is the receive request its OPEN advertises
+// (PATHS-LIMIT), and ExaBGP has no send-side limit, so only `receive` is
+// written. A family named without a limit gets no limit container.
 func migrateAddPathToUnified(srcCap, src, dstCap *config.Tree, hasCapabilities *bool) {
 	var direction string
 
@@ -1016,7 +1019,9 @@ func migrateAddPathToUnified(srcCap, src, dstCap *config.Tree, hasCapabilities *
 			entry := config.NewTree()
 			for _, p := range parts[2:] {
 				if n := parseLimit(p); n > 0 {
-					entry.Set("limit", p)
+					limit := config.NewTree()
+					limit.Set("receive", p)
+					entry.SetContainer("limit", limit)
 				}
 			}
 			familyBlock.SetContainer(famKey, entry)

@@ -370,12 +370,6 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 			buf.WriteString(dir)
 			buf.WriteString("\n")
 		}
-		if lim, ok := addPath.Get("limit"); ok {
-			buf.WriteString(indent)
-			buf.WriteString("\tlimit ")
-			buf.WriteString(lim)
-			buf.WriteString("\n")
-		}
 		serializeAddPathFamilies(addPath, buf, indent)
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
@@ -523,7 +517,9 @@ func serializeGroupValues(tree *config.Tree, buf *textbuf.Buffer, indent string)
 	}
 }
 
-// serializeAddPathFamilies writes the add-path family list block.
+// serializeAddPathFamilies writes the add-path family list block. A family
+// entry carries its leaves, then each of its containers with that container's
+// leaves (`limit { receive N; }`). The migration writes no deeper nesting.
 func serializeAddPathFamilies(addPath *config.Tree, buf *textbuf.Buffer, indent string) {
 	famBlock := addPath.GetContainer("family")
 	if famBlock == nil {
@@ -545,23 +541,38 @@ func serializeAddPathFamilies(addPath *config.Tree, buf *textbuf.Buffer, indent 
 			continue
 		}
 		subVals := sub.Values()
-		if len(subVals) > 0 {
-			buf.WriteString(" {\n")
-			for _, sv := range subVals {
-				v, _ := sub.Get(sv)
-				buf.WriteString(indent)
-				buf.WriteString("\t\t\t")
-				buf.WriteString(sv)
-				buf.WriteString(" ")
-				buf.WriteString(v)
-				buf.WriteString("\n")
-			}
-			buf.WriteString(indent)
-			buf.WriteString("\t\t}\n")
-		} else {
+		subContainers := sub.ContainerNames()
+		if len(subVals) == 0 && len(subContainers) == 0 {
 			buf.WriteString("\n") // no sub-keys, bare family entry
+			continue
 		}
+		buf.WriteString(" {\n")
+		serializeAddPathLeaves(sub, buf, indent+"\t\t\t")
+		for _, name := range subContainers {
+			buf.WriteString(indent)
+			buf.WriteString("\t\t\t")
+			buf.WriteString(name)
+			buf.WriteString(" {\n")
+			serializeAddPathLeaves(sub.GetContainer(name), buf, indent+"\t\t\t\t")
+			buf.WriteString(indent)
+			buf.WriteString("\t\t\t}\n")
+		}
+		buf.WriteString(indent)
+		buf.WriteString("\t\t}\n")
 	}
 	buf.WriteString(indent)
 	buf.WriteString("\t}\n")
+}
+
+// serializeAddPathLeaves writes each leaf of one add-path tree as
+// `<name> <value>`, one per line at the given indent.
+func serializeAddPathLeaves(tree *config.Tree, buf *textbuf.Buffer, indent string) {
+	for _, name := range tree.Values() {
+		value, _ := tree.Get(name)
+		buf.WriteString(indent)
+		buf.WriteString(name)
+		buf.WriteString(" ")
+		buf.WriteString(value)
+		buf.WriteString("\n")
+	}
 }
