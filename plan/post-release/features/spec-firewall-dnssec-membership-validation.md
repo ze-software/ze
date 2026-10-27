@@ -29,7 +29,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 
 - [ ] `plan/proposals/spec-fixit-dns-rfc1035-conformance.md` - the parent record and its Historical planning record
 - [ ] `docs/architecture/firewall/firewall-domain-group.md` - the domain-group design whose DNS-sourced membership this validation guards
-- [ ] `plan/post-release/features/spec-lan-dns-resolver.md` - designs the shared DNSSEC validator this spec would consume (its Q-1)
+- [ ] `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` - designs the shared DNSSEC validator this spec would consume (moved there from `spec-lan-dns-resolver` on 2026-10-27)
 
 ## Current Behavior
 
@@ -50,7 +50,7 @@ Resolver answer, then DNSSEC verdict, then the domain plugin's admit-or-retain-l
 Upstream resolver to the stub resolver; resolver to the firewall domain plugin.
 
 ### Integration Points
-The shared validator `spec-lan-dns-resolver` designs; the domain plugin's source-failure path.
+The shared validator `spec-dns-resolver-dnssec-validation` designs; the domain plugin's source-failure path.
 
 ## Wiring Test
 

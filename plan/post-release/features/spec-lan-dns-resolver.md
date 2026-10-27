@@ -2,34 +2,35 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release (the fttx-edge profile's LAN DNS resolver); existing supported behavior and its obligations remain required. |
-| RFC gaps | RFC2181-5.1-1, RFC2181-5.3.1-2, RFC2181-5.3.1-3, RFC2181-5.3.1-4, RFC2181-5.4.1-3, RFC2181-5.4.1-9, RFC2181-5.4.1-8, RFC4035-3-5, RFC4035-3.1.6-6, RFC4035-3.2.1-1, RFC4035-3.2.1-2, RFC4035-3.2.1-3, RFC4035-3.2.2-1, RFC4035-3.2.2-4, RFC4035-3.2.3-2, RFC4035-4.2-1, RFC4035-4.2-3, RFC4035-4.2-5, RFC4035-4.2-6, RFC4035-4.3-1, RFC4035-4.4-1, RFC4035-4.7-2, RFC4035-4.7-3, RFC4035-4.7-7, RFC4035-4.8-1, RFC4035-5-1, RFC4035-5-2, RFC4035-5-3, RFC4035-5.2-1, RFC4035-5.2-3, RFC4035-5.3.1-1, RFC4035-5.3.1-2, RFC4035-5.3.1-3, RFC4035-5.3.1-4, RFC4035-5.3.1-5, RFC4035-5.3.1-6, RFC4035-5.3.1-7, RFC4035-5.3.1-8, RFC4035-5.3.1-9, RFC4035-5.3.1-10, RFC4035-5.3.2-1, RFC4035-5.3.2-2, RFC4035-5.3.2-3, RFC4035-5.3.3-1, RFC4035-5.3.3-2, RFC4035-5.4-1, RFC4035-5.4-2, RFC4035-5.4-3, RFC4035-5.4-4, RFC4035-5.5-2, RFC4035-5.5-3 |
+| RFC gaps | RFC2181-5.1-1, RFC2181-5.3.1-2, RFC2181-5.3.1-3, RFC2181-5.3.1-4, RFC2181-5.4.1-3, RFC2181-5.4.1-9 |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
 | Updated | 2026-10-27 |
+| Approved | Session f3ae7c00, 2026-10-27: Thomas chose to run this spec; the design is settled by the RFC 1034, 1035, 2181, 2308 and 5452 text and the Unbound behaviour quoted below |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Owner decisions (blocking `ready`)
+## Owner decisions
 
-The design below is complete for both answers. Each row names what changes in
-this spec when it is answered; no other open question remains.
+One decision is open. It does not block this spec: every phase below is the
+same under both answers, so this spec is implemented now and only the
+recursion spec waits on it.
 
-| # | Decision | Options | Evidence | Recommended default |
-|---|----------|---------|----------|---------------------|
-| D-1 | Does local DNSSEC validation belong to this spec? | (a) Yes: every id in `RFC gaps` stays. The resolver is a security-aware, validating recursive server, as the previous draft had it (Phase 3, the `internal/core/dnssec` validator, the V-ACs, the RFC 4035 rows in `RFC gaps`). RFC 4033, 4034 and 4035 then come into fttx-edge scope. (b) No: this spec ships a caching resolver that is not security-aware (upstream queries carry EDNS0 with DO clear; DNSSEC record types are ordinary RRsets; AD never set). The validator, the V-ACs and the RFC 4035 rows move verbatim to a new spec `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`, which `spec-firewall-dnssec-membership-validation` would then depend on; every RFC4035 id and RFC2181-5.4.1-8 leave this spec's `RFC gaps` cell for the new spec's | The fttx-edge profile lists RFC 4033, 4034, 4035 and 8106 under `Optional use cases` only; RFC 1035, 2181, 2132 and 1877 under `Use cases` (the `Use cases` / `Optional use cases` rows of each `rfc/short/` summary). `rfc/short/rfc4034.md` Enrolment reason: "the owner ruled that DNSSEC is not urgent and lists RFC 4033 and RFC 4034 as optional only, never required, for the fttx-edge use case". Commit 5ff4834b67: "Owner decision: DNSSEC is not urgent." `ai/META-DECISIONS.md`: an optional RFC "counts toward the profile's percentage only once Thomas brings it into scope". There is no middle "DNSSEC-transparent but not validating" design: RFC 4035 Section 4.2, "A security-aware resolver MUST support the signature verification mechanisms described in Section 5", and setting DO upstream is what makes the resolver security-aware (Section 3.2.1) | (b). It matches the 2026-10-26 ruling, closes the two required RFCs first, and puts the validator in its own spec where both the resolver and the firewall consume it. Cost of (b), recorded as a Known Limitation: a validating stub on the LAN receives no RRSIGs through Ze until the validation spec lands |
-| D-2 | Which resolution modes does this spec ship? | (a) Forward to operator-named upstreams and full recursion from the root, forward first (the previous draft's recorded decision). (b) Forward only; recursion becomes its own spec | Neither RFC 1035, RFC 2181 nor the profile title ("local DNS for the LAN") requires either mode. Unbound recurses by default and forwards when a `forward-zone` is set; no rule in `ai/META-DECISIONS.md` decides it. Recursion is the larger half of the work (root hints, delegation walk, glue and bailiwick ranking, RFC2181-5.4.1-3 applies most strongly there), and under D-1 (a) it also carries RFC4035-4.2-5, 4.2-6 and 5.2-1 | (a), the recorded decision: the phases already keep forwarding shippable on its own (Phase 2), and recursion removes the dependency on an operator upstream |
+| # | Decision | Options | Evidence | Recommended default | Blocks this spec? |
+|---|----------|---------|----------|---------------------|-------------------|
+| D-2 | Does Ze also ship full recursion from the root, beside forwarding? | (a) Yes: `plan/post-release/features/spec-dns-resolver-recursion.md` runs after this spec. (b) No: that spec is withdrawn and forwarding is the only mode | Neither RFC 1035, RFC 2181 nor the profile title ("local DNS for the LAN") requires either mode. Unbound recurses by default and forwards when a `forward-zone` is set; no rule in `ai/META-DECISIONS.md` decides it | (a), ship it: recursion removes the dependency on an operator upstream | No |
 
 Questions the previous draft asked that a rule or the owner's brief now answers (not put to Thomas):
 
 | Former | Answer | Source |
 |--------|--------|--------|
-| Q-1: does this spec run before the DNS pause lifts | It runs: Thomas chose this spec to run for the fttx-edge profile on 2026-10-27. Whether the firewall spec consumes the validator is that spec's dependency, decided by D-1 | The main session's brief for this design pass |
-| Q-2: static trust anchors or RFC 5011 rollover (applies only under D-1 (a)) | Static anchors (the built-in root DS records, replaceable by config). RFC 4035 Section 4.4 asks for a robust boot-time mechanism with a SHOULD, and RFC 5011 has no summary and no profile lists it | `ai/META-DECISIONS.md`: optional requirements "are reported as a second figure and improved after mandatory coverage reaches 100%"; "no summary is written or enrolled for an RFC that no profile lists" |
+| Q-1: does this spec run before the DNS pause lifts | It runs: Thomas chose this spec to run for the fttx-edge profile on 2026-10-27. Whether the firewall spec consumes a validator is `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`'s concern | The main session's brief for this design pass |
+| D-1: does local DNSSEC validation belong to this spec | No, option (b): this resolver is not security-aware (upstream queries carry EDNS0 with DO clear, DNSSEC record types are ordinary RRsets, AD is never set). The validator, criteria V-1..V-15, the RFC 4035 rows, RFC2181-5.4.1-8 and the static-anchor answer to the former Q-2 moved to `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`, which runs only once Thomas brings DNSSEC into scope | The fttx-edge profile lists RFC 4033, 4034, 4035 and 8106 under `Optional use cases` only. `rfc/short/rfc4034.md` Enrolment reason: "the owner ruled that DNSSEC is not urgent and lists RFC 4033 and RFC 4034 as optional only, never required, for the fttx-edge use case". Commit 5ff4834b67: "Owner decision: DNSSEC is not urgent." `ai/META-DECISIONS.md`: an optional RFC "counts toward the profile's percentage only once Thomas brings it into scope" |
 
 ## Corrections made in the 2026-10-27 design pass
 
@@ -40,12 +41,12 @@ Each corrects a statement of the previous draft against source.
 | RFC 4035 is a root of the fttx-edge profile | Optional only; required DNS RFCs are 1035 and 2181 | `rfc/short/rfc4035.md` `Use cases` is `-`, `Optional use cases` is `fttx-edge` |
 | RFC 8106 is listed Absent, no summary | `rfc/short/rfc8106.md` exists, Implementation `ze`, optional for fttx-edge | its Meta rows |
 | "No RFC 1035 ... summary is written" (Known Limitations) | `rfc/short/rfc1035.md` exists, required for fttx-edge | its Meta rows |
-| RD=0 cache miss is resolved as RD=1, citing Unbound | Unbound's default `allow` action REFUSES every RD=0 query; only `allow_snoop` answers one from cache. Ze refuses RD=0 (AC-21) | `daemon/worker.c` `worker_handle_request`: "If this request does not have the recursion bit set, verify ACLs allow the snooping." then `acl != acl_allow_snoop` logs "refused nonrec (cache snoop) query from"; unbound.conf `allow`: "Non-recursive queries are refused."; RFC 1034 Section 4.3.1: "the name server should never perform recursive service unless asked via RD" |
+| RD=0 cache miss is resolved as RD=1, citing Unbound | Unbound's default `allow` action REFUSES every RD=0 query; only `allow_snoop` answers one from cache. Ze refuses RD=0 (AC-12) | `daemon/worker.c` `worker_handle_request`: "If this request does not have the recursion bit set, verify ACLs allow the snooping." then `acl != acl_allow_snoop` logs "refused nonrec (cache snoop) query from"; unbound.conf `allow`: "Non-recursive queries are refused."; RFC 1034 Section 4.3.1: "the name server should never perform recursive service unless asked via RD" |
 | `le mock dns` signed mode lives in `internal/le/mock/dns/register.go` and its handler files | That file only registers the command; the server is `internal/test/mock/dns/` (`server.go`, `zone.go`) | `gopls symbols` on both |
 | The L2TP subscriber scenario uses "the existing L2TP lab image" in the main interop suite | The L2TP lab is its own suite: `test/interop-l2tp/scenarios/`, checkers in `internal/le/interoplab/l2tp/l2tp.go` `scenarioCheckerMap`, run by `./le test deployment l2tp-ppp` | `docs/architecture/testing/interop.md` "The suites"; `internal/le/interoplab/l2tp/register_catalog.go` |
 | `test/plugin/dns-resolver-dhcp-lan.ci` proves the DHCP story | No `.ci` harness acts as a DHCP client against Ze's DHCP server, and no interop scenario does either (no `udhcpc`, `dhclient` or `dhcpcd` under `internal/le` or `test/interop*`). The story moves to interop scenario `dns-resolver-dhcp-lan` with a client container | grep over `internal/le/interoplab`, `internal/le/test`, `test/interop*/scenarios` |
 | The `.ci` tests can send queries with chosen header bits | No query client exists in `le` or `ze` (no `dns.Client` outside the stub resolver); the stub prints records and RCODE, not header bits. A harness tool `le dns query` is created | grep for `dns.Client` and `Exchange(` under `internal/le` and `cmd` |
-| `dns.Client` drops a reply that does not match the query | It drops a mismatched ID on UDP and the connected socket filters the source; it never compares the question. RFC 5452 Section 9.1 also requires matching name, class and type, so the resolver checks the question itself (AC-25) | `vendor/github.com/miekg/dns/client.go` `exchange`, the `r.Id == m.Id` loop |
+| `dns.Client` drops a reply that does not match the query | It drops a mismatched ID on UDP and the connected socket filters the source; it never compares the question. RFC 5452 Section 9.1 also requires matching name, class and type, so the resolver checks the question itself (AC-18) | `vendor/github.com/miekg/dns/client.go` `exchange`, the `r.Id == m.Id` loop |
 | RFC2181-5.1-1 is not this spec's | The resolver is a name server that must mark a reply whose RRset does not fit; the harness `send` already calls `Msg.Truncate` on datagram replies, so the resolver's test proves the row for the resolver and the row's annotation (which still says the harness never truncates) is rewritten with it | `internal/core/dnsserver/handler.go` `send`; `rfc/short/rfc2181.md` RFC2181-5.1-1 |
 | Data flow: `OnConfigure` parses and applies | The DNS plugins run the config transaction: `OnConfigure` parses, `OnConfigVerify` verifies, `OnConfigApply` applies, `OnConfigRollback` restores | `internal/plugins/as112/config_tx.go` |
 
@@ -62,9 +63,12 @@ item 5 names the LAN DNS resolver as one of the fttx-edge gaps.
 
 Goal: Ze serves customer LANs (subscriber sessions over L2TP, and DHCP-addressed
 LAN segments) as a caching resolver, answering only on the addresses and to the
-source prefixes the operator names, in the modes D-2 settles, with the DNSSEC
-posture D-1 settles. The address it serves on is what Ze already advertises
-through DHCPv4 option 6, the RA RDNSS option, and IPCP Primary/Secondary DNS.
+source prefixes the operator names, by forwarding to the upstreams the
+operator names. It is not security-aware: DNSSEC validation is
+`plan/post-release/features/spec-dns-resolver-dnssec-validation.md`, and full
+recursion is `plan/post-release/features/spec-dns-resolver-recursion.md` (D-2).
+The address it serves on is what Ze already advertises through DHCPv4 option 6,
+the RA RDNSS option, and IPCP Primary/Secondary DNS.
 
 No existing spec covers a resolver: `./le spec status` and a search of every
 work-item folder for "resolver", "recursive" and "unbound" find only the stub
@@ -78,23 +82,22 @@ resolver's own work and the paused DNS specs named below.
 | RFC 2181 | required | `rfc/short/rfc2181.md` (exists) | ze | RRset handling, data ranking, TTL; rows in `RFC gaps` become applicable |
 | RFC 2132 | required | `rfc/short/rfc2132.md` (exists) | ze | option 6 advertisement, existing code |
 | RFC 1877 | required | `rfc/short/rfc1877.md` (exists) | ze | IPCP DNS advertisement, existing code |
-| RFC 4035 | optional | `rfc/short/rfc4035.md` (exists) | ze | only under D-1 (a) |
-| RFC 4034 | optional | `rfc/short/rfc4034.md` (exists, not enrolled) | ze | only under D-1 (a): record formats the validator parses |
+| RFC 4035 | optional | `rfc/short/rfc4035.md` (exists) | ze | not this spec: its Support coverage text records the resolver's non-security-aware posture; validation is `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` |
+| RFC 4034 | optional | `rfc/short/rfc4034.md` (exists, not enrolled) | ze | not this spec: the record formats the validator parses (`plan/post-release/features/spec-dns-resolver-dnssec-validation.md`) |
 | RFC 4033 | optional | `rfc/short/rfc4033.md` (exists) | foundation | terms only |
 | RFC 8106 | optional | `rfc/short/rfc8106.md` (exists) | ze | RDNSS advertisement, existing code; no row changes |
 
 Every listed RFC has a summary, so no summary is written. RFCs the design reads
 but no profile lists, so no summary is written for them and their tests carry
 no RFC tag: RFC 1034 (resolver algorithm, RD semantics), RFC 2308 (negative
-caching), RFC 5452 (forgery countermeasures), RFC 6891 (EDNS0), RFC 5155
-(NSEC3, D-1 (a) only). Their texts are under `rfc/full/` (1034 and 5452 added
-in this pass).
+caching), RFC 5452 (forgery countermeasures) and RFC 6891 (EDNS0). Their texts
+are under `rfc/full/` (1034 and 5452 added in the 2026-10-27 pass).
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/system-plugins.md`, `ai/doors/core.md` - the doors for a new system plugin and a new `internal/core` package
-  → Constraint: every plugin here can run in another process; the resolver reaches nothing but its own state, `internal/core/dnsserver`, and (D-1 (a)) `internal/core/dnssec`. It owns its commands, YANG, doctor checks and help in its own folder
+  → Constraint: every plugin here can run in another process; the resolver reaches nothing but its own state and `internal/core/dnsserver`. It owns its commands, YANG, doctor checks and help in its own folder
   → Constraint: a plugin that owns config and registers no `OnConfigApply` refuses every commit (`pkg/plugin/sdk/sdk_callbacks.go` `refuseConfigApply`); a nil parsed config must not be read as "nothing to apply"
 - [ ] `docs/architecture/dns/server-harness.md` - the shared listener, the enforced answer shape, bind policy
   → Constraint: `Authoritative` owns the single `WriteMsg` and re-asserts `shapeAuthoritative` (AA unless RCODE 5, RA=0, Z=0, AD=0, Compress=false) after the answer function; a resolver cannot use it. A second wrapper `Recursive` in the same package owns the recursive shape the same way (answer function gets `Peer`, never the `ResponseWriter`)
@@ -114,16 +117,16 @@ in this pass).
 - [ ] `ai/rules/goroutine-lifecycle.md`
   → Constraint: no goroutine per query or per upstream exchange. The resolution runs on the request goroutine miekg's server already gives each query; upstream exchanges are sequential within one resolution; in-flight coalescing parks waiters on a channel owned by the first resolution; cache expiry and rate-limit buckets are swept by one long-lived worker started at plugin start
 - [ ] `rfc/profiles/fttx-edge.md` and the profile rows of each summary
-  → Decision: required: rfc1035, rfc2181 (resolver behavior), rfc2132, rfc1877 (advertisement, existing); optional: rfc4033, rfc4034, rfc4035, rfc8106. D-1 decides whether the optional DNSSEC set enters this spec
+  → Decision: required: rfc1035, rfc2181 (resolver behavior), rfc2132, rfc1877 (advertisement, existing); optional: rfc4033, rfc4034, rfc4035, rfc8106. The optional DNSSEC set stays out of this spec (D-1, answered (b))
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc1035.md` - DNS
   → Constraint: no RFC 1035 row is closed by this spec (all met or the paused zone transfer); the resolver's new producer must still meet 2.3.3-1, 3.1-5 (case-insensitive compare, applies to the cache key), 4.1.1-1 (Z zero), 4.1.1-2 (AA meaning: AA=0 on every resolver reply), 4.1.4-5 (pointers understood), 4.2.1-1/2 (UDP bound and TC), 4.2.1-3/4.2.2-1 (port 53, TCP length prefix), 6.4-1 (Not Implemented), and each tagged test for those rows gains a resolver-side case with a discrimination record
 - [ ] `rfc/short/rfc2181.md` - DNS clarifications
-  → Constraint: 5.3.1-2/3/4, 5.4.1-3 and 5.4.1-9 are `{not-applicable}` because Ze is "authoritative plus a stub resolver only"; a caching resolver makes each applicable. Under D-1 (b) RRSIG is an ordinary type the resolver caches and returns when asked, so 5.3.1-2/3/4 still bind; 5.4.1-8 ("When DNS security ... is in use") is conditional on validation and is rewritten `excluded-kind: feature-out-of-scope` under (b), closed under (a)
+  → Constraint: 5.3.1-2/3/4, 5.4.1-3 and 5.4.1-9 are `{not-applicable}` because Ze is "authoritative plus a stub resolver only"; a caching resolver makes each applicable. This resolver is not security-aware, so RRSIG is an ordinary type it caches and returns when asked, and 5.3.1-2/3/4 still bind. 5.4.1-8 ("When DNS security ... is in use") is conditional on validation: this spec rewrites its annotation `excluded-kind: feature-out-of-scope`, and `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` closes it
   → Constraint: 5.1-1 (TC when the RRset does not fit) gains the resolver case and its stale annotation is rewritten; 5.4-1/5.4-2 (replace RRsets, never merge) and section 8 (TTL 0..2147483647) gain resolver cases
-- [ ] `rfc/short/rfc4035.md` - DNSSEC protocol modifications (D-1 (a) only)
-  → Constraint: every recursive-server and validator row is `{not-applicable: ze's DNS servers never recurse ...}` or `{not-applicable: ze runs no local validator ...}` today; under (a) each listed in `RFC gaps` becomes a tagged, discriminated test and its annotation is rewritten; under (b) those rows stay as they are and the resolver's own non-security-aware posture is added to the summary's Support coverage text
+- [ ] `rfc/short/rfc4035.md` - DNSSEC protocol modifications
+  → Constraint: every recursive-server and validator row is `{not-applicable: ze's DNS servers never recurse ...}` or `{not-applicable: ze runs no local validator ...}` today; those rows stay as they are, the resolver's non-security-aware posture is added to the summary's Support coverage text, and the rows the validator closes are `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`'s `RFC gaps`
   → Constraint: RFC4035-3-1 and RFC4035-3-2 (EDNS0 on the name server, at least 1220 octets) are open `{gap}` rows on the shipped authoritative servers; they are not claimed here, but the resolver listener meets both from its first commit
 - [ ] `rfc/short/rfc2132.md`, `rfc/short/rfc1877.md`, `rfc/short/rfc8106.md` - how the address is advertised
   → Constraint: advertisement already exists (DHCPv4 option 6 `dns-server` leaf-list in `ze-dhcp-server-conf.yang`; RA `rdnss` container in `ze-iface-conf.yang`; IPCP 129/131 via the L2TP pool's `dns-primary` / `dns-secondary` in `ze-l2tp-pool-conf.yang`); this spec adds no advertisement code
@@ -131,8 +134,8 @@ in this pass).
 **Key insights:**
 - Ze has three producers that advertise a resolver address and no resolver behind any of them.
 - The harness forbids recursion by construction; the resolver needs a second shaping wrapper, not a flag on the first.
-- Only RFC 1035 and 2181 are required; all DNSSEC RFCs are optional for fttx-edge, so D-1 decides the validator's home.
-- `github.com/miekg/dns` v1.1.73 (vendored) supplies the codec, the client and, for D-1 (a), the DNSSEC primitives (`RRSIG.Verify` covers RSASHA1, RSASHA256, RSASHA512, ECDSAP256SHA256, ECDSAP384SHA384, ED25519), but no validator, no chain building and no iterative resolver.
+- Only RFC 1035 and 2181 are required; all DNSSEC RFCs are optional for fttx-edge, so the validator has its own spec.
+- `github.com/miekg/dns` v1.1.73 (vendored) supplies the codec and the client, but no iterative resolver and no validator.
 - Unbound is the reference for every point the RFCs leave open; each deciding function or documented default is quoted in Key Design Decisions.
 
 ## Current Behavior (MANDATORY)
@@ -169,22 +172,20 @@ in this pass).
 - Wire: a DNS query (UDP or TCP, port 53 by default) from a LAN host or subscriber to a configured listener address.
 
 ### Transformation Path
-1. Config transaction: `OnConfigure` parses the section into a candidate; `OnConfigVerify` refuses wildcard listeners, an empty `allow-from`, an empty forward list in forward mode, and (D-1 (a)) a malformed trust anchor; `OnConfigApply` publishes the candidate as the atomic state snapshot (allow matcher, mode, upstreams or root hints, limits, cache bounds) and reconciles listeners through `Manager.ApplyWithSecure` (lenient at boot, strict on reload); `OnConfigRollback` restores the previous snapshot.
+1. Config transaction: `OnConfigure` parses the section into a candidate; `OnConfigVerify` refuses wildcard listeners, an empty `allow-from` and an empty forward list; `OnConfigApply` publishes the candidate as the atomic state snapshot (allow matcher, mode, upstreams, limits, cache bounds) and reconciles listeners through `Manager.ApplyWithSecure` (lenient at boot, strict on reload); `OnConfigRollback` restores the previous snapshot.
 2. A query reaches `dnsserver.Recursive`: non-QUERY opcode draws Not Implemented; otherwise the recursive shape (QR, RA=1, AA=0, Z=0, CD copied) is applied and the resolver's answer function is called with `Peer`.
-3. Answer function: ACL by packet source through `Matcher` (miss: REFUSED, counted, no upstream query); per-source rate limit (over the limit: dropped, 1 in 10 passed); RD=0: REFUSED; QDCOUNT not 1: FORMERR; then cache lookup keyed by lower-cased name, type and class (and, D-1 (a), the CD bit).
-4. Cache miss: join an identical in-flight resolution if one exists, otherwise start one if the outstanding-resolution bound allows (else drop); forward mode queries the upstream list in order with failover; recursive mode walks delegations from root hints. Every upstream exchange uses a fresh ephemeral source port and a random ID, EDNS0 OPT advertising 1232, DO clear under D-1 (b) and DO=1 CD=1 under (a); a reply is accepted only if ID, question name (case-insensitive), class and type match; TC=1 retries over TCP. The whole resolution runs inside the per-query budget (upstream queries, CNAME restarts, deadline).
-5. Ranking and bailiwick: records outside the zone being asked are dropped; answer-section data outranks authority and additional data (RFC 2181 Section 5.4.1); glue is used to reach servers, never returned as an answer.
-6. (D-1 (a) only) Validation through `internal/core/dnssec`: chain from the configured anchor through DS and DNSKEY to the signer; outcome secure, insecure, bogus or indeterminate; NSEC or NSEC3 denial for negative answers.
-7. Cache insert: whole RRsets replaced, never merged; positive TTL capped at `cache max-ttl`; NXDOMAIN cached by name and class, NODATA by name, type and class, for min(SOA TTL, SOA MINIMUM) capped at `cache max-negative-ttl`; timeouts and SERVFAIL never cached as negative; (a) bogus results to a BAD cache with a fixed 60 s TTL.
-8. Reply: answer with TTLs decremented by time in cache; AD never set under (b); under (a) bogus with CD=0 draws SERVFAIL, AD set iff secure and the query had DO or AD, DNSSEC RRs stripped when DO=0 unless asked for; the harness bounds UDP size, sets TC, and writes once.
+3. Answer function: ACL by packet source through `Matcher` (miss: REFUSED, counted, no upstream query); per-source rate limit (over the limit: dropped, 1 in 10 passed); RD=0: REFUSED; QDCOUNT not 1: FORMERR; then cache lookup keyed by lower-cased name, type and class.
+4. Cache miss: join an identical in-flight resolution if one exists, otherwise start one if the outstanding-resolution bound allows (else drop); query the upstream list in order with failover. Every upstream exchange uses a fresh ephemeral source port and a random ID, and an EDNS0 OPT advertising 1232 with DO clear; a reply is accepted only if ID, question name (case-insensitive), class and type match; TC=1 retries over TCP. The whole resolution runs inside the per-query budget (upstream queries, CNAME restarts, deadline).
+5. Ranking and bailiwick: records outside the zone being asked are dropped; answer-section data outranks authority and additional data (RFC 2181 Section 5.4.1); additional-section data is never returned as an answer.
+6. Cache insert: whole RRsets replaced, never merged; positive TTL capped at `cache max-ttl`; NXDOMAIN cached by name and class, NODATA by name, type and class, for min(SOA TTL, SOA MINIMUM) capped at `cache max-negative-ttl`; timeouts and SERVFAIL never cached as negative.
+7. Reply: answer with TTLs decremented by time in cache; AD never set; the harness bounds UDP size, sets TC, and writes once.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config to plugin | YANG `service dns-resolver`, SDK config transaction callbacks | No |
 | Plugin to harness | `dnsserver.New` + `dnsserver.Recursive` answer function, `Options.UDPSize`, `ApplyWithSecure` | No |
-| Plugin to validator (D-1 (a)) | `internal/core/dnssec` Go API (core package, no plugin import) | No |
-| Ze to upstream / authorities | UDP and TCP DNS from an ephemeral, per-exchange source port with a random ID | No |
+| Ze to upstreams | UDP and TCP DNS from an ephemeral, per-exchange source port with a random ID | No |
 | CLI to plugin | `show dns-resolver`, `clear dns-resolver cache all` registered RPCs | No |
 
 ### Integration Points
@@ -197,7 +198,7 @@ in this pass).
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | No | to prove: query path only through `Recursive`; config only through the transaction callbacks |
-| No unintended coupling (components stay isolated) | No | to prove: plugin imports `internal/core/dnsserver` (and `internal/core/dnssec` under D-1 (a)) only; no import of `geodns`, `as112` or `component/resolve` |
+| No unintended coupling (components stay isolated) | No | to prove: plugin imports `internal/core/dnsserver` only; no import of `geodns`, `as112` or `component/resolve` |
 | No duplicated functionality (extends existing, does not recreate) | No | to prove: listener lifecycle, ACL matcher, opcode check, UDP bound reused from the harness; codec and client from miekg |
 | Zero-copy preserved where applicable (refs, not copies) | No | cache stores parsed RRsets once; reply assembly copies RR pointers with a TTL rewrite on a per-reply copy of the header fields only |
 | Registration over hardcoding, outbound | No | plugin registers via `init()`; commands via YANG `ze:command`; doctor checks via `DoctorChecks` |
@@ -212,28 +213,24 @@ in this pass).
 | `dns-resolver enabled` | boolean | false | - | serve or not |
 | `dns-resolver listener <name>` | list, `uses zt:listener` (ip, port) | port 53 | at least one when enabled; ip not `0.0.0.0` or `::` | where to answer |
 | `dns-resolver allow-from` | leaf-list of IPv4 or IPv6 prefix | none | at least one when enabled | source prefixes answered |
-| `dns-resolver mode` | enum `forward`, `recursive` (D-2 (b): `forward` only, leaf absent) | `forward` | - | resolution mode |
+| `dns-resolver mode` | enum `forward` (`plan/post-release/features/spec-dns-resolver-recursion.md` adds `recursive`) | `forward` | - | resolution mode |
 | `dns-resolver forward server <ip>` | list keyed by IP, leaf `port` | port 53 | 1..8 entries, required in forward mode | upstreams, tried in configured order |
-| `dns-resolver recursive root-hint <name>` | list, leaves `ipv4`, `ipv6` | absent: built-in IANA root hints | 1..13 entries | override the root for a lab (D-2 (a) only) |
 | `dns-resolver cache size` | uint32 entries | 100000 | 0..10000000; 0 disables caching | answer-cache bound, LRU eviction |
 | `dns-resolver cache max-ttl` | uint32 s | 86400 | 0..2147483647 | positive TTL cap (Unbound `cache-max-ttl` default) |
 | `dns-resolver cache max-negative-ttl` | uint32 s | 3600 | 0..2147483647 | negative TTL cap (Unbound `cache-max-negative-ttl` default) |
 | `dns-resolver timeout` | uint8 s | 10 | 1..60 | whole-resolution deadline; SERVFAIL after it |
 | `dns-resolver limit outstanding` | uint32 | 2048 | 1..65535 | concurrent resolutions; beyond it a new query is dropped (Unbound `num-queries-per-thread` libevent default and behavior) |
 | `dns-resolver limit per-client-rate` | uint32 qps | 0 (off) | 0..1000000 | per-source query rate; excess dropped, 1 in 10 let through (Unbound `ip-ratelimit` default 0, `ip-ratelimit-factor` default 10) |
-| `dns-resolver dnssec validation` | enum `on`, `off` | `on` | D-1 (a) only | validate or pass through |
-| `dns-resolver dnssec trust-anchor` | leaf-list of DS presentation strings | built-in root DS for key tags 20326 and 38696 | D-1 (a) only; 1..16 | replace the built-in anchors |
 
 Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 `max-sent-count` default 32) and 11 CNAME restarts (Unbound
-`max-query-restarts` default 11); upstream EDNS buffer 1232; BAD-cache TTL 60 s
-(D-1 (a); Unbound `val-bogus-ttl` default 60).
+`max-query-restarts` default 11); upstream EDNS buffer 1232.
 
 ### Commands `ze-dns-resolver-cmd.yang`
 
 | Command | Output |
 |---------|--------|
-| `show dns-resolver` | listeners and their state, mode, upstreams or root-hint source, limits, cache entries (answer, negative, and under (a) BAD), hit rate, refused, rate-limited and dropped counts, upstream query outcomes; under (a) anchor key tags and validation outcome counts. Through `ApplyPipes`, JSON keys kebab-case |
+| `show dns-resolver` | listeners and their state, mode, upstreams, limits, cache entries (answer, negative), hit rate, refused, rate-limited and dropped counts, upstream query outcomes. Through `ApplyPipes`, JSON keys kebab-case |
 | `clear dns-resolver cache all` | empties every resolver cache; bare `clear dns-resolver cache` is refused with the keyword to add, as `clear dns cache` is |
 
 ### Harness tool `le dns query` (new, test infrastructure)
@@ -249,37 +246,37 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 
 `le mock dns` gains `--log-queries` (one stderr line per query received, so a
 `.ci` can assert that no upstream query was sent) and `--delay <ms>` /
-`--drop` per name (timeout and slow-upstream tests); under D-1 (a) also
-`--signed` (generate a key, sign the zone, print the DS), `--tamper-rrsig` and
-`--strip-rrsig`.
+`--drop` per name (timeout and slow-upstream tests).
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | (D-1 (a)) miekg/dns `RRSIG.Verify` covers the algorithms the root and TLDs use | `vendor/github.com/miekg/dns/dnssec.go` `Verify` switch lists RSASHA1, RSASHA1NSEC3SHA1, RSASHA256, RSASHA512, ECDSAP256SHA256, ECDSAP384SHA384, ED25519 | a missing algorithm must be treated as insecure (RFC 4035 Section 5.2), never bogus | unit test per algorithm with keys generated by miekg | partly read at source |
 | A-2 | The listener conflict check refuses the resolver on an address and port geodns or as112 already binds, with no edit to `listener.go` | `DiscoverListenerServices` walks every `zt:listener` user | two services race for port 53 | functional test `dns-resolver-listener-conflict.ci` | unvalidated |
 | A-3 | An L2TP subscriber reaches a resolver bound on an LNS loopback or gateway address; binding per ppp interface is not needed | subscriber sessions are dynamic interfaces; IPCP hands out an address, not an interface | per-session binding needed; ACL by source prefix still holds | interop `dns-resolver-l2tp-subscriber` | unvalidated |
-| A-4 | Spoofed replies are rejected: fresh ephemeral port and random ID per exchange, source filtered by the connected UDP socket, mismatched ID skipped; the question is NOT checked by miekg | `vendor/github.com/miekg/dns/client.go` `exchange` (read) | cache poisoning by off-path spoofing | unit test injecting a mismatched ID, a mismatched question, and a reply from another source | read at source; question check is resolver code (AC-25) |
-| A-5 | (D-1 (a)) The host clock is close enough for RRSIG validity windows at boot | NTP client plugin (`internal/plugins/ntp`) | every signed answer bogus until sync | R-3 mitigation test | unvalidated |
-| A-6 | (D-1 (a)) NSEC3 denial proofs are needed for correct operation (`.com` and most TLDs use NSEC3) and need no summary | real zones; the summary freeze applies to summaries, not code | every unsigned delegation under an NSEC3 parent bogus, a logic defect | interop zone signed with NSEC3 | unvalidated |
+| A-4 | Spoofed replies are rejected: fresh ephemeral port and random ID per exchange, source filtered by the connected UDP socket, mismatched ID skipped; the question is NOT checked by miekg | `vendor/github.com/miekg/dns/client.go` `exchange` (read) | cache poisoning by off-path spoofing | unit test injecting a mismatched ID, a mismatched question, and a reply from another source | read at source; question check is resolver code (AC-18) |
 | A-7 | Ze's DHCP server runs in the interop Ze container and leases to a client container on the lab bridge | `internal/plugins/dhcpserver` serves on a configured interface; the lab Ze container owns `eth0` on the bridge | the DHCP story needs a QEMU guest instead | interop `dns-resolver-dhcp-lan` | unvalidated |
 | A-8 | miekg `dns.Server` handles each UDP and TCP query on its own goroutine, so a blocking answer function does not stall other queries | miekg server design; `docs/architecture/dns/server-harness.md` | one slow resolution blocks the listener | unit test: a resolution blocked on a slow upstream while a cached query is answered | unvalidated |
+
+A-1, A-5 and A-6 were validator assumptions and moved with the validator to
+`plan/post-release/features/spec-dns-resolver-dnssec-validation.md`; the ids are not reused.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Open resolver on the WAN (amplification, abuse) | queries from unexpected sources in `ze_dns_resolver_refused_total` | wildcard listen address refused at commit; empty `allow-from` refused at commit; REFUSED outside the ACL, never an answer; the REFUSED reply is no larger than the query |
-| R-2 | Cache poisoning | answers that disagree with Unbound in the cross-check scenario | random ID and port (A-4), question match, bailiwick check on every RR, RFC 2181 ranking, no RRset merge; validation under D-1 (a) |
-| R-3 | (D-1 (a)) Clock unsynced at boot makes signed answers bogus | SERVFAIL burst after boot, `validation_total{outcome="bogus"}` with reason `signature-expired` | log names the clock; doctor check `doctor-dns-resolver-clock-unsynced`; never downgrade bogus to insecure |
-| R-4 | Work amplification (deep chains, NS loops, CNAME loops, NSEC3 iterations) | `upstream_queries_total` per client query | per-resolution budget (32 upstream queries, 11 restarts, deadline), coalescing, outstanding bound; under (a) NSEC3 iteration cap treated as insecure above the cap |
-| R-5 | Cache memory growth | `ze_dns_resolver_cache_entries` at limit | entry-count bound with LRU eviction on every cache, BAD cache included |
+| R-2 | Cache poisoning | answers that disagree with Unbound in the cross-check scenario | random ID and port (A-4), question match, bailiwick check on every RR, RFC 2181 ranking, no RRset merge |
+| R-4 | Work amplification (long CNAME chains, CNAME loops) | `upstream_queries_total` per client query | per-resolution budget (32 upstream queries, 11 restarts, deadline), coalescing, outstanding bound |
+| R-5 | Cache memory growth | `ze_dns_resolver_cache_entries` at limit | entry-count bound with LRU eviction on every cache |
 | R-6 | Reload pauses serving | dropped queries during commit | data-only changes never touch listeners (signature unchanged); listener changes follow harness strict policy |
 | R-7 | Upstream unreachable read as "no such name" | NOERROR empty or NXDOMAIN on timeout | timeout and SERVFAIL are distinct outcomes; never cached as negative |
 | R-8 | TCP fallback missing breaks large answers | TC replies loop | resolver side retries over TCP on TC; client side gets TC and the TCP listener |
 | R-9 | A LAN host floods the resolver | `outstanding` at its bound, `rate_limited_total` rising | outstanding bound drops new work; optional per-client rate limit; a flood from one source cannot evict another's cached data faster than LRU allows |
 | R-10 | Negative TTL taken from the wrong field | NXDOMAIN cached for the SOA's own TTL when MINIMUM is lower | RFC 2308 Section 5 min(SOA TTL, SOA MINIMUM), capped; unit test with each field the smaller |
+
+R-3 (unsynced clock at boot) was a validator risk and moved to
+`plan/post-release/features/spec-dns-resolver-dnssec-validation.md`.
 
 ## Blast Radius
 
@@ -287,7 +284,7 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 |----------|--------|
 | What breaks if this is wrong? | Name resolution for every customer behind the box. Default off, so nothing changes until configured |
 | How is it reverted? | Single commit revert; config section removed |
-| Who else touches this path? | `internal/core/dnsserver` (as112, geodns), the stub resolver, `spec-firewall-dnssec-membership-validation` (D-1) |
+| Who else touches this path? | `internal/core/dnsserver` (as112, geodns), the stub resolver |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -299,13 +296,12 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | `show dns-resolver`, `clear dns-resolver cache all` | → | `show.go` handlers | `test/plugin/dns-resolver-show.ci` |
 | LAN host leased by Ze's DHCP server queries the advertised address | → | answer function, forward path | interop `dns-resolver-dhcp-lan` |
 | L2TP subscriber queries the IPCP-advertised address | → | answer function, forward path | interop `dns-resolver-l2tp-subscriber` |
-| (D-2 (a)) recursive mode with lab root hints | → | iterative resolution | interop `dns-resolver-recursive-knot` |
-| (D-1 (a)) signed zone from `le mock dns --signed` | → | `internal/core/dnssec` chain validation | `test/plugin/dns-resolver-dnssec-secure.ci` |
-| (D-1 (a)) tampered signature | → | bogus path | `test/plugin/dns-resolver-dnssec-bogus.ci` |
 
 ## Acceptance Criteria
 
-### Core ACs (both D-1 answers)
+AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
+`plan/post-release/features/spec-dns-resolver-recursion.md`, and V-1..V-15
+(validation) to `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -316,9 +312,9 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | AC-5 | Same query repeated within the TTL | Second answer from cache: no upstream query logged, TTL reduced by the elapsed whole seconds |
 | AC-6 | Upstream returns a new RRset for a cached name and type after expiry | Cached RRset replaced whole, never merged with the old records (RFC2181-5.4-1) |
 | AC-7 | Upstream answers NXDOMAIN with an SOA whose TTL is 300 and MINIMUM 60 | NXDOMAIN cached 60 s for every type of that name; NODATA cached per type; `max-negative-ttl` caps a larger value |
-| AC-8 | Query DO=1 (D-1 (b)) | The upstream query carries an OPT with DO=0; the reply carries an OPT, AD=0, and no record the upstream did not return for the question |
-| AC-9 | Query for type RRSIG, DNSKEY or DS (D-1 (b)) | Returned as an ordinary RRset, the entire RRset (RFC2181-5.3.1-2); an RRSIG seen only in an authority or additional section is never returned for an RRSIG query (RFC2181-5.3.1-3/4) |
-| AC-10 | Upstream reply sets AA=1 or AD=1 | Ze's reply has AA=0; AD=0 under (b) |
+| AC-8 | Query DO=1 | The upstream query carries an OPT with DO=0; the reply carries an OPT, AD=0, and no record the upstream did not return for the question |
+| AC-9 | Query for type RRSIG, DNSKEY or DS | Returned as an ordinary RRset, the entire RRset (RFC2181-5.3.1-2); an RRSIG seen only in an authority or additional section is never returned for an RRSIG query (RFC2181-5.3.1-3/4) |
+| AC-10 | Upstream reply sets AA=1 or AD=1 | Ze's reply has AA=0 and AD=0 |
 | AC-11 | CNAME loop, or a chain longer than 11 restarts, or more than 32 upstream queries needed | SERVFAIL; upstream queries for that client query never exceed 32 |
 | AC-12 | Query with RD=0 from an allowed source | REFUSED, whether or not the name is cached, and no upstream query |
 | AC-13 | UDP query with EDNS buffer 1232 and an answer larger than 1232 octets | Reply carries OPT, is at most 1232 octets and has TC=1 (RFC2181-5.1-1, RFC1035-4.2.1-2); the same query over TCP returns the whole answer |
@@ -342,28 +338,6 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | AC-31 | `show dns-resolver` | The fields in the Commands table; `clear dns-resolver cache all` empties every cache and the next query goes upstream |
 | AC-32 | LAN host gets a DHCPv4 lease from Ze with `dns-server` set to the resolver address, then resolves a name with `kdig` against the leased server | Answered |
 | AC-33 | L2TP subscriber gets the resolver address via IPCP from the pool's `dns-primary` and resolves a name | Answered; the subscriber's pool prefix is in `allow-from` |
-| AC-34 | (D-2 (a)) `mode recursive` with root hints pointing at a lab root | Resolution follows delegations from the root; glue is used only to reach the delegated servers |
-| AC-35 | (D-2 (a)) Referral whose glue names an address outside the delegated zone's servers' authority | The out-of-zone glue is not trusted (Unbound `harden-glue` default yes: "Will trust glue only if it is within the servers authority"); the server's address is resolved |
-
-### Validation ACs (D-1 (a) only; under (b) they move verbatim to the validation spec)
-
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| V-1 | Signed zone with a valid chain from the configured anchor; query DO=1 | NOERROR, AD=1, RRSIGs in the answer section |
-| V-2 | Same zone; query DO=0 AD=0 | AD=0, no RRSIG, NSEC or NSEC3 in any section |
-| V-3 | Same zone; query DO=0 AD=1 | AD=1, DNSSEC records stripped |
-| V-4 | Query DO=0 for type RRSIG or DNSKEY explicitly | Those records returned, not stripped (RFC4035-3.2.1-3) |
-| V-5 | Signed zone with a tampered RRSIG; query CD=0 | SERVFAIL (RFC4035-5.5-2), `validation_total{outcome="bogus"}` +1 |
-| V-6 | Same; query CD=1 | Full response, AD=0 (RFC4035-5.5-3) |
-| V-7 | Signed zone whose upstream strips RRSIGs | SERVFAIL; absence of signatures is not taken as insecure (RFC4035-5-3) |
-| V-8 | Unsigned child of a signed parent, proven by an authenticated NSEC and, separately, NSEC3 record that no DS exists | NOERROR, AD=0 (insecure, not bogus) |
-| V-9 | Name absent from a signed zone, NSEC and NSEC3 variants | NXDOMAIN with AD=1 when DO=1, denial validated; a forged NXDOMAIN without valid proof draws SERVFAIL |
-| V-10 | Bogus answer queried again within 60 s | SERVFAIL from the BAD cache with no upstream query; after 60 s refetched; a BAD entry never returned to a CD=0 query as data (RFC4035-4.7-3, 4.7-7) |
-| V-11 | `dnssec trust-anchor` set to a lab DS record | The lab hierarchy validates; the built-in root anchors are not used; a malformed DS refuses the commit naming the value |
-| V-12 | `dnssec validation off` | No validation, AD never set, no SERVFAIL for a bogus zone; the resolver side still sends DO=1 (RFC4035-3.2.1-1) |
-| V-13 | (with D-2 (a)) DS for a child is asked of the parent's servers | RFC4035-4.2-6, 5.2-1 |
-| V-14 | Upstream reply in forward mode carries AD=1 for an unsigned zone | Ze's reply AD=0 (validated locally; upstream queried with CD=1) |
-| V-15 | Wildcard-expanded signed answer; DNAME-synthesized CNAME | Validated (RFC4035-4.2-3, 4.8-1) |
 
 ## End-to-End User Stories
 
@@ -372,15 +346,13 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | 1 | Operator enables a forwarding resolver for a LAN and points DHCP at it | config → listener bound → DHCP option 6 → host query → ACL → cache/forward → reply | interop `dns-resolver-dhcp-lan` |
 | 2 | FTTx subscriber over L2TP resolves names | IPCP DNS → query to LNS address → ACL → forward → reply | interop `dns-resolver-l2tp-subscriber` |
 | 3 | Operator forwards to the ISP's central resolver | config → forward → Unbound upstream → reply, answers equal Unbound's own | interop `dns-resolver-forward-unbound` |
-| 4 | (D-2 (a)) Operator runs full recursion with no upstream | root hints → iterative → reply | interop `dns-resolver-recursive-knot` |
-| 5 | (D-1 (a)) Attacker zone serves a bad signature | upstream → validator bogus → SERVFAIL to the customer | interop `dns-resolver-recursive-knot` (bogus zone), `test/plugin/dns-resolver-dnssec-bogus.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRecursiveShape` | `internal/core/dnsserver/recursive_test.go` | RA=1, AA=0, Z=0, CD copied; an answer function cannot set AA, clear RA, or set AD unless it reports secure (RFC1035-4.1.1-1, 4.1.1-2) | |
+| `TestRecursiveShape` | `internal/core/dnsserver/recursive_test.go` | RA=1, AA=0, Z=0, AD=0, CD copied; an answer function cannot set AA, clear RA, or set AD (RFC1035-4.1.1-1, 4.1.1-2) | |
 | `TestRecursiveOpcode` | `internal/core/dnsserver/recursive_test.go` | AC-26, RFC1035-6.4-1 resolver case | |
 | `TestRecursiveUDPSize` | `internal/core/dnsserver/recursive_test.go` | AC-13, AC-14: 1232-octet query read; OPT on reply; TC on oversize (RFC2181-5.1-1, RFC1035-4.2.1-2) | |
 | `TestAuthoritativeUnchanged` | `internal/core/dnsserver/handler_test.go` | as112/geodns shape byte-identical after the change | |
@@ -390,21 +362,16 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | `TestNegativeCacheTTL` | `internal/plugins/dnsresolver/cache_test.go` | AC-7, R-10 | |
 | `TestTrustRanking` | `internal/plugins/dnsresolver/cache_test.go` | AC-20, RFC2181-5.4.1-3 | |
 | `TestSIGRRSetHandling` | `internal/plugins/dnsresolver/cache_test.go` | AC-9, RFC2181-5.3.1-2/3/4 | |
-| `TestUpstreamQueryShape` | `internal/plugins/dnsresolver/forward_test.go` | AC-8 (OPT 1232, DO per D-1), AC-10, RFC2181-5.4.1-9 (AA=0 on every resolver reply) | |
+| `TestUpstreamQueryShape` | `internal/plugins/dnsresolver/forward_test.go` | AC-8 (OPT 1232, DO clear), AC-10, RFC2181-5.4.1-9 (AA=0 on every resolver reply) | |
 | `TestReplyMatching`, `TestBailiwick` | `internal/plugins/dnsresolver/forward_test.go` | AC-18, AC-19, A-4 | |
 | `TestFailoverAndTimeout`, `TestTCPRetryOnTC` | `internal/plugins/dnsresolver/forward_test.go` | AC-15, AC-16, AC-17, R-7 | |
 | `TestCoalescing`, `TestSlowUpstreamDoesNotBlockCache` | `internal/plugins/dnsresolver/server_test.go` | AC-22, A-8 | |
 | `TestWorkBudget` | `internal/plugins/dnsresolver/budget_test.go` | AC-11 | |
-| `TestDelegationWalk`, `TestGlueHardening` | `internal/plugins/dnsresolver/iterate_test.go` | AC-34, AC-35 (D-2 (a)) | |
 | `TestParseConfigRefusals` | `internal/plugins/dnsresolver/config_test.go` | AC-3, AC-4, forward list empty, boundary table | |
 | `TestReloadKeepsListeners` | `internal/plugins/dnsresolver/config_tx_test.go` | AC-30 | |
 | `TestDoctorCodes` | `internal/plugins/dnsresolver/doctor_test.go` | every registered code in `internal/core/diagnostic/codes.go` | |
 | `TestQueryToolFlags` | `internal/test/dnsquery/query_test.go` | the harness tool sets each header bit and prints each field | |
 | `TestMockLogAndDelay` | `internal/test/mock/dns/server_test.go` | `--log-queries`, `--delay`, `--drop` | |
-| (D-1 (a)) `TestChainSecure`, `TestChainBogusSignature`, `TestChainExpired`, `TestChainMissingSignatures`, `TestUnsupportedAlgorithmInsecure` | `internal/core/dnssec/chain_test.go` | RFC4035-5-1/5-2/5-3, 5.2, 5.3.1-1..10 | |
-| (D-1 (a)) `TestNSECDenial`, `TestNSEC3Denial`, `TestNSEC3IterationCap` | `internal/core/dnssec/denial_test.go` | RFC4035-5.4-1..4, A-6, R-4 | |
-| (D-1 (a)) `TestWildcardExpansion`, `TestDNAMESynthesizedCNAME`, `TestTTLClampToRRSIG`, `TestTrustAnchorParse` | `internal/core/dnssec/*_test.go` | RFC4035-4.2-3, 5.3.2-1, 5.3.3-1, 4.8-1, 5.3.3-2, 4.4-1 | |
-| (D-1 (a)) `TestBadCacheTTL`, `TestBadCacheNotServedCD0`, `TestStripDNSSECWhenDOClear`, `TestKeepRequestedDNSSECType`, `TestUpstreamDOAndCD`, `TestDSFromParent` | `internal/plugins/dnsresolver/*_test.go` | RFC4035-4.7-2/3/7, 3.2.2-4, 3.2.1-1/2/3, 3-5, 3.2.2-1, 4.2-5, 4.2-6, 5.2-1, 5.2-3 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -416,8 +383,6 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | `limit outstanding` | 1-65535 | 65535 | 0 | 65536 |
 | `limit per-client-rate` (qps) | 0-1000000 | 1000000 | N/A (0 off) | 1000001 |
 | `forward server` count | 1-8 | 8 | 0 (with `mode forward`) | 9 |
-| `recursive root-hint` count | 1-13 | 13 | N/A (absent: built-in) | 14 |
-| (D-1 (a)) `dnssec trust-anchor` count | 1-16 | 16 | N/A | 17 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -429,8 +394,6 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | `dns-resolver-timeout` | `test/plugin/dns-resolver-timeout.ci` | mock `--drop` on one name: SERVFAIL within timeout, then answered once the mock serves it | |
 | `dns-resolver-show` | `test/plugin/dns-resolver-show.ci` | `show dns-resolver` and `clear dns-resolver cache all` | |
 | `dns-resolver-reload` | `test/plugin/dns-resolver-reload.ci` | allow-from change applies without rebinding | |
-| (D-1 (a)) `dns-resolver-dnssec-secure` | `test/plugin/dns-resolver-dnssec-secure.ci` | signed mock zone, DO and AD variants | |
-| (D-1 (a)) `dns-resolver-dnssec-bogus` | `test/plugin/dns-resolver-dnssec-bogus.ci` | tampered RRSIG: SERVFAIL; CD=1 passthrough; BAD cache | |
 
 Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 53, as `dns-stub-lookup.ci` does, or an unprivileged port otherwise.
@@ -441,7 +404,6 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 | `dns-resolver-forward-unbound` | `test/interop/scenarios/dns-resolver-forward-unbound/` | Unbound (latest stable) as upstream over a Knot DNS authoritative lab hierarchy; `kdig` client container | Ze forwards to a real resolver; per query, RCODE and answer RRsets equal Unbound's own answers to the same queries; TC and TCP retry with a large RRset | |
 | `dns-resolver-dhcp-lan` | `test/interop/scenarios/dns-resolver-dhcp-lan/` | client container (Debian stable: `dhcpcd`, `knot-dnsutils`) leased by Ze's DHCP server; Knot DNS authoritative | the host learns the resolver from option 6 and resolves through it; a host outside `allow-from` is refused | |
 | `dns-resolver-l2tp-subscriber` | `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/` | the lab's xl2tpd + pppd LAC | subscriber gets the resolver address through IPCP and resolves through it | |
-| (D-2 (a)) `dns-resolver-recursive-knot` | `test/interop/scenarios/dns-resolver-recursive-knot/` | Knot DNS hierarchy (lab root, `test.`, delegated children, out-of-zone glue; under D-1 (a) also signed NSEC, signed NSEC3, unsigned child, bogus zone) | full recursion from lab root hints; answers cross-checked against Unbound in recursive mode with the same hints | |
 
 ### Future (if deferring any tests)
 - None deferred.
@@ -449,12 +411,12 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 ## Files to Modify
 - `internal/core/dnsserver/handler.go` - add `Recursive` wrapper and `shapeRecursive` (owns RA, AA, CD, AD, Z); `Authoritative` untouched
 - `internal/core/dnsserver/manager.go` - `Options.UDPSize` passed to `dns.Server.UDPSize`
-- `internal/test/mock/dns/server.go`, `zone.go`, `dns.go` - `--log-queries`, `--delay`, `--drop`; under D-1 (a) the signed modes
+- `internal/test/mock/dns/server.go`, `zone.go`, `dns.go` - `--log-queries`, `--delay`, `--drop`
 - `internal/le/interoplab/bgp/checkers.go` (registry) and `internal/le/interoplab/l2tp/l2tp.go` (`scenarioCheckerMap`, peers) - the new scenarios
 - `internal/core/diagnostic/codes.go` - resolver doctor codes; its design page `docs/features/ai-first.md` (built-in diagnostic codes) gains the new codes
-- `rfc/short/rfc2181.md` - rewrite the annotations of every `RFC gaps` RFC 2181 row to its tagged test, resolver cases on 5.4-1/5.4-2 and section 8; Meta `Support coverage` and `Support remaining`
+- `rfc/short/rfc2181.md` - rewrite the annotations of every `RFC gaps` RFC 2181 row to its tagged test, resolver cases on 5.4-1/5.4-2 and section 8; RFC2181-5.4.1-8 rewritten `excluded-kind: feature-out-of-scope`; Meta `Support coverage` and `Support remaining`
 - `rfc/short/rfc1035.md` - resolver-side cases on the rows listed in Required Reading; Meta `Support coverage`
-- `rfc/short/rfc4035.md` - under (a) every RFC 4035 `RFC gaps` row; under (b) only the Support coverage text describing the resolver's non-security-aware posture
+- `rfc/short/rfc4035.md` - the Support coverage text describing the resolver's non-security-aware posture; no row changes
 - `docs/architecture/dns/server-harness.md` - the second wrapper and why
 - `docs/features/dns-resolver.md` - point at the LAN resolver as the server side
 - `ai/digests/dns-services.md` - add the resolver flow
@@ -464,31 +426,30 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 - `internal/component/plugin/all/all.go` - regenerated
 
 ## Files to Create
-- `internal/plugins/dnsresolver/` - `register.go`, `config.go`, `config_tx.go`, `state.go`, `server.go` (answer function, ACL, RD and QDCOUNT checks), `limit.go` (outstanding bound, per-client rate, one sweeper worker), `forward.go`, `iterate.go` and `roothints.go` (D-2 (a)), `cache.go` (answer and negative caches, ranking, LRU), `budget.go`, `show.go`, `doctor.go`, `metrics.go`, `yang/ze-dns-resolver-conf.yang`, `yang/ze-dns-resolver-cmd.yang`, `yang/register.go`, tests above
+- `internal/plugins/dnsresolver/` - `register.go`, `config.go`, `config_tx.go`, `state.go`, `server.go` (answer function, ACL, RD and QDCOUNT checks), `limit.go` (outstanding bound, per-client rate, one sweeper worker), `forward.go`, `cache.go` (answer and negative caches, ranking, LRU), `budget.go`, `show.go`, `doctor.go`, `metrics.go`, `yang/ze-dns-resolver-conf.yang`, `yang/ze-dns-resolver-cmd.yang`, `yang/register.go`, tests above
 - `internal/le/dns/query/register.go` - registers `le dns query`; implementation `internal/test/dnsquery/` with tests
 - `test/plugin/dns-resolver-*.ci` - the functional tests above
-- `test/interop/scenarios/dns-resolver-forward-unbound/`, `dns-resolver-dhcp-lan/`, (D-2 (a)) `dns-resolver-recursive-knot/`; `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/`
+- `test/interop/scenarios/dns-resolver-forward-unbound/`, `dns-resolver-dhcp-lan/`; `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/`
 - `test/interop/Dockerfile.unbound`, `test/interop/Dockerfile.knot`, `test/interop/Dockerfile.dnsclient`
 - `internal/le/interoplab/bgp/check_dns_resolver.go`, `check_dns_resolver_predicate.go` (with predicate tests, as `check_dhcp_predicate.go`), and the L2TP checker in `internal/le/interoplab/l2tp/`
 - `features/lan-dns-resolver.md` - feature record
-- `docs/guide/dns-resolver.md` - operator guide (config, advertisement via DHCP, RA, IPCP; ACL; limits; DNSSEC posture)
+- `docs/guide/dns-resolver.md` - operator guide (config, advertisement via DHCP, RA, IPCP; ACL; limits; DNSSEC posture: not validating)
 - `docs/architecture/dns/lan-resolver.md` - design (shape, cache, ranking, limits, budget)
-- (D-1 (a)) `internal/core/dnssec/` - `anchor.go` (built-in root DS for key tags 20326 and 38696, parse), `chain.go`, `rrsig.go`, `denial.go` (NSEC, NSEC3), `wildcard.go`, tests
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema (new RPCs/config) | Yes | `internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang`, `ze-dns-resolver-cmd.yang` |
-| YANG validation constraints | Yes | `zt:listener` ports, `range` on cache, TTLs, timeout, limits; `max-elements` on forward servers (8), root hints (13), anchors (16); prefix type on `allow-from` |
-| YANG custom validators | Yes | wildcard listener refusal, empty `allow-from` refusal, forward list required in forward mode, DS record syntax under (a) (`ze:validate`) |
+| YANG validation constraints | Yes | `zt:listener` ports, `range` on cache, TTLs, timeout, limits; `max-elements` on forward servers (8); prefix type on `allow-from` |
+| YANG custom validators | Yes | wildcard listener refusal, empty `allow-from` refusal, forward list required in forward mode (`ze:validate`) |
 | CLI commands/flags | Yes | `show dns-resolver`, `clear dns-resolver cache all` via `ze:command`; `le dns query` harness tool |
 | CLI grammar (keyword before value) | Yes | `clear dns-resolver cache all`; bare `clear dns-resolver cache` refused naming `all` |
-| Editor autocomplete | Yes | automatic for enums (`mode`, `validation`); listener names by YANG |
+| Editor autocomplete | Yes | automatic for enums (`mode`); listener names by YANG |
 | Functional test for new RPC/API | Yes | `test/plugin/dns-resolver-show.ci` |
 | Pipe completeness | Yes | `show dns-resolver` output through `ApplyPipes` |
 | Env var registration | No | no `environment/` leaf; all config is YANG under `service` |
-| Doctor check for runtime dependencies | Yes | listen port 53: `doctor-dns-resolver-port-unavailable`; no reachable upstream in forward mode: `doctor-dns-resolver-upstream-unreachable`; under (a) clock: `doctor-dns-resolver-clock-unsynced`; codes in `internal/core/diagnostic/codes.go`, unit and functional tests |
-| Prometheus counters/metrics | Yes | `ze_dns_resolver_queries_total{transport,rcode}`, `ze_dns_resolver_refused_total{reason=acl|rd-clear}`, `ze_dns_resolver_rate_limited_total`, `ze_dns_resolver_dropped_total`, `ze_dns_resolver_outstanding`, `ze_dns_resolver_cache_entries{cache=answer|negative|bad}`, `ze_dns_resolver_cache_hits_total`, `ze_dns_resolver_upstream_queries_total{result}`, under (a) `ze_dns_resolver_validation_total{outcome}`, listener gauge via `OnListenerChange` |
+| Doctor check for runtime dependencies | Yes | listen port 53: `doctor-dns-resolver-port-unavailable`; no reachable upstream: `doctor-dns-resolver-upstream-unreachable`; codes in `internal/core/diagnostic/codes.go`, unit and functional tests |
+| Prometheus counters/metrics | Yes | `ze_dns_resolver_queries_total{transport,rcode}`, `ze_dns_resolver_refused_total{reason=acl|rd-clear}`, `ze_dns_resolver_rate_limited_total`, `ze_dns_resolver_dropped_total`, `ze_dns_resolver_outstanding`, `ze_dns_resolver_cache_entries{cache=answer|negative}`, `ze_dns_resolver_cache_hits_total`, `ze_dns_resolver_upstream_queries_total{result}`, listener gauge via `OnListenerChange` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP change |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -529,24 +490,20 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 2. **Phase: Forwarding, cache and limits** -- ACL, RD and QDCOUNT checks, forward with failover and TCP retry, reply matching, bailiwick, ranking, answer and negative caches, coalescing, budget, outstanding bound, per-client rate, show and clear, metrics, doctor
    - Tests: AC-1..AC-31 unit and functional tests; mock flags
    - Docs in this phase: guide, command reference, metrics, plugin inventory, feature record, `lan-resolver.md`
-3. **Phase: Recursion (D-2 (a))** -- root hints, delegation walk, glue hardening
-   - Tests: AC-34, AC-35, `TestDelegationWalk`, `TestGlueHardening`
-4. **Phase: Validator (D-1 (a) only; under (b) this phase is the new spec)** -- `internal/core/dnssec`, anchors, chain, NSEC, NSEC3, wildcard, DNAME; the resolver turns security-aware (DO=1 CD=1 upstream, strip on DO=0, BAD cache, AD rule); `le mock dns --signed`
-   - Tests: V-1..V-15, validator unit tests, `dns-resolver-dnssec-*.ci`
-5. **Phase: Interop and advertisement stories** -- the scenarios, cross-check against Unbound, DHCP and L2TP stories; each red recorded (`./le rfc record` for tagged carriers)
-6. **Phase: RFC rows** -- every `RFC gaps` row annotated to its tagged test with a discrimination record, in the commit of the code it proves (each page above is written in the phase whose code changes it, per `ai/rules/documentation.md`; this phase only closes the RFC rows that span phases)
+3. **Phase: Interop and advertisement stories** -- the scenarios `dns-resolver-forward-unbound`, `dns-resolver-dhcp-lan` and `dns-resolver-l2tp-subscriber`, cross-check against Unbound, DHCP and L2TP stories (AC-32, AC-33); each red recorded (`./le rfc record` for tagged carriers)
+4. **Phase: RFC rows** -- every `RFC gaps` row annotated to its tagged test with a discrimination record, in the commit of the code it proves; RFC2181-5.4.1-8 rewritten `excluded-kind: feature-out-of-scope`; the RFC 4035 Support coverage text (each page above is written in the phase whose code changes it, per `ai/rules/documentation.md`; this phase only closes the RFC rows that span phases)
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N (and V-N under (a)) has an implementation at file:line |
+| Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Each user story path runs end to end in a test |
-| Correctness | AA never set; AD never set under (b), only on secure data under (a); timeout never cached as negative; RRsets replaced, never merged; RD=0 refused |
+| Correctness | AA never set; AD never set; timeout never cached as negative; RRsets replaced, never merged; RD=0 refused |
 | Naming | YANG `dns-resolver`, JSON keys kebab-case, metric prefix `ze_dns_resolver_` |
-| Data flow | Only `Recursive` writes replies; validator package (a) holds no plugin or config vocabulary |
-| Rule: principles (no silent zero) | An upstream failure answers SERVFAIL, never NOERROR empty; an indeterminate validation (a) answers SERVFAIL |
+| Data flow | Only `Recursive` writes replies |
+| Rule: principles (no silent zero) | An upstream failure answers SERVFAIL, never NOERROR empty |
 | Rule: goroutine-lifecycle | No goroutine per query, per exchange, or per cache entry |
-| Rule: rfc-compliance | Every implementing function quotes its RFC 1035, 2181 (or 4035) sentence; every caller names the section |
+| Rule: rfc-compliance | Every implementing function quotes its RFC 1035 or 2181 sentence; every caller names the section |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -562,9 +519,9 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 |-------|-----------------|
 | Input validation | malformed queries, oversized names, label pointers looping (miekg), QDCOUNT not 1 |
 | Open resolver | wildcard refused, empty ACL refused, REFUSED outside ACL, RD=0 refused (no cache snooping), no answer amplification to refused clients |
-| Poisoning | random ID and port, question match, bailiwick, ranking, glue hardening, no RRset merge; validation under (a) |
-| Resource exhaustion | cache bounds, outstanding bound, per-client rate, coalescing, per-resolution budget, TCP connection limit from the harness; NSEC3 iteration cap under (a) |
-| Fail-open | every error path answers SERVFAIL or drops, never stale or fabricated data; under (a) validator errors are bogus or indeterminate, never secure |
+| Poisoning | random ID and port, question match, bailiwick, ranking, no RRset merge |
+| Resource exhaustion | cache bounds, outstanding bound, per-client rate, coalescing, per-resolution budget, TCP connection limit from the harness |
+| Fail-open | every error path answers SERVFAIL or drops, never stale or fabricated data |
 
 ### Failure Routing
 
@@ -591,16 +548,9 @@ RFC sentences the design rests on, read from `rfc/full/`:
 | RFC 2308 Section 5 | "upon reaching zero (0) indicates the cached negative answer MUST NOT be used again." | negative entries expire like positive ones |
 | RFC 5452 Section 9.1 | "A resolver implementation MUST match responses to all of the following attributes of the query:" (source and destination address, port, ID, name, class and type) | question compared by the resolver; miekg checks only the ID |
 | RFC 5452 Section 9.2 | "Use an unpredictable source port for outgoing queries from the range of available ports (53, or 1024 and above) that is as large as possible and practicable;" | fresh ephemeral port per exchange, never a fixed source port |
-| RFC 4035 Section 4.2 | "A security-aware resolver MUST support the signature verification mechanisms described in Section 5" | no DNSSEC-transparent middle ground; D-1 |
-| RFC 4035 Section 3.2.1 | "The resolver side of a security-aware recursive name server MUST set the DO bit when sending requests, regardless of the state of the DO bit in the initiating request received by the name server side." | (a): DO=1 upstream always, also with `validation off` |
-| RFC 4035 Section 3.2.1 | "If the DO bit in an initiating query is not set, the name server side MUST strip any authenticating DNSSEC RRs from the response but MUST NOT strip any DNSSEC RR types that the initiating query explicitly requested." | (a): strip on DO=0 unless the qtype is a DNSSEC type |
+| RFC 4035 Section 4.2 | "A security-aware resolver MUST support the signature verification mechanisms described in Section 5" | no DNSSEC-transparent middle ground: this resolver sets DO clear upstream and is not security-aware until `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` lands |
 | RFC 4035 Section 3.2.2 | "The name server side MUST copy the setting of the CD bit from a query to the corresponding response." | `shapeRecursive` copies CD |
-| RFC 4035 Section 3.2.3 | "The name server side of a security-aware recursive name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic." | AD only on secure; mixed sections clear it; never under (b) |
-| RFC 4035 Section 4.4 | "A security-aware resolver MUST be capable of being configured with at least one trusted public key or DS RR and SHOULD be capable of being configured with multiple trusted public keys or DS RRs." | (a): `dnssec trust-anchor` list, built-in root DS defaults |
-| RFC 4035 Section 4.7 | "Since RRsets that fail to validate do not have trustworthy TTLs, the implementation MUST assign a TTL." | (a): fixed 60 s BAD-cache TTL |
-| RFC 4035 Section 5 | "The absence of DNSSEC data in a response MUST NOT by itself be taken as an indication that no authentication information exists." | (a): stripped signatures from a signed zone are bogus |
-| RFC 4035 Section 5.4 | "As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query." | per-resolution budget in both designs |
-| RFC 4035 Section 5.5 | "If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client.  However, it MUST return the full response if and only if the original query had the CD bit set." | (a): SERVFAIL on bogus with CD=0; full response with CD=1 |
+| RFC 4035 Section 5.4 | "As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query." | per-resolution budget |
 | RFC 2132 Section 3.8 | "The domain name server option specifies a list of Domain Name System (STD 13, RFC 1035 [8]) name servers available to the client." | the existing `dns-server` leaf is the DHCPv4 advertisement |
 | RFC 1877 Section 1.1 | "This Configuration Option defines a method for negotiating with the remote peer the address of the primary DNS server to be used on the local end of the link." | the existing L2TP pool `dns-primary` is the subscriber advertisement |
 
@@ -613,11 +563,8 @@ RFC sentences the design rests on, read from `rfc/full/`:
 |----------|------------------------|-----------|
 | A new system plugin `internal/plugins/dnsresolver` over the shared harness | extend geodns; a component | the harness exists for exactly this (`server-harness.md`, two consumers); a plugin cannot import a sibling; the resolver has a config-driven lifecycle, so it is a plugin, not core |
 | Second harness wrapper `Recursive` beside `Authoritative` | a flag on `Authoritative`; give the resolver the `ResponseWriter` | the harness doc records that a convention-based guard was replaced by an enforced one after two reviews; a flag reopens that; one wrapper per shape keeps both enforced |
-| Forward and recursive modes, forward first (D-2 default) | forward only; recursion only | recorded decision; phases keep forwarding shippable on its own |
-| (D-1 (b) default) Not security-aware: upstream EDNS0 with DO clear, DNSSEC types as ordinary RRsets, AD never set | DNSSEC-transparent forwarding (DO passed, RRSIGs relayed, no validation) | RFC 4035 Section 4.2 makes a resolver that asks for DNSSEC data owe validation, so the transparent option would claim RFC 4035 conformance it does not have |
-| (D-1 (a)) Ze's own Go validator in `internal/core/dnssec` | ship Unbound in the appliance and proxy to it; a third-party Go validator | RFC 4035's summary declares Implementation `ze`; the firewall spec needs a validator at the Go resolver boundary; core placement lets both consumers share it without a plugin import |
-| (D-1 (a)) Validate locally in forward mode, querying upstream with CD=1 | trust the upstream AD bit | RFC4035-4.6-3 makes a resolver disregard AD from an insecure channel; Unbound validator.c: "User queries are validated with BIT_CD to make our cache clean" |
-| (D-1 (a)) AD on a reply iff secure and the query had DO or AD | AD only with DO | RFC 4035 is silent on DO=0 queries. Unbound `reply_info_answer_encode` (util/data/msgencode.c, read 2026-10-27 at line 1039): `if(secure && (dnssec \|\| (qflags&BIT_AD))) flags \|= BIT_AD;`. BIND `ns_query_start` agrees ("This allows AD to be returned on queries without DO set.") |
+| Forwarding in this spec, recursion in `plan/post-release/features/spec-dns-resolver-recursion.md` | one spec carrying both modes | D-2 is open and forwarding is complete without recursion, so it ships while Thomas decides; the `mode` leaf exists from the start so recursion adds an enum value, not a new syntax |
+| Not security-aware: upstream EDNS0 with DO clear, DNSSEC types as ordinary RRsets, AD never set | DNSSEC-transparent forwarding (DO passed, RRSIGs relayed, no validation) | RFC 4035 Section 4.2 makes a resolver that asks for DNSSEC data owe validation, so the transparent option would claim RFC 4035 conformance it does not have; D-1 answered (b) |
 | Outside the ACL: REFUSED, not silent drop | drop | RFCs silent. unbound.conf `access-control`: "The most specific netblock match is used, if none match refuse is used." and `refuse`: "Stops queries too, but sends a DNS rcode REFUSED error message back." REFUSED lets a misconfigured customer see the cause; the reply is no larger than the query |
 | RD=0 refused | answer from cache (Unbound `allow_snoop`); resolve as RD=1 (the previous draft) | Unbound default `allow`: "Non-recursive queries are refused."; worker.c refuses unless `acl_allow_snoop`; RFC 1034 Section 4.3.1 forbids recursing without RD; refusing also closes cache snooping |
 | Empty `allow-from` refuses the commit | allow-all (as112 default); loopback only (Unbound default allows 127.0.0.0/8 and ::1) | a LAN resolver that answers no LAN is a misconfiguration, and allow-all is an open resolver; refusing names the fix |
@@ -626,25 +573,22 @@ RFC sentences the design rests on, read from `rfc/full/`:
 | Per-client rate limit off by default, 1 in 10 of the excess passed | always on; drop all excess | unbound.conf `ip-ratelimit` "Default: 0 (disabled)", "More queries are completely dropped and will not receive a reply, SERVFAIL or otherwise.", and `ip-ratelimit-factor` "Default is 10, allowing 1/10 traffic to flow normally" |
 | Per-resolution limits 32 upstream queries, 11 CNAME restarts | config leaves | unbound.conf `max-sent-count` "Default: 32", "Results in SERVFAIL when reached."; `max-query-restarts` "Default: 11"; RFC 4035 Section 5.4 bound; no operator need shown for a knob |
 | Positive TTL cap 86400, negative cap 3600, configurable | fixed | unbound.conf `cache-max-ttl` "Default: 86400 (1 day)", `cache-max-negative-ttl` "Default: 3600"; operators tune these |
-| Out-of-zone glue not trusted | trust all glue | unbound.conf `harden-glue`: "Will trust glue only if it is within the servers authority." Default yes |
-| (D-1 (a)) BAD-cache TTL fixed at 60 s | a config leaf | unbound.conf `val-bogus-ttl` "Default: 60"; RFC asks only that a TTL be assigned |
-| (D-1 (a)) NSEC3 validation included | NSEC only | A-6: without it most real TLDs fail; RFC 5155 has no summary and none is written, so its tests carry no RFC tag |
 | Advertisement left to the existing leaves | a `self` keyword resolving to the resolver address in DHCP, RA and the L2TP pool | the three producers live in other plugins and components; a cross-plugin lookup is an import the plugin rules forbid; the guide shows the three leaves |
 | A new `le dns query` tool for `.ci` | assert through the stub resolver's output | the stub prints records and RCODE only; RA, AA, AD, TC and size are the behavior under test |
 
 ## Known Limitations
-- Under D-1 (b): no DNSSEC validation; a validating stub on the LAN receives no RRSIGs through Ze, and no release claim may say Ze validates signatures (commit 5ff4834b67).
-- Under D-1 (a): static trust anchors only; a root KSK roll needs a Ze release or a config change, until RFC 5011 is admitted.
+- No DNSSEC validation (D-1 answered (b)): a validating stub on the LAN receives no RRSIGs through Ze, and no release claim may say Ze validates signatures (commit 5ff4834b67). The validator is `plan/post-release/features/spec-dns-resolver-dnssec-validation.md`.
+- No full recursion: the resolver needs an operator-named upstream until `plan/post-release/features/spec-dns-resolver-recursion.md` lands (D-2).
 - Upstream transport in forward mode is plain UDP and TCP; DNS over TLS to upstreams is not in this spec. The harness's DoT and DoH listeners are not offered on the resolver.
 - DHCPv6 option 23 advertisement waits for `plan/post-release/features/spec-dhcpv6-server.md`; IPv6 hosts are served through RA RDNSS today.
-- No summary is written for RFC 1034, 2308, 5155, 5452, 5011 or 6891 (no profile lists them); RFC 1035 and 2181 rows (and 4035 under (a)) carry the proof.
+- No summary is written for RFC 1034, 2308, 5452 or 6891 (no profile lists them); RFC 1035 and 2181 rows carry the proof.
 - RFC4035-3-1 and RFC4035-3-2 stay open for the authoritative services; `Options.UDPSize` makes them closable there by setting the same option, which is that work's to do.
 
 ## Work Not Done
 | Item | Spec |
 |------|------|
-| DNSSEC validation, if D-1 is answered (b) | `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` (to be created when D-1 is answered (b)) |
-| Recursion, if D-2 is answered (b) | `plan/post-release/features/spec-dns-resolver-recursion.md` (to be created when D-2 is answered (b)) |
+| DNSSEC validation (D-1 answered (b)); runs once Thomas brings DNSSEC into scope | `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` |
+| Full recursion from the root; waits on Thomas's D-2 answer | `plan/post-release/features/spec-dns-resolver-recursion.md` |
 
 ## RFC Documentation (Scope: protocol)
 
@@ -674,7 +618,7 @@ same commit (`ai/rules/planning.md`).
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-35 (and V-1..V-15 under D-1 (a)) all demonstrated
+- [ ] AC-1..AC-33 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches, and `./le verify changed` over the closing commits (`/ze-close` step 6f). The full verification is Thomas's release check: no agent runs it, and one that is owed is handed to him as its exact command. A red there gets a fix commit
