@@ -711,6 +711,18 @@ exactly like one whose stimulus was honored, which is how
 `test/ui/bgp-decode-pcap-stdin.ci` asserted a decoded capture while the capture
 reached the child as a file path it never wrote.
 <!-- source: internal/test/runner/runner_exec_trace.go -- recordExecStep -->
+
+That step is written before the process starts, so on its own it does not say
+the process started. When the run ends, each command that started gains a
+clock mark: `[clock start <wall time>, started +<s> pid <n>, first stderr
++<s>]`, or `no stderr before the run ended`. The offsets are measured from the
+moment the test's deadline was set, and the wall time uses the daemon's slog
+layout, so a daemon log line can be placed on the same clock. A timeout then
+says where its budget went: before exec, in the exec, or in the process's own
+startup. The base `bgp-delay-open` TIME30 is the case that needed it: its
+daemon logged its first config line 21.7s into a 30s budget, and nothing could
+say which of the three took the time.
+<!-- source: internal/test/runner/runner_exec_trace.go -- execClock, firstOutput -->
 <!-- source: internal/test/runner/report.go -- printStepTraces -->
 
 The trace package (`internal/test/trace`) is a leaf with no runner imports.

@@ -540,6 +540,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	testCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	clock := newExecClock(time.Now())
+	defer clock.stamp(rec)
 
 	rec.SetState(StateRunning)
 
@@ -868,7 +870,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// What RAN, in the report every reader already reads. A rewrite above
 		// changed argv, and until this step existed nothing said so
 		// (runner_exec_trace.go).
-		rec.recordExecStep(binPath, args, cmd.Stdin, stdinPiped)
+		execStep := rec.recordExecStep(binPath, args, cmd.Stdin, stdinPiped)
 
 		// Create command
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
@@ -1022,12 +1024,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// and closes with closeOpenSpans at the end of the run.
 		cmd.stdoutFrom, cmd.stderrFrom = clientStdout.mark(), clientStderr.mark()
 
+		stderrSeen := clock.watch(proc.Stderr)
+		proc.Stderr = stderrSeen
+
 		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).
 		var startErr error
 		if proc, startErr = startWithETXTBSYRetry(testCtx, binPath, args, proc); startErr != nil {
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false
 		}
+		clock.mark(execStep, proc.Process.Pid, stderrSeen)
 
 		switch {
 		case cmd.Mode == modeBackground:

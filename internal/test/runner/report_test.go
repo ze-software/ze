@@ -214,6 +214,8 @@ func TestRunReportNamesTheArgvItRan(t *testing.T) {
 	require.Len(t, executed, 1, "one command ran, so one exec step is recorded")
 	assert.Contains(t, executed[0], "/bin/cat", "the step names the argv the runner executed")
 	assert.Contains(t, executed[0], "[stdin=payload piped]", "the step says where the named block went")
+	assert.Regexp(t, `\[clock start \S+Z, started \+[0-9.]+s pid [0-9]+, no stderr before the run ended\]$`, executed[0],
+		"a real run stamps the step once the process started; /bin/cat writes only to stdout")
 
 	// The failing reader's route.
 	var failure bytes.Buffer
