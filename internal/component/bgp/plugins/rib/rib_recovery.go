@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -42,10 +41,10 @@ func (r *RIBManager) recoveryRoutes(request ribevents.RecoveryRequest) ([]ribeve
 	for i := range request.Keys {
 		outcomes[i].NLRI = request.Keys[i].NLRI
 	}
-	if request.SentAddPath {
+	if request.SentAddPath && request.Limit == 0 {
 		// RFC 7911 Section 3: ADD-PATH already advertised the surviving paths,
 		// so no election runs; each excluded source's sent identifiers,
-		// including zero, are withdrawn.
+		// including zero, are withdrawn. A limited request elects below.
 		if err := recoverySentAddPathLocked(&request, identities, r.ribOut[request.Destination][request.Family], outcomes); err != nil {
 			return nil, err
 		}
@@ -127,7 +126,9 @@ func recoveryIdentity(fam family.Family, raw []byte, addPath bool) (ribOutKey, e
 	return identity, nil
 }
 
-// recoverySurvivorsLocked lists the key's candidates in election order. Each
+// recoverySurvivorsLocked lists the key's candidates in election order, at
+// most request.Limit of them when it is nonzero. Every path of every source
+// is a candidate, an ADD-PATH source's several identifiers included. Each
 // excluded source's candidates, the destination's own, and those of down peers
 // are skipped before election. Election needs no sent entry for the key.
 // The caller MUST hold peerMu throughout selection and the byte snapshot.
@@ -172,9 +173,18 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 		return nil, nil
 	}
 	remaining := candidates[:eligible]
-	survivors := make([]ribevents.RecoveryRoute, 0, len(remaining))
+	wanted := len(remaining)
+	if request.Limit > 0 {
+		// draft-abraitis-idr-addpath-paths-limit Section 1: "This indication
+		// allows the sender to optimize the transmission of BGP routes by
+		// selectively relaying pertinent routes instead of the entire set."
+		// The pertinent routes are the election's first Limit choices, so
+		// the election stops there rather than ranking the whole set.
+		wanted = min(wanted, int(request.Limit))
+	}
+	survivors := make([]ribevents.RecoveryRoute, 0, wanted)
 	// Bounded by the key's candidate count: each pass removes one winner.
-	for len(remaining) > 0 {
+	for len(survivors) < wanted {
 		// RFC 4271 Section 9.1.2.2: the existing whole-set election chooses
 		// the path; repeating it over the rest gives the next choice.
 		best := SelectBest(remaining)
@@ -303,35 +313,12 @@ func recoverySentNLRI(fam family.Family, key ribOutKey, entry ribOutEntry) ([]by
 
 // recoveryCommand exposes the same cold batched lookup to an external RIB. Its
 // caller MUST successfully drain applied sent deliveries first, outside writeMu.
-// Each key argument is ribevents.FormatRecoveryKey's form.
+// The arguments are ribevents.AppendRecoveryArgs's form, the reactor's IPC
+// writer's own.
 func (r *RIBManager) recoveryCommand(_ string, args []string) (string, any, error) {
-	if len(args) < 5 {
-		return statusError, nil, fmt.Errorf("request bgp rib recovery needs at least 5 arguments, got %d: usage: request bgp rib recovery <destination> <family> <add-path> <sent-add-path> <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]", len(args))
-	}
-	destination, err := netip.ParseAddr(args[0])
+	request, err := ribevents.ParseRecoveryArgs(args)
 	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery destination: %w", err)
-	}
-	fam, known := family.LookupFamily(args[1])
-	if !known {
-		return statusError, nil, fmt.Errorf("recovery: unknown family %q", args[1])
-	}
-	addPath, err := strconv.ParseBool(args[2])
-	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery ADD-PATH: %w", err)
-	}
-	sentAddPath, err := strconv.ParseBool(args[3])
-	if err != nil {
-		return statusError, nil, fmt.Errorf("recovery sent ADD-PATH: %w", err)
-	}
-	request := ribevents.RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath,
-		SentAddPath: sentAddPath, Keys: make([]ribevents.RecoveryKey, 0, len(args)-4)}
-	for _, encoded := range args[4:] {
-		key, err := ribevents.ParseRecoveryKey(encoded)
-		if err != nil {
-			return statusError, nil, err
-		}
-		request.Keys = append(request.Keys, key)
+		return statusError, nil, err
 	}
 	// RFC 4271 Section 6: each key is answered with replacements or withdrawal.
 	outcomes, err := r.recoveryRoutes(request)

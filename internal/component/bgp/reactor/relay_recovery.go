@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -556,12 +555,8 @@ func (a *reactorAPIAdapter) lookupRecovery(ctx context.Context, request *ribeven
 		if a.r.api == nil {
 			return nil, errServerNotReady
 		}
-		args := make([]string, 0, 4+len(request.Keys))
-		args = append(args, request.Destination.String(), request.Family.String(),
-			strconv.FormatBool(request.AddPath), strconv.FormatBool(request.SentAddPath))
-		for i := range request.Keys {
-			args = append(args, ribevents.FormatRecoveryKey(&request.Keys[i]))
-		}
+		// Six heads: four fields and the optional limit pair, then the keys.
+		args := ribevents.AppendRecoveryArgs(make([]string, 0, 6+len(request.Keys)), request)
 		commandContext := &pluginserver.CommandContext{Server: a.r.api, RequestContext: ctx}
 		var response *plugin.Response
 		response, err = a.r.api.Dispatcher().ForwardToPlugin(commandContext, "request bgp rib recovery", args, "*")

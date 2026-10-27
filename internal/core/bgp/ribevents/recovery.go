@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -25,6 +26,14 @@ type RecoveryRequest struct {
 	AddPath     bool          `json:"add-path"`
 	// SentAddPath selects the destination's negotiated sent identity space.
 	SentAddPath bool `json:"sent-add-path"`
+	// Limit bounds each key's survivors, and zero bounds nothing. On a
+	// SentAddPath destination it also selects the answer: zero keeps WITHDRAW
+	// plus Sent with no election, while a nonzero Limit asks for an election
+	// over every eligible candidate and at most Limit survivors in election
+	// order, with Sent empty, because the caller's own admission state names
+	// what the destination holds. It is the destination's PATHS-LIMIT bound
+	// for the family, so it shares that number's type.
+	Limit uint16 `json:"limit"`
 }
 
 // RecoveryKey is one route identity and the sources whose candidates the
@@ -111,11 +120,98 @@ func ParseRecoveryKey(encoded string) (RecoveryKey, error) {
 	return key, nil
 }
 
+// recoveryLimitKeyword introduces the optional limit pair in the command form.
+const recoveryLimitKeyword = "limit"
+
+// recoveryUsage is the `request bgp rib recovery` argument form, quoted by
+// every refusal so the caller sees the shape it must write.
+const recoveryUsage = "usage: request bgp rib recovery <destination> <family> <add-path> <sent-add-path> " +
+	"[limit <paths>] <nlri-hex>=<excluded,...> [<nlri-hex>=<excluded,...> ...]"
+
+// AppendRecoveryArgs writes request in the `request bgp rib recovery` form
+// that ParseRecoveryArgs reads, so the reactor's IPC writer and the RIB's
+// command parser share one declaration of it. The limit pair is written only
+// for a nonzero Limit: an unlimited request carries none.
+// Draft-abraitis-idr-addpath-paths-limit Section 1.
+func AppendRecoveryArgs(args []string, request *RecoveryRequest) []string {
+	args = append(args, request.Destination.String(), request.Family.String(),
+		strconv.FormatBool(request.AddPath), strconv.FormatBool(request.SentAddPath))
+	if request.Limit > 0 {
+		args = append(args, recoveryLimitKeyword, strconv.Itoa(int(request.Limit)))
+	}
+	for i := range request.Keys {
+		args = append(args, FormatRecoveryKey(&request.Keys[i]))
+	}
+	return args
+}
+
+// ParseRecoveryArgs reads AppendRecoveryArgs's form. A request names at least
+// one key, and a stated limit is 1 to 65535: zero is written by omitting the
+// pair, so "limit 0" is a malformed request, never an unbounded one.
+// Draft-abraitis-idr-addpath-paths-limit Section 1.
+func ParseRecoveryArgs(args []string) (RecoveryRequest, error) {
+	if len(args) < 5 {
+		return RecoveryRequest{}, fmt.Errorf("request bgp rib recovery needs at least 5 arguments, got %d: %s", len(args), recoveryUsage)
+	}
+	destination, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return RecoveryRequest{}, fmt.Errorf("recovery destination: %w", err)
+	}
+	fam, known := family.LookupFamily(args[1])
+	if !known {
+		return RecoveryRequest{}, fmt.Errorf("recovery: unknown family %q", args[1])
+	}
+	addPath, err := strconv.ParseBool(args[2])
+	if err != nil {
+		return RecoveryRequest{}, fmt.Errorf("recovery ADD-PATH: %w", err)
+	}
+	sentAddPath, err := strconv.ParseBool(args[3])
+	if err != nil {
+		return RecoveryRequest{}, fmt.Errorf("recovery sent ADD-PATH: %w", err)
+	}
+	request := RecoveryRequest{Destination: destination, Family: fam, AddPath: addPath, SentAddPath: sentAddPath}
+	keys := args[4:]
+	if keys[0] == recoveryLimitKeyword {
+		if request.Limit, err = parseRecoveryLimit(keys[1:]); err != nil {
+			return RecoveryRequest{}, err
+		}
+		keys = keys[2:]
+	}
+	if len(keys) == 0 {
+		return RecoveryRequest{}, fmt.Errorf("request bgp rib recovery names no key: %s", recoveryUsage)
+	}
+	request.Keys = make([]RecoveryKey, 0, len(keys))
+	for _, encoded := range keys {
+		key, err := ParseRecoveryKey(encoded)
+		if err != nil {
+			return RecoveryRequest{}, err
+		}
+		request.Keys = append(request.Keys, key)
+	}
+	return request, nil
+}
+
+// parseRecoveryLimit reads the value after the limit keyword.
+func parseRecoveryLimit(rest []string) (uint16, error) {
+	if len(rest) == 0 {
+		return 0, fmt.Errorf("recovery limit has no value: %s", recoveryUsage)
+	}
+	limit, err := strconv.ParseUint(rest[0], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("recovery limit %q is not a path count from 1 to 65535: %w", rest[0], err)
+	}
+	if limit == 0 {
+		return 0, fmt.Errorf("recovery limit 0 is not a path count: omit the limit pair for an unbounded request")
+	}
+	return uint16(limit), nil
+}
+
 var errRecoveryAnswer = errors.New("recovery answer")
 
 // CheckRecoveryAnswer refuses an answer that does not decide every requested
-// key exactly once, in request order. A missing outcome is a lookup failure,
-// never read as "no survivor".
+// key exactly once, in request order, or that answers a limited request with
+// more survivors than its Limit. A missing outcome is a lookup failure, never
+// read as "no survivor".
 func CheckRecoveryAnswer(request *RecoveryRequest, outcomes []RecoveryOutcome) error {
 	if len(outcomes) != len(request.Keys) {
 		return fmt.Errorf("%w: %d outcomes for %d keys", errRecoveryAnswer, len(outcomes), len(request.Keys))
@@ -133,6 +229,11 @@ func CheckRecoveryAnswer(request *RecoveryRequest, outcomes []RecoveryOutcome) e
 		}
 		if len(outcome.Survivors) == 0 {
 			return fmt.Errorf("%w: key %d has no outcome", errRecoveryAnswer, i)
+		}
+		// Draft-abraitis-idr-addpath-paths-limit Section 1: a limited answer
+		// relays at most the destination's bound.
+		if limit := int(request.Limit); limit > 0 && len(outcome.Survivors) > limit {
+			return fmt.Errorf("%w: key %d has %d survivors over limit %d", errRecoveryAnswer, i, len(outcome.Survivors), limit)
 		}
 	}
 	return nil

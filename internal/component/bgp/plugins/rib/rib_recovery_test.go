@@ -645,3 +645,209 @@ func TestRecoverySentNLRIRefusalFailsTheAnswer(t *testing.T) {
 	err = recoverySentAddPathLocked(&request, []ribOutKey{identity}, map[ribOutKey]ribOutEntry{broken: entry}, outcomes)
 	require.Error(t, err, "a refused sent identity must fail the answer")
 }
+
+// limitedPath names one received path of the limited-election fixture.
+type limitedPath struct {
+	source netip.Addr
+	id     uint32
+}
+
+// limitedSurvivors lists the survivors' sources and received identifiers in
+// answer order.
+func limitedSurvivors(outcome ribevents.RecoveryOutcome) []limitedPath {
+	paths := make([]limitedPath, len(outcome.Survivors))
+	for i, survivor := range outcome.Survivors {
+		paths[i] = limitedPath{survivor.Source, survivor.PathID}
+	}
+	return paths
+}
+
+// limitedFixture installs five paths for 198.51.100.0/24, worst first: three
+// from one ADD-PATH source (identifiers 1, 2, 3 at LOCAL_PREF 100, 150, 255)
+// and one each from two sources without ADD-PATH (LOCAL_PREF 200 and 250). The
+// destination already holds sent entries for the prefix, owned by the ADD-PATH
+// source (destination identifiers 10 and 30) and by the LOCAL_PREF 250 source
+// (40). It returns the destination-framed key NLRI.
+func limitedFixture(t *testing.T, r *RIBManager, dest, multi, mid, high netip.Addr) []byte {
+	t.Helper()
+	prefix := []byte{24, 198, 51, 100}
+	framed := func(id uint32) []byte {
+		raw := make([]byte, 4+len(prefix))
+		binary.BigEndian.PutUint32(raw, id)
+		copy(raw[4:], prefix)
+		return raw
+	}
+	recoveryReceived(r, multi, framed(1), 100, 81, true, nil)
+	recoveryReceived(r, multi, framed(2), 150, 82, true, nil)
+	recoveryReceived(r, mid, prefix, 200, 83, false, nil)
+	recoveryReceived(r, high, prefix, 250, 84, false, nil)
+	recoveryReceived(r, multi, framed(3), 255, 85, true, nil)
+	for _, sent := range []struct {
+		id     uint32
+		source netip.Addr
+	}{{10, multi}, {30, multi}, {40, high}} {
+		event := nativeSentEvent(t, dest, family.IPv4Unicast, framed(sent.id), nativeSentAttrs(), true, false)
+		event.RouteMeta["source-peer"] = sent.source.String()
+		event.RouteMeta["source-message-id"] = float64(85)
+		r.handleSent(event)
+	}
+	return framed(10)
+}
+
+// TestRecoveryLimitedAddPathElectionOrder checks the limited ADD-PATH election
+// that best-path admission under a peer PATHS-LIMIT asks of the RIB (AC-17-peer,
+// AC-18-peer oracle). Method: five candidates arrive worst first, the paths of
+// one ADD-PATH source among them; a request with Limit K must answer the first
+// K of the unlimited election, never the arrival order and never WITHDRAW plus
+// Sent; a better arrival must displace the K-th; a MED set where the comparator
+// is not transitive must still answer repeated SelectBest order.
+// PREVENTS: a limited request answered by the unlimited ADD-PATH WITHDRAW, by
+// arrival order, or by a sort, and a bound the answer exceeds.
+func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
+	r := newTestRIBManager(t)
+	recoveryTestCleanup(t, r)
+	dest := netip.MustParseAddr("192.0.2.20")
+	multi := netip.MustParseAddr("192.0.2.11")
+	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
+	key := limitedFixture(t, r, dest, multi, mid, high)
+	limited := func(limit uint16, keys ...ribevents.RecoveryKey) []ribevents.RecoveryOutcome {
+		t.Helper()
+		request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+			AddPath: true, SentAddPath: true, Limit: limit, Keys: keys}
+		outcomes, err := r.recoveryRoutes(request)
+		require.NoError(t, err)
+		require.NoError(t, ribevents.CheckRecoveryAnswer(&request, outcomes))
+		return outcomes
+	}
+	whole := []limitedPath{{multi, 3}, {high, 0}, {mid, 0}, {multi, 2}, {multi, 1}}
+
+	// The unlimited election over the same candidates is the reference order.
+	full, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+		AddPath: true, Keys: []ribevents.RecoveryKey{recoveryKey(key)}})
+	require.NoError(t, err)
+	require.Equal(t, whole, limitedSurvivors(full[0]))
+
+	outcome := limited(2, recoveryKey(key))[0]
+	require.False(t, outcome.Withdraw, "a limited ADD-PATH request elects")
+	require.Empty(t, outcome.Sent, "a limited answer names no sent identifier")
+	require.Equal(t, whole[:2], limitedSurvivors(outcome), "the two best, not the first two to arrive")
+	require.True(t, outcome.Survivors[0].AddPath)
+	require.Equal(t, key[4:], outcome.Survivors[0].NLRI[4:], "the survivor keeps its own framing")
+	require.Equal(t, uint32(3), binary.BigEndian.Uint32(outcome.Survivors[0].NLRI))
+
+	// Boundaries: a bound of one, and a bound above the candidate count.
+	require.Equal(t, whole[:1], limitedSurvivors(limited(1, recoveryKey(key))[0]))
+	require.Equal(t, whole, limitedSurvivors(limited(65535, recoveryKey(key))[0]))
+
+	// A named source is skipped, nobody else.
+	require.Equal(t, []limitedPath{{high, 0}, {mid, 0}}, limitedSurvivors(limited(2, recoveryKey(key, multi))[0]))
+
+	// A better arrival displaces the second best.
+	better := netip.MustParseAddr("192.0.2.14")
+	recoveryReceived(r, better, key[4:], 252, 86, false, nil)
+	require.Equal(t, []limitedPath{{multi, 3}, {better, 0}}, limitedSurvivors(limited(2, recoveryKey(key))[0]))
+
+	// A key nobody holds is WITHDRAW, with no sent identifier.
+	nobody := limited(2, recoveryKey([]byte{0, 0, 0, 10, 24, 203, 0, 113}))[0]
+	require.True(t, nobody.Withdraw)
+	require.Empty(t, nobody.Survivors)
+	require.Empty(t, nobody.Sent)
+
+	// The MED set: two neighbor ASes make the comparator non-transitive.
+	medSet := []byte{24, 198, 51, 101}
+	for i, path := range []struct {
+		peer netip.Addr
+		as   byte
+		med  byte
+	}{{mid, 1, 50}, {high, 2, 10}, {better, 1, 20}} {
+		attrs := recoveryReceived(r, path.peer, medSet, 100, uint64(90+i), false, []byte{0x40, 2, 4, 2, 1, 0xfd, path.as})
+		attrs = appendAttr(attrs, byte(attribute.AttrMED), 0x80, []byte{0, 0, 0, path.med})
+		r.bgpPeers[path.peer].Insert(family.IPv4Unicast, attrs, medSet)
+	}
+	r.peerMu.RLock()
+	remaining := r.gatherPrefixCandidatesLocked(family.IPv4Unicast, netip.MustParsePrefix("198.51.101.0/24"))
+	var want []netip.Addr
+	for len(remaining) > 0 {
+		best := SelectBest(remaining)
+		want = append(want, best.PeerIP)
+		for i, candidate := range remaining {
+			if candidate == best {
+				remaining = append(remaining[:i], remaining[i+1:]...)
+				break
+			}
+		}
+		releaseCandidates([]*Candidate{best})
+	}
+	r.peerMu.RUnlock()
+	require.Len(t, want, 3)
+	medKey := append([]byte{0, 0, 0, 7}, medSet...)
+	require.Equal(t, want[:2], recoverySources(limited(2, recoveryKey(medKey))[0]))
+}
+
+// TestRecoveryUnlimitedAddPathUnchanged checks a SentAddPath request with no
+// Limit keeps the source-DOWN answer: no election, WITHDRAW, and Sent naming
+// every identifier the excluded source owns at the destination.
+// PREVENTS: the limited election leaking into source-DOWN recovery.
+func TestRecoveryUnlimitedAddPathUnchanged(t *testing.T) {
+	r := newTestRIBManager(t)
+	recoveryTestCleanup(t, r)
+	dest := netip.MustParseAddr("192.0.2.20")
+	multi := netip.MustParseAddr("192.0.2.11")
+	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
+	key := limitedFixture(t, r, dest, multi, mid, high)
+	outcomes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+		AddPath: true, SentAddPath: true, Keys: []ribevents.RecoveryKey{recoveryKey(key, multi)}})
+	require.NoError(t, err)
+	require.True(t, outcomes[0].Withdraw, "an unlimited ADD-PATH request runs no election")
+	require.Empty(t, outcomes[0].Survivors)
+	ids := make([]uint32, 0, len(outcomes[0].Sent))
+	for _, sent := range outcomes[0].Sent {
+		ids = append(ids, binary.BigEndian.Uint32(sent))
+	}
+	require.ElementsMatch(t, []uint32{10, 30}, ids)
+}
+
+// TestRecoveryCommandParsesLimit checks the IPC command carries the limit the
+// reactor writes and answers what the in-process lookup answers, and that a
+// malformed limit is refused rather than read as unbounded.
+// PREVENTS: an external RIB electing over the whole set, or a typo answered.
+func TestRecoveryCommandParsesLimit(t *testing.T) {
+	r := newTestRIBManager(t)
+	recoveryTestCleanup(t, r)
+	dest := netip.MustParseAddr("192.0.2.20")
+	multi := netip.MustParseAddr("192.0.2.11")
+	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
+	key := limitedFixture(t, r, dest, multi, mid, high)
+	request := ribevents.RecoveryRequest{Destination: dest, Family: family.IPv4Unicast,
+		AddPath: true, SentAddPath: true, Limit: 2, Keys: []ribevents.RecoveryKey{recoveryKey(key)}}
+	args := ribevents.AppendRecoveryArgs(nil, &request)
+	require.Equal(t, []string{"limit", "2"}, args[4:6])
+	outcomes, err := r.recoveryRoutes(request)
+	require.NoError(t, err)
+	status, answer, err := r.recoveryCommand("", args)
+	require.NoError(t, err)
+	require.Equal(t, statusDone, status)
+	require.Equal(t, outcomes, answer)
+	require.Len(t, outcomes[0].Survivors, 2)
+
+	heads := args[:4]
+	encoded := ribevents.FormatRecoveryKey(&request.Keys[0])
+	for _, tc := range []struct {
+		name string
+		tail []string
+	}{
+		{"no value", []string{"limit"}},
+		{"value is a key", []string{"limit", encoded}},
+		{"zero", []string{"limit", "0", encoded}},
+		{"over 65535", []string{"limit", "65536", encoded}},
+		{"negative", []string{"limit", "-1", encoded}},
+		{"no key", []string{"limit", "2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, answer, err := r.recoveryCommand("", append(append([]string(nil), heads...), tc.tail...))
+			require.Error(t, err)
+			require.Equal(t, statusError, status)
+			require.Nil(t, answer)
+		})
+	}
+}

@@ -263,14 +263,34 @@ reload has since unbound processes from that still-running session
 (`Peer.forwardRevocation`). The reconnected session's path stays, and so does
 an identifier written by a session newer than the record's departure bound
 that has since ended too: graceful restart retains it, and only that
-session's own departure withdraws it (`adjOutWrite.recoverySpares`). The external
-command takes one argument per key in `ribevents.FormatRecoveryKey`'s form,
-`<nlri-hex>=<excluded>,<excluded>`. This remains the cold lookup's retained
+session's own departure withdraws it (`adjOutWrite.recoverySpares`).
+
+The request's `Limit` changes that answer. It is the destination's PATHS-LIMIT
+bound for the family, and zero means unbounded. A nonzero `Limit` on an
+ADD-PATH destination asks for the limited election that best-path admission
+under a peer's PATHS-LIMIT needs: the RIB runs the same election over every
+eligible candidate of the key, the several paths of one ADD-PATH source
+included, and answers at most `Limit` survivors in election order, or WITHDRAW
+when no candidate remains. `Sent` stays empty, because the caller's own
+admission state names what the destination holds. The election stops after
+`Limit` winners rather than ranking the whole set, and
+`ribevents.CheckRecoveryAnswer` refuses an answer with more survivors than the
+bound. On a destination without ADD-PATH a nonzero `Limit` only bounds the
+survivor list.
+
+The external command is
+`request bgp rib recovery <destination> <family> <add-path> <sent-add-path> [limit <paths>] <key>...`,
+one argument per key in `ribevents.FormatRecoveryKey`'s form,
+`<nlri-hex>=<excluded>,<excluded>`. The `limit` pair is written only for a
+nonzero `Limit`, and a stated limit is 1 to 65535: `limit 0` is refused, never
+read as unbounded. `ribevents.AppendRecoveryArgs` writes the form for the
+reactor and `ribevents.ParseRecoveryArgs` reads it for the RIB, so both sides
+share one declaration. This remains the cold lookup's retained
 sent projection; final writer admission still requires its live owner receipt.
 bgp-rr reaches this path with one departure command per family and command
 form, carrying `recovery-source` and `recovery-generation` meta and naming each route with its own `del`
 keyword, at most `withdrawalBatchSize` (1000) routes a command.
-<!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey -->
+<!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey, AppendRecoveryArgs, ParseRecoveryArgs -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture, sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
