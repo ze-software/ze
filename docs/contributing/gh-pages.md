@@ -36,14 +36,29 @@ A recording runs in a container this repository builds and publishes to no
 registry, so build it once per checkout with `./le site terminal-demo build image`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
 recorder runs. The build goes through the lab's `interoplab.Docker.Build`, so
-it carries the owner labels and runs `docker build -q`: the action prints one
-progress line, not the build log, and a failure carries Docker's stderr. The
-run-owned tag the wrapper adds beside the manifest's is released when the build
-ends. A render asks the daemon through `Docker.ImagePresent` and refuses to
+it carries the owner labels. This action opts into live build progress: Docker
+runs without `-q`, and its stdout and stderr reach the action's output as they
+arrive, including the native job log when the action runs under admission.
+There is no synthetic heartbeat. A failure carries the last 4096 bytes of
+Docker's stderr, or a bounded stdout excerpt if stderr is empty. After a
+successful build, the wrapper reads the immutable image ID by inspecting its
+unique run-owned tag, never the shared manifest tag. The run-owned tag is
+released when the action ends, including a failed or canceled streamed build;
+the manifest tag and Docker's build cache stay. Other `Docker.Build` callers
+remain quiet unless they opt in. A render asks the daemon through
+`Docker.ImagePresent` and refuses to
 start when that image is absent, naming this action; an inspect the daemon
 does not answer is reported as that failure, never as an unbuilt image.
-Rebuild after any change to `demos/terminal/Dockerfile`.
+Rebuild after a change to the renderer Dockerfile or either canonical peer pin.
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.BuildImage, Engine.requireRendererImage -->
+
+The renderer takes the FRR release from `interoplab.FRRImage` and installs that
+release from FRRouting's signed `trixie` repository, not Debian's older package.
+It reads the keepalived version and SHA-256 from
+`test/interop/Dockerfile.keepalived`, then builds that verified source on Debian
+with LVS disabled and VRRP VMAC enabled, using two compiler jobs. The resolved
+peer build arguments participate in both Docker's cache key and recording
+freshness. Browser and vendored font pins remain independent of these peers.
 
 Before that, a render, like the renderer's `validate` mode, checks the Docker
 daemon's kernel with the demo `ze`, and

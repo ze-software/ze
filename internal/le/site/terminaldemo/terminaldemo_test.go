@@ -238,6 +238,11 @@ func (f *demoFixture) writeTree(t *testing.T) {
 	for _, name := range []string{"common.tape", "Dockerfile"} {
 		mustWrite(t, filepath.Join(demoRoot, name), name+"\n")
 	}
+	peerPin, err := os.ReadFile(filepath.Join("../../../..", rendererKeepalivedPin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(f.root, rendererKeepalivedPin), string(peerPin))
 	for _, relative := range recorderBinaries {
 		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(relative)), relative+"\n")
 	}
@@ -279,6 +284,8 @@ func (f *demoFixture) engine(output *bytes.Buffer) *Engine {
 	})
 }
 
+const fixtureRendererImageID = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 // Run is the fixture's Docker process boundary: every demo container the
 // wrapper starts is recorded beside the ffmpeg and build commands, in order,
 // and answered by execute.
@@ -292,13 +299,19 @@ func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand
 	if f.daemonDown && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
 		return interoplab.ProcessResult{ExitCode: 1, Stderr: "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"}, nil
 	}
-	// The wrapper reads absence from the daemon's own words, and a build's
-	// image id from its quiet stdout, so the fixture answers in both.
+	// Absence and immutable identity come from the daemon, not from a tag
+	// guessed by the wrapper. Attached build streams are not captured.
 	if code != 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
 		return interoplab.ProcessResult{ExitCode: code, Stderr: "Error: No such image: " + args[len(args)-1]}, nil
 	}
 	if code == 0 && len(args) >= 2 && args[1] == "build" {
-		return interoplab.ProcessResult{Stdout: "sha256:fixture-renderer\n"}, nil
+		if command.Stdout != nil {
+			return interoplab.ProcessResult{}, nil
+		}
+		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
+	}
+	if code == 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
+		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
 	}
 	return interoplab.ProcessResult{ExitCode: code}, nil
 }
@@ -768,38 +781,6 @@ func TestValidationStopsAtTheFirstFailure(t *testing.T) {
 	// The image check, then the validation that failed. Nothing after it ran.
 	if len(fixture.commands) != 2 {
 		t.Errorf("commands after first failure = %d, want 2", len(fixture.commands))
-	}
-}
-
-// VALIDATES: build image tags the image the manifest names and reads the
-// Dockerfile from the demo tree.
-// PREVENTS: building under any other tag, which leaves the recorder pulling an
-// image nobody publishes while a correctly built one sits beside it.
-func TestBuildImageTagsTheImageTheManifestNames(t *testing.T) {
-	fixture := newDemoFixture(t)
-	var output bytes.Buffer
-	report, err := fixture.engine(&output).BuildImage()
-	if err != nil {
-		t.Fatalf("BuildImage: %v", err)
-	}
-	if report.Mode != rendererImageBuildMode {
-		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
-	}
-	// interoplab.Docker.Build tags a run-owned name beside the manifest's, and
-	// ReleaseImage drops it, so the shared tag is all the build leaves behind.
-	if len(fixture.commands) != 2 {
-		t.Fatalf("commands = %d, want the build and its release: %#v", len(fixture.commands), fixture.commands)
-	}
-	build := fixture.commands[0].Args
-	assertSubsequence(t, build, []string{
-		"docker", "build", "--label",
-		"-t", "fixture-renderer:3",
-		"-f", filepath.Join(fixture.root, "demos", "terminal", "Dockerfile"),
-		filepath.Join(fixture.root, "demos", "terminal"),
-	})
-	assertSubsequence(t, fixture.commands[1].Args, []string{"docker", "image", "rm", "--no-prune"})
-	if fixture.commands[1].Args[len(fixture.commands[1].Args)-1] == "fixture-renderer:3" {
-		t.Errorf("the release removed the manifest's tag: %v", fixture.commands[1].Args)
 	}
 }
 

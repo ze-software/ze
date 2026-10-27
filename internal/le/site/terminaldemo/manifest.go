@@ -300,7 +300,21 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	if err := e.addSourceClosure(demo, files); err != nil {
 		return "", err
 	}
-	return e.digestPaths(renderContract(false, demo), slices.Collect(maps.Keys(files)))
+	arguments, err := rendererPeerArguments(e.root)
+	if err != nil {
+		return "", err
+	}
+	// Bind the resolved peer releases, not the source files' incidental text.
+	argumentOctets := len(arguments)
+	for _, argument := range arguments {
+		argumentOctets += len(argument)
+	}
+	contract := slices.Grow(renderContract(false, demo), argumentOctets)
+	for _, argument := range arguments {
+		contract = append(contract, 0)
+		contract = append(contract, argument...)
+	}
+	return e.digestPaths(contract, slices.Collect(maps.Keys(files)))
 }
 
 // addSourceClosure adds to files what a demo's tape plays beyond its own

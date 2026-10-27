@@ -122,6 +122,10 @@ type ImageBuild struct {
 	Timeout  time.Duration `json:"timeout,omitempty"`
 	Required bool          `json:"required"`
 	Pull     bool          `json:"pull"`
+	// Progress receives live stdout and stderr instead of a quiet build.
+	// Nil preserves quiet capture. Build serializes writes to this writer;
+	// the caller MUST NOT write to it concurrently until Build returns.
+	Progress io.Writer `json:"-"`
 }
 
 // NamedBuildContext is one `--build-context <name>=<path>` of a build: a
@@ -483,7 +487,11 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 			return image, err
 		}
 	}
-	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context, "-q")
+	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context)
+	if build.Progress != nil {
+		return d.buildWithProgress(ctx, image, ProcessCommand{Arguments: arguments, Timeout: timeout}, build.Progress)
+	}
+	arguments = append(arguments, "-q")
 	result, err := d.command(ctx, timeout, arguments...)
 	if err != nil {
 		return image, err
@@ -1128,6 +1136,12 @@ func (d *Docker) command(ctx context.Context, timeout time.Duration, argv ...str
 // commandAs runs argv and names it operation in any error it returns.
 func (d *Docker) commandAs(ctx context.Context, timeout time.Duration, operation string, argv ...string) (ProcessResult, error) {
 	result, err := d.run(ctx, ProcessCommand{Arguments: argv, Timeout: timeout})
+	return commandOutcome(result, err, timeout, operation, argv)
+}
+
+// commandOutcome preserves the same failure contract for captured and streamed
+// commands. A streaming caller supplies only its bounded diagnostic tails.
+func commandOutcome(result ProcessResult, err error, timeout time.Duration, operation string, argv []string) (ProcessResult, error) {
 	if err != nil {
 		return result, &commandError{
 			Operation: operation,

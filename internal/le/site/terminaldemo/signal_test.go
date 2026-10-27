@@ -110,6 +110,6 @@ func (b *signalingBuild) Run(ctx context.Context, command interoplab.ProcessComm
 		b.canceled = true
 		return interoplab.ProcessResult{}, ctx.Err()
 	case <-time.After(5 * time.Second):
-		return interoplab.ProcessResult{Stdout: "sha256:fixture-renderer\n"}, nil
+		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
 	}
 }

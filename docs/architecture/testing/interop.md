@@ -1499,9 +1499,12 @@ confirm that it fails. Then restore the fix and confirm that it passes.
 with `NO_BUILD=1`.** A tag is shared by every run on the host. A build in another
 session rebinds that tag between yours and your container start. Your mutation run
 then measures a daemon you did not build, and that inverted a proof twice in one
-review on 2026-08-05. `Docker.Build` reads the image ID from `docker build -q`,
-and the suite pins every container of the run to that immutable ID.
-Quote that line beside the result, because it names the binary the run measured.
+review on 2026-08-05. Quiet `Docker.Build` calls read the image ID from
+`docker build -q`. A caller supplying `ImageBuild.Progress` streams Docker's
+stdout and stderr, then obtains the immutable ID by inspecting its unique
+run-owned tag, never the shared cache tag. The suite pins every container of
+the run to that immutable ID. Quote that ID beside the result, because it
+names the binary the run measured.
 
 A scenario that passes either way (common when the peer must accept both the old
 and the new wire form) proves acceptance, not correctness. Say which one it

@@ -76,10 +76,9 @@ func executeCommand(command Command) int {
 // BuildImage builds the renderer image the manifest names, from
 // demos/terminal/Dockerfile.
 //
-// The manifest's image tag is the only name for this image: renderDemo passes
-// it to `docker run`, so building under any other tag records nothing. The tag
-// carries the renderer's pinned versions, so a Dockerfile change that bumps one
-// is a new tag and this action builds it beside the old one.
+// The manifest's tag is the recorder's name for this image. Peer release build
+// arguments come from the canonical interop pins, so a pin change invalidates
+// Docker's peer layers without changing recorder, browser or font bindings.
 func (e *Engine) BuildImage() (Report, error) {
 	report := Report{Mode: rendererImageBuildMode}
 	manifest, _, err := e.loadManifest()
@@ -93,11 +92,16 @@ func (e *Engine) BuildImage() (Report, error) {
 	if _, err := e.lookup(dockerProgram); err != nil {
 		return report, errors.New("docker is required to build the terminal-demo renderer image")
 	}
+	arguments, err := rendererPeerArguments(e.root)
+	if err != nil {
+		return report, err
+	}
 	var progress textbuf.Buffer
 	io.WriteString(e.output, progress.Str("building ").Str(image).Str(" from demos/terminal/Dockerfile...\n").String()) //nolint:errcheck // progress output
 	built, err := e.docker.Build(e.ctx, interoplab.ImageBuild{
 		Name: "terminal-demo renderer", Tag: image,
 		Dockerfile: filepath.Join(e.demoRoot, "Dockerfile"), Context: e.demoRoot,
+		BuildArgs: arguments, Progress: e.output,
 	})
 	if err != nil {
 		return report, fmt.Errorf("build the renderer image %s: %w", image, err)
