@@ -472,8 +472,14 @@ The operator-ordered exemption applies to a tunnel against a transport-mode pair
 as to two tunnels: both pairs operator-fixed, at different `policy-priority`
 values (`operatorOrdered`). A pair is judged whole, as the policy it installs:
 both prefixes, the protocol (the intersection of the two halves' protocols,
-`childPolicyPair`) and both ports (`samePolicyPair`). A tunnel pair is
-operator-fixed when it is exactly a traffic selector its operator configured. A
+`childPolicyPair`) and both ports (`samePolicyPair`), so a pair that differs from
+the configured selector only by its local port or its local prefix is the peer's
+choice (`TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused`,
+`TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused`). A tunnel pair is
+operator-fixed only when it is exactly a traffic selector its operator configured:
+a tunnel peer with no selector that proposes the pair between its own configured
+addresses beside a full-tunnel peer is refused, whichever arrives second
+(`TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused`). A
 transport-mode pair is operator-fixed when it is exactly such a selector, or when
 it is exactly the pair between the peer's configured `local-address` and
 `remote-address` as host prefixes, /32 or /128, for any protocol and any port on

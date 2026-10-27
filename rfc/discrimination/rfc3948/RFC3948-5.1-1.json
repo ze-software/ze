@@ -35,6 +35,28 @@
   {
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused",
+    "unit-sha": "c64c50fd702d19f0",
+    "claim-sha": "b782d352b8dff810",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::samePolicyPair",
+    "producer-sha": "89bbfa4cd5d535af",
+    "break": "line 308: \"a.localPort != b.localPort\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused",
+    "unit-sha": "591bc627a9a2698d",
+    "claim-sha": "e8c2a2099b349005",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::samePolicyPair",
+    "producer-sha": "89bbfa4cd5d535af",
+    "break": "line 314: \"!samePrefix(a.local, b.local)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused",
     "unit-sha": "930411afce07ca6c",
     "claim-sha": "bb15e9d28e574b76",
@@ -42,6 +64,17 @@
     "producer": "internal/component/ike/engine/inner_selectors.go::classifyInnerPair",
     "producer-sha": "4f923b3d70797bb1",
     "break": "line 284: \"p.operatorFixed = isConfiguredHost(pp, configuredHost)\" -\u003e \"p.operatorFixed = true\""
+  },
+  {
+    "rid": "RFC3948-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go::TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused",
+    "unit-sha": "60f6fc4165ab7a3f",
+    "claim-sha": "c055194b3cce1e52",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inner_selectors.go::classifyInnerPair",
+    "producer-sha": "4f923b3d70797bb1",
+    "break": "line 283: \"p.transport()\" -\u003e \"true\""
   },
   {
     "rid": "RFC3948-5.1-1",
