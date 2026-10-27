@@ -111,6 +111,23 @@ an unexpected unencrypted flag closes the connection and returns a terminal
 denial. An ERROR status tries the next configured server; an explicit FAIL,
 RESTART or FOLLOW cannot fall through to a backup decision.
 
+`trySend` closes and evicts its connection with one deferred call unless the
+exchange settled it (kept in the pool, promoted to it, or closed as
+non-reusable), so an error return and a panic's unwind both leave no
+connection mid-stream in the pool (RFC 8907 section 4.4).
+<!-- source: internal/component/tacacs/client.go -- trySend, closeAndEvict -->
+
+A Ze defect met during a request costs that request only. The client runs no
+goroutine of its own: each request runs on its caller, so `Authenticate`,
+`SendAuthorization` and `SendAccounting` each defer the `tacacs` guard's task
+`request`. A contained panic is logged, counted in
+`ze_task_panics_total{component="tacacs",task="request"}` and crash-recorded,
+and the request answers the `*taskguard.Panic` as its error. Every caller
+treats an error as an unreachable server, as RFC 8907 section 5.4.3 has a
+host in unrecoverable error treated, so the AAA chain moves to its next
+backend. The per-server mutex and the wire buffer are released by `defer`.
+<!-- source: internal/component/tacacs/panic_guard.go -- requestTask, containRequest, bindTacacsMetrics -->
+
 Usernames use the RFC 8265 UsernameCasePreserved profile: width mapping and NFC
 normalization preserve case, and disallowed Unicode or invalid bidirectional
 text is refused. Other text fields, including PAP passwords, use printable

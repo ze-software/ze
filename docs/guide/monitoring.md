@@ -326,7 +326,6 @@ at zero from the moment the component has a metrics registry.
 | `ospf` | `consumer` | One call into a callback another package registered with the OSPF engine (an opaque LSA consumer, a Router Information TLV builder, an Extended Link or Prefix sub-TLV codec): its contribution to that one LSA or origination is dropped, its own error counter rises, and it is called again on the next one |
 | `ospf` | `show-decode` | One LSA body decoded or rendered for a `show ospf database` command: that row is shown undecoded |
 | `ospf` | `receive` | One received OSPFv2 or OSPFv3 packet: it is dropped and its sending neighbor goes Down (KillNbr), its next Hello brings it back, and every other neighbor keeps its state |
-| `ospf` | `receive` | One received OSPFv2 or OSPFv3 packet: it is dropped and its sending neighbor goes Down (KillNbr), its next Hello brings it back, and every other neighbor keeps its state |
 <!-- source: internal/plugins/ospf/panic_guard.go -- enginePanics -->
 | `isis` | `interface-read` | One IS-IS circuit's socket reader: the circuit leaves IS-IS, its adjacencies go Down, and the 30-second rescan reopens it |
 | `isis` | `interface-fan-in` | The same circuit, when the transport's per-circuit fan-in panicked: same recovery |
@@ -369,6 +368,8 @@ at zero from the moment the component has a metrics registry.
 | `tftp` | `request` | One TFTP request: its client is sent an ERROR (code 0), and the listener serves the next request |
 | `tftp` | `transfer` | One file transfer: its client is sent an ERROR (code 0) on the transfer's socket and the transfer ends; every other transfer runs on |
 <!-- source: internal/plugins/tftpserver/panic_guard.go -- requestTask, transferTask -->
+| `tacacs` | `request` | One TACACS+ authentication, authorization or accounting request: it fails as if the server were unreachable, so the AAA chain moves to its next backend, and the connection it used is closed |
+<!-- source: internal/component/tacacs/panic_guard.go -- requestTask -->
 | `ssh` | `session` | One SSH session, interactive or exec: its user is told on the session that an internal defect ended it and which `ze show crashes` command finds the record, and it exits with status 1; the listener and every other session keep running |
 | `ssh` | `auth` | One login attempt, refused: the client sees an authentication failure and can try again; every other login and session keeps running |
 <!-- source: internal/component/ssh/panic_guard.go -- sessionTask, authTask, endSessionAfterPanic -->

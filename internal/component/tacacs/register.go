@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
 )
@@ -127,4 +128,8 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(tacacsDoctorCheck); err != nil {
 		panic("BUG: tacacs: doctor check registration refused: " + err.Error())
 	}
+
+	// The request guard's ze_task_panics_total series, published once a
+	// metrics registry exists (panic_guard.go).
+	registry.InjectPluginMetrics(metricsHookName, bindTacacsMetrics)
 }

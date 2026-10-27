@@ -152,7 +152,10 @@ func (c *TacacsClient) Close() {
 // The request body uses a caller-owned pooled buffer. Username preparation
 // may allocate normalized text; reply fields own their storage after the
 // scratch buffer is cleared and returned to the pool.
-func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*AuthenReply, error) {
+func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (reply *AuthenReply, err error) {
+	// RFC 8907 Section 5.4.3
+	defer requestTask.Contain(containRequest("authentication", &err))
+
 	start := NewPAPAuthenStart(username, password, port, remAddr)
 	defer clear(start.Data)
 
@@ -164,7 +167,7 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 		return nil, err
 	}
 
-	reply, err := UnmarshalAuthenReply(replyData)
+	reply, err = UnmarshalAuthenReply(replyData)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal authen reply: %w", err)
 	}
@@ -174,7 +177,10 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 // SendAuthorization sends an authorization REQUEST to the first reachable TACACS+ server.
 // Returns the AuthorResponse on success or error if all servers are unreachable.
 // RFC 8907 Section 6.
-func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, error) {
+func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (resp *AuthorResponse, err error) {
+	// RFC 8907 Section 5.4.3
+	defer requestTask.Contain(containRequest("authorization", &err))
+
 	buf := c.bufs.Get()
 	defer c.releaseBuffer(buf)
 
@@ -183,7 +189,7 @@ func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, e
 		return nil, err
 	}
 
-	resp, err := UnmarshalAuthorResponse(replyData)
+	resp, err = UnmarshalAuthorResponse(replyData)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal author response: %w", err)
 	}
@@ -193,7 +199,10 @@ func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, e
 // SendAccounting sends an accounting REQUEST to the first reachable TACACS+ server.
 // Returns the AcctReply on success or error if all servers are unreachable.
 // Accounting errors are informational; callers log them without denying commands.
-func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
+func (c *TacacsClient) SendAccounting(req *AcctRequest) (reply *AcctReply, err error) {
+	// RFC 8907 Section 5.4.3
+	defer requestTask.Contain(containRequest("accounting", &err))
+
 	buf := c.bufs.Get()
 	defer c.releaseBuffer(buf)
 
@@ -202,7 +211,7 @@ func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 		return nil, err
 	}
 
-	reply, err := UnmarshalAcctReply(replyData)
+	reply, err = UnmarshalAcctReply(replyData)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal acct reply: %w", err)
 	}
@@ -345,11 +354,25 @@ func (c *TacacsClient) sendReceive(buf []byte, marshalBody func([]byte) (int, er
 // When `allowPool` is true the pooled connection (if any) is used;
 // otherwise a fresh TCP is always dialed. The caller supplies fresh plaintext
 // in pkt.Body for each attempt because Encrypt mutates the shared buffer.
+//
+// The connection is closed and evicted by one deferred call unless the
+// exchange settled it (kept pooled, promoted, or closed as non-reusable), so
+// every error return and a panic's unwind alike leave no connection mid-stream
+// in the pool and leak none. RFC 8907 Section 4.4: "If an ERROR status is
+// received in reply to a packet sent while in single connection mode, then
+// any further new sessions MUST NOT be accepted on the connection."
 func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowPool bool) ([]byte, error) {
 	conn, reused, err := c.acquireConn(srv.Address, allowPool)
 	if err != nil {
 		return nil, fmt.Errorf("connect %s: %w", srv.Address, err)
 	}
+
+	settled := false
+	defer func() {
+		if !settled {
+			c.closeAndEvict(srv.Address, conn)
+		}
+	}()
 
 	// On a fresh TCP, set FlagSingleConnect on the first packet so the
 	// server can advertise support. On a reused pooled TCP, the flag is
@@ -359,7 +382,6 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	}
 
 	if deadlineErr := conn.SetDeadline(time.Now().Add(c.config.Timeout)); deadlineErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("set deadline: %w", deadlineErr)
 	}
 
@@ -367,7 +389,6 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// buf[:hdrLen] and body encrypted in place via the self-aliased copy.
 	wireLen, marshalErr := pkt.MarshalInto(buf, srv.Key)
 	if marshalErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("marshal packet: %w", marshalErr)
 	}
 	written, writeErr := conn.Write(buf[:wireLen])
@@ -377,7 +398,6 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 		}
 	}
 	if writeErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		if reused {
 			return nil, pooledConnErr{err: writeErr}
 		}
@@ -387,7 +407,6 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// Read the response header into the same buffer (overwrites the
 	// request bytes that have already been flushed to the socket).
 	if _, readErr := io.ReadFull(conn, buf[:hdrLen]); readErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		if reused {
 			return nil, pooledConnErr{err: readErr}
 		}
@@ -395,11 +414,9 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	}
 	respHdr, hdrErr := UnmarshalPacketHeader(buf[:hdrLen])
 	if hdrErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("parse header: %w", hdrErr)
 	}
 	if err := validateResponseHeader(pkt.Header, respHdr); err != nil {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, err
 	}
 
@@ -412,17 +429,14 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// shared secret at all, because the client would simply skip de-obfuscation and
 	// read the attacker's cleartext PASS.
 	if unencrypted := respHdr.Flags&FlagUnencrypted != 0; unencrypted != (len(srv.Key) == 0) {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, errObfuscationMismatch
 	}
 
 	if respHdr.SessionID != pkt.Header.SessionID {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("session ID mismatch: sent %x, got %x",
 			pkt.Header.SessionID, respHdr.SessionID)
 	}
 	if respHdr.Length > maxBodyLen {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, ErrBodyTooBig
 	}
 
@@ -430,7 +444,6 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// after the header.
 	bodyEnd := hdrLen + int(respHdr.Length)
 	if _, bodyErr := io.ReadFull(conn, buf[hdrLen:bodyEnd]); bodyErr != nil {
-		c.closeAndEvict(srv.Address, conn)
 		if reused {
 			return nil, pooledConnErr{err: bodyErr}
 		}
@@ -447,17 +460,17 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	if bodyErr != nil {
 		// RFC 8907 Section 4.4: "Once all active sessions are completed,
 		// then the connection MUST be closed." This client serializes them.
-		c.closeAndEvict(srv.Address, conn)
 		return nil, bodyErr
 	}
 	if err := validateReplyStatus(pkt.Header.Type, status); err != nil {
-		c.closeAndEvict(srv.Address, conn)
 		return nil, err
 	}
 
 	// Post-exchange connection disposition: if this was a fresh TCP AND
 	// the server echoed FlagSingleConnect, promote the conn to the pool;
-	// otherwise close it.
+	// otherwise close it. When reused == true the connection is already in
+	// the pool and stays there. settled is set only once the disposition
+	// returned, so a panic inside it still closes the connection.
 	if !reused {
 		if respHdr.Flags&FlagSingleConnect == 0 {
 			if closeErr := conn.Close(); closeErr != nil {
@@ -468,8 +481,7 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 			c.storeConn(srv.Address, conn)
 		}
 	}
-	// When reused == true the connection is already in the pool and stays
-	// there; no action needed on the happy path.
+	settled = true
 
 	// Return a slice of the pool buffer aliasing the decrypted body. The
 	// caller (Authenticate/SendAuthorization/SendAccounting) MUST parse
@@ -586,9 +598,10 @@ func (c *TacacsClient) storeConn(address string, conn net.Conn) {
 	c.pool[address] = conn
 }
 
-// closeAndEvict removes a pooled connection and closes it. Used on local
-// errors (set deadline, marshal) where the connection may still be alive
-// but cannot be trusted for subsequent sessions.
+// closeAndEvict removes a pooled connection and closes it. trySend defers it
+// for every exchange that did not settle: an error, local or from the server,
+// or a panic's unwind, after which the connection may still be alive but
+// cannot be trusted for subsequent sessions.
 func (c *TacacsClient) closeAndEvict(address string, conn net.Conn) {
 	c.poolMu.Lock()
 	if pooled, ok := c.pool[address]; ok && pooled == conn {
