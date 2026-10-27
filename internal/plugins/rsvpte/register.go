@@ -83,6 +83,9 @@ type rsvpteMetrics struct {
 var rsvpteMetricsPtr atomic.Pointer[rsvpteMetrics]
 
 func setMetricsRegistry(reg metrics.Registry) {
+	// ze_task_panics_total{component="rsvp-te"} counts the panics the
+	// signaling and receive tasks contained (panic_guard.go).
+	rsvpPanics().guard.SetMetricsRegistry(reg)
 	m := &rsvpteMetrics{
 		lspsActive:      reg.Gauge("ze_rsvpte_lsps_active", "Current number of active RSVP-TE LSPs."),
 		lspsTotal:       reg.Counter("ze_rsvpte_lsps_total", "Total RSVP-TE LSPs established."),

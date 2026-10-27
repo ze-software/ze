@@ -530,7 +530,10 @@ func (e *engine) clearBypassReferences(bypass lspKey) {
 			label               uint32
 		)
 		lsp.locked(func() {
-			if lsp.Bypass == nil || *lsp.Bypass != bypass {
+			if lsp.Bypass == nil {
+				return
+			}
+			if *lsp.Bypass != bypass {
 				return
 			}
 			protected = true
@@ -795,9 +798,19 @@ func (e *engine) mergeBackupPath(src netip.Addr, msg *ParsedMessage, rem []eroHo
 	for _, lsp := range e.table.All() {
 		var merged, transit bool
 		lsp.locked(func() {
-			if !sameTunnelLSP(lsp.Key, key) || lsp.PSB == nil || lsp.PSB.Protection == nil ||
-				lsp.PSB.SenderTSpec != msg.SenderTSpec ||
-				(lsp.Role != RoleEgress && !slices.Equal(lsp.PSB.ERO, rem)) {
+			if !sameTunnelLSP(lsp.Key, key) {
+				return
+			}
+			if lsp.PSB == nil {
+				return
+			}
+			if lsp.PSB.Protection == nil {
+				return
+			}
+			if lsp.PSB.SenderTSpec != msg.SenderTSpec {
+				return
+			}
+			if lsp.Role != RoleEgress && !slices.Equal(lsp.PSB.ERO, rem) {
 				return
 			}
 			merged = true

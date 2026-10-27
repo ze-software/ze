@@ -128,13 +128,21 @@ func (e *engine) acceptReservation(src netip.Addr, msg *ParsedMessage, descripto
 		belowFloor            bool
 	)
 	lsp.locked(func() {
-		if lsp.PSB == nil || lsp.Role == RoleEgress {
+		if lsp.PSB == nil {
+			noSender = true
+			return
+		}
+		if lsp.Role == RoleEgress {
 			noSender = true
 			return
 		}
 		// Our PATH advertises LIH zero. A returning reservation must name that
 		// exact outgoing handle, not its own unrelated incoming interface index.
-		if msg.Hop.LIH != 0 || (msg.HasHop && !e.samePeer(msg.Hop.NextHop, src)) {
+		if msg.Hop.LIH != 0 {
+			ignored = true
+			return
+		}
+		if msg.HasHop && !e.samePeer(msg.Hop.NextHop, src) {
 			ignored = true
 			return
 		}
@@ -427,7 +435,13 @@ func (e *engine) handleResvErr(src netip.Addr, msg *ParsedMessage) {
 				hop              rsvpHop
 			)
 			lsp.locked(func() {
-				if lsp.RSB == nil || lsp.RSB.Style != msg.Style || !e.samePeer(lsp.PrevHop, src) {
+				if lsp.RSB == nil {
+					return
+				}
+				if lsp.RSB.Style != msg.Style {
+					return
+				}
+				if !e.samePeer(lsp.PrevHop, src) {
 					return
 				}
 				matched = true
@@ -515,7 +529,10 @@ func (e *engine) removeReservation(lsp *LSP, objects [][]byte) {
 		messages    []sentReservationTear
 	)
 	lsp.locked(func() {
-		if lsp.RSB == nil || lsp.PSB == nil {
+		if lsp.RSB == nil {
+			return
+		}
+		if lsp.PSB == nil {
 			return
 		}
 		reserved = true

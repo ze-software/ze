@@ -22,6 +22,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
 // rsvpProtocol is the IANA IP protocol number for RSVP (RFC 2205 Section 3.3).
@@ -479,8 +481,21 @@ func (t *rawTransport) readLoop() {
 	defer close(t.recvCh)
 	buf := make([]byte, 65535)
 	oob := make([]byte, unix.CmsgSpace(unix.SizeofInet4Pktinfo))
-	// The receive worker lasts until Close or a permanent socket error. RawConn
-	// polls the nonblocking descriptor, so closing rx wakes an idle receive.
+	// The receive worker lasts until Close or a permanent socket error. A Ze
+	// defect that panics on one datagram drops only that datagram: receive's
+	// guard contains it and the worker reads the next one at once.
+	for t.receive(buf, oob) {
+	}
+}
+
+// receive reads datagrams into buf and queues each one under the receive
+// task's guard, one defer for the pass rather than one per datagram. It
+// answers false on Close or a permanent socket error, and true after a
+// contained panic, so readLoop calls it again.
+func (t *rawTransport) receive(buf, oob []byte) (contained bool) {
+	defer rsvpPanics().receive.Contain(describeReceive, func(*taskguard.Panic) { contained = true })
+	// RawConn polls the nonblocking descriptor, so closing rx wakes an idle
+	// receive.
 	for {
 		var n, oobn, flags int
 		var recvErr error
@@ -488,15 +503,17 @@ func (t *rawTransport) readLoop() {
 			n, oobn, flags, _, recvErr = unix.Recvmsg(int(fd), buf, oob, 0)
 			return recvErr != unix.EAGAIN && recvErr != unix.EINTR
 		})
+		// refuse-by-default: guards readLoop -- false is "stop", not "nothing read": readLoop ends the worker and closes recvCh
 		if err != nil {
 			if !errors.Is(err, os.ErrClosed) {
 				logger().Warn("rsvp-te: receive poller stopped", "err", err)
 			}
-			return
+			return false
 		}
+		// refuse-by-default: guards readLoop -- false is "stop", not "nothing read": readLoop ends the worker and closes recvCh
 		if recvErr != nil {
 			logger().Warn("rsvp-te: receive socket stopped", "err", recvErr)
-			return
+			return false
 		}
 		// recvmsg consumes even a truncated datagram; never decode its prefix.
 		if flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 {
@@ -513,7 +530,7 @@ func (t *rawTransport) readLoop() {
 		select {
 		case t.recvCh <- packet:
 		case <-t.closeC:
-			return
+			return false
 		}
 	}
 }

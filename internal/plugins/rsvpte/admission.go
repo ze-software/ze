@@ -136,6 +136,22 @@ func (ac *admissionController) reserve(iface string, key lspKey, style uint32, b
 	return nil
 }
 
+// releaseEverywhere removes this sender's charge from every interface. The
+// signaling task's panic end uses it: a handler that panicked between reserve
+// and recording the LSP's AdmissionIface left a charge no LSP field names.
+// release of an interface the sender holds nothing on changes nothing.
+func (ac *admissionController) releaseEverywhere(key lspKey) {
+	ac.mu.Lock()
+	names := make([]string, 0, len(ac.sessions))
+	for name := range ac.sessions {
+		names = append(names, name)
+	}
+	ac.mu.Unlock()
+	for _, name := range names {
+		ac.release(name, key)
+	}
+}
+
 // release removes only this sender, never a different equal-rate holder.
 func (ac *admissionController) release(iface string, key lspKey) {
 	ac.mu.Lock()

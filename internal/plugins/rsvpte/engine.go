@@ -31,6 +31,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/taskguard"
+
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
@@ -82,6 +84,12 @@ type engine struct {
 	// run loop reads it. Read it via e.cfg(); never store the struct directly.
 	cfgPtr atomic.Pointer[rsvpteConfig]
 	log    *slog.Logger
+	// handlingFrom and handling name the packet handlePacket is applying: its
+	// IP source, and the message once decoded. Only the signaling goroutine
+	// (run) reads or writes them, so a contained panic can name and end its
+	// unit without decoding the packet again (panic_guard.go).
+	handlingFrom netip.Addr
+	handling     *ParsedMessage
 }
 
 // cfg returns the current engine config (atomically loaded; reload-safe). It
@@ -118,16 +126,29 @@ func newEngine(t Transport, table *lspTable, adm *admissionController, fib fibPr
 }
 
 // run consumes received packets until the context is canceled or the transport
-// closes its channel.
+// closes its channel. A Ze defect that panics while one packet is handled ends
+// only the LSPs that packet named (endHandling); run then serves again at once.
 func (e *engine) run(ctx context.Context) {
 	recv := e.transport.Recv()
+	for e.serve(ctx, recv) {
+	}
+}
+
+// serve handles packets from recv under the signaling task's guard, one defer
+// for the pass rather than one per packet. It answers false when ctx ends or
+// recv closes, and true after a contained panic, so run serves again.
+func (e *engine) serve(ctx context.Context, recv <-chan Packet) (contained bool) {
+	defer rsvpPanics().signaling.Contain(e.describeHandling, func(p *taskguard.Panic) {
+		contained = true
+		e.endHandling(p)
+	})
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case pkt, ok := <-recv:
 			if !ok {
-				return
+				return false
 			}
 			e.handlePacket(pkt)
 		}
@@ -140,11 +161,13 @@ func (e *engine) handlePacket(pkt Packet) {
 	if e.stopped.Load() {
 		return
 	}
+	e.handlingFrom, e.handling = pkt.Src, nil
 	msg, err := DecodeMessage(pkt.Payload)
 	if err != nil {
 		e.log.Warn("rsvp-te: decode failed", "src", pkt.Src, "error", err)
 		return
 	}
+	e.handling = msg
 	peer := pkt.Src
 	if (msg.Header.MsgType == MsgTypePath || msg.Header.MsgType == MsgTypePathTear) && msg.HasHop {
 		// PATH's IP source remains its original sender. The RSVP_HOP, not
@@ -389,7 +412,13 @@ type outgoingResv struct {
 // sendResvLocked builds the RESV messages sendResv sends for lsp, none when
 // lsp holds no reservation to refresh. lsp.mu MUST be held.
 func (e *engine) sendResvLocked(lsp *LSP, bypassKey *lspKey, bypassUp bool, objects [][]byte) []outgoingResv {
-	if lsp.RSB == nil || lsp.PSB == nil || !lsp.PrevHop.IsValid() {
+	if lsp.RSB == nil {
+		return nil
+	}
+	if lsp.PSB == nil {
+		return nil
+	}
+	if !lsp.PrevHop.IsValid() {
 		return nil
 	}
 	if !lsp.PSB.RecordRoute {
@@ -897,7 +926,10 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 			relay    bool
 		)
 		lsp.locked(func() {
-			if lsp.Role != RoleTransit || lsp.PSB == nil {
+			if lsp.Role != RoleTransit {
+				return
+			}
+			if lsp.PSB == nil {
 				return
 			}
 			relay = true
@@ -970,7 +1002,10 @@ func pathTearRemovesLocked(lsp *LSP, msg *ParsedMessage) bool {
 }
 
 func (e *engine) handlePathTear(msg *ParsedMessage) {
-	if !msg.HasSession || !msg.HasSenderTemplate {
+	if !msg.HasSession {
+		return
+	}
+	if !msg.HasSenderTemplate {
 		return
 	}
 	key := keyFromMessage(msg)

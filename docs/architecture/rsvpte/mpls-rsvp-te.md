@@ -376,6 +376,37 @@ stays inline. The lock order and what runs under the lock are unchanged.
 <!-- source: internal/plugins/rsvpte/fsm.go -- LSP.locked -->
 <!-- source: internal/plugins/rsvpte/lock_release_test.go -- TestLSPLockReleasedAfterContainedPanic -->
 
+## Decision: a Ze defect a peer reaches ends one LSP or drops one datagram
+
+Two goroutines read network input, and each runs under a task of the
+`rsvp-te` panic guard. A contained panic is logged at ERROR with the unit it
+hit, counted in `ze_task_panics_total{component="rsvp-te"}`, and written as a
+`recovered` crash record (`ze show crashes`).
+
+| Task | Goroutine | Unit | What happens |
+|------|-----------|------|--------------|
+| `receive` | `rawTransport.readLoop` | One datagram | Dropped; the next one is read on the same socket |
+| `signaling` | `engine.run` | The LSPs the message names: its sender for a PATH-type message, each FILTER_SPEC's sender for a RESV-type one | Each is torn down locally through `tearLSPLocal`, the path the soft-state expiry takes, and the engine handles the next message at once |
+
+The signaling end sends no teardown message, as on expiry (RFC 2205 Section
+2.4 lets a router initiate teardown as the result of state timeout), and
+relies on refresh to repair the loss (RFC 2205 Section 2.3). It also releases
+every admission charge the LSP's key holds, because a handler that panicked
+between `reserve` and recording the LSP's admission interface left a charge no
+LSP field names. A label the handler allocated but had not yet recorded is
+not returned to the free list: it is never reused, so it cannot collide.
+
+The engine control lock is released by `handlePacket`'s deferred unlock while
+the panic unwinds, and every LSP lock by `LSP.locked` (the decision above), so
+both are free when the end runs. The refresh, expiry, link-down and config
+paths read no network input and run unguarded.
+
+<!-- source: internal/plugins/rsvpte/panic_guard.go -- rsvpPanics, endHandling, handlingKeys -->
+<!-- source: internal/plugins/rsvpte/engine.go -- engine.serve -->
+<!-- source: internal/plugins/rsvpte/transport_linux.go -- rawTransport.receive -->
+<!-- source: internal/plugins/rsvpte/panic_guard_test.go -- TestRSVPSignalingPanicContained -->
+<!-- source: internal/plugins/rsvpte/panic_guard_linux_test.go -- TestRSVPReadPanicContained -->
+
 ## Trap: the delivered config shape
 
 The same shape trap as LDP applies: root-wrapped config, numbers as strings, and
