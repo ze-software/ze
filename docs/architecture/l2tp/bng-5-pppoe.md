@@ -222,6 +222,20 @@ open until PPP events finish, so local session teardown can still send PADT.
 A separate lifecycle mutex serializes `Start` and `Stop`. Closing a raw Linux
 descriptor alone does not interrupt a `recvfrom` already in progress.
 
+**A panic while one frame is parsed or handled ends only what that frame was
+admitting.** `discoveryReader` hands each frame to `dispatchDiscovery`, the
+`pppoe/discovery` task of the shared panic guard, which logs, counts and
+crash-records the panic and returns to the reader. `handlePADR` records the
+session it is admitting in `InterfaceServer.admitting`, so
+`endAdmissionAfterPanic` can end it: before the PADS the host holds no session,
+and the entry is removed with nothing sent; once the PADS is marked sent, the
+host is sent a PADT (RFC 2516 Section 5.5), since PPP never started on that
+session. A panic on a frame that admitted nothing drops that frame. The auth
+and pool handler calls are the `auth-handler` and `pool-handler` tasks and
+refuse the one request. The task table is in `docs/guide/monitoring.md`,
+"Contained Panics".
+
+<!-- source: internal/component/l2tp/pppoe/panic_guard.go -- dispatchDiscovery, endAdmissionAfterPanic, admission -->
 <!-- source: internal/component/l2tp/pppoe/metrics.go -- registerDiscoveryMetrics, bindPPPoEMetrics, countRefusal, countDiscoveryReadError -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- the eight call sites that count a refusal -->
 

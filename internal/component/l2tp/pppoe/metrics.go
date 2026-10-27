@@ -79,6 +79,7 @@ func bindPPPoEMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
+	pppoePanics().guard.SetMetricsRegistry(reg)
 	pppoeMetricsPtr.Store(initPPPoEMetrics(reg))
 }
 

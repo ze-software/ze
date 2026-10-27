@@ -330,13 +330,7 @@ func (s *Subsystem) discoveryReader() {
 			continue
 		}
 
-		pkt, parseErr := ParseDiscovery(buf[:n])
-		if parseErr != nil {
-			s.logger.Debug("pppoe: parse error", "interface", srv.ifName, "error", parseErr)
-			continue
-		}
-
-		srv.HandleDiscovery(&pkt)
+		s.dispatchDiscovery(srv, buf[:n])
 	}
 }
 

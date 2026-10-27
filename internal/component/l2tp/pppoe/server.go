@@ -62,6 +62,11 @@ type InterfaceServer struct {
 	// unprivileged test cannot create a real socket for.
 	pppoeCreateFn func(ifName string, sid uint16, remoteMAC [EthALen]byte) (int, error)
 	devPPPSetupFn func(pppoxFD int) (chanFD, unitFD, unitNum int, err error)
+
+	// admitting is the session the PADR in dispatch is admitting, so a
+	// contained discovery panic can end it (panic_guard.go). Only the
+	// discovery reader goroutine reads or writes it.
+	admitting admission
 }
 
 // HandleDiscovery dispatches a parsed discovery packet to the
@@ -247,6 +252,9 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		Cookie:      append([]byte(nil), cookieTag.Value...),
 		State:       StateDiscovery,
 		CreatedAt:   time.Now(),
+		// No session socket yet: a Remove before createTransport answers
+		// -1, never the zero value, which is descriptor 0.
+		PppoxFD: -1,
 	}
 	if hostUniq := pkt.FindTag(TagHostUniq); hostUniq != nil {
 		sess.HostUniq = append([]byte(nil), hostUniq.Value...)
@@ -256,6 +264,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		s.logger.Warn("pppoe: session add failed", "sid", sid, "error", err)
 		return
 	}
+	s.admitting = admission{sid: sid}
 
 	if s.pppDriver == nil {
 		s.logger.Warn("pppoe: no PPP driver, session will not start", "sid", sid)
@@ -285,6 +294,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		return
 	}
 	sess.UnitNum = unitNum
+	s.admitting.chanFD, s.admitting.unitFD, s.admitting.pppFDsOpen = chanFD, unitFD, true
 
 	// Send PADS only after kernel setup succeeds. If we sent it
 	// earlier and kernel setup failed, the subscriber would wait
@@ -297,6 +307,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		closePPPoxFD(s.sessions.Remove(sid))
 		return
 	}
+	s.admitting.padsSent = true
 	s.sendFrame(frame)
 
 	// Through the table's lock, not as a bare field write: handleSessionDown
@@ -341,6 +352,8 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		VendorTags:      vendorTagsFromPacket(pkt),
 	}
 
+	// From here the PPP driver owns the channel and unit descriptors.
+	s.admitting.pppFDsOpen = false
 	s.pppDriver.SessionsIn() <- start
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -27,7 +28,7 @@ func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subs
 			respond := func(accept bool, msg string, blob []byte) error {
 				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
 			}
-			r := callPPPoEAuthHandler(logger, handler, req, subscriber.AuthRespondFunc(respond))
+			r := callPPPoEAuthHandler(handler, req, subscriber.AuthRespondFunc(respond))
 			subscriber.RecordAuthResult(subscriber.AccessPPPoE, r.Accept)
 			if r.Accept && req.Username != "" {
 				pending.Store(
@@ -58,7 +59,7 @@ func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subs
 	return done
 }
 
-func callPPPoEAuthHandler(logger *slog.Logger, handler subscriber.AuthHandler, req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) (result subscriber.AuthResult) {
+func callPPPoEAuthHandler(handler subscriber.AuthHandler, req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) (result subscriber.AuthResult) {
 	// Owner ruling 2026-10-18: "PPPOE expectation of those session should be
 	// explicitly configured." An empty auth slot refuses every request, the
 	// same as the L2TP drain, so no credential is admitted unchecked. A
@@ -67,13 +68,11 @@ func callPPPoEAuthHandler(logger *slog.Logger, handler subscriber.AuthHandler, r
 	if handler == nil {
 		return subscriber.AuthResult{Accept: false, Message: "no auth handler configured"}
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("pppoe: auth handler panic",
-				"ifindex", req.TunnelID, "session", req.SessionID, "panic", r)
-			result = subscriber.AuthResult{Accept: false, Message: "internal error"}
-		}
-	}()
+	// The handler task's boundary (panic_guard.go): a panicking handler refuses
+	// this session's authentication, and the drain answers the next request.
+	defer pppoePanics().auth.Contain(describeHandlerCall(req.TunnelID, req.SessionID), func(*taskguard.Panic) {
+		result = subscriber.AuthResult{Accept: false, Message: "internal error"}
+	})
 	return handler(req, respond)
 }
 
@@ -86,7 +85,7 @@ func startPPPoEPoolDrain(logger *slog.Logger, d *ppp.Driver, handler subscriber.
 			if !ok {
 				continue
 			}
-			r := callPPPoEPoolHandler(logger, handler, req)
+			r := callPPPoEPoolHandler(handler, req)
 			if err := d.IPResponse(req.TunnelID, req.SessionID, r); err != nil {
 				logger.Warn("pppoe: pool drain response failed",
 					"ifindex", req.TunnelID, "session", req.SessionID, "error", err)
@@ -96,15 +95,14 @@ func startPPPoEPoolDrain(logger *slog.Logger, d *ppp.Driver, handler subscriber.
 	return done
 }
 
-func callPPPoEPoolHandler(logger *slog.Logger, handler subscriber.PoolHandler, req ppp.EventIPRequest) (result ppp.IPResponseArgs) {
+func callPPPoEPoolHandler(handler subscriber.PoolHandler, req ppp.EventIPRequest) (result ppp.IPResponseArgs) {
 	if handler == nil {
 		return ppp.IPResponseArgs{Accept: false, Reason: "no pool handler"}
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error("pppoe: pool handler panic", "ifindex", req.TunnelID, "session", req.SessionID, "panic", r)
-			result = ppp.IPResponseArgs{Accept: false, Reason: "internal error"}
-		}
-	}()
+	// The handler task's boundary (panic_guard.go): a panicking handler refuses
+	// this session's address request, and the drain answers the next request.
+	defer pppoePanics().pool.Contain(describeHandlerCall(req.TunnelID, req.SessionID), func(*taskguard.Panic) {
+		result = ppp.IPResponseArgs{Accept: false, Reason: "internal error"}
+	})
 	return handler(req)
 }

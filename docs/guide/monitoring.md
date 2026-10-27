@@ -321,6 +321,10 @@ at zero from the moment the component has a metrics registry.
 | `l2tp` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
 | `l2tp` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
 <!-- source: internal/component/l2tp/panic_guard.go -- newL2TPPanicTasks, clearTunnelAfterPanic -->
+| `pppoe` | `discovery` | One discovery frame: the session its PADR was admitting ends (removed with no frame sent before the PADS, a PADT after it), the host starts discovery again, and the reader serves every other host |
+| `pppoe` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
+| `pppoe` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
+<!-- source: internal/component/l2tp/pppoe/panic_guard.go -- newPPPoEPanicTasks, endAdmissionAfterPanic -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
