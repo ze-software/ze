@@ -820,3 +820,37 @@ Gates: `go test -race` with the gate tags over `./internal/appliance/... ./inter
 | feature entry: default image boots ze's kernel and carries the notice | `resolveBuildParentDir`, `RuntimeKernelTree`, `addLinuxNotice` exist (`git grep`) | yes |
 | disk-full page names the kernel cache | `evictKeepN`, `TestCleanTargetsNeverReachTheKernelCache` | yes |
 | doctor check page | `checkRuntimeKernel` in `internal/appliance/doctor_checks.go` | yes (1927823c9f) |
+
+## Native amd64 evidence, 2026-10-27
+
+The default image build passed in 215.04 seconds. Readback from its actual boot
+partition found all 149 then-declared built-ins, MPLS routing and encapsulation,
+and kernel SHA-256 `b0b7d1156d9dc2240fb760f3d2c12e36ed7912626360df02a9927223167731d4`.
+The root partition's GPL notice matched Linux 7.2.9 and the source digest.
+Native KVM MPLS boot passed in 356.17 seconds; hugepage boot passed in
+274.40 seconds with 64 two-MiB pages. These prove boot/CLI and reservation,
+not LDP or VPP traffic. The existing warm kernel cache was reused, not rebuilt.
+Evidence: session `2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641`,
+`scratch/appliance-amd64-proof/{report.txt,readback-result.json,mpls-boot.log,vpp-hugepages.log}`.
+
+The native default-appliance L2TP proof refused before boot because this
+session has neither root nor host `CAP_NET_ADMIN`; its host bridge, TAP and
+LAC setup genuinely need that privilege. No L2TP pass is claimed.
+
+The subsequent access investigation found a missing product requirement:
+subscriber upload policing reaches `ingressPolicerFilter` in
+`internal/plugins/traffic/netlink/policer_linux.go`, but `NET_ACT_POLICE`
+was absent from the runtime requirements. The 149-symbol result above remains
+historical evidence for that image, not proof of complete shaping support.
+This spec owns the fragment, manifest and compiled-floor correction and fresh
+image proof; the access spec owns the native CoA scenario. The rebuilt kernel
+must be identified separately. The kernel worker already accepts a job count,
+but the public resolver exposes none; bounded native job-count plumbing is
+needed to build the correction without unbounded compiler fan-out.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-10-27 | Missing runtime POLICE support for subscriber upload shaping |
+

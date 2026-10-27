@@ -129,6 +129,15 @@ repair a kernel built without the action or psample.
 <!-- source: internal/plugins/flowexport/sampling/tc_linux.go -- SetupSampling, buildSampleFilter -->
 <!-- source: internal/plugins/flowexport/sampling/psample_linux.go -- NewPsampleReader -->
 
+Subscriber upload policing requires built-in `CONFIG_NET_ACT_POLICE`.
+`shaper.applyTC` hands the upload rate to the traffic backend, whose
+`ingressPolicerFilter` installs a police action on the shared ingress hook.
+The matchall classifier alone cannot enforce that rate. The runtime fragment,
+manifest and compiled floor require the action, so a modular or missing action
+is refused even if an edited manifest omits it.
+<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC -->
+<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- ingressPolicerFilter -->
+
 Default nftables logging requires built-in `CONFIG_NF_LOG_SYSLOG` as well as
 `CONFIG_NFT_LOG`. A modular logger leaves log-rule installation failing with
 `ENOENT` in the runtime guest, where Alpine cannot load Ze's kernel modules.

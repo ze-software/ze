@@ -50,6 +50,8 @@ var universalKernelRequirements = []string{
 // Flow export installs act_sample and receives its packets through psample.
 // Keep both built in: enabling the matchall classifier alone still leaves
 // sampling filter installation failing with ENOENT.
+// Subscriber upload policing likewise needs act_police beside the classifier;
+// its absence must be refused even when an edited manifest omits it.
 var runtimeKernelRequirements = []string{
 	"CONFIG_MODULES",
 	"CONFIG_PPP",
@@ -59,6 +61,7 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_L2TP_V3",
 	"CONFIG_PSAMPLE",
 	"CONFIG_NET_ACT_SAMPLE",
+	"CONFIG_NET_ACT_POLICE",
 	"CONFIG_NFT_LOG",
 	"CONFIG_NF_LOG_SYSLOG",
 	"CONFIG_INET_ESP",

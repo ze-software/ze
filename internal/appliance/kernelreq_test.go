@@ -233,6 +233,47 @@ func TestEnforceRefusesModularVPNSymbol(t *testing.T) {
 	}
 }
 
+// VALIDATES: subscriber upload policing is built in even when the editable
+// manifest omits its action. Modular, disabled and absent emitted values fail.
+// PREVENTS: a kernel that accepts the subscriber configuration but cannot
+// install the police action shaper.applyTC asks the traffic backend to apply.
+func TestRuntimeFloorRequiresBuiltInPolicer(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "runtime.require")
+	if err := os.WriteFile(manifest, []byte("CONFIG_VETH\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	profile := kernelProfileResolution{Name: "runtime", Manifests: []string{manifest}}
+	// Supply the test's emitted value independently of whether the floor
+	// contains it, so removing the floor entry makes the refusal cases fail.
+	base := strings.ReplaceAll(completeRuntimeConfig("CONFIG_VETH"), "CONFIG_NET_ACT_POLICE=y\n", "")
+	for _, test := range []struct {
+		name    string
+		emitted string
+		pass    bool
+	}{
+		{name: "built-in", emitted: "CONFIG_NET_ACT_POLICE=y\n", pass: true},
+		{name: "modular", emitted: "CONFIG_NET_ACT_POLICE=m\n"},
+		{name: "disabled", emitted: "# CONFIG_NET_ACT_POLICE is not set\n"},
+		{name: "absent"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "config")
+			if err := os.WriteFile(config, []byte(base+test.emitted), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err := enforceKernelRequirements(profile, config, runtimeKernelRequirements)
+			if test.pass {
+				if err != nil {
+					t.Fatalf("built-in police action refused: %v", err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "CONFIG_NET_ACT_POLICE") {
+				t.Fatalf("emitted %q: error = %v, want CONFIG_NET_ACT_POLICE refusal", test.emitted, err)
+			}
+		})
+	}
+}
+
 // VALIDATES: R-6. The registered runtime profile requests each compiled floor
 // symbol as built in. The emitted kernel config is checked after Kconfig resolves it.
 // PREVENTS: A new floor requirement without a matching request in any fragment.
