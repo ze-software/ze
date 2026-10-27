@@ -18,8 +18,8 @@
     "claim-sha": "60fe5b55c6e417df",
     "route": "revert",
     "producer": "internal/component/ike/engine/ts_nat_substitute.go::substituteResponderSelectors",
-    "producer-sha": "db7c9a3fb42d2efb",
-    "break": "body of substituteResponderSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cc4945105f2c9e3c",
+    "break": "body of substituteResponderSelectors replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.23.1-1",
@@ -29,14 +29,14 @@
     "claim-sha": "2f4fd4bf239858a7",
     "route": "revert",
     "producer": "internal/component/ike/engine/ts_nat_substitute.go::substituteResponderSelectors",
-    "producer-sha": "db7c9a3fb42d2efb",
-    "break": "body of substituteResponderSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cc4945105f2c9e3c",
+    "break": "body of substituteResponderSelectors replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.23.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress",
-    "unit-sha": "962ced6bb3256c71",
+    "unit-sha": "1ab5b8374a240e2b",
     "claim-sha": "f705bd3588753835",
     "route": "mutant",
     "producer": "internal/component/ike/engine/transport_mode.go::transportSelectorPairs",
