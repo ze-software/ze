@@ -1,7 +1,7 @@
 # Ze image for the general BGP interop lab.
 #
-# It expects two pre-built linux binaries, at test/interop/ze-linux and
-# test/interop/le-linux, which `./le test integration interop` cross-compiles
+# It expects three pre-built linux binaries, at test/interop/ze-linux,
+# test/interop/le-linux and test/interop/ze-le-linux, which `./le test integration interop` cross-compiles
 # before it builds this image (internal/le/interoplab/zebuild.go, StageBinaries,
 # declared by internal/le/interoplab/bgp/run.go, LabBinaries). A bare
 # `docker build -f test/interop/Dockerfile.ze .` on a clean checkout fails at
@@ -40,5 +40,10 @@ COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it
 # was started under.
 COPY test/interop/le-linux /usr/local/bin/le
+# The daemon again, built with ze_le added, which compiles the test seams no
+# shipped binary carries (the read-path panic injection of bgp-panic-cease).
+# It sits outside PATH so `ze` everywhere stays the shipped build; only a
+# scenario holding a ze-le-daemon file starts it (scenarioPeers, prepare.go).
+COPY test/interop/ze-le-linux /usr/local/lib/ze-le/ze
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

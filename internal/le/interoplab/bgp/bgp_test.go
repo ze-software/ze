@@ -57,13 +57,15 @@ func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
 // PREVENTS: an image with no le, or no shim for a retired harness name the scenario ze.conf files still run.
 func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	declared := LabBinaries()
-	if len(declared) != 2 {
-		t.Fatalf("the bgp lab declares %d binaries, want the daemon and the test personality: %+v", len(declared), declared)
+	if len(declared) != 3 {
+		t.Fatalf("the bgp lab declares %d binaries, want the daemon, the test personality and the ze_le daemon: %+v", len(declared), declared)
 	}
 
 	want := map[string]struct{ base, output string }{
 		"ze": {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
 		"le": {base: linuxle.Base, output: "test/interop/le-linux"},
+		// The ze_le daemon only a scenario holding zeLeDaemonFile runs.
+		"ze with ze_le": {base: repofeaturetags.DaemonBase + " " + repofeaturetags.LEBase, output: "test/interop/ze-le-linux"},
 	}
 	for _, binary := range declared {
 		expected, named := want[binary.Name]

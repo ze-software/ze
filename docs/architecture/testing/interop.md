@@ -1277,6 +1277,27 @@ log before container teardown. The original Full-adjacency failure remains
 the result; diagnostic query failures are retained alongside it.
 <!-- source: internal/le/interoplab/bgp/check_ospf_bgpls.go -- ospfBGPLSFailureDiagnostics -->
 
+A scenario that needs a test seam no shipped build carries holds a
+`ze-le-daemon` file. Its presence is the declaration: the ze container then
+starts `/usr/local/lib/ze-le/ze`, the daemon built with `ze_le`, under `tini`,
+instead of the shipped `ze` every other scenario runs, so no other verdict
+comes from a binary that differs from what ships. The checker's `ze` CLI
+commands still run the shipped `ze`. The file cannot be combined with
+`ze-reload.conf`, whose start runs the shipped `ze` through a shell, and the
+preparation refuses a scenario holding both (`scenarioPeers`).
+`bgp-panic-cease` is the one user: the ze_le reactor
+(`session_panic_inject_le.go`) panics on the next UPDATE from a peer once
+`/run/ze-inject/bgp-read-panic-<peer address>` exists, and removes the file
+first, so one trigger raises one panic. The checker arms it for FRR and has FRR
+redistribute a static route. It then requires that FRR's own neighbor JSON
+records a RECEIVED Cease with subcode 0 (`lastResetDueTo`,
+`lastNotificationReason`), that FRR counts two establishments and one drop,
+and that ze still counts one establishment and no drop toward BIRD, which
+still reports Established. In a shipped build `injectReadPanic` is an empty
+function (`session_panic_inject.go`, `!ze_le`).
+<!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
+<!-- source: internal/component/bgp/reactor/session_panic_inject_le.go -- injectReadPanic -->
+
 A scenario carrying `frr.conf` may also carry its own `daemons` file. That file
 names which FRR daemons run and what each one is started with, so a scenario
 needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
@@ -2941,10 +2962,13 @@ images. No `Dockerfile.ze` carries a Go compiler: each one is an Alpine (`alpine
 base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
 written into the build context (`internal/le/interoplab/zebuild.go`,
 `StageBinaries`). Each lab declares the binaries it needs beside the images it
-needs, and the bgp lab declares two, because its scenarios also run the harness
+needs, and the bgp lab declares three. Its scenarios also run the harness
 from inside the container: a linux `le` built by `internal/le/linuxle`
 (`linuxle.Base`), staged at `test/interop/le-linux` and copied to
-`/usr/local/bin/le`. Harness peers start with entrypoint `le` and a command that
+`/usr/local/bin/le`. The third is the daemon built with `ze_le` added to
+`DaemonBase`, staged at `test/interop/ze-le-linux` and copied to
+`/usr/local/lib/ze-le/ze`, outside `PATH`: only a scenario holding a
+`ze-le-daemon` file runs it (see "Optional sidecars"). Harness peers start with entrypoint `le` and a command that
 begins `test` (`le test interop-bgp speaker ...`). The image holds no program
 under a retired harness name, so a scenario `ze.conf` that still runs one fails
 to start it.

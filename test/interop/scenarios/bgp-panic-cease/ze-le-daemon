@@ -1,0 +1,3 @@
+# This scenario runs the daemon built with ze_le (LabBinaries in
+# internal/le/interoplab/bgp/run.go), which carries the read-path panic
+# injection no shipped build has. The file's presence is the declaration.

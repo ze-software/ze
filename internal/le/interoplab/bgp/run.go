@@ -20,10 +20,10 @@ import (
 // own.
 const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 
-// LabBinaries declares the two personalities this lab stages into its Docker
-// build context, which is what test/interop/Dockerfile.ze copies in.
+// LabBinaries declares the binaries this lab stages into its Docker build
+// context, which is what test/interop/Dockerfile.ze copies in.
 //
-// TWO of them, and that is what separates this lab from the other four: the
+// Two personalities, and that is what separates this lab from the other four: the
 // peer containers run `le test interop-bgp ...`, `le test peer ...` and
 // `le mock rpki ...`, and scenario ze.conf files run the harness from inside the
 // daemon container, so an image carrying the daemon alone answers those
@@ -36,10 +36,19 @@ const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 // because cmd/ze selects its personality from that name. The feature gates are
 // added to each by the producer, from feature-gates.txt, so neither binary can
 // carry a smaller feature set than the shipped daemon.
+//
+// The third is the daemon again, with ze_le added: the build that compiles the
+// test seams no shipped binary carries, such as the read-path panic injection
+// (internal/component/bgp/reactor/session_panic_inject_le.go). Every scenario
+// runs the shipped daemon, `ze`; only a scenario whose directory holds
+// zeLeDaemonFile runs this one instead (scenarioPeers), so no other scenario's
+// verdict comes from a binary that differs from what ships.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
 		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop/le-linux"},
+		{Name: "ze with ze_le", Base: repofeaturetags.DaemonBase + " " + repofeaturetags.LEBase,
+			Output: "test/interop/ze-le-linux"},
 	}
 }
 

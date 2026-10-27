@@ -279,6 +279,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		if updateIsUnexpected(s.fsm.State()) {
 			return s.fsmMessageEvent(fsm.EventUpdateMsg), false
 		}
+		// Empty in every shipped build; a ze_le build panics here on demand
+		// (session_panic_inject_le.go), inside the read task's boundary.
+		injectReadPanic(s.settings.Address)
 		// RFC 7606 Sections 3 and 5.3: classify the original message once.
 		validation = s.classifyRFC7606(body)
 		s.prepareRFC7606FirstAS(body, &validation)

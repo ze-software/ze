@@ -373,6 +373,20 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	}
 	zeArguments = append(zeArguments, sysctls...)
 	zeCommand := []string{"start", zeMountedConfig}
+	// A scenario holding zeLeDaemonFile runs the daemon built with ze_le
+	// (LabBinaries), which carries the test seams no shipped build has, such
+	// as the read-path panic injection. tini stays PID 1, as the image's own
+	// entrypoint has it, so `docker stop` still reaches ze.
+	if regularFile(filepath.Join(scenario, zeLeDaemonFile)) {
+		if regularFile(filepath.Join(scenario, zeReloadConfigFile)) {
+			return nil, errors.New(rendered.Reset().Str("scenario ").Str(filepath.Base(scenario)).
+				Str(" holds both ").Str(zeLeDaemonFile).Str(" and ").Str(zeReloadConfigFile).
+				Str(": the reload start runs the shipped ze through a shell, so it cannot run the ze_le build. ").
+				Str("Fix: remove one of the two files from the scenario directory").String())
+		}
+		zeArguments = append(zeArguments, dockerEntrypointFlag, "tini")
+		zeCommand = append([]string{"--", zeLeDaemonPath}, zeCommand...)
+	}
 	// A scenario carrying keepalived.conf runs ze as a VRRP router, and VRRP
 	// writes sysctls once it knows its interface (applyDataplaneSysctls,
 	// internal/plugins/vrrp/dataplane_linux.go): per-device knobs on the
