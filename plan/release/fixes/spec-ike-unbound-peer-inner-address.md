@@ -7,7 +7,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Shipped IKEv2 tunnel-mode responder violates an RFC 3948 Section 5.1 MUST for every peer bound to no virtual-IP pool: two peers can hold Child SAs and kernel policies for one inner address |
@@ -18,35 +18,6 @@
 | Updated | 2026-10-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
-
-## Blocker
-
-The Review Gate cannot be recorded. Nine independent `/ze-review` rounds ran
-over this spec's diff (round 9 clean: 0 BLOCKER, 0 ISSUE), and
-`recordReview` (`internal/le/spec/review.go`) refuses any `rounds` above
-`reviewOwnerRoundCap` without `owner-authorised` ("needs Thomas's
-authorization; a session must not authorize itself"). The rule
-(`ai/rules/points/planning/work-phases/the-round-cap-and-who-authorises-a-sixth-pass.md`)
-forbids an agent setting that keyword unasked, and no record of Thomas's
-words for rounds 6 to 9 was found in the session state or scratch. Without
-the artifact `./le commit create` refuses the closure commit.
-
-What clears it: Thomas's words authorising rounds 6 to 9, passed to the
-closer, which then runs `./le spec review record spec
-spec-ike-unbound-peer-inner-address verdict CLEAN rounds 9 rounds-reason
-"<below>" owner-authorised "<his words>" file <each commit-A file>`, writes
-the learned summary, and lands commits A and B.
-
-Proposed `rounds-reason`, from the fix commits: round 6 found
-`isConfiguredHost` marking a transport peer narrowed to one port
-operator-fixed (fcf2e39dc8); round 7 found `classifyInnerPair` judging the
-remote half alone, not the installed policy pair (b99c6503a4); round 8 found
-`childPolicyPair` returning a pair no caller installs (0308ef4d70, no
-behaviour change, so the main thread confirms round 8's product finding
-before recording).
-
-The two audit verdicts the earlier hand-back named are fresh: both were
-rejudged by independent judges and landed in 58a09337f8.
 
 ## Task
 
@@ -638,9 +609,9 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 | Field | Value |
 |-------|-------|
-| Artifact | NOT RECORDED: `recordReview` refuses `rounds 9` without `owner-authorised`; see `## Blocker` |
-| `./le spec review check` | not run: no artifact |
-| Rounds | 9; round 9 clean (0 BLOCKER, 0 ISSUE). Product defects that earned rounds 6 to 8: fcf2e39dc8 (round 6), b99c6503a4 (round 7), 0308ef4d70 (round 8, no behaviour change; confirm) |
+| Artifact | `tmp/review/ike-unbound-peer-inner-address-f3ae7c00-09af-4420-914f-39f2f7169980.md` (3 files: the closure's spec, learned 038 and the learned 035 repoint; the code landed in the fix commits below, each reviewed in its round). Rounds 6 to 9 authorised by Thomas on 2026-10-27 ("approve") |
+| `./le spec review check` | run at closure over the same three files, before `./le commit create` |
+| Rounds | 9; round 9 clean (0 BLOCKER, 0 ISSUE). Product defects that earned rounds 6 to 8: fcf2e39dc8 (round 6), b99c6503a4 (round 7), 0308ef4d70 (round 8: `childPolicyPair` returned a pair no caller installs; a dead return, no behaviour change) |
 | Reviewer lenses used | `/ze-review` full pass incl. step 18 style, independent ze-rfc-audit judges, ze-test-judge for every changed tagged or weakened unit; the three hand-written breaks of 690d38f274 judged genuine |
 
 ### Findings fixed

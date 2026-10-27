@@ -12,8 +12,9 @@ A later independent audit (2026-10-26) found the hazard still open for a
 tunnel-mode peer bound to no pool: with no configured remote selector,
 `narrowSelectors` accepts any inner source the peer proposes, and the policy
 registry refuses only an identical tunnel selector, so two such peers both
-proposing 10.1.2.3/32 each install a policy. The row is `{partial}`, and
-`plan/release/fixes/spec-ike-unbound-peer-inner-address.md` owns the rest.
+proposing 10.1.2.3/32 each install a policy. `spec-ike-unbound-peer-inner-address`
+closed it with an engine-wide inner-selector registry (learned 038), and the
+row is enforced.
 
 ## What changed
 
