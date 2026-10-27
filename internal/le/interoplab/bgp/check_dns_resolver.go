@@ -197,9 +197,11 @@ func checkDNSDHCPLAN(ctx context.Context, check *interoplab.CheckContext) error 
 	ze := labIPv4(check.Network, zeHostNumber)
 	leased := labIPv4(check.Network, dnsLeasedHostNumber)
 	other := labIPv4(check.Network, dnsClientHostNumber)
-	// Assertion 1. dhcpcd binds a lease from ze. -1 exits once bound and
-	// leaves the address on eth0.
-	bind := []string{"dhcpcd", "-4", "-1", "-w", "-t", strconv.Itoa(dnsDHCPTimeoutSecond), containerInterface}
+	// Assertion 1. dhcpcd binds a lease from ze. -w returns once bound and
+	// leaves dhcpcd running in the background, because dhcpcd 10 answers
+	// --dumplease only from the running daemon ("dhcpcd is not running"
+	// after a -1 one-shot).
+	bind := []string{"dhcpcd", "-4", "-w", "-t", strconv.Itoa(dnsDHCPTimeoutSecond), containerInterface}
 	if _, err := check.Lab.Exec(ctx, peerDNSClient, bind, nil); err != nil {
 		return fail(1, err)
 	}
