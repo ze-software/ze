@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
 const (
@@ -166,17 +168,20 @@ func showcaseTrafficFixture() labFixture {
 	}
 }
 
-// startShowcaseTraffic owns a bounded ICMP and HTTP burst. The stop control
-// MUST terminate both senders, not the HTTP server or the shown Ze.
+// startShowcaseTraffic owns ICMP and HTTP senders sized for the full recording
+// container budget. Callers MUST stop the burst through its stop control or lab
+// cleanup; the stop control MUST terminate both senders, not the server or Ze.
 func startShowcaseTraffic(state string, environ []string) (string, error) {
+	const lifetimeSeconds = int(demoContainerTimeout / time.Second)
 	fixture := labFixture{
 		name: "traffic-burst",
 		start: func(state string, environ []string) ([]int, error) {
-			ping, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "ping", "-n", "-i", "0.1", "-c", "600", "-w", "60", "10.77.0.1"}, environ, filepath.Join(state, "traffic-ping.log"))
+			// Include the immediate first send so neither count expires before the budget.
+			ping, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "ping", "-n", "-i", "0.1", "-c", strconv.Itoa(lifetimeSeconds*10 + 1), "-w", strconv.Itoa(lifetimeSeconds), "10.77.0.1"}, environ, filepath.Join(state, "traffic-ping.log"))
 			if err != nil {
 				return nil, err
 			}
-			http, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "curl", "-fsS", "--no-buffer", "--max-time", "2", "--rate", "20/s", "--output", "/dev/null", "--write-out", "HTTP %{http_code}\n", "http://10.77.0.1:8080/payload.txt?sample=[1-600]"}, environ, filepath.Join(state, "traffic-http.log"))
+			http, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "curl", "-fsS", "--no-buffer", "--max-time", "2", "--rate", "20/s", "--output", "/dev/null", "--write-out", "HTTP %{http_code}\n", fmt.Sprintf("http://10.77.0.1:8080/payload.txt?sample=[1-%d]", lifetimeSeconds*20+1)}, environ, filepath.Join(state, "traffic-http.log"))
 			if err != nil {
 				_ = terminateShowcasePID(ping) //nolint:errcheck // preserve the failed HTTP launch
 				return nil, err
