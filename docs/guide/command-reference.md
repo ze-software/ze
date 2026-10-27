@@ -1975,6 +1975,22 @@ The tree and the collision report are registered answers, so the pipe layer
 renders them: `ze cli -c "show yang tree --config | json"`.
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
+### ze appliance kernel
+
+The build-host binary builds or resolves Ze's installer or runtime kernel.
+Builds run only on a host of the target architecture.
+
+```sh
+ze-host appliance kernel --target runtime --arch amd64 --builder docker --jobs 4
+```
+
+`--jobs <count>` limits parallel kernel compilation to a positive integer.
+Omitting it keeps the builder's CPU-count default. Zero, negative and malformed
+values are refused before building. This scheduling option does not change the
+kernel cache key or the existing two-hour build limit; a warm cache still skips
+compilation. See [the appliance guide](appliance.md) for the build-host setup.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, defaultKernelBuild -->
+
 ### ze init
 
 Initialize `database/` in `ze.config.dir`, or the default config directory.

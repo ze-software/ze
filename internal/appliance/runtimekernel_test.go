@@ -267,7 +267,7 @@ func TestForeignArchBuildFetchesNoFirmware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = buildKernelArtifact(defaultKernelVersion, foreign, hardwareKMSProfile, "", td)
+	err = buildKernelArtifact(defaultKernelVersion, foreign, hardwareKMSProfile, "", td, "")
 	if err == nil || !strings.Contains(err.Error(), "cannot be built here") {
 		t.Fatalf("buildKernelArtifact(%s) = %v, want the arch refusal", foreign, err)
 	}

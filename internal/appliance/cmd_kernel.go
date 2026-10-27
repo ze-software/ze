@@ -179,6 +179,7 @@ func runKernel(args []string) int {
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
+	jobsFlag := fs.Int("jobs", 0, "Parallel kernel build jobs (positive; default: builder CPU count)")
 	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building.")
 	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries of each architecture, keeping the current entry, and exit. Evicts, does not build.")
 
@@ -193,6 +194,7 @@ func runKernel(args []string) int {
 					{Name: "--arch <arch>", Desc: "Target architecture: " + strings.Join(kernelbuilder.SupportedArches(), " or ") + " (default: from appliance config or host)"},
 					{Name: "--profile <profile>", Desc: "Kernel profile token (default: from appliance config or the target default: qemu for installer, runtime for runtime)"},
 					{Name: "--builder <backend>", Desc: "Build backend: docker or qemu (default: docker if available, else qemu)"},
+					{Name: "--jobs <count>", Desc: "Positive parallel kernel build job count (default: builder CPU count); does not change the cache key"},
 					{Name: "--version <ver>", Desc: func() string {
 						var tb textbuf.Buffer
 						return tb.Str("Linux kernel version (default: ").Str(defaultKernelVersion).Byte(')').String()
@@ -210,6 +212,16 @@ func runKernel(args []string) int {
 	}
 
 	if err := fs.Parse(args); err != nil {
+		return exitError
+	}
+	jobs := ""
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "jobs" {
+			jobs = strconv.Itoa(*jobsFlag)
+		}
+	})
+	if jobs != "" && *jobsFlag <= 0 {
+		cliErrorf("--jobs must be positive; use --jobs 4 to limit kernel compilation to four jobs")
 		return exitError
 	}
 
@@ -302,7 +314,7 @@ func runKernel(args []string) int {
 		return exitOK
 	}
 
-	path, err := resolveKernel(*versionFlag, arch, profile, builder, target)
+	path, err := resolveKernel(*versionFlag, arch, profile, builder, target, jobs)
 	if err != nil {
 		cliErrorf("%v", err)
 		return exitError
@@ -312,7 +324,7 @@ func runKernel(args []string) int {
 	return exitOK
 }
 
-func resolveKernel(version, arch, profile, builder, target string) (string, error) {
+func resolveKernel(version, arch, profile, builder, target, jobs string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {
 		return "", err
@@ -326,9 +338,9 @@ func resolveKernel(version, arch, profile, builder, target string) (string, erro
 		return "", err
 	}
 	if td.isTree {
-		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant)
+		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant, jobs)
 	}
-	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant)
+	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant, jobs)
 }
 
 // kernelCachePathFor returns the durable cache directory for the same identity
@@ -368,7 +380,7 @@ func invalidateInstallerKernelVariant(outputDir string) error {
 	return nil
 }
 
-func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
+func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
 	cached := kernelCachePath(version, variant)
 	toolsDst := filepath.Join(td.outputDir, td.artifact)
 	// Before any path below replaces the image, so no branch can leave an old
@@ -400,7 +412,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 		}
 	}
 
-	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
+	if err := buildKernelArtifact(version, arch, profile, builder, td, jobs); err != nil {
 		return "", err
 	}
 
@@ -421,7 +433,7 @@ func resolveInstallerKernel(version, arch, profile, builder string, td kernelTar
 	return cached, nil
 }
 
-func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
+func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant, jobs string) (string, error) {
 	// The version floor is checked before the cache, so a kernel.version bump
 	// below the reserve_mem floor fails the build rather than being served from
 	// a tree built when the floor still held.
@@ -446,7 +458,7 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	if arch != kernelbuilder.HostArch() {
 		return "", &foreignArchKernelError{version: version, arch: arch, cachedDir: cachedDir}
 	}
-	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
+	if err := buildKernelArtifact(version, arch, profile, builder, td, jobs); err != nil {
 		// A cold cache with no network fails here, at the source download, so the
 		// error names the entry that was missing and the command that fills it.
 		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
@@ -591,7 +603,7 @@ func runtimeKernelReachable(arch string) error {
 }
 
 // buildKernelArtifact resolves the firmware directory then invokes the native driver.
-func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc) error {
+func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc, jobs string) error {
 	// The arch is refused before the firmware download, which a build this
 	// host cannot run would only waste.
 	if err := kernelbuilder.CheckArch(arch); err != nil {
@@ -619,6 +631,7 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 		outDir:   td.outputDir,
 		patches:  td.patchesDir,
 		firmware: fwDir,
+		jobs:     jobs,
 	})
 }
 
@@ -633,6 +646,7 @@ type kernelBuildSpec struct {
 	outDir   string
 	patches  string
 	firmware string
+	jobs     string
 }
 
 func defaultKernelBuild(spec kernelBuildSpec) error {
@@ -662,6 +676,7 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 		OutputDir:   spec.outDir,
 		PatchesDir:  spec.patches,
 		FirmwareDir: spec.firmware,
+		Jobs:        spec.jobs,
 		Fragments:   resolved.Fragments,
 		Stdout:      os.Stdout,
 		Stderr:      os.Stdout,

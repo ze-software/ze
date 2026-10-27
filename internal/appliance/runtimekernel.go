@@ -15,7 +15,7 @@ import "errors"
 // tmp/kernel/build, so two concurrent image builds never read a tree a third
 // resolver call is rewriting.
 func RuntimeKernelTree(arch string) (string, error) {
-	return resolveKernel(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime)
+	return resolveKernel(defaultKernelVersion, arch, runtimeKernelProfile, "", kernelTargetRuntime, "")
 }
 
 // ImageRuntimeKernelTree is RuntimeKernelTree for a caller that builds an
