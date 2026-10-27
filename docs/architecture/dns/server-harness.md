@@ -2,7 +2,8 @@
 
 `internal/core/dnsserver` holds the DNS primitives that more than one DNS plugin
 needs: listener lifecycle, client-IP selection, the authoritative answer shape,
-and a CIDR longest-prefix matcher. geodns and as112 both build on it.
+and a CIDR longest-prefix matcher. geodns and as112 build on its authoritative
+wrapper, and the LAN resolver on its recursive one.
 
 <!-- source: internal/core/dnsserver/manager.go -- Manager, New, Stop -->
 <!-- source: internal/core/dnsserver/secure.go -- ApplyWithSecure, reconcile -->
@@ -65,6 +66,38 @@ guard as a convention each consumer had to remember. Two review rounds replaced
 it with the shape above. `dns.ResponseWriter` satisfies `Peer`, so the wrapper
 passes it through with no per-query allocation, and the packet source stays
 lazy: a refused query never pays for `RemoteAddr`.
+
+## A recursive service gets its own wrapper
+
+The LAN resolver (`service dns-resolver`) answers recursive queries, so the
+authoritative shape is wrong for it: it must set RA and must never set AA. It
+does not take a flag on `Authoritative`, because a flag would turn the enforced
+shape back into a choice each caller can get wrong, which is the convention the
+section above replaced. `Recursive` is a second wrapper with the same contract:
+the answer function receives `Peer`, the wrapper owns the single write, and
+`shapeRecursive` runs before and after the answer function.
+
+| Bit or field | `shapeAuthoritative` | `shapeRecursive` |
+|--------------|----------------------|------------------|
+| AA | set, unless RCODE 5 | always clear: a forwarder holds no zone |
+| RA | always clear | always set, refusals included |
+| Z, AD | clear | clear: the resolver validates nothing |
+| CD | copied by `SetReply` | copied from the query on every reply |
+| OPT | whatever the answer function adds | exactly one when the query carried one, advertising `RecursiveUDPSize` (1232) with DO clear; none otherwise |
+| Datagram bound | the requestor's offer, never below 512 | the requestor's offer held to 1232, never below 512 |
+
+Both wrappers answer a non-QUERY opcode with Not Implemented before the answer
+function runs, and both share `send`, which takes the datagram bound the wrapper
+chose. A consumer of `Recursive` also sets `Options.UDPSize` to
+`RecursiveUDPSize`, so the UDP listener reads a query of that size whole; with
+the field zero the read buffer stays at miekg's 512 octets, and a longer query
+draws FORMERR from miekg without reaching the handler. The authoritative
+consumers leave it zero today.
+
+<!-- source: internal/core/dnsserver/recursive.go -- Recursive, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize -->
+<!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize -->
+<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize -->
+<!-- test: internal/core/dnsserver/handler_test.go -- TestAuthoritativeUnchanged -->
 
 ## An apply must never believe a stale signature
 

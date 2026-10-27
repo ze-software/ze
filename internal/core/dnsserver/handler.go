@@ -86,7 +86,7 @@ func Authoritative(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.Handl
 		if r.Opcode != dns.OpcodeQuery {
 			msg.SetRcode(r, dns.RcodeNotImplemented)
 			shapeAuthoritative(msg)
-			send(w, msg, r, log)
+			send(w, msg, udpReplyLimit(r), log)
 			return
 		}
 		msg.SetReply(r)
@@ -95,12 +95,15 @@ func Authoritative(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.Handl
 			return
 		}
 		shapeAuthoritative(msg)
-		send(w, msg, r, log)
+		send(w, msg, udpReplyLimit(r), log)
 	}
 }
 
 // send bounds msg for the transport it goes out on, then writes it exactly
-// once.
+// once. datagramLimit is the largest datagram reply in octets, which the
+// wrapper decides: Authoritative answers up to what the requestor offered
+// (udpReplyLimit), Recursive also holds it to its own buffer
+// (recursiveReplyLimit).
 //
 // RFC 1035 Section 4.2.1: "Messages carried by UDP are restricted to 512 bytes
 // (not counting the IP or UDP headers).  Longer messages are truncated and the
@@ -128,11 +131,11 @@ func Authoritative(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.Handl
 // query it draws, which is the flood the counter exists to measure instead.
 // The counter is also what survives a log level that hides the line, so it is
 // what an operator alerts on.
-func send(w dns.ResponseWriter, msg, r *dns.Msg, log *slog.Logger) {
+func send(w dns.ResponseWriter, msg *dns.Msg, datagramLimit int, log *slog.Logger) {
 	transport := transportStream
 	if isDatagram(w) {
 		transport = transportDatagram
-		msg.Truncate(udpReplyLimit(r))
+		msg.Truncate(datagramLimit)
 	}
 	if err := w.WriteMsg(msg); err != nil {
 		recordWriteFailure(transport)

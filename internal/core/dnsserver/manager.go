@@ -72,6 +72,13 @@ type Options struct {
 	// nil means this consumer supports no store references. A SecureConfig that
 	// names one anyway is then an error, never a silent fallback.
 	TLSMaterialResolver func(name string) (certPEM, keyPEM []byte, err error)
+
+	// UDPSize is the read buffer, in octets, of each UDP listener: a datagram
+	// longer than it is cut short and dropped as malformed. Zero keeps the
+	// miekg default of 512 (dns.MinMsgSize), which the authoritative services
+	// use today. A recursive service passes RecursiveUDPSize, so a client's
+	// EDNS query of up to that size is read whole.
+	UDPSize int
 }
 
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
@@ -182,7 +189,7 @@ func (m *Manager) bind(ep, addr string) error {
 		return fmt.Errorf("udp: %w", err)
 	}
 	udpStarted := make(chan struct{})
-	udp := &dns.Server{PacketConn: pc, Handler: m.handler, NotifyStartedFunc: func() { close(udpStarted) }}
+	udp := &dns.Server{PacketConn: pc, Handler: m.handler, UDPSize: m.opts.UDPSize, NotifyStartedFunc: func() { close(udpStarted) }}
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		if cerr := pc.Close(); cerr != nil {

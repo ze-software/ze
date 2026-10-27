@@ -96,3 +96,49 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 		t.Error("a reply was written for a query whose answer func panicked, want none")
 	}
 }
+
+// VALIDATES: the authoritative reply shape is byte-identical after the
+// recursive wrapper joined the package: for an RD=1 query whose answer func
+// tries to set RA, AD and Z, the written header flags are exactly 0x8500
+// (QR, AA and the copied RD; RA, Z, AD, CD and RCODE zero), and a reply of
+// two records under one name is packed without compression.
+// METHOD: pack the written reply and read the flag octets and the length.
+// PREVENTS: as112 and geodns replies changing because the send path or the
+// shape helpers were shared with Recursive.
+func TestAuthoritativeUnchanged(t *testing.T) {
+	q := new(dns.Msg)
+	q.SetQuestion("example.test.", dns.TypeA)
+	q.Id = 0x1234
+
+	handler := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
+		msg.RecursionAvailable = true
+		msg.AuthenticatedData = true
+		msg.Zero = true
+		for _, last := range []byte{1, 2} {
+			msg.Answer = append(msg.Answer, &dns.A{
+				Hdr: dns.RR_Header{Name: "example.test.", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+				A:   net.IPv4(192, 0, 2, last),
+			})
+		}
+		return true
+	}, nil)
+	fw := &fakeResponseWriter{}
+	handler(fw, q)
+	if fw.written == nil {
+		t.Fatal("no reply written")
+	}
+	wire, err := fw.written.Pack()
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	if wire[0] != 0x12 || wire[1] != 0x34 {
+		t.Errorf("ID %02x%02x, want 1234", wire[0], wire[1])
+	}
+	if wire[2] != 0x85 || wire[3] != 0x00 {
+		t.Errorf("header flags %02x%02x, want 8500", wire[2], wire[3])
+	}
+	// Header 12, question 14+4, two uncompressed A records of 14+10+4 each.
+	if want := 12 + 18 + 2*28; len(wire) != want {
+		t.Errorf("reply is %d octets, want %d (uncompressed)", len(wire), want)
+	}
+}
