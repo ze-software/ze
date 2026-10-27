@@ -34,6 +34,9 @@ var netnsSelections = map[string][]string{
 		"firewall-icmp-type", "firewall-iface-wildcard", "firewall-nat-exclude",
 		"firewall-masquerade-ports", "firewall-masquerade-flags", "command-owner-firewall-root",
 		"copp-bgp", "copp-trusted", "copp-withdraw", "flush-persist", "flush-crash", "ddos-local-withdraw",
+		// The GTSM pair declares option=netns-link: outside this launcher the
+		// runner skips them, so this selection is the only place they run.
+		"gtsm-related-icmp", "gtsm-listener-floor",
 	},
 	netnsPolicy: {
 		"policy-boot-apply", "policy-set-table", "policy-tcp-flags", "policy-tcp-mss",
