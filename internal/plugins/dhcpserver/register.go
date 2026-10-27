@@ -13,7 +13,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/taskguard"
 	dhcpyang "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -47,6 +49,7 @@ func init() {
 			loggerPtr.Store(l)
 		}
 	}
+	reg.ConfigureMetrics = func(metricsRegistry metrics.Registry) { dhcpGuard.SetMetricsRegistry(metricsRegistry) }
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "dhcpserver: registration failed: %v\n", err)
 		os.Exit(1)
@@ -171,11 +174,31 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 	}
 
 	buf := make([]byte, 1500)
+	for serveRequests(conn, handlers, serverIPs, buf, log) {
+		// The pass ended on a contained panic; the next one reads on.
+	}
+}
+
+// serveRequests is the request task: it answers requests until the socket
+// closes, answering false, or until a panic ends the pass, answering true. The
+// request being handled then gets no reply and its client retransmits. The pool
+// and lease tables hold their mutexes only under defer, so the unwind leaves
+// them free.
+func serveRequests(conn *net.UDPConn, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
+	var source *net.UDPAddr // the sender of the request being handled
+	describe := func() taskguard.Context {
+		return taskguard.Context{Unit: "request from " + source.String()}
+	}
+	// RFC 2131 Section 4.1: "DHCP clients are responsible for all message
+	// retransmission." A request left unanswered is sent again by its client.
+	defer requestTask.Contain(describe, func(*taskguard.Panic) { again = true })
+
 	for {
-		n, _, err := conn.ReadFromUDP(buf)
+		n, from, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			return
+			return false
 		}
+		source = from
 		pkt := make([]byte, n)
 		copy(pkt, buf[:n])
 

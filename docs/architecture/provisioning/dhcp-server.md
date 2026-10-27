@@ -155,6 +155,18 @@ panics, which is why every pool mutation guards the empty-pool case. The first
 test suite covered DISCOVER only, whose allocation path returns early, and
 missed REQUEST, whose reservation path does not.
 
+**A defect met while answering one request costs that request only.** Each
+listener reads in `serveRequests`, which the `dhcp` guard wraps as task
+`request`. A panic there is logged, counted in
+`ze_task_panics_total{component="dhcp",task="request"}` and crash-recorded with
+the client's address; the request gets no reply, and `serveMulti` starts the
+next pass on the same socket. RFC 2131 section 4.1 makes the client responsible
+for retransmission, so the lost reply costs one retry. The pool and lease
+tables release their mutexes by `defer`, so the unwind leaves no lock held.
+The server has no DHCPv6 path, so there is no second listener to guard.
+<!-- source: internal/plugins/dhcpserver/panic_guard.go -- dhcpGuard, requestTask -->
+<!-- source: internal/plugins/dhcpserver/register.go -- serveMulti, serveRequests -->
+
 ## Related
 
 - `pxe-staging.md` for the two-stage PXE path this handler implements

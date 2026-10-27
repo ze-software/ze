@@ -352,6 +352,8 @@ at zero from the moment the component has a metrics registry.
 <!-- source: internal/component/radius/panic_guard.go -- readTask -->
 | `radius-coa` | `request` | One CoA-Request or Disconnect-Request: answered with a NAK carrying Error-Cause 506 (Resources Unavailable) when it had been authenticated, dropped otherwise; the listener serves the next one |
 <!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
+| `dhcp` | `request` | One DHCP request, unanswered: the client retransmits it, and the listener serves the next one |
+<!-- source: internal/plugins/dhcpserver/panic_guard.go -- requestTask -->
 
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
