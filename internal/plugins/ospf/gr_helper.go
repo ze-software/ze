@@ -88,9 +88,7 @@ func (e *engine) graceOnReceive(r opaqueReceived) {
 // ospf_nbr_lookup_by_addr finds no neighbor). OSPFv3 never reaches here: RFC 5340 identifies
 // every OSPFv3 neighbor by Router ID.
 func (e *engine) graceRestarterV4(iface string, advRouter ospftypes.RouterID, body ospfpacket.GraceLSA) (ospftypes.RouterID, bool) {
-	e.mu.Lock()
-	ic, running := e.running[iface]
-	e.mu.Unlock()
+	_, ic, running := e.runningInterface(iface)
 	// An interface Ze does not run has no neighbor to match by address, so the Advertising
 	// Router stands; the Full-adjacency check in onGraceReceived then refuses helper entry.
 	if !running {

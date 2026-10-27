@@ -329,10 +329,18 @@ func (e *engine) installStubHandlers() {
 	e.dispatch.register(PacketTypeLSAck, e.handleLSAck)
 }
 
-func (e *engine) handleHello(rp transport.RawPacket, h Header) {
+// receiveTarget is receiveTargetLocked under mu. The receive worker runs it on peer-derived
+// input (the ifindex and the header's Area and Router ID), so the lock is released by defer:
+// a panic in the lookup unwinds to the worker's boundary without leaving mu held, which
+// would wedge every later packet, timer and show command of this engine.
+func (e *engine) receiveTarget(ifindex int, h Header) (string, *ospfiface.Interface, bool) {
 	e.mu.Lock()
-	name, ifc, ok := e.receiveTargetLocked(rp.IfIndex, h)
-	e.mu.Unlock()
+	defer e.mu.Unlock()
+	return e.receiveTargetLocked(ifindex, h)
+}
+
+func (e *engine) handleHello(rp transport.RawPacket, h Header) {
+	name, ifc, ok := e.receiveTarget(rp.IfIndex, h)
 	if !ok || ifc == nil {
 		return
 	}
@@ -368,9 +376,7 @@ func (e *engine) handleLSReq(rp transport.RawPacket, h Header) {
 }
 
 func (e *engine) handleLSUpdate(rp transport.RawPacket, h Header) {
-	e.mu.Lock()
-	name, _, ok := e.receiveTargetLocked(rp.IfIndex, h)
-	e.mu.Unlock()
+	name, _, ok := e.receiveTarget(rp.IfIndex, h)
 	if !ok {
 		return
 	}
@@ -408,9 +414,7 @@ func (e *engine) handleLSUpdate(rp transport.RawPacket, h Header) {
 }
 
 func (e *engine) handleLSAck(rp transport.RawPacket, h Header) {
-	e.mu.Lock()
-	name, _, ok := e.receiveTargetLocked(rp.IfIndex, h)
-	e.mu.Unlock()
+	name, _, ok := e.receiveTarget(rp.IfIndex, h)
 	if !ok {
 		return
 	}
@@ -435,9 +439,7 @@ func (e *engine) handleLSAck(rp transport.RawPacket, h Header) {
 }
 
 func (e *engine) handleNeighborPacket(rp transport.RawPacket, h Header, typ PacketType) {
-	e.mu.Lock()
-	name, _, ok := e.receiveTargetLocked(rp.IfIndex, h)
-	e.mu.Unlock()
+	name, _, ok := e.receiveTarget(rp.IfIndex, h)
 	if !ok {
 		return
 	}
@@ -472,6 +474,15 @@ func (e *engine) handleNeighborPacket(rp transport.RawPacket, h Header, typ Pack
 	if reason != "" && e.transport != nil {
 		e.transport.RecordDrop(name, reason)
 	}
+}
+
+// enrolledInterfaceName names the enrolled interface a packet arrived on, under mu released
+// by defer: the receive worker calls it with a peer-supplied ifindex (see receiveTarget).
+func (e *engine) enrolledInterfaceName(ifindex int) (string, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, name, ok := e.interfaceByIfIndexLocked(ifindex)
+	return name, ok
 }
 
 func (e *engine) interfaceByIfIndexLocked(ifindex int) (*ospfiface.Interface, string, bool) {

@@ -345,22 +345,35 @@ func (e *engine) neighborTopologyFacts(iface string, router ospftypes.RouterID) 
 			break
 		}
 	}
-	wasDR := false
+	return addr, ifaceID, e.interfaceDRIs(iface, router)
+}
+
+// interfaceDRIs reports whether router is iface's Designated Router. It runs on the receive
+// worker (a received Grace-LSA names iface and router), so mu is released by defer and a
+// panic cannot leave it held.
+func (e *engine) interfaceDRIs(iface string, router ospftypes.RouterID) bool {
 	e.mu.Lock()
-	if ifc := e.interfaces[iface]; ifc != nil {
-		wasDR = ifc.DR() == router
+	defer e.mu.Unlock()
+	ifc := e.interfaces[iface]
+	if ifc == nil {
+		return false
 	}
-	e.mu.Unlock()
-	return addr, ifaceID, wasDR
+	return ifc.DR() == router
+}
+
+// runningInterface snapshots the engine config and iface's running config under mu,
+// released by defer: the receive worker calls it for a received Grace-LSA's interface.
+func (e *engine) runningInterface(iface string) (ospfConfig, interfaceConfig, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ic, ok := e.running[iface]
+	return e.cfg, ic, ok
 }
 
 // interfaceAreaType returns the area type (normal/stub/nssa) of iface's area, for the RFC 3623
 // sec 3.2 stub-area exception in strict LSA checking.
 func (e *engine) interfaceAreaType(iface string) string {
-	e.mu.Lock()
-	cfg := e.cfg
-	ic, ok := e.running[iface]
-	e.mu.Unlock()
+	cfg, ic, ok := e.runningInterface(iface)
 	if !ok {
 		return ospftypes.AreaTypeNormal
 	}

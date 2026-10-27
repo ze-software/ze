@@ -359,7 +359,20 @@ func (s virtualAwareSender) LeaveAllDRouters(name string) error {
 // transit egress with a routed TTL/hop-limit (RFC 2328 section 8.1 / RFC 5340 section 2.9).
 // A packet whose destination or egress is not yet resolved is dropped (the adjacency retries).
 func (e *engine) sendVirtualLink(name string, payload []byte) error {
+	egress, dst, src, ok := e.virtualLinkRoute(name)
+	if !ok {
+		return nil
+	}
+	return e.transport.SendPacketRouted(egress, dst, src, payload)
+}
+
+// virtualLinkRoute resolves the egress, destination and source of virtual link name under
+// mu, released by defer: the receive worker sends on a virtual link (a DD or LS Request
+// reply), so a panic here must not leave mu held. ok is false while the link is not
+// resolved, which drops the packet (the adjacency retries).
+func (e *engine) virtualLinkRoute(name string) (string, netip.Addr, netip.Addr, bool) {
 	e.mu.Lock()
+	defer e.mu.Unlock()
 	var rt *virtualLinkRuntime
 	for _, r := range e.virtualLinks {
 		if r.name == name {
@@ -371,12 +384,9 @@ func (e *engine) sendVirtualLink(name string, payload []byte) error {
 	// The IPv6 routed send requires a valid GLOBAL source (RFC 5340 sec 2.9); the IPv4 send
 	// lets the kernel pick the source, so src may be unset.
 	if rt == nil || e.transport == nil || !rt.neighborAddr.IsValid() || rt.transitNextHop.Interface == "" || (isV6 && !rt.localAddr.Is6()) {
-		e.mu.Unlock()
-		return nil
+		return "", netip.Addr{}, netip.Addr{}, false
 	}
-	egress, dst, src := rt.transitNextHop.Interface, rt.neighborAddr, rt.localAddr
-	e.mu.Unlock()
-	return e.transport.SendPacketRouted(egress, dst, src, payload)
+	return rt.transitNextHop.Interface, rt.neighborAddr, rt.localAddr, true
 }
 
 // virtualLocalAddrLocked resolves the OSPFv2 local source address used to reach the

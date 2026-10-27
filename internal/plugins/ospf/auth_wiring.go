@@ -76,9 +76,7 @@ func (e *engine) signPacket(name string, payload []byte) []byte {
 // (dispatcher authOK hook). A verification failure increments
 // ze_ospf_auth_failures_total{interface,reason} and drops the packet.
 func (e *engine) verifyPacket(rp transport.RawPacket, h Header) bool {
-	e.mu.Lock()
-	_, name, ok := e.interfaceByIfIndexLocked(rp.IfIndex)
-	e.mu.Unlock()
+	name, ok := e.enrolledInterfaceName(rp.IfIndex)
 	if !ok {
 		return true // unknown interface: leave to the existing area/handler checks
 	}
