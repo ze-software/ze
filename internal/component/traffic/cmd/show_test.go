@@ -78,3 +78,14 @@ func TestFormatRate(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatQoSRootTBFRate(t *testing.T) {
+	qos := traffic.InterfaceQoS{
+		Interface: "ppp0",
+		Qdisc:     traffic.Qdisc{Type: traffic.QdiscTBF, RateBps: 10_000_000},
+	}
+	want := "interface ppp0 {\n  qdisc tbf {\n    rate 10mbit;\n  }\n}\n"
+	if got := FormatQoS(qos); got != want {
+		t.Fatalf("root TBF output = %q, want %q", got, want)
+	}
+}

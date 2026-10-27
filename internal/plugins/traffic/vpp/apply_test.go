@@ -1062,3 +1062,23 @@ func TestClassifyReapplyUsesConfirmedPolicers(t *testing.T) {
 		t.Fatalf("classify update deleted a live policer or changed output: %v", second.calls)
 	}
 }
+
+func TestRootTBFRateRefusedBeforeVPPMutation(t *testing.T) {
+	for _, withClass := range []bool{false, true} {
+		qdisc := traffic.Qdisc{Type: traffic.QdiscTBF, RateBps: 10_000_000}
+		if withClass {
+			qdisc.Classes = []traffic.TrafficClass{{Name: "default", Rate: 10_000_000}}
+		}
+		desired := map[string]traffic.InterfaceQoS{"eth0": {Qdisc: qdisc}}
+		if err := Verify(desired); !errors.Is(err, errRootRateNotSupportedByBackend) {
+			t.Fatalf("verify root rate: %v", err)
+		}
+		ops := newFakeOps(nil)
+		if err := applyWithOpsLocked(newOpsBackend(), ops, desired); !errors.Is(err, errRootRateNotSupportedByBackend) {
+			t.Fatalf("apply root rate: %v", err)
+		}
+		if len(ops.calls) != 0 {
+			t.Fatalf("unsupported root rate reached VPP: %v", ops.calls)
+		}
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sync"
 
@@ -89,6 +90,10 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if err := verifyDesired(desired); err != nil {
 		return err
 	}
 
@@ -334,6 +339,12 @@ func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
 	qos := traffic.InterfaceQoS{Interface: ifaceName}
 	if root, err := rootQdisc(qdiscs); err == nil {
 		qos.Qdisc.Type = raiseQdiscType(root)
+		if tbf, ok := root.(*netlink.Tbf); ok {
+			if tbf.Rate > math.MaxUint64/8 {
+				return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: tbf readback rate %d bytes/s overflows bits/s", tbf.Rate)
+			}
+			qos.Qdisc.RateBps = tbf.Rate * 8
+		}
 	}
 
 	return qos, nil

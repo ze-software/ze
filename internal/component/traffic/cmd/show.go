@@ -20,6 +20,9 @@ func FormatQoS(qos traffic.InterfaceQoS) string {
 		b.Str(" default ").Str(qos.Qdisc.DefaultClass)
 	}
 	b.Str(" {\n")
+	if qos.Qdisc.RateBps != 0 {
+		b.Str("    rate ").Str(formatRate(qos.Qdisc.RateBps)).Str(";\n")
+	}
 	for _, c := range qos.Qdisc.Classes {
 		formatClass(&b, &c)
 	}

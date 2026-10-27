@@ -212,7 +212,7 @@ const millisecondsPerSecond = 1000
 // less than one packet. This is the one declaration of that derivation; the tc
 // and VPP backends both consume it, so the two cannot drift.
 func PolicerBurstBytes(rateBps uint64) uint64 {
-	b := rateBps * burstWindowMs / bitsPerByte / millisecondsPerSecond
+	b := rateBps / (bitsPerByte * millisecondsPerSecond / burstWindowMs)
 	if b < burstBytesFloor {
 		return burstBytesFloor
 	}
@@ -245,9 +245,11 @@ func (p Policer) Validate() error {
 	return nil
 }
 
-// Qdisc represents a queueing discipline with its classes and default class.
+// Qdisc is the backend input for a root discipline. RateBps is the classless
+// TBF rate; Classes carries classful tc configuration or VPP class policers.
 type Qdisc struct {
 	Type         QdiscType
+	RateBps      uint64 // root TBF rate in bits/s; zero means absent
 	DefaultClass string // name of the default class
 	Classes      []TrafficClass
 }

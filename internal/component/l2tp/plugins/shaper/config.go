@@ -80,6 +80,9 @@ func parseShaperConfig(data string) (*shaperConfig, bool, error) {
 		if err != nil {
 			return nil, false, fmt.Errorf("%s: invalid upload-rate %q: %w", Name, uploadStr, err)
 		}
+		if err := traffic.ValidateRate(upload); err != nil {
+			return nil, false, fmt.Errorf("%s: upload-rate: %w", Name, err)
+		}
 		cfg.UploadRate = upload
 	}
 

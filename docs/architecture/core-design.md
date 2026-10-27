@@ -1773,6 +1773,15 @@ filtered classes, so an interface-wide upload rate has no faithful translation t
 consumer today is the L2TP shaper, which enforces a subscriber's upload rate on the `pppN`
 interface for both L2TP and PPPoE sessions.
 
+`Qdisc.RateBps` holds a classless TBF root rate in bits per second. Linux TBF
+refuses classes and a default-class; HTB still uses `TrafficClass.Rate` and
+`Ceil`. The tc backend translates both to bytes per second and encodes TBF's
+burst as scheduler ticks, while its queue limit remains bytes. A semantic
+verifier refuses missing, fractional-byte and overflowing rates before kernel
+mutation. TBF readback converts the kernel byte rate back to `RateBps`.
+VPP retains its documented class-policer model and explicitly refuses the root
+rate field at verify and apply rather than ignoring it.
+
 `Backend.Apply` accepts a `context.Context` as its first parameter, plumbed from the traffic
 component's plugin lifetime. The `trafficvpp` backend honors the caller's ctx for its
 `conn.WaitConnected` call so a SIGTERM mid-reload does not block for the full VPP-reach timeout

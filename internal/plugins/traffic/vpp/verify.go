@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	errRootRateNotSupportedByBackend = errors.New("root qdisc rate: not supported by backend vpp; use the existing htb/tbf class policers instead")
 	// errFilterMarkNotSupportedByBackend names the semantic gap that AC-3's
 	// fallback requires. A-3 was validated against real VPP v25.10 (Docker
 	// ligato/vpp-base): the classify SET_METADATA action / opaque_index stores
@@ -107,6 +108,9 @@ func Verify(desired map[string]traffic.InterfaceQoS) error {
 // per-interface policer-name length constraint is checked here because it
 // depends on both the interface name and every class name.
 func verifyInterface(ifaceName string, iqos traffic.InterfaceQoS) error {
+	if iqos.Qdisc.RateBps != 0 {
+		return errRootRateNotSupportedByBackend
+	}
 	if err := verifyQdiscType(iqos.Qdisc.Type); err != nil {
 		return err
 	}

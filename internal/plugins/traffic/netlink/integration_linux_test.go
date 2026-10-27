@@ -331,6 +331,25 @@ func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
 			t.Fatalf("Apply: %v", err)
 		}
 
+		classes, err := netlink.ClassList(link, tcHandle(0))
+		if err != nil {
+			t.Fatalf("read kernel HTB classes: %v", err)
+		}
+		if len(classes) != 1 {
+			t.Fatalf("kernel HTB class count = %d, want 1", len(classes))
+		}
+		htb, ok := classes[0].(*netlink.HtbClass)
+		if !ok {
+			t.Fatalf("kernel class type = %T, want HTB", classes[0])
+		}
+		if htb.Rate != 1_250_000 {
+			t.Fatalf("kernel HTB rate = %d bytes/s, want 1250000 (10 Mbit/s)", htb.Rate)
+		}
+		if htb.Ceil != 1_250_000 {
+			t.Fatalf("kernel HTB ceil = %d bytes/s, want 1250000 (10 Mbit/s)", htb.Ceil)
+		}
+		t.Logf("kernel HTB rate=%d bytes/s ceil=%d bytes/s", htb.Rate, htb.Ceil)
+
 		rate, ok := ingressPolicerInKernel(t, ifaceName)
 		if !ok {
 			t.Fatal("the kernel holds no police action on the ingress hook: the upload rate is enforced by nothing")
@@ -339,6 +358,7 @@ func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
 		if rate != 1_000_000 {
 			t.Fatalf("kernel police rate = %d bytes/s, want 1000000 (8 Mbit/s)", rate)
 		}
+		t.Logf("kernel ingress police rate=%d bytes/s", rate)
 
 		if err := b.RestoreOriginal(context.Background(), ifaceName); err != nil {
 			t.Fatalf("RestoreOriginal: %v", err)

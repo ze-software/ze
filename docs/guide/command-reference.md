@@ -708,6 +708,10 @@ ze show traffic control            # Summary of all interfaces with qdiscs
 ze show traffic control <ifname>   # Detail for one interface
 ```
 
+For a Linux TBF root, `rate-bps` reports the kernel's rate in bits per second,
+not its native byte-per-second unit. It is zero when the root has no TBF rate.
+TBF has no configured classes; its rate is a root property.
+
 ### show flow export
 
 Per-collector flow export statistics for the `flowexport` component (sFlow v5,

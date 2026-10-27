@@ -6,6 +6,7 @@ package trafficnetlink
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -101,6 +102,9 @@ func tcHandle(minor uint32) uint32 {
 
 // translateQdisc converts a ze Qdisc to a netlink Qdisc.
 func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
+	if q.Type != traffic.QdiscTBF && q.RateBps != 0 {
+		return nil, fmt.Errorf("root rate is only supported for tbf, got %s", q.Type)
+	}
 	attrs := netlink.QdiscAttrs{
 		LinkIndex: linkIdx,
 		Handle:    tcHandle(0), // 1:0 root handle
@@ -124,18 +128,30 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 	case traffic.QdiscSFQ:
 		return &netlink.Sfq{QdiscAttrs: attrs}, nil
 	case traffic.QdiscTBF:
-		// TBF requires rate/limit/buffer from config. The Qdisc struct does not
-		// carry TBF-specific fields yet; if the first class has a rate, use it.
-		// Otherwise the kernel will reject the qdisc with EINVAL.
-		rate := uint64(1_000_000) // 1 Mbps fallback
-		if len(q.Classes) > 0 && q.Classes[0].Rate > 0 {
-			rate = q.Classes[0].Rate
+		if len(q.Classes) != 0 || q.DefaultClass != "" {
+			return nil, fmt.Errorf("tbf is classless; set the root qdisc rate and remove classes and default-class")
+		}
+		rate, err := rateBytesPerSecond(q.RateBps)
+		if err != nil {
+			return nil, fmt.Errorf("tbf rate: %w", err)
+		}
+		// Limit is a byte count: one second of queued traffic. Buffer is
+		// NOT bytes: TCA_TBF_PARMS carries the burst's transmission time in
+		// scheduler ticks. Size a 125ms burst with room for a full packet.
+		limit := max(rate, 2048)
+		burst := max(rate/8, 2048)
+		if limit > math.MaxUint32 {
+			return nil, fmt.Errorf("tbf rate %d bps exceeds the one-second queue limit of %d bytes", q.RateBps, uint64(math.MaxUint32))
+		}
+		buffer, err := burstTicks(rate, uint32(burst))
+		if err != nil {
+			return nil, fmt.Errorf("tbf burst: %w", err)
 		}
 		return &netlink.Tbf{
 			QdiscAttrs: attrs,
 			Rate:       rate,
-			Limit:      uint32(rate / 8),  // ~1 second of burst at configured rate
-			Buffer:     uint32(rate / 64), // ~125ms of burst
+			Limit:      uint32(limit),
+			Buffer:     buffer,
 		}, nil
 	case traffic.QdiscNetem:
 		return &netlink.Netem{QdiscAttrs: attrs}, nil
@@ -155,6 +171,33 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 		// Backend models are open inputs, including unset qdisc types.
 		return nil, fmt.Errorf("unsupported qdisc type %v", q.Type)
 	}
+}
+
+// rateBytesPerSecond refuses fractional bytes rather than silently changing a
+// configured bit rate. Both the scheduler and the police action use bytes/s.
+func rateBytesPerSecond(bps uint64) (uint64, error) {
+	if bps == 0 || bps%8 != 0 {
+		return 0, fmt.Errorf("rate %d bps must be positive and divisible by 8 for backend tc", bps)
+	}
+	return bps / 8, nil
+}
+
+// burstTicks checks BOTH narrowing conversions in netlink.Xmittime:
+// transmission microseconds to uint32, then scheduler ticks to uint32.
+func burstTicks(rate uint64, bytes uint32) (uint32, error) {
+	micros := float64(netlink.TIME_UNITS_PER_SEC) * (float64(bytes) / float64(rate))
+	tick := netlink.TickInUsec()
+	if tick <= 0 || math.IsNaN(tick) || math.IsInf(tick, 0) {
+		return 0, fmt.Errorf("cannot read a valid kernel scheduler clock")
+	}
+	if micros > math.MaxUint32 {
+		return 0, fmt.Errorf("burst transmission time exceeds uint32 microseconds")
+	}
+	ticks := float64(uint32(micros)) * tick
+	if ticks < 1 || ticks > math.MaxUint32 {
+		return 0, fmt.Errorf("burst transmission time does not fit a positive uint32 scheduler tick count")
+	}
+	return netlink.Xmittime(rate, bytes), nil
 }
 
 // findDefaultClassMinor returns the minor handle number for the default class.
@@ -177,12 +220,37 @@ func translateClass(qt traffic.QdiscType, tc traffic.TrafficClass, linkIdx int, 
 
 	switch qt {
 	case traffic.QdiscHTB:
-		return &netlink.HtbClass{
-			ClassAttrs: attrs,
-			Rate:       tc.Rate,
-			Ceil:       ceilOrRate(tc),
-			Prio:       uint32(tc.Priority),
-		}, nil
+		rate, err := rateBytesPerSecond(tc.Rate)
+		if err != nil {
+			return nil, err
+		}
+		ceil, err := rateBytesPerSecond(ceilOrRate(tc))
+		if err != nil {
+			return nil, err
+		}
+		if ceil < rate {
+			return nil, fmt.Errorf("htb ceil must be >= rate")
+		}
+		// NewHtbClass accepts bits/s and also sizes the required token
+		// buffers. Validate its narrowing arithmetic before calling it.
+		hz := netlink.Hz()
+		if hz <= 0 {
+			return nil, fmt.Errorf("cannot read a valid kernel scheduler frequency")
+		}
+		for _, bytesPerSecond := range [...]uint64{rate, ceil} {
+			burst := float64(bytesPerSecond)/hz + 1600
+			if burst > math.MaxUint32 {
+				return nil, fmt.Errorf("htb burst exceeds uint32 bytes")
+			}
+			if _, err := burstTicks(bytesPerSecond, uint32(burst)); err != nil {
+				return nil, fmt.Errorf("htb burst: %w", err)
+			}
+		}
+		return netlink.NewHtbClass(attrs, netlink.HtbClassAttrs{
+			Rate: tc.Rate,
+			Ceil: ceilOrRate(tc),
+			Prio: uint32(tc.Priority),
+		}), nil
 	case traffic.QdiscHFSC:
 		return &netlink.HfscClass{
 			ClassAttrs: attrs,

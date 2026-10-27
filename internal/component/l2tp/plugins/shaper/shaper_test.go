@@ -89,8 +89,14 @@ func TestShaperSessionUpAppliesTC(t *testing.T) {
 	if qos.Qdisc.Type != traffic.QdiscTBF {
 		t.Errorf("qdisc type: got %v, want TBF", qos.Qdisc.Type)
 	}
-	if len(qos.Qdisc.Classes) != 1 || qos.Qdisc.Classes[0].Rate != 10_000_000 {
-		t.Errorf("rate: got %v, want 10000000", qos.Qdisc.Classes)
+	if len(qos.Qdisc.Classes) != 0 {
+		t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+	}
+	if qos.Qdisc.DefaultClass != "" {
+		t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+	}
+	if qos.Qdisc.RateBps != 10_000_000 {
+		t.Errorf("rate: got %d, want 10000000", qos.Qdisc.RateBps)
 	}
 
 	// Check session stored.
@@ -152,8 +158,14 @@ func TestShaperRateChange(t *testing.T) {
 	if !ok {
 		t.Fatal("expected TC applied on ppp0")
 	}
-	if len(qos.Qdisc.Classes) != 1 || qos.Qdisc.Classes[0].Rate != 50_000_000 {
-		t.Errorf("rate after change: got %v, want 50000000", qos.Qdisc.Classes)
+	if len(qos.Qdisc.Classes) != 0 {
+		t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+	}
+	if qos.Qdisc.DefaultClass != "" {
+		t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+	}
+	if qos.Qdisc.RateBps != 50_000_000 {
+		t.Errorf("rate after change: got %d, want 50000000", qos.Qdisc.RateBps)
 	}
 
 	// Check updated state.
@@ -403,8 +415,14 @@ func TestSubscriberSessionUpEnforcesUploadRate(t *testing.T) {
 	if !ok {
 		t.Fatal("expected TC applied on ppp9")
 	}
-	if qos.Qdisc.Classes[0].Rate != 30_000_000 {
-		t.Fatalf("download rate = %d, want 30000000", qos.Qdisc.Classes[0].Rate)
+	if len(qos.Qdisc.Classes) != 0 {
+		t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+	}
+	if qos.Qdisc.DefaultClass != "" {
+		t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+	}
+	if qos.Qdisc.RateBps != 30_000_000 {
+		t.Fatalf("download rate = %d, want 30000000", qos.Qdisc.RateBps)
 	}
 	if qos.Ingress.RateBps != 6_000_000 {
 		t.Fatalf("upload rate = %d, want the argument 6000000", qos.Ingress.RateBps)
@@ -423,10 +441,29 @@ func TestSubscriberSessionUpFallsBackToConfiguredUploadRate(t *testing.T) {
 	s.handleSubscriberSessionUp("ppp10", 0, 0)
 
 	qos, _ := mb.getApplied("ppp10")
-	if qos.Qdisc.Classes[0].Rate != 10_000_000 {
-		t.Fatalf("download rate = %d, want the configured default 10000000", qos.Qdisc.Classes[0].Rate)
+	if len(qos.Qdisc.Classes) != 0 {
+		t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+	}
+	if qos.Qdisc.DefaultClass != "" {
+		t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+	}
+	if qos.Qdisc.RateBps != 10_000_000 {
+		t.Fatalf("download rate = %d, want the configured default 10000000", qos.Qdisc.RateBps)
 	}
 	if qos.Ingress.RateBps != 4_000_000 {
 		t.Fatalf("upload rate = %d, want the configured upload-rate 4000000", qos.Ingress.RateBps)
+	}
+}
+
+func TestShaperRefusesMissingDirectionRate(t *testing.T) {
+	mb := setupMockBackend(t)
+	s := &shaperPlugin{}
+	for _, rates := range [][2]uint64{{0, 2_000_000}, {10_000_000, 0}} {
+		if err := s.applyTC("ppp-invalid", traffic.QdiscTBF, rates[0], rates[1]); err == nil {
+			t.Fatalf("accepted absent rate: %v", rates)
+		}
+		if _, ok := mb.getApplied("ppp-invalid"); ok {
+			t.Fatal("invalid rates reached the traffic backend")
+		}
 	}
 }

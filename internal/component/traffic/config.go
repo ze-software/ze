@@ -82,6 +82,24 @@ func parseInterfaceQoS(name string, m map[string]any) (InterfaceQoS, error) {
 	}
 	qos.Qdisc.Type = qt
 
+	if value, present := qdiscMap["rate"]; present {
+		rateStr, ok := value.(string)
+		if !ok {
+			return InterfaceQoS{}, fmt.Errorf("qdisc rate must be a rate token, got %T", value)
+		}
+		rate, err := ParseRateBps(rateStr)
+		if err != nil {
+			return InterfaceQoS{}, fmt.Errorf("qdisc rate: %w", err)
+		}
+		if err := ValidateRate(rate); err != nil {
+			return InterfaceQoS{}, fmt.Errorf("qdisc rate: %w", err)
+		}
+		if qt != QdiscTBF {
+			return InterfaceQoS{}, fmt.Errorf("qdisc rate requires type tbf, got %s", qt)
+		}
+		qos.Qdisc.RateBps = rate
+	}
+
 	if dc, ok := qdiscMap["default-class"].(string); ok {
 		qos.Qdisc.DefaultClass = dc
 	}

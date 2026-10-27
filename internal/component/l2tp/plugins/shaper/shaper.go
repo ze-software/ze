@@ -5,6 +5,7 @@ package l2tpshaper
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,8 +41,7 @@ type sessionState struct {
 
 var shaperInstance = &shaperPlugin{}
 
-// defaultClassName is the traffic class every shaped session gets, and the HTB
-// qdisc's default class.
+// defaultClassName is the default traffic class for an HTB-shaped session.
 const defaultClassName = "default"
 
 func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
@@ -209,6 +209,12 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 	if backend == nil {
 		return errNoTrafficBackendLoadedConfigureTraffic
 	}
+	if err := traffic.ValidateRate(downloadBps); err != nil {
+		return fmt.Errorf("subscriber download rate: %w", err)
+	}
+	if err := traffic.ValidateRate(uploadBps); err != nil {
+		return fmt.Errorf("subscriber upload rate: %w", err)
+	}
 
 	qos := traffic.InterfaceQoS{
 		Interface: ifaceName,
@@ -218,7 +224,8 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		Ingress: traffic.NewPolicer(uploadBps),
 	}
 
-	if qdiscType == traffic.QdiscHTB {
+	switch qdiscType {
+	case traffic.QdiscHTB:
 		qos.Qdisc.DefaultClass = defaultClassName
 		qos.Qdisc.Classes = []traffic.TrafficClass{
 			{
@@ -227,13 +234,10 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 				Ceil: downloadBps,
 			},
 		}
-	} else {
-		qos.Qdisc.Classes = []traffic.TrafficClass{
-			{
-				Name: defaultClassName,
-				Rate: downloadBps,
-			},
-		}
+	case traffic.QdiscTBF:
+		qos.Qdisc.RateBps = downloadBps
+	default:
+		return fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
 	}
 
 	desired := map[string]traffic.InterfaceQoS{ifaceName: qos}

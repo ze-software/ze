@@ -840,6 +840,15 @@ rate. The policer attaches at tc priority 200 on the shared `clsact` qdisc, so
 interface mirroring (priority 1) and flow-export sampling (priority 100) keep
 working on the same interface.
 
+For TBF, the download rate is a classless root rate; the shaper creates no
+traffic class. HTB uses one default class with both rate and ceil set to the
+download rate. Both paths convert configured bits per second to Linux's byte
+rate. A `10mbit` download therefore programs 1,250,000 bytes/s, not
+10,000,000 bytes/s. The TBF burst is encoded in scheduler ticks, not bytes.
+Invalid or unrepresentable rates are refused before replacing the root, so a
+bad rate cannot install a download qdisc and then abort before upload policing.
+See [TBF root rates and bounds](traffic-control.md#tc-backend-tbf-root-rate).
+
 A PPPoE subscriber gets the same pair of mechanisms. Both access types
 terminate on a `pppN`, so one implementation serves them both.
 

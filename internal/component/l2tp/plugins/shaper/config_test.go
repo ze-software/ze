@@ -105,3 +105,10 @@ func TestShaperConfigParsing_DefaultQdisc(t *testing.T) {
 		t.Errorf("default qdisc: got %v, want TBF", cfg.QdiscType)
 	}
 }
+
+func TestShaperConfigRefusesZeroUpload(t *testing.T) {
+	data := `{"l2tp":{"shaper":{"default-rate":"10mbit","upload-rate":"0bit"}}}`
+	if _, _, err := parseShaperConfig(data); err == nil {
+		t.Fatal("explicit zero upload rate was treated as an absent upload rate")
+	}
+}

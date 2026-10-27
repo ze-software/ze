@@ -89,9 +89,16 @@ func ingressPolicerFilter(p traffic.Policer, linkIndex int) (*netlink.MatchAll, 
 	if p.BurstBytes > uint64(^uint32(0)) {
 		return nil, fmt.Errorf("%w: %d", errPolicerBurstOverflow, p.BurstBytes)
 	}
+	rate, err := rateBytesPerSecond(p.RateBps)
+	if err != nil {
+		return nil, fmt.Errorf("trafficnetlink: ingress policer: %w", err)
+	}
+	if _, err := burstTicks(rate, uint32(p.BurstBytes)); err != nil {
+		return nil, fmt.Errorf("trafficnetlink: ingress policer burst: %w", err)
+	}
 
 	action := netlink.NewPoliceAction()
-	action.Rate = uint32(p.RateBps / 8)
+	action.Rate = uint32(rate)
 	action.Burst = uint32(p.BurstBytes)
 	action.Mtu = policerMTUBytes
 	action.ExceedAction = netlink.TC_POLICE_SHOT

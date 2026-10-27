@@ -65,6 +65,54 @@ and the netlink backend then ignored it in silence.
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 <!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 
+## tc Backend: TBF Root Rate
+
+TBF is classless on Linux. Its rate belongs to the root qdisc, not to an
+invented class:
+
+```
+traffic {
+    control {
+        backend tc
+        interface eth0 {
+            qdisc {
+                type tbf
+                rate 10mbit
+            }
+        }
+    }
+}
+```
+
+For `backend tc`, a TBF root requires `rate` and refuses `class` and
+`default-class`. There is no fallback rate. A root `rate` on another qdisc type
+is refused. HTB retains its class `rate` and `ceil`.
+
+Rates in the model and readback are bits per second. Linux tc takes bytes per
+second, so the backend divides by eight on installation and multiplies by eight
+on TBF readback. Both TBF and HTB, and the ingress policer, refuse zero and
+fractional-byte rates rather than truncate them. `show traffic control` reports the
+TBF root as `rate-bps`; human-readable QoS formatting shows its root `rate`.
+
+TBF's queue limit is one second of traffic in **bytes**, with a 2048-byte
+minimum. Its burst is 125ms of traffic, also with a 2048-byte minimum, converted
+to **scheduler ticks** for the kernel's `Buffer` field. A rate exceeding
+34,359,738,360 bit/s would overflow this one-second queue's 32-bit byte limit
+and is refused. A burst duration that cannot fit the scheduler's 32-bit tick
+representation is also refused. These checks run at config verification and
+again before dynamic subscriber apply changes the kernel.
+
+The VPP class-policer syntax below is unchanged. VPP refuses the root `rate`
+leaf at verification and apply; it never ignores it or combines it with a
+class rate.
+
+<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- translateQdisc, translateClass, burstTicks -->
+<!-- source: internal/plugins/traffic/netlink/verify_linux.go -- verifyDesired -->
+<!-- source: internal/plugins/traffic/netlink/backend_linux.go -- ListQdiscs -->
+<!-- source: internal/component/traffic/cmd/show.go -- FormatQoS -->
+<!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic -->
+
+
 ## tc Backend: Original Qdisc Snapshot
 
 Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`protocol.md`).
@@ -98,7 +146,7 @@ learn about incompatibilities before the config lands rather than after Apply.
 | `tbf` with exactly 1 class | accepted | One policer: CIR = EIR = Rate kbps (1R2C), bound to interface egress via `PolicerOutput` |
 | `htb` / `tbf` with more than 1 class | accepted when EVERY class carries a `protocol` or `dscp` steering filter | Each class steers its own traffic to its own policer through the classify pipeline. Two classes may not carry the same filter type and value: their classify sessions would collide on one match key and VPP would keep the last, silently killing a class's policing |
 | `htb` / `tbf` with more than 1 class, any class unfiltered | rejected | Two unfiltered classes both bind to the egress output arc and stack IN SERIES: the effective rate becomes `min(class_rates)` rather than per-class shaping |
-| `htb` / `tbf` with 0 classes | rejected | No rate to program |
+| `htb` / `tbf` with 0 classes | rejected | No class policer rate to program; a root `rate` is tc-only and is refused, not ignored |
 | `prio` | rejected | The class-index to DSCP-value mapping needs an explicit design (deferred) |
 | `hfsc` | rejected | Service-curve semantics have no VPP equivalent |
 | `fq` / `sfq` / `fq_codel` | rejected | Fair-queue disciplines not available in VPP |

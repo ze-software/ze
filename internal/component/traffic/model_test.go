@@ -249,3 +249,10 @@ func TestInterfaceQoSCarriesIngressPolicer(t *testing.T) {
 		t.Fatal("InterfaceQoS.Ingress does not carry the policer")
 	}
 }
+
+func TestPolicerBurstDoesNotWrapMaximumRate(t *testing.T) {
+	const rate = ^uint64(0)
+	if got, want := PolicerBurstBytes(rate), rate/80; got != want {
+		t.Fatalf("maximum-rate burst = %d, want %d bytes", got, want)
+	}
+}

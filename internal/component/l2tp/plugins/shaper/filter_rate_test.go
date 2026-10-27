@@ -47,8 +47,14 @@ func TestFilterIDRateReachesBothDirections(t *testing.T) {
 		if !ok {
 			t.Fatalf("Filter-Id %q: no TC applied on %s", c.filterID, iface)
 		}
-		if qos.Qdisc.Classes[0].Rate != c.download {
-			t.Errorf("Filter-Id %q: download = %d, want %d", c.filterID, qos.Qdisc.Classes[0].Rate, c.download)
+		if len(qos.Qdisc.Classes) != 0 {
+			t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+		}
+		if qos.Qdisc.DefaultClass != "" {
+			t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+		}
+		if qos.Qdisc.RateBps != c.download {
+			t.Errorf("Filter-Id %q: download = %d, want %d", c.filterID, qos.Qdisc.RateBps, c.download)
 		}
 		if qos.Ingress.RateBps != c.upload {
 			t.Errorf("Filter-Id %q: upload = %d, want %d", c.filterID, qos.Ingress.RateBps, c.upload)
@@ -80,8 +86,14 @@ func TestNonRateFilterIDLeavesConfiguredRates(t *testing.T) {
 		if !ok {
 			t.Fatalf("Filter-Id %q: no TC applied on %s", filterID, iface)
 		}
-		if qos.Qdisc.Classes[0].Rate != 8_000_000 {
-			t.Errorf("Filter-Id %q: download = %d, want the configured 8000000", filterID, qos.Qdisc.Classes[0].Rate)
+		if len(qos.Qdisc.Classes) != 0 {
+			t.Errorf("TBF classes: got %v, want none", qos.Qdisc.Classes)
+		}
+		if qos.Qdisc.DefaultClass != "" {
+			t.Errorf("TBF default class: got %q, want none", qos.Qdisc.DefaultClass)
+		}
+		if qos.Qdisc.RateBps != 8_000_000 {
+			t.Errorf("Filter-Id %q: download = %d, want the configured 8000000", filterID, qos.Qdisc.RateBps)
 		}
 		if qos.Ingress.RateBps != 2_000_000 {
 			t.Errorf("Filter-Id %q: upload = %d, want the configured 2000000", filterID, qos.Ingress.RateBps)

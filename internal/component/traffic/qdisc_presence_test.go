@@ -37,3 +37,10 @@ func TestTrafficQdiscIsPresence(t *testing.T) {
 		t.Errorf("refusal %q does not name the qdisc type", err)
 	}
 }
+
+func TestTrafficRootTBFRateSchema(t *testing.T) {
+	text := "traffic {\n control {\n  interface eth0 {\n   qdisc {\n    type tbf\n    rate 10mbit\n   }\n  }\n }\n}\n"
+	if _, err := config.LoadConfig(text, "test.conf", nil); err != nil {
+		t.Fatalf("classless root rate refused: %v", err)
+	}
+}

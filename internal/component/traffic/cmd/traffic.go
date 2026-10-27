@@ -56,6 +56,7 @@ func handleShowTraffic(_ *pluginserver.CommandContext, validated command.Validat
 			Data: plugin.Map{
 				keyInterface:    qos.Interface,
 				"qdisc":         qos.Qdisc.Type.String(),
+				"rate-bps":      qos.Qdisc.RateBps,
 				"class-count":   len(qos.Qdisc.Classes),
 				"default-class": qos.Qdisc.DefaultClass,
 			},
@@ -78,6 +79,7 @@ func handleShowTraffic(_ *pluginserver.CommandContext, validated command.Validat
 		rows = append(rows, map[string]any{
 			keyInterface:   qos.Interface,
 			"qdisc":        qos.Qdisc.Type.String(),
+			"rate-bps":     qos.Qdisc.RateBps,
 			"class-count":  len(qos.Qdisc.Classes),
 			"filter-count": filterCount,
 		})

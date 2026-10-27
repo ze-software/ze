@@ -150,6 +150,11 @@ func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error)
 //
 // Called with b.mu held.
 func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQoS) error {
+	for _, qos := range desired {
+		if qos.Qdisc.RateBps != 0 {
+			return errRootRateNotSupportedByBackend
+		}
+	}
 	nameIndex, err := ops.dumpInterfaces()
 	if err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)

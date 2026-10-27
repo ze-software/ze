@@ -11,6 +11,9 @@ module ze-traffic-control-conf {
                  `usage`, contributed by the traffic-usage plugin) augment
                  the same `traffic` parent.";
 
+    revision 2026-10-27 {
+        description "Represent the classless tc TBF rate on the root qdisc.";
+    }
     revision 2026-10-12 {
         description "Make qdisc a presence container, so its mandatory type is
                      required only when a qdisc is configured, not in every
@@ -105,6 +108,16 @@ class hangs beneath it. An interface entry with no qdisc block attaches none.";
                         description "The commit-time gate rejects a type the configured backend
 does not support.";
                         ze:help "Type of the queueing discipline.";
+                    }
+
+                    leaf rate {
+                        when "../type = 'tbf'";
+                        type rate-bps;
+                        ze:backend "tc";
+                        description "Root TBF rate. Required by backend tc for tbf, which
+has no configurable classes. The backend refuses a rate it cannot represent
+without truncation. VPP uses class policers instead and refuses this leaf.";
+                        ze:help "Rate of the classless TBF root.";
                     }
 
                     leaf default-class {

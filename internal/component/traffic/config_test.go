@@ -150,3 +150,28 @@ func TestParseRateBpsRefusesOverflowingRate(t *testing.T) {
 		t.Errorf("ParseRateBps(%q) = %d, want %d", largestValid, got, want)
 	}
 }
+
+func TestParseTrafficRootTBFRate(t *testing.T) {
+	for _, token := range []string{"10mbit", "1250kbps"} {
+		qos, err := parseInterfaceQoS("ppp0", map[string]any{
+			"qdisc": map[string]any{"type": "tbf", "rate": token},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if qos.Qdisc.RateBps != 10_000_000 || len(qos.Qdisc.Classes) != 0 {
+			t.Fatalf("%s: qdisc = %+v", token, qos.Qdisc)
+		}
+	}
+	for _, qdisc := range []map[string]any{
+		{"type": "tbf", "rate": "0bit"},
+		{"type": "tbf", "rate": "20000000000gbit"},
+		{"type": "tbf", "rate": "invalid"},
+		{"type": "tbf", "rate": 10_000_000},
+		{"type": "htb", "rate": "10mbit"},
+	} {
+		if _, err := parseInterfaceQoS("ppp0", map[string]any{"qdisc": qdisc}); err == nil {
+			t.Fatalf("invalid root rate accepted: %v", qdisc)
+		}
+	}
+}
