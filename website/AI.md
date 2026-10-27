@@ -609,8 +609,8 @@ this before considering the update done.
    removals, bucket moves, and status changes separately. Verify implementation
    at its source before calling any removed item delivered. Use a short
    release-progress paragraph and the [public roadmap](https://ze-software.net/project/roadmap/)
-   link, with the phrase `release work items`. Keep planned capabilities under
-   `Coming up` and workflow jargon out of the Discord body. Until owner
+   link, with the phrase `release work items`. Keep planned capabilities and
+   workflow jargon out of the Discord body. Until owner
    classification is resolved, describe the report as an inventory preview.
 
    **Approve fixed prose.** Save the facts in this post's body before the

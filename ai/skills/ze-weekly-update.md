@@ -46,9 +46,15 @@ Website sources are in `website/`; the publishable artifact is generated into `.
    - inspect `git log` for the range,
    - read the touched source, docs, specs, or tests needed to understand user-visible behavior,
    - verify the behavior at its producing function in the selected `release-to` tree,
-   - put design or planning work only under `Coming up`.
+   - leave design and planning work out: the update carries no forward-looking section.
 5. Group the week by user-facing theme. Fold small commits into one capability when they serve one story.
 6. A commit message describes the moment it was written. A quoted number can describe a defect before its fix. Read the producer before claiming delivery, including for removed release work items.
+7. Collect the facts the `STYLE.md` "How much detail" rules need, because none of them can be written from the commit log alone:
+   - **earlier claims:** for each fix in the range, grep `website/changes/discord/` for an earlier post that announced the behavior. A hit makes the fix a correction of that post (name its date) or a "works again"; no hit means the fix carries no qualifier;
+   - **security exposure:** for each security fix, read the fix to learn which configurations were exposed and which were not;
+   - **upstream reports:** grep the range for bugs found in another implementation or a library and reported or fixed upstream;
+   - **a measured number:** only from a `./le perf` result Thomas ran on his Mac, recorded in the range. Never from a commit message;
+   - **who asked:** an outside request (a GitHub issue, a Discord thread) behind a headline feature, credited by role.
 
 ### Collect release progress
 
@@ -133,34 +139,20 @@ Do not close the section with a stock caveat about what a green run does or
 does not prove (owner instruction, 2026-10-12): it read the same every week.
 State a limit only when this week's facts change it, in the week's own words.
 
-**MUST comes before SHOULD, and `Coming up` keeps that order.** Close what the
-checking found, then the MUSTs still owing a test, then the documents not yet
-read end to end. SHOULD waits behind all of it.
+**MUST comes before SHOULD.** When the section says what remains, it names what
+the checking found, then the MUSTs still owing a test, then the documents not
+yet read end to end. SHOULD waits behind all of it.
 
-### `Coming up` is chosen by Thomas, never composed
+**One story, at most.** The section may tell how the checking found one defect:
+the requirement, what Ze did wrong, and what the fix changed for an
+operator. Three or four sentences, in place of the work summary
+that week, never beside it. Pick the defect an operator would have hit.
 
-The forward-looking section MUST NOT be written from the queue comparison, from
-spec names, or from what the week looked like from the outside. A spec file
-existing says nothing about whether anybody is working on it, and its declared
-status is the only status there is.
+### No forward-looking section
 
-Build the candidate list, then ASK:
-
-1. Take the additions and the status transitions from the comparison, plus every
-   item the selected revision declares `design`, `ready` or `in-progress`.
-2. Write one line per candidate: the user-facing capability, the declared
-   status, and the file it comes from. Keep it to what moved this week or is
-   declared `in-progress`.
-3. Put that list to Thomas with `AskUserQuestion` and let him pick what appears.
-   He can pick nothing, and then the section is omitted.
-4. Write only what he picked, and use no status verb the declared status
-   supports. `design` is "has a design" and never "is being written". `skeleton`
-   is a captured idea and does not belong in the section at all.
-
-A number belongs there only when it was counted off the list. Measured
-2026-09-20: five audit items were published as "seven audits, one per area" over
-a list of five, because the spec names ran 3 to 7 and the writer filled the gap
-rather than counting what was in front of him.
+The update reports what shipped and nothing else (owner decision): no
+`Coming up`, no planned work, no design started. A capability that has not
+landed waits for the week it lands.
 
 ## Phase 2: Draft the public post
 
@@ -186,17 +178,16 @@ during site generation, sending, resuming, or archive handling.
 4. Decide what the week is about before writing, and leave the rest out. A full week yields far more than fits, so `STYLE.md` ("How long") governs what survives: 3 sections is normal, 5 is the ceiling, and a section carrying one bullet is a sentence in the wrong shape.
 5. Write the body in Zeledon style:
    - `**📅 Ze Weekly Update**` header,
-   - one short framing sentence,
-   - themed sections with bold emoji headers,
+   - one sentence stating what the week was about (`STYLE.md`, template),
+   - themed sections with bold emoji headers, in the order `STYLE.md` sets:
+     changes to check, security, features by theme, the RFC section,
    - bullets for multiple items,
-   - `**🔭 Coming up**` only for work Thomas selected, in the words his
-     declared status supports ("`Coming up` is chosen by Thomas", above).
    - a short release-progress paragraph with remaining release work items and
      relevant scope changes,
    - the public roadmap link: https://ze-software.net/project/roadmap/.
    Translate selected items into user-facing capabilities. Keep spec filenames,
    bucket names, and workflow terms out of the body. Planned capabilities stay
-   under `Coming up`. Explain that the queue comparison can miss items added
+   out of it. Explain that the queue comparison can miss items added
    and removed between its endpoints. Until classification decisions are
    resolved, label the draft paragraph as an inventory preview and withhold
    publication. This paragraph and the standing RFC section share the existing
