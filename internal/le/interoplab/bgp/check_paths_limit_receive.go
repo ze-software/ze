@@ -147,7 +147,10 @@ func decodePathsLimitReceive(routesJSON, metricsJSON, birdAddress string) (paths
 		if route.Family != zeIPv4Unicast {
 			continue
 		}
-		switch route.Prefix {
+		// bgp-rib names an ADD-PATH row "10.70.0.0/24 [pathID=4]": the
+		// identifier is what keeps the paths of one prefix apart.
+		prefix, _, _ := strings.Cut(route.Prefix, " ")
+		switch prefix {
 		case pathsLimitReceivePrefix:
 			observation.held++
 		case pathsLimitReceiveOtherPrefix:

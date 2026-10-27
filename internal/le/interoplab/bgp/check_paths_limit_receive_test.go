@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -16,11 +17,13 @@ func TestPathsLimitReceivePredicates(t *testing.T) {
 	const bird = "172.30.0.4"
 	rows := func(held, other int, extra ...map[string]string) string {
 		var routes []map[string]string
-		for range held {
-			routes = append(routes, map[string]string{"peer": bird, "direction": "received", "prefix": pathsLimitReceivePrefix, "family": zeIPv4Unicast})
+		// The row shape bgp-rib answers for an ADD-PATH session, read off the
+		// first live run: the path identifier follows the prefix.
+		for index := range held {
+			routes = append(routes, map[string]string{"peer": bird, "direction": "received", "prefix": pathsLimitReceivePrefix + " [pathID=" + strconv.Itoa(index+1) + "]", "family": zeIPv4Unicast})
 		}
-		for range other {
-			routes = append(routes, map[string]string{"peer": bird, "direction": "received", "prefix": pathsLimitReceiveOtherPrefix, "family": zeIPv4Unicast})
+		for index := range other {
+			routes = append(routes, map[string]string{"peer": bird, "direction": "received", "prefix": pathsLimitReceiveOtherPrefix + " [pathID=" + strconv.Itoa(index+1) + "]", "family": zeIPv4Unicast})
 		}
 		routes = append(routes, extra...)
 		if routes == nil {
