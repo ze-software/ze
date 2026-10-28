@@ -48,8 +48,8 @@ const RecursiveUDPSize = 1232
 //
 // rejected, when not nil, is called once for each reply Recursive writes
 // without consulting fn (the Format error, Not Implemented and BADVERS
-// replies above), so
-// the consumer counts every query it answers and not only those fn saw.
+// replies above), so the consumer counts every query it answers and not only
+// those fn saw.
 //
 // If fn panics, queryGuard contains it as it does for Authoritative: the panic
 // is logged, counted and recorded, and no reply is written.

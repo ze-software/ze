@@ -73,12 +73,21 @@ questions, to the resolver's handler, which answers it in the recursive shape
 | more than two additional records (so three or more OPT RRs) | the library's FORMERR |
 
 The library's FORMERR is not in the recursive shape. It carries the query's
-identifier and copies the query's own flag bits, so RA is clear unless the
-query set it, and it has no question, no record and no OPT.
-`ze_dns_resolver_queries_total` does not count it. A header with QR set gets
-no reply.
+identifier and the query's own TC, RD, RA, AD and CD bits, so RA is clear
+unless the query set it. QR is set, the opcode is QUERY whatever the query
+asked, and AA and Z are clear. It has no question, no OPT, and nothing in the
+answer, authority or additional section. `ze_dns_resolver_queries_total` does
+not count it. A header with QR set gets no reply, because `RecursiveAccept`
+ignores it.
+
+A header `RecursiveAccept` passes can still carry a body the library cannot
+unpack. That query gets the same FORMERR, except that it keeps every question
+the library unpacked before the failure, and the handler does not run, so the
+metric does not count it either.
 
 <!-- source: vendor/github.com/miekg/dns/server.go -- Server.serveDNS -->
+<!-- source: vendor/github.com/miekg/dns/defaults.go -- Msg.SetRcodeFormatError -->
+<!-- source: vendor/github.com/miekg/dns/msg.go -- Msg.setHdr, Msg.unpack -->
 
 <!-- source: internal/plugins/dnsresolver/server.go -- resolver.answer, resolver.countRejected, newResolverServer -->
 <!-- source: internal/plugins/dnsresolver/metrics.go -- rcodeName -->

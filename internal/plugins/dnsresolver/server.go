@@ -143,8 +143,8 @@ func recursiveHandler(log *slog.Logger, res *resolver) dns.HandlerFunc {
 
 // countRejected counts a query the recursive wrapper answered without
 // calling answer (more than one OPT RR, or an EDNS version or an opcode Ze
-// does not implement), so
-// ze_dns_resolver_queries_total holds every reply the resolver wrote.
+// does not implement), so ze_dns_resolver_queries_total holds every reply the
+// resolver wrote.
 func (r *resolver) countRejected(p dnsserver.Peer, rcode int) {
 	r.countQuery(p.RemoteAddr().Network(), rcode)
 }
