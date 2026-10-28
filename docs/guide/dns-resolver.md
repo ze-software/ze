@@ -102,7 +102,7 @@ service already uses is refused by the config's cross-service listener check.
 
 | Query | Answer |
 |-------|--------|
-| from a source outside `allow-from` | REFUSED |
+| from a source outside `allow-from` | REFUSED, unless a check named below the table decides it first |
 | from a source over `limit per-client-rate` | no reply |
 | with more or less than one question | FORMERR, whatever RD is |
 | with RD clear | REFUSED, also for a cached name |
@@ -116,9 +116,23 @@ service already uses is refused by the config's cross-service listener check.
 <!-- source: internal/plugins/dnsresolver/server.go -- resolver.answer -->
 <!-- source: internal/core/dnsserver/recursive.go -- Recursive -->
 
-Every reply has RA set and AA and AD clear, and copies the query's CD bit. An
-upstream that does not answer in its share of the timeout, that fails, or that
-answers with an RCODE other than NOERROR or NXDOMAIN is passed over for the
+Three checks run before `allow-from` and the client rate limit: more than one
+OPT RR, an EDNS version other than 0, and an opcode other than QUERY. A query
+that fails one of them gets FORMERR, BADVERS or Not Implemented from any
+source. That reply is never larger than the query, and the query is never
+forwarded.
+
+A query with more than 16 questions, more than one answer record, more than
+one authority record, or more than two additional records is refused by the
+DNS library before the resolver sees it. That FORMERR is not built by the
+resolver: it has no question and no OPT, its RA bit is the query's own (clear
+for an ordinary query), and the resolver's metrics do not count it.
+
+<!-- source: internal/core/dnsserver/recursive.go -- Recursive, RecursiveAccept -->
+
+Every reply the resolver builds has RA set and AA and AD clear, and copies the
+query's CD bit. An upstream that does not answer in its share of the timeout,
+that fails, or that answers with an RCODE other than NOERROR or NXDOMAIN is passed over for the
 next one. A truncated upstream reply is asked again over TCP. A reply that does
 not match the query (identifier, name, class and type) is ignored. The details
 are in [the LAN resolver design](../architecture/dns/lan-resolver.md).

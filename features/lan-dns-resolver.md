@@ -8,14 +8,14 @@
 | Page | docs/guide/dns-resolver.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | forwarding only: no recursion from the root (spec-dns-resolver-recursion), no DNSSEC validation (spec-dns-resolver-dnssec-validation), no DoT or DoH listener, no recorded green run or red of the three interop scenarios yet |
+| Scope gaps | forwarding only: no recursion from the root (spec-dns-resolver-recursion), no DNSSEC validation (spec-dns-resolver-dnssec-validation), no DoT or DoH listener; interop scenarios dns-resolver-forward-unbound and dns-resolver-l2tp-subscriber are green with a recorded red, dns-resolver-dhcp-lan still owes its green run and red |
 | Level | experimental |
 | Components | internal/plugins/dnsresolver |
 | Real-path tests | test/plugin/dns-resolver-config-refused.ci, test/plugin/dns-resolver-listener-conflict.ci, test/plugin/dns-resolver-forward.ci, test/plugin/dns-resolver-acl-refused.ci, test/plugin/dns-resolver-timeout.ci, test/plugin/dns-resolver-timeout-recovers.ci, test/plugin/dns-resolver-failover.ci, test/plugin/dns-resolver-show.ci, test/reload/dns-resolver-reload.ci |
 | Interop | bgp/dns-resolver-forward-unbound, bgp/dns-resolver-dhcp-lan, l2tp/dns-resolver-l2tp-subscriber |
 | RFCs | rfc1035, rfc2181, rfc4035 |
 | Docs | docs/guide/dns-resolver.md, docs/architecture/dns/lan-resolver.md |
-| Doc review | 2026-10-27: checked every claim against internal/plugins/dnsresolver (server.go answer, resolve.go forward and absorb, cache.go, limit.go, doctor.go); the quick-start config passes ze config validate |
+| Doc review | 2026-10-28: checked every claim against internal/plugins/dnsresolver (server.go answer, resolve.go forward and absorb, cache.go, limit.go, doctor.go); the quick-start config passes ze config validate |
 | Defect review | 2026-10-27: no plan/release/fixes spec and no journal row names internal/plugins/dnsresolver |
 
 ## Description

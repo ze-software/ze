@@ -60,12 +60,25 @@ never reaches `resolver.answer`:
 `ze_dns_resolver_queries_total` like every other reply, BADVERS under the
 `BADVERS` rcode label (`rcodeName`; the DNS library names RCODE 16 `BADSIG`,
 its TSIG meaning). The listeners run `dnsserver.RecursiveAccept` as their
-header filter, so a query with a non-QUERY opcode or with other than one
-question reaches the resolver's handler and is answered in the recursive
-shape (RA set) rather than by the DNS library's own filter
-(`server-harness.md`). That filter still rejects a query with more than two
-additional records, so one with three or more OPT RRs draws the library's
-FORMERR, without the recursive shape, and is not counted.
+header filter in place of the DNS library's own (`server-harness.md`). It
+passes a query with any opcode, and a query with no question or with 2 to 16
+questions, to the resolver's handler, which answers it in the recursive shape
+(RA set) and counts it. It rejects four headers before the handler runs:
+
+| Header | Answer |
+|--------|--------|
+| more than 16 questions | the library's FORMERR |
+| more than one answer record | the library's FORMERR |
+| more than one authority record | the library's FORMERR |
+| more than two additional records (so three or more OPT RRs) | the library's FORMERR |
+
+The library's FORMERR is not in the recursive shape. It carries the query's
+identifier and copies the query's own flag bits, so RA is clear unless the
+query set it, and it has no question, no record and no OPT.
+`ze_dns_resolver_queries_total` does not count it. A header with QR set gets
+no reply.
+
+<!-- source: vendor/github.com/miekg/dns/server.go -- Server.serveDNS -->
 
 <!-- source: internal/plugins/dnsresolver/server.go -- resolver.answer, resolver.countRejected, newResolverServer -->
 <!-- source: internal/plugins/dnsresolver/metrics.go -- rcodeName -->
