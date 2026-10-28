@@ -101,6 +101,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.Meta = msg.Meta
 	se.SourcePeerStr = msg.SourcePeerStr
 	se.SourceID = msg.SourceID
+	se.SourcePolicyEpoch = msg.SourcePolicyEpoch
 	return se
 }
 

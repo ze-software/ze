@@ -823,23 +823,36 @@ func (r *RIBManager) updateRoute(peerSelector string) {
 }
 
 // updateRouteWithMeta sends a route update command with metadata to matching peers.
-// Used by sendRoutes and resendRoutesWithCursor to carry stale level through to egress filters.
+// Lifecycle withdrawals use this path without received announcement provenance.
 func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) error {
-	return r.updateRouteWithMetaContext(context.Background(), peerSelector, command, meta)
+	return r.updateRouteWithProvenance(peerSelector, command, meta, 0)
+}
+
+// updateRouteWithProvenance sends retained bytes with their original source
+// policy epoch. The caller MUST supply the epoch stored with those bytes.
+func (r *RIBManager) updateRouteWithProvenance(peerSelector, command string, meta map[string]any, sourcePolicyEpoch uint64) error {
+	return r.updateRouteRequest(context.Background(), rpc.UpdateRouteInput{
+		PeerSelector: peerSelector, Command: command, Meta: meta, SourcePolicyEpoch: sourcePolicyEpoch,
+	})
 }
 
 // updateRouteWithMetaContext is updateRouteWithMeta under a caller's context,
 // so a caller that owns a lifecycle can cancel the RPC in flight.
 func (r *RIBManager) updateRouteWithMetaContext(parent context.Context, peerSelector, command string, meta map[string]any) error {
+	return r.updateRouteRequest(parent, rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta})
+}
+
+// updateRouteRequest bounds a command RPC by the caller's lifecycle context.
+func (r *RIBManager) updateRouteRequest(parent context.Context, input rpc.UpdateRouteInput) error {
 	if r.updateHook != nil {
-		r.updateHook(command, meta)
+		r.updateHook(input.Command, input.Meta)
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
-	_, _, err := r.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
+	_, _, err := r.plugin.UpdateRouteRequest(ctx, input)
 	if err != nil {
-		logger().Warn("update-route-with-meta failed", "peer", peerSelector, "error", err)
+		logger().Warn("update-route-with-meta failed", "peer", input.PeerSelector, "error", err)
 	}
 	return err
 }
@@ -960,7 +973,8 @@ func (r *RIBManager) handleSent(event *Event) {
 	for _, fam := range event.RawNLRIFamilies() {
 		r.storeSentEntries(peerAddr, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
 			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
-				NextHop: sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner,
+				SourcePolicyEpoch: event.SourcePolicyEpoch,
+				NextHop:           sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner,
 				LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
@@ -994,16 +1008,17 @@ func (r *RIBManager) handleSent(event *Event) {
 					key := ribOutKey{Prefix: pfx.Masked(), PathID: pathID}
 					old, existed := r.ribOut[peerAddr][fam][key]
 					stored := ribOutEntry{
-						MsgID:           msgID,
-						AttrHandle:      attrHandle,
-						ConfigStatic:    configStatic,
-						AddPath:         event.AddPath[fam] || sentNLRIHasPathID(nlriVal),
-						NextHop:         op.NextHop,
-						SourcePeer:      sourcePeer,
-						SourceMessageID: uint64(sourceMessageID),
-						SourceID:        sourceID,
-						SourceOwner:     sourceOwner,
-						LocalOrigin:     localOrigin,
+						MsgID:             msgID,
+						AttrHandle:        attrHandle,
+						ConfigStatic:      configStatic,
+						AddPath:           event.AddPath[fam] || sentNLRIHasPathID(nlriVal),
+						NextHop:           op.NextHop,
+						SourcePeer:        sourcePeer,
+						SourceMessageID:   uint64(sourceMessageID),
+						SourcePolicyEpoch: event.SourcePolicyEpoch,
+						SourceID:          sourceID,
+						SourceOwner:       sourceOwner,
+						LocalOrigin:       localOrigin,
 					}
 					setSentPathSource(&stored, fam, ordinal, sourcePaths, &sourceIndex)
 					ordinal++
@@ -1171,7 +1186,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
 				continue
 			}
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), receivedStale)
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, receivedStale)
 		}
 	}
 }
@@ -1180,7 +1195,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 // log lines use PeerRIB's cached canonical address string (no per-call
 // conversion). receivedStale is the RFC 9494 Section 4.3 verdict written on
 // every stored route.
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID uint64, receivedStale bool) {
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch uint64, receivedStale bool) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
@@ -1200,12 +1215,13 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, &prefixes)
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, &prefixes)
 			continue
 		}
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
 		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 			entry.MsgID = msgID
+			entry.SourcePolicyEpoch = sourcePolicyEpoch
 			entry.ReceivedLLGRStale = receivedStale
 		})
 	}

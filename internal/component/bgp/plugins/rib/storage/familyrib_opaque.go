@@ -132,7 +132,7 @@ func appendFramedKey(dst []byte, pathID uint32, route string) []byte {
 // so, it refreshes stale state and received ownership and reports true: the
 // UPDATE re-announced the same route. A new label stack under equal attributes
 // is a replacement (RFC 8277 Section 2.5), never a no-op.
-func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp uint64, attrLen uint32, messageID uint64) bool {
+func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp uint64, attrLen uint32, messageID, sourcePolicyEpoch uint64) bool {
 	if r.routeNLRI(pathID, key) != string(route) {
 		return false
 	}
@@ -148,7 +148,7 @@ func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp
 		if !fingerprintMatches(oldEntry, fp, attrLen) {
 			return false
 		}
-		ps.refresh(pathID, messageID)
+		ps.refresh(pathID, messageID, sourcePolicyEpoch)
 		return true
 	}
 	oldEntry, exists := r.opaque[key]
@@ -158,9 +158,10 @@ func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp
 	if !fingerprintMatches(oldEntry, fp, attrLen) {
 		return false
 	}
-	if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {
+	if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID || oldEntry.SourcePolicyEpoch != sourcePolicyEpoch {
 		oldEntry.StaleLevel = StaleLevelFresh
 		oldEntry.MsgID = messageID
+		oldEntry.SourcePolicyEpoch = sourcePolicyEpoch
 		r.opaque[key] = oldEntry
 	}
 	return true
@@ -182,7 +183,7 @@ func (r *FamilyRIB) insertOpaque(pathID uint32, key string, route []byte, newEnt
 	if r.addPath {
 		ps := r.opaqueMulti[key]
 		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
-			ps.refresh(pathID, newEntry.MsgID)
+			ps.refresh(pathID, newEntry.MsgID, newEntry.SourcePolicyEpoch)
 			newEntry.Release()
 			return
 		}
@@ -197,6 +198,7 @@ func (r *FamilyRIB) insertOpaque(pathID uint32, key string, route []byte, newEnt
 		if entriesEqual(oldEntry, newEntry) {
 			oldEntry.StaleLevel = StaleLevelFresh
 			oldEntry.MsgID = newEntry.MsgID
+			oldEntry.SourcePolicyEpoch = newEntry.SourcePolicyEpoch
 			r.opaque[key] = oldEntry
 			newEntry.Release()
 			return

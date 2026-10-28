@@ -113,7 +113,7 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 			t.Fatal("no records extracted")
 		}
 		rs.withdrawalMu.Lock()
-		rs.applyNLRIRecords("10.0.0.1", records.records)
+		rs.applyNLRIRecords("10.0.0.1", records)
 		rs.withdrawalMu.Unlock()
 		returnNLRIRecords(records)
 	}

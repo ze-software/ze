@@ -113,10 +113,39 @@ neither rail relays that source.
 <!-- source: internal/component/plugin/registry/registry.go -- RelaysOnRSFastPath -->
 <!-- test: internal/component/bgp/reactor/forward_rs_permission_test.go TestReactorForwardRSHonorsRelaySendPermission, TestReactorForwardRSRetryRechecksRelaySend, TestRSFastPathGateHonorsSourceRelayReceive -->
 
-Live cache entries and reconstructed stored-route replays retain their source
+Live cache entries and reconstructed stored-route replays retain their dispatch
 peer and session generation. Source removal or re-establishment invalidates
-queued entries, and destination workers check that generation before writing.
-A new peer at the same address cannot forward an old cached or replayed UPDATE.
+queued dispatch, and destination workers check that generation before writing.
+Stored replay resolves the **current** dispatch generation; it deliberately does
+not reuse the session generation of GR-retained route bytes.
+
+Source policy admission has a separate, globally monotonic `SourcePolicyEpoch`.
+Each Peer starts with a nonzero epoch unique across Peer lifetimes. Ordinary
+reconnects leave it unchanged. Receive admission captures it before running
+ingress filters; delayed filtering, cache publication, forwarding workers and
+reconstruction retain that original value. Stored routes, AIGP retained input,
+initial sent replay and recovery candidates do not acquire the current policy
+epoch merely because they are dispatched again.
+
+The final ownership writer checks received announcements against that original
+epoch under the destination's `writeMu`. Zero is unrecorded and grants no received
+announcement authority. This check leaves local origins, exact-receipt removals
+and current-session explicit withdrawals distinct: ordinary withdrawal ownership
+still ignores policy epoch, message revision and the old advertisement's session
+generation. Policy invalidation must close receive admission and settle affected
+writers under the same write locks; changing an atomic epoch alone is not a
+downstream completion receipt.
+
+Sent events carry the actual advertised owner's epoch, including exact-owner
+replays, rather than loading the source's epoch when the callback runs. JSON
+writes `source-policy-epoch` beside `message` and `peer`; parsed text writes
+`source-policy-epoch <uint64>` after the UPDATE message ID. It is dedicated
+transport provenance, not a user route `meta/*` key.
+<!-- source: internal/component/bgp/reactor/peer.go -- sourcePolicyEpoch, advanceSourcePolicyEpoch -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow, recordSection -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
 
 The common path serializes eligibility lookup and destination enqueue. Overflow
 superseding removes an older equal body and appends the new item at the tail.
@@ -186,7 +215,7 @@ lose identity use bounded pooled source-section owner slices and output-body
 spans. A synthesized withdrawal keeps its per-item mark (`fwdProvenance`
 `synthesizedWithdrawal`, read by recovery staging) through splitting,
 transcoding and overflow. Item release returns the manifest. Superseding cannot
-collapse different source/session generations or manifested ingress paths.
+collapse different source/session generations, policy epochs or manifested ingress paths.
 Unknown ordinary withdrawals look up outgoing identifiers without minting new
 mappings. A retained replay can assign a path's first outgoing identifier after
 a live withdrawal was materialized but before the replay fence releases it.

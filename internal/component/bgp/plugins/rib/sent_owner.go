@@ -98,7 +98,7 @@ func setSentPathSource(entry *ribOutEntry, fam family.Family, ordinal uint32, pa
 //
 // current validates history against the mandatory receive inventory. It
 // performs no selection: the same source, identifier presence/value and
-// received revision must still exist. The short retained snapshot is released
+// received revision and policy epoch must still exist. The short retained snapshot is released
 // before any plugin dispatch.
 //
 // receivedLLGRStale is the ReceivedLLGRStale of the source's current path for
@@ -129,7 +129,8 @@ func (r *RIBManager) sentSourceState(fam family.Family, key ribOutKey, sent ribO
 		path := &paths[i]
 		if addPath == sent.SourceAddPath && path.PathID == sent.SourcePath {
 			receivedLLGRStale = receivedLLGRStale || path.Entry.ReceivedLLGRStale
-			current = current || (revisioned && path.Entry.MsgID == sent.SourceMessageID)
+			current = current || (revisioned && path.Entry.MsgID == sent.SourceMessageID &&
+				path.Entry.SourcePolicyEpoch == sent.SourcePolicyEpoch)
 		}
 		path.Release()
 	}

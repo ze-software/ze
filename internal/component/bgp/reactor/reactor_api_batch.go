@@ -276,6 +276,7 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 			}
 			owner.receivedPeer = target.source
 			owner.receivedGeneration = target.sourceGeneration
+			owner.sourcePolicyEpoch = batch.SourcePolicyEpoch
 			owner.initialSourceState = target.sourceState
 			owner.initialSourcePath = batch.InitialSourcePath
 			owner.initialSourceAddPath = batch.InitialSourceAddPath

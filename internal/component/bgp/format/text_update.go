@@ -40,6 +40,26 @@ const (
 	messageTypeSent   = "sent"
 )
 
+// appendSourcePolicyEpochJSON writes dedicated transport provenance beside the
+// message and peer, never into user-controlled route metadata.
+func appendSourcePolicyEpochJSON(buf []byte, epoch uint64) []byte {
+	if epoch == 0 {
+		return buf
+	}
+	buf = append(buf, `,"source-policy-epoch":`...)
+	return strconv.AppendUint(buf, epoch, 10)
+}
+
+// appendSourcePolicyEpochText keeps the UPDATE header's existing message ID
+// position and places typed provenance before route attributes.
+func appendSourcePolicyEpochText(buf []byte, epoch uint64) []byte {
+	if epoch == 0 {
+		return buf
+	}
+	buf = append(buf, " source-policy-epoch "...)
+	return strconv.AppendUint(buf, epoch, 10)
+}
+
 // AppendMessage appends a RawMessage to buf based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
@@ -67,7 +87,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	}
 
 	if content.Format == plugin.FormatSummary && msg.Type == msgtype.TypeUPDATE {
-		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction, messageType)
+		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, msg.SourcePolicyEpoch, direction, messageType)
 	}
 
 	// An End-of-RIB marker names the family whose initial advertisement ended,
@@ -193,6 +213,7 @@ func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	}
 	buf = append(buf, '}', ',')
 	buf = appendPeerJSON(buf, peer)
+	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 	buf = append(buf, `,"update":{"eor":{"family":"`...)
 	buf = fam.AppendTo(buf)
 	buf = append(buf, `"}}`...)
@@ -226,6 +247,7 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 		}
 		buf = append(buf, `},`...)
 		buf = appendPeerJSON(buf, peer)
+		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = append(buf, `,"nlri":{}`...)
 		if content.Format == plugin.FormatFull || content.Format == plugin.FormatRaw || content.Format == plugin.FormatHex {
 			buf = append(buf, `,"raw":{"update":"`...)
@@ -320,6 +342,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 		}
 		buf = append(buf, `},`...)
 		buf = appendPeerJSON(buf, peer)
+		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = append(buf, `,"raw":{"update":"`...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, `"}}}`...)
@@ -330,7 +353,10 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
-	buf = append(buf, " update raw "...)
+	buf = append(buf, " update "...)
+	buf = strconv.AppendUint(buf, msg.MessageID, 10)
+	buf = appendSourcePolicyEpochText(buf, msg.SourcePolicyEpoch)
+	buf = append(buf, " raw "...)
 	buf = hex.AppendEncode(buf, msg.RawBytes)
 	buf = append(buf, '\n')
 	return buf
@@ -358,6 +384,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 	}
 	buf = append(buf, '}', ',')
 	buf = appendPeerJSON(buf, peer)
+	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 
 	buf = append(buf, `,"update":{`...)
 
@@ -675,9 +702,9 @@ func ipv4FieldError(offset int, cause error) error {
 // ctx provides ADD-PATH state per family.
 func appendParsedFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding == plugin.EncodingJSON {
-		return appendFilterResultJSON(buf, peer, result, msg.MessageID, direction, ctx, messageType, true)
+		return appendFilterResultJSON(buf, peer, result, msg.MessageID, msg.SourcePolicyEpoch, direction, ctx, messageType, true)
 	}
-	return appendFilterResultText(buf, peer, result, msg.MessageID, direction, ctx)
+	return appendFilterResultText(buf, peer, result, msg.MessageID, msg.SourcePolicyEpoch, direction, ctx)
 }
 
 // appendFullFromResult appends both parsed content AND raw hex (ze-bgp JSON) to buf.
@@ -689,12 +716,15 @@ func appendParsedFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawM
 func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding != plugin.EncodingJSON {
 		// Text path: parsed body + "peer <ip> <dir> update raw <hex>\n"
-		buf = appendFilterResultText(buf, peer, result, msg.MessageID, direction, ctx)
+		buf = appendFilterResultText(buf, peer, result, msg.MessageID, msg.SourcePolicyEpoch, direction, ctx)
 		buf = append(buf, "peer "...)
 		buf = peer.Address.AppendTo(buf)
 		buf = append(buf, ' ')
 		buf = direction.AppendTo(buf)
-		buf = append(buf, " update raw "...)
+		buf = append(buf, " update "...)
+		buf = strconv.AppendUint(buf, msg.MessageID, 10)
+		buf = appendSourcePolicyEpochText(buf, msg.SourcePolicyEpoch)
+		buf = append(buf, " raw "...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, '\n')
 		return buf
@@ -715,7 +745,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	// If appendFilterResultJSON ever changes what it leaves open, this
 	// function must update in lockstep. A shape mismatch here would produce
 	// malformed JSON silently (the legacy strings.HasSuffix guard is gone).
-	buf = appendFilterResultJSON(buf, peer, result, msg.MessageID, direction, ctx, messageType, false)
+	buf = appendFilterResultJSON(buf, peer, result, msg.MessageID, msg.SourcePolicyEpoch, direction, ctx, messageType, false)
 
 	// Close the update object first, then inject raw / route-meta into the
 	// bgp object alongside update and peer.

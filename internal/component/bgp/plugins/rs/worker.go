@@ -23,11 +23,12 @@ type workerKey struct {
 // For DirectBridge delivery: msg is set (raw wire data).
 // For fork-mode delivery: textPayload is set (deferred text parsing by worker).
 type workItem struct {
-	msgID       uint64
-	sourcePeer  string
-	msg         *bgptypes.RawMessage
-	validation  ribevents.ValidationRoute
-	textPayload string
+	msgID             uint64
+	sourcePolicyEpoch uint64
+	sourcePeer        string
+	msg               *bgptypes.RawMessage
+	validation        ribevents.ValidationRoute
+	textPayload       string
 }
 
 // poolConfig holds configuration for a workerPool.

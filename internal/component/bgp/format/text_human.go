@@ -19,7 +19,7 @@ import (
 // appendFilterResultText appends FilterResult as text to buf.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
-func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction rpc.MessageDirection, ctx *bgpctx.EncodingContext) []byte {
+func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID, sourcePolicyEpoch uint64, direction rpc.MessageDirection, ctx *bgpctx.EncodingContext) []byte {
 	// Uniform header: peer <ip> remote as <asn> <direction> update <id>
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
@@ -29,6 +29,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " update "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = appendSourcePolicyEpochText(buf, sourcePolicyEpoch)
 
 	announced := result.AnnouncedByFamily(ctx)
 	withdrawn := result.WithdrawnByFamily(ctx)

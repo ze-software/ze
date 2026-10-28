@@ -48,7 +48,7 @@ import (
 //
 // messageType is "update" or "sent" -- threaded in so callers do not run
 // strings.Replace surgery on the produced JSON.
-func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction rpc.MessageDirection, ctx *bgpctx.EncodingContext, messageType string, closeEnvelope bool) []byte {
+func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID, sourcePolicyEpoch uint64, direction rpc.MessageDirection, ctx *bgpctx.EncodingContext, messageType string, closeEnvelope bool) []byte {
 	// ze-bgp JSON outer wrapper
 	buf = append(buf, `{"type":"bgp","bgp":{`...)
 
@@ -69,6 +69,7 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 
 	// Peer at bgp level
 	buf = appendPeerJSON(buf, peer)
+	buf = appendSourcePolicyEpochJSON(buf, sourcePolicyEpoch)
 
 	// Update container with attr and nlri inside
 	buf = append(buf, `,"update":{`...)

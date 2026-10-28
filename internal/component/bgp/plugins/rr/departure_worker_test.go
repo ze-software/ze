@@ -40,7 +40,7 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 	entered := make(chan struct{}, downs)
 	release := make(chan struct{})
 	sources := make(chan string, downs)
-	bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, _ string, meta map[string]any) (uint32, uint32, error) {
+	bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, _ string, meta map[string]any, _ uint64) (uint32, uint32, error) {
 		source, _ := meta["recovery-source"].(string)
 		sources <- source
 		entered <- struct{}{}

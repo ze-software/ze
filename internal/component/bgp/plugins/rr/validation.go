@@ -97,6 +97,7 @@ func (rr *routeReflector) replayValidation(ctx context.Context, routes []ribeven
 			if path, present := ribevents.LookupFlowSpecPath(key); present {
 				stored.AttrHex = hex.EncodeToString(path.Attributes)
 				stored.MsgID = path.MsgID
+				stored.SourcePolicyEpoch = path.SourcePolicyEpoch
 				stored.Withdraw = false
 			}
 			callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -137,7 +138,8 @@ func (rr *routeReflector) replayFlowSpecs(destination string, gen uint64) int {
 		}
 		stored := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			SourcePolicyEpoch: path.SourcePolicyEpoch,
+			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 			InitialUpdate: true} // peer-up replay: passes the destination's replay fence
 		if err := rr.plugin.RelayStoredRoute(ctx, destination, []rpc.StoredRoute{stored}); err != nil {
 			logger().Warn("FlowSpec peer-up reflection failed", "source", key.Peer, "target", destination, "error", err)

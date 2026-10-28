@@ -392,6 +392,7 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 			next.NLRIFraming != first.NLRIFraming ||
 			next.NextHopHex != first.NextHopHex ||
 			next.MsgID != first.MsgID ||
+			next.SourcePolicyEpoch != first.SourcePolicyEpoch ||
 			next.Withdraw != first.Withdraw ||
 			next.InitialUpdate != first.InitialUpdate ||
 			next.AttrHex != first.AttrHex {
@@ -593,6 +594,7 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		SourcePeerIP:       src.addr,
 		receivedPeer:       src.info.peer,
 		receivedGeneration: src.generation,
+		SourcePolicyEpoch:  route.SourcePolicyEpoch,
 		// The forward path threads this into fwdItem.sourcePeerStr for the sent
 		// event callback; the peer's cached string avoids a per-route allocation.
 		SourcePeerStr:    src.strAdr,
@@ -691,6 +693,7 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 		SourcePeerStr:      src.strAdr,
 		receivedPeer:       src.info.peer,
 		receivedGeneration: src.generation,
+		SourcePolicyEpoch:  route.SourcePolicyEpoch,
 		ReceivedAt:         a.r.clock.Now(),
 		validationReplay:   true,
 		validationMsgID:    route.MsgID,

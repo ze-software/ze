@@ -30,7 +30,7 @@ func (p *Plugin) UpdateRouteSel(ctx context.Context, sel *selector.Selector, com
 // UpdateRouteSelWithMeta is the typed-selector variant of UpdateRouteWithMeta.
 func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
 	if p.bridge != nil && p.bridge.HasUpdateRouteSel() {
-		return p.bridge.UpdateRouteSel(ctx, sel, command, meta)
+		return p.bridge.UpdateRouteSel(ctx, sel, command, meta, 0)
 	}
 	return p.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 }
@@ -42,8 +42,14 @@ func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selec
 // (direct send) where CommandContext.Meta is not yet consumed by egress filters.
 // Pass nil meta for routes without metadata (equivalent to UpdateRoute).
 func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
-	input := &rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta}
-	result, err := p.callEngineWithResult(ctx, rpc.MethodUpdateRoute, input)
+	return p.UpdateRouteRequest(ctx, rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta})
+}
+
+// UpdateRouteRequest sends a typed route command with its original source
+// provenance. Received-origin replay MUST carry the stored SourcePolicyEpoch;
+// callers MUST NOT acquire a current epoch for retained route bytes.
+func (p *Plugin) UpdateRouteRequest(ctx context.Context, input rpc.UpdateRouteInput) (announced, withdrawn uint32, err error) {
+	result, err := p.callEngineWithResult(ctx, rpc.MethodUpdateRoute, &input)
 	if err != nil {
 		return 0, 0, err
 	}

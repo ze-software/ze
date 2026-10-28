@@ -160,7 +160,7 @@ func TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 				p := sdk.NewWithConn("rr-vpn-test", rpc.NewBridgedConn(pluginEnd, bridge))
 				t.Cleanup(func() { _ = p.Close() })
 				commands := make(chan string, 2)
-				bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, command string, _ map[string]any) (uint32, uint32, error) {
+				bridge.SetUpdateRouteSel(func(_ context.Context, _ *selector.Selector, command string, _ map[string]any, _ uint64) (uint32, uint32, error) {
 					commands <- command
 					return 0, 2, nil
 				})

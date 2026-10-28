@@ -182,6 +182,8 @@ type withdrawalEntry struct {
 	// each entry's own, so an older session's route never borrows a newer
 	// bound (enqueueDeparture).
 	generation uint64
+	// sourcePolicyEpoch is captured at receive admission, before worker dispatch.
+	sourcePolicyEpoch uint64
 }
 
 // routeServer implements a BGP Route Server API plugin.
@@ -702,6 +704,12 @@ func (rs *routeServer) dispatchText(text string) {
 		if peerAddr == "" {
 			return
 		}
+		sourcePolicyEpoch, err := textparse.SourcePolicyEpoch(text)
+		if err != nil {
+			logger().Warn("received UPDATE provenance rejected", "peer", peerAddr, "error", err)
+			rs.releaseCache(msgID)
+			return
+		}
 		// Advance the cut cursor on the fork-mode rail too, for the same reason
 		// dispatchStructured does: this runs on the OnEvent goroutine, the one
 		// handleState captures the cut on. A text event whose msgID did not parse
@@ -714,7 +722,7 @@ func (rs *routeServer) dispatchText(text string) {
 		rs.mu.Unlock()
 
 		key := workerKey{sourcePeer: peerAddr}
-		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload}
+		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload, sourcePolicyEpoch: sourcePolicyEpoch}
 		if !rs.workers.Dispatch(key, item) {
 			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
 			rs.releaseCache(msgID)

@@ -2506,12 +2506,14 @@ transaction. SIGHUP queued and replayed after completion.
 Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
 and `Rollback()` to replay undos in reverse. BGP and interface operation owners
 retain journals through operation commit and outer publication. On outer
-rejection, original operation tokens are undone in reverse applied order under a
-fresh budget before dependent section-owned services are reconstructed.
+rejection, owners removed with acknowledgement are first recovered from the old
+configuration so their infrastructure exists for retained dependents. Original
+operation tokens are then undone in reverse applied order under a fresh budget,
+before dependent coarse section-owned services are reconstructed.
 Reconstruction retains the full diff but excludes retained owners' declared
 operation roots; acknowledged removed owners still use normal reconstruction.
 A session-bound source lifecycle MUST hold admission, epochs and pins through
-both steps and republish eligibility only after old filters are acknowledged.
+all restoration stages and republish eligibility only after old filters are acknowledged.
 Generic infrastructure rollback does not supply that source barrier.
 `OnConfigComplete` acknowledges undo release after the irreversible accepted
 decision. Captured process and connection identities are checked before dispatch

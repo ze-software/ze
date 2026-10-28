@@ -217,3 +217,87 @@ func TestInitialReplayRequiresExactReceivedHistory(t *testing.T) {
 		})
 	}
 }
+
+// TestInitialReplayUsesReceivedPolicyEpoch exercises peer-up replay after
+// same-attribute replacement, including ADD-PATH identifier zero and retained
+// clones. Matching history emits a route command; old-epoch history emits none,
+// even when its source message and all other ownership fields match.
+func TestInitialReplayUsesReceivedPolicyEpoch(t *testing.T) {
+	for _, addPath := range []bool{false, true} {
+		for _, fingerprintHit := range []bool{false, true} {
+			for _, stale := range []bool{false, true} {
+				name := strconv.FormatBool(addPath) + "/" + strconv.FormatBool(fingerprintHit) + "/" + strconv.FormatBool(stale)
+				t.Run(name, func(t *testing.T) {
+					r := newTestRIBManager(t)
+					source := netip.MustParseAddr("192.0.2.10")
+					destination := netip.MustParseAddr("192.0.2.20")
+					fam := family.IPv4Unicast
+					received := storage.NewPeerRIB(source.String())
+					r.bgpPeers[source] = received
+					t.Cleanup(received.Release)
+					received.SetAddPath(fam, addPath)
+					raw := []byte{24, 192, 0, 2}
+					if addPath {
+						raw = append([]byte{0, 0, 0, 0}, raw...)
+					}
+					entry, fingerprint, size, err := storage.ParseRouteEntry(nativeSentAttrs())
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer entry.Release()
+					entry.MsgID = 81
+					entry.SourcePolicyEpoch = 21
+					received.InsertEntry(fam, entry, fingerprint, size, raw)
+					entry.MsgID = 82
+					entry.SourcePolicyEpoch = 22
+					retained := entry.Clone()
+					if retained == nil {
+						t.Fatal("retained route clone failed")
+					}
+					defer retained.Release()
+					if !fingerprintHit {
+						fingerprint ^= 1 // Reach the equal-handle branch instead.
+					}
+					received.InsertEntry(fam, *retained, fingerprint, size, raw)
+
+					event := nativeSentEvent(t, destination, fam, []byte{24, 192, 0, 2}, nativeSentAttrs(), false, false)
+					event.MsgID = 91
+					event.SourcePolicyEpoch = 22
+					if stale {
+						event.SourcePolicyEpoch = 21
+					}
+					event.RouteMeta["source-message-id"] = float64(82)
+					event.RouteMeta["source-id"] = float64(17)
+					event.RouteMeta[bgptypes.SourceOwnerMeta] = "101"
+					if addPath {
+						event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: fam, PathID: 0}}
+					}
+					r.handleSent(event)
+					t.Cleanup(func() {
+						for _, sent := range r.ribOut[destination][fam] {
+							sent.release()
+						}
+					})
+					r.peerUp[destination] = false // A known, re-establishing destination.
+					announced := 0
+					r.updateHook = func(command string, _ map[string]any) {
+						if command != "update cursor done" {
+							announced++
+						}
+					}
+					r.dispatchHook = func(string) {}
+					r.handleStructuredState(&rpc.StructuredEvent{
+						PeerAddress: destination.String(), State: rpc.SessionStateUp, InitialReplay: 19,
+					})
+					want := 1
+					if stale {
+						want = 0
+					}
+					if announced != want {
+						t.Fatalf("initial replay emitted %d route commands, want %d", announced, want)
+					}
+				})
+			}
+		}
+	}
+}

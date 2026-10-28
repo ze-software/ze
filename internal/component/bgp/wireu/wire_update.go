@@ -323,9 +323,10 @@ type SentPathSource struct {
 // fields before returning; Paths already owns immutable event-lifetime storage.
 // This receipt is internal causal metadata, never a BGP attribute or payload.
 type SentOrigin struct {
-	SourceOwner uint64
-	Local       bool
-	Paths       []SentPathSource
+	SourceOwner       uint64
+	SourcePolicyEpoch uint64
+	Local             bool
+	Paths             []SentPathSource
 }
 
 // SentOrigin borrows the writer's receipt for this synchronous callback only.

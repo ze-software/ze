@@ -39,6 +39,8 @@ const (
 	KWLabel           = "label"
 	KWWatchdog        = "watchdog"
 	KWAttr            = "attr"
+	// KWSourcePolicyEpoch is received provenance, not a route attribute.
+	KWSourcePolicyEpoch = "source-policy-epoch"
 
 	// Action keywords (NLRI-only: MP_REACH vs MP_UNREACH).
 	KWAdd = "add"

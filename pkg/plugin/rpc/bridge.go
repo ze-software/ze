@@ -558,7 +558,7 @@ func (b *DirectBridge) releaseOnWalkEnd(records iter.Seq[Record]) iter.Seq[Recor
 
 // UpdateRouteSelHandler is the typed handler for update-route that carries
 // a *selector.Selector instead of a peer selector string.
-type UpdateRouteSelHandler func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error)
+type UpdateRouteSelHandler func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (announced, withdrawn uint32, err error)
 
 // SetUpdateRouteSel registers the engine-side typed selector update-route handler.
 func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
@@ -567,7 +567,7 @@ func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
 }
 
 // UpdateRouteSel calls the typed selector update-route handler directly.
-func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
+func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (announced, withdrawn uint32, err error) {
 	if !b.beginDispatch() {
 		return 0, 0, ErrBridgeClosed
 	}
@@ -578,7 +578,7 @@ func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selecto
 	if !b.hasUpdateRouteSel.Load() {
 		return 0, 0, errors.New("update-route-sel handler not set")
 	}
-	return b.updateRouteSel(ctx, sel, command, meta)
+	return b.updateRouteSel(ctx, sel, command, meta, sourcePolicyEpoch)
 }
 
 // HasUpdateRouteSel reports whether the typed selector update-route handler is set.
@@ -1057,6 +1057,7 @@ type StructuredEvent struct {
 	// routes that session or an older one wrote. Zero on every other event.
 	SessionGeneration uint64
 	SourceID          uint32 // Registry identity for body-common forwarded source.
+	SourcePolicyEpoch uint64 // Original received policy admission, independent of session generation.
 	Reason            string // For state events: close reason
 	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
 	// of the FSM event that closed the session; zero means no relevant event,
@@ -1103,6 +1104,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.InitialReplay = 0
 	se.SessionGeneration = 0
 	se.SourceID = 0
+	se.SourcePolicyEpoch = 0
 	se.Reason = ""
 	se.FSMEvent = 0
 	se.RawMessage = nil

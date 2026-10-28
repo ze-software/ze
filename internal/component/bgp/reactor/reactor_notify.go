@@ -284,6 +284,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	}()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
+	// Capture before any ingress policy evaluation. A delayed filter result must
+	// never acquire the epoch current when caching or publishing finally finishes.
+	var sourcePolicyEpoch uint64
+	if hasPeer && direction == rpc.DirectionReceived && msgType == msgtype.TypeUPDATE {
+		sourcePolicyEpoch = peer.sourcePolicyEpoch.Load()
+	}
 
 	// Build PeerInfo while holding lock to avoid race on state
 	var peerInfo plugin.PeerInfo
@@ -441,14 +447,15 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 
 		// RawMessage uses zero-copy for synchronous callback processing
 		msg = bgptypes.RawMessage{
-			Type:       msgType,
-			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
-			Timestamp:  timestamp,
-			Direction:  direction,
-			MessageID:  messageID,
-			WireUpdate: wireUpdate,
-			AttrsWire:  attrsWire, // Derived from WireUpdate
-			ParseError: parseErr,  // Propagate parse error to plugins
+			Type:              msgType,
+			RawBytes:          wireUpdate.Payload(), // Zero-copy: valid during callback
+			Timestamp:         timestamp,
+			Direction:         direction,
+			MessageID:         messageID,
+			SourcePolicyEpoch: sourcePolicyEpoch,
+			WireUpdate:        wireUpdate,
+			AttrsWire:         attrsWire, // Derived from WireUpdate
+			ParseError:        parseErr,  // Propagate parse error to plugins
 		}
 	} else {
 		// Non-UPDATE or sent messages: copy bytes for async processing safety
@@ -491,6 +498,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			msg.SourceID = uint32(wireUpdate.SourceID())
 			if origin := wireUpdate.SentOrigin(); origin != nil {
 				msg.SourceOwner = origin.SourceOwner
+				msg.SourcePolicyEpoch = origin.SourcePolicyEpoch
 				msg.SourceLocal = origin.Local
 				msg.SentPathSources = origin.Paths
 			}
@@ -631,7 +639,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		}
 	}
 	if direction == rpc.DirectionReceived && wireUpdate != nil {
-		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta)
+		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta, sourcePolicyEpoch)
 	}
 
 	// Source peer identity for ribOut stale-scoping.
@@ -655,11 +663,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// (negative is corrected when Activate adds N).
 	if direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
 		ru := &ReceivedUpdate{
-			poolBuf:       buf, // Cache owns buf
-			SourcePeerIP:  peerAddr,
-			SourcePeerStr: sourcePeerStr,
-			ReceivedAt:    timestamp,
-			Meta:          routeMeta,
+			poolBuf:           buf, // Cache owns buf
+			SourcePeerIP:      peerAddr,
+			SourcePeerStr:     sourcePeerStr,
+			ReceivedAt:        timestamp,
+			Meta:              routeMeta,
+			SourcePolicyEpoch: sourcePolicyEpoch,
 		}
 		if hasPeer {
 			ru.receivedPeer = peer

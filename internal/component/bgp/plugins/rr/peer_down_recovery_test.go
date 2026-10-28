@@ -38,7 +38,7 @@ func newPeerDownReflector(t *testing.T) (*routeReflector, chan peerDownRequest) 
 	p := sdk.NewWithConn("rr-down-test", rpc.NewBridgedConn(pluginEnd, bridge))
 	t.Cleanup(func() { _ = p.Close() })
 	requests := make(chan peerDownRequest, 4)
-	bridge.SetUpdateRouteSel(func(_ context.Context, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+	bridge.SetUpdateRouteSel(func(_ context.Context, sel *selector.Selector, command string, meta map[string]any, _ uint64) (uint32, uint32, error) {
 		requests <- peerDownRequest{selector: sel.String(), command: command, meta: meta}
 		return 0, 2, nil
 	})

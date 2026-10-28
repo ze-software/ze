@@ -55,6 +55,7 @@ type adjOutWrite struct {
 	removed     int
 	suppressed  int
 	source      *Peer
+	policyEpoch uint64
 	sourceSet   bool
 	pathSources []wireu.SentPathSource
 	raw         bool
@@ -148,6 +149,7 @@ func (w *adjOutWrite) release() {
 	w.removed, w.suppressed = 0, 0
 	w.source, w.pathSources = nil, nil
 	w.sourceSet = false
+	w.policyEpoch = 0
 	w.announcedRoutes, w.withdrawnRoutes = 0, 0
 	adjOutWritePool.Put(w)
 }
@@ -216,6 +218,7 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		// whether the source still owns the path. An expected write keeps
 		// entry.owner.
 		owner.generation = item.receivedGeneration
+		owner.policyEpoch = item.sourcePolicyEpoch
 		if owner.source != nil {
 			owner.revocation = owner.source.forwardRevocation.Load()
 		}
@@ -908,6 +911,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 			return true
 		}
 		w.source, w.sourceSet = owner.source, true
+		w.policyEpoch = owner.policyEpoch
 		if w.session.onMessageReceived != nil {
 			ordinal := w.ordinals[fam]
 			if owner.addPath {

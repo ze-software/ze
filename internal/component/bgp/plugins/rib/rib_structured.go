@@ -266,6 +266,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		if parseErr == nil {
 			haveParsed = true
 			parsed.MsgID = msg.MessageID
+			parsed.SourcePolicyEpoch = msg.SourcePolicyEpoch
 			parsed.ReceivedLLGRStale = receivedStale
 			defer parsed.Release()
 		}
@@ -292,6 +293,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				}
 				peerRIB.ModifyFamilyEntry(ipv4Family, wirePrefix, func(entry *storage.RouteEntry) {
 					entry.MsgID = msg.MessageID
+					entry.SourcePolicyEpoch = msg.SourcePolicyEpoch
 					entry.ReceivedLLGRStale = receivedStale
 				})
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
@@ -322,7 +324,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						if haveParsed {
 							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, receivedStale, &affected)
 						} else {
-							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msg.MessageID, &affected)
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msg.MessageID, msg.SourcePolicyEpoch, &affected)
 						}
 					} else {
 						if haveParsed {
@@ -332,6 +334,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						}
 						peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 							entry.MsgID = msg.MessageID
+							entry.SourcePolicyEpoch = msg.SourcePolicyEpoch
 							entry.ReceivedLLGRStale = receivedStale
 						})
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
@@ -481,7 +484,8 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
 		ipv4Ordinal = r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
 			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
-				SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
+				SourcePolicyEpoch: msg.SourcePolicyEpoch,
+				SourceID:          msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, 0)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -497,7 +501,8 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 			}
 			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath,
 				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
-					SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, ordinal)
+					SourcePolicyEpoch: msg.SourcePolicyEpoch,
+					SourceID:          msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, recovery, sourcePaths, ordinal)
 		}
 	}
 
@@ -659,7 +664,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 // insertLabeledEntry does (RFC 9494 Section 4.3). message is the received
 // message ID, written as the unlabeled branch writes it: a stale ID would make
 // R-12 judge a live path gone (sourcePathGone).
-func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, message uint64, affected *[]affectedPrefix) {
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, message, sourcePolicyEpoch uint64, affected *[]affectedPrefix) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
@@ -667,6 +672,7 @@ func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 	peerRIB.Insert(fam, attrBytes, cidrBytes)
 	peerRIB.ModifyFamilyEntry(fam, cidrBytes, func(stored *storage.RouteEntry) {
 		stored.MsgID = message
+		stored.SourcePolicyEpoch = sourcePolicyEpoch
 		stored.ReceivedLLGRStale = receivedStale
 	})
 	labelHandle := pool.InternLabels(labels)

@@ -63,10 +63,11 @@ type ReceivedUpdate struct {
 	// Set once at creation from the peer's cached address string.
 	SourcePeerStr string
 
-	// Live cache entries retain their receiving peer and session generation.
-	// Stored-route reconstruction has no receive snapshot and leaves the peer nil.
+	// Live admission and stored replay retain the dispatch peer and current
+	// session fence. SourcePolicyEpoch always names the ORIGINAL route admission.
 	receivedPeer       *Peer
 	receivedGeneration uint64
+	SourcePolicyEpoch  uint64
 
 	// A replay gets a new cache ID but retains the received generation for the
 	// validation gate. Zero is explicitly unversioned for a removed route.

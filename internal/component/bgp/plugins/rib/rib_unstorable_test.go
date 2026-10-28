@@ -23,9 +23,9 @@ func TestRIBFamilyWithNoSplitterWarnsOnce(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	first := storage.NewPeerRIB("192.0.2.1")
-	r.insertPoolNLRIs(first, unstorable, []byte{8, 10}, nil, false, 1, false)
-	r.insertPoolNLRIs(first, unstorable, []byte{8, 11}, nil, false, 2, false)
-	r.insertPoolNLRIs(storage.NewPeerRIB("192.0.2.2"), unstorable, []byte{8, 10}, nil, false, 3, false)
+	r.insertPoolNLRIs(first, unstorable, []byte{8, 10}, nil, false, 1, 0, false)
+	r.insertPoolNLRIs(first, unstorable, []byte{8, 11}, nil, false, 2, 0, false)
+	r.insertPoolNLRIs(storage.NewPeerRIB("192.0.2.2"), unstorable, []byte{8, 10}, nil, false, 3, 0, false)
 
 	var warns []string
 	for line := range strings.SplitSeq(buf.String(), "\n") {

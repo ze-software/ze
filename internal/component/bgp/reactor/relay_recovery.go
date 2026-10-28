@@ -703,7 +703,8 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 		stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
 			NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
-			NLRIFraming: rpc.NLRIFramingSourceWire}
+			SourcePolicyEpoch: survivor.SourcePolicyEpoch,
+			NLRIFraming:       rpc.NLRIFramingSourceWire}
 		first := len(admission.items)
 		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources.receipts, sender)
 		if errors.Is(err, errAllDestinationsSuppressed) {

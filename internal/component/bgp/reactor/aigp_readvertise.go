@@ -33,12 +33,13 @@ type aigpSourceKey struct {
 }
 
 type aigpRoute struct {
-	key     aigpSourceKey
-	wire    *wireu.WireUpdate
-	raw     []byte
-	nextHop []byte
-	order   uint32
-	meta    map[string]any
+	key               aigpSourceKey
+	wire              *wireu.WireUpdate
+	raw               []byte
+	nextHop           []byte
+	order             uint32
+	meta              map[string]any
+	sourcePolicyEpoch uint64
 }
 
 type aigpRecipientKey struct {
@@ -188,7 +189,7 @@ func (r *Reactor) invalidateAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate) 
 	s.signalLocked()
 }
 
-func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta map[string]any) {
+func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta map[string]any, sourcePolicyEpoch uint64) {
 	if len(payloadAIGP(wu.Payload())) == 0 {
 		return
 	}
@@ -213,6 +214,7 @@ func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta
 		s.removeLocked(key)
 		order++
 		route := &aigpRoute{key: key, wire: retained, raw: raw, nextHop: nh, meta: meta, order: order}
+		route.sourcePolicyEpoch = sourcePolicyEpoch
 		s.routes[key] = route
 		id := wu.MessageID()
 		if s.messages[id] == nil {
@@ -492,7 +494,8 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	end := start + int(binary.BigEndian.Uint16(wu.Payload()[start-2:start]))
 	route := rpc.StoredRoute{SourcePeer: ad.route.key.peer.String(), Family: ad.route.key.nlri.family.String(),
 		MsgID: wu.MessageID(), PathID: ad.route.key.nlri.pathID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-		NLRIHex: hex.EncodeToString(ad.route.raw), AttrHex: hex.EncodeToString(wu.Payload()[start:end]), NextHopHex: hex.EncodeToString(ad.route.nextHop)}
+		SourcePolicyEpoch: ad.route.sourcePolicyEpoch,
+		NLRIHex:           hex.EncodeToString(ad.route.raw), AttrHex: hex.EncodeToString(wu.Payload()[start:end]), NextHopHex: hex.EncodeToString(ad.route.nextHop)}
 	var spans []relayAttrSpan
 	update, id, _, err := adapter.buildRelayUpdate([]rpc.StoredRoute{route}, src, &spans)
 	if err != nil {

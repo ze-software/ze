@@ -58,7 +58,7 @@ func rsApplyLabeled(t *testing.T, rs *routeServer, code byte, nlris []byte) {
 	if records == nil {
 		t.Fatal("no records extracted")
 	}
-	rs.applyNLRIRecords(rsLabeledPeer, records.records)
+	rs.applyNLRIRecords(rsLabeledPeer, records)
 	returnNLRIRecords(records)
 }
 
@@ -230,5 +230,5 @@ func rsApplyLabeledMatrix(t *testing.T, rs *routeServer, fam family.Family, addP
 		t.Fatal("labeled extraction returned no records")
 	}
 	defer returnNLRIRecords(records)
-	rs.applyNLRIRecords(rsLabeledPeer, records.records)
+	rs.applyNLRIRecords(rsLabeledPeer, records)
 }

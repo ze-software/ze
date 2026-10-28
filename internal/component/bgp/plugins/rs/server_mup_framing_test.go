@@ -77,7 +77,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 						t.Fatalf("inventory record %d = %+v, want native %s", i, record, routes[i])
 					}
 				}
-				rs.applyNLRIRecords("10.0.0.1", records.records)
+				rs.applyNLRIRecords("10.0.0.1", records)
 				returnNLRIRecords(records)
 				first, err := hex.DecodeString(routes[0])
 				if err != nil {
@@ -87,7 +87,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				if records == nil {
 					t.Fatal("native withdrawal extraction returned nil")
 				}
-				rs.applyNLRIRecords("10.0.0.1", records.records)
+				rs.applyNLRIRecords("10.0.0.1", records)
 				returnNLRIRecords(records)
 				entries := rs.withdrawals["10.0.0.1"]
 				if len(entries) != len(routes)-1 {

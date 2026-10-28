@@ -17,21 +17,22 @@ import (
 // RawMessage represents a BGP message sent or received.
 // Contains raw wire bytes for on-demand parsing based on format config.
 type RawMessage struct {
-	Type            msgtype.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
-	RawBytes        []byte              // Original wire bytes (without marker/header)
-	Timestamp       time.Time
-	MessageID       uint64                    // Unique ID for all message types
-	AttrsWire       *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
-	WireUpdate      *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
-	Direction       rpc.MessageDirection      // DirectionSent / DirectionReceived
-	ParseError      error                     // Non-nil if lazy parsing failed
-	Meta            map[string]any            // Route metadata: the ingress steps' decisions on a received event, ReceivedUpdate.Meta on a sent one
-	SourcePeerStr   string                    // Source peer address for ribOut stale-scoping (sent events only)
-	SourceMessageID uint64                    // Original received generation on every forwarded sent event
-	SourceID        uint32                    // Registry source identity; SourceOwner proves the Peer incarnation.
-	SourceOwner     uint64                    // Stable source Peer incarnation, copied from the borrowed sent receipt.
-	SourceLocal     bool                      // Explicit local announcement origin, never inferred from absent source metadata.
-	SentPathSources []wireu.SentPathSource    // Owned conditional ADD-PATH sidecar for this emitted body.
+	Type              msgtype.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+	RawBytes          []byte              // Original wire bytes (without marker/header)
+	Timestamp         time.Time
+	MessageID         uint64                    // Unique ID for all message types
+	AttrsWire         *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
+	WireUpdate        *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
+	Direction         rpc.MessageDirection      // DirectionSent / DirectionReceived
+	ParseError        error                     // Non-nil if lazy parsing failed
+	Meta              map[string]any            // Route metadata: the ingress steps' decisions on a received event, ReceivedUpdate.Meta on a sent one
+	SourcePeerStr     string                    // Source peer address for ribOut stale-scoping (sent events only)
+	SourceMessageID   uint64                    // Original received generation on every forwarded sent event
+	SourcePolicyEpoch uint64                    // Original received policy admission; zero is unrecorded.
+	SourceID          uint32                    // Registry source identity; SourceOwner proves the Peer incarnation.
+	SourceOwner       uint64                    // Stable source Peer incarnation, copied from the borrowed sent receipt.
+	SourceLocal       bool                      // Explicit local announcement origin, never inferred from absent source metadata.
+	SentPathSources   []wireu.SentPathSource    // Owned conditional ADD-PATH sidecar for this emitted body.
 
 	// ReactorForwarded is true when reactorForwardRS already forwarded this
 	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.

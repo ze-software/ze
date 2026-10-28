@@ -67,11 +67,12 @@ type RecoveryOutcome struct {
 // MessageID MUST be set for every candidate: the recovery write's sent event
 // reports it as the entry's source message ID.
 type RecoveryRoute struct {
-	Source     netip.Addr `json:"source"`
-	NLRI       []byte     `json:"nlri"`
-	Attributes []byte     `json:"attributes"`
-	NextHop    []byte     `json:"next-hop"`
-	MessageID  uint64     `json:"message-id"`
+	Source            netip.Addr `json:"source"`
+	NLRI              []byte     `json:"nlri"`
+	Attributes        []byte     `json:"attributes"`
+	NextHop           []byte     `json:"next-hop"`
+	MessageID         uint64     `json:"message-id"`
+	SourcePolicyEpoch uint64     `json:"source-policy-epoch"`
 	// PathID and AddPath name the path as the source sent it (RFC 7911), so
 	// a consumer compares a candidate without re-deriving it from NLRI framing.
 	PathID  uint32 `json:"path-id"`

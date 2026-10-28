@@ -542,14 +542,15 @@ func (s *Server) dispatchPluginRPCDirect(ctx context.Context, proc *process.Proc
 
 // handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
 // Reuses the existing Dispatch path by stringifying the selector for the peer field.
-func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (uint32, uint32, error) {
 	peer := sel.String()
 	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: ctx,
-		Peer:           peer,
-		Meta:           meta,
+		Server:            s,
+		Process:           proc,
+		RequestContext:    ctx,
+		Peer:              peer,
+		Meta:              meta,
+		SourcePolicyEpoch: sourcePolicyEpoch,
 		// Reserved trusted internal identity (spec-fixit-authz-admin-fallthrough
 		// O-4): the typed update-route-sel path is an internal route push too, so it
 		// must authorize like opUpdateRoute rather than fail closed on an empty

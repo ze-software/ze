@@ -332,7 +332,7 @@ func (r *RIBManager) flowSpecPath(key ribevents.ValidationRoute) (ribevents.Flow
 	if err != nil {
 		return ribevents.FlowSpecPath{}, false
 	}
-	return ribevents.FlowSpecPath{Attributes: attrs, MsgID: entry.MsgID}, true
+	return ribevents.FlowSpecPath{Attributes: attrs, MsgID: entry.MsgID, SourcePolicyEpoch: entry.SourcePolicyEpoch}, true
 }
 
 // flowSpecIPv6Communities copies the selected twenty-octet action values out

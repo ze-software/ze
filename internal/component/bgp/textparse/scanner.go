@@ -3,6 +3,11 @@
 
 package textparse
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Scanner tokenizes a whitespace-delimited text string without allocating.
 // It holds a reference to the original string and tracks the current position.
 type Scanner struct {
@@ -53,4 +58,29 @@ func (s *Scanner) Done() bool {
 
 func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+// SourcePolicyEpoch reads the reserved provenance token immediately after an
+// UPDATE event's eight-token header. The caller MUST validate that header first.
+// An absent token records unrecorded provenance (zero), never current authority.
+func SourcePolicyEpoch(text string) (uint64, error) {
+	s := NewScanner(text)
+	for range 8 {
+		if _, ok := s.Next(); !ok {
+			return 0, fmt.Errorf("source policy epoch requires a complete UPDATE header")
+		}
+	}
+	token, _ := s.Next()
+	if token != KWSourcePolicyEpoch {
+		return 0, nil
+	}
+	value, ok := s.Next()
+	if !ok {
+		return 0, fmt.Errorf("source-policy-epoch requires a decimal uint64")
+	}
+	epoch, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("source-policy-epoch: %w", err)
+	}
+	return epoch, nil
 }

@@ -51,12 +51,13 @@ type ribOutEntry struct {
 	SourcePeer   string
 	// SourceMessageID identifies the received generation, independently of the
 	// destination's ADD-PATH identifier and this sent event's MsgID.
-	SourceMessageID uint64
-	SourceID        uint32
-	SourceOwner     uint64
-	SourcePath      uint32
-	SourceAddPath   bool
-	LocalOrigin     bool
+	SourceMessageID   uint64
+	SourcePolicyEpoch uint64
+	SourceID          uint32
+	SourceOwner       uint64
+	SourcePath        uint32
+	SourceAddPath     bool
+	LocalOrigin       bool
 }
 
 // ribOutRouteKey identifies one framed announcement from the registered splitter.
@@ -109,13 +110,14 @@ func (e ribOutEntry) release() {
 // and the map keys. Called only on infrequent paths (replay, show, refresh).
 func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey) *Route {
 	route := &Route{
-		MsgID:      entry.MsgID,
-		Family:     fam,
-		AddPath:    entry.AddPath,
-		PathID:     key.PathID,
-		StaleLevel: entry.StaleLevel,
-		SourcePeer: entry.SourcePeer,
-		NextHop:    entry.NextHop,
+		MsgID:             entry.MsgID,
+		SourcePolicyEpoch: entry.SourcePolicyEpoch,
+		Family:            fam,
+		AddPath:           entry.AddPath,
+		PathID:            key.PathID,
+		StaleLevel:        entry.StaleLevel,
+		SourcePeer:        entry.SourcePeer,
+		NextHop:           entry.NextHop,
 	}
 	if key.Prefix.IsValid() {
 		route.Prefix = key.Prefix.String()

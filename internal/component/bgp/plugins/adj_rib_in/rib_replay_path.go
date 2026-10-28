@@ -70,6 +70,7 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		route.NLRIHex = stored.NLRIHex
 		route.NLRIFraming = stored.NLRIFraming
 		route.MsgID = stored.MsgID
+		route.SourcePolicyEpoch = stored.SourcePolicyEpoch
 		route.Withdraw = false
 	}
 	r.mu.RUnlock()
@@ -93,7 +94,8 @@ func (r *AdjRIBInManager) replayFlowSpecs(targetPeer netip.Addr) error {
 		routes = append(routes, rpc.StoredRoute{
 			SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			SourcePolicyEpoch: path.SourcePolicyEpoch,
+			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 			InitialUpdate: true, // peer-up replay: passes the destination's replay fence
 		})
 	}

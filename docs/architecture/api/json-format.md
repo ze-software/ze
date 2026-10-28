@@ -110,6 +110,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 | bgp.message.type | string | Event type (update, state, open, etc.) |
 | bgp.message.id | int | Message identifier (omitted if 0) |
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
+| bgp.source-policy-epoch | uint64 | Original received source-policy admission on UPDATE events; omitted when unrecorded or locally originated. Independent of message ID, dispatch session generation and source-DOWN revocation |
 | bgp.peer.remote.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number. Omitted while a dynamic peer's AS is not yet negotiated: the OPEN Ze sends it, a NOTIFICATION sent in OpenSent, and the `connected` and `fsm` events before OpenConfirm carry none. AS 0 is never written, because no peer can hold it (RFC 7607 Section 2) |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
@@ -121,6 +122,22 @@ step f) prefers the route from the peer with the lowest BGP Identifier, so a
 consumer that reads the top-level key compares this speaker's identifier against
 itself, ties on every pair, and falls through to step g).
 <!-- source: internal/component/bgp/format/text.go -- appendPeerJSON -->
+
+Received UPDATEs capture `source-policy-epoch` before ingress policy evaluation.
+Forwarded sent events retain the actual advertised owner's original epoch.
+Retained-route replay MUST preserve it; a zero or missing epoch does not grant
+received-origin announcement authority. Ordinary reconnect does not change the
+policy epoch. This is a typed transport field outside `route-meta`, not a
+user-configurable `meta/*` key. Consumers MUST decode it as an exact uint64 rather
+than round it through a floating-point value.
+
+The parsed text encoding carries the same value as the reserved header pair
+`source-policy-epoch <uint64>` immediately after the UPDATE message ID and before
+attributes. The in-process `StructuredEvent` and raw message carry
+`SourcePolicyEpoch` directly.
+<!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
+<!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
+<!-- source: internal/component/bgp/event.go -- Event, ParseEvent -->
 
 ### Event Types
 

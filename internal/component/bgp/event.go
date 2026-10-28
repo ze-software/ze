@@ -26,7 +26,8 @@ var eventLogger = slogutil.LazyLogger("bgp.event")
 // Note: "direction" is inside message wrapper, not at root level.
 var KnownFields = map[string]bool{
 	"type": true, "msg-id": true, "message": true,
-	"peer": true, "state": true, "origin": true, "as-path": true,
+	"source-policy-epoch": true,
+	"peer":                true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
 	"large-communities": true, "extended-communities": true, "aigp": true,
 	"serial": true, "command": true, "args": true, "afi": true, "safi": true,
@@ -346,9 +347,10 @@ func parseFamilyOps(event *Event, data []byte) {
 // by mutating string fields. Do not share an Event across goroutines.
 type Event struct {
 	// Sent events use top-level type (string: may carry non-BGP event types like "cache", "request").
-	Type     string        `json:"type"`
-	TypeKind rpc.EventKind `json:"-"`
-	MsgID    uint64        `json:"msg-id"`
+	Type              string        `json:"type"`
+	TypeKind          rpc.EventKind `json:"-"`
+	MsgID             uint64        `json:"msg-id"`
+	SourcePolicyEpoch uint64        `json:"source-policy-epoch"`
 
 	// Received events use message wrapper (includes type, id, direction).
 	Message *MessageInfo `json:"message,omitempty"`

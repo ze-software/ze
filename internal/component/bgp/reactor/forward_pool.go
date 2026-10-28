@@ -80,6 +80,7 @@ type fwdItem struct {
 	sourceMessageID      uint64         // Original received generation for ownership and AIGP, not a replay cache ID
 	receivedPeer         *Peer
 	receivedGeneration   uint64
+	sourcePolicyEpoch    uint64
 	recovery             *recoveryAdmission
 	aigpOrigin           sendOrigin
 	aigpRevision         uint64
@@ -1092,6 +1093,9 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item *fwdItem) bool {
 				continue
 			}
 			if w.overflow[i].receivedGeneration != item.receivedGeneration {
+				continue
+			}
+			if w.overflow[i].sourcePolicyEpoch != item.sourcePolicyEpoch {
 				continue
 			}
 			// Equal collapsed bytes can name different ingress paths.

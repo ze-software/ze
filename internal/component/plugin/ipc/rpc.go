@@ -13,6 +13,7 @@ import (
 	"net"
 	"slices"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -577,6 +578,46 @@ func (pc *PluginConn) SendConfigComplete(ctx context.Context, input *rpc.ConfigC
 	}
 	if out.Status != rpc.StatusOK {
 		return fmt.Errorf("config completion %s: %s", out.Status, out.Error)
+	}
+	return ctx.Err()
+}
+
+// SendSourcePolicy waits for actual owner completion and an exact receipt.
+// The caller MUST preserve the captured owner lifetime across this call.
+func (pc *PluginConn) SendSourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) error {
+	if err := input.Validate(time.Now()); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithDeadline(ctx, time.UnixMilli(input.DeadlineMS))
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:source-policy", input)
+	if err != nil {
+		return err
+	}
+	var out rpc.SourcePolicyOutput
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return fmt.Errorf("decode source-policy receipt: %w", err)
+	}
+	if out.TransactionID != input.TransactionID {
+		return fmt.Errorf("source-policy receipt transaction mismatch")
+	}
+	if out.Operation != input.Operation {
+		return fmt.Errorf("source-policy receipt operation mismatch")
+	}
+	if out.Source != input.Source {
+		return fmt.Errorf("source-policy receipt source identity mismatch")
+	}
+	if out.NextPolicyEpoch != input.NextPolicyEpoch {
+		return fmt.Errorf("source-policy receipt target epoch mismatch")
+	}
+	if out.Status != rpc.StatusOK {
+		return fmt.Errorf("source-policy %s: %s", out.Status, out.Error)
+	}
+	if out.Error != "" {
+		return fmt.Errorf("source-policy success receipt contains error: %s", out.Error)
 	}
 	return ctx.Err()
 }

@@ -240,8 +240,8 @@ func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
 	r := newTestManager(t)
 	withAddPath := netip.MustParseAddr("192.0.2.1")
 	withoutAddPath := netip.MustParseAddr("192.0.2.2")
-	r.installStructuredNLRIs(withAddPath, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 10, 0, 0}, true, "400101", "c0000201", 1)
-	r.installStructuredNLRIs(withoutAddPath, family.IPv4Unicast, []byte{24, 10, 0, 0}, false, "400101", "c0000201", 2)
+	r.installStructuredNLRIs(withAddPath, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 10, 0, 0}, true, "400101", "c0000201", 1, 0)
+	r.installStructuredNLRIs(withoutAddPath, family.IPv4Unicast, []byte{24, 10, 0, 0}, false, "400101", "c0000201", 2, 0)
 
 	shown, ok := r.show("*").(map[string]any)
 	require.True(t, ok)

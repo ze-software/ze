@@ -311,8 +311,11 @@ replays original operation tokens before reconstructing section-owned services,
 so their infrastructure is restored before they restart. Reconstruction keeps
 the full inverse diff, but skips decomposition of roots declared by retained
 operation owners: those roots have already been undone from their original
-journals. Acknowledged removed owners have no retained journal and remain
-eligible for normal reconstruction. This is not a general exemption from
+journals. Acknowledged removed owners have no live original journal. The existing
+removal-recovery path first restarts owners required by the old configuration,
+so their infrastructure exists before retained dependents replay original undo.
+Remaining coarse section restoration still follows that undo. Removed owners
+remain eligible for normal reconstruction. This is not a general exemption from
 operation declaration validation, nor a fresh inverse BGP/interface transaction.
 Operation undo runs in reverse actual apply order and attempts earlier inverses
 even after one fails. A session-bound source lifecycle MUST retain admission,

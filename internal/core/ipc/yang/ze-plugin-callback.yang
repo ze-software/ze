@@ -14,6 +14,105 @@ module ze-plugin-callback {
         description "Initial revision";
     }
 
+    grouping source-policy-receipt {
+        description "Exact identity shared by a source-policy request and its receipt.";
+        leaf transaction-id {
+            type string { length "1..256"; }
+            mandatory true;
+            ze:help "Original transaction identity";
+            description "Must match the retained transaction.";
+        }
+        leaf operation {
+            type enumeration {
+                enum prepare { ze:help "Pin original source state"; }
+                enum apply { ze:help "Invalidate source eligibility"; }
+                enum abort { ze:help "Restore pinned source state"; }
+                enum finalize { ze:help "Release accepted transaction pins"; }
+            }
+            mandatory true;
+            ze:help "Source-policy lifecycle operation";
+            description "Unknown or absent operations are refused.";
+        }
+        container source {
+            description "Captured original source identity, never a successor.";
+            ze:help "Captured source identity";
+            leaf peer {
+                type string { length "1..256"; }
+                mandatory true;
+                ze:help "Source peer identity";
+                description "The source peer selected by the coordinator.";
+            }
+            leaf peer-owner {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Peer incarnation";
+                description "Stable across reconnects of this peer object.";
+            }
+            leaf session-generation {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Captured session generation";
+                description "Independent of the source policy epoch.";
+            }
+            leaf policy-epoch {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Original source policy epoch";
+                description "The epoch pinned at prepare.";
+            }
+            leaf receive-frontier {
+                type uint64;
+                mandatory true;
+                ze:help "Receive publication frontier";
+                description "Explicit zero is valid; absent or null is malformed.";
+            }
+            leaf template-generation {
+                type uint64;
+                mandatory true;
+                ze:help "Captured template generation";
+                description "Explicit zero is valid for a source without a dynamic template.";
+            }
+        }
+        leaf next-policy-epoch {
+            type uint64;
+            mandatory true;
+            ze:help "Target policy epoch";
+            description "Apply and abort require a fresh epoch newer than the original. Prepare and finalize require explicit zero.";
+        }
+    }
+
+    rpc source-policy {
+        ze:method "ze-plugin-callback:source-policy";
+        ze:help "Settle a captured source-policy lifecycle operation";
+        description "Prepare follows strict event application drain. The owner fences asynchronous work and downstream settlement before returning. It retains pins until abort or finalize; this is not shutdown drain.";
+        input {
+            uses source-policy-receipt;
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute operation deadline in Unix milliseconds";
+                description "Expired requests never invoke the handler; all owner work must honor this bound.";
+            }
+        }
+        output {
+            uses source-policy-receipt;
+            leaf status {
+                type enumeration {
+                    enum ok { ze:help "Owner work settled"; }
+                    enum error { ze:help "Owner work failed"; }
+                }
+                mandatory true;
+                ze:help "Actual operation outcome";
+                description "Only ok acknowledges completed work for the exact echoed identity.";
+            }
+            leaf error {
+                type string { length "0..4096"; }
+                ze:help "Owner failure";
+                description "Explains failed application or settlement; absent on success.";
+            }
+        }
+    }
+
     rpc config-complete {
         ze:method "ze-plugin-callback:config-complete";
         ze:help "Complete retained config undo after whole-reload acceptance or abort";

@@ -66,8 +66,8 @@ var engineOps = []engineOp{
 		method: rpc.MethodUpdateRoute,
 		handle: (*Server).opUpdateRoute,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetUpdateRouteSel(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
-				return s.handleUpdateRouteSelDirect(ctx, proc, sel, command, meta)
+			b.SetUpdateRouteSel(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (uint32, uint32, error) {
+				return s.handleUpdateRouteSelDirect(ctx, proc, sel, command, meta, sourcePolicyEpoch)
 			})
 		},
 	},
@@ -324,11 +324,12 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 		peer = "*"
 	}
 	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: ctx,
-		Peer:           peer,
-		Meta:           input.Meta,
+		Server:            s,
+		Process:           proc,
+		RequestContext:    ctx,
+		Peer:              peer,
+		Meta:              input.Meta,
+		SourcePolicyEpoch: input.SourcePolicyEpoch,
 		// Inject the reserved trusted internal identity, same as the other internal
 		// dispatch paths (spec-fixit-authz-admin-fallthrough O-4). Without it this
 		// route-push RPC carries an empty username and, on a box with authorization

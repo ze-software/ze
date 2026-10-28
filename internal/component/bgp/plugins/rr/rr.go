@@ -690,12 +690,22 @@ func (rr *routeReflector) dispatchText(text string) {
 		if err != nil {
 			return
 		}
+		sourcePolicyEpoch, err := textparse.SourcePolicyEpoch(text)
+		if err != nil {
+			logger().Warn("received UPDATE provenance rejected", "peer", fields[1], "error", err)
+			ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+			if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {
+				logger().Warn("rejected UPDATE cache release failed", "message-id", msgID, "error", releaseErr)
+			}
+			cancel()
+			return
+		}
 		// Update withdrawal map from text before forwarding.
 		peerAddr := fields[1]
 		ops := parseTextNLRIOps(text)
 		if len(ops) > 0 {
 			rr.withdrawalMu.Lock()
-			rr.updateWithdrawalMapText(peerAddr, ops)
+			rr.updateWithdrawalMapText(peerAddr, ops, sourcePolicyEpoch)
 			rr.withdrawalMu.Unlock()
 		}
 		rr.forwardUpdate(msgID)

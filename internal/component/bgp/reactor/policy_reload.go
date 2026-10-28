@@ -143,7 +143,8 @@ func (p *Peer) reconcileExportFinal() error {
 			}
 			route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 				PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-				NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+				SourcePolicyEpoch: path.SourcePolicyEpoch,
+				NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 				InitialUpdate: true}
 			err = ctx.Err()
 			if err == nil {

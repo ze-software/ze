@@ -358,7 +358,8 @@ func (a *reactorAPIAdapter) queuePathsLimitElection(outcome *ribevents.RecoveryO
 		stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
 			NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
-			NLRIFraming: rpc.NLRIFramingSourceWire}
+			SourcePolicyEpoch: survivor.SourcePolicyEpoch,
+			NLRIFraming:       rpc.NLRIFramingSourceWire}
 		start := len(admission.items)
 		err := a.queueRecovery(admission.peer, &stored, admission, admission.sources.receipts, sender)
 		if pathsLimitSurvivorSkipped(err) {

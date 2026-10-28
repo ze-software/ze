@@ -66,6 +66,32 @@ family, naming the fix, on both receive paths (`reportUnstorableFamily`).
 <!-- source: internal/component/bgp/plugins/rib/rib_unstorable.go -- reportUnstorableFamily -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore, checkRouteBestChange, purgeBestPrevForPeer -->
 
+### Received source-policy provenance
+
+Received routes retain `SourcePolicyEpoch`, the policy epoch captured when the
+UPDATE was admitted. It is independent of the received message ID, dispatch
+session generation, validation eligibility and GR staleness. Equal-attribute
+refreshes, labeled and native NLRI storage, ADD-PATH paths (including identifier
+zero), retained clones and external event delivery preserve it.
+
+Replay carries the stored epoch in the typed `rpc.StoredRoute` field
+`source-policy-epoch`; selecting-RIB FlowSpec and recovery snapshots carry the
+same provenance. A replay may use the source's current dispatch session while
+retaining the original policy epoch. Zero means unrecorded provenance, never a
+request to stamp old bytes with the current epoch.
+
+The sent inventory retains the epoch beside its received-owner receipt.
+Attribute grouping keeps different epochs separate. Initial and refresh replay
+commands carry it in the typed update-route request, not in user route metadata.
+RS and RR retain the admitted epoch in their existing accepted-route inventories,
+including work queued before forwarding; no separate permanent store is added.
+These fields transport provenance. They do not themselves implement owner
+prepare/apply/abort/finalize, eligibility invalidation or transaction pins.
+
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, Clone -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- RawRoute, replayStoredRoute -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- groupKey, replayRoutesWithCursor, resendRoutesWithCursor -->
+
 ### Adj-RIB-Out native inventory
 
 The RIB plugin keeps one sent inventory for every registered NLRI splitter.

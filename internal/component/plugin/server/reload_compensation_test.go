@@ -631,7 +631,7 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 			const infrastructure, dependent = "removed-infrastructure", "retained-dependent"
 			oldTree := map[string]any{
 				infrastructure: map[string]any{"enabled": true},
-				dependent: map[string]any{"value": "old"},
+				dependent:      map[string]any{"value": "old"},
 			}
 			candidate := map[string]any{dependent: map[string]any{"value": "new"}}
 			s, spawner := newLifecycleStartupServer(t)
@@ -644,7 +644,7 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 				require.NoError(t, registry.Register(registry.Registration{
 					Name: name, Description: "removed prerequisite and retained dependent",
 					ConfigRoots: []string{name},
-					CLIHandler: func([]string) int { return 0 },
+					CLIHandler:  func([]string) int { return 0 },
 					RunEngine: func(conn net.Conn) int {
 						if wire {
 							conn = struct{ net.Conn }{conn}
@@ -739,7 +739,7 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 						})
 						defer p.Close()
 						if err := p.Run(s.Context(), &sdk.Registration{
-							WantsConfig: []string{name},
+							WantsConfig:      []string{name},
 							ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{testOpSetProperty}}},
 						}); err != nil {
 							return 1
@@ -768,6 +768,96 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 			require.Equal(t, int64(2), infrastructureStarts.Load())
 			require.NotSame(t, oldInfrastructure, spawner.pm.GetProcess(infrastructure))
 			require.Same(t, originalDependent, spawner.pm.GetProcess(dependent))
+			require.Equal(t, oldTree, r.GetConfigTree())
+		})
+	}
+}
+
+// A removed service may accept boot configuration despite a missing device.
+// ConfigTx then considers that configuration installed, so a later identical
+// apply cannot repair premature recovery after the device journal is undone.
+func TestReloadRecoversRemovedServiceAfterOriginalInfrastructureUndo(t *testing.T) {
+	for _, wire := range []bool{false, true} {
+		t.Run(fmt.Sprintf("wire=%t", wire), func(t *testing.T) {
+			snapshot := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snapshot) })
+			const infrastructure, service = "retained-infrastructure", "removed-dependent-service"
+			oldTree := map[string]any{
+				infrastructure: map[string]any{"value": "old"},
+				service:        map[string]any{"enabled": true},
+			}
+			candidate := map[string]any{infrastructure: map[string]any{"value": "new"}}
+			s, spawner := newLifecycleStartupServer(t)
+			r := &removalRecoveryReactor{tree: oldTree}
+			s.reactor = r
+			owner := startCompletionOwner(t, s, infrastructure, wire)
+			var serving atomic.Bool
+			var starts, prematureBoots atomic.Int64
+			require.NoError(t, registry.Register(registry.Registration{
+				Name: service, Description: "removed service using ConfigTx and lenient boot binding",
+				ConfigRoots: []string{service}, StartAfter: []string{infrastructure},
+				CLIHandler: func([]string) int { return 0 },
+				RunEngine: func(conn net.Conn) int {
+					starts.Add(1)
+					if wire {
+						conn = struct{ net.Conn }{conn}
+					}
+					p := sdk.NewWithConn(service, conn)
+					boot := false
+					tx := sdk.NewConfigTx(false, func(sections []sdk.ConfigSection) (bool, bool, error) {
+						var enabled bool
+						for _, section := range sections {
+							var decoded map[string]struct{ Enabled bool }
+							if err := json.Unmarshal([]byte(section.Data), &decoded); err != nil {
+								return false, false, err
+							}
+							enabled = decoded[service].Enabled
+						}
+						return enabled, true, nil
+					}, func(enabled bool) error {
+						if enabled && owner.value.Load() != 73 {
+							if boot {
+								prematureBoots.Add(1)
+								serving.Store(false)
+								return nil // Matches TFTP's documented lenient boot install.
+							}
+							return errors.New("service device is absent during strict reload install")
+						}
+						serving.Store(enabled)
+						return nil
+					})
+					tx.Register(p)
+					p.OnConfigure(func(sections []sdk.ConfigSection) error {
+						boot = true
+						defer func() { boot = false }()
+						return tx.Configure(sections)
+					})
+					p.OnBye(func(string) error { serving.Store(false); return nil })
+					defer p.Close()
+					if err := p.Run(s.Context(), &sdk.Registration{WantsConfig: []string{service}}); err != nil {
+						return 1
+					}
+					return 0
+				},
+			}))
+			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{{Name: service, Internal: true, Encoder: plugin.EncodingJSON}}))
+			originalInfrastructure := spawner.pm.GetProcess(infrastructure)
+			originalService := spawner.pm.GetProcess(service)
+			require.True(t, serving.Load())
+			ctx, finish := s.DeferReloadAcceptance(t.Context())
+			require.NoError(t, s.ReloadConfig(ctx, candidate))
+			require.Equal(t, int64(99), owner.value.Load())
+			require.False(t, serving.Load())
+			require.Nil(t, spawner.pm.GetProcess(service))
+			require.NoError(t, finish(false))
+			require.Equal(t, int64(73), owner.value.Load(), "retained infrastructure must use its original runtime journal")
+			require.True(t, serving.Load(), "recovered service must actually serve, not merely record the old configuration")
+			require.Zero(t, prematureBoots.Load(), "removed dependent must not boot before retained prerequisite undo")
+			require.Equal(t, int64(2), starts.Load())
+			require.Equal(t, int64(1), owner.commits.Load(), "retained infrastructure must not run an inverse transaction")
+			require.Same(t, originalInfrastructure, spawner.pm.GetProcess(infrastructure))
+			require.NotSame(t, originalService, spawner.pm.GetProcess(service))
 			require.Equal(t, oldTree, r.GetConfigTree())
 		})
 	}

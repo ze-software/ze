@@ -5,6 +5,7 @@ package reactor
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"net/netip"
 	"reflect"
@@ -17,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -584,4 +586,207 @@ func TestRFC8212RawControlUnaffected(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestRFC8212ImportEpochFences holds genuinely admitted work across a policy
+// epoch change, then observes the production direct writer and queued worker.
+// A later wire marker settles the negative assertion; the old owner's explicit
+// withdrawal and a fresh announcement remain independent positive controls.
+func TestRFC8212ImportEpochFences(t *testing.T) {
+	for _, rail := range []string{"direct", "cached", "pool-fallback"} {
+		t.Run(rail, func(t *testing.T) {
+			gate := ownershipRailNewGate()
+			f := ownershipRailNew(t, gate)
+			f.r.clock = f.source.clock
+			f.r.messageReceiver = &testDeliveryReceiver{consumerCount: 1}
+			first := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 1))
+			rfc8212EpochDispatch(t, f, rail, first)
+			f.await(t, 1, syncOrderPrefixWire)
+
+			stale := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 2))
+			if rail != "direct" {
+				gate.armed.Store(true)
+				rfc8212EpochDispatch(t, f, rail, stale)
+				awaitEntered(t, gate.entered)
+			}
+			generation := f.source.forwardGeneration.Load()
+			f.source.advanceSourcePolicyEpoch()
+			if f.source.forwardGeneration.Load() != generation {
+				t.Fatal("policy change replaced the dispatch session")
+			}
+			if rail == "direct" {
+				rfc8212EpochDispatch(t, f, rail, stale)
+			} else {
+				gate.release()
+			}
+			rfc8212EpochMarker(t, f, rail, 90)
+			f.assertHistory(t, []byte{1}, 0)
+
+			withdraw := rfc8212EpochAdmit(t, f, syncOrderWithdrawBody)
+			rfc8212EpochDispatch(t, f, rail, withdraw)
+			rfc8212EpochMarker(t, f, rail, 91)
+			f.assertHistory(t, []byte{1}, 1)
+
+			fresh := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 3))
+			rfc8212EpochDispatch(t, f, rail, fresh)
+			f.await(t, 3, syncOrderPrefixWire)
+		})
+	}
+}
+
+// TestRFC8212StoredReplayEpochFences reconstructs retained bytes only after the
+// policy changes. A reconnect alone still permits original policy provenance;
+// a policy change or a replacement Peer at the same address does not.
+func TestRFC8212StoredReplayEpochFences(t *testing.T) {
+	for _, transition := range []string{"reconnect", "policy", "replacement", "unrecorded"} {
+		t.Run(transition, func(t *testing.T) {
+			f := ownershipRailNew(t, nil)
+			f.r.clock = f.source.clock
+			f.r.messageReceiver = &testDeliveryReceiver{consumerCount: 1}
+			f.source.recvCtxID = f.ctxID
+			update := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 7))
+			sections, err := wire.ParseUpdateSections(update.WireUpdate.Payload())
+			if err != nil {
+				t.Fatal(err)
+			}
+			route := rpc.StoredRoute{
+				SourcePeer: f.source.addrString, Family: family.IPv4Unicast.String(),
+				MsgID: update.WireUpdate.MessageID(), SourcePolicyEpoch: update.SourcePolicyEpoch,
+				NLRIFraming: rpc.NLRIFramingPrefixOnly,
+				NLRIHex:     hex.EncodeToString(sections.NLRI(update.WireUpdate.Payload())),
+				AttrHex:     hex.EncodeToString(sections.Attrs(update.WireUpdate.Payload())),
+				NextHopHex:  "0a000001",
+			}
+			switch transition {
+			case "reconnect":
+				f.source.advanceForwardGeneration()
+			case "policy":
+				f.source.advanceSourcePolicyEpoch()
+			case "replacement":
+				prior := f.source
+				replacement := NewPeer(prior.Settings())
+				replacement.state.Store(int32(PeerStateEstablished))
+				replacement.advanceForwardGeneration()
+				replacement.recvCtxID = f.ctxID
+				replacement.sendCtxID = f.ctxID
+				replacement.sendCtx.Store(prior.sendCtx.Load())
+				replacement.negotiated.Store(prior.negotiated.Load())
+				replacement.refreshForwardFacts()
+				f.r.peers[prior.Settings().PeerKey()] = replacement
+				f.source = replacement
+			case "unrecorded":
+				route.SourcePolicyEpoch = 0
+			}
+			api := &reactorAPIAdapter{r: f.r}
+			if err := api.RelayStoredRoute(f.destination.Settings().Address, []rpc.StoredRoute{route}, plugin.OperatorSender()); err != nil {
+				t.Fatal(err)
+			}
+			rfc8212EpochMarker(t, f, "cached", 90)
+			var origins []byte
+			for _, event := range ownershipRailRead(t, f.conn.written(), f.destination.sendCtx.Load()) {
+				if event.key == string(syncOrderPrefixWire) && !event.withdraw {
+					origins = append(origins, event.origin)
+				}
+			}
+			var want []byte
+			if transition == "reconnect" {
+				want = []byte{7}
+			}
+			if !bytes.Equal(origins, want) {
+				t.Fatalf("%s replay reached recipient with origins %v, want %v", transition, origins, want)
+			}
+		})
+	}
+}
+
+// rfc8212EpochAdmit uses actual ingress admission, not a manually stamped cache
+// object. The fixture's existing consumer owns the cache reference until cleanup.
+func rfc8212EpochAdmit(t *testing.T, f *ownershipRailFixture, body []byte) *ReceivedUpdate {
+	t.Helper()
+	update := wireu.NewWireUpdate(body, f.ctxID)
+	update.SetSourceID(f.source.SourceID())
+	if !f.r.notifyMessageReceiver(f.source.Settings().Address, msgtype.TypeUPDATE, body, update,
+		f.ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0) {
+		t.Fatal("ingress did not admit the UPDATE into the cache")
+	}
+	cached, ok := f.r.recentUpdates.Get(update.MessageID())
+	if !ok {
+		t.Fatal("admitted UPDATE disappeared before dispatch")
+	}
+	return cached
+}
+
+// rfc8212EpochDispatch drives the production cache command or fast-path writer.
+func rfc8212EpochDispatch(t *testing.T, f *ownershipRailFixture, rail string, update *ReceivedUpdate) {
+	t.Helper()
+	if rail == "cached" {
+		api := &reactorAPIAdapter{r: f.r}
+		if err := api.ForwardUpdatesDirect([]uint64{update.WireUpdate.MessageID()},
+			[]netip.AddrPort{f.destination.Settings().PeerKey()}, "route-server", plugin.OperatorSender()); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if rail == "pool-fallback" {
+		f.destination.session.writeMu.Lock()
+		reactorForwardRS(f.r, update, update.WireUpdate.MessageID(), f.source.Settings().Address, f.source)
+		f.destination.session.writeMu.Unlock()
+		return
+	}
+	reactorForwardRS(f.r, update, update.WireUpdate.MessageID(), f.source.Settings().Address, f.source)
+	f.flush(t)
+}
+
+// rfc8212EpochMarker settles all earlier work on the same destination rail.
+func rfc8212EpochMarker(t *testing.T, f *ownershipRailFixture, rail string, value byte) {
+	t.Helper()
+	raw := []byte{24, 198, 51, value}
+	update := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, raw, value))
+	rfc8212EpochDispatch(t, f, rail, update)
+	f.await(t, value, raw)
+}
+
+// TestRFC8212ExpectedOwnerEpochFence proves the exact sent receipt cannot
+// reannounce stale received ownership, while retaining authority to remove it.
+// A direct local announcement remains independent of the source's policy epoch.
+func TestRFC8212ExpectedOwnerEpochFence(t *testing.T) {
+	f := ownershipRailNew(t, nil)
+	f.r.clock = f.source.clock
+	f.r.messageReceiver = &testDeliveryReceiver{consumerCount: 1}
+	update := rfc8212EpochAdmit(t, f, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 1))
+	rfc8212EpochDispatch(t, f, "direct", update)
+	f.await(t, 1, syncOrderPrefixWire)
+	session := f.destination.currentSession()
+	var revision uint64
+	f.destination.adjOut.mu.Lock()
+	for _, entry := range f.destination.adjOut.routes {
+		revision = entry.revision
+	}
+	f.destination.adjOut.mu.Unlock()
+	if revision == 0 {
+		t.Fatal("writer did not issue an exact sent receipt")
+	}
+	f.source.advanceSourcePolicyEpoch()
+	item := fwdItem{peer: f.destination, session: session, authority: adjOutExpected,
+		expectedMessage: revision,
+		rawBodies:       [][]byte{ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 2)}}
+	handled, _, _ := tryDirectWriteNoFlush(&item)
+	if !handled {
+		t.Fatal("exact-owner writer did not handle the replay")
+	}
+	f.flush(t)
+	f.assertHistory(t, []byte{1}, 0)
+	item.rawBodies = [][]byte{syncOrderWithdrawBody}
+	handled, _, _ = tryDirectWriteNoFlush(&item)
+	if !handled {
+		t.Fatal("exact-owner writer did not handle the removal")
+	}
+	f.flush(t)
+	f.assertHistory(t, []byte{1}, 1)
+	// RFC 4271 Section 4.3: local origination is a separate authority.
+	if err := session.SendUpdate(ownershipWriterUpdate(t,
+		ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 3))); err != nil {
+		t.Fatal(err)
+	}
+	f.await(t, 3, syncOrderPrefixWire)
 }

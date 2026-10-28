@@ -1187,6 +1187,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 			item.session, item.authority = session, adjOutForwarded
 			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
+			item.sourcePolicyEpoch = update.SourcePolicyEpoch
 			item.aigpOrigin = announceOrigin(srcInfo.sender)
 			item.aigpRevision = metricRevision
 			item.aigpReplay = update.aigpReplay

@@ -33,7 +33,8 @@ type withdrawalInfo struct {
 	// carries this route, set by handleStateDown. A merged departure keeps
 	// each route's own, so an older session's route never borrows a newer
 	// bound (enqueueDeparture).
-	Generation uint64
+	Generation        uint64
+	SourcePolicyEpoch uint64
 }
 
 // updateWithdrawalMapWire updates the withdrawal map from raw wire UPDATE data.
@@ -70,17 +71,17 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionDel)
+				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionDel, msg.SourcePolicyEpoch)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
-			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionDel)
+			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionDel, msg.SourcePolicyEpoch)
 		}
 	}
 
 	// IPv4 body Withdrawn -- withdrawn routes (del).
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionDel)
+		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionDel, msg.SourcePolicyEpoch)
 	}
 
 	// MP_REACH_NLRI -- announced routes (add).
@@ -89,17 +90,17 @@ func (rr *routeReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionAdd)
+				rr.walkUnicastNLRIs(sourcePeer, fam, iter, addPath, actionAdd, msg.SourcePolicyEpoch)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
-			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionAdd)
+			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionAdd, msg.SourcePolicyEpoch)
 		}
 	}
 
 	// IPv4 body NLRIs -- announced routes (add).
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionAdd)
+		rr.walkUnicastNLRIs(sourcePeer, family.IPv4Unicast, iter, addPathV4, actionAdd, msg.SourcePolicyEpoch)
 	}
 }
 
@@ -120,7 +121,7 @@ func isUnicast(f family.Family) bool {
 // prefix and Path Identifier." Under ADD-PATH the identifier is part of the
 // route's identity, so it is part of the key, and the peer-down withdrawal goes
 // out as the native NLRI with its identifier, as the MPLS-label arm does.
-func (rr *routeReflector) walkUnicastNLRIs(sourcePeer string, fam family.Family, iter *nlri.NLRIIterator, addPath bool, action string) {
+func (rr *routeReflector) walkUnicastNLRIs(sourcePeer string, fam family.Family, iter *nlri.NLRIIterator, addPath bool, action string, sourcePolicyEpoch uint64) {
 	famName := fam.String()
 	isV6 := fam.AFI == family.AFIIPv6
 	for {
@@ -147,10 +148,11 @@ func (rr *routeReflector) walkUnicastNLRIs(sourcePeer string, fam family.Family,
 				rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
 					Family: fam, Prefix: addPathUnicastHex(pathID, prefix),
 					WireForm: true, AddPath: true,
+					SourcePolicyEpoch: sourcePolicyEpoch,
 				}
 				continue
 			}
-			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: tb.Reset().Str("prefix ").Str(key).String()}
+			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: tb.Reset().Str("prefix ").Str(key).String(), SourcePolicyEpoch: sourcePolicyEpoch}
 		case actionDel:
 			if rr.withdrawals[sourcePeer] != nil {
 				delete(rr.withdrawals[sourcePeer], routeKey)
@@ -202,13 +204,13 @@ func prefixBytesToKey(prefix []byte, isV6 bool) string {
 
 // walkNLRIsAllocating updates the withdrawal map using parsed NLRI objects.
 // Used for non-unicast families where raw prefix bytes need family-specific decoding.
-func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error, action string) {
+func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error, action string, sourcePolicyEpoch uint64) {
 	if err != nil || len(nlris) == 0 {
 		return
 	}
 	if fam.SAFI == family.SAFIVPN {
 		// RFC 8277 Section 2.4: VPN identity excludes Compatibility.
-		rr.walkVPNNLRIs(sourcePeer, fam, nlris, action)
+		rr.walkVPNNLRIs(sourcePeer, fam, nlris, action, sourcePolicyEpoch)
 		return
 	}
 	familyStr := fam.String()
@@ -221,7 +223,7 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 		for _, n := range nlris {
 			s := n.String()
 			tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(s))
-			info := withdrawalInfo{Family: fam, Prefix: s}
+			info := withdrawalInfo{Family: fam, Prefix: s, SourcePolicyEpoch: sourcePolicyEpoch}
 			if fam.SAFI == family.SAFIMPLSLabel {
 				if wire, ok := n.(*nlri.WireNLRI); ok && wire.HasAddPath() {
 					// The prefix alone does not identify a negotiated path.
@@ -256,7 +258,7 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 // identity. Callers MUST hold withdrawalMu, as for walkNLRIsAllocating.
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
 // MUST be ignored." RFC 7911 identifiers, including zero, remain part of the key.
-func (rr *routeReflector) walkVPNNLRIs(sourcePeer string, fam family.Family, nlris []nlri.NLRI, action string) {
+func (rr *routeReflector) walkVPNNLRIs(sourcePeer string, fam family.Family, nlris []nlri.NLRI, action string, sourcePolicyEpoch uint64) {
 	familyName := fam.String()
 	keyFunc := nlrisplit.GetPrefixKey(fam)
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
@@ -286,6 +288,7 @@ func (rr *routeReflector) walkVPNNLRIs(sourcePeer string, fam family.Family, nlr
 			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
 				Family: fam, Prefix: tb.Reset().Hex(wire.Bytes()).String(),
 				WireForm: true, AddPath: wire.HasAddPath(),
+				SourcePolicyEpoch: sourcePolicyEpoch,
 			}
 		case actionDel:
 			delete(rr.withdrawals[sourcePeer], routeKey)
@@ -314,7 +317,7 @@ type familyOperation struct {
 // Caller must hold rr.withdrawalMu. The incoming map is keyed by family.Family,
 // which withdrawalInfo.Family keeps, so the peer-down retention query needs no
 // name lookup.
-func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation) {
+func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation, sourcePolicyEpoch uint64) {
 	for fam, familyOps := range ops {
 		famName := fam.String()
 		for _, op := range familyOps {
@@ -327,7 +330,7 @@ func (rr *routeReflector) updateWithdrawalMapText(sourcePeer string, ops map[fam
 				for _, s := range op.nlris {
 					if s != "" {
 						routeKey := tb.Reset().Str(famName).Byte('|').Str(nlriKey(s)).String()
-						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: s}
+						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: fam, Prefix: s, SourcePolicyEpoch: sourcePolicyEpoch}
 					}
 				}
 			case actionDel:
@@ -369,6 +372,8 @@ func parseTextNLRIOps(text string) map[family.Family][]familyOperation {
 		tok := textparse.ResolveAlias(raw)
 
 		switch tok {
+		case textparse.KWSourcePolicyEpoch:
+			s.Next() // Provenance was parsed before updating the inventory.
 		case textparse.KWNextHop:
 			s.Next() // consume the address
 

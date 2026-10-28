@@ -42,8 +42,9 @@ type nlriRecord struct {
 // nlriRecords holds one extraction's records and CIDR scratch together so the
 // registered CIDR decoder cannot make a scratch allocation for each NLRI.
 type nlriRecords struct {
-	records []nlriRecord
-	scratch [nlrisplit.PrefixKeyScratchSize]byte
+	records           []nlriRecord
+	scratch           [nlrisplit.PrefixKeyScratchSize]byte
+	sourcePolicyEpoch uint64
 }
 
 // nlriRecordPool amortizes records and scratch allocation for NLRI extraction.
@@ -87,6 +88,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) (*nlriRecords, error) {
 		return nil, errNLRIRecordPool
 	}
 	sp.records = sp.records[:0]
+	sp.sourcePolicyEpoch = msg.SourcePolicyEpoch
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and
@@ -389,28 +391,28 @@ func recordKey(rec *nlriRecord) withdrawalKey {
 
 // recordEntry is what the withdrawal set holds for an announced record: the
 // hex its peer-down withdrawal goes out as when the key is not that hex.
-func recordEntry(rec *nlriRecord) withdrawalEntry {
+func recordEntry(rec *nlriRecord, sourcePolicyEpoch uint64) withdrawalEntry {
 	if rec.nativeKey != "" {
-		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath}
+		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
 	}
 	if rec.cidrKeyed {
-		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath}
+		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
 	}
-	return withdrawalEntry{}
+	return withdrawalEntry{sourcePolicyEpoch: sourcePolicyEpoch}
 }
 
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
 // Called AFTER forwarding, off the forward critical path.
 // Caller must hold rs.withdrawalMu.
-func (rs *routeServer) applyNLRIRecords(sourcePeer string, records []nlriRecord) {
-	for i := range records {
-		rec := &records[i]
+func (rs *routeServer) applyNLRIRecords(sourcePeer string, records *nlriRecords) {
+	for i := range records.records {
+		rec := &records.records[i]
 		switch rec.action {
 		case actionAdd:
 			if rs.withdrawals[sourcePeer] == nil {
 				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 			}
-			rs.withdrawals[sourcePeer][recordKey(rec)] = recordEntry(rec)
+			rs.withdrawals[sourcePeer][recordKey(rec)] = recordEntry(rec, records.sourcePolicyEpoch)
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
 				delete(rs.withdrawals[sourcePeer], recordKey(rec))

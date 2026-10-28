@@ -113,9 +113,9 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	}
 	rs.withdrawalMu.Lock()
 	if wireRecords != nil {
-		rs.applyNLRIRecords(item.sourcePeer, wireRecords.records)
+		rs.applyNLRIRecords(item.sourcePeer, wireRecords)
 	} else {
-		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload))
+		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), item.sourcePolicyEpoch)
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -157,7 +157,7 @@ func isUnicast(f family.Family) bool {
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
 // Caller must hold rs.withdrawalMu.
-func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
+func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, sourcePolicyEpoch uint64) {
 	for famName, familyOps := range ops {
 		fam, _ := family.LookupFamily(famName)
 		for _, op := range familyOps {
@@ -169,7 +169,7 @@ func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 				for _, n := range op.NLRIs {
 					if s, ok := n.(string); ok && s != "" {
 						wk := withdrawalKey{fam: fam, nlriStr: s}
-						rs.withdrawals[sourcePeer][wk] = withdrawalEntry{}
+						rs.withdrawals[sourcePeer][wk] = withdrawalEntry{sourcePolicyEpoch: sourcePolicyEpoch}
 					}
 				}
 			case actionDel:

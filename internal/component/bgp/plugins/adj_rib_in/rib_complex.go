@@ -29,7 +29,7 @@ import (
 // nhopHex is the MP_REACH next-hop field as the source framed it. It used to be
 // an address STRING, which lost the link-local half of an RFC 2545 Section 3
 // pair before it ever reached storage.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID uint64) {
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch uint64) {
 	if attrHex == "" {
 		return
 	}
@@ -59,14 +59,15 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 		}
 		r.seqCounter++
 		r.ribIn[peerAddr].Put(rk, r.seqCounter, &RawRoute{
-			Family:      fam,
-			AttrHex:     attrHex,
-			NHopHex:     nhopHex,
-			NLRIHex:     hex.EncodeToString(payload),
-			PathID:      pathID,
-			NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			HasPathID:   addPath,
-			MsgID:       msgID,
+			Family:            fam,
+			AttrHex:           attrHex,
+			NHopHex:           nhopHex,
+			NLRIHex:           hex.EncodeToString(payload),
+			PathID:            pathID,
+			NLRIFraming:       rpc.NLRIFramingPrefixOnly,
+			HasPathID:         addPath,
+			MsgID:             msgID,
+			SourcePolicyEpoch: sourcePolicyEpoch,
 		})
 		return true
 	})

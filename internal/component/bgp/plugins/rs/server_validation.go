@@ -98,6 +98,7 @@ func (rs *routeServer) relayFlowSpecValidation(key workerKey, route ribevents.Va
 	if present {
 		stored.AttrHex = hex.EncodeToString(path.Attributes)
 		stored.MsgID = path.MsgID
+		stored.SourcePolicyEpoch = path.SourcePolicyEpoch
 		stored.Withdraw = false
 	}
 	routes := []rpc.StoredRoute{stored}
@@ -274,7 +275,8 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 		}
 		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			SourcePolicyEpoch: path.SourcePolicyEpoch,
+			NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
 			InitialUpdate: true} // peer-up replay: passes the destination's replay fence
 		if err := rs.plugin.RelayStoredRoute(ctx, destination, []rpc.StoredRoute{route}); err != nil {
 			logger().Error("FlowSpec peer-up replay failed", "source", key.Peer, "target", destination, "error", err)

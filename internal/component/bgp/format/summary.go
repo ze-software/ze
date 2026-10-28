@@ -28,10 +28,10 @@ import (
 //
 // messageType is "update" or "sent" -- threaded through so callers do not run
 // strings.Replace surgery on the resulting JSON.
-func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction rpc.MessageDirection, messageType string) []byte {
+func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID, sourcePolicyEpoch uint64, direction rpc.MessageDirection, messageType string) []byte {
 	sections, err := wire.ParseUpdateSections(rawBytes)
 	if err != nil {
-		return appendSummaryJSON(buf, peer, msgID, direction, messageType, false, false, "", "")
+		return appendSummaryJSON(buf, peer, msgID, sourcePolicyEpoch, direction, messageType, false, false, "", "")
 	}
 
 	announce := sections.NLRILen(rawBytes) > 0
@@ -42,7 +42,7 @@ func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID uin
 		mpReach, mpUnreach = scanMPFamilies(attrsBytes)
 	}
 
-	return appendSummaryJSON(buf, peer, msgID, direction, messageType, announce, withdrawn, mpReach, mpUnreach)
+	return appendSummaryJSON(buf, peer, msgID, sourcePolicyEpoch, direction, messageType, announce, withdrawn, mpReach, mpUnreach)
 }
 
 // scanMPFamilies walks attribute headers looking for MP_REACH and MP_UNREACH.
@@ -108,7 +108,7 @@ func scanMPFamilies(attrs []byte) (mpReach, mpUnreach string) {
 // message.id is always included (even when 0) — intentional divergence from parsed/raw/full
 // formats which omit id when 0. Summary consumers need stable field presence for lightweight parsing.
 // messageType is written directly ("update" for received, "sent" for sent).
-func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, direction rpc.MessageDirection, messageType string, announce, withdrawn bool, mpReach, mpUnreach string) []byte {
+func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID, sourcePolicyEpoch uint64, direction rpc.MessageDirection, messageType string, announce, withdrawn bool, mpReach, mpUnreach string) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 	buf = append(buf, messageType...)
 	buf = append(buf, `","id":`...)
@@ -120,6 +120,7 @@ func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, directio
 	}
 	buf = append(buf, `},`...)
 	buf = appendPeerJSON(buf, peer)
+	buf = appendSourcePolicyEpochJSON(buf, sourcePolicyEpoch)
 	buf = append(buf, `,"nlri":{"announce":`...)
 	buf = strconv.AppendBool(buf, announce)
 	buf = append(buf, `,"withdrawn":`...)

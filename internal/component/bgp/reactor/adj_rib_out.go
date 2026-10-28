@@ -88,6 +88,9 @@ type adjOutPath struct {
 	// written. Equality ignores it like the generation; adjOutOwnerCurrent reads
 	// both.
 	revocation uint64
+	// policyEpoch is the original admission, never the epoch at replay/write.
+	// Ordinary withdrawal identity deliberately ignores it.
+	policyEpoch uint64
 	// message is the owner's RECEIVED message ID, the revision of the source's
 	// route the destination holds. revision is the SENT receipt's ID and
 	// cannot say which received revision that was, so an elected candidate is

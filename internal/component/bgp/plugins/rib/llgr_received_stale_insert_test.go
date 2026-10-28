@@ -36,13 +36,13 @@ func TestInsertLabeledWritesReceivedStale(t *testing.T) {
 	cidr := []byte{8, 10}
 
 	var affected []affectedPrefix
-	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, true, 81, &affected)
+	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, true, 81, 0, &affected)
 	entry, ok := peerRIB.Lookup(labeledFamily, cidr)
 	require.True(t, ok, "the labeled route is stored")
 	assert.True(t, entry.ReceivedLLGRStale, "the stale verdict is stored")
 	assert.Equal(t, uint64(81), entry.MsgID, "the received message ID is stored")
 
-	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, false, 82, &affected)
+	r.insertLabeled(peerRIB, labeledFamily, staleInsertAttrs, wire, false, false, 82, 0, &affected)
 	entry, ok = peerRIB.Lookup(labeledFamily, cidr)
 	require.True(t, ok)
 	assert.False(t, entry.ReceivedLLGRStale, "the latest UPDATE was fresh")
@@ -60,7 +60,7 @@ func TestInsertPoolNLRIsWritesReceivedStale(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.12")
 	nlri := []byte{8, 10}
 
-	r.insertPoolNLRIs(peerRIB, family.IPv4Unicast, nlri, staleInsertAttrs, false, 1, true)
+	r.insertPoolNLRIs(peerRIB, family.IPv4Unicast, nlri, staleInsertAttrs, false, 1, 0, true)
 	entry, ok := peerRIB.Lookup(family.IPv4Unicast, nlri)
 	require.True(t, ok)
 	assert.True(t, entry.ReceivedLLGRStale)
@@ -80,7 +80,7 @@ func TestInsertPoolNLRIsLabeledWritesMessageID(t *testing.T) {
 	wire := labeledNLRI(0, false, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100})
 	cidr := []byte{8, 10}
 
-	r.insertPoolNLRIs(peerRIB, labeledFamily, wire, staleInsertAttrs, false, 81, false)
+	r.insertPoolNLRIs(peerRIB, labeledFamily, wire, staleInsertAttrs, false, 81, 0, false)
 	entry, ok := peerRIB.Lookup(labeledFamily, cidr)
 	require.True(t, ok, "the labeled route is stored")
 	assert.Equal(t, uint64(81), entry.MsgID, "the received message ID is stored")

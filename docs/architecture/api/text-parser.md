@@ -59,6 +59,15 @@ Text events use the uniform header `peer <addr> remote as <asn> ...`. The `<asn>
 `quickParseTextEvent` trims a trailing newline, validates the `peer`, `remote`, and `as` keywords, consumes the ASN value, and returns the full original text as payload for deferred parsing.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent -->
 
+UPDATE events carry `source-policy-epoch <uint64>` immediately after the message
+ID and before attributes. RS and RR parse it before retaining routes;
+RS carries the scalar through its queued work item. The shared
+`textparse.SourcePolicyEpoch` parser rejects malformed values. An absent token
+records zero (unrecorded provenance), not the source's current epoch. NLRI
+parsing skips the reserved token and its value; it is not a route attribute.
+<!-- source: internal/component/bgp/textparse/scanner.go -- SourcePolicyEpoch -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- dispatchText -->
+
 ### UPDATE Parser: parseTextNLRIOps
 
 `parseTextNLRIOps(text string) map[string][]FamilyOperation` parses text UPDATE bodies into family operation lists. It skips the eight-token uniform UPDATE header: `peer`, address, `remote`, `as`, ASN, direction, `update`, and msgID.

@@ -40,7 +40,8 @@ type replayGroup struct {
 	// SourceMessageID is the received message ID of the source route the
 	// group restates, carried as initial-source-message on a forwarded
 	// initial replay.
-	SourceMessageID uint64
+	SourceMessageID   uint64
+	SourcePolicyEpoch uint64
 }
 
 // groupKey identifies a unique attribute group for replay batching.
@@ -60,7 +61,8 @@ type groupKey struct {
 	LocalOrigin   bool
 	// SourceMessage keeps two revisions of one source apart: each group
 	// restates exactly one received revision.
-	SourceMessage uint64
+	SourceMessage     uint64
+	SourcePolicyEpoch uint64
 }
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
@@ -160,17 +162,18 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 				// LLGR_STALE is replayed at the LLGR stale level, so the
 				// readvertise egress filters withhold it from a neighbor
 				// without LLGR (storage.AdvertisedStaleLevel).
-				StaleLevel:    storage.AdvertisedStaleLevel(entry.StaleLevel, receivedLLGRStale),
-				AddPath:       entry.AddPath,
-				NextHop:       entry.NextHop,
-				SourcePeer:    entry.SourcePeer,
-				MessageID:     entry.MsgID,
-				SourceID:      entry.SourceID,
-				SourceOwner:   entry.SourceOwner,
-				SourcePath:    entry.SourcePath,
-				SourceAddPath: entry.SourceAddPath,
-				LocalOrigin:   entry.LocalOrigin,
-				SourceMessage: entry.SourceMessageID,
+				StaleLevel:        storage.AdvertisedStaleLevel(entry.StaleLevel, receivedLLGRStale),
+				AddPath:           entry.AddPath,
+				NextHop:           entry.NextHop,
+				SourcePeer:        entry.SourcePeer,
+				MessageID:         entry.MsgID,
+				SourceID:          entry.SourceID,
+				SourceOwner:       entry.SourceOwner,
+				SourcePath:        entry.SourcePath,
+				SourceAddPath:     entry.SourceAddPath,
+				LocalOrigin:       entry.LocalOrigin,
+				SourceMessage:     entry.SourceMessageID,
+				SourcePolicyEpoch: entry.SourcePolicyEpoch,
 			}
 			pg, ok := groups[gk]
 			if !ok {
@@ -236,7 +239,8 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			SourceAddPath: pg.key.SourceAddPath,
 			LocalOrigin:   pg.key.LocalOrigin,
 			// The ribOut entry's received revision, for initial-source-message.
-			SourceMessageID: pg.key.SourceMessage,
+			SourceMessageID:   pg.key.SourceMessage,
+			SourcePolicyEpoch: pg.key.SourcePolicyEpoch,
 		})
 	}
 
@@ -414,7 +418,7 @@ groups:
 			meta["stale"] = g.StaleLevel
 		}
 		for _, cmd := range cmds {
-			if err := r.updateRouteWithMeta(peerAddr, cmd, meta); err != nil {
+			if err := r.updateRouteWithProvenance(peerAddr, cmd, meta, g.SourcePolicyEpoch); err != nil {
 				r.updateRoute(peerAddr)
 				// Rejected history is not delivered, but it must not strand
 				// the live-forward fence. Try the remaining independent groups
@@ -473,7 +477,7 @@ groups:
 			meta["stale"] = g.StaleLevel
 		}
 		for _, cmd := range cmds {
-			if err := r.updateRouteWithMeta(peerAddr, cmd, meta); err != nil {
+			if err := r.updateRouteWithProvenance(peerAddr, cmd, meta, g.SourcePolicyEpoch); err != nil {
 				r.updateRoute(peerAddr)
 				refused += len(g.Prefixes)
 				prev = nil

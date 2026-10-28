@@ -891,6 +891,7 @@ site.
 | `config-operation-rollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Undo applied config operations |
 | `config-operation-commit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit a config operation transaction |
 | `config-complete` | `ConfigCompleteInput` (`transaction-id`, `accepted`, `deadline-ms`) | `ConfigCompleteOutput` echoes identity and decision with explicit `status` | Acknowledged whole-reload cleanup for Stage-1 `config-completion` owners; operation commit does not release their undo |
+| `source-policy` | `SourcePolicyInput` | `SourcePolicyOutput` echoes transaction, operation, source and target epoch with explicit `status` | Acknowledged prepare/apply/abort/finalize for declared retained-source owners |
 | `post-startup` | None | `ok` | Report that all plugin startup phases are complete |
 | `validate-open` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `encode-nlri` | `EncodeNLRIInput` | `{"hex":"..."}` | Encode NLRI |
@@ -927,6 +928,48 @@ repeating callbacks. Operation verify/apply/rollback/commit requests also carry
 <!-- source: internal/component/plugin/server/config_tx_bridge.go -- lookupProcess, subscribeOperationRollback -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- SendConfigComplete -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
+
+`source-policy` is a separate lifecycle from shutdown drain and config completion.
+Stage 1 `source-policy-owner` declares retained source state; `source-policy`
+declares handler support. `OnSourcePolicy` sets both. A pure observer declares
+neither. The server's `CaptureSourcePolicyOwners(names)` examines the selected
+process registrations, excludes observers and refuses any declared owner without
+support before invoking anyone. Third-party state owners MUST declare ownership.
+
+Each immutable handle captures both `Process` and `PluginConn`. Its `Call` checks
+that lifetime before invocation and after the acknowledged result; a successor
+cannot finish the captured owner's transaction. No server lock survives a handler
+call. Before prepare, the coordinator MUST settle its receive-publication
+frontier; the handle then uses strict `DrainEventsApplied`, never soft quiesce.
+
+The request carries `transaction-id`, `operation`, `source`, `next-policy-epoch`
+and absolute `deadline-ms`. The captured source contains `peer`, `peer-owner`,
+`session-generation`, `policy-epoch`, `receive-frontier` and
+`template-generation`. Every field is required and non-null, including explicit
+zero frontiers/template generations. Peer owner, session generation and original
+policy epoch are nonzero. Prepare and finalize use target zero; apply and abort
+require a newer target. The coordinator MUST allocate globally monotonic epochs
+and never reuse an apply epoch for abort. The transport validates the target
+against the captured original epoch, not the coordinator's transaction history.
+
+The SDK passes a deadline-bounded context to the handler and refuses malformed,
+unknown or already-expired requests before owner mutation. A successful receipt
+echoes every identity field and target exactly. The owner MUST fence asynchronous
+work and settle downstream writes before returning; enqueue is not completion.
+Prepare pins state, apply changes eligibility, abort restores pinned state under
+a fresh epoch, and finalize releases accepted pins. The coordinator MUST retain
+individual prepared handles so partial prepare aborts only prepared owners.
+Transport support alone does not implement route invalidation or reload admission.
+
+`StoredRoute.source-policy-epoch` carries original ingress provenance independently
+of dispatch session generation. Zero means unrecorded; replay MUST NOT replace it
+with the source's current policy epoch.
+<!-- source: pkg/plugin/rpc/source_policy.go -- SourcePolicyInput.Validate, UnmarshalJSON -->
+<!-- source: pkg/plugin/rpc/types.go -- SourcePolicyIdentity, SourcePolicyInput, SourcePolicyOutput, StoredRoute -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnSourcePolicy -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- SendSourcePolicy -->
+<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
+
 All methods are prefixed with `ze-plugin-callback:`.
 
 **Event delivery receipts:**
@@ -1056,6 +1099,18 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE |
 
 All methods are prefixed with `ze-plugin-engine:`.
+
+`update-route` also carries `source-policy-epoch` as a dedicated numeric
+provenance field on `UpdateRouteInput`, outside user `meta`. A retained
+received-origin producer uses `sdk.Plugin.UpdateRouteRequest(ctx, input)` to
+preserve the route's original epoch through command dispatch on both transports.
+Zero means unrecorded, never permission to load the source's current epoch.
+Locally originated routes retain their separate authority; this field does not
+turn a local injection into a received-source route.
+<!-- source: pkg/plugin/rpc/types.go -- UpdateRouteInput -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequest -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
+
 
 #### Panic containment
 

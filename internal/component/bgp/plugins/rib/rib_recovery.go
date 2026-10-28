@@ -255,7 +255,8 @@ func recoveryCandidate(fam family.Family, prefix netip.Prefix, best *Candidate) 
 		raw = framedRouteNLRI(nil, best.Route, best.PathID, best.AddPath)
 	}
 	route := ribevents.RecoveryRoute{Source: best.PeerIP, NLRI: raw, Attributes: attrs,
-		MessageID: best.entry.MsgID, PathID: best.PathID, AddPath: best.AddPath}
+		MessageID: best.entry.MsgID, SourcePolicyEpoch: best.entry.SourcePolicyEpoch,
+		PathID: best.PathID, AddPath: best.AddPath}
 	iter := attribute.NewAttrIterator(attrs)
 	for code, _, value, valid := iter.Next(); valid; code, _, value, valid = iter.Next() {
 		if code == attribute.AttrNextHop && fam == family.IPv4Unicast {

@@ -148,7 +148,7 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 					}
 				}
 				bridge.SetReady()
-				_, _, err = bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("p1"), "route", nil)
+				_, _, err = bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("p1"), "route", nil, 0)
 			}
 			require.NoError(t, err)
 			require.Equal(t, 1, executed, "the authorized route push must execute exactly once")

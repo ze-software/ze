@@ -1344,6 +1344,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Stale:                staleLevel,
 				Replay:               replay,
 				SentOwnerMessage:     sentOwnerMessage,
+				SourcePolicyEpoch:    ctx.SourcePolicyEpoch,
 				InitialReplay:        initial.InitialReplay,
 				InitialLocal:         initial.InitialLocal,
 				InitialSourcePeer:    initial.InitialSourcePeer,

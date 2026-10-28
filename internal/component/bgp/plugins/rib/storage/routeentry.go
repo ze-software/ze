@@ -69,6 +69,9 @@ type RouteEntry struct {
 	// MsgID identifies the received UPDATE for validation eligibility.
 	// Zero is an unversioned producer; it asks the gate about the current path.
 	MsgID uint64
+	// SourcePolicyEpoch is the original admission provenance. Zero is
+	// unrecorded; retained bytes MUST NOT acquire the source's current epoch.
+	SourcePolicyEpoch uint64
 	// AttrFingerprint is an FNV-1a hash of the raw attribute wire bytes and
 	// ASN4 flag at insert time. AttrLen stores the raw byte length. Together
 	// they form a probabilistic equality check: matching hash + length skips
@@ -149,6 +152,7 @@ func (e *RouteEntry) Clone() *RouteEntry {
 		StaleLevel:        e.StaleLevel,
 		ReceivedLLGRStale: e.ReceivedLLGRStale,
 		MsgID:             e.MsgID,
+		SourcePolicyEpoch: e.SourcePolicyEpoch,
 		AttrFingerprint:   e.AttrFingerprint,
 		AttrLen:           e.AttrLen,
 		Bundle:            e.Bundle,

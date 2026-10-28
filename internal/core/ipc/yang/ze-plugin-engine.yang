@@ -114,6 +114,18 @@ module ze-plugin-engine {
                 ze:help "Acknowledge whole-reload undo release";
                 description "Declares config-complete support. Operation journals remain reversible until the engine completes the captured transaction.";
             }
+            leaf source-policy-owner {
+                type boolean;
+                default false;
+                ze:help "Declare retained source state";
+                description "Independent of handler support. A selected owner without source-policy support refuses source-policy preflight.";
+            }
+            leaf source-policy {
+                type boolean;
+                default false;
+                ze:help "Declare acknowledged source-policy lifecycle support";
+                description "Implements prepare, apply, abort and finalize for retained source state. The SDK OnSourcePolicy registration declares both ownership and support.";
+            }
             list family {
                 key "name";
                 description
@@ -423,6 +435,14 @@ every peer, so an omitted selector is not a no-op.";
                     "The text is appended to send bgp <selector> and dispatched as one command.
                      It is the part after the selector, for example update text announce ....";
                 ze:help "Route command (e.g., announce/withdraw text)";
+            }
+            leaf source-policy-epoch {
+                type uint64;
+                description
+                    "Original admission epoch of retained received routes. Zero means
+                     unrecorded provenance, never the source's current epoch.
+                     This typed provenance is independent of user route metadata.";
+                ze:help "Original received source policy epoch";
             }
         }
         output {

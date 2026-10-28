@@ -503,6 +503,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-rollback` | `OnConfigOperationRollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Roll back config operations |
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
+| `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
@@ -527,6 +528,37 @@ never acknowledge completion to the engine; they are malformed messages.
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
+
+Plugins retaining source state MUST declare `source-policy-owner` in Stage 1,
+even if they do not implement the lifecycle yet. That unsupported declaration
+refuses policy changes before publication; pure observers are not owners.
+`OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)` automatically
+declares both ownership and `source-policy` handler support. All four operations
+use one registered callback on both transports, not the shutdown `OnDrain` path.
+
+Requests carry a transaction, operation, captured source identity, target epoch
+and absolute deadline. The source identity comprises peer, peer incarnation,
+session generation, original policy epoch, receive frontier and template
+generation. Every field MUST be present and non-null; the last two may be zero.
+Prepare/finalize require explicit target zero. Apply/abort require a fresh target
+newer than the captured epoch; the coordinator enforces monotonicity between calls.
+The SDK rejects malformed, unknown and expired requests before calling the owner.
+
+The engine strictly drains event application before prepare, but the handler
+MUST additionally fence its own workers and downstream writes. It MUST honor the
+context deadline and return only after the requested work settles. Keep prepare
+pins through apply; abort restores them, while finalize releases accepted pins.
+The SDK returns an exact identity/target receipt only after the handler returns.
+The engine checks the captured process and connection again after acknowledgement.
+Neither this callback transport nor copied epoch fields alone invalidate routes.
+
+Retained/replayed received routes MUST preserve their original
+`StoredRoute.SourcePolicyEpoch` (`source-policy-epoch`), never stamp the current
+epoch onto old work. Zero is unrecorded, independently of session generation.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnSourcePolicy -->
+<!-- source: pkg/plugin/rpc/source_policy.go -- SourcePolicyInput.Validate, UnmarshalJSON -->
+<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
+
 
 A peer's AS is not always known when an event is written. A dynamic peer's AS
 comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in

@@ -27,8 +27,9 @@ var FlowSpecChanged = events.Register[*FlowSpecChange](Namespace, "flowspec-chan
 // FlowSpecPath supplies the current received generation for recovery export.
 // Attributes is an owned path-attribute block, including MP_REACH_NLRI.
 type FlowSpecPath struct {
-	Attributes []byte
-	MsgID      uint64
+	Attributes        []byte
+	MsgID             uint64
+	SourcePolicyEpoch uint64
 }
 
 type flowSpecProvider struct {

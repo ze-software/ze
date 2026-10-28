@@ -100,7 +100,7 @@ func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 	records := wireNLRIRecords(t, bgplsRawMessage(t))
 	require.NotNil(t, records)
 	rs.withdrawalMu.Lock()
-	rs.applyNLRIRecords("10.0.0.1", records.records)
+	rs.applyNLRIRecords("10.0.0.1", records)
 	entries := rs.withdrawals["10.0.0.1"]
 	rs.withdrawalMu.Unlock()
 	returnNLRIRecords(records)

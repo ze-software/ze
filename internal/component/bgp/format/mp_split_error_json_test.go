@@ -133,7 +133,7 @@ func TestFilterResultSplitErrorIsRendered(t *testing.T) {
 	for _, tt := range splitErrorCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			out := appendFilterResultJSON(nil, testPeer(), tt.result, 1, rpc.DirectionReceived, nil, "update", true)
+			out := appendFilterResultJSON(nil, testPeer(), tt.result, 1, 0, rpc.DirectionReceived, nil, "update", true)
 			assertSplitErrorRendered(t, string(out), tt)
 		})
 	}

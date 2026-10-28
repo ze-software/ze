@@ -90,6 +90,25 @@ importing its package:
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration -->
 
+Runtime Stage 1 registration additionally distinguishes retained-source ownership
+(`source-policy-owner`) from lifecycle support (`source-policy`).
+`sdk.Plugin.OnSourcePolicy` declares both; an unsupported owner MUST still declare
+its ownership, and observers declare neither. These are runtime registration
+facts, not plugin names or a central list of state owners.
+
+The server captures the selected declared owners as immutable process/connection
+handles. Unsupported owners refuse capture before any callback; replacement
+processes cannot acknowledge work for the old lifetime. Prepare follows strict
+event application drain. The callback itself owes asynchronous-worker fencing
+and downstream settlement under its absolute deadline, on both DirectBridge and
+wire transports. See the process protocol's `source-policy` contract for the
+prepare/apply/abort/finalize identity and pin obligations. This transport does not
+by itself implement source invalidation.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
+<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
+
+
 `sdk.OnDecodeNLRI` uses the same four-argument callback contract. Both RPC
 directions carry the flags as `add-path` and `withdraw` in `DecodeNLRIInput`;
 absent flags mean false, so an absent `withdraw` means announcement. The caller

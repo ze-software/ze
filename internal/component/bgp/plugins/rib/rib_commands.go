@@ -757,7 +757,7 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 		if route.StaleLevel > 0 {
 			meta["stale"] = route.StaleLevel
 		}
-		r.updateRouteWithMeta(peerAddr, cmd, meta) //nolint:errcheck // updateRouteWithMeta logs the failure; each route command stands alone, so the rest still go
+		r.updateRouteWithProvenance(peerAddr, cmd, meta, route.SourcePolicyEpoch) //nolint:errcheck // The helper logs the failure; independent route commands still proceed.
 	}
 }
 

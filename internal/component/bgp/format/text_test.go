@@ -1114,7 +1114,7 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	}
 	// Empty FilterResult: no announced, no withdrawn NLRIs
 	result := bgpfilter.FilterResult{}
-	text := string(appendFilterResultText(nil, &peer, result, 7, rpc.DirectionReceived, nil))
+	text := string(appendFilterResultText(nil, &peer, result, 7, 0, rpc.DirectionReceived, nil))
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}

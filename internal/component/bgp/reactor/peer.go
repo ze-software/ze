@@ -298,6 +298,11 @@ type Peer struct {
 	// session MUST be above every generation its predecessor stamped.
 	forwardGeneration atomic.Uint64
 
+	// sourcePolicyEpoch identifies the import-policy admission that owns received
+	// routes. It survives ordinary reconnects and is unique across Peer lifetimes.
+	// Only advanceSourcePolicyEpoch writes it; retained work MUST keep its original value.
+	sourcePolicyEpoch atomic.Uint64
+
 	// forwardRevocation fences this source's Adj-RIB-Out ownership across a
 	// targeted down on a session that stays up (unbindProcesses), which moves no
 	// generation. Every adj-out owner records it at write (adjOutPath.revocation);
@@ -718,6 +723,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		history:         newFSMHistory(),
 		health:          newSessionHealth(addrStr, clk),
 	}
+	p.advanceSourcePolicyEpoch()
 
 	p.adminDown.Store(settings.AdminShutdown.Held)
 
@@ -1768,6 +1774,28 @@ func (p *Peer) State() PeerState {
 // would owe, or keep excluded, routes the new one wrote. One clock orders them
 // all. Safe for concurrent use.
 var forwardGenerationClock atomic.Uint64
+
+// sourcePolicyEpochClock issues policy provenance independently of session
+// generations and targeted source revocations. Safe for concurrent use.
+var sourcePolicyEpochClock atomic.Uint64
+
+// advanceSourcePolicyEpoch invalidates prior policy admissions without changing
+// the session. The coordinator MUST close receive admission before calling and
+// settle affected destination writers under their writeMu before resuming input.
+// Writers MUST compare captured provenance under that same writeMu. Safe for
+// concurrent use; a concurrent newer advance is never overwritten.
+func (p *Peer) advanceSourcePolicyEpoch() uint64 {
+	next := sourcePolicyEpochClock.Add(1)
+	for {
+		current := p.sourcePolicyEpoch.Load()
+		if current >= next {
+			return current
+		}
+		if p.sourcePolicyEpoch.CompareAndSwap(current, next) {
+			return next
+		}
+	}
+}
 
 // forwardGenerationCut makes an advance (the clock's issue and the Peer's
 // store) indivisible against a recovery round's source snapshot

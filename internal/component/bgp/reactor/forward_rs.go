@@ -748,6 +748,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 		item.session, item.authority = session, adjOutForwarded
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
+		item.sourcePolicyEpoch = update.SourcePolicyEpoch
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

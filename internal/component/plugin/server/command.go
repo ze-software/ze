@@ -189,16 +189,17 @@ type Handler func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Resp
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Server         *Server           // Gateway to all server state (reactor, dispatcher, etc.)
-	Process        *process.Process  // The API process (for session state)
-	RequestContext context.Context   // Request-scoped context from the trusted transport.
-	Peer           string            // Peer selector: "*" for all, or specific peer selector value. Empty = "*"
-	Username       string            // Authenticated username (empty = no auth, full access)
-	RemoteAddr     string            // Remote address of the client (e.g., SSH peer IP:port)
-	Surface        string            // Trusted caller surface for audit attribution.
-	Authorizer     plugin.Authorizer // Request-carried policy generation; nil uses the dispatcher's live policy.
-	Meta           map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
-	Selectors      map[string]string // Extracted typed selector values, keyed by selector keyword.
+	Server            *Server           // Gateway to all server state (reactor, dispatcher, etc.)
+	Process           *process.Process  // The API process (for session state)
+	RequestContext    context.Context   // Request-scoped context from the trusted transport.
+	Peer              string            // Peer selector: "*" for all, or specific peer selector value. Empty = "*"
+	Username          string            // Authenticated username (empty = no auth, full access)
+	RemoteAddr        string            // Remote address of the client (e.g., SSH peer IP:port)
+	Surface           string            // Trusted caller surface for audit attribution.
+	Authorizer        plugin.Authorizer // Request-carried policy generation; nil uses the dispatcher's live policy.
+	Meta              map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
+	SourcePolicyEpoch uint64            // Original received provenance from UpdateRoute RPC, not route metadata.
+	Selectors         map[string]string // Extracted typed selector values, keyed by selector keyword.
 	// Sender says who issued this command, and every path that builds a
 	// CommandContext states it: plugin.ProcessSender(proc.Name()) on the plugin
 	// server's own dispatch paths, plugin.OperatorSender() on the operator

@@ -134,6 +134,9 @@ type RawRoute struct {
 	// Zero means the producer supplied no generation. Validation decisions with
 	// MsgID zero apply to the current route, or buffer until its arrival.
 	MsgID uint64
+	// SourcePolicyEpoch remains the epoch captured when these bytes arrived.
+	// Zero is unrecorded, not permission to load the source's current epoch.
+	SourcePolicyEpoch uint64
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -540,7 +543,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID)
+		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
 	}
 
 	// MP_REACH_NLRI announces.
@@ -559,11 +562,11 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			// the link-local next hop it needs (RFC2545-3-1, RFC2545-3-2).
 			nhopHex := hex.EncodeToString(mpReach.NextHopBytes())
 			if isSimplePrefixFamily(fam) {
-				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
+				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
 			} else {
 				// Every other family: split and key each NLRI with the family's
 				// registered codec (rib_complex.go).
-				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
+				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
 			}
 		}
 	}
@@ -571,7 +574,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID uint64) {
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch uint64) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -592,14 +595,15 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 		nlriHex := hex.EncodeToString(wirePrefix)
 
 		route := &RawRoute{
-			Family:      fam,
-			AttrHex:     attrHex,
-			NHopHex:     nhopHex,
-			NLRIHex:     nlriHex,
-			PathID:      pathID,
-			NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			HasPathID:   addPath,
-			MsgID:       msgID,
+			Family:            fam,
+			AttrHex:           attrHex,
+			NHopHex:           nhopHex,
+			NLRIHex:           nlriHex,
+			PathID:            pathID,
+			NLRIFraming:       rpc.NLRIFramingPrefixOnly,
+			HasPathID:         addPath,
+			MsgID:             msgID,
+			SourcePolicyEpoch: sourcePolicyEpoch,
 		}
 
 		if r.validationEnabled && isSimplePrefixFamily(fam) {
@@ -849,14 +853,15 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						}
 
 						route := &RawRoute{
-							Family:      fam,
-							AttrHex:     event.GetRawAttributesHex(),
-							NHopHex:     nhopHex,
-							NLRIHex:     nlriHex,
-							PathID:      pathID,
-							NLRIFraming: framing,
-							HasPathID:   addPath,
-							MsgID:       event.GetMsgID(),
+							Family:            fam,
+							AttrHex:           event.GetRawAttributesHex(),
+							NHopHex:           nhopHex,
+							NLRIHex:           nlriHex,
+							PathID:            pathID,
+							NLRIFraming:       framing,
+							HasPathID:         addPath,
+							MsgID:             event.GetMsgID(),
+							SourcePolicyEpoch: event.SourcePolicyEpoch,
 						}
 
 						if r.validationEnabled && isSimplePrefixFamily(fam) {
@@ -1093,8 +1098,9 @@ func replayStoredRoute(source string, rt *RawRoute) rpc.StoredRoute {
 		NLRIFraming: rt.NLRIFraming,
 		// A replay is the destination's initial update: it passes the
 		// fence that holds the peer's live forwards behind it.
-		InitialUpdate: true,
-		MsgID:         rt.MsgID,
+		InitialUpdate:     true,
+		MsgID:             rt.MsgID,
+		SourcePolicyEpoch: rt.SourcePolicyEpoch,
 	}
 }
 

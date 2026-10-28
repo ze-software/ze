@@ -125,7 +125,7 @@ func rsApplyVPN(t *testing.T, rs *routeServer, fam family.Family, addPath bool, 
 		t.Fatal("VPN extraction returned no records")
 	}
 	defer returnNLRIRecords(records)
-	rs.applyNLRIRecords(rsLabeledPeer, records.records)
+	rs.applyNLRIRecords(rsLabeledPeer, records)
 }
 
 // rsVPNRoute writes [Path ID?][Length][Label/Compatibility:3][RD:8][Prefix].

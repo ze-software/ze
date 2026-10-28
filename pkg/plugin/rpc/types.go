@@ -310,20 +310,24 @@ const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
 
 // DeclareRegistrationInput is the input for MethodDeclareRegistration (Stage 1).
 type DeclareRegistrationInput struct {
-	Families               []FamilyDecl          `json:"families,omitempty"`
-	Commands               []CommandDecl         `json:"commands,omitempty"`
-	Dependencies           []string              `json:"dependencies,omitempty"`
-	WantsConfig            []string              `json:"wants-config,omitempty"`
-	ConfigOperations       []ConfigOperationDecl `json:"config-operations,omitempty"`
-	ConfigCompletion       bool                  `json:"config-completion,omitempty"`
-	VerifyBudget           int                   `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
-	ApplyBudget            int                   `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
-	Schema                 *SchemaDecl           `json:"schema,omitempty"`
-	WantsValidateOpen      bool                  `json:"wants-validate-open,omitempty"`
-	CacheConsumer          bool                  `json:"cache-consumer,omitempty"`
-	CacheConsumerUnordered bool                  `json:"cache-consumer-unordered,omitempty"`
-	Filters                []FilterDecl          `json:"filters,omitempty"`
-	DoctorChecks           []DoctorCheckDecl     `json:"doctor-checks,omitempty"`
+	Families         []FamilyDecl          `json:"families,omitempty"`
+	Commands         []CommandDecl         `json:"commands,omitempty"`
+	Dependencies     []string              `json:"dependencies,omitempty"`
+	WantsConfig      []string              `json:"wants-config,omitempty"`
+	ConfigOperations []ConfigOperationDecl `json:"config-operations,omitempty"`
+	ConfigCompletion bool                  `json:"config-completion,omitempty"`
+	// SourcePolicyOwner declares retained source state, independently of support.
+	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
+	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
+	SourcePolicy           bool              `json:"source-policy,omitempty"`
+	VerifyBudget           int               `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
+	ApplyBudget            int               `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
+	Schema                 *SchemaDecl       `json:"schema,omitempty"`
+	WantsValidateOpen      bool              `json:"wants-validate-open,omitempty"`
+	CacheConsumer          bool              `json:"cache-consumer,omitempty"`
+	CacheConsumerUnordered bool              `json:"cache-consumer-unordered,omitempty"`
+	Filters                []FilterDecl      `json:"filters,omitempty"`
+	DoctorChecks           []DoctorCheckDecl `json:"doctor-checks,omitempty"`
 	// ResolverCaches names the resolver caches (rpc.ResolverCachePeeringDB,
 	// ResolverCacheIRR, ResolverCacheCymru) this plugin holds clients for. The
 	// engine asks it to clear each one through MethodResolverCacheClear when
@@ -751,6 +755,9 @@ type UpdateRouteInput struct {
 	PeerSelector string         `json:"peer-selector,omitempty"`
 	Command      string         `json:"command"`
 	Meta         map[string]any `json:"meta,omitempty"` // Optional route metadata; plumbed to CommandContext.Meta.
+	// SourcePolicyEpoch is the original received provenance for retained replay.
+	// Zero is unrecorded, never a request to use the source's current epoch.
+	SourcePolicyEpoch uint64 `json:"source-policy-epoch"`
 }
 
 // UpdateRouteOutput is the output for ze-plugin-engine:update-route.
@@ -879,6 +886,9 @@ type StoredRoute struct {
 	// MsgID is the original received UPDATE generation, independent of any
 	// temporary message-cache identifier the relay allocates.
 	MsgID uint64 `json:"msg-id,omitempty"`
+	// SourcePolicyEpoch is original admission provenance, never the replay epoch.
+	// Zero is unrecorded and MUST NOT be replaced with the current source epoch.
+	SourcePolicyEpoch uint64 `json:"source-policy-epoch"`
 	// Withdraw explicitly removes a path no longer held by the receive store.
 	// AttrHex and NextHopHex are then unused; NLRIHex still names the path.
 	Withdraw bool `json:"withdraw,omitempty"`
@@ -1428,6 +1438,51 @@ type ConfigCompleteOutput struct {
 	Accepted      bool   `json:"accepted"`
 	Status        string `json:"status"`
 	Error         string `json:"error,omitempty"`
+}
+
+// SourcePolicyOperation identifies one acknowledged source-policy transition.
+// Its zero value is unspecified and MUST NOT invoke an owner.
+type SourcePolicyOperation uint8
+
+const (
+	SourcePolicyUnspecified SourcePolicyOperation = iota
+	SourcePolicyPrepare
+	SourcePolicyApply
+	SourcePolicyAbort
+	SourcePolicyFinalize
+)
+
+// SourcePolicyIdentity captures the original source, not a later incarnation.
+// ReceiveFrontier and TemplateGeneration may legitimately be zero.
+type SourcePolicyIdentity struct {
+	Peer               string `json:"peer"`
+	PeerOwner          uint64 `json:"peer-owner"`
+	SessionGeneration  uint64 `json:"session-generation"`
+	PolicyEpoch        uint64 `json:"policy-epoch"`
+	ReceiveFrontier    uint64 `json:"receive-frontier"`
+	TemplateGeneration uint64 `json:"template-generation"`
+}
+
+// SourcePolicyInput is a raw lifecycle request. Owners MUST match the captured
+// identity and retain prepare pins until abort or finalize has settled.
+// Coordinators MUST use fresh, monotonically newer targets for apply and abort.
+type SourcePolicyInput struct {
+	TransactionID   string                `json:"transaction-id"`
+	Operation       SourcePolicyOperation `json:"operation"`
+	Source          SourcePolicyIdentity  `json:"source"`
+	NextPolicyEpoch uint64                `json:"next-policy-epoch"`
+	DeadlineMS      int64                 `json:"deadline-ms"`
+}
+
+// SourcePolicyOutput acknowledges owner work and downstream settlement, not
+// queue admission. Owners MUST echo the exact request identity and target.
+type SourcePolicyOutput struct {
+	TransactionID   string                `json:"transaction-id"`
+	Operation       SourcePolicyOperation `json:"operation"`
+	Source          SourcePolicyIdentity  `json:"source"`
+	NextPolicyEpoch uint64                `json:"next-policy-epoch"`
+	Status          string                `json:"status"`
+	Error           string                `json:"error,omitempty"`
 }
 
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).

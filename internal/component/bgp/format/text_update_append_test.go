@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -140,4 +141,51 @@ func TestAppendSentMessage_NoStringsReplaceSurgery(t *testing.T) {
 		`"type":"update" must not appear anywhere in a sent envelope: %s`, output)
 	assert.Equal(t, 1, strings.Count(output, `"message":{"type":"sent"`),
 		`exactly one "type":"sent" must appear in the sent envelope: %s`, output)
+}
+
+// TestSourcePolicyEpochUpdateTransport drives every JSON UPDATE renderer into
+// the actual event parser. Exact uint64 provenance is outside route metadata;
+// user metadata cannot replace it, and text keeps the existing header positions.
+func TestSourcePolicyEpochUpdateTransport(t *testing.T) {
+	ctxID := testEncodingContext()
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001)}
+	body := buildTestUpdateBodyWithAttrs(netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"), 0, 0, nil)
+	update := wireu.NewWireUpdate(body, ctxID)
+	attrs, err := update.Attrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const epoch = uint64(18446744073709551615)
+	msg := bgptypes.RawMessage{
+		Type: msgtype.TypeUPDATE, RawBytes: body, WireUpdate: update, AttrsWire: attrs,
+		Direction: rpc.DirectionReceived, MessageID: 42, SourcePolicyEpoch: epoch,
+		Meta: map[string]any{"source-policy-epoch": uint64(1)},
+	}
+	for _, form := range []string{plugin.FormatParsed, plugin.FormatRaw, plugin.FormatFull, plugin.FormatSummary} {
+		t.Run(form, func(t *testing.T) {
+			content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: form}
+			for _, sent := range []bool{false, true} {
+				var encoded []byte
+				if sent {
+					encoded = AppendSentMessage(nil, &peer, msg, content)
+				} else {
+					encoded = AppendMessage(nil, &peer, msg, content)
+				}
+				event, err := bgp.ParseEvent(encoded)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if event.SourcePolicyEpoch != epoch {
+					t.Fatalf("sent=%v consumer epoch=%d want=%d: %s", sent, event.SourcePolicyEpoch, epoch, encoded)
+				}
+			}
+		})
+	}
+	text := string(AppendMessage(nil, &peer, msg,
+		bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed}))
+	want := "peer 10.0.0.1 remote as 65001 received update 42 source-policy-epoch 18446744073709551615"
+	if !strings.HasPrefix(text, want) {
+		t.Fatalf("text provenance header = %q, want prefix %q", text, want)
+	}
 }

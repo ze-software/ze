@@ -165,15 +165,6 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		s.txLock.configTransactions = maps.Clone(undo.beforeTransactions)
 		return errors.Join(pending.rollbackOperations(pending.lifetime), pending.completeBatchesBounded(false))
 	}
-	if !undo.operationsRestored {
-		// Restore infrastructure before restarting services that depend on it.
-		// Source eligibility MUST remain held by its own lifecycle until section
-		// restoration acknowledges the old filters.
-		if err := pending.rollbackOperations(pending.lifetime); err != nil {
-			return err
-		}
-		undo.operationsRestored = true
-	}
 	if undo.restored == nil {
 		restoreCtx, _ := s.DeferReloadAcceptance(pending.lifetime)
 		restoring, _ := restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
@@ -192,6 +183,16 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 			if _, err := s.autoLoadForNewConfigPaths(recoveryCtx, undo.before, slices.Sorted(maps.Keys(diff.Added))); err != nil {
 				return errors.Join(err, restoring.finishWithLock(false, false))
 			}
+		}
+		if !undo.operationsRestored {
+			// Removed owners have no live journal: recover their prerequisites
+			// above before retained dependents undo. Ordinary coarse services
+			// still restore below, after original infrastructure inverses.
+			// Source eligibility MUST remain held until old filters acknowledge.
+			if err := pending.rollbackOperations(pending.lifetime); err != nil {
+				return errors.Join(err, restoring.finishWithLock(false, false))
+			}
+			undo.operationsRestored = true
 		}
 		var affected []affectedPlugin
 		pm := s.procManager.Load()

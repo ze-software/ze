@@ -337,6 +337,9 @@ type NLRIBatch struct {
 	// InitialSourceMessage is the source route's received message ID. A
 	// forwarded initial replay MUST carry it; a local one MUST NOT.
 	InitialSourceMessage uint64
+	// SourcePolicyEpoch retains original received admission on initial replay.
+	// Local-origin batches carry zero; received provenance never falls back to current.
+	SourcePolicyEpoch uint64
 	// NextHop is the next-hop policy. An announce resolves it per destination
 	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
 	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.
