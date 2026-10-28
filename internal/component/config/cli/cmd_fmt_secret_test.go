@@ -227,7 +227,7 @@ func TestSetFormKeepsStoredSecretEncoding(t *testing.T) {
 		t.Errorf("SerializeSet did not keep the stored encoding %s:\n%s", stored, out)
 	}
 
-	metaTree, meta, err := config.NewSetParser(schema).ParseWithMeta("#alice " + strings.Replace(input, "\nset", "\n#alice set", -1))
+	metaTree, meta, err := config.NewSetParser(schema).ParseWithMeta("#alice " + strings.ReplaceAll(input, "\nset", "\n#alice set"))
 	if err != nil {
 		t.Fatalf("set-meta parse: %v", err)
 	}
