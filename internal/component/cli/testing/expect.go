@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,7 @@ var (
 	errGhostExpectationRequiresEmptyOrText             = errors.New("ghost expectation requires 'empty' or 'text' key")
 	errErrorsExpectationRequiresCountOrContains        = errors.New("errors expectation requires 'count' or 'contains' key")
 	errWarningsExpectationRequiresCountOrContains      = errors.New("warnings expectation requires 'count' or 'contains' key")
-	errContentExpectationRequiresContainsNotContains   = errors.New("content expectation requires 'contains', 'not-contains', or 'lines' key")
+	errContentExpectationRequiresContainsNotContains   = errors.New("content expectation requires 'contains', 'not-contains', 'lines', or 'pattern' key")
 	errStatusExpectationRequiresEmptyOrContains        = errors.New("status expectation requires 'empty' or 'contains' key")
 	errHintExpectationRequiresEmptyOrContains          = errors.New("hint expectation requires 'empty' or 'contains' key")
 	errExplanationExpectationRequiresEmptyOrContains   = errors.New("explanation expectation requires 'empty' or 'contains' key")
@@ -37,7 +38,7 @@ var (
 	errExpectedDropdownHiddenGotVisible                = errors.New("expected dropdown:hidden, got visible")
 	errDropdownExpectationRequiresVisibleOrHidden      = errors.New("dropdown expectation requires 'visible' or 'hidden' key")
 	errPromptExpectationRequiresContainsKey            = errors.New("prompt expectation requires 'contains' key")
-	errViewportExpectationRequiresContainsOrNot        = errors.New("viewport expectation requires 'contains' or 'not-contains' key")
+	errViewportExpectationRequiresContainsOrNot        = errors.New("viewport expectation requires 'contains', 'not-contains', or 'pattern' key")
 	errModeExpectationRequiresIsKeyE                   = errors.New("mode expectation requires 'is' key (e.g., mode:is=config or mode:is=operational)")
 	errExpectedTimerActiveGotInactive                  = errors.New("expected timer:active, got inactive")
 	errExpectedTimerInactiveGotActive                  = errors.New("expected timer:inactive, got active")
@@ -377,6 +378,18 @@ func checkContent(exp Expectation, state State) error {
 		return nil
 	}
 
+	if pattern, hasPattern := exp.Values["pattern"]; hasPattern {
+		re, err := compileExpectPattern("content", pattern)
+		if err != nil {
+			return err
+		}
+		// Either text may match, as contains reads both.
+		if re.MatchString(workingContent) || re.MatchString(viewportContent) {
+			return nil
+		}
+		return fmt.Errorf("content does not match pattern %q", pattern)
+	}
+
 	return errContentExpectationRequiresContainsNotContains
 }
 
@@ -528,7 +541,31 @@ func checkViewport(exp Expectation, state State) error {
 		return nil
 	}
 
+	if pattern, hasPattern := exp.Values["pattern"]; hasPattern {
+		re, err := compileExpectPattern("viewport", pattern)
+		if err != nil {
+			return err
+		}
+		if !re.MatchString(content) {
+			return fmt.Errorf("viewport does not match pattern %q:\n%s", pattern, content)
+		}
+		return nil
+	}
+
 	return errViewportExpectationRequiresContainsOrNot
+}
+
+// compileExpectPattern compiles the regular expression of a `pattern` key,
+// refusing an empty one, which would match any text and so assert nothing.
+func compileExpectPattern(expectType, pattern string) (*regexp.Regexp, error) {
+	if pattern == "" {
+		return nil, fmt.Errorf("expect=%s:pattern= must not be empty: an empty regular expression matches any text", expectType)
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid expect=%s:pattern= %q: %w", expectType, pattern, err)
+	}
+	return re, nil
 }
 
 // checkMode verifies editor mode expectations.

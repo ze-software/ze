@@ -240,6 +240,35 @@ func TestExpectContentNotContains(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestExpectPatternMatchesOrder verifies the pattern key of the content and
+// viewport expectations.
+//
+// VALIDATES: expect=viewport:pattern= and expect=content:pattern= pass when the
+// regular expression matches, so `(?s)zulu.*alpha` proves zulu prints before
+// alpha; they fail when the text holds both words in the other order, and
+// refuse an empty or invalid expression.
+// PREVENTS: an order assertion that contains= cannot make, or an empty
+// pattern that matches any text and so asserts nothing.
+func TestExpectPatternMatchesOrder(t *testing.T) {
+	inOrder := "peer zulu {\n}\npeer alpha {\n}\n"
+	reversed := "peer alpha {\n}\npeer zulu {\n}\n"
+	for _, expectType := range []string{"viewport", "content"} {
+		t.Run(expectType, func(t *testing.T) {
+			exp := Expectation{Type: expectType, Values: map[string]string{"pattern": "(?s)peer zulu.*peer alpha"}}
+			assert.NoError(t, checkExpectation(exp, &MockState{viewportContent: inOrder}))
+			assert.Error(t, checkExpectation(exp, &MockState{viewportContent: reversed}))
+
+			exp.Values["pattern"] = ""
+			assert.ErrorContains(t, checkExpectation(exp, &MockState{viewportContent: inOrder}), "must not be empty")
+
+			exp.Values["pattern"] = "peer ("
+			assert.ErrorContains(t, checkExpectation(exp, &MockState{viewportContent: inOrder}), "invalid expect="+expectType+":pattern=")
+		})
+	}
+	exp := Expectation{Type: "content", Values: map[string]string{"pattern": "(?s)peer zulu.*peer alpha"}}
+	assert.NoError(t, checkExpectation(exp, &MockState{workingContent: inOrder}), "content reads the working content too")
+}
+
 // TestExpectStatusContains verifies status message assertion.
 //
 // VALIDATES: expect=status:contains= checks status message.
