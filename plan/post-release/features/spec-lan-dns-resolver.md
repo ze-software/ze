@@ -6,11 +6,11 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release (the fttx-edge profile's LAN DNS resolver); existing supported behavior and its obligations remain required. |
-| RFC gaps | RFC2181-5.1-1, RFC2181-5.3.1-2, RFC2181-5.3.1-3, RFC2181-5.3.1-4, RFC2181-5.4.1-3, RFC2181-5.4.1-9 |
+| RFC gaps | RFC2181-5.1-1, RFC2181-5.3.1-2, RFC2181-5.3.1-3, RFC2181-5.3.1-4, RFC2181-5.4.1-3, RFC2181-5.4.1-9, RFC2131-4.1-12, RFC2131-4.3.2-1 |
 | Depends | - |
 | Phase | 1/4 |
 | Handoff | - |
-| Updated | 2026-10-27 |
+| Updated | 2026-10-28 |
 | Approved | Session f3ae7c00, 2026-10-27: Thomas chose to run this spec; the design is settled by the RFC 1034, 1035, 2181, 2308 and 5452 text and the Unbound behaviour quoted below |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -172,10 +172,10 @@ are under `rfc/full/` (1034 and 5452 added in the 2026-10-27 pass).
 - Wire: a DNS query (UDP or TCP, port 53 by default) from a LAN host or subscriber to a configured listener address.
 
 ### Transformation Path
-1. Config transaction: `OnConfigure` parses the section into a candidate; `OnConfigVerify` refuses wildcard listeners, an empty `allow-from` and an empty forward list; `OnConfigApply` publishes the candidate as the atomic state snapshot (allow matcher, mode, upstreams, limits, cache bounds) and reconciles listeners through `Manager.ApplyWithSecure` (lenient at boot, strict on reload); `OnConfigRollback` restores the previous snapshot.
-2. A query reaches `dnsserver.Recursive`: non-QUERY opcode draws Not Implemented; otherwise the recursive shape (QR, RA=1, AA=0, Z=0, CD copied) is applied and the resolver's answer function is called with `Peer`.
+1. Config transaction: `OnConfigure` parses the section into a candidate; `OnConfigVerify` refuses wildcard listeners, an empty `allow-from` and an empty forward list; `OnConfigApply` reconciles listeners through `Manager.ApplyWithSecure` (lenient at boot, strict on reload) and publishes the candidate as the atomic state snapshot (allow matcher, mode, upstreams, limits, cache bounds); `OnConfigRollback` restores the previous snapshot. At boot the candidate is published, then the listeners bind leniently. On a reload, while the listeners reconcile, the resolver serves the running policy with `allow-from` narrowed to the intersection of the running and candidate lists (`resolver.narrow`, `intersectPrefixes`), so a newly bound listener never answers a source the running config refuses and a kept one never answers a source the candidate refuses; the candidate is published only after every listener it names is bound; a strict-bind failure restores the running state (`resolver.restore`) and refuses the commit, and a lost previous listener wraps `sdk.ErrRunningConfigLost` (`resolverInstaller.install`).
+2. A query passes the listener's header filter `dnsserver.RecursiveAccept` (responses ignored; more than 16 questions, more than one answer or authority record, or more than two additional records rejected by miekg unshaped; every other query, QDCOUNT 0 or 2 and any opcode included, reaches the handler) and then `dnsserver.Recursive`: non-QUERY opcode draws Not Implemented in the recursive shape and is counted through the `RejectFunc` (`resolver.countRejected`); otherwise the recursive shape (QR, RA=1, AA=0, Z=0, CD copied) is applied and the resolver's answer function is called with `Peer`.
 3. Answer function: ACL by packet source through `Matcher` (miss: REFUSED, counted, no upstream query); per-source rate limit (over the limit: dropped, 1 in 10 passed); RD=0: REFUSED; QDCOUNT not 1: FORMERR; then cache lookup keyed by lower-cased name, type and class.
-4. Cache miss: join an identical in-flight resolution if one exists, otherwise start one if the outstanding-resolution bound allows (else drop); query the upstream list in order with failover. Every upstream exchange uses a fresh ephemeral source port and a random ID, and an EDNS0 OPT advertising 1232 with DO clear; a reply is accepted only if ID, question name (case-insensitive), class and type match; TC=1 retries over TCP. The whole resolution runs inside the per-query budget (upstream queries, CNAME restarts, deadline).
+4. Cache miss: join an identical in-flight resolution if one exists, as one of at most `limit outstanding` parked waiters (one beyond is dropped with no reply and counted in `ze_dns_resolver_dropped_total`; a leader that panics releases its waiters and the flight), otherwise start one if the outstanding-resolution bound allows (else drop); query the upstream list in order with failover. Every upstream exchange uses a fresh ephemeral source port and a random ID, and an EDNS0 OPT advertising 1232 with DO clear; a reply is accepted only if ID, question name (case-insensitive), class and type match; TC=1 retries over TCP. The whole resolution runs inside the per-query budget (upstream queries, CNAME restarts, deadline).
 5. Ranking and bailiwick: records outside the zone being asked are dropped; answer-section data outranks authority and additional data (RFC 2181 Section 5.4.1); additional-section data is never returned as an answer.
 6. Cache insert: whole RRsets replaced, never merged; positive TTL capped at `cache max-ttl`; NXDOMAIN cached by name and class, NODATA by name, type and class, for min(SOA TTL, SOA MINIMUM) capped at `cache max-negative-ttl`; timeouts and SERVFAIL never cached as negative.
 7. Reply: answer with TTLs decremented by time in cache; AD never set; the harness bounds UDP size, sets TC, and writes once.
@@ -184,7 +184,7 @@ are under `rfc/full/` (1034 and 5452 added in the 2026-10-27 pass).
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config to plugin | YANG `service dns-resolver`, SDK config transaction callbacks | No |
-| Plugin to harness | `dnsserver.New` + `dnsserver.Recursive` answer function, `Options.UDPSize`, `ApplyWithSecure` | No |
+| Plugin to harness | `dnsserver.New` + `dnsserver.Recursive(log, answer, countRejected)`, `Options.UDPSize`, `Options.Freebind`, `Options.TCPConnMax` (64), `Options.MsgAcceptFunc` (`RecursiveAccept`), `Options.OnListenerChange func(proto string, listen netip.AddrPort, up bool)` (changed from an IP-only address in 3506c1ac42 so two listeners on one IP stay apart; as112 and geodns updated in the same commit), `ApplyWithSecure` | No |
 | Ze to upstreams | UDP and TCP DNS from an ephemeral, per-exchange source port with a random ID | No |
 | CLI to plugin | `show dns-resolver`, `clear dns-resolver cache all` registered RPCs | No |
 
@@ -200,7 +200,7 @@ are under `rfc/full/` (1034 and 5452 added in the 2026-10-27 pass).
 | No bypassed layers (data flows through the intended path) | No | to prove: query path only through `Recursive`; config only through the transaction callbacks |
 | No unintended coupling (components stay isolated) | No | to prove: plugin imports `internal/core/dnsserver` only; no import of `geodns`, `as112` or `component/resolve` |
 | No duplicated functionality (extends existing, does not recreate) | No | to prove: listener lifecycle, ACL matcher, opcode check, UDP bound reused from the harness; codec and client from miekg |
-| Zero-copy preserved where applicable (refs, not copies) | No | cache stores parsed RRsets once; reply assembly copies RR pointers with a TTL rewrite on a per-reply copy of the header fields only |
+| Zero-copy preserved where applicable (refs, not copies) | No | cache stores parsed RRsets once. What allocates per query, stated as it is: `dnsserver.RemoteAddr` parses the client address from `net.Addr`; a cache hit copies each returned RR with `dns.Copy` (`cache.go`) so the TTL rewrite never touches the cached record; `rmetrics().queries.With(transport, rcode)` looks up its label set per reply; miekg allocates the parsed request and the reply message |
 | Registration over hardcoding, outbound | No | plugin registers via `init()`; commands via YANG `ze:command`; doctor checks via `DoctorChecks` |
 | Registration over hardcoding, inbound | No | to search at implementation: listener conflict list (`DiscoverListenerServices`), doctor code table, plugin inventory docs, completion, `le` command registry; each must derive from registration |
 
@@ -219,7 +219,7 @@ are under `rfc/full/` (1034 and 5452 added in the 2026-10-27 pass).
 | `dns-resolver cache max-ttl` | uint32 s | 86400 | 0..2147483647 | positive TTL cap (Unbound `cache-max-ttl` default) |
 | `dns-resolver cache max-negative-ttl` | uint32 s | 3600 | 0..2147483647 | negative TTL cap (Unbound `cache-max-negative-ttl` default) |
 | `dns-resolver timeout` | uint8 s | 10 | 1..60 | whole-resolution deadline; SERVFAIL after it |
-| `dns-resolver limit outstanding` | uint32 | 2048 | 1..65535 | concurrent resolutions; beyond it a new query is dropped (Unbound `num-queries-per-thread` libevent default and behavior) |
+| `dns-resolver limit outstanding` | uint32 | 2048 | 1..65535 | concurrent resolutions, and separately the cache-miss queries parked waiting on one; beyond either a new query is dropped with no reply and counted in `ze_dns_resolver_dropped_total` (Unbound `num-queries-per-thread` libevent default and behavior) |
 | `dns-resolver limit per-client-rate` | uint32 qps | 0 (off) | 0..1000000 | per-source query rate; excess dropped, 1 in 10 let through (Unbound `ip-ratelimit` default 0, `ip-ratelimit-factor` default 10) |
 
 Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
@@ -307,7 +307,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 |-------|-------------------|-------------------|
 | AC-1 | `dns-resolver` enabled, `mode forward`, upstream answers A for a name; query RD=1 from an allowed source | NOERROR with the upstream's records; RA=1, AA=0, Z=0, AD=0; answer TTL no greater than the upstream's. → Test: `test/plugin/dns-resolver-forward.ci` |
 | AC-2 | Query from a source outside every `allow-from` prefix | REFUSED, AA=0, `ze_dns_resolver_refused_total` +1, and `le mock dns --log-queries` logs no query. → Test: `test/plugin/dns-resolver-acl-refused.ci` (seq=3), `TestACLRefused` |
-| AC-3 | Commit with a listener `ip` of `0.0.0.0` or `::` | Commit refused; message names the listener, says a wildcard would answer on the WAN, and names the fix (a LAN or loopback address) |
+| AC-3 | Commit with a listener `ip` of `0.0.0.0`, `::` or `::ffff:0:0` (the IPv4-mapped wildcard) | Commit refused; message names the listener, says a wildcard would answer on the WAN, and names the fix (a LAN or loopback address) |
 | AC-4 | Commit with `enabled true` and no `allow-from` entry | Commit refused; message says the resolver would refuse every client and names the leaf to set |
 | AC-5 | Same query repeated within the TTL | Second answer from cache: no upstream query logged, TTL reduced by the elapsed whole seconds. → Test: `test/plugin/dns-resolver-forward.ci` (seq=4, seq=5: one upstream question), `TestCacheTTLDecrement` (the TTL) |
 | AC-6 | Upstream returns a new RRset for a cached name and type after expiry | Cached RRset replaced whole, never merged with the old records (RFC2181-5.4-1) |
@@ -335,7 +335,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | AC-28 | Resolver listener on an address and port another DNS service binds | Commit refused by the listener conflict check, naming both services |
 | AC-29 | `dns-resolver` absent or `enabled false` | No listener bound; `system name-server` and the stub unchanged |
 | AC-30 | Reload changing only `allow-from`, upstreams or limits | New policy on the next query; listeners not rebound (no serving pause). → Test: `TestReloadKeepsListeners` (one socket across the reload), `test/reload/dns-resolver-reload.ci` (allow-from reloaded, next query refused or answered by the new list) |
-| AC-31 | `show dns-resolver` | The fields in the Commands table; `clear dns-resolver cache all` empties every cache and the next query goes upstream. → Test: `test/plugin/dns-resolver-show.ci` |
+| AC-31 | `show dns-resolver` | The fields in the Commands table, each listener with its `state` `{udp, tcp}` of `up`, `down` or `unknown`, kept per bound socket (protocol and address with port) and exported as `ze_dns_resolver_listener_up{protocol,address}`; `clear dns-resolver cache all` empties every cache and the next query goes upstream; a bare `clear dns-resolver cache` exits 1 naming `all`. → Test: `test/plugin/dns-resolver-show.ci`, `TestListenerStateByPort` |
 | AC-32 | LAN host gets a DHCPv4 lease from Ze with `dns-server` set to the resolver address, then resolves a name with `kdig` against the leased server | Answered. → Test: interop `dns-resolver-dhcp-lan` (`checkDNSDHCPLAN`, assertions 1-4: the lease is the pool address, its option 6 is exactly Ze's address, the name resolves through that server from the leased address, the host's other address is REFUSED) |
 | AC-33 | L2TP subscriber gets the resolver address via IPCP from the pool's `dns-primary` and resolves a name | Answered; the subscriber's pool prefix is in `allow-from`. → Test: interop `dns-resolver-l2tp-subscriber` (`checkDNSL2TPSubscriber`: pppd's `/etc/ppp/resolv.conf` names Ze's resolver as primary and secondary DNS, and `www.lab.example` resolves through it over the PPP link to exactly the two Knot A records) |
 
@@ -357,7 +357,23 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `TestRecursiveUDPSize` | `internal/core/dnsserver/recursive_test.go` | AC-13, AC-14: 1232-octet query read; OPT on reply; TC on oversize (RFC2181-5.1-1, RFC1035-4.2.1-2) | |
 | `TestAuthoritativeUnchanged` | `internal/core/dnsserver/handler_test.go` | as112/geodns shape byte-identical after the change | |
 | `TestACLRefused`, `TestRDZeroRefused`, `TestQDCount` | `internal/plugins/dnsresolver/server_test.go` | AC-2, AC-12, AC-25 | |
-| `TestRateLimit`, `TestOutstandingBound` | `internal/plugins/dnsresolver/limit_test.go` | AC-23, AC-24 | |
+| `TestMalformedQueryShapedAndCounted` | `internal/plugins/dnsresolver/accept_test.go` | AC-25, AC-26 through a real listener over UDP and TCP: QDCOUNT=2 draws FORMERR, UPDATE and STATUS draw NOTIMP, each with RA=1, AA=0 and counted once; red under miekg's default accept function | |
+| `TestRateLimit`, `TestOutstandingBound` | `internal/plugins/dnsresolver/server_test.go` | AC-23, AC-24 | |
+| `TestCoalescedWaitersBounded`, `TestLeaderPanicReleasesFlight` | `internal/plugins/dnsresolver/resolve_test.go` | cache-miss waiters bounded by `limit outstanding`, the excess dropped and counted in `dropped_total`; a panicking leader releases its waiters and the flight | |
+| `TestAnyReturnsEveryOwnedRRset`, `TestAnyDoesNotFollowAlias` | `internal/plugins/dnsresolver/resolve_test.go` | an ANY query answers every cached RRset the name owns and follows no CNAME | |
+| `TestRefusedLowerRankAnswersCachedSet` | `internal/plugins/dnsresolver/resolve_test.go` | an upstream answer whose rank cannot displace the cached RRset is answered from the cached set (RFC 2181 Section 5.4.1) | |
+| `TestIntersectPrefixes` | `internal/plugins/dnsresolver/resolve_test.go` | the allow-from intersection the reload serves under | |
+| `TestRefusedReloadKeepsRunningPolicy` | `internal/plugins/dnsresolver/config_tx_test.go` | a strict-bind failure restores the running policy, never the candidate's | |
+| `TestParseListenerRefusesEveryWildcard` | `internal/plugins/dnsresolver/config_test.go` | AC-3: `0.0.0.0`, `::` and `::ffff:0:0` each refused | |
+| `TestListenerStateByPort` | `internal/plugins/dnsresolver/listener_state_test.go` | AC-31: listener state per protocol and address with port; a dropped listener reads down, an unbound one unknown | |
+| `TestListenBeforeAddressIsUp` | `internal/plugins/dnsresolver/freebind_linux_test.go` | A-3 bind half: the listener binds an address the host does not hold (red without Freebind) | |
+| `TestManager_TCPConnMaxRefusesPastTheCap`, `TestManager_TCPConnMaxZeroIsUncapped` | `internal/core/dnsserver/connlimit_test.go` | the per-listener TCP cap closes the excess at accept and counts it in `ze_dns_tcp_connection_refused_total`; zero stays uncapped | |
+| `TestProbeListenerFreebindAcceptsAbsentAddress`, `TestProbeListenerFreebindStillReportsBusyPort`, `TestCollectSchemaListenersMarksFreebindServices` | `internal/component/doctor/checks_listener_freebind_test.go` | doctor treats an absent address as fine for a freebind service, still reports a busy port | |
+| `TestNakBroadcastWhenGiaddrZero`, `TestOfferReachesClientHardware`, `TestOfferBroadcastWhenUnicastImpossible` | `internal/plugins/dhcpserver/rfc2131_delivery_test.go` | AC-32 blocker: RFC2131-4.3.2-1 (NAK broadcast when giaddr is zero), RFC2131-4.1-12 (OFFER to the client's hardware through the neighbor entry, broadcast when the bit is set or the entry cannot be installed) | |
+| `TestOfferKeepsPermanentNeighbor` | `internal/plugins/dhcpserver/neighbor_permanent_test.go` | an operator's PERMANENT neighbor entry for yiaddr is never replaced: same MAC unicasts with no write, another MAC or an unreadable table broadcasts | |
+| `TestReadNeighborFindsPermanentEntry` (integration, Linux, CAP_NET_ADMIN) | `internal/plugins/dhcpserver/neighbor_integration_linux_test.go` | the netlink reader tells a permanent entry from ze's reachable one | |
+| `TestRFC2181TruncatedWhenRRSetDoesNotFit`, `TestRFC2181LowerTrustNeverDisplacesHigher`, `TestRFC2181HigherTrustReplacesLower`, `TestRFC2181AliasTargetNotAuthoritative`, `TestRFC2181WholeSIGRRSet`, `TestRFC2181SectionSIGNotTheRRSet`, `TestRFC2181SectionSIGNotCached`, `TestRFC2181ReplyAAClear` | `internal/plugins/dnsresolver/rfc2181_resolver_test.go` | the tagged carriers of RFC2181-5.1-1, 5.3.1-2/3/4, 5.4.1-3 and 5.4.1-9 | |
+| `TestRFC2181AuthoritativeReplySetsAA` | `internal/core/dnsserver/rfc2181_aa_test.go` | the authoritative shape still sets AA beside the recursive one | |
 | `TestCacheReplaceNotMerge`, `TestCacheCaseFold`, `TestCacheTTLDecrement`, `TestTTLHighBit` | `internal/plugins/dnsresolver/cache_test.go` | AC-5, AC-6, AC-21, AC-27; RFC2181-5.4-1, RFC1035-3.1-5, RFC 2181 Section 8 | |
 | `TestNegativeCacheTTL` | `internal/plugins/dnsresolver/cache_test.go` | AC-7, R-10 | |
 | `TestTrustRanking` | `internal/plugins/dnsresolver/cache_test.go` | AC-20, RFC2181-5.4.1-3 | |
@@ -366,8 +382,8 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `TestReplyMatching`, `TestBailiwick` | `internal/plugins/dnsresolver/forward_test.go` | AC-18, AC-19, A-4 | |
 | `TestFailoverAndTimeout`, `TestTCPRetryOnTC` | `internal/plugins/dnsresolver/forward_test.go` | AC-15, AC-16, AC-17, R-7 | |
 | `TestCoalescing`, `TestSlowUpstreamDoesNotBlockCache` | `internal/plugins/dnsresolver/server_test.go` | AC-22, A-8 | |
-| `TestWorkBudget` | `internal/plugins/dnsresolver/budget_test.go` | AC-11 | |
-| `TestParseConfigRefusals` | `internal/plugins/dnsresolver/config_test.go` | AC-3, AC-4, forward list empty, boundary table | |
+| `TestWorkBudget` | `internal/plugins/dnsresolver/forward_test.go` | AC-11 | |
+| `TestParseConfigRefusals` | `internal/plugins/dnsresolver/config_test.go` | AC-3 (three spellings), AC-4, forward list empty, bad allow-from, port 0, nine servers; each message names the fix | |
 | `TestReloadKeepsListeners` | `internal/plugins/dnsresolver/config_tx_test.go` | AC-30 | |
 | `TestDoctorCodes` | `internal/plugins/dnsresolver/doctor_test.go` | every registered code in `internal/core/diagnostic/codes.go` | |
 | `TestQueryToolFlags` | `internal/test/dnsquery/query_test.go` | the harness tool sets each header bit and prints each field | |
@@ -390,6 +406,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `dns-resolver-forward` | `test/plugin/dns-resolver-forward.ci` | allowed client resolves through `le mock dns` upstream with `le dns query`; header bits asserted; second query cached (mock logs one query) | |
 | `dns-resolver-acl-refused` | `test/plugin/dns-resolver-acl-refused.ci` | query with `--source` outside `allow-from` refused; RD=0 refused; mock logs nothing | |
 | `dns-resolver-config-refused` | `test/plugin/dns-resolver-config-refused.ci` | wildcard listener, empty allow-from, empty forward list refused, each naming the fix | |
+| `dns-resolver-boundary-refused` | `test/parse/dns-resolver-boundary-refused.ci` | every Boundary Tests row: each invalid value refused, the last valid high and low accepted | |
 | `dns-resolver-listener-conflict` | `test/plugin/dns-resolver-listener-conflict.ci` | same address and port as geodns refused | |
 | `dns-resolver-timeout` | `test/plugin/dns-resolver-timeout.ci` | mock `--drop` on one name: SERVFAIL within timeout, then answered once the mock serves it. → Decision: the "then answered" half is `dns-resolver-timeout-recovers` (mock `--drop-first`) | |
 | `dns-resolver-timeout-recovers` | `test/plugin/dns-resolver-timeout-recovers.ci` | mock `--drop-first web.example.test=1`: SERVFAIL within timeout, then NOERROR from the upstream on the next query (mock logs two questions) | |
@@ -416,8 +433,12 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 - None deferred.
 
 ## Files to Modify
-- `internal/core/dnsserver/handler.go` - add `Recursive` wrapper and `shapeRecursive` (owns RA, AA, CD, AD, Z); `Authoritative` untouched
-- `internal/core/dnsserver/manager.go` - `Options.UDPSize` passed to `dns.Server.UDPSize`
+- `internal/core/dnsserver/recursive.go` (new beside `handler.go`) - `Recursive` wrapper with its `RejectFunc`, `shapeRecursive` (owns RA, AA, CD, AD, Z), `RecursiveAccept`; `Authoritative` untouched
+- `internal/core/dnsserver/manager.go`, `secure.go` - `Options.UDPSize`, `Options.TCPConnMax`, `Options.MsgAcceptFunc` passed to each `dns.Server` (UDP, TCP, DoT); `OnListenerChange` takes `netip.AddrPort`
+- `internal/core/dnsserver/connlimit.go` (new) - the per-listener TCP connection cap and `ze_dns_tcp_connection_refused_total`; `freebind_linux.go`, `freebind_other.go` already existed for as112
+- `internal/plugins/as112/register.go`, `internal/plugins/geodns/` - the `OnListenerChange` signature change; listener keys by protocol and address with port
+- `internal/component/config/listener.go`, `internal/component/doctor/checks_listener.go` - freebind services registered, and the doctor treats an absent address as fine for them
+- `internal/plugins/dhcpserver/register.go`, `neighbor_linux.go`, `neighbor_other.go` - the DHCP reply delivery fix AC-32 needs (journal row `reply-addressed-where-the-client-cannot-receive`, owned here): the yiaddr -> chaddr neighbor entry before the unicast, NAK broadcast when giaddr is zero, and an operator's permanent neighbor entry never replaced
 - `internal/test/mock/dns/server.go`, `zone.go`, `dns.go` - `--log-queries`, `--delay`, `--drop`
 - `internal/le/interoplab/bgp/checkers.go` (registry) and `internal/le/interoplab/l2tp/l2tp.go` (`scenarioCheckerMap`, peers) - the new scenarios
 - `internal/core/diagnostic/codes.go` - resolver doctor codes; its design page `docs/features/ai-first.md` (built-in diagnostic codes) gains the new codes
@@ -433,7 +454,7 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 - `internal/component/plugin/all/all.go` - regenerated
 
 ## Files to Create
-- `internal/plugins/dnsresolver/` - `register.go`, `config.go`, `config_tx.go`, `state.go`, `server.go` (answer function, ACL, RD and QDCOUNT checks), `limit.go` (outstanding bound, per-client rate, one sweeper worker), `forward.go`, `cache.go` (answer and negative caches, ranking, LRU), `budget.go`, `show.go`, `doctor.go`, `metrics.go`, `yang/ze-dns-resolver-conf.yang`, `yang/ze-dns-resolver-cmd.yang`, `yang/register.go`, tests above
+- `internal/plugins/dnsresolver/` - `register.go`, `config.go`, `config_tx.go`, `state.go` (policy snapshot, narrow and restore for the reload), `server.go` (answer function, ACL, RD and QDCOUNT checks, `countRejected`), `resolve.go` (coalescing, the bounded waiters, the per-resolution budget: no separate `budget.go`), `limit.go` (outstanding bound, per-client rate, one sweeper worker), `forward.go`, `cache.go` (answer and negative caches, ranking, LRU), `listener_state.go`, `show.go`, `doctor.go`, `metrics.go`; config refusals are reached through `InProcessConfigVerifier`; tests: no `limit_test.go` or `budget_test.go` (those tests live in `server_test.go` and `forward_test.go`), plus `accept_test.go`, `freebind_linux_test.go`, `listener_state_test.go`, `rfc2181_resolver_test.go`, `yang/ze-dns-resolver-conf.yang`, `yang/ze-dns-resolver-cmd.yang`, `yang/register.go`, tests above
 - `internal/le/dns/query/register.go` - registers `le dns query`; implementation `internal/test/dnsquery/` with tests
 - `test/plugin/dns-resolver-*.ci` - the functional tests above
 - `test/interop/scenarios/dns-resolver-forward-unbound/`, `dns-resolver-dhcp-lan/`; `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber/`
@@ -456,7 +477,7 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 | Pipe completeness | Yes | `show dns-resolver` output through `ApplyPipes` |
 | Env var registration | No | no `environment/` leaf; all config is YANG under `service` |
 | Doctor check for runtime dependencies | Yes | listen port 53: `doctor-dns-resolver-port-unavailable`; no reachable upstream: `doctor-dns-resolver-upstream-unreachable`; codes in `internal/core/diagnostic/codes.go`, unit and functional tests. → Test: `TestDoctorCodes`, `TestDoctorListenerPortUnavailable`, `TestDoctorUpstreamUnreachable` (`internal/plugins/dnsresolver/doctor_test.go`) |
-| Prometheus counters/metrics | Yes | `ze_dns_resolver_queries_total{transport,rcode}`, `ze_dns_resolver_refused_total{reason=acl|rd-clear}`, `ze_dns_resolver_rate_limited_total`, `ze_dns_resolver_dropped_total`, `ze_dns_resolver_outstanding`, `ze_dns_resolver_cache_entries{cache=answer|negative}`, `ze_dns_resolver_cache_hits_total`, `ze_dns_resolver_upstream_queries_total{result}`, listener gauge via `OnListenerChange` |
+| Prometheus counters/metrics | Yes | `ze_dns_resolver_queries_total{transport,rcode}`, `ze_dns_resolver_refused_total{reason=acl|rd-clear}`, `ze_dns_resolver_rate_limited_total`, `ze_dns_resolver_dropped_total`, `ze_dns_resolver_outstanding`, `ze_dns_resolver_cache_entries{cache=answer|negative}`, `ze_dns_resolver_cache_hits_total`, `ze_dns_resolver_upstream_queries_total{result}`, `ze_dns_resolver_listener_up{protocol,address}` (address with port, set through `OnListenerChange`); harness `ze_dns_tcp_connection_refused_total` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP change |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -473,7 +494,7 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2181.md`, `rfc/short/rfc1035.md`, `rfc/short/rfc4035.md`; `docs/features/rfc-status.md` regenerated |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` and `docs/architecture/testing/ci-format.md` (`le dns query`, mock flags), `docs/architecture/testing/interop.md` (DNS scenarios and images) |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/dns/server-harness.md`, `docs/architecture/dns/lan-resolver.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/dns/server-harness.md`, `docs/architecture/dns/lan-resolver.md`; `docs/architecture/provisioning/dhcp-server.md` (reply delivery: neighbor entry before the unicast, NAK broadcast, permanent neighbor kept; updated in dafac43371 and 3dcb766bbf); `docs/architecture/dns/as112.md` (read for the `OnListenerChange` signature change: its listener-anchor section describes config, not the serving key, so it stays valid) |
 | 13 | Route metadata keys added/changed? | No | no route metadata |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
@@ -524,10 +545,10 @@ Every `.ci` uses `option=exclusive:group=dns-stub-port-53` where it binds port
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | malformed queries, oversized names, label pointers looping (miekg), QDCOUNT not 1 |
+| Input validation | malformed queries, oversized names, label pointers looping (miekg); QDCOUNT not 1 and unknown opcodes reach the handler through `RecursiveAccept` (answered with RA set, and counted), responses (QR=1) ignored, oversized sections (QDCOUNT over 16, ANCOUNT over 1, NSCOUNT over 1, ARCOUNT over 2) rejected before the handler, keeping miekg's section-count protections |
 | Open resolver | wildcard refused, empty ACL refused, REFUSED outside ACL, RD=0 refused (no cache snooping), no answer amplification to refused clients |
 | Poisoning | random ID and port, question match, bailiwick, ranking, no RRset merge |
-| Resource exhaustion | cache bounds, outstanding bound, per-client rate, coalescing, per-resolution budget, TCP connection limit from the harness |
+| Resource exhaustion | cache bounds, outstanding bound, per-client rate, coalescing with bounded waiters (excess counted in `ze_dns_resolver_dropped_total`), per-resolution budget; per-listener TCP cap 64 (`resolverTCPConnMax`) closed at accept before any read and counted in `ze_dns_tcp_connection_refused_total` (the ACL is judged per query, after accept); harness read and write deadlines |
 | Fail-open | every error path answers SERVFAIL or drops, never stale or fabricated data |
 
 ### Failure Routing
@@ -583,6 +604,9 @@ RFC sentences the design rests on, read from `rfc/full/`:
 | Per-resolution limits 32 upstream queries, 11 CNAME restarts | config leaves | unbound.conf `max-sent-count` "Default: 32", "Results in SERVFAIL when reached."; `max-query-restarts` "Default: 11"; RFC 4035 Section 5.4 bound; no operator need shown for a knob |
 | Positive TTL cap 86400, negative cap 3600, configurable | fixed | unbound.conf `cache-max-ttl` "Default: 86400 (1 day)", `cache-max-negative-ttl` "Default: 3600"; operators tune these |
 | Advertisement left to the existing leaves | a `self` keyword resolving to the resolver address in DHCP, RA and the L2TP pool | the three producers live in other plugins and components; a cross-plugin lookup is an import the plugin rules forbid; the guide shows the three leaves |
+| ANY: each RRset cached under its own type; an ANY query answered from every unexpired RRset the name owns, never cached as a whole message | cache the ANY reply as one message (Unbound caches the message) | a second copy of the same RRsets goes stale apart from the first, and RFC 2181 Section 5.4 ranks data per RRset; tests `TestAnyReturnsEveryOwnedRRset`, `TestAnyDoesNotFollowAlias` |
+| `RecursiveAccept` replaces miekg's `DefaultMsgAcceptFunc` on the resolver's listeners | keep the default | the default answers FORMERR or NOTIMP itself before the handler runs, so those replies carried RA=0 and were never counted; `RecursiveAccept` still ignores responses and rejects oversized sections, so miekg's protections stay; as112 and geodns keep the default (nil option) |
+| The doctor treats an absent listen address as fine for a freebind service, and still reports a busy port | report every absent address | the resolver binds with freebind, so an address that appears later (a LAN interface coming up) is served once it exists; a busy port is a conflict either way |
 | A new `le dns query` tool for `.ci` | assert through the stub resolver's output | the stub prints records and RCODE only; RA, AA, AD, TC and size are the behavior under test |
 
 ## Known Limitations
@@ -610,6 +634,9 @@ discrimination record is written by `./le rfc record` in the commit of the code
 it proves; every RFC 1035 and 2181 row that gains a resolver-side case has its
 record re-recorded, and any audit verdict the change stales is re-judged in the
 same commit (`ai/rules/planning.md`).
+
+- RFC2131-4.1-12 and RFC2131-4.3.2-1 are proven here, because AC-32 is blocked on DHCP reply delivery: carriers `TestOfferReachesClientHardware` and `TestNakBroadcastWhenGiaddrZero` (`internal/plugins/dhcpserver/rfc2131_delivery_test.go`). Commit 3dcb766bbf changed the producer `replyDestination`, so `./le rfc check` re-judges their records, and a record that no longer verifies is re-taken with the same break.
+- RFC2181-5.4.1-4 is a SHOULD ("Clients should assume that other records may have come from the server's cache."), met by `rankOf` (`internal/plugins/dnsresolver/cache.go`) and exercised by `TestRFC2181AliasTargetNotAuthoritative`. It is not tagged: optional requirements are improved after mandatory coverage reaches 100%.
 
 ## Checklist
 
