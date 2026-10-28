@@ -166,11 +166,12 @@ func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 
 // VALIDATES: AC-4's parity target, for the header fragment.
 //
-// The fragment published at gh-pages 2fa8fa2ad is the golden, with one edit
+// The fragment published at gh-pages 2fa8fa2ad is the golden, with two edits
 // since: the roadmap entry's description, which spec-release-roadmap changed in
-// website/data/nav.json. The one difference this comparison allows is the
-// spelling of an apostrophe: Python wrote &#x27; where Go writes &#39;, and the
-// owner ruled on 2026-08-29 that a character reference a reader cannot tell
+// website/data/nav.json, and the Examples menu's "Completion by use case"
+// entry, which links the RFC profile index from the menu. The one difference
+// this comparison allows is the spelling of an apostrophe: Python wrote &#x27;
+// where Go writes &#39;, and the owner ruled on 2026-08-29 that a character reference a reader cannot tell
 // apart is not a difference.
 func TestTheSharedHeaderReadsAsThePublishedHeader(t *testing.T) {
 	header := renderSiteHeader(t)
