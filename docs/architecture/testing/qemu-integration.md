@@ -1013,6 +1013,15 @@ actions.
 <!-- source: internal/le/test/deployment/actions.go -- gokrazy-l2tp-ppp, docker-l2tp-ppp, docker-pppoe-accel -->
 <!-- source: internal/le/test/qemu/actions.go -- pppoe-accel, vrrp-keepalived -->
 
+The L2TP appliance proof creates a private host bridge between the QEMU TAP
+and the xl2tpd namespace. When UFW is active, setup permits host INPUT on
+that bridge for DHCP and forwarding with both the incoming and outgoing
+interface restricted to that same bridge. Bridge netfilter can otherwise
+drop L2TP UDP traffic even when the readiness ping succeeds. Setup refuses
+if it cannot inspect UFW or install either rule. Cleanup removes both rules;
+the proof does not disable UFW or change global bridge-netfilter settings.
+<!-- source: internal/le/test/deployment/gokrazylab.go -- allowBridgeThroughFirewall, clearBridgeFromFirewall -->
+
 The MOBIKE action is a manual runtime-kernel proof, not a merge gate or a
 scheduled job. It runs both existing movement scenarios, without a selector:
 

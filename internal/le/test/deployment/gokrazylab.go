@@ -22,6 +22,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -156,7 +157,9 @@ func (g *gokrazyLab) setup() error {
 		}
 	}
 
-	g.allowBridgeThroughFirewall()
+	if err := g.allowBridgeThroughFirewall(); err != nil {
+		return fmt.Errorf("cannot permit the appliance proof through UFW; inspect `ufw status verbose` as root, correct the reported error, then retry `./le test deployment gokrazy-l2tp-ppp`: %w", err)
+	}
 	if err := g.startDNSMasq(); err != nil {
 		return err
 	}
@@ -196,32 +199,36 @@ func (g *gokrazyLab) remove() {
 	hostText("ip", ipNetns, "delete", g.Namespace) //nolint:errcheck // cleanup
 }
 
-// firewallActive reports whether this machine's firewall is turning traffic
-// away. A machine with no ufw at all answers false and is left alone.
-func (g *gokrazyLab) firewallActive() bool {
+// allowBridgeThroughFirewall permits DHCP to the host and traffic between the
+// peer and appliance on this run's bridge. Bridge netfilter can send that
+// traffic through FORWARD even though neither endpoint routes through the host.
+// The caller MUST call clearBridgeFromFirewall even when setup fails partway.
+func (g *gokrazyLab) allowBridgeThroughFirewall() error {
 	if !onPath("ufw") {
-		return false
+		return nil
 	}
 	out, ok := hostText("ufw", "status")
-	return ok && strings.Contains(out, "Status: active")
-}
-
-// allowBridgeThroughFirewall opens the one hole that the appliance's DHCP
-// needs.
-//
-// A default-deny INPUT chain drops the appliance's DISCOVER before dnsmasq can
-// see it. The host stops that packet instead of bridging it. Later traffic
-// passes between the peer and the appliance. The bridge traffic bypasses the
-// filter. Thus, only DHCP needs a firewall rule.
-func (g *gokrazyLab) allowBridgeThroughFirewall() {
-	if !g.firewallActive() {
-		return
+	if !ok {
+		writeProgress(g.Progress, out)
+		return errors.New("ufw status failed")
 	}
-	hostText("ufw", "allow", "in", "on", g.Bridge) //nolint:errcheck // a firewall that refuses the rule reports itself when DHCP then fails
+	if strings.Contains(out, "Status: inactive") {
+		return nil
+	}
+	if !strings.Contains(out, "Status: active") {
+		writeProgress(g.Progress, out)
+		return errors.New("ufw status did not report whether the firewall is active")
+	}
+	if err := hostRequired(g.Progress, "permit appliance DHCP through UFW",
+		"ufw", "allow", "in", "on", g.Bridge); err != nil {
+		return err
+	}
+	return hostRequired(g.Progress, "permit traffic within the appliance bridge through UFW",
+		"ufw", "route", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge)
 }
 
-// clearBridgeFromFirewall takes the hole back out.
-//
+// clearBridgeFromFirewall removes both rules for this run's bridge.
+// The caller MUST call it after allowBridgeThroughFirewall, including failure.
 // It does not first ask whether the firewall is active. A rule added by a run
 // that was killed survives an off-on firewall cycle.
 func (g *gokrazyLab) clearBridgeFromFirewall() {
@@ -229,6 +236,7 @@ func (g *gokrazyLab) clearBridgeFromFirewall() {
 		return
 	}
 	hostText("ufw", "--force", "delete", "allow", "in", "on", g.Bridge) //nolint:errcheck // cleanup
+	hostText("ufw", "--force", "route", "delete", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge) //nolint:errcheck // cleanup
 }
 
 // startDNSMasq starts the DHCP server that supplies the appliance's address.

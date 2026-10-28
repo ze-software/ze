@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -878,6 +878,48 @@ The unchanged checker read initial kernel rates of 10M/2M, then 20M/5M after
 CoA, and retained both rates after invalid CoA. A separate HTB kernel readback
 passed. This is shaping-state and connectivity proof, not throughput evidence;
 it does not clear the default-appliance L2TP host-privilege blocker.
+
+### Privileged L2TP failure and bridge repair, 2026-10-28
+
+Thomas ran `./le --name orchestration test deployment gokrazy-l2tp-ppp`
+as root, with the user cache and `/usr/local/go/bin` on PATH. The native
+amd64 image booted Linux 7.2.9-ze under KVM, bound UDP 1701, and answered
+the LAC namespace's readiness ping at 172.31.0.10. The result was
+`proven: false`: `xl2tpd did not establish an incoming L2TP session with
+the appliance`. Neither PPP nor dataplane completion is proved.
+
+| Diagnosis | Evidence or decision |
+|-----------|----------------------|
+| Symptom | xl2tpd sent SCCRQ from 172.31.0.2:1702; the session marker was not observed. |
+| Producer | `gokrazyLab.allowBridgeThroughFirewall` in `internal/le/test/deployment/gokrazylab.go` installed only an INPUT rule and assumed bridged traffic bypassed filtering. |
+| Observed cause | Host kernel journal at 14:29:21, :22, :24, :28 and :36 records UFW BLOCK from 172.31.0.2:1702 to 172.31.0.10:1701, IN and OUT zebr547760, PHYSIN zgokh547760, PHYSOUT zetap547760. `net.bridge.bridge-nf-call-iptables` reads 1. |
+| Owning layer | Host network setup for the appliance proof; no product protocol defect is established by this failure. |
+| Rejected workaround | Disabling UFW or global bridge netfilter would change protection for other host workloads. |
+| Source repair | Permit UFW forwarding only when both interfaces are this run's bridge; remove that exact route rule with the INPUT rule during cleanup. Refuse setup if UFW status or either installation fails. |
+| Verification boundary | The patch is written. Privileged replay through the unchanged session, PPP, traffic and teardown assertions is still required; the spec remains open. |
+
+The journal was read with `journalctl -k --since '2026-10-28 14:29:00'
+--until '2026-10-28 14:30:30' --grep '172\.31\.0\.|ze-gok|UFW'
+--no-pager`. The failed image remains at
+`tmp/evidence/gokrazy-l2tp-ppp-3417732332/ze.img`; preserve it for the
+existing-image replay. The harness's later SIGTERM messages are cleanup,
+not the cause of the failed exchange. The earlier privilege-blocked status
+is superseded by this executed failure, not by a passing result.
+
+The scoped deployment package passed with the feature-gate tags and `-race`
+through the native job runner (exit 0, package time 2.201s; receipt
+`tmp/session/2026-10-28-30667194-e251-46e5-93e8-56ed151de886/scratch/job-l2tp-deployment-unit-be847c44.log`).
+Independent review of the bridge patch found no correctness or isolation
+defect and confirmed the installed UFW parser accepts the matching deletion.
+Neither result proves live forwarding or rule removal.
+
+`./le doc check all` found no documentation drift but exited 1 for three
+source anchors outside this change: `commandWordsMax` in
+`docs/architecture/core-design.md`, `Available` in
+`docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`, and `workflowNestedLe` in
+`docs/architecture/testing/ci-workflows.md`. No clean aggregate result is
+claimed. The previously recorded unbounded `verify changed` path was not
+repeated.
 
 ## Owned journal rows
 
