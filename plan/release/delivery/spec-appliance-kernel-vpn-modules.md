@@ -468,7 +468,32 @@ recorded with the harness in `22f782e1c2`; they were not rerun for this update.
   replace SHA256 with SHA1 in installed-state observations; remove the
   WireGuard receiving peer's allowed IP or give it the wrong public key;
   make `/sbin/modprobe` exist in a disposable guest image. None may pass
-  the corresponding live assertion. No discrimination run was performed.
+  the corresponding live assertion. Completed cases are recorded below.
+
+### Live discrimination, native amd64/KVM, 2026-10-28
+
+The one-peer CBC-to-GCM break passed its discrimination check. A private Go
+overlay changed only the CBC scenario's strongSwan configuration mount to a
+fixture whose ESP proposal was `aes256gcm16`; Ze still proposed AES-CBC/SHA256.
+IKE established, the peer returned `NO_PROPOSAL_CHOSEN`, and the unchanged
+checker failed waiting for a Child SA. This exercises the Child-SA prerequisite,
+not the later negotiated-cipher, installed-transform or traffic assertions.
+Every other ESP case and WireGuard passed.
+
+The outer receipt records KVM, config check 0, expected lab exit 1, no leftovers
+and a stopped VM. Evidence:
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/job-vpn-break-cbc-gcm-30adb7c9.log`;
+the private fixture, overlay and preserved console are under
+`scratch/vpn-esp-breaks/cbc-gcm/` in that session. Independent review confirmed
+this is the intended proposal-mismatch rejection, not a setup failure.
+
+The SHA observation, WireGuard allowed-IP and modprobe-present cases remain
+open, followed by one unmutated native restoration run. The first SHA attempt
+stopped at a foreign incomplete import edit; the missing import is now present.
+The next boot reached Docker readiness but not the lab: the host's SSH forward
+did not create its Unix socket within 15 seconds. That is setup evidence only,
+not a discrimination result; the preserved console records authentication.
+Client tracing is being collected without extending that deadline.
 
 ### Native amd64 result, 2026-10-27
 

@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | 3/7 |
 | Handoff | - |
-| Updated | 2026-10-10 |
+| Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -359,6 +359,8 @@ Rebuild (2026-10-14, after commits 7bd12b1e80 and af8cc93d2f): the Docker builde
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `command-name-breaks-the-cli-grammar.md` | 2026-10-24 | `setup docker host` and `setup docker kernel`, then hyphenated, failed `./le cli grammar` R9; renamed to two tokens |
+| `failing-gate-prints-no-cause.md` | 2026-10-28 | Docker socket forwarding loses the filesystem error and SSH child outcome |
+| `zero-value-as-valid-answer.md` | 2026-10-28 | Docker-lab setup failure prints zero exit statuses for unexecuted stages |
 
 ## Known Limitations
 
