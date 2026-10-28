@@ -7,7 +7,7 @@
     "claim-sha": "ea166aed1ccb77c4",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "7d206c1f94ef546e",
-    "break": "line 617: \"!facts.rsClient\" -\u003e \"false\""
+    "producer-sha": "a3b261f7b099ffb2",
+    "break": "line 629: \"!facts.rsClient\" -\u003e \"false\""
   }
 ]
