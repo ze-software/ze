@@ -7,8 +7,8 @@
     "claim-sha": "76b383e369efe504",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5881-3-2",
@@ -18,8 +18,8 @@
     "claim-sha": "d38c1cb79265f019",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5881-3-2",
@@ -62,8 +62,8 @@
     "claim-sha": "3891362651e294ac",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5881-3-2",
@@ -73,7 +73,7 @@
     "claim-sha": "48d03f8273490cb8",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
