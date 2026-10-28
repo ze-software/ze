@@ -1976,9 +1976,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     return;
                 }
                 var chapter = mount.closest("[data-cast-start]");
-                AsciinemaPlayer.create(castVersion(manifest, src), mount, {
+                var preview = mount.closest("[data-cast-poster]");
+                var poster = chapter ? chapter.getAttribute("data-cast-start") :
+                    preview ? preview.getAttribute("data-cast-poster") : undefined;
+                var player = AsciinemaPlayer.create(castVersion(manifest, src), mount, {
                     startAt: chapter ? chapter.getAttribute("data-cast-start") : undefined,
-                    poster: chapter ? "npt:" + chapter.getAttribute("data-cast-start") : undefined,
+                    poster: poster !== undefined ? "npt:" + poster : undefined,
                     autoPlay: false,
                     fit: "both",
                     controls: true,
@@ -1987,6 +1990,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     terminalFontFamily:
                         '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
                 });
+                if (preview && !chapter) {
+                    mount.setAttribute("data-cast-preview-active", "");
+                    var clearPreview = function () {
+                        mount.removeAttribute("data-cast-preview-active");
+                    };
+                    player.addEventListener("play", clearPreview);
+                    player.addEventListener("seeked", clearPreview);
+                    player.addEventListener("ready", function () {
+                        // Initial poster output precedes ready; later output can
+                        // also come from frame stepping without a seeked event.
+                        player.addEventListener("output", clearPreview);
+                    });
+                }
             });
         }
 

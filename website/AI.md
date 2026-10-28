@@ -327,14 +327,16 @@ their public siblings. Pages built from JSON produce HTML and Markdown from the
 same typed input. Hand-authored HTML pages derive their mirror from the
 published main content, and the homepage is one of them: its copy lives in the
 build's own template, so a hand-written mirror would state that copy twice.
-The homepage demonstration replays the recording `homeHeroDemo` names, and its
-"Watch a demo" action opens the one `homeTourDemo` names
-(`internal/le/site/home.go`). The file name in the recording's frame, its
-caption, its player label and both links
-come from those ids' entries in `demos/terminal/manifest.json`: the caption is
-the entry's `title`, and each link is the entry's `page` at its `anchor`. The
-template names no recording, so choosing another replay is that one constant.
+The homepage demonstration replays the recording `terminaldemo.HeroDemo` names,
+and its "Watch a demo" action opens the one `homeTourDemo` names
+(`internal/le/site/home.go`). The filename in the recording's frame, its
+caption, its player label and both links come from those ids' entries in
+`demos/terminal/manifest.json`: the caption is the entry's `title`, and each
+link is the entry's `page` at its `anchor`. The template names no recording.
+When selecting another replay, also select a useful preview time in that
+recording for `homeTemplate`'s `data-cast-poster`.
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 
 ### Site design and content rules
@@ -399,16 +401,25 @@ Use `categoryLabel` for category display names: `platform` reads as
 `platform`. Escape the label when rendering HTML.
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
-The homepage preserves its useful content and data slots. Regression prevention
-follows Latest news. Its cards describe the behavior checked, with short action
+The homepage preserves its useful content and data slots. Its opening keeps
+the network OS and immutable-services identity, followed by a short explanation.
+"Try the BGP quickstart" is the first, primary action and links directly to
+`guides/quickstart/`; the demo gallery is secondary. Immediately below the
+opening and demo row, two compact groups retain the routing, interface, tunnel
+and management capabilities with their individual destinations. The engine,
+daemon and immutable-appliance explanation follows those groups. The support
+links, no-stable-release notice and product map remain visible below them.
+These groups stack on narrow screens; they do not collapse or hide content.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+
+Regression prevention follows Latest news. Its cards describe the behavior checked, with short action
 sentences and links to the test methods. Counts represent Go test functions,
 functional scenarios, fuzz targets and interop images, not a passing-run total.
 The RFC card separately shows the tested share of tracked MUST requirements.
 The management panel's left column starts with Why Ze,
 then explains how to manage Ze directly through its own SSH service. It has no
 self-contained management badge. The architectural argument cards remain below
-the panel. Its primary actions reach the demo gallery and BGP quickstart
-directly. Product screenshots
+the panel. Product screenshots
 are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The
 selector reserves one shared media frame and the tallest caption, so switching
@@ -423,6 +434,19 @@ hero, with its transcript link and `recording-title` anchor. `HeroDemo` in
 the homepage and the README screenshot link. The selector never replaces
 that replay or transcript. Screenshots use WebP; terminal playback uses the
 captured `.cast` events. Encoded video and animated README carriers are not used.
+The opening replay shows a genuine BGP dashboard frame at 43 seconds before
+Play, using `data-cast-poster` and the player's recorded-time poster.
+The initial preview enlarges the peer table within the existing media frame.
+The caption identifies this crop and points readers to full-screen playback.
+Playing, seeking or stepping through frames removes the enlargement.
+Full screen also shows the whole terminal. The preview does not set the
+playback start and never autoplays.
+The management chapter's `data-cast-start` still sets both its preview and
+playback start, taking precedence over a surrounding preview.
+Recheck the preview time when the selected recording changes. Keep the
+recording's original provenance; selecting a frame is not a new recording.
+<!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
 The replay heading uses solid hero text rather than the page-title gradient,
 which is too dark against the blue hero in light mode.
 The category overview derives every

@@ -296,6 +296,29 @@ actual player anchor. It does not embed encoded video or an animated SVG.
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
 <!-- source: README.md -- terminal-demo-hero -->
 
+The homepage terminal shows a genuine recorded frame before playback. Its
+`data-cast-poster` selects the BGP dashboard at 43 seconds without changing the
+full replay's start. Check that frame against the published cast and transcript
+when changing or re-recording the selected demo. The shared player uses
+`data-cast-start` for both the poster and playback start of a chapter; that
+chapter setting takes precedence over a preview-only poster. Neither player
+autoplays, and both retain controls and transcript links.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
+
+The opening preview enlarges the dashboard's upper-left area only while the
+player shows its initial play overlay. Full-screen mode shows the whole
+terminal. Playing, seeking or stepping a frame removes preview enlargement
+for that player; pausing does not restore it. The recording itself is unchanged.
+<!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
+<!-- source: website/assets/css/30-components.css -- data-cast-preview-active -->
+
+The vendored player carries a small `clearPoster` repair: recorded-time posters
+retain terminal state when navigation continues with incremental events. Text
+posters still clear. Keep the source patch and generation procedure in
+`website/assets/vendor/README.md` when updating the player.
+<!-- source: website/tools/asciinema-player-poster.patch -- clearPoster -->
+
 Keep a thumbnail's captured source frame and conversion evidence with the
 recording's acceptance evidence. Converting an existing PNG frame to lossless
 WebP changes its image encoding, not the captured session. It does not constitute

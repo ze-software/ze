@@ -1286,16 +1286,22 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero { display: block; padding: 0 clamp(1rem, 3vw, 2.5rem); margin: 0 0 2rem; color: var(--hero-text); background: var(--hero-panel-surface); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; border-bottom: 3px solid var(--brand-bright); overflow: visible; }
 .site-home .hero-start-panel { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .site-home .hero-start-panel::after { content: none; }
-.site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }
+.site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: start; padding: 2.25rem 0 1.5rem; }
 .site-home .hero-copy { grid-area: copy; max-width: none; }
 .site-home .hero .eyebrow { display: block; width: auto; margin: 0 0 1.15rem; padding: 0; border: 0; background: none; box-shadow: none; color: #8fcff4; font: 700 0.7rem/1.6 Lato, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
-.site-home #hero-title { display: block; width: auto; max-width: none; margin: 0 0 1.4rem; font-size: clamp(2.5rem, 3.9vw, 3.7rem); line-height: 1.1; letter-spacing: -0.045em; white-space: normal; color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; transform: none; }
-.site-home #hero-title em { font-style: normal; color: var(--brand-bright); }
+.site-home #hero-title { display: block; width: auto; max-width: none; margin: 0 0 1.2rem; font-size: clamp(2.25rem, 3.5vw, 3.35rem); line-height: 1.15; letter-spacing: -0.035em; white-space: normal; color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; transform: none; }
+.site-home #hero-title em { font-size: 0.95em; font-style: normal; color: var(--brand-bright); }
 .site-home .hero-start-points { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; max-width: none; margin: 0 0 1.1rem; color: var(--hero-muted); font-size: 0.75rem; line-height: 1.6; font-weight: 400; }
 .site-home .hero-start-points span { display: inline; margin: 0; padding: 0; color: var(--hero-muted); background: none; -webkit-background-clip: border-box; background-clip: border-box; -webkit-text-fill-color: currentColor; }
 .site-home .hero-intro { color: var(--hero-text); font-size: 1.2rem; line-height: 1.6; margin-bottom: 1.1rem; }
-.site-home .hero-start-lead { color: var(--hero-muted); font-size: 0.88rem; font-weight: 400; line-height: 1.75; max-width: none; }
-.site-home .hero-start-lead a, .site-home .hero-start-lead strong { color: #e5f1fc; font-weight: 400; }
+.site-home .hero-capabilities { padding: 1.25rem 0; border-top: 1px solid #2c4564; color: var(--hero-muted); font-size: 0.9rem; line-height: 1.7; }
+.site-home .hero-capabilities dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 2.75rem; margin: 0; }
+.site-home .hero-capabilities dt { margin-bottom: 0.35rem; color: var(--hero-text); font: 700 0.95rem/1.5 Poppins, sans-serif; }
+.site-home .hero-capabilities dd { margin: 0; }
+.site-home .hero-capabilities p { margin: 1rem 0 0; color: var(--hero-muted); font-size: inherit; }
+.site-home .hero-capabilities a { color: #b8def6; text-decoration: underline; text-decoration-color: #467090; text-underline-offset: 0.2em; }
+.site-home .hero-capabilities a:hover { text-decoration-color: currentColor; }
+.site-home .hero :is(a, button):focus-visible { outline-color: #8fcff4; }
 .site-home .hero-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1.6rem 0 0; }
 .site-home .hero-actions .button { min-height: 2.8rem; padding: 0.7rem 1rem; gap: 1rem; border: 1px solid #467090; border-radius: 0.45rem; font-size: 0.8rem; }
 .site-home .hero-actions .primary { color: #fff; background: var(--brand); border-color: var(--brand-bright); box-shadow: 0 5px 18px #031b2640; }
@@ -1308,12 +1314,14 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-tabs button { padding: 0.5rem 0.8rem; border: 1px solid transparent; border-radius: 0.35rem; color: var(--hero-muted); background: transparent; font-size: 0.8rem; }
 .site-home .screen-tabs button[aria-pressed="true"] { background: #254767; border-color: #4b6b8a; color: #fff; }
 .site-home .screen { margin: 0 0 1rem; border: 1px solid #ffffff1f; border-radius: 0.85rem; background: transparent; box-shadow: none; overflow: hidden; }
-.site-home .screen-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3rem; box-sizing: border-box; padding: 0.8rem 1rem; border-bottom: 1px solid #ffffff1f; background: transparent; color: var(--hero-muted); font-size: 0.7rem; }
+.site-home .screen-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; min-height: 3rem; box-sizing: border-box; padding: 0.8rem 1rem; border-bottom: 1px solid #ffffff1f; background: transparent; color: var(--hero-muted); font-size: 0.7rem; overflow-wrap: anywhere; }
 .site-home .screen-toolbar strong { color: var(--hero-muted); font-weight: 400; }
 .site-home .screen-toolbar a { color: #b8def6; text-decoration: none; }
 .site-home .screen > a { display: block; position: relative; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
 .site-home .screen > a img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .site-home .screen > .screen-media { display: flex; flex-direction: column; justify-content: center; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
+/* Enlarge only the initial recorded preview, never playback or full screen. */
+.site-home [data-cast-preview-active] .ap-wrapper:not(:fullscreen) .ap-player:has(> .ap-overlay-start) > .ap-term { transform: scale(1.7); transform-origin: top left; }
 .site-home .screen-description { display: block; padding: 1.25rem 1.4rem; background: transparent; }
 .site-home .screen-description strong { display: block; color: #eefcfe; font-size: 1rem; }
 .site-home .screen-description p { margin: 0.4rem 0 0.8rem; color: #c2d8e7; font-size: 0.85rem; line-height: 1.6; }

@@ -98,7 +98,7 @@
     main.has-page-sidebar > .page-sidebar .page-sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
     .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "preview"; gap: 2rem; padding-top: 2.5rem; }
     .site-home .hero-copy { max-width: 46rem; }
-    .site-home #hero-title { font-size: clamp(2.7rem, 6vw, 3.7rem); }
+    .site-home #hero-title { font-size: clamp(2.25rem, 5vw, 3rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .site-home .proof-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -131,6 +131,7 @@
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
     .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .hero-capabilities dl { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
     .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
     .site-home .home-proof-head { flex-direction: column; gap: 1rem; }
     .site-home .home-proof-actions { max-width: none; }
@@ -148,9 +149,8 @@
     .cli-toolbar > * { grid-column: 1; }
     .cli-reference-content .cli-group > table::before { content: "Scroll sideways to see all columns."; display: block; padding: 0.6rem 1rem; font: 0.75rem/1.5 Lato, sans-serif; color: var(--muted); background: var(--bg-soft); }
     .site-home .hero-start-intro.hero-grid { padding: 2rem 0 1.5rem; gap: 1.5rem; }
-    .site-home #hero-title { font-size: 2.55rem; }
+    .site-home #hero-title { font-size: clamp(2rem, 8vw, 2.55rem); }
     .site-home .hero-intro { font-size: 1.08rem; }
-    .site-home .hero-start-lead { font-size: 0.86rem; }
     .site-home .hero-actions .button { font-size: 0.78rem; flex: 1 1 12rem; }
     .site-home .screen-tabs button { font-size: 0.75rem; padding: 0.5rem 0.65rem; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }

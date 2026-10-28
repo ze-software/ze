@@ -43,48 +43,29 @@ const homeTemplate = `        <div class="site-home">
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Extend Ze with plugins for networking, automation and services of your own.</p>
-                                <p class="hero-start-lead">
-                                    Ze speaks <a href="guides/bgp-peering/"><strong>BGP</strong></a>,
-                                    <a href="guides/isis/"><strong>ISIS</strong></a>,
-                                    <a href="guides/ospf/"><strong>OSPF</strong></a>,
-                                    manages <a href="features/interfaces/"><strong>interfaces</strong></a> and tunnels
-                                    (<a href="guides/ipsec/"><strong>IPsec VPN</strong></a>, <a href="features/interfaces/#wireguard-configuration"><strong>WireGuard</strong></a>),
-                                    programs the <a href="reference/plugins/fib-kernel/"><strong>FIB</strong></a>, and exposes one
-                                    <a href="features/bgp-configuration/"><strong>YANG</strong></a>-modeled configuration
-                                    through its own built-in SSH server, a <a href="features/web-interface/"><strong>web</strong></a>
-                                    interface, <a href="features/api-commands/"><strong>APIs</strong></a>
-                                    (<a href="guides/api/#rest-endpoints"><strong>REST</strong></a>, <a href="guides/api/#grpc-services"><strong>gRPC</strong></a>,
-                                    <a href="guides/gnmi/"><strong>gNMI</strong></a>), <a href="features/cli-commands/"><strong>CLI</strong></a>, and
-                                    <a href="features/mcp-integration/"><strong>MCP</strong></a>.
-                                </p>
-                                <p class="hero-start-lead">
-                                    It is built on a configuration and protocol
-                                    engine that runs as a <a href="architecture/"><strong>daemon</strong></a> or
-                                    <a href="guides/appliance/"><strong>immutable appliance</strong></a>.
-                                </p>
+                                <p class="hero-intro">Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.</p>
                                 <div class="hero-actions">
-                                    <a class="button primary" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
-                                    <a class="button ghost" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
+                                    <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
+                                    <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
                                 </div>
                             </div>
                             <div class="showcase" data-product-showcase>
                                 <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
                                     <button type="button" data-product-target="product-terminal" aria-controls="product-terminal" aria-pressed="true">Watch Ze at work</button>
-                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="false">Looking glass</button>
+                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="false">Inspect routes</button>
                                     <button type="button" data-product-target="product-web" aria-controls="product-web" aria-pressed="false">Web configuration</button>
                                     <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">CLI editor</button>
-                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI dashboard</button>
+                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">Monitor peers</button>
                                 </div>
                                 <div class="product-panels">
                                 <figure class="screen product-screen" id="product-terminal" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / <span>{hero_demo_file}</span></strong><a href="{hero_demo_transcript}">Read transcript</a></div>
-                                    <div class="screen-media">{hero_demo}</div>
+                                    <div class="screen-media" data-cast-poster="43">{hero_demo}</div>
                                     <figcaption class="screen-description">
                                         <strong id="hero-demo-title">{hero_demo_title}</strong>
                                         <p>Watch Ze at work: follow a real terminal lab, with its transcript alongside it.</p>
                                         <a href="demos/terminal/">Watch the other demos →</a>
-                                        <p class="capture-caption">A replayable Ze terminal lab.</p>
+                                        <p class="capture-caption">Enlarged preview from the recording. Play shows the full terminal. Use full screen for a closer look.</p>
                                     </figcaption>
                                 </figure>
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
@@ -129,6 +110,35 @@ const homeTemplate = `        <div class="site-home">
                                 </figure>
                                 </div>
                             </div>
+                        </div>
+                        <div class="hero-capabilities" aria-label="Networking and management capabilities">
+                            <dl>
+                                <div>
+                                    <dt>Route and connect</dt>
+                                    <dd>
+                                        Speak <a href="guides/bgp-peering/">BGP</a>,
+                                        <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
+                                        Manage <a href="features/interfaces/">interfaces</a> and tunnels with
+                                        <a href="guides/ipsec/">IPsec VPN</a> and
+                                        <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
+                                        Program the <a href="reference/plugins/fib-kernel/">FIB</a>.
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Manage one configuration</dt>
+                                    <dd>
+                                        Ze exposes one <a href="features/bgp-configuration/">YANG</a>-modeled configuration
+                                        through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
+                                        <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
+                                        and <a href="features/api-commands/">APIs</a>:
+                                        <a href="guides/api/#rest-endpoints">REST</a>,
+                                        <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
+                                    </dd>
+                                </div>
+                            </dl>
+                            <p>Built on a configuration and protocol engine. Run it as a
+                                <a href="architecture/">daemon</a> or an
+                                <a href="guides/appliance/">immutable appliance</a>.</p>
                         </div>
                         <div class="hero-action-row">
                             <nav class="hero-primary-actions" aria-label="Start with Ze">

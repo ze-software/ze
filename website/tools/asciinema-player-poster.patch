@@ -1,0 +1,16 @@
+--- a/dist/bundle/asciinema-player.js
++++ b/dist/bundle/asciinema-player.js
+@@ -1,3 +1,4 @@
+ /* @license magnet:?xt=urn:btih:8e4f440f4c65981c5bf93c76d35135ba5064d8b7&dn=apache-2.0.txt Apache-2.0 */
++/* @license Modified by Ze: preserve recorded-time poster state during seeking and frame stepping. */
+ var AsciinemaPlayer = (function (exports) {
+   'use strict';
+@@ -1391,7 +1392,7 @@
+       ctx.posterVisible = true;
+     }
+     function clearPoster() {
+-      if (ctx.posterVisible) {
++      if (ctx.posterVisible && poster.type == "text") {
+         feed("\x1bc");
+       }
+       ctx.posterVisible = false;
