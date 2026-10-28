@@ -29,8 +29,8 @@
     "claim-sha": "119708d8a51d6ee3",
     "route": "revert",
     "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
-    "producer-sha": "7da6bd119065a469",
-    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6096051e56368598",
+    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7474-5-2",
@@ -40,8 +40,8 @@
     "claim-sha": "c53bcad325790204",
     "route": "revert",
     "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
-    "producer-sha": "7da6bd119065a469",
-    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6096051e56368598",
+    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7474-5-2",
