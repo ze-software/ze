@@ -35,6 +35,15 @@ the editor's screen and the section loads. The card text lives in
 `internal/le/site/terminaldemo/cards.json` under `topic-<topic>:<section>`, and
 the card's first line is its title.
 
+Every screen stays up long enough to read. The recorder holds a result a tape
+waited for (a loaded section, a commit, a show command's output) on screen for
+at least four seconds before the next action may change it, and a card printed
+in the outer shell with `ze-demo card` for the same two seconds plus 300
+milliseconds a word. A `Sleep` in the tape counts toward that time, so a tape
+sleeps only where a screen needs longer. Nothing is held while the recording is
+hidden.
+<!-- source: internal/le/site/terminaldemo/tapehold.go -- resultHold, outerCardHold, holdResult, awaitReading -->
+
 Two checks hold a tape to this. The recorder refuses a tape that loads a
 section with no `Card` since the previous section load, and a `Card` between
 `Hide` and `Show`, where nobody would see it. A unit test refuses a topic whose

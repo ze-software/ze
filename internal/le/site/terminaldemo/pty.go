@@ -58,6 +58,8 @@ type tapeSettings struct {
 	typing   time.Duration
 	wait     time.Duration
 	width    int
+	// resultHold is the reading floor after each visible Wait+Screen.
+	resultHold time.Duration
 }
 
 type tapeAction struct {
@@ -83,6 +85,8 @@ func defaultTapeSettings() tapeSettings {
 		typing:   50 * time.Millisecond,
 		wait:     30 * time.Second,
 		width:    1200,
+
+		resultHold: resultHold,
 	}
 }
 
@@ -484,6 +488,11 @@ func parseTapeAction(name, modifier, argument, where string) (tapeAction, error)
 			return tapeAction{}, fmt.Errorf("%s: Type %w", where, err)
 		}
 		action.text = text
+		// A typed `ze-demo card` earns the card's reading time (tapehold.go).
+		action.duration, err = outerCardHold(text)
+		if err != nil {
+			return tapeAction{}, fmt.Errorf("%s: Type %w", where, err)
+		}
 	case tapeSleepCommand:
 		duration, err := tapeDuration(argument)
 		if err != nil {
@@ -729,6 +738,14 @@ type tapeSession struct {
 	typing  time.Duration
 	timeout time.Duration
 	closed  bool
+	// resultHold is the reading floor a waited-for result earns (tapehold.go).
+	resultHold time.Duration
+	// cardHold is the reading time of the card the last typed command prints,
+	// spent by the Wait+Screen that sees the card.
+	cardHold time.Duration
+	// readyAt is the earliest moment the next action may change the screen.
+	// The zero value holds nothing.
+	readyAt time.Time
 }
 
 func (session *tapeSession) read() error {
@@ -853,7 +870,8 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 		terminatePTY(command, master)
 		return nil, err
 	}
-	session := &tapeSession{master: master, writer: writer, screen: newTerminalScreen(rows, columns), typing: tape.settings.typing, timeout: tape.settings.wait}
+	session := &tapeSession{master: master, writer: writer, screen: newTerminalScreen(rows, columns),
+		typing: tape.settings.typing, timeout: tape.settings.wait, resultHold: tape.settings.resultHold}
 	defer func() { terminatePTY(command, master); _ = writer.file.Close() }()
 	if err := session.waitForFirstOutput(); err != nil {
 		return nil, err
@@ -862,6 +880,14 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 		return nil, err
 	}
 	for _, action := range tape.actions {
+		// Every action but a Sleep or a Wait can change what the viewer sees,
+		// so it first lets the last result finish its reading time. A Sleep
+		// spends that time itself, and a Wait changes nothing on screen.
+		if action.name != tapeSleepCommand && action.name != tapeWaitCommand {
+			if err := session.awaitReading(); err != nil {
+				return nil, fmt.Errorf("%s: %w", action.where, err)
+			}
+		}
 		switch action.name {
 		case tapeHideCommand:
 			writer.hide()
@@ -873,7 +899,11 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			err = session.pump(action.duration)
 		case tapeWaitCommand:
 			err = session.waitFor(action.pattern)
+			if err == nil {
+				session.holdResult()
+			}
 		case tapeTypeCommand:
+			session.cardHold = action.duration
 			err = session.typeText(action.text)
 		case "Enter":
 			err = session.send(ptyKeys["enter"])

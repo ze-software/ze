@@ -105,6 +105,8 @@ func TestRecorderShowsACardOverARunningProgram(t *testing.T) {
 	settings.shell = hermeticShell(t)
 	settings.typing = time.Millisecond
 	settings.wait = shellWaitTimeout
+	// The reading floor has its own test; here it would only slow the run.
+	settings.resultHold = 0
 	tape := terminalTape{settings: settings, actions: []tapeAction{
 		{name: tapeTypeCommand, text: "echo $((40+2))", where: "t:1"},
 		{name: "Enter", where: "t:2"},
