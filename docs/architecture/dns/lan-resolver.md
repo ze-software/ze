@@ -47,13 +47,18 @@ the query ends it.
 The source is the packet source (`dnsserver.RemoteAddr`), never an EDNS0
 client-subnet option. A query with an opcode other than QUERY never reaches
 these steps: the wrapper answers it Not Implemented, and `countRejected`
-counts it in `ze_dns_resolver_queries_total` like every other reply. The
+counts it in `ze_dns_resolver_queries_total` like every other reply. A query
+whose OPT names an EDNS version other than 0 is answered BADVERS the same way
+(RFC 6891 Section 6.1.3), and counted under the `BADVERS` rcode label
+(`rcodeName`; the DNS library names RCODE 16 `BADSIG`, its TSIG meaning). The
 listeners run `dnsserver.RecursiveAccept` as their header filter, so both that
 query and one with two questions reach the resolver's handler and are
 answered in the recursive shape (RA set) rather than by the DNS library's own
 filter (`server-harness.md`).
 
 <!-- source: internal/plugins/dnsresolver/server.go -- resolver.answer, resolver.countRejected, newResolverServer -->
+<!-- source: internal/plugins/dnsresolver/metrics.go -- rcodeName -->
+<!-- test: internal/plugins/dnsresolver/accept_test.go -- TestMalformedQueryShapedAndCounted, TestRcodeNameBadVers -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestACLRefused, TestRDZeroRefused, TestQDCount, TestRateLimit -->
 <!-- test: internal/plugins/dnsresolver/accept_test.go -- TestMalformedQueryShapedAndCounted -->
 

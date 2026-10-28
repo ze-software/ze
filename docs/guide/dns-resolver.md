@@ -107,6 +107,7 @@ service already uses is refused by the config's cross-service listener check.
 | with RD clear | REFUSED, also for a cached name |
 | with more or less than one question | FORMERR |
 | an opcode other than QUERY | Not Implemented |
+| an EDNS version other than 0 | BADVERS |
 | cached | the cached records, TTLs aged |
 | not cached | forwarded upstream; the answer is cached and returned |
 | no upstream answers in time, or the work budget runs out | SERVFAIL, not cached |

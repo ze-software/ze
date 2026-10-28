@@ -234,6 +234,66 @@ func padded1232Answered(t *testing.T, opts Options) bool {
 	return resp.Rcode == dns.RcodeSuccess
 }
 
+// TestRecursiveBadVersion proves an EDNS query of a version this service does
+// not implement draws BADVERS, as RFC 6891 Section 6.1.3 requires, without
+// reaching the answer func. Method: send queries whose OPT carries version 1
+// and 255 through a handler whose answer func fails the test if called, pack
+// the reply as it goes on the wire, and read back the extended RCODE and the
+// reply OPT's version; a version 0 query must still reach the answer func.
+// PREVENTS: a query of an unknown EDNS version answered as if version 0 were
+// what the requestor asked for.
+func TestRecursiveBadVersion(t *testing.T) {
+	for _, version := range []uint8{1, 255} {
+		q := recursiveQuery("example.test.", 1232)
+		q.IsEdns0().SetVersion(version)
+		var rejected []int
+		handler := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool {
+			t.Errorf("EDNS version %d reached the answer func", version)
+			return true
+		}, func(_ Peer, rcode int) { rejected = append(rejected, rcode) })
+		fw := &fakeResponseWriter{}
+		handler(fw, q)
+		if fw.written == nil {
+			t.Fatalf("EDNS version %d: no reply written", version)
+		}
+		wire, err := fw.written.Pack()
+		if err != nil {
+			t.Fatalf("EDNS version %d: pack reply: %v", version, err)
+		}
+		reply := new(dns.Msg)
+		if err := reply.Unpack(wire); err != nil {
+			t.Fatalf("EDNS version %d: unpack reply: %v", version, err)
+		}
+		if reply.Rcode != dns.RcodeBadVers {
+			t.Errorf("EDNS version %d: wire rcode %d, want BADVERS (16)", version, reply.Rcode)
+		}
+		opt := reply.IsEdns0()
+		if opt == nil {
+			t.Fatalf("EDNS version %d: reply carries no OPT, so BADVERS cannot be expressed", version)
+		}
+		if opt.Version() != 0 {
+			t.Errorf("EDNS version %d: reply OPT version %d, want 0, the version this service implements", version, opt.Version())
+		}
+		if !reply.RecursionAvailable {
+			t.Errorf("EDNS version %d: RA=0, want the recursive shape", version)
+		}
+		if len(rejected) != 1 || rejected[0] != dns.RcodeBadVers {
+			t.Errorf("EDNS version %d: rejected reported %v, want one BADVERS", version, rejected)
+		}
+	}
+
+	q := recursiveQuery("example.test.", 1232)
+	reached := false
+	handler := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool {
+		reached = true
+		return true
+	}, nil)
+	handler(&fakeResponseWriter{}, q)
+	if !reached {
+		t.Errorf("EDNS version 0 query did not reach the answer func")
+	}
+}
+
 // TestRecursiveAccept pins every branch of the recursive header filter.
 // Goal: a response is ignored, a header claiming sections the library would
 // unpack at length is rejected, and a query the default filter would answer

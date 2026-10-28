@@ -41,9 +41,12 @@ const RecursiveUDPSize = 1232
 // A query whose opcode is not a standard query draws that reply here and
 // never reaches fn, so no opcode Ze does not implement is forwarded upstream.
 //
+// An EDNS query of a version other than 0 draws BADVERS here, before the
+// opcode check, and never reaches fn either (RFC 6891 Section 6.1.3).
+//
 // rejected, when not nil, is called once for each reply Recursive writes
-// without consulting fn (today the Not Implemented reply above), so the
-// consumer counts every query it answers and not only those fn saw.
+// without consulting fn (the Not Implemented and BADVERS replies above), so
+// the consumer counts every query it answers and not only those fn saw.
 //
 // If fn panics, queryGuard contains it as it does for Authoritative: the panic
 // is logged, counted and recorded, and no reply is written.
@@ -56,17 +59,21 @@ func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.Handler
 	task := queryGuard.Task(taskRecursiveQuery, queryRestart)
 	return func(w dns.ResponseWriter, r *dns.Msg) {
 		defer task.Contain(describeQuery(w, r), nil)
-		msg := new(dns.Msg)
-		if r.Opcode != dns.OpcodeQuery {
-			msg.SetRcode(r, dns.RcodeNotImplemented)
-			shapeRecursive(msg, r)
-			// RFC 1035 Section 6.4
-			send(w, msg, recursiveReplyLimit(r), log)
-			if rejected != nil {
-				rejected(w, msg.Rcode)
+		if opt := r.IsEdns0(); opt != nil {
+			// RFC 6891 Section 6.1.3: "If a responder does not implement the
+			// VERSION level of the request, then it MUST respond with
+			// RCODE=BADVERS."
+			if opt.Version() != recursiveEDNSVersion {
+				rejectRecursive(w, r, dns.RcodeBadVers, rejected, log)
+				return
 			}
+		}
+		if r.Opcode != dns.OpcodeQuery {
+			// RFC 1035 Section 6.4
+			rejectRecursive(w, r, dns.RcodeNotImplemented, rejected, log)
 			return
 		}
+		msg := new(dns.Msg)
 		msg.SetReply(r)
 		shapeRecursive(msg, r)
 		if !fn(msg, r, w) {
@@ -80,6 +87,26 @@ func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.Handler
 // RejectFunc observes a reply Recursive wrote without calling the answer
 // func: p is the client and rcode the reply's response code.
 type RejectFunc func(p Peer, rcode int)
+
+// recursiveEDNSVersion is the EDNS version this service implements, the
+// only one RFC 6891 defines. A reply OPT carries it, because setReplyOPT
+// never sets another, so every reply is limited in format to version 0.
+const recursiveEDNSVersion = 0
+
+// rejectRecursive writes the reply Recursive gives r without consulting the
+// answer func, rcode in the recursive shape, and tells rejected of it. An
+// extended rcode such as BADVERS needs the reply OPT to carry its upper bits,
+// and shapeRecursive adds one exactly when r carried one, which is the only
+// case that draws it.
+func rejectRecursive(w dns.ResponseWriter, r *dns.Msg, rcode int, rejected RejectFunc, log *slog.Logger) {
+	msg := new(dns.Msg)
+	msg.SetRcode(r, rcode)
+	shapeRecursive(msg, r)
+	send(w, msg, recursiveReplyLimit(r), log)
+	if rejected != nil {
+		rejected(w, msg.Rcode)
+	}
+}
 
 // headerQR is the QR bit of the header flags word (dns.Header.Bits).
 //

@@ -128,7 +128,18 @@ func rmetrics() *resolverMetrics {
 
 func (r *resolver) countQuery(transport string, rcode int) {
 	r.stats.queries.Add(1)
-	rmetrics().queries.With(transport, dns.RcodeToString[rcode]).Inc()
+	rmetrics().queries.With(transport, rcodeName(rcode)).Inc()
+}
+
+// rcodeName is the rcode label of a reply. miekg/dns names RCODE 16 BADSIG,
+// its TSIG meaning; this service speaks no TSIG, so the 16 it writes is the
+// RFC 6891 BADVERS reply to an EDNS version it does not implement, and the
+// label names that.
+func rcodeName(rcode int) string {
+	if rcode == dns.RcodeBadVers {
+		return "BADVERS"
+	}
+	return dns.RcodeToString[rcode]
 }
 
 func (r *resolver) countRefused(reason refuseReason) {

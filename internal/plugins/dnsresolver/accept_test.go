@@ -40,6 +40,9 @@ func TestMalformedQueryShapedAndCounted(t *testing.T) {
 	update.Opcode = dns.OpcodeUpdate
 	status := query("example.", dns.TypeA)
 	status.Opcode = dns.OpcodeStatus
+	ednsVersion1 := query("a.example.", dns.TypeA)
+	ednsVersion1.SetEdns0(1232, false)
+	ednsVersion1.IsEdns0().SetVersion(1)
 
 	cases := []struct {
 		name  string
@@ -49,6 +52,8 @@ func TestMalformedQueryShapedAndCounted(t *testing.T) {
 		{"two questions", twoQuestions, dns.RcodeFormatError},
 		{"UPDATE", update, dns.RcodeNotImplemented},
 		{"STATUS", status, dns.RcodeNotImplemented},
+		// RFC 6891 Section 6.1.3
+		{"EDNS version 1", ednsVersion1, dns.RcodeBadVers},
 	}
 	for _, network := range []string{"udp", "tcp"} {
 		client := &dns.Client{Net: network, Timeout: 2 * time.Second}
@@ -59,7 +64,7 @@ func TestMalformedQueryShapedAndCounted(t *testing.T) {
 				t.Fatalf("%s over %s: %v", tc.name, network, err)
 			}
 			if reply.Rcode != tc.rcode {
-				t.Errorf("%s over %s: rcode %s, want %s", tc.name, network, dns.RcodeToString[reply.Rcode], dns.RcodeToString[tc.rcode])
+				t.Errorf("%s over %s: rcode %s, want %s", tc.name, network, rcodeName(reply.Rcode), rcodeName(tc.rcode))
 			}
 			if !reply.RecursionAvailable {
 				t.Errorf("%s over %s: RA=0, want the recursive shape", tc.name, network)
@@ -70,6 +75,18 @@ func TestMalformedQueryShapedAndCounted(t *testing.T) {
 			if got := res.stats.queries.Load() - before; got != 1 {
 				t.Errorf("%s over %s: counted %d queries, want 1", tc.name, network, got)
 			}
+		}
+	}
+}
+
+// TestRcodeNameBadVers proves the query counter labels RCODE 16 BADVERS, the
+// meaning this service writes, not miekg/dns's TSIG name BADSIG. Method: ask
+// rcodeName for 16 and for two plain codes.
+func TestRcodeNameBadVers(t *testing.T) {
+	cases := map[int]string{dns.RcodeBadVers: "BADVERS", dns.RcodeSuccess: "NOERROR", dns.RcodeNotImplemented: "NOTIMP"}
+	for rcode, want := range cases {
+		if got := rcodeName(rcode); got != want {
+			t.Errorf("rcodeName(%d) = %q, want %q", rcode, got, want)
 		}
 	}
 }

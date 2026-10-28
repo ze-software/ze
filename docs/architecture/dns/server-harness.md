@@ -101,7 +101,10 @@ the answer function receives `Peer`, the wrapper owns the single write, and
 
 Both wrappers answer a non-QUERY opcode with Not Implemented before the answer
 function runs, and both share `send`, which takes the datagram bound the wrapper
-chose. A consumer of `Recursive` also sets `Options.UDPSize` to
+chose. `Recursive` first answers an EDNS query whose OPT version is not 0 with
+BADVERS (RFC 6891 Section 6.1.3), its upper bits in the reply OPT, version 0.
+`Authoritative` emits no OPT at all, so it cannot carry BADVERS; its EDNS
+response handling is owed with the rest of its RFC 6891 work. A consumer of `Recursive` also sets `Options.UDPSize` to
 `RecursiveUDPSize`, so the UDP listener reads a query of that size whole; with
 the field zero the read buffer stays at miekg's 512 octets, and a longer query
 draws FORMERR from miekg without reaching the handler. The authoritative
@@ -122,9 +125,9 @@ argument, a `RejectFunc`, is told of each reply the wrapper wrote without
 calling the answer function, so the consumer counts it. A nil
 `MsgAcceptFunc` keeps miekg's default, which the authoritative consumers use.
 
-<!-- source: internal/core/dnsserver/recursive.go -- Recursive, RejectFunc, RecursiveAccept, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize -->
+<!-- source: internal/core/dnsserver/recursive.go -- Recursive, RejectFunc, RecursiveAccept, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize, rejectRecursive, recursiveEDNSVersion -->
 <!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize, Options.MsgAcceptFunc -->
-<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize -->
+<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize, TestRecursiveBadVersion, TestRecursiveAccept -->
 <!-- test: internal/core/dnsserver/handler_test.go -- TestAuthoritativeUnchanged -->
 
 ## An apply must never believe a stale signature
