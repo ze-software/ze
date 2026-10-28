@@ -1,0 +1,59 @@
+# Test: typed entries keep their recorded order through a session commit
+# VALIDATES: spec-config-list-entries-operator-order A-3 and AC-10 storage producer
+# PREVENTS: metadata map iteration creating committed entries in a different order
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  dummy existing { description baseline; }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=set interface dummy zulu description first
+input=enter
+expect=error:none
+input=type:text=set interface dummy alpha description second
+input=enter
+expect=error:none
+input=type:text=set interface dummy mike description third
+input=enter
+expect=error:none
+input=type:text=set interface dummy bravo description fourth
+input=enter
+expect=error:none
+input=type:text=set interface dummy yankee description fifth
+input=enter
+expect=error:none
+input=type:text=set interface dummy charlie description sixth
+input=enter
+expect=error:none
+input=type:text=set interface dummy xray description seventh
+input=enter
+expect=error:none
+input=type:text=set interface dummy delta description eighth
+input=enter
+expect=error:none
+input=type:text=set interface dummy whiskey description ninth
+input=enter
+expect=error:none
+input=type:text=set interface dummy echo description tenth
+input=enter
+expect=error:none
+expect=dirty:true
+
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=set interface dummy zulu description first
+expect=key:path=file/active/test.conf:contains=set interface dummy echo description tenth
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*dummy existing \{.*^[ \t]*dummy zulu \{.*^[ \t]*dummy alpha \{.*^[ \t]*dummy mike \{.*^[ \t]*dummy bravo \{.*^[ \t]*dummy yankee \{.*^[ \t]*dummy charlie \{.*^[ \t]*dummy xray \{.*^[ \t]*dummy delta \{.*^[ \t]*dummy whiskey \{.*^[ \t]*dummy echo \{

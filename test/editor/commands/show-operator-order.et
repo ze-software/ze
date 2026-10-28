@@ -1,0 +1,105 @@
+# Test: the editor shows list entries in the order the operator wrote them
+# VALIDATES: editor show preserves operator order through the display serializer
+# shared with AC-13; CLI binary and web coverage use their own wiring tests
+# VALIDATES: AC-8: the added peer alpha follows zulu with + on alpha's lines;
+# compare omits unchanged zulu, and keeps their order when zulu also changes
+# VALIDATES: AC-9: copy prints yankee right after zulu, rename keeps bravo
+# where alpha was
+# PREVENTS: the hierarchical printer and diff gutter sorting entries by key
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer zulu {
+  	connection {
+  		remote {
+  			ip 192.0.2.26
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65026
+  		}
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Add a peer whose key sorts before the existing one.
+input=type:text=set bgp peer alpha connection remote ip 192.0.2.1
+input=enter
+expect=status:contains=set bgp peer alpha connection remote ip 192.0.2.1
+expect=dirty:true
+expect=error:none
+input=type:text=set bgp peer alpha session asn remote 65001
+input=enter
+expect=status:contains=set bgp peer alpha session asn remote 65001
+expect=error:none
+
+# AC-8: full show retains unchanged zulu and marks the newly added alpha.
+# Viewport assertions read the entire output, not just the visible page.
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:contains=peer zulu {
+expect=viewport:contains=peer alpha {
+expect=viewport:pattern=(?ms)^[ \t]+peer zulu \{.*^\+[ \t]+peer alpha \{
+expect=viewport:pattern=(?m)^\+[ \t]+remote ip 192\.0\.2\.1$
+expect=viewport:pattern=(?m)^\+[ \t]+asn remote 65001$
+
+# Exercise the bare hierarchical serializer too, without diff reconstruction.
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*peer zulu \{.*^[ \t]*peer alpha \{
+
+# Compare deliberately prunes unchanged entries, so it must omit zulu here.
+input=type:text=show | compare
+input=enter
+expect=error:none
+expect=viewport:not-contains=peer zulu
+expect=viewport:pattern=(?m)^\+[ \t]+peer alpha \{$
+expect=viewport:pattern=(?m)^\+[ \t]+remote ip 192\.0\.2\.1$
+expect=viewport:pattern=(?m)^\+[ \t]+asn remote 65001$
+
+# Keep zulu in compare by changing it, then assert order and alpha's gutter.
+input=type:text=set bgp peer zulu session asn remote 65027
+input=enter
+expect=status:contains=set bgp peer zulu session asn remote 65027
+expect=error:none
+input=type:text=show | compare
+input=enter
+expect=error:none
+expect=viewport:contains=peer zulu {
+expect=viewport:contains=peer alpha {
+expect=viewport:pattern=(?ms)^[ \t]+peer zulu \{.*^\+[ \t]+peer alpha \{
+expect=viewport:pattern=(?m)^\*[ \t]+asn remote 65027$
+
+# AC-9: copy places the new entry after the copied one, rename keeps the place.
+input=type:text=copy bgp peer zulu to yankee
+input=enter
+expect=status:contains=Copied peer zulu to yankee
+expect=error:none
+input=type:text=rename bgp peer alpha to bravo
+input=enter
+expect=status:contains=Renamed peer alpha to bravo
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*peer zulu \{.*^[ \t]*peer yankee \{.*^[ \t]*peer bravo \{
+expect=viewport:contains=peer zulu {
+expect=viewport:contains=peer yankee {
+expect=viewport:contains=peer bravo {
+expect=viewport:not-contains=peer alpha

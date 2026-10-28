@@ -9,8 +9,9 @@ Written 2026-10-28 by session ed626c22 at Thomas's request, at the end of Phase 
    the shared `docker`, `containerd` and `go-build` trees, which only Thomas
    may clear. Every build and test fails with "no space left on device" until
    then.
-2. `./le spec claim plan/release/fixes/spec-config-list-entries-operator-order.md`
-   (Status `in-progress`, Phase 1/5), then `/ze-implement` on it.
+2. Historical target: `spec-config-list-entries-operator-order` (then
+   `in-progress`, Phase 1/5; now closed). The delivered order and comparison
+   rules are in `docs/architecture/config/syntax.md`, "What a reader receives".
 3. Read the per-spec state file before any source:
    `tmp/session/2026-10-26-ed626c22-d6a4-4293-a5f7-287a2deb8cf2/state/session-state-config-list-entries-operator-order-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md`,
    section "Phase 1 continuation handoff". It holds the baseline reds, every

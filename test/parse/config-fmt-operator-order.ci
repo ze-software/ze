@@ -53,3 +53,8 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config fmt test.conf
 expect=exit:code=0
 expect=stdout:pattern=(?s)peer zulu \{.*peer alpha \{.*peer mike \{
+
+# AC-13: the actual show command follows the same recorded order.
+cmd=foreground:seq=2:exec=ze config show test.conf
+expect=exit:code=0
+expect=stdout:pattern=(?s)peer zulu \{.*peer alpha \{.*peer mike \{

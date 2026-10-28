@@ -89,17 +89,23 @@ func annotateContentWithTreeDiff(original, modified string, schema *config.Schem
 // renderDiffLines converts diff lines into an annotated string with line mapping.
 // The map sends a display line to the line of working (the content validation
 // line numbers index) that holds the same statement. The diff prints no comment
-// line and no blank line, and working holds both (Serialize prints every
-// comment, and a blank line after a block's head comments), so the n-th diff
-// line that exists in working is the n-th statement line of working, not its
-// n-th line. A diff line past the last statement line gets no mapping, so it
-// is never highlighted for another line's error.
+// line and no blank line. Match statements rather than their ordinal positions:
+// a removed/moved row consumes no source line, and an input not yet formatted
+// may use a block where the serializer prints an inline statement. Such a row
+// has no exact source counterpart and must not borrow another statement's error.
 func renderDiffLines(diffs []diffLine, working string) (string, map[int]int) {
-	statementLines := workingStatementLines(working)
+	statementLines := make(map[string][]int)
+	for i, line := range splitDiffLines(working) {
+		if isCommentOrBlankLine(line) {
+			continue
+		}
+		statement := diffStatementKey(line)
+		statementLines[statement] = append(statementLines[statement], i+1)
+	}
 	var b textbuf.Buffer
 	lineMapping := make(map[int]int)
 	displayLine := 0
-	statements := 0
+	workingLine := 0
 
 	for _, dl := range diffs {
 		if displayLine > 0 {
@@ -111,10 +117,12 @@ func renderDiffLines(diffs []diffLine, working string) (string, map[int]int) {
 
 		switch dl.Marker {
 		case diffUnchanged, diffAdded, diffModified:
-			if statements < len(statementLines) {
-				lineMapping[displayLine] = statementLines[statements]
+			positions := statementLines[diffStatementKey(dl.Text)]
+			next, _ := slices.BinarySearch(positions, workingLine+1)
+			if next < len(positions) {
+				workingLine = positions[next]
+				lineMapping[displayLine] = workingLine
 			}
-			statements++
 		case diffRemoved: // removed lines have no working content counterpart
 		default:
 			panic("BUG: invalid diff marker")
@@ -124,18 +132,29 @@ func renderDiffLines(diffs []diffLine, working string) (string, map[int]int) {
 	return b.String(), lineMapping
 }
 
-// workingStatementLines answers the 1-based numbers of the lines of working
-// that hold a statement, in order: every line but a blank one and a comment
-// on its own line.
-func workingStatementLines(working string) []int {
-	var numbers []int
-	for i, line := range splitDiffLines(working) {
-		if isCommentOrBlankLine(line) {
+// diffStatementKey matches display rows to source rows without rewriting config.
+// Ignore trailing comments, but not a '#' inside a quoted key or value.
+func diffStatementKey(line string) string {
+	var quote byte
+	for i := 0; i < len(line); i++ {
+		if quote != 0 {
+			if line[i] == '\\' {
+				i++
+				continue
+			}
+			if line[i] == quote {
+				quote = 0
+			}
 			continue
 		}
-		numbers = append(numbers, i+1)
+		switch line[i] {
+		case '"', '\'':
+			quote = line[i]
+		case '#':
+			return strings.TrimSpace(line[:i])
+		}
 	}
-	return numbers
+	return strings.TrimSpace(line)
 }
 
 // isCommentOrBlankLine reports whether a printed line holds no statement: it is
@@ -183,12 +202,17 @@ func diffWalkNode(lines *[]diffLine, orig, mod *config.Tree, name string, node c
 		}
 
 	case *config.ListNode:
-		diffList(lines, orig, mod, name, n, indent)
+		if !n.Ephemeral {
+			diffList(lines, orig, mod, name, n, indent)
+		}
 
 	case *config.FlexNode:
 		diffFlex(lines, orig, mod, name, n, indent)
 
-	case *config.FreeformNode, *config.InlineListNode: // unsupported — text fallback
+	case *config.InlineListNode:
+		diffListEntries(lines, orig, mod, name, n, false, indent)
+
+	case *config.FreeformNode:
 		diffNodeFallback(lines, orig, mod, name, node, indent)
 	}
 }
@@ -237,17 +261,15 @@ func diffBracketLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix str
 	modVal, modOk := bracketDisplay(mod, name)
 
 	var tb textbuf.Buffer
-	fmtBracket := func(v string) string { return tb.Reset().Str("[ ").Str(v).Str(" ]").String() }
-
 	switch {
 	case origOk && modOk && origVal == modVal:
-		*lines = append(*lines, diffLine{diffUnchanged, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(fmtBracket(origVal)).String()})
+		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Str(" [ ").Str(origVal).Str(" ]").String()})
 	case origOk && modOk:
-		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(fmtBracket(modVal)).String()})
+		*lines = append(*lines, diffLine{diffModified, tb.Str(prefix).Str(name).Str(" [ ").Str(modVal).Str(" ]").String()})
 	case origOk:
-		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(fmtBracket(origVal)).String()})
+		*lines = append(*lines, diffLine{diffRemoved, tb.Str(prefix).Str(name).Str(" [ ").Str(origVal).Str(" ]").String()})
 	case modOk:
-		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(fmtBracket(modVal)).String()})
+		*lines = append(*lines, diffLine{diffAdded, tb.Str(prefix).Str(name).Str(" [ ").Str(modVal).Str(" ]").String()})
 	}
 }
 
@@ -316,7 +338,7 @@ func diffContainer(lines *[]diffLine, orig, mod *config.Tree, name string, node 
 	case modChild == nil:
 		emitContainerMarked(lines, name, origChild, node, diffRemoved, indent)
 	default: // both present
-		if config.CanInlineContainer(modChild) {
+		if config.CanInlineContainer(modChild, node) {
 			diffContainerInline(lines, origChild, modChild, name, node, prefix)
 		} else {
 			var tb textbuf.Buffer
@@ -332,14 +354,14 @@ func diffContainer(lines *[]diffLine, orig, mod *config.Tree, name string, node 
 // This keeps the diff output line count consistent with Serialize, preventing
 // line-mapping drift in validation highlighting.
 func diffContainerInline(lines *[]diffLine, origChild, modChild *config.Tree, name string, node *config.ContainerNode, prefix string) {
-	origText := strings.TrimRight(config.SerializeSubtree(origChild, node), "\n")
+	// The working shape is authoritative even if comments made the original
+	// print differently or a nested plain list changed its presentation order.
 	modText := strings.TrimRight(config.SerializeSubtree(modChild, node), "\n")
 
 	var tb textbuf.Buffer
-	origLine := tb.Str(prefix).Str(name).Byte(' ').Str(origText).String()
-	modLine := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modText).String()
+	modLine := tb.Str(prefix).Str(name).Byte(' ').Str(modText).String()
 
-	if origLine == modLine {
+	if config.SubtreesEqual(origChild, modChild, node) {
 		*lines = append(*lines, diffLine{diffUnchanged, modLine})
 	} else {
 		*lines = append(*lines, diffLine{diffModified, modLine})
@@ -378,59 +400,190 @@ func diffPresenceContainer(lines *[]diffLine, orig, mod *config.Tree, name strin
 // --- List diff ---
 
 func diffList(lines *[]diffLine, orig, mod *config.Tree, name string, node *config.ListNode, indent int) {
+	diffListEntries(lines, orig, mod, name, node, node.UserOrdered, indent)
+}
+
+// diffListEntries follows the working printer. Only a user-ordered list treats
+// a change in relative order as a move; additions and deletions alone do not
+// move the surviving entries.
+func diffListEntries(lines *[]diffLine, orig, mod *config.Tree, name string, node config.Node, ordered bool, indent int) {
 	origEntries := orig.GetList(name)
 	modEntries := mod.GetList(name)
-
-	if len(origEntries) == 0 && len(modEntries) == 0 {
+	origKeys := diffListKeys(orig, name)
+	modKeys := diffListKeys(mod, name)
+	if len(origKeys) == 0 && len(modKeys) == 0 {
 		return
 	}
-
-	// Collect all keys from both sides, sorted for deterministic output
-	keySet := make(map[string]bool)
-	for k := range origEntries {
-		keySet[k] = true
+	var moved map[string]bool
+	if ordered {
+		moved = diffListMoves(origKeys, modKeys)
 	}
-	for k := range modEntries {
-		keySet[k] = true
+	// A run of deleted/moved entries belongs after the preceding surviving
+	// original entry. A separate leading run also permits an empty string key.
+	removed := make(map[string][]string)
+	var leading []string
+	anchor, anchored := "", false
+	for _, key := range origKeys {
+		if modEntries[key] == nil || moved[key] {
+			if anchored {
+				removed[anchor] = append(removed[anchor], key)
+			} else {
+				leading = append(leading, key)
+			}
+			continue
+		}
+		anchor = key
+		anchored = true
 	}
-	keys := make([]string, 0, len(keySet))
-	for k := range keySet {
-		keys = append(keys, k)
+	grouped := false
+	removedGrouped := false
+	if list, ok := node.(*config.ListNode); ok {
+		removedGrouped = config.ListUsesMultiBlock(origEntries, list)
+		entries := modEntries
+		if len(entries) == 0 {
+			entries = origEntries
+		}
+		grouped = config.ListUsesMultiBlock(entries, list)
 	}
-	slices.Sort(keys)
-
 	prefix := strings.Repeat("\t", indent)
-
-	for _, key := range keys {
-		origEntry := origEntries[key]
-		modEntry := modEntries[key]
-		displayKey := config.StripListKeySuffix(key)
-
-		// Build opening line
-		var tb textbuf.Buffer
-		var opening string
-		if displayKey == config.KeyDefault {
-			opening = tb.Str(name).Str(" {").String()
-		} else {
-			opening = tb.Reset().Str(name).Byte(' ').Str(diffQuoteIfNeeded(config.ListKeyOpeningValue(node, displayKey))).Str(" {").String()
-		}
-		closeLine := tb.Reset().Str(prefix).Byte('}').String()
-
-		switch {
-		case origEntry == nil && modEntry != nil:
-			*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(opening).String()})
-			emitEntryChildrenMarked(lines, modEntry, node, diffAdded, indent+1)
-			*lines = append(*lines, diffLine{diffAdded, closeLine})
-		case origEntry != nil && modEntry == nil:
-			*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(opening).String()})
-			emitEntryChildrenMarked(lines, origEntry, node, diffRemoved, indent+1)
-			*lines = append(*lines, diffLine{diffRemoved, closeLine})
-		case origEntry != nil && modEntry != nil:
-			*lines = append(*lines, diffLine{diffUnchanged, tb.Reset().Str(prefix).Str(opening).String()})
-			diffWalkChildren(lines, origEntry, modEntry, node, indent+1)
-			*lines = append(*lines, diffLine{diffUnchanged, closeLine})
+	groupMarker := diffUnchanged
+	if len(origKeys) == 0 {
+		groupMarker = diffAdded
+	}
+	if len(modKeys) == 0 {
+		groupMarker = diffRemoved
+	}
+	if grouped {
+		*lines = append(*lines, diffLine{groupMarker, prefix + name + " {"})
+		indent++
+	}
+	emitRemoved := func(keys []string) {
+		for _, key := range keys {
+			text, _ := diffPrintedListEntry(name, key, origEntries[key], node, grouped && removedGrouped)
+			emitReindentedLines(lines, text, diffRemoved, indent)
 		}
 	}
+	emitRemoved(leading)
+	for _, key := range modKeys {
+		entry := modEntries[key]
+		text, block := diffPrintedListEntry(name, key, entry, node, grouped)
+		switch {
+		case origEntries[key] == nil, moved[key]:
+			emitReindentedLines(lines, text, diffAdded, indent)
+		default:
+			diffListEntry(lines, origEntries[key], entry, node, text, block, indent)
+		}
+		if !moved[key] {
+			emitRemoved(removed[key])
+		}
+	}
+	if grouped {
+		*lines = append(*lines, diffLine{groupMarker, prefix + "}"})
+	}
+}
+
+// diffListKeys reads the recorded keys, then delegates missing/stale handling
+// to the same producer the printers use. These parsed trees are not mutated.
+func diffListKeys(tree *config.Tree, name string) []string {
+	recorded := tree.GetListOrdered(name)
+	order := make([]string, len(recorded))
+	for i, entry := range recorded {
+		order[i] = entry.Key
+	}
+	return config.ListEntryKeys(tree.GetList(name), order)
+}
+
+// diffListMoves retains a longest common subsequence of unique entry keys.
+// Mapping to original positions makes it an O(n log n) increasing-subsequence
+// problem, not the quadratic line LCS used by the parse-error fallback.
+func diffListMoves(original, working []string) map[string]bool {
+	positions := make(map[string]int, len(original))
+	for i, key := range original {
+		positions[key] = i
+	}
+	common := make([]string, 0, min(len(original), len(working)))
+	for _, key := range working {
+		if _, ok := positions[key]; ok {
+			common = append(common, key)
+		}
+	}
+	tails := make([]int, 0, len(common))
+	previous := make([]int, len(common))
+	for i, key := range common {
+		lo, hi := 0, len(tails)
+		for lo < hi {
+			middle := lo + (hi-lo)/2
+			if positions[common[tails[middle]]] < positions[key] {
+				lo = middle + 1
+			} else {
+				hi = middle
+			}
+		}
+		previous[i] = -1
+		if lo > 0 {
+			previous[i] = tails[lo-1]
+		}
+		if lo == len(tails) {
+			tails = append(tails, i)
+		} else {
+			tails[lo] = i
+		}
+	}
+	moved := make(map[string]bool, len(common))
+	for _, key := range common {
+		moved[key] = true
+	}
+	if len(tails) > 0 {
+		for i := tails[len(tails)-1]; i >= 0; i = previous[i] {
+			delete(moved, common[i])
+		}
+	}
+	return moved
+}
+
+// diffListEntry uses the printer's statement shape. A block is walked by
+// schema; a positional or inline statement is one semantic comparison.
+func diffListEntry(lines *[]diffLine, orig, mod *config.Tree, node config.Node, text string, block bool, indent int) {
+	if config.SubtreesEqual(orig, mod, node) {
+		emitReindentedLines(lines, text, diffUnchanged, indent)
+		return
+	}
+	if !block {
+		emitReindentedLines(lines, text, diffModified, indent)
+		return
+	}
+	var printed []diffLine
+	emitReindentedLines(&printed, text, diffUnchanged, indent)
+	opening := printed[0]
+	if orig.IsInactive() != mod.IsInactive() {
+		opening.Marker = diffModified
+	}
+	*lines = append(*lines, opening)
+	if walker, ok := node.(nodeWalker); ok {
+		diffWalkChildren(lines, orig, mod, walker, indent+1)
+	}
+	*lines = append(*lines, printed[len(printed)-1])
+}
+
+// diffPrintedListEntry delegates shape and quoting to the working serializer.
+// Only the three list node kinds dispatched by diffWalkNode reach this helper.
+func diffPrintedListEntry(name, key string, entry *config.Tree, node config.Node, grouped bool) (string, bool) {
+	var text textbuf.Buffer
+	block := true
+	switch n := node.(type) {
+	case *config.ListNode:
+		if grouped {
+			config.WritePositionalListEntry(&text, entry, key, n, "")
+			block = false
+		} else {
+			block = config.WriteListEntry(&text, entry, name, key, n, "", "")
+		}
+	case *config.FlexNode:
+		config.WriteFlexListEntry(&text, entry, name, key, n, "")
+	case *config.InlineListNode:
+		block = config.WriteInlineListEntry(&text, entry, name, key, n, "")
+	}
+	return text.String(), block
 }
 
 // --- Flex node diff ---
@@ -439,22 +592,23 @@ func diffFlex(lines *[]diffLine, orig, mod *config.Tree, name string, node *conf
 	prefix := strings.Repeat("\t", indent)
 	var tb textbuf.Buffer
 
-	// Value form
-	origVal, origOk := orig.Get(name)
-	modVal, modOk := mod.Get(name)
-	if origOk || modOk {
-		origFmt := formatFlexValue(name, origVal, origOk)
-		modFmt := formatFlexValue(name, modVal, modOk)
-		switch {
-		case origFmt == modFmt:
-			*lines = append(*lines, diffLine{diffUnchanged, tb.Reset().Str(prefix).Str(origFmt).String()})
-		case origFmt == "":
-			*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(modFmt).String()})
-		case modFmt == "":
-			*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(origFmt).String()})
-		case origFmt != modFmt:
-			*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(modFmt).String()})
-		}
+	// Flex values may have repeated statements alongside named entries.
+	origText := diffFlexValueText(orig, name)
+	modText := diffFlexValueText(mod, name)
+	_, origScalar := orig.Get(name)
+	_, modScalar := mod.Get(name)
+	switch {
+	case origText == modText:
+		emitReindentedLines(lines, modText, diffUnchanged, indent)
+	case origText == "":
+		emitReindentedLines(lines, modText, diffAdded, indent)
+	case modText == "":
+		emitReindentedLines(lines, origText, diffRemoved, indent)
+	case origScalar && modScalar:
+		emitReindentedLines(lines, modText, diffModified, indent)
+	default:
+		emitReindentedLines(lines, origText, diffRemoved, indent)
+		emitReindentedLines(lines, modText, diffAdded, indent)
 	}
 
 	// Container form
@@ -478,6 +632,20 @@ func diffFlex(lines *[]diffLine, orig, mod *config.Tree, name string, node *conf
 			*lines = append(*lines, diffLine{diffUnchanged, closeLine})
 		}
 	}
+	diffListEntries(lines, orig, mod, name, node, false, indent)
+}
+
+// diffFlexValueText follows the Flex scalar/multiple-value precedence without
+// dropping repeated values when this same node also holds named entries.
+func diffFlexValueText(tree *config.Tree, name string) string {
+	if value, ok := tree.Get(name); ok {
+		return formatFlexValue(name, value, true)
+	}
+	var text textbuf.Buffer
+	for _, member := range tree.GetMultiValuesState(name) {
+		text.Str(name).Byte(' ').Str(config.QuoteIfNeeded(member.Value)).Byte('\n')
+	}
+	return text.String()
 }
 
 // --- Fallback for unsupported node types ---
@@ -506,18 +674,18 @@ func diffNodeFallback(lines *[]diffLine, orig, mod *config.Tree, name string, no
 
 // --- Helpers ---
 
-// emitContainerMarked emits an entire container block with a single marker.
+// emitContainerMarked uses the working serializer's inline or block shape.
 func emitContainerMarked(lines *[]diffLine, name string, tree *config.Tree, node *config.ContainerNode, marker diffMarker, indent int) {
 	prefix := strings.Repeat("\t", indent)
 	var tb textbuf.Buffer
+	if !node.Presence && config.CanInlineContainer(tree, node) {
+		text := strings.TrimRight(config.SerializeSubtree(tree, node), "\n")
+		*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(name).Byte(' ').Str(text).String()})
+		return
+	}
 	*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(name).Str(" {").String()})
 	emitReindentedLines(lines, config.SerializeSubtree(tree, node), marker, indent+1)
 	*lines = append(*lines, diffLine{marker, tb.Reset().Str(prefix).Byte('}').String()})
-}
-
-// emitEntryChildrenMarked serializes children of a list entry and marks all lines.
-func emitEntryChildrenMarked(lines *[]diffLine, tree *config.Tree, node *config.ListNode, marker diffMarker, indent int) {
-	emitReindentedLines(lines, config.SerializeSubtree(tree, node), marker, indent)
 }
 
 // emitFlexChildrenMarked serializes children of a flex node and marks all lines.
@@ -581,8 +749,8 @@ func diffExtraTreeValues(lines *[]diffLine, orig, mod *config.Tree, children []s
 		origVal, origOk := orig.Get(k)
 		modVal, modOk := mod.Get(k)
 
-		origFmt := diffQuoteIfNeeded(origVal)
-		modFmt := diffQuoteIfNeeded(modVal)
+		origFmt := config.QuoteIfNeeded(origVal)
+		modFmt := config.QuoteIfNeeded(modVal)
 
 		switch {
 		case origOk && modOk && origFmt == modFmt:
@@ -605,7 +773,7 @@ func serializeNodeText(tree *config.Tree, name string, node config.Node, indent 
 
 	// For leaf-like nodes, check if value exists
 	if v, ok := tree.Get(name); ok {
-		return tb.Str(prefix).Str(name).Byte(' ').Str(diffQuoteIfNeeded(v)).String()
+		return tb.Str(prefix).Str(name).Byte(' ').Str(config.QuoteIfNeeded(v)).String()
 	}
 
 	// For container-like nodes, check if container exists
@@ -628,10 +796,10 @@ func serializeNodeText(tree *config.Tree, name string, node config.Node, indent 
 	return ""
 }
 
-// --- Formatting helpers (mirror config.quoteIfNeeded / normalizeBool) ---
+// --- Value formatting ---
 
 func formatLeafValue(v string) string {
-	return diffQuoteIfNeeded(diffNormalizeBool(v))
+	return config.QuoteIfNeeded(diffNormalizeBool(v))
 }
 
 func formatPresenceValue(name, v string, ok bool) string {
@@ -642,7 +810,7 @@ func formatPresenceValue(name, v string, ok bool) string {
 		return name
 	}
 	var tb textbuf.Buffer
-	return tb.Str(name).Byte(' ').Str(diffQuoteIfNeeded(v)).String()
+	return tb.Str(name).Byte(' ').Str(config.QuoteIfNeeded(v)).String()
 }
 
 func formatFlexValue(name, v string, ok bool) string {
@@ -653,7 +821,7 @@ func formatFlexValue(name, v string, ok bool) string {
 		return name
 	}
 	var tb textbuf.Buffer
-	return tb.Str(name).Byte(' ').Str(diffQuoteIfNeeded(v)).String()
+	return tb.Str(name).Byte(' ').Str(config.QuoteIfNeeded(v)).String()
 }
 
 func formatSlice(items []string) string {
@@ -661,11 +829,11 @@ func formatSlice(items []string) string {
 		return ""
 	}
 	if len(items) == 1 {
-		return diffQuoteIfNeeded(items[0])
+		return config.QuoteIfNeeded(items[0])
 	}
 	parts := make([]string, len(items))
 	for i, item := range items {
-		parts[i] = diffQuoteIfNeeded(item)
+		parts[i] = config.QuoteIfNeeded(item)
 	}
 	var tb textbuf.Buffer
 	return tb.Str("[ ").Join(parts, " ").Str(" ]").String()
@@ -679,38 +847,4 @@ func diffNormalizeBool(v string) string {
 		return "disable"
 	}
 	return v
-}
-
-func diffQuoteIfNeeded(s string) string {
-	if s == "" {
-		return `""`
-	}
-	needsQuote := false
-	for _, c := range s {
-		if c == ' ' || c == '\t' || c == '"' || c == '\'' || c == '{' || c == '}' || c == ';' || c == '#' {
-			needsQuote = true
-			break
-		}
-	}
-	if !needsQuote {
-		return s
-	}
-	var b textbuf.Buffer
-	b.Byte('"')
-	for _, c := range s {
-		switch c {
-		case '"':
-			b.Str(`\"`)
-		case '\\':
-			b.Str(`\\`)
-		case '\n':
-			b.Str(`\n`)
-		case '\t':
-			b.Str(`\t`)
-		default:
-			b.WriteRune(c)
-		}
-	}
-	b.Byte('"')
-	return b.String()
 }

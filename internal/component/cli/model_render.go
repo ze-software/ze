@@ -283,14 +283,16 @@ func highlightValidationIssues(content string, errors, warnings []ConfigValidati
 			if msg, ok := errorMsgs[origLineNum]; ok {
 				styled := errorLineStyle.Render(line)
 				if showHints {
-					lines[i] = tb.Str(styled).Str(dimStyle.Render(tb.Reset().Str("  ← ").Str(msg).String())).String()
+					hint := dimStyle.Render(tb.Str("  ← ").Str(msg).String())
+					lines[i] = tb.Str(styled).Str(hint).String()
 				} else {
 					lines[i] = styled
 				}
 			} else if msg, ok := warningMsgs[origLineNum]; ok {
 				styled := warningLineStyle.Render(line)
 				if showHints {
-					lines[i] = tb.Str(styled).Str(dimStyle.Render(tb.Reset().Str("  ← ").Str(msg).String())).String()
+					hint := dimStyle.Render(tb.Str("  ← ").Str(msg).String())
+					lines[i] = tb.Str(styled).Str(hint).String()
 				} else {
 					lines[i] = styled
 				}

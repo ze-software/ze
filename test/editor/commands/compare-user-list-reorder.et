@@ -1,0 +1,57 @@
+# Test: a firewall term reorder is a semantic change in the editor compare view
+# VALIDATES: spec-config-list-entries-operator-order AC-12
+# PREVENTS: hiding user-ordered moves or pruning the unchanged positioning context
+
+tmpfs=test.conf:terminator=EOF_CONF
+firewall {
+  table wan {
+    family inet
+    chain input {
+      type filter
+      hook input
+      priority 0
+      policy accept
+      term a { then { jump done; } }
+      term b { then { jump done; } }
+    }
+    chain done {
+      term finish { then { accept; } }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*term a \{.*^[ \t]*term b \{
+
+# Recreate a with the same action after b, without a new list-insert command.
+input=type:text=delete firewall table wan chain input term a
+input=enter
+expect=error:none
+input=type:text=set firewall table wan chain input term a then jump done
+input=enter
+expect=status:contains=set firewall table wan chain input term a then jump done
+expect=error:none
+expect=dirty:true
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*term b \{.*^[ \t]*term a \{
+
+input=type:text=show | compare
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^\+[ \t]+term b \{.*^[ \t]+term a \{.*^-[ \t]+term b \{
+expect=viewport:pattern=(?m)^\+[ \t]+then jump done$
+expect=viewport:pattern=(?m)^-[ \t]+then jump done$
+expect=viewport:pattern=(?m)^[ \t]+then jump done$
+expect=viewport:not-contains=chain done
+expect=viewport:not-contains=policy accept

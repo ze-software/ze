@@ -269,6 +269,41 @@ func TestExpectPatternMatchesOrder(t *testing.T) {
 	assert.NoError(t, checkExpectation(exp, &MockState{workingContent: inOrder}), "content reads the working content too")
 }
 
+// TestExpectPatternMatchesStyledViewportOrder matches anchored expressions against
+// displayed words, while reversed or missing rows still fail with terminal styling.
+//
+// VALIDATES: Both viewport-reading pattern expectations ignore ANSI presentation.
+// PREVENTS: Color escapes breaking line anchors or concealing absent configuration.
+func TestExpectPatternMatchesStyledViewportOrder(t *testing.T) {
+	const zulu = "\x1b[38;5;196;48;5;52mpeer zulu {\x1b[m\n}\n"
+	const alpha = "\x1b[32mpeer alpha {\x1b[m\n}\n"
+	const pattern = `(?ms)^peer zulu \{.*^peer alpha \{`
+	for _, expectType := range []string{"viewport", "content"} {
+		t.Run(expectType, func(t *testing.T) {
+			exp := Expectation{Type: expectType, Values: map[string]string{"pattern": pattern}}
+			for _, tc := range []struct {
+				name     string
+				viewport string
+				matches  bool
+			}{
+				{name: "styled order", viewport: zulu + alpha, matches: true},
+				{name: "plain order", viewport: "peer zulu {\n}\npeer alpha {\n}\n", matches: true},
+				{name: "reversed", viewport: alpha + zulu},
+				{name: "missing first row", viewport: alpha},
+				{name: "missing second row", viewport: zulu},
+				{name: "diagnostic is not a row", viewport: zulu + "\x1b[31m  ← invalid peer alpha {\x1b[m\n"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					err := checkExpectation(exp, &MockState{viewportContent: tc.viewport})
+					if (err == nil) != tc.matches {
+						t.Errorf("pattern match = %t, want %t: %v", err == nil, tc.matches, err)
+					}
+				})
+			}
+		})
+	}
+}
+
 // TestExpectStatusContains verifies status message assertion.
 //
 // VALIDATES: expect=status:contains= checks status message.

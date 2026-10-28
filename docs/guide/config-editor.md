@@ -79,6 +79,11 @@ refused commit leaves your changes pending there too.
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
 <!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
+Inline validation hints follow the highlighted configuration line; they never
+replace it. An invalid intermediate edit, such as copying a peer before changing
+its duplicate remote IP, therefore keeps the peer's configuration visible.
+<!-- source: internal/component/cli/model_render.go -- highlightValidationIssues -->
+
 In the SSH editor and the web terminal, `commit now` is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). `commit now force` applies your change
@@ -195,6 +200,19 @@ store exposes those change files to both display surfaces, so the reviewed diff
 includes the operations that commit will apply.
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
+
+`show` follows the working configuration's recorded list-entry order.
+`show | compare` omits unchanged entries, except for the context retained within
+a reordered `ordered-by user` list. Reordering a plain list alone creates no
+change marker. For a list declared `ordered-by user` in YANG, order is part of
+the configuration: a moved entry is shown removed at its old position and added
+at its new position. Surviving entries follow working order;
+deleted entries appear after their original predecessor. Removed rows have no
+working line number, so they do not shift validation highlighting onto another
+entry. Bracket leaf-list rows keep their leaf name and indentation in every
+change state, so a surviving bracket statement maps to its working line.
+<!-- source: internal/component/cli/diff_tree.go -- diffList, diffBracketLeaf, renderDiffLines -->
+<!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 
 ### Secrets are masked on every display path
 
@@ -423,6 +441,16 @@ markers too. In session mode each applied difference is one
 tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.
+
+For a list of named entries, both forms keep existing entries in their current
+positions and append new entries in the order the input names them. A `replace`
+removes omitted entries but does not move the entries it retains; it is not a
+list-reordering command.
+
+Entries created by typed `set` commands keep their creation order through draft
+save, commit and reload too. Session replay takes that order from the candidate
+tree, not from metadata map iteration or the session's timestamp.
+<!-- source: internal/component/config/meta.go -- SessionEntriesOrdered -->
 
 A load is all or nothing. A parse error, a refused entry, or a failed write of
 the change file leaves the candidate exactly as it was, and the error says

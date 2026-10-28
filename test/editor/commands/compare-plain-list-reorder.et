@@ -1,0 +1,63 @@
+# Test: plain-list reordering has no semantic diff but survives commit and reload
+# VALIDATES: spec-config-list-entries-operator-order AC-7
+# PREVENTS: empty ancestors in compare or a no-change commit losing recorded order
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  dummy zulu { description first; }
+  dummy alpha { description second; }
+  dummy mike { description third; }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*dummy zulu \{.*^[ \t]*dummy alpha \{.*^[ \t]*dummy mike \{
+
+# Recreate the same payload at the end; only the recorded entry order changes.
+input=type:text=delete interface dummy zulu
+input=enter
+expect=error:none
+input=type:text=set interface dummy zulu description first
+input=enter
+expect=status:contains=set interface dummy zulu description first
+expect=error:none
+expect=dirty:true
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*dummy alpha \{.*^[ \t]*dummy mike \{.*^[ \t]*dummy zulu \{
+
+input=type:text=show | compare
+input=enter
+expect=error:none
+expect=viewport:pattern=^$
+
+# An empty semantic diff must not suppress the byte/order change on commit.
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=dirty:false
+restart=editor
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*dummy alpha \{.*^[ \t]*dummy mike \{.*^[ \t]*dummy zulu \{
+expect=viewport:contains=description first
+expect=viewport:contains=description second
+expect=viewport:contains=description third
+input=type:text=show | compare
+input=enter
+expect=error:none
+expect=viewport:pattern=^$

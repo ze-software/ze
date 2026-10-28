@@ -24,7 +24,7 @@ func quoteRoundTripValues() []string {
 	return values
 }
 
-// TestQuoteIfNeededRoundTrip writes each generated value with quoteIfNeeded
+// TestQuoteIfNeededRoundTrip writes each generated value with QuoteIfNeeded
 // and reads it back with the hierarchical config tokenizer.
 //
 // VALIDATES: AC-9 at the token level: the tokenizer reads the written text as
@@ -34,15 +34,15 @@ func quoteRoundTripValues() []string {
 // leading `(` or `)` written bare and read back as several tokens.
 func TestQuoteIfNeededRoundTrip(t *testing.T) {
 	for _, value := range quoteRoundTripValues() {
-		written := quoteIfNeeded(value)
+		written := QuoteIfNeeded(value)
 		if err := readBackOneToken(written, value); err != "" {
-			t.Errorf("quoteIfNeeded(%q) = %q: %s", value, written, err)
+			t.Errorf("QuoteIfNeeded(%q) = %q: %s", value, written, err)
 		}
 	}
 
 	for _, bare := range []string{"65001", "192.0.2.1", "2001:db8::1", "a(b)c", "redirect:[2001:db8::1]:100", "inactive:"} {
-		if got := quoteIfNeeded(bare); got != bare {
-			t.Errorf("quoteIfNeeded(%q) = %q, want it bare", bare, got)
+		if got := QuoteIfNeeded(bare); got != bare {
+			t.Errorf("QuoteIfNeeded(%q) = %q, want it bare", bare, got)
 		}
 	}
 }
@@ -118,7 +118,7 @@ func TestQuoteRoundTripHierarchical(t *testing.T) {
 // TestQuoteRoundTripSet writes each generated value as a leaf value through
 // SerializeSet and SerializeSetWithMeta and reads it back with SetParser.
 //
-// VALIDATES: A-4: the set printers share quoteIfNeeded, and the set parser
+// VALIDATES: A-4: the set printers share QuoteIfNeeded, and the set parser
 // reads each written value back as the value stored, escapes included, in
 // the set form and in the set-meta form the editor stores.
 // PREVENTS: a value that the editor's commit writes and the next load reads

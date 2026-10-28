@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/resolve"
 )
@@ -127,7 +128,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 	if revisionStore != nil {
 		firstStore = revisionStore
 	}
-	var tree1 map[string]any
+	var tree1 *diffSource
 	if fromRevision {
 		tree1, err = parseAndResolve(schema, revisionData)
 	} else {
@@ -144,7 +145,8 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		return nil, exitError
 	}
 
-	diff := config.DiffMaps(tree1, tree2)
+	diff := config.DiffMaps(tree1.resolved, tree2.resolved)
+	diffListOrders(tree1.parsed, tree2.parsed, schema, diff)
 	maskDiffSecrets(diff, config.SecretKeys(schema))
 	return diff, exitOK
 }
@@ -166,9 +168,16 @@ func resolveRollbackVersion(store storage.Storage, configPath string, n int) (st
 	return backups[n-1].Path, data, nil
 }
 
-// loadAndResolve parses one source and resolves its BGP tree.
+// diffSource keeps parsed order beside resolved BGP values: lowering to a map
+// alone cannot answer whether a schema-declared ordered list moved.
+type diffSource struct {
+	parsed   *config.Tree
+	resolved map[string]any
+}
+
+// loadAndResolve parses one source and resolves its BGP tree when present.
 // A nil store means an explicit path, including "-" for stdin.
-func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (map[string]any, error) {
+func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (*diffSource, error) {
 	var data []byte
 	var err error
 	if store == nil || cliio.IsStdin(path) {
@@ -182,24 +191,94 @@ func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (
 	return parseAndResolve(schema, data)
 }
 
-// parseAndResolve parses config bytes and resolves their BGP tree.
-func parseAndResolve(schema *config.Schema, data []byte) (map[string]any, error) {
+// parseAndResolve retains the parsed tree for schema-driven order comparison.
+func parseAndResolve(schema *config.Schema, data []byte) (*diffSource, error) {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 
-	// Resolve the bgp{} section through the always-on seam; on a binary built
-	// without the BGP engine (//go:build ze_bgp) a bgp-free config resolves to
-	// an empty tree and the diff runs on the plain tree, while a config that
-	// does carry bgp{} is an error rather than a diff missing its BGP half.
-	bgpTree, err := infra.ResolveBGPTree(tree)
-	if err != nil {
-		return nil, fmt.Errorf("resolve: %w", err)
+	source := &diffSource{parsed: tree}
+	// Resolving an absent BGP block asks the engine to validate configuration
+	// that is not there. Non-BGP inputs still participate in list-order diff.
+	if tree.GetContainer("bgp") != nil {
+		source.resolved, err = infra.ResolveBGPTree(tree)
+		if err != nil {
+			return nil, fmt.Errorf("resolve: %w", err)
+		}
 	}
+	return source, nil
+}
 
-	return bgpTree, nil
+// diffListOrders adds only schema-declared ordered-list sequences, leaving the
+// existing resolved BGP value paths and non-BGP value-comparison scope intact.
+func diffListOrders(before, after *config.Tree, schema *config.Schema, diff *config.ConfigDiff) {
+	oldOrders, newOrders := make(map[string][]string), make(map[string][]string)
+	secretPaths := make(map[string]bool)
+	collectDiffListOrders(before, schema, "", oldOrders, secretPaths)
+	collectDiffListOrders(after, schema, "", newOrders, secretPaths)
+	for path, old := range oldOrders {
+		if _, present := newOrders[path]; !present {
+			diff.Removed[path] = maskDiffOrder(old, secretPaths[path])
+		}
+	}
+	for path, keys := range newOrders {
+		old, present := oldOrders[path]
+		if !present {
+			diff.Added[path] = maskDiffOrder(keys, secretPaths[path])
+			continue
+		}
+		// Compare real keys first; masking before comparison would hide a move.
+		if !slices.Equal(old, keys) {
+			diff.Changed[path] = config.DiffPair{
+				Old: maskDiffOrder(old, secretPaths[path]),
+				New: maskDiffOrder(keys, secretPaths[path]),
+			}
+		}
+	}
+}
+
+// collectDiffListOrders walks the finite parsed tree, including containers and
+// entries of plain lists: an ordered list can be nested inside either.
+func collectDiffListOrders(tree *config.Tree, schema config.ChildProvider, prefix string, orders map[string][]string, secrets map[string]bool) {
+	for _, name := range schema.Children() {
+		node := schema.Get(name)
+		path := config.AppendPath(prefix, name)
+		entries := tree.GetList(name)
+		if list, ok := node.(*config.ListNode); ok && list.UserOrdered && len(entries) > 0 {
+			recorded := tree.GetListOrdered(name)
+			keys := make([]string, 0, len(recorded))
+			for _, entry := range recorded {
+				keys = append(keys, entry.Key)
+			}
+			orderPath := config.AppendPath(prefix, configorder.OrderKey(name))
+			orders[orderPath] = config.ListEntryKeys(entries, keys)
+			if list.KeyLeaf != nil && (list.KeyLeaf.Sensitive || list.KeyLeaf.Bcrypt) {
+				secrets[orderPath] = true
+			}
+		}
+		children, ok := node.(config.ChildProvider)
+		if !ok {
+			continue
+		}
+		if sub := tree.GetContainer(name); sub != nil {
+			collectDiffListOrders(sub, children, path, orders, secrets)
+		}
+		for key, entry := range entries {
+			collectDiffListOrders(entry, children, config.AppendPath(path, key), orders, secrets)
+		}
+	}
+}
+
+func maskDiffOrder(keys []string, secret bool) []string {
+	if !secret {
+		return keys
+	}
+	for i := range keys {
+		keys[i] = config.SecretDataPlaceholder
+	}
+	return keys
 }
 
 // maskDiffSecrets replaces every secret value the diff carries with the display

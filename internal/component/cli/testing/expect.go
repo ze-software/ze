@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/stringsx"
@@ -383,8 +385,8 @@ func checkContent(exp Expectation, state State) error {
 		if err != nil {
 			return err
 		}
-		// Either text may match, as contains reads both.
-		if re.MatchString(workingContent) || re.MatchString(viewportContent) {
+		// Working config is literal; displayed output is matched without terminal styling.
+		if re.MatchString(workingContent) || re.MatchString(ansi.Strip(viewportContent)) {
 			return nil
 		}
 		return fmt.Errorf("content does not match pattern %q", pattern)
@@ -546,7 +548,7 @@ func checkViewport(exp Expectation, state State) error {
 		if err != nil {
 			return err
 		}
-		if !re.MatchString(content) {
+		if !re.MatchString(ansi.Strip(content)) {
 			return fmt.Errorf("viewport does not match pattern %q:\n%s", pattern, content)
 		}
 		return nil

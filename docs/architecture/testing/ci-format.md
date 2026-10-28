@@ -2422,6 +2422,14 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
 
+Pattern expectations match displayed output after stripping ANSI escape sequences,
+so a line anchor sees the configuration row rather than its color prefix. The
+viewport is not trimmed or reordered, and missing rows still fail. The working
+configuration alternative of `expect=content:pattern=` remains literal. Literal
+`contains` and `not-contains` expectations are unchanged. Failed viewport patterns
+retain the original output in their diagnostic.
+<!-- source: internal/component/cli/testing/expect.go -- checkContent, checkViewport -->
+
 Editor tests use a tree store by default; `option=storage:value=tree` states
 that choice explicitly. The tree mode is held in memory (`storage.CreateMemory`),
 not on disk: it is the live store's contract (name mapping, guards, versions,

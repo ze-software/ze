@@ -138,7 +138,7 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(normalizeBool(v)))
+			b.Str(QuoteIfNeeded(normalizeBool(v)))
 			b.Str("\n")
 		}
 
@@ -169,14 +169,14 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 				b.Str(name)
 				if len(bare) == 1 {
 					b.Str(" ")
-					b.Str(quoteIfNeeded(bare[0]))
+					b.Str(QuoteIfNeeded(bare[0]))
 				} else {
 					b.Str(" [ ")
 					for i, item := range bare {
 						if i > 0 {
 							b.Str(" ")
 						}
-						b.Str(quoteIfNeeded(item))
+						b.Str(QuoteIfNeeded(item))
 					}
 					b.Str(" ]")
 				}
@@ -210,7 +210,7 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 func writeInactiveMemberLines(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 	for _, member := range tree.multiValues[name] {
 		if tree.inactiveMembers[name][member] {
-			b.Str("nop ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+			b.Str("nop ").Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(member)).Byte('\n')
 		}
 	}
 }
@@ -227,7 +227,7 @@ func writeBracketMemberDeleteLines(b *textbuf.Buffer, name, prefix string, entri
 			continue
 		}
 		writeMetaPrefix(b, entries[i])
-		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(entries[i].Member)).Byte('\n')
+		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(entries[i].Member)).Byte('\n')
 	}
 }
 
@@ -272,7 +272,7 @@ func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bar
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(member))
+		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
 	}
 }
@@ -307,7 +307,7 @@ func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(member))
+		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
 	}
 }
@@ -333,7 +333,7 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 			b.Str(name)
 			if v != configTrue {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(v))
+				b.Str(QuoteIfNeeded(v))
 			}
 			b.Str("\n")
 		}
@@ -359,14 +359,7 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		return
 	}
 
-	keys := tree.listOrder[name]
-	if len(keys) == 0 {
-		keys = make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-	}
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -416,7 +409,7 @@ func serializeSetFreeform(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 		b.Str(k)
 		if v != configTrue {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(v))
+			b.Str(QuoteIfNeeded(v))
 		}
 		b.Str("\n")
 	}
@@ -432,7 +425,7 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 		b.Str(name)
 		if v != configTrue {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(v))
+			b.Str(QuoteIfNeeded(v))
 		}
 		b.Str("\n")
 	}
@@ -444,7 +437,7 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(v)
+			b.Str(QuoteIfNeeded(v))
 			b.Str("\n")
 		}
 	}
@@ -457,14 +450,10 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 
 	// List entries
 	if entries := tree.lists[name]; entries != nil {
-		keys := make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := ListEntryKeys(entries, tree.listOrder[name])
 		for _, key := range keys {
 			entry := entries[key]
-			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(key)).Byte(' ').String()
+			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).Byte(' ').String()
 			serializeSetNode(b, entry, node, entryPrefix)
 		}
 	}
@@ -478,16 +467,12 @@ func serializeSetInlineList(b *textbuf.Buffer, tree *Tree, name string, node *In
 		return
 	}
 
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).Byte(' ').String()
 
 		// entry is a separate Tree: lock it before reading entry.values
 		// directly (the caller's lock covers tree, not entry).
@@ -501,7 +486,7 @@ func serializeSetInlineList(b *textbuf.Buffer, tree *Tree, name string, node *In
 			b.Str(entryPrefix)
 			b.Str(childName)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(v))
+			b.Str(QuoteIfNeeded(v))
 			b.Str("\n")
 		}
 		entry.mu.RUnlock()
@@ -528,7 +513,7 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 		b.Str(prefix)
 		b.Str(k)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str(QuoteIfNeeded(tree.values[k]))
 		b.Str("\n")
 	}
 }
@@ -635,7 +620,7 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)), quoteIfNeeded)
+			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, QuoteIfNeeded(normalizeBool(v)), QuoteIfNeeded)
 		}
 
 	case *MultiLeafNode:
@@ -673,11 +658,11 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 			} else {
 				pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 				if len(bare) == 1 {
-					writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(bare[0]))
+					writeMetaLeafLine(b, meta, name, pathPfx, QuoteIfNeeded(bare[0]))
 				} else {
 					parts := make([]string, len(bare))
 					for i, item := range bare {
-						parts[i] = quoteIfNeeded(item)
+						parts[i] = QuoteIfNeeded(item)
 					}
 					writeMetaLeafLine(b, meta, name, pathPfx, tb.Reset().Str("[ ").Join(parts, " ").Str(" ]").String())
 				}
@@ -766,7 +751,7 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 			continue
 		}
 		writeMetaPrefix(b, e)
-		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(e.Member)).Byte('\n')
+		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(e.Member)).Byte('\n')
 		deletedFirst[e.Member] = true
 	}
 	for _, member := range bare {
@@ -782,7 +767,7 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(member))
+		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
 	}
 	for i := range entries {
@@ -805,7 +790,7 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(e.Member))
+		b.Str(QuoteIfNeeded(e.Member))
 		b.Str("\n")
 	}
 }
@@ -821,11 +806,11 @@ func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, valu
 // (including trailing space). value is the formatted value (empty for flags).
 // For contested leaves (multiple session entries), it emits one line per entry.
 func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string) {
-	writeMetaLeafLineFormat(b, meta, name, cmd, pathPrefix, value, quoteIfNeeded)
+	writeMetaLeafLineFormat(b, meta, name, cmd, pathPrefix, value, QuoteIfNeeded)
 }
 
 // writeMetaLeafLineFormat is writeMetaLeafLineCmd with the spelling of a
-// contested entry's value given: quoteIfNeeded for a leaf, bracketValue for a
+// contested entry's value given: QuoteIfNeeded for a leaf, bracketValue for a
 // bracket leaf-list, whose entry value is several members.
 func writeMetaLeafLineFormat(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string, entryValue func(string) string) {
 	if meta != nil {
@@ -873,7 +858,7 @@ func serializeSetMetaContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 			if v == configTrue {
 				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).String(), "")
 			} else {
-				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).Byte(' ').String(), quoteIfNeeded(v))
+				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).Byte(' ').String(), QuoteIfNeeded(v))
 			}
 		}
 		if child := tree.containers[name]; child != nil {
@@ -898,14 +883,7 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		return
 	}
 
-	keys := tree.listOrder[name]
-	if len(keys) == 0 {
-		keys = make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-	}
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -985,7 +963,7 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 		if v == configTrue {
 			writeLine(b, childMeta, k, keyPrefix, "")
 		} else {
-			writeLine(b, childMeta, k, tb.Reset().Str(keyPrefix).Byte(' ').String(), quoteIfNeeded(v))
+			writeLine(b, childMeta, k, tb.Reset().Str(keyPrefix).Byte(' ').String(), QuoteIfNeeded(v))
 		}
 	}
 }
@@ -995,17 +973,23 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 // through the standard child dispatch, reaching leaves that call writeLine).
 func writeFlexLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, prefix string, writeLine leafLineWriter) {
 	var tb textbuf.Buffer
-	if v, ok := tree.values[name]; ok {
-		if v == configTrue {
-			writeLine(b, meta, name, prefix+name, "")
-		} else {
-			writeLine(b, meta, name, prefix+name+" ", quoteIfNeeded(v))
+	if meta != nil && len(meta.entries[name]) > 1 {
+		// The line writer emits every competing whole-leaf assignment.
+		// Calling it per occurrence would multiply the contested records.
+		writeLine(b, meta, name, prefix+name+" ", "")
+	} else {
+		if v, ok := tree.values[name]; ok {
+			if v == configTrue {
+				writeLine(b, meta, name, prefix+name, "")
+			} else {
+				writeLine(b, meta, name, prefix+name+" ", QuoteIfNeeded(v))
+			}
 		}
-	}
 
-	if mv := tree.multiValues[name]; len(mv) > 0 {
-		for _, v := range mv {
-			writeLine(b, meta, name, prefix+name+" ", v)
+		if mv := tree.multiValues[name]; len(mv) > 0 {
+			for _, v := range mv {
+				writeLine(b, meta, name, prefix+name+" ", QuoteIfNeeded(v))
+			}
 		}
 	}
 
@@ -1015,14 +999,10 @@ func writeFlexLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, 
 	}
 
 	if entries := tree.lists[name]; entries != nil {
-		keys := make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := ListEntryKeys(entries, tree.listOrder[name])
 		for _, key := range keys {
 			entry := entries[key]
-			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(key)).Byte(' ').String()
+			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).Byte(' ').String()
 			entryMeta := metaListEntry(meta, name, key)
 			serializeSetMetaNode(b, entry, entryMeta, node, entryPrefix)
 		}
@@ -1037,16 +1017,12 @@ func writeInlineListLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		return
 	}
 
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).Byte(' ').String()
 		entryMeta := metaListEntry(meta, name, key)
 
 		// entry and entryMeta are separate nodes; lock each before
@@ -1060,7 +1036,7 @@ func writeInlineListLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 			if !ok {
 				continue
 			}
-			writeLine(b, entryMeta, childName, entryPrefix+childName+" ", quoteIfNeeded(v))
+			writeLine(b, entryMeta, childName, entryPrefix+childName+" ", QuoteIfNeeded(v))
 		}
 		if entryMeta != nil {
 			entryMeta.mu.RUnlock()
@@ -1085,7 +1061,7 @@ func serializeSetMetaExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 	slices.Sort(extraKeys)
 
 	for _, k := range extraKeys {
-		writeMetaLeafLine(b, meta, k, prefix+k+" ", quoteIfNeeded(tree.values[k]))
+		writeMetaLeafLine(b, meta, k, prefix+k+" ", QuoteIfNeeded(tree.values[k]))
 	}
 }
 
@@ -1131,7 +1107,7 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 				b.Str(name)
 				if e.Member != "" {
 					b.Str(" ")
-					b.Str(quoteIfNeeded(e.Member))
+					b.Str(QuoteIfNeeded(e.Member))
 				}
 			} else {
 				// Session set a value, but tree lacks it (another session deleted).
@@ -1139,7 +1115,7 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 				b.Str(prefix)
 				b.Str(name)
 				b.Str(" ")
-				b.Str(quoteIfNeeded(e.Value))
+				b.Str(QuoteIfNeeded(e.Value))
 			}
 			b.Str("\n")
 		}

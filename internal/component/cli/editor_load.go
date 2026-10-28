@@ -166,18 +166,18 @@ func (e *Editor) loadTree(path []string, current, want *config.Tree, replace boo
 	}
 	for _, name := range want.ListNames() {
 		have := current.GetList(name)
-		for _, key := range want.ListKeys(name) {
+		for _, loaded := range want.GetListOrdered(name) {
+			key := loaded.Key
 			entry := slices.Clip(append(path, name, key)) //nolint:gocritic // path is clipped, so append copies.
 			if have[key] == nil {
 				if err := e.CreateEntry(entry); err != nil {
 					return loadError(entry, err)
 				}
 			}
-			wantEntry := want.GetList(name)[key]
-			if err := e.loadTree(entry, have[key], wantEntry, replace); err != nil {
+			if err := e.loadTree(entry, have[key], loaded.Value, replace); err != nil {
 				return err
 			}
-			if err := e.loadNodeState(entry, have[key], wantEntry, replace); err != nil {
+			if err := e.loadNodeState(entry, have[key], loaded.Value, replace); err != nil {
 				return err
 			}
 		}

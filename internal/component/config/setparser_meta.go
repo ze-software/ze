@@ -432,12 +432,30 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			entryMeta := meta.GetOrCreateContainer(name).GetOrCreateListEntry(key)
 			return p.walkAndSetWithMeta(ensureFlexListEntry(tree, name, key), entryMeta, flex, entry, tokens[1:], lineNum)
 		}
-		// Otherwise treat as value/flag leaf.
 		value := configTrue
 		if len(tokens) > 0 {
 			value = textbuf.Join(tokens, " ")
 		}
-		setLeafMeta(value)
+		if hasMetadata {
+			entry.Value = value
+			meta.SetEntry(name, entry)
+		}
+		// Different owners assign this whole leaf; they are not simultaneous
+		// occurrences. Keep the last assignment in the tree and every owner's
+		// value in metadata, as scalar leaves do.
+		meta.mu.RLock()
+		contested := len(meta.entries[name]) > 1
+		meta.mu.RUnlock()
+		if contested {
+			tree.Delete(name)
+			tree.Set(name, value)
+			return nil
+		}
+		if len(tokens) == 0 {
+			tree.Set(name, value)
+			return nil
+		}
+		appendSetFlexValue(tree, name, value)
 		return nil
 	}
 

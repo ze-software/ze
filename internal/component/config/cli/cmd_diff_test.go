@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -370,8 +371,8 @@ func TestConfigDiffRevisionNotFound(t *testing.T) {
 }
 
 // firewallTerms is a firewall chain whose two terms are written in the order
-// given; the chain's list of terms is `ordered-by user`. The config carries
-// a bgp block because `ze config diff` refuses a file without one.
+// given; the chain's list of terms is `ordered-by user`. The mixed BGP/firewall
+// fixture proves order comparison does not replace the resolved BGP comparison.
 func firewallTerms(first, second string) string {
 	term := func(name string) string {
 		return "\t\t\tterm " + name + " {\n\t\t\t\tthen {\n\t\t\t\t\taccept\n\t\t\t\t}\n\t\t\t}\n"
@@ -441,4 +442,142 @@ func TestConfigDiffRevisionMode(t *testing.T) {
 	require.Equal(t, exitOK, code)
 	assert.Contains(t, output, "65002")
 	assert.Contains(t, output, "65001")
+}
+
+// TestConfigDiffOrderMetadata exercises text and JSON through the command
+// entry points, including firewall-only inputs and membership changes.
+func TestConfigDiffOrderMetadata(t *testing.T) {
+	const path = "firewall/table/wan/chain/input/@term"
+	before := strings.TrimPrefix(firewallTerms("b", "a"), bgpPeers("alpha", "bravo"))
+	after := strings.TrimPrefix(firewallTerms("a", "b"), bgpPeers("alpha", "bravo"))
+	for _, tc := range []struct {
+		name, before, after, text string
+		old, new                  []string
+	}{
+		{"reorder", before, after, "~ " + path + ": [b a] -> [a b]", []string{"b", "a"}, []string{"a", "b"}},
+		{"insert", "firewall { table wan { chain input { term a { then { accept; } } } } }", after,
+			"~ " + path + ": [a] -> [a b]", []string{"a"}, []string{"a", "b"}},
+		{"delete", after, "firewall { table wan { chain input { term a { then { accept; } } } } }",
+			"~ " + path + ": [a b] -> [a]", []string{"a", "b"}, []string{"a"}},
+		{"identical", before, before, "No differences", nil, nil},
+		{"plain reorder", bgpPeers("bravo", "alpha"), bgpPeers("alpha", "bravo"), "No differences", nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file1, file2 := writeTestConfig(t, tc.before), writeTestConfig(t, tc.after)
+			code, text := captureDiffStdout(t, func() int { return cmdDiff([]string{file1, file2}) })
+			require.Equal(t, exitOK, code)
+			assert.Equal(t, tc.text+"\n", text)
+			encoded, code := marshalDiffAnswer(t, file1, file2)
+			require.Equal(t, exitOK, code)
+			var decoded struct {
+				Added   map[string]any `json:"added"`
+				Removed map[string]any `json:"removed"`
+				Changed map[string]struct {
+					Old []string `json:"old"`
+					New []string `json:"new"`
+				} `json:"changed"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(encoded), &decoded))
+			assert.Empty(t, decoded.Added)
+			assert.Empty(t, decoded.Removed)
+			if tc.old == nil {
+				assert.Empty(t, decoded.Changed)
+			} else {
+				require.Len(t, decoded.Changed, 1)
+				assert.Equal(t, tc.old, decoded.Changed[path].Old)
+				assert.Equal(t, tc.new, decoded.Changed[path].New)
+			}
+		})
+	}
+}
+
+// TestConfigDiffOrderSources proves stored current files and rollback bytes
+// feed the same ordered-list comparison as filesystem inputs.
+func TestConfigDiffOrderSources(t *testing.T) {
+	before := strings.TrimPrefix(firewallTerms("b", "a"), bgpPeers("alpha", "bravo"))
+	after := strings.TrimPrefix(firewallTerms("a", "b"), bgpPeers("alpha", "bravo"))
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	require.NoError(t, store.WriteFile("before.conf", []byte(before), 0o600))
+	require.NoError(t, store.WriteFile("after.conf", []byte(after), 0o600))
+	require.NoError(t, store.WriteVersion("after.conf", []byte(before), time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC)))
+	for _, first := range []string{"before.conf", "1"} {
+		code, text := captureDiffStdout(t, func() int {
+			return cmdDiffWithStorage(store, []string{first, "after.conf"})
+		})
+		require.Equal(t, exitOK, code)
+		assert.Equal(t, "~ firewall/table/wan/chain/input/@term: [b a] -> [a b]\n", text)
+	}
+}
+
+// TestConfigDiffWholeOrderedList distinguishes whole-list membership from a
+// changed existing sequence through both public command output shapes.
+func TestConfigDiffWholeOrderedList(t *testing.T) {
+	const path = "firewall/table/wan/chain/input/@term"
+	with := strings.TrimPrefix(firewallTerms("b", "a"), bgpPeers("alpha", "bravo"))
+	without := "firewall { table wan { chain input {} } }"
+	for _, addition := range []bool{true, false} {
+		before, after, marker := without, with, "+"
+		if !addition {
+			before, after, marker = with, without, "-"
+		}
+		file1, file2 := writeTestConfig(t, before), writeTestConfig(t, after)
+		code, text := captureDiffStdout(t, func() int { return cmdDiff([]string{file1, file2}) })
+		require.Equal(t, exitOK, code)
+		assert.Equal(t, marker+" "+path+": [b a]\n", text)
+		encoded, code := marshalDiffAnswer(t, file1, file2)
+		require.Equal(t, exitOK, code)
+		var decoded struct {
+			Added   map[string][]string `json:"added"`
+			Removed map[string][]string `json:"removed"`
+			Changed map[string]any      `json:"changed"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(encoded), &decoded))
+		assert.Empty(t, decoded.Changed)
+		if addition {
+			assert.Equal(t, map[string][]string{path: {"b", "a"}}, decoded.Added)
+			assert.Empty(t, decoded.Removed)
+		} else {
+			assert.Equal(t, map[string][]string{path: {"b", "a"}}, decoded.Removed)
+			assert.Empty(t, decoded.Added)
+		}
+	}
+}
+
+// TestConfigDiffSchemaOrder verifies the generic walker reaches ordered lists
+// under Flex and InlineList parents and masks sensitive key sequences only
+// after detecting their change.
+func TestConfigDiffSchemaOrder(t *testing.T) {
+	for _, secret := range []bool{false, true} {
+		list := config.List(config.TypeString, config.Field("value", config.Leaf(config.TypeString)))
+		list.UserOrdered = true
+		list.KeyLeaf = config.Leaf(config.TypeString)
+		list.KeyLeaf.Sensitive = secret
+		schema := config.NewSchema()
+		schema.Define("scope", config.Flex(config.Field("parent",
+			config.InlineList(config.TypeString, config.Field("rule", list)))))
+		makeTree := func(keys ...string) *config.Tree {
+			root, scope, parent := config.NewTree(), config.NewTree(), config.NewTree()
+			root.SetContainer("scope", scope)
+			scope.AddListEntry("parent", "one", parent)
+			for _, key := range keys {
+				parent.AddListEntry("rule", key, config.NewTree())
+			}
+			return root
+		}
+		before, after := makeTree("zulu", "alpha"), makeTree("alpha", "zulu")
+		diff := config.DiffMaps(nil, nil)
+		diffListOrders(before, after, schema, diff)
+		require.Len(t, diff.Changed, 1)
+		pair := diff.Changed["scope/parent/one/@rule"]
+		if secret {
+			assert.Equal(t, []string{config.SecretDataPlaceholder, config.SecretDataPlaceholder}, pair.Old)
+			assert.Equal(t, pair.Old, pair.New)
+		} else {
+			assert.Equal(t, []string{"zulu", "alpha"}, pair.Old)
+			assert.Equal(t, []string{"alpha", "zulu"}, pair.New)
+		}
+		assert.Equal(t, "zulu", before.GetContainer("scope").GetList("parent")["one"].GetListOrdered("rule")[0].Key)
+	}
 }

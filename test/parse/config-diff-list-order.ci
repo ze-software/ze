@@ -1,0 +1,104 @@
+# Test: actual config diff separates plain display order from user-ordered behavior.
+# VALIDATES: config-list-entries-operator-order AC-7 and AC-12; secret masking stays intact.
+stdin=config:terminator=EOF_CONFIG
+bgp {
+    router-id 1.1.1.1
+    session { asn { local 65000; } }
+}
+EOF_CONFIG
+
+tmpfs=firewall-before.conf:terminator=EOF_FW_BEFORE
+firewall {
+    table wan {
+        family inet
+        chain input {
+            type filter
+            hook input
+            priority 0
+            policy accept
+            term b { then { accept; } }
+            term a { then { accept; } }
+        }
+    }
+}
+EOF_FW_BEFORE
+
+tmpfs=firewall-after.conf:terminator=EOF_FW_AFTER
+firewall {
+    table wan {
+        family inet
+        chain input {
+            type filter
+            hook input
+            priority 0
+            policy accept
+            term a { then { accept; } }
+            term b { then { accept; } }
+        }
+    }
+}
+EOF_FW_AFTER
+
+tmpfs=peers-before.conf:terminator=EOF_PEERS_BEFORE
+bgp {
+    router-id 1.1.1.1
+    session { asn { local 65000; } }
+    peer zulu {
+        connection { remote { ip 10.0.0.1; } md5 { password order-secret-old; } }
+        session { asn { remote 65001; } }
+    }
+    peer alpha {
+        connection { remote { ip 10.0.0.2; } }
+        session { asn { remote 65001; } }
+    }
+}
+EOF_PEERS_BEFORE
+
+tmpfs=peers-after.conf:terminator=EOF_PEERS_AFTER
+bgp {
+    router-id 1.1.1.1
+    session { asn { local 65000; } }
+    peer alpha {
+        connection { remote { ip 10.0.0.2; } }
+        session { asn { remote 65001; } }
+    }
+    peer zulu {
+        connection { remote { ip 10.0.0.1; } md5 { password order-secret-old; } }
+        session { asn { remote 65001; } }
+    }
+}
+EOF_PEERS_AFTER
+
+tmpfs=peers-rotated.conf:terminator=EOF_PEERS_ROTATED
+bgp {
+    router-id 1.1.1.1
+    session { asn { local 65000; } }
+    peer alpha {
+        connection { remote { ip 10.0.0.2; } }
+        session { asn { remote 65001; } }
+    }
+    peer zulu {
+        connection { remote { ip 10.0.0.1; } md5 { password order-secret-new; } }
+        session { asn { remote 65001; } }
+    }
+}
+EOF_PEERS_ROTATED
+
+cmd=foreground:seq=1:exec=ze config diff firewall-before.conf firewall-after.conf
+expect=exit:code=0
+expect=stdout:contains=~ firewall/table/wan/chain/input/@term: [b a] -> [a b]
+reject=stdout:contains=No differences
+
+cmd=foreground:seq=2:exec=ze config diff peers-before.conf peers-after.conf
+expect=exit:code=0
+expect=stdout:contains=No differences
+reject=stdout:contains=order-secret-old
+
+cmd=foreground:seq=3:exec=ze config diff peers-before.conf peers-rotated.conf
+expect=exit:code=0
+expect=stdout:contains=peer/zulu/connection/md5/password
+expect=stdout:contains=/* SECRET-DATA */
+reject=stdout:contains=order-secret-old
+reject=stdout:contains=order-secret-new
+reject=stderr:pattern=order-secret-old
+reject=stderr:pattern=order-secret-new

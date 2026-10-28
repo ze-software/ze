@@ -398,19 +398,32 @@ func (mt *MetaTree) Clone() *MetaTree {
 // walking the entire tree recursively. Each result includes the
 // accumulated YANG path to the leaf.
 func (mt *MetaTree) SessionEntries(schema *Schema, sessionID string) []SessionEntry {
+	return mt.sessionEntries(schema, sessionID, nil)
+}
+
+// SessionEntriesOrdered collects the same metadata as SessionEntries, visiting
+// list entries in tree's recorded order. Metadata absent from tree, including
+// deletion records, is retained after the entries tree holds.
+// The caller MUST prevent mutations of tree until this call returns.
+func (mt *MetaTree) SessionEntriesOrdered(schema *Schema, sessionID string, tree *Tree) []SessionEntry {
+	return mt.sessionEntries(schema, sessionID, tree)
+}
+
+func (mt *MetaTree) sessionEntries(schema *Schema, sessionID string, tree *Tree) []SessionEntry {
 	var result []SessionEntry
 	var provider ChildProvider
 	if schema != nil {
 		provider = schema
 	}
-	mt.collectSession(provider, nil, sessionID, nil, &result)
+	mt.collectSession(provider, nil, sessionID, nil, &result, tree, "")
 	return result
 }
 
-// collectSession recursively walks the tree, accumulating path prefix.
-// Acquires mt.mu.RLock for its own node; child recursion locks the child
-// independently.
-func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessionID string, prefix []string, result *[]SessionEntry) {
+// collectSession recursively walks the metadata tree, bounded by the schema's
+// nesting depth. tree supplies order; listName identifies a list wrapper in the
+// metadata, whose corresponding entries live directly in tree.
+// Acquires mt.mu.RLock for its own node; child recursion locks independently.
+func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessionID string, prefix []string, result *[]SessionEntry, tree *Tree, listName string) {
 	mt.mu.RLock()
 	defer mt.mu.RUnlock()
 
@@ -424,6 +437,10 @@ func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessi
 			}
 		}
 	}
+	containerTree := tree
+	if tree != nil && listName != "" {
+		containerTree = tree.GetContainer(listName)
+	}
 	for name, child := range mt.containers {
 		var childProvider ChildProvider
 		var childList *ListNode
@@ -432,17 +449,47 @@ func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessi
 			childProvider, _ = node.(ChildProvider)
 			childList, _ = node.(*ListNode)
 		}
-		child.collectSession(childProvider, childList, sessionID, append(prefix, name), result)
+		child.collectSession(childProvider, childList, sessionID, append(prefix, name), result, containerTree, name)
 	}
-	for key, child := range mt.lists {
-		var childPrefix []string
-		if list != nil && list.HasMultiLeafKey() {
-			childPrefix = append(prefix, ListKeyTokens(list, key)...)
-		} else {
-			childPrefix = append(prefix, key)
+	if len(mt.lists) == 0 {
+		return
+	}
+	if tree == nil {
+		for key, child := range mt.lists {
+			child.collectSessionEntry(provider, list, sessionID, prefix, result, key, nil)
 		}
-		child.collectSession(provider, nil, sessionID, childPrefix, result)
+		return
 	}
+
+	// ListEntryKeys also retains entries added through Tree's live list map.
+	// Metadata-only keys follow them, so a deleted last leaf never disappears.
+	tree.mu.RLock()
+	entries := tree.lists[listName]
+	keys := ListEntryKeys(entries, tree.listOrder[listName])
+	recorded := len(keys)
+	for key := range mt.lists {
+		if _, exists := entries[key]; !exists {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys[recorded:])
+	tree.mu.RUnlock()
+	for _, key := range keys {
+		if child := mt.lists[key]; child != nil {
+			child.collectSessionEntry(provider, list, sessionID, prefix, result, key, entries[key])
+		}
+	}
+}
+
+// collectSessionEntry keeps multi-leaf keys as their schema-defined token path.
+func (mt *MetaTree) collectSessionEntry(provider ChildProvider, list *ListNode, sessionID string, prefix []string, result *[]SessionEntry, key string, tree *Tree) {
+	var childPrefix []string
+	if list != nil && list.HasMultiLeafKey() {
+		childPrefix = append(prefix, ListKeyTokens(list, key)...)
+	} else {
+		childPrefix = append(prefix, key)
+	}
+	mt.collectSession(provider, nil, sessionID, childPrefix, result, tree, "")
 }
 
 // RemoveSession removes all entries matching the given session ID

@@ -20,11 +20,19 @@ import (
 type creationPlan struct {
 	ops            []config.StructuralOp
 	createdRenames []createdRename
+	positions      []string
 }
 
 type createdRename struct {
 	index int
 	op    config.StructuralOp
+}
+
+// draftReplay carries only effects still needed by a materialized draft.
+type draftReplay struct {
+	ops       []config.StructuralOp
+	entries   []config.SessionEntry
+	positions []string
 }
 
 func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPlan, error) {
@@ -52,20 +60,33 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 		if err != nil {
 			return creationPlan{}, err
 		}
-		owned := false
-		for _, previous := range plan.ops {
+		if op.Type == config.StructuralOpRename {
+			for i, path := range plan.positions {
+				plan.positions[i], err = config.RebaseEditPath(schema, path, source, destination)
+				if err != nil {
+					return creationPlan{}, err
+				}
+			}
+		}
+		creation := -1
+		for i, previous := range plan.ops {
 			if previous.Type == config.StructuralOpCreateEntry && previous.SourcePath(schema) == source {
-				owned = true
+				creation = i
 			}
 			if previous.Type == config.StructuralOpDeleteEntry && previous.SourcePath(schema) == source {
-				owned = false
+				creation = -1
 			}
 		}
 		if op.Type == config.StructuralOpCopyEntry {
-			// A new source has no committed subtree to copy. Copy its creation
-			// program instead; pending leaf values are mirrored by writeThroughCopy.
+			// Replay the complete copied program at copy time, after any
+			// earlier deletion of the destination. Positioning is separate.
+			// A deleted and recreated source retains only its latest program.
+			start := 0
+			if creation >= 0 {
+				start = creation
+			}
 			var copied []config.StructuralOp
-			for _, previous := range plan.ops {
+			for _, previous := range plan.ops[start:] {
 				// Member operations are snapshotted when the copy is recorded;
 				// later source edits may rebase or remove their original records.
 				if isMemberOp(previous) {
@@ -84,7 +105,9 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 				}
 				copied = append(copied, rebased)
 			}
-			if !owned {
+			if creation >= 0 {
+				plan.positions = append(plan.positions, destination)
+			} else {
 				copyOp, before, err := copyBeforeRenames(schema, plan.ops, op)
 				if err != nil {
 					return creationPlan{}, err
@@ -94,9 +117,9 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 			plan.ops = append(plan.ops, copied...)
 			continue
 		}
-		// An existing ancestor is still renamed against committed state.
-		// Move the complete descendant program afterward, in its original
-		// order: moving only creations would resurrect deleted descendants.
+		// Replay the rebased source program at rename time, after earlier
+		// destination deletions. Preserve every descendant deletion and toggle;
+		// the destination's position is restored only after replay finishes.
 		var moved []config.StructuralOp
 		kept := plan.ops[:0]
 		for _, previous := range plan.ops {
@@ -115,8 +138,9 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 			}
 		}
 		plan.ops = kept
-		if owned {
+		if creation >= 0 {
 			plan.createdRenames = append(plan.createdRenames, createdRename{index: index, op: op})
+			plan.positions = append(plan.positions, destination)
 		} else {
 			// Recorded history remains intact, but replay and stale checks
 			// need the original committed source and the final destination.
@@ -146,17 +170,17 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 	return plan, nil
 }
 
-func creationReplayOps(schema *config.Schema, ops []config.StructuralOp) ([]config.StructuralOp, error) {
+func creationReplayPlan(schema *config.Schema, ops []config.StructuralOp) (creationPlan, error) {
 	plan, err := planCreations(schema, ops)
 	if err != nil {
-		return nil, err
+		return creationPlan{}, err
 	}
 	identity := func(op config.StructuralOp) bool {
 		return op.Type == config.StructuralOpRename && op.OldKey == op.NewKey
 	}
 	first := slices.IndexFunc(plan.ops, identity)
 	if first < 0 {
-		return plan.ops, nil
+		return plan, nil
 	}
 	replay := make([]config.StructuralOp, 0, len(plan.ops)-1)
 	replay = append(replay, plan.ops[:first]...)
@@ -165,7 +189,8 @@ func creationReplayOps(schema *config.Schema, ops []config.StructuralOp) ([]conf
 			replay = append(replay, op)
 		}
 	}
-	return replay, nil
+	plan.ops = replay
+	return plan, nil
 }
 
 // copyBeforeRenames lowers an intermediate-name reader to the original source
@@ -240,10 +265,10 @@ type entryMove struct {
 // prepareDraftReplay separates committed intent from effects still needed in
 // the shared draft. It never moves an entry back through an old address: that
 // address may now belong to another session.
-func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp) ([]config.StructuralOp, []config.SessionEntry, error) {
+func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree, meta *config.MetaTree, ops []config.StructuralOp) (draftReplay, error) {
 	plan, err := planCreations(e.schema, ops)
 	if err != nil {
-		return nil, nil, err
+		return draftReplay{}, err
 	}
 	var history []entryMove
 	nextCreated := 0
@@ -257,17 +282,17 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		}
 		source, err := structuralEntryTokens(e.schema, op, op.OldKey)
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		destination, err := structuralEntryTokens(e.schema, op, op.NewKey)
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		history = append(history, entryMove{source: source, destination: destination})
 	}
 	if len(history) == 0 {
-		saved, err := applyStructuralOpsToMeta(meta, e.schema, ops, true)
-		return plan.ops, saved, err
+		saved, err := applyStructuralOpsToMeta(meta, e.schema, ops, true, e.tree)
+		return draftReplay{ops: plan.ops, entries: saved, positions: plan.positions}, err
 	}
 	var owners []config.PendingChange
 	appendOwners := func(pending *config.MetaTree) {
@@ -281,7 +306,7 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 	for _, path := range e.listChangeFiles(guard) {
 		_, pending, pendingOps, err := e.readChangeFile(guard, path)
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		appendOwners(pending)
 		for _, op := range pendingOps {
@@ -297,36 +322,36 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		}
 		source, err := structuralEntryTokens(e.schema, op, op.OldKey)
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		source, err = materializedEntrySource(tree, e.schema, source, history, owners, op.SessionKey())
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		// Copies already present retain their earlier snapshot, even when
 		// the original source has since moved or changed.
 		if op.Type == config.StructuralOpCopyEntry {
 			entry, ok, err := config.WalkListEntryPath(e.schema, source)
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 			if !ok {
-				return nil, nil, fmt.Errorf("draft copy source is not an entry: %s", source)
+				return draftReplay{}, fmt.Errorf("draft copy source is not an entry: %s", source)
 			}
 			currentCopy := op
 			currentCopy.ParentPath = entry.ParentPath
 			currentCopy.OldKey = entry.Address.Key
 			destination, err := structuralEntryTokens(e.schema, currentCopy, currentCopy.NewKey)
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 			independent, err := entryHasIndependentOwner(e.schema, destination, owners, op.SessionKey())
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 			if walkPath(tree, e.schema, destination) != nil {
 				if independent {
-					return nil, nil, fmt.Errorf("draft copy destination is independently owned: %s", destination)
+					return draftReplay{}, fmt.Errorf("draft copy destination is independently owned: %s", destination)
 				}
 				continue
 			}
@@ -336,15 +361,15 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		for _, move := range applied {
 			source, err = config.RebaseEditTokens(e.schema, source, move.source, move.destination)
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 		}
 		entry, ok, err := config.WalkListEntryPath(e.schema, source)
 		if err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		if !ok {
-			return nil, nil, fmt.Errorf("draft move source is not an entry: %s", source)
+			return draftReplay{}, fmt.Errorf("draft move source is not an entry: %s", source)
 		}
 		op.ParentPath = entry.ParentPath
 		op.OldKey = entry.Address.Key
@@ -354,14 +379,14 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 			}
 			destination, err := structuralEntryTokens(e.schema, op, op.NewKey)
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 			applied = append(applied, entryMove{source: source, destination: destination})
 		}
 		replay = append(replay, op)
 	}
-	if _, err := applyStructuralOpsToMeta(meta, e.schema, replay, true); err != nil {
-		return nil, nil, err
+	if _, err := applyStructuralOpsToMeta(meta, e.schema, replay, true, e.tree); err != nil {
+		return draftReplay{}, err
 	}
 	// Existing entries and their metadata now share the effective draft
 	// moves. Creator-only metadata follows its recorded moves at those
@@ -372,11 +397,11 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		for _, move := range history {
 			op.ParentPath, err = config.RebaseEditTokens(e.schema, op.ParentPath, move.source, move.destination)
 			if err != nil {
-				return nil, nil, err
+				return draftReplay{}, err
 			}
 		}
 		if err := rebaseCreatedMetadata(meta, e.schema, op); err != nil {
-			return nil, nil, err
+			return draftReplay{}, err
 		}
 		if movedSessions == nil {
 			movedSessions = make(map[string]bool)
@@ -385,9 +410,48 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 	}
 	var saved []config.SessionEntry
 	for sessionID := range movedSessions {
-		saved = append(saved, meta.SessionEntries(e.schema, sessionID)...)
+		saved = append(saved, meta.SessionEntriesOrdered(e.schema, sessionID, e.tree)...)
 	}
-	return replay, saved, nil
+	return draftReplay{ops: replay, entries: saved, positions: plan.positions}, nil
+}
+
+// positionCreatedEntries moves only operation-derived destinations. It runs
+// after replay and pruning, when both the final keys and their payloads exist.
+// The editor MUST retain its candidate tree until this positioning finishes.
+func (e *Editor) positionCreatedEntries(tree *config.Tree, positions []string) error {
+	type listPosition struct {
+		target *config.Tree
+		source *config.Tree
+		name   string
+	}
+	lists := make(map[listPosition][]string)
+	for _, path := range positions {
+		tokens, err := config.ParseEditPath(path)
+		if err != nil {
+			return err
+		}
+		entry, ok, err := config.WalkListEntryPath(e.schema, tokens)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("draft position does not name an entry: %s", path)
+		}
+		source := walkPath(e.tree, e.schema, entry.ParentPath)
+		if source == nil {
+			continue // A later operation deleted the destination's ancestor.
+		}
+		target := walkPath(tree, e.schema, entry.ParentPath)
+		if target == nil {
+			continue // Replay retained no destination below this ancestor.
+		}
+		list := listPosition{target: target, source: source, name: entry.ListName}
+		lists[list] = append(lists[list], entry.Address.Key)
+	}
+	for list, keys := range lists {
+		list.target.RepositionListEntries(list.name, keys, list.source)
+	}
+	return nil
 }
 
 func materializedEntrySource(tree *config.Tree, schema *config.Schema, path config.EditTokens, history []entryMove, owners []config.PendingChange, sessionID string) (config.EditTokens, error) {
@@ -735,10 +799,11 @@ func (e *Editor) pruneCreationMaterializations(guard storage.WriteGuard, changeP
 				return false, err
 			}
 		} else {
-			ops, err = creationReplayOps(e.schema, ops)
+			plan, err := creationReplayPlan(e.schema, ops)
 			if err != nil {
 				return false, err
 			}
+			ops = plan.ops
 		}
 		appendMeta(pending)
 		for _, op := range ops {

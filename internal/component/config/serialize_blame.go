@@ -218,7 +218,7 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 			}
 			b.Str(name)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(normalizeBool(v)))
+			b.Str(QuoteIfNeeded(normalizeBool(v)))
 			b.Str("\n")
 		}
 
@@ -246,7 +246,7 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 			for _, member := range tree.multiValues[name] {
 				if tree.inactiveMembers[name][member] {
 					writeBlameGutter(b, meta, name)
-					b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+					b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(QuoteIfNeeded(member)).Byte('\n')
 				}
 			}
 		}
@@ -268,14 +268,14 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 			// `inactive: <leaf> <member>` is a member statement, like `nop`.
 			if len(bare) == 1 && !tree.inactiveValues[name] {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(bare[0]))
+				b.Str(QuoteIfNeeded(bare[0]))
 			} else {
 				b.Str(" [ ")
 				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
-					b.Str(quoteIfNeeded(item))
+					b.Str(QuoteIfNeeded(item))
 				}
 				b.Str(" ]")
 			}
@@ -286,7 +286,7 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 				b.Str("inactive: ")
 				b.Str(name)
 				b.Str(" ")
-				b.Str(quoteIfNeeded(member))
+				b.Str(QuoteIfNeeded(member))
 				b.Str("\n")
 			}
 		}
@@ -325,7 +325,7 @@ func serializeBlameContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name
 			b.Str(name)
 			if v != configTrue {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(v))
+				b.Str(QuoteIfNeeded(v))
 			}
 			b.Str("\n")
 		}
@@ -354,14 +354,7 @@ func serializeBlameList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 	}
 
 	prefix := strings.Repeat("\t", indent)
-	keys := tree.listOrder[name]
-	if len(keys) == 0 {
-		keys = make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-	}
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -378,7 +371,7 @@ func serializeBlameList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 		b.Str(name)
 		if key != KeyDefault {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
+			b.Str(QuoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
 		}
 		b.Str(" {\n")
 		serializeBlameTree(b, entry, entryMeta, node, indent+1)
@@ -456,7 +449,7 @@ func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 		b.Str(name)
 		if v != configTrue {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(v))
+			b.Str(QuoteIfNeeded(v))
 		}
 		b.Str("\n")
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
@@ -465,7 +458,7 @@ func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(v)
+			b.Str(QuoteIfNeeded(v))
 			b.Str("\n")
 		}
 	}
@@ -483,11 +476,7 @@ func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 	}
 
 	if entries := tree.lists[name]; entries != nil {
-		keys := make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := ListEntryKeys(entries, tree.listOrder[name])
 		for _, key := range keys {
 			entry := entries[key]
 			entryMeta := metaListEntry(meta, name, key)
@@ -495,7 +484,7 @@ func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name stri
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(key))
+			b.Str(QuoteIfNeeded(key))
 			b.Str(" {\n")
 			serializeBlameTree(b, entry, entryMeta, node, indent+1)
 			writeCloseBraceGutter(b, entryMeta)
@@ -513,11 +502,7 @@ func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, nam
 	}
 
 	prefix := strings.Repeat("\t", indent)
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := ListEntryKeys(entries, tree.listOrder[name])
 
 	for _, key := range keys {
 		entry := entries[key]
@@ -536,14 +521,14 @@ func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, nam
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(displayKey))
+			b.Str(QuoteIfNeeded(displayKey))
 			entry.mu.RLock()
 			for _, attrName := range node.Children() {
 				if v, ok := entry.values[attrName]; ok {
 					b.Str(" ")
 					b.Str(attrName)
 					b.Str(" ")
-					b.Str(quoteIfNeeded(v))
+					b.Str(QuoteIfNeeded(v))
 				}
 			}
 			entry.mu.RUnlock()
@@ -552,7 +537,7 @@ func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, nam
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
-			b.Str(quoteIfNeeded(displayKey))
+			b.Str(QuoteIfNeeded(displayKey))
 			b.Str(" {\n")
 			innerPrefix := strings.Repeat("\t", indent+1)
 			entry.mu.RLock()
@@ -568,7 +553,7 @@ func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, nam
 				b.Str(innerPrefix)
 				b.Str(childName)
 				b.Str(" ")
-				b.Str(quoteIfNeeded(v))
+				b.Str(QuoteIfNeeded(v))
 				b.Str("\n")
 			}
 			if entryMeta != nil {
@@ -609,7 +594,7 @@ func serializeBlameExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, ch
 		}
 		b.Str(k)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str(QuoteIfNeeded(tree.values[k]))
 		b.Str("\n")
 	}
 }

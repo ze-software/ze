@@ -447,7 +447,7 @@ func (e *Editor) copyPendingListEntry(tree *config.Tree, meta *config.MetaTree, 
 		return nil, err
 	}
 	var copied []config.SessionEntry
-	for _, entry := range e.meta.SessionEntries(e.schema, e.session.ID) {
+	for _, entry := range e.meta.SessionEntriesOrdered(e.schema, e.session.ID, e.tree) {
 		path, err := config.RebaseEditTokens(e.schema, entry.Path, source, destination)
 		if err != nil {
 			return nil, err
@@ -592,7 +592,9 @@ func (e *Editor) SaveDraft() error {
 		return err
 	}
 
-	myEntries := changeMeta.SessionEntries(e.schema, e.session.ID)
+	// Replay MUST follow the candidate's recorded list order, including entries
+	// created implicitly by set, whose change file has no create-entry op.
+	myEntries := changeMeta.SessionEntriesOrdered(e.schema, e.session.ID, e.tree)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
 	if len(myEntries) == 0 && len(myOps) == 0 {
 		return nil // Nothing to save.
@@ -605,12 +607,12 @@ func (e *Editor) SaveDraft() error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	replayOps, savedEntries, err := e.prepareDraftReplay(guard, baseTree, baseMeta, myOps)
+	replay, err := e.prepareDraftReplay(guard, baseTree, baseMeta, myOps)
 	if err != nil {
 		return fmt.Errorf("save prepare replay: %w", err)
 	}
-	if len(savedEntries) != 0 {
-		myEntries = append(savedEntries, myEntries...)
+	if len(replay.entries) != 0 {
+		myEntries = append(replay.entries, myEntries...)
 	}
 	// Apply changes to base, the member ops a new member waits for after them.
 	applyEntries := func() error {
@@ -639,13 +641,16 @@ func (e *Editor) SaveDraft() error {
 		}
 		return nil
 	}
-	if err := e.applyReplayOpsAroundEntries(baseTree, replayOps, applyEntries, true, nil); err != nil {
+	if err := e.applyReplayOpsAroundEntries(baseTree, replay.ops, applyEntries, true, nil); err != nil {
 		return fmt.Errorf("save %w", err)
 	}
 	if slices.ContainsFunc(myOps, func(op config.StructuralOp) bool { return op.Type == config.StructuralOpRename }) {
 		if _, err := e.pruneCreationMaterializations(guard, changePath, changeOps, changeOps, changeMeta, baseTree, baseMeta); err != nil {
 			return fmt.Errorf("save prune superseded creations: %w", err)
 		}
+	}
+	if err := e.positionCreatedEntries(baseTree, replay.positions); err != nil {
+		return fmt.Errorf("save position creations: %w", err)
 	}
 
 	if e.preCommitValidate != nil {
@@ -787,12 +792,14 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 // and an op it answers false for is skipped. The commit pre-scan
 // (memberOpConflicts) replays the commit's order on a copy through it.
 func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool, check func(*config.Tree, config.StructuralOp) bool) error {
-	var err error
-	ops, err = creationReplayOps(e.schema, ops)
+	plan, err := creationReplayPlan(e.schema, ops)
 	if err != nil {
 		return err
 	}
-	return e.applyReplayOpsAroundEntries(tree, ops, applyEntries, allowAlreadyApplied, check)
+	if err := e.applyReplayOpsAroundEntries(tree, plan.ops, applyEntries, allowAlreadyApplied, check); err != nil {
+		return err
+	}
+	return e.positionCreatedEntries(tree, plan.positions)
 }
 
 // applyReplayOpsAroundEntries executes an already prepared plan. Committed
@@ -984,7 +991,7 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 	}
 }
 
-func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) ([]config.SessionEntry, error) {
+func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool, order *config.Tree) ([]config.SessionEntry, error) {
 	if meta == nil {
 		return nil, nil
 	}
@@ -1050,7 +1057,7 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 	}
 	var moved []config.SessionEntry
 	for sessionID := range movedSessions {
-		moved = append(moved, meta.SessionEntries(schema, sessionID)...)
+		moved = append(moved, meta.SessionEntriesOrdered(schema, sessionID, order)...)
 	}
 	return moved, nil
 }

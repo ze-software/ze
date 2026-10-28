@@ -16,6 +16,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +115,98 @@ func TestSessionCommitConfirmedOpensDaemonWindow(t *testing.T) {
 	_, open = f.window.Status()
 	assert.False(t, open)
 	assert.NotContains(t, alice.editor.WorkingContent(), "9.9.9.9", "the owner's view follows the revert")
+}
+
+// TestSessionConfirmedRevertKeepsOperatorOrder commits three peers out of key
+// order, renames one in a real confirmed window, and aborts through the Model.
+//
+// VALIDATES: spec-config-list-entries-operator-order A-6: the snapshot, revert,
+// RefreshCommittedView and reopened session retain the recorded entry order.
+// PREVENTS: proving only ordinary rollback while confirmed-commit reload sorts.
+func TestSessionConfirmedRevertKeepsOperatorOrder(t *testing.T) {
+	f := newWindowFixture(t)
+	alice := f.model(t, "alice")
+	run := func(m *Model, command string) {
+		t.Helper()
+		result, err := m.dispatchCommand(command)
+		if err != nil {
+			t.Fatalf("%s: %v", command, err)
+		}
+		m.applyResult(result)
+	}
+	showOrder := func(m *Model, want []string) {
+		t.Helper()
+		run(m, "show")
+		entries := m.editor.tree.GetContainer("bgp").GetListOrdered("peer")
+		if len(entries) != len(want) {
+			t.Fatalf("peer count = %d, want %d", len(entries), len(want))
+		}
+		content := m.ViewportContent()
+		cursor := 0
+		for i, name := range want {
+			if entries[i].Key != name {
+				t.Errorf("recorded peer %d = %q, want %q", i, entries[i].Key, name)
+			}
+			header := "peer " + name + " {"
+			next := strings.Index(content[cursor:], header)
+			if next < 0 {
+				t.Fatalf("show does not preserve %v: %s", want, content)
+			}
+			cursor += next + len(header)
+		}
+	}
+
+	for _, command := range []string{
+		"option changes disable",
+		"rename bgp peer peer1 to zulu",
+		"copy bgp peer zulu to alpha",
+		"set bgp peer alpha connection remote ip 192.0.2.1",
+		"copy bgp peer alpha to mike",
+		"set bgp peer mike connection remote ip 192.0.2.13",
+		"commit now",
+	} {
+		run(alice, command)
+	}
+	if alice.editor.Dirty() {
+		t.Fatalf("baseline commit failed: %s", alice.StatusMessage())
+	}
+	baseline := []string{"zulu", "alpha", "mike"}
+	showOrder(alice, baseline)
+	before := f.active(t)
+
+	run(alice, "rename bgp peer alpha to bravo")
+	run(alice, "commit confirmed 60")
+	status, open := f.window.Status()
+	if !open {
+		t.Fatalf("confirmed commit opened no window: %s", alice.StatusMessage())
+	}
+	if status.User != "alice" {
+		t.Fatalf("window owner = %q, want alice", status.User)
+	}
+	showOrder(alice, []string{"zulu", "bravo", "mike"})
+	if f.active(t) == before {
+		t.Fatal("confirmed commit did not replace the active configuration")
+	}
+
+	// Abort synchronously runs the real window reverter; no timer sleep or
+	// direct tree replacement stands in for the committed-view refresh.
+	run(alice, "commit abort")
+	if alice.StatusMessage() != contract.CommitAborted {
+		t.Fatalf("abort did not refresh the view: %s", alice.StatusMessage())
+	}
+	if _, open := f.window.Status(); open {
+		t.Fatal("abort left the confirmed window open")
+	}
+	if got := f.active(t); got != before {
+		t.Fatalf("revert changed the snapshot bytes:\ngot %s\nwant %s", got, before)
+	}
+	showOrder(alice, baseline)
+	reopened := f.model(t, "alice")
+	run(reopened, "option changes disable")
+	showOrder(reopened, baseline)
+	if reopened.editor.Dirty() {
+		t.Fatal("reopened reverted configuration has pending changes")
+	}
 }
 
 // TestSessionCommitWindowRefusals: AC-18 (a) and (b), AC-17. The owner's

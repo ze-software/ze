@@ -217,10 +217,19 @@ func keepStoredSecret(target *config.Tree, key, stored string) {
 // member the operator deactivated and the value does not name is kept,
 // deactivated. Every path that writes a whole leaf value from a session entry,
 // a committed value or a recorded previous value goes through here.
+// Flex values use a separate multi-value store on file replay; replacement
+// clears those old members while keeping the leaf's comments and inactive state.
 func (e *Editor) storeLeaf(target *config.Tree, path []string, key, value string) {
-	if e.bracketLeafList(path, key) != nil {
-		target.SetLeafListMembers(key, config.SplitLeafListMembers(value))
-		return
+	if e.schema != nil {
+		if parent := e.walkSchema(path); parent != nil {
+			switch parent.Get(key).(type) {
+			case *config.BracketLeafListNode:
+				target.SetLeafListMembers(key, config.SplitLeafListMembers(value))
+				return
+			case *config.FlexNode:
+				target.Delete(key)
+			}
+		}
 	}
 	target.Set(key, value)
 }

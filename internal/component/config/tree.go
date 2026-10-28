@@ -1037,6 +1037,74 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 	return nil
 }
 
+// RepositionListEntries restores selected keys' positions from source without
+// changing entry payloads or the relative order of any unselected keys.
+// Selected keys follow their nearest surviving unselected predecessor in source;
+// those with no predecessor go first. Keys absent from either recorded order
+// are left alone. Safe for concurrent use; callers MUST keep keys unchanged
+// until this call returns.
+func (t *Tree) RepositionListEntries(name string, keys []string, source *Tree) {
+	if t == source {
+		return
+	}
+	if len(keys) == 0 {
+		return
+	}
+	source.mu.RLock()
+	order := slices.Clone(source.listOrder[name])
+	source.mu.RUnlock()
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	current := t.listOrder[name]
+	present := make(map[string]bool, len(current))
+	for _, key := range current {
+		present[key] = true
+	}
+	selected := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		if present[key] && t.lists[name][key] != nil {
+			selected[key] = false
+		}
+	}
+	var first []string
+	after := make(map[string][]string)
+	predecessor, anchored := "", false
+	for _, key := range order {
+		if !present[key] {
+			continue
+		}
+		placed, moving := selected[key]
+		if moving {
+			if placed {
+				continue
+			}
+			selected[key] = true
+			if anchored {
+				after[predecessor] = append(after[predecessor], key)
+			} else {
+				first = append(first, key)
+			}
+		} else {
+			predecessor, anchored = key, true
+		}
+	}
+	if len(first) == 0 && len(after) == 0 {
+		return
+	}
+	reordered := make([]string, 0, len(current))
+	reordered = append(reordered, first...)
+	for _, key := range current {
+		if selected[key] {
+			continue
+		}
+		reordered = append(reordered, key)
+		reordered = append(reordered, after[key]...)
+		delete(after, key)
+	}
+	t.listOrder[name] = reordered
+}
+
 // Insert position constants for InsertMultiValue.
 const (
 	InsertFirst  = "first"

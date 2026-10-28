@@ -98,7 +98,7 @@ func FuzzTokenizer(f *testing.F) {
 	})
 }
 
-// FuzzQuoteRoundTrip writes any value with quoteIfNeeded and reads it back
+// FuzzQuoteRoundTrip writes any value with QuoteIfNeeded and reads it back
 // with the hierarchical tokenizer and with the set-line splitter.
 //
 // VALIDATES: AC-9 for any value string: both readers return exactly the
@@ -111,16 +111,16 @@ func FuzzQuoteRoundTrip(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, value string) {
-		written := quoteIfNeeded(value)
+		written := QuoteIfNeeded(value)
 		if reason := readBackOneToken(written, value); reason != "" {
-			t.Fatalf("hierarchical: quoteIfNeeded(%q) = %q: %s", value, written, reason)
+			t.Fatalf("hierarchical: QuoteIfNeeded(%q) = %q: %s", value, written, reason)
 		}
 		tokens, err := splitQuotedTokens(written)
 		if err != nil {
-			t.Fatalf("set: quoteIfNeeded(%q) = %q: %v", value, written, err)
+			t.Fatalf("set: QuoteIfNeeded(%q) = %q: %v", value, written, err)
 		}
 		if len(tokens) != 1 || tokens[0] != value {
-			t.Fatalf("set: quoteIfNeeded(%q) = %q read back as %q", value, written, tokens)
+			t.Fatalf("set: QuoteIfNeeded(%q) = %q read back as %q", value, written, tokens)
 		}
 	})
 }

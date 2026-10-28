@@ -110,7 +110,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	}
 
 	// Find my changes from the draft metadata and preserved structural ops.
-	myEntries := draftMeta.SessionEntries(e.schema, e.session.ID)
+	myEntries := draftMeta.SessionEntriesOrdered(e.schema, e.session.ID, draftTree)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
 	if len(myEntries) == 0 && len(myOps) == 0 {
 		return &CommitResult{Applied: 0}, nil
@@ -306,7 +306,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		return nil, "", fmt.Errorf("read draft %s: %w", draftPath, err)
 	}
 	setParser := config.NewSetParser(e.schema)
-	_, draftMeta, err := setParser.ParseWithMeta(string(draftData))
+	draftTree, draftMeta, err := setParser.ParseWithMeta(string(draftData))
 	if err != nil {
 		return nil, "", fmt.Errorf("parse draft: %w", err)
 	}
@@ -317,7 +317,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		return nil, "", err
 	}
 
-	myEntries := draftMeta.SessionEntries(e.schema, e.session.ID)
+	myEntries := draftMeta.SessionEntriesOrdered(e.schema, e.session.ID, draftTree)
 	myOps := filterStructuralOps(changeOps, e.session.ID)
 	if len(myEntries) == 0 && len(myOps) == 0 {
 		return &CommitResult{Applied: 0}, "", nil
@@ -625,23 +625,23 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 	}
 
 	// Replay what remains in the change file. A removed file replays nothing.
-	_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
-	replayOps, savedEntries, err := e.prepareDraftReplay(guard, baseTree, baseMeta, changeOps)
+	replay, err := e.prepareDraftReplay(guard, baseTree, baseMeta, changeOps)
 	if err != nil {
 		return fmt.Errorf("reload prepare replay: %w", err)
 	}
 	applyEntries := func() error {
-		for _, se := range savedEntries {
+		for _, se := range replay.entries {
 			parent := se.Path[:len(se.Path)-1]
 			if err := e.applySessionEntryToTree(baseTree, parent, se.Path[len(se.Path)-1], se.Entry); err != nil {
 				return err
 			}
 		}
 		for _, sid := range changeMeta.AllSessions() {
-			for _, se := range changeMeta.SessionEntries(e.schema, sid) {
+			for _, se := range changeMeta.SessionEntriesOrdered(e.schema, sid, changeTree) {
 				pathParts := se.Path
 				if len(pathParts) == 0 {
 					continue
@@ -657,8 +657,11 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 		}
 		return nil
 	}
-	if err := e.applyReplayOpsAroundEntries(baseTree, replayOps, applyEntries, true, nil); err != nil {
+	if err := e.applyReplayOpsAroundEntries(baseTree, replay.ops, applyEntries, true, nil); err != nil {
 		return fmt.Errorf("reload %w", err)
+	}
+	if err := e.positionCreatedEntries(baseTree, replay.positions); err != nil {
+		return fmt.Errorf("reload position creations: %w", err)
 	}
 
 	// Refresh originalContent from disk to capture external commits.
@@ -985,7 +988,7 @@ func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []confi
 	if existingMeta != nil {
 		commitMeta = existingMeta.Clone()
 	}
-	if _, err := applyStructuralOpsToMeta(commitMeta, schema, myOps, true); err != nil {
+	if _, err := applyStructuralOpsToMeta(commitMeta, schema, myOps, true, nil); err != nil {
 		return nil, err
 	}
 

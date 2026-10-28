@@ -6,7 +6,7 @@ package config
 import "github.com/ze-software/ze/internal/core/textbuf"
 
 // JoinLeafListMembers spells leaf-list members as one value: each member
-// quoted when it needs it (quoteIfNeeded), separated by single spaces. It is
+// quoted when it needs it (QuoteIfNeeded), separated by single spaces. It is
 // the spelling of the scalar mirror and of a bracket leaf-list's metadata
 // value, and SplitLeafListMembers reads it back to the same members, so a
 // member holding a space stays one member.
@@ -16,14 +16,14 @@ func JoinLeafListMembers(items []string) string {
 		if i > 0 {
 			b.Byte(' ')
 		}
-		b.Str(quoteIfNeeded(item))
+		b.Str(QuoteIfNeeded(item))
 	}
 	return b.String()
 }
 
 // SplitLeafListMembers reads a value spelled by JoinLeafListMembers back into
 // its members. Surrounding `[ ]` tokens are dropped, a double-quoted run is one
-// member with the escapes quoteIfNeeded writes undone, and anything else splits
+// member with the escapes QuoteIfNeeded writes undone, and anything else splits
 // on spaces and tabs. An unterminated quote ends at the end of the value.
 func SplitLeafListMembers(value string) []string {
 	var members []string

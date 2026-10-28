@@ -181,3 +181,106 @@ func TestSetFormRoundTripsFlexAndInlineList(t *testing.T) {
 		})
 	}
 }
+
+// TestSetFormRoundTripsFlexValues proves both persisted forms retain every Flex
+// value, including repeated and multi-word values, in their written order.
+//
+// PREVENTS: loading each serialized set line as a scalar replacement, keeping
+// only the last value instead of the sequence the hierarchical parser read.
+func TestSetFormRoundTripsFlexValues(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("action", Flex())
+	schema.Define("scope", Container(Field("vpls", Flex(Field("rd", Leaf(TypeString))))))
+	input := "action zulu;\naction alpha;\naction zulu;\n" +
+		"scope { vpls zulu one; vpls alpha two; vpls zulu one; }\n"
+	original, err := NewParser(schema).Parse(input)
+	if err != nil {
+		t.Fatalf("parse hierarchical input: %v", err)
+	}
+	wantSet := "set action zulu\nset action alpha\nset action zulu\n" +
+		"set scope vpls \"zulu one\"\nset scope vpls \"alpha two\"\nset scope vpls \"zulu one\"\n"
+	if got := SerializeSet(original, schema); got != wantSet {
+		t.Fatalf("original set text:\n%s\nwant:\n%s", got, wantSet)
+	}
+	for _, parser := range setFormParsers {
+		t.Run(parser.name, func(t *testing.T) {
+			reread := parser.parse(t, schema, wantSet)
+			if got := reread.GetMultiValues("action"); !slices.Equal(got, []string{"zulu", "alpha", "zulu"}) {
+				t.Errorf("action values = %q, want [zulu alpha zulu]", got)
+			}
+			scope := reread.GetContainer("scope")
+			if scope == nil {
+				t.Fatal("scope container missing")
+			}
+			if got := scope.GetMultiValues("vpls"); !slices.Equal(got, []string{"zulu one", "alpha two", "zulu one"}) {
+				t.Errorf("scope vpls values = %q, want [zulu one alpha two zulu one]", got)
+			}
+			if got := SerializeSet(reread, schema); got != wantSet {
+				t.Errorf("set round trip:\n%s\nwant:\n%s", got, wantSet)
+			}
+			if got, want := Serialize(reread, schema), Serialize(original, schema); got != want {
+				t.Errorf("hierarchical round trip:\n%s\nwant:\n%s", got, want)
+			}
+		})
+	}
+	t.Run("persisted metadata", func(t *testing.T) {
+		meta := NewMetaTree()
+		meta.SetEntry("action", MetaEntry{User: "thomas"})
+		meta.GetOrCreateContainer("scope").SetEntry("vpls", MetaEntry{User: "alice"})
+		persisted := SerializeSetWithMeta(original, meta, schema)
+		reread, rereadMeta, err := NewSetParser(schema).ParseWithMeta(persisted)
+		if err != nil {
+			t.Fatalf("parse persisted metadata: %v", err)
+		}
+		if got := SerializeSet(reread, schema); got != wantSet {
+			t.Errorf("persisted metadata values:\n%s\nwant:\n%s", got, wantSet)
+		}
+		if got := SerializeSetWithMeta(reread, rereadMeta, schema); got != persisted {
+			t.Errorf("persisted metadata round trip:\n%s\nwant:\n%s", got, persisted)
+		}
+	})
+}
+
+// TestSetParserSingleFlexValueStaysReplaceable proves reading a single Flex
+// value leaves the editor's scalar Tree.Set replacement semantics intact.
+//
+// PREVENTS: a parsed scalar becoming a stale multi-value alongside the editor's
+// replacement, so a subsequent save writes both the old and the new value.
+func TestSetParserSingleFlexValueStaysReplaceable(t *testing.T) {
+	schema := listOrderSchema()
+	for _, parser := range setFormParsers {
+		t.Run(parser.name, func(t *testing.T) {
+			tree := parser.parse(t, schema, "set vpls before\n")
+			tree.Set("vpls", "after")
+			if got := SerializeSet(tree, schema); got != "set vpls after\n" {
+				t.Errorf("set after replacement = %q, want %q", got, "set vpls after\n")
+			}
+		})
+	}
+}
+
+// TestFlexValuesSurviveHierarchicalPrint proves a container holding repeated
+// Flex values cannot be inlined into a form that drops its only child.
+//
+// PREVENTS: a successful set-file replay followed by hierarchical printing
+// silently discarding the Flex values when choosing a one-line container form.
+func TestFlexValuesSurviveHierarchicalPrint(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("scope", Container(Field("action", Flex())))
+	original, err := NewParser(schema).Parse("scope { action zulu; action alpha; action zulu; }")
+	if err != nil {
+		t.Fatalf("parse hierarchical input: %v", err)
+	}
+	printed := Serialize(original, schema)
+	reread, err := NewParser(schema).Parse(printed)
+	if err != nil {
+		t.Fatalf("parse hierarchical print %q: %v", printed, err)
+	}
+	scope := reread.GetContainer("scope")
+	if scope == nil {
+		t.Fatalf("scope missing after hierarchical print %q", printed)
+	}
+	if got := scope.GetMultiValues("action"); !slices.Equal(got, []string{"zulu", "alpha", "zulu"}) {
+		t.Errorf("action values after hierarchical print %q = %q, want [zulu alpha zulu]", printed, got)
+	}
+}

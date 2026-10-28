@@ -1,0 +1,72 @@
+# Test: committed and archived list entries retain operator order
+# VALIDATES: spec-config-list-entries-operator-order AC-9, AC-10 and A-6
+# PREVENTS: copy, rename, save or rollback replacing recorded order with key order
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  dummy zulu { description first; }
+  dummy alpha { description second; }
+  dummy mike { description third; }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Read the display without diff annotations; compare's contract is tested elsewhere.
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]*dummy zulu \{.*^[ \t]*dummy alpha \{.*^[ \t]*dummy mike \{
+
+# The copy belongs immediately after its source, not after all existing entries.
+input=type:text=copy interface dummy zulu to yankee
+input=enter
+expect=error:none
+input=type:text=rename interface dummy alpha to bravo
+input=enter
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:not-contains=dummy alpha
+expect=viewport:pattern=(?ms)^[ \t]*dummy zulu \{.*^[ \t]*dummy yankee \{.*^[ \t]*dummy bravo \{.*^[ \t]*dummy mike \{
+
+# Save the edited ordering, then create another revision so rollback must read
+# the serialized archive rather than merely the untouched initial input.
+input=type:text=commit now
+input=enter
+expect=dirty:false
+expect=status:contains=committed
+expect=error:none
+input=type:text=delete interface dummy yankee
+input=enter
+expect=dirty:true
+expect=error:none
+input=type:text=commit now
+input=enter
+expect=dirty:false
+expect=status:contains=committed
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:not-contains=dummy yankee
+expect=viewport:pattern=(?ms)^[ \t]*dummy zulu \{.*^[ \t]*dummy bravo \{.*^[ \t]*dummy mike \{
+
+input=type:text=rollback 1
+input=enter
+expect=status:contains=Rolled back
+expect=dirty:false
+expect=error:none
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:not-contains=dummy alpha
+expect=viewport:contains=description first
+expect=viewport:contains=description second
+expect=viewport:contains=description third
+expect=viewport:pattern=(?ms)^[ \t]*dummy zulu \{.*^[ \t]*dummy yankee \{.*^[ \t]*dummy bravo \{.*^[ \t]*dummy mike \{

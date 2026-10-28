@@ -16,21 +16,15 @@ import (
 // maxInlineDepth controls the maximum container inlining depth in serialized output.
 // When set to 1, a container with exactly one leaf child is serialized inline
 // (e.g., "local ip 1.2.3.4" instead of "local {\n\tip 1.2.3.4\n}").
-// Only leaf children (values/multiValues) trigger inlining -- container and list
-// children do not, which naturally prevents cascading beyond one level.
+// Only leaf children the inline writer supports trigger inlining; container,
+// list and repeated Flex children keep their block form.
 const maxInlineDepth = 1
 
-// canInlineContainer reports whether a container's tree data has exactly one
-// leaf-like child (value or multiValue), and no containers or lists.
-// The inactive leaf is excluded from the count. A container with any
-// deactivated leaf cannot inline -- the "inactive: " prefix only renders
-// correctly on a multi-line statement, not in inline form.
-// CanInlineContainer reports whether a container tree would be serialized inline.
-func CanInlineContainer(tree *Tree) bool {
-	return canInlineContainer(tree)
-}
-
-func canInlineContainer(tree *Tree) bool {
+// CanInlineContainer reports whether a container's only child can be written
+// inline without losing values, deactivation markers or inner comments.
+// The schema distinguishes a leaf-list's array from repeated Flex statements:
+// both use multiValues, but only the former has a one-line representation.
+func CanInlineContainer(tree *Tree, node *ContainerNode) bool {
 	if maxInlineDepth < 1 {
 		return false
 	}
@@ -50,8 +44,28 @@ func canInlineContainer(tree *Tree) bool {
 	if tree.hasInnerCommentsLocked() {
 		return false
 	}
-	return (len(tree.values)+len(tree.multiValues)) == 1 &&
-		len(tree.containers) == 0 && len(tree.lists) == 0
+	if len(tree.containers) > 0 {
+		return false
+	}
+	if len(tree.lists) > 0 {
+		return false
+	}
+	if len(tree.values)+len(tree.multiValues) != 1 {
+		return false
+	}
+	for name, values := range tree.multiValues {
+		_, inline := node.Get(name).(*ValueOrArrayNode)
+		return inline && len(values) > 0
+	}
+	for name := range tree.values {
+		// The scalar fallback supports unknown fields; known schema children
+		// must have a matching writeInlineLeaf arm.
+		switch node.Get(name).(type) {
+		case *LeafNode, *MultiLeafNode, *BracketLeafListNode, nil:
+			return true
+		}
+	}
+	return false
 }
 
 // serializeContainerInline writes a container with a single leaf child inline:
@@ -90,7 +104,7 @@ func writeInlineContainerChild(b *textbuf.Buffer, child *Tree, node *ContainerNo
 		b.Str(" ")
 		b.Str(k)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(v))
+		b.Str(QuoteIfNeeded(v))
 		return
 	}
 }
@@ -110,7 +124,7 @@ func writeInlineLeaf(b *textbuf.Buffer, tree *Tree, name string, node Node) bool
 			// "type empty" leaves inline as a bare flag with no value.
 			if n.Type != TypeEmpty {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(normalizeBool(v)))
+				b.Str(QuoteIfNeeded(normalizeBool(v)))
 			}
 			return true
 		}
@@ -137,14 +151,14 @@ func writeInlineLeaf(b *textbuf.Buffer, tree *Tree, name string, node Node) bool
 			b.Str(name)
 			if len(items) == 1 {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(items[0]))
+				b.Str(QuoteIfNeeded(items[0]))
 			} else {
 				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
 						b.Str(" ")
 					}
-					b.Str(quoteIfNeeded(item))
+					b.Str(QuoteIfNeeded(item))
 				}
 				b.Str(" ]")
 			}
@@ -239,7 +253,7 @@ func serializeExtraValues(b *textbuf.Buffer, tree *Tree, children []string, inde
 		}
 		b.Str(k)
 		b.Str(" ")
-		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str(QuoteIfNeeded(tree.values[k]))
 		writeCommentAfter(b, comments.Trailing)
 		b.Str("\n")
 	}
@@ -301,7 +315,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			// the tokenizer's ASI supplies the terminating ';' at the newline.
 			if n.Type != TypeEmpty {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(normalizeBool(v)))
+				b.Str(QuoteIfNeeded(normalizeBool(v)))
 			}
 			writeCommentAfter(b, comments.Trailing)
 			b.Str("\n")
@@ -346,14 +360,14 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			// `inactive: <leaf> <member>` is a member statement, like `nop`.
 			if len(bare) == 1 && !tree.inactiveValues[name] {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(bare[0]))
+				b.Str(QuoteIfNeeded(bare[0]))
 			} else {
 				b.Str(" [ ")
 				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
-					b.Str(quoteIfNeeded(item))
+					b.Str(QuoteIfNeeded(item))
 				}
 				b.Str(" ]")
 			}
@@ -374,7 +388,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			switch {
 			case n.Flatten && canFlattenContainer(child, n):
 				serializeFlattenedContainer(b, child, name, n, indent)
-			case canInlineContainer(child):
+			case CanInlineContainer(child, n):
 				serializeContainerInline(b, child, name, n, indent)
 			default:
 				writeBlock(b, prefix, child.commentsOfBlock(), func(open *textbuf.Buffer) {
@@ -393,7 +407,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			break
 		}
 		if entries := tree.lists[name]; entries != nil {
-			if usesMultiBlockForm(n) && entriesArePositional(entries, n) {
+			if ListUsesMultiBlock(entries, n) {
 				// Multi-entry block: name { key1 val1; key2; ... }
 				serializeListMultiBlock(b, name, entries, n, tree.listOrder[name], indent)
 			} else {
@@ -422,18 +436,18 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 			b.Str(name)
 			if v != configTrue {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(v))
+				b.Str(QuoteIfNeeded(v))
 			}
 			writeCommentAfter(b, comments.Trailing)
 			b.Str("\n")
 		} else if mv := tree.multiValues[name]; len(mv) > 0 {
-			// Inline values (e.g., vpls rd X endpoint Y ...;)
+			// Each occurrence is one decoded value, not executable config text.
 			writeCommentsAbove(b, prefix, comments)
 			for i, v := range mv {
 				b.Str(prefix)
 				b.Str(name)
 				b.Str(" ")
-				b.Str(v)
+				b.Str(QuoteIfNeeded(v))
 				if i == 0 {
 					writeCommentAfter(b, comments.Trailing)
 				}
@@ -450,79 +464,18 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		}
 		// Also serialize list entries (e.g., vpls site5 { ... })
 		if entries := tree.lists[name]; entries != nil {
-			keys := make([]string, 0, len(entries))
-			for k := range entries {
-				keys = append(keys, k)
-			}
-			slices.Sort(keys)
+			keys := ListEntryKeys(entries, tree.listOrder[name])
 			for _, key := range keys {
-				entry := entries[key]
-				writeBlock(b, prefix, entry.commentsOfBlock(), func(open *textbuf.Buffer) {
-					open.Str(name).Str(" ").Str(quoteIfNeeded(key))
-				}, func(body *textbuf.Buffer) {
-					serializeFlexContainer(body, entry, n, indent+1)
-				})
+				WriteFlexListEntry(b, entries[key], name, key, n, prefix)
 			}
 		}
 
 	case *InlineListNode:
 		if entries := tree.lists[name]; entries != nil {
-			keys := make([]string, 0, len(entries))
-			for k := range entries {
-				keys = append(keys, k)
-			}
-			slices.Sort(keys)
+			keys := ListEntryKeys(entries, tree.listOrder[name])
 
 			for _, key := range keys {
-				entry := entries[key]
-				// Strip #N suffix from duplicate keys for serialization
-				displayKey := StripListKeySuffix(key)
-
-				// entry is a separate Tree; lock it before inspecting
-				// entry.containers / entry.lists / entry.values. The
-				// block branch releases this lock before recursing
-				// via serializeInlineListEntry (which re-locks).
-				// A comment inside the entry has no line in the one-line
-				// form, so such an entry is written as a block.
-				entry.mu.RLock()
-				useInline := len(entry.containers) == 0 && len(entry.lists) == 0 && !entry.hasInnerCommentsLocked()
-				hasValues := useInline && len(entry.values) > 0
-
-				if hasValues {
-					statement := entry.comments.Statement
-					writeCommentsAbove(b, prefix, statement)
-					b.Str(prefix)
-					b.Str(name)
-					b.Str(" ")
-					b.Str(quoteIfNeeded(displayKey))
-					for _, attrName := range n.Children() {
-						if v, ok := entry.values[attrName]; ok {
-							b.Str(" ")
-							b.Str(attrName)
-							b.Str(" ")
-							b.Str(quoteIfNeeded(v))
-						}
-					}
-					// Also add any values not in schema order
-					for k, v := range entry.values {
-						if !n.Has(k) {
-							b.Str(" ")
-							b.Str(k)
-							b.Str(" ")
-							b.Str(quoteIfNeeded(v))
-						}
-					}
-					entry.mu.RUnlock()
-					writeCommentAfter(b, statement.Trailing)
-					b.Str("\n")
-				} else {
-					entry.mu.RUnlock()
-					writeBlock(b, prefix, entry.commentsOfBlock(), func(open *textbuf.Buffer) {
-						open.Str(name).Str(" ").Str(quoteIfNeeded(displayKey))
-					}, func(body *textbuf.Buffer) {
-						serializeInlineListEntry(body, entry, n, indent+1)
-					})
-				}
+				WriteInlineListEntry(b, entries[key], name, key, n, prefix)
 			}
 		}
 	}
@@ -537,6 +490,14 @@ func allChildrenAreLeaves(n *ListNode) bool {
 		}
 	}
 	return true
+}
+
+// ListUsesMultiBlock reports whether the whole list prints as one block of
+// positional rows. Callers MUST pass the complete entry map, not a singleton:
+// one non-positional entry changes the form of every sibling. Callers of
+// WritePositionalListEntry MUST select that form through this predicate.
+func ListUsesMultiBlock(entries map[string]*Tree, node *ListNode) bool {
+	return usesMultiBlockForm(node) && entriesArePositional(entries, node)
 }
 
 // entriesArePositional reports whether every entry can be written in the
@@ -585,15 +546,7 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 	prefix := strings.Repeat("\t", indent)
 	innerPrefix := strings.Repeat("\t", indent+1)
 
-	// Use insertion order if available, otherwise sort
-	keys := order
-	if len(keys) == 0 {
-		keys = make([]string, 0, len(entries))
-		for k := range entries {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-	}
+	keys := ListEntryKeys(entries, order)
 
 	var comments statementComments
 	for _, key := range keys {
@@ -613,18 +566,7 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 		if entry == nil {
 			continue
 		}
-		displayKey := StripListKeySuffix(key)
-		b.Str(innerPrefix)
-		b.Str(quoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
-
-		// Positional children in definition order
-		for _, childName := range node.Children() {
-			if v, ok := entry.Get(childName); ok {
-				b.Str(" ")
-				b.Str(quoteIfNeeded(v))
-			}
-		}
-		b.Str("\n")
+		WritePositionalListEntry(b, entry, key, node, innerPrefix)
 	}
 
 	b.Str(prefix)
@@ -637,81 +579,162 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 // keyword is empty for a plain list, and holds the parent container's name for
 // a child of a ze:flatten container, which writes "attach process key { ... }"
 // (flatten.go).
-// order is the entry order the tree recorded for the list; listBlockKeys
-// decides whether it is printed.
+// order is the entry order the tree recorded for the list.
 func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, order []string, name string, node *ListNode, indent int, keyword string) {
 	prefix := strings.Repeat("\t", indent)
 
-	for _, key := range listBlockKeys(entries, node, order) {
-		entry := entries[key]
-		comments := entry.commentsOfBlock()
-		open := func(line *textbuf.Buffer) {
-			if entry.IsInactive() {
-				line.Str("inactive: ")
-			}
-			if keyword != "" {
-				line.Str(keyword)
-				line.Str(" ")
-			}
-			line.Str(name)
-			// Skip outputting KeyDefault - it's the implicit default
-			if key != KeyDefault {
-				line.Str(" ")
-				line.Str(quoteIfNeeded(ListKeyOpeningValue(node, key)))
-			}
-		}
-		if members, ok := inlineLeafListEntry(entry, node, key); ok {
-			writeCommentsAbove(b, prefix, comments.Statement)
-			b.Str(prefix)
-			open(b)
-			writeInlineLeafListMembers(b, members)
-			writeCommentAfter(b, comments.Statement.Trailing)
-			b.Str("\n")
-			continue
-		}
-		writeBlock(b, prefix, comments, open, func(body *textbuf.Buffer) {
-			serializeListEntry(body, entry, node, indent+1)
-		})
+	for _, key := range ListEntryKeys(entries, order) {
+		WriteListEntry(b, entries[key], name, key, node, prefix, keyword)
 	}
 }
 
-// listBlockKeys returns the keys of a list's entries in the order the file form
-// prints them.
-//
-// YANG `ordered-by user` makes the entry order part of the value: a firewall
-// chain's terms, a prefix filter's entries and an AAA server list are tried
-// first to last, and their consumers read that order through
-// configorder.Entries or GetListOrdered. Such a list prints in the order the
-// tree recorded, so a rewrite (fmt, migrate) never changes which entry matches
-// first. An entry the record misses is printed after the recorded ones, sorted,
-// because dropping it would lose configuration.
-//
-// Every other list prints sorted by key, which is the canonical form: its
-// consumers do not read the order (the IKE and ESP proposals, for one, are
-// sorted by their number in ike/ipsec config.go).
-func listBlockKeys(entries map[string]*Tree, node *ListNode, order []string) []string {
+// WriteListEntry writes one keyed list statement in its canonical file form.
+// It reports whether the statement uses a block rather than the leaf-list form.
+// The caller MUST pass a prefix consisting only of indentation tabs.
+func WriteListEntry(b *textbuf.Buffer, entry *Tree, name, key string, node *ListNode, prefix, keyword string) bool {
+	comments := entry.commentsOfBlock()
+	open := func(line *textbuf.Buffer) {
+		if entry.IsInactive() {
+			line.Str("inactive: ")
+		}
+		if keyword != "" {
+			line.Str(keyword)
+			line.Str(" ")
+		}
+		line.Str(name)
+		// Skip outputting KeyDefault - it's the implicit default.
+		if key != KeyDefault {
+			line.Str(" ")
+			line.Str(QuoteIfNeeded(ListKeyOpeningValue(node, key)))
+		}
+	}
+	if members, ok := inlineLeafListEntry(entry, node, key); ok {
+		writeCommentsAbove(b, prefix, comments.Statement)
+		b.Str(prefix)
+		open(b)
+		writeInlineLeafListMembers(b, members)
+		writeCommentAfter(b, comments.Statement.Trailing)
+		b.Str("\n")
+		return false
+	}
+	writeBlock(b, prefix, comments, open, func(body *textbuf.Buffer) {
+		serializeListEntry(body, entry, node, len(prefix)+1)
+	})
+	return true
+}
+
+// WritePositionalListEntry writes one row inside a multi-entry list block.
+// The caller MUST select the form with ListUsesMultiBlock over the whole list
+// and pass a prefix consisting only of indentation tabs.
+func WritePositionalListEntry(b *textbuf.Buffer, entry *Tree, key string, node *ListNode, prefix string) {
+	displayKey := StripListKeySuffix(key)
+	b.Str(prefix)
+	b.Str(QuoteIfNeeded(ListKeyOpeningValue(node, displayKey)))
+	for _, childName := range node.Children() {
+		if v, ok := entry.Get(childName); ok {
+			b.Str(" ")
+			b.Str(QuoteIfNeeded(v))
+		}
+	}
+	b.Str("\n")
+}
+
+// WriteFlexListEntry writes one named Flex block in its canonical file form.
+// The caller MUST pass a prefix consisting only of indentation tabs.
+func WriteFlexListEntry(b *textbuf.Buffer, entry *Tree, name, key string, node *FlexNode, prefix string) {
+	writeBlock(b, prefix, entry.commentsOfBlock(), func(open *textbuf.Buffer) {
+		open.Str(name).Str(" ").Str(QuoteIfNeeded(key))
+	}, func(body *textbuf.Buffer) {
+		serializeFlexContainer(body, entry, node, len(prefix)+1)
+	})
+}
+
+// WriteInlineListEntry writes one InlineList statement in its canonical file
+// form, reporting whether it uses a block rather than the one-line form.
+// The caller MUST pass a prefix consisting only of indentation tabs.
+func WriteInlineListEntry(b *textbuf.Buffer, entry *Tree, name, key string, node *InlineListNode, prefix string) bool {
+	displayKey := StripListKeySuffix(key)
+
+	// The block branch releases this lock before recursing through the entry.
+	// Inner comments need their own lines, so they require the block form.
+	entry.mu.RLock()
+	useInline := len(entry.containers) == 0 && len(entry.lists) == 0 && !entry.hasInnerCommentsLocked()
+	hasValues := useInline && len(entry.values) > 0
+	if hasValues {
+		statement := entry.comments.Statement
+		writeCommentsAbove(b, prefix, statement)
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" ")
+		b.Str(QuoteIfNeeded(displayKey))
+		for _, attrName := range node.Children() {
+			if v, ok := entry.values[attrName]; ok {
+				b.Str(" ")
+				b.Str(attrName)
+				b.Str(" ")
+				b.Str(QuoteIfNeeded(v))
+			}
+		}
+		// Also add any values not in schema order.
+		for k, v := range entry.values {
+			if !node.Has(k) {
+				b.Str(" ")
+				b.Str(k)
+				b.Str(" ")
+				b.Str(QuoteIfNeeded(v))
+			}
+		}
+		entry.mu.RUnlock()
+		writeCommentAfter(b, statement.Trailing)
+		b.Str("\n")
+		return false
+	}
+	entry.mu.RUnlock()
+	writeBlock(b, prefix, entry.commentsOfBlock(), func(open *textbuf.Buffer) {
+		open.Str(name).Str(" ").Str(QuoteIfNeeded(displayKey))
+	}, func(body *textbuf.Buffer) {
+		serializeInlineListEntry(body, entry, node, len(prefix)+1)
+	})
+	return true
+}
+
+// ListEntryKeys returns every entry key once, in recorded order followed by
+// unrecorded keys sorted by name. Removed keys in the record are ignored.
+// The returned slice belongs to the caller; entries and order are not changed.
+// Callers MUST prevent concurrent mutation of entries and order during this call.
+func ListEntryKeys(entries map[string]*Tree, order []string) []string {
 	keys := make([]string, 0, len(entries))
+	if len(order) == 0 {
+		for key := range entries {
+			keys = append(keys, key)
+		}
+		slices.Sort(keys)
+		return keys
+	}
+
 	seen := make(map[string]bool, len(entries))
-	if node.UserOrdered {
-		for _, key := range order {
-			if _, ok := entries[key]; !ok {
-				continue // The entry this key recorded was removed.
-			}
-			if seen[key] {
-				continue // The record names this key twice.
-			}
-			seen[key] = true
+	for _, key := range order {
+		if _, ok := entries[key]; !ok {
+			continue // The entry this key recorded was removed.
+		}
+		if seen[key] {
+			continue // The record names this key twice.
+		}
+		seen[key] = true
+		keys = append(keys, key)
+	}
+	if len(keys) == len(entries) {
+		return keys
+	}
+
+	recorded := len(keys)
+	for key := range entries {
+		if !seen[key] {
 			keys = append(keys, key)
 		}
 	}
-	rest := make([]string, 0, len(entries)-len(keys))
-	for key := range entries {
-		if !seen[key] {
-			rest = append(rest, key)
-		}
-	}
-	slices.Sort(rest)
-	return append(keys, rest...)
+	slices.Sort(keys[recorded:])
+	return keys
 }
 
 // inlineLeafListEntry reports whether a list entry renders as one line,
@@ -775,7 +798,7 @@ func writeInlineLeafListMembers(b *textbuf.Buffer, members []string) {
 		if i > 0 {
 			b.Str(" ")
 		}
-		b.Str(quoteIfNeeded(member))
+		b.Str(QuoteIfNeeded(member))
 	}
 	b.Str(" ]")
 }
@@ -837,7 +860,7 @@ func serializePresenceContainer(b *textbuf.Buffer, tree *Tree, name string, node
 		b.Str(name)
 		if v != configTrue {
 			b.Str(" ")
-			b.Str(quoteIfNeeded(v))
+			b.Str(QuoteIfNeeded(v))
 		}
 		writeCommentAfter(b, comments.Trailing)
 		b.Str("\n")
@@ -922,7 +945,7 @@ func serializeBracketLeafList(b *textbuf.Buffer, tree *Tree, name, prefix string
 func writeInactiveMemberLine(b *textbuf.Buffer, tree *Tree, name, member, prefix string) {
 	comments := tree.leafCommentsLocked(name, member)
 	writeCommentsAbove(b, prefix, comments)
-	b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(quoteIfNeeded(member))
+	b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(QuoteIfNeeded(member))
 	writeCommentAfter(b, comments.Trailing)
 	b.Byte('\n')
 }

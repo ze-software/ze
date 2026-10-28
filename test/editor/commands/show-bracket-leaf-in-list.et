@@ -1,0 +1,39 @@
+# Test: bracket leaf statements retain their name, indentation and change marker
+# VALIDATES: spec-config-list-entries-operator-order AC-8 through the real editor
+# PREVENTS: a nested text buffer reset erasing bracket rows in changed list entries
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  dummy zulu {
+    unit changed { description before; sysctl-profile [ router ]; }
+    unit added { description before; }
+    unit removed { description before; sysctl-profile [ router ]; }
+    unit unchanged { description before; sysctl-profile [ router ]; }
+  }
+  dummy alpha { description stable; }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=delete interface dummy zulu unit changed sysctl-profile
+input=enter
+expect=error:none
+input=type:text=set interface dummy zulu unit changed sysctl-profile hardened
+input=enter
+expect=error:none
+input=type:text=set interface dummy zulu unit added sysctl-profile hardened
+input=enter
+expect=error:none
+input=type:text=delete interface dummy zulu unit removed sysctl-profile
+input=enter
+expect=error:none
+input=type:text=set interface dummy zulu unit unchanged description after
+input=enter
+expect=error:none
+
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:pattern=(?ms)^[ \t]+dummy zulu \{.*^[ \t]+unit changed \{.*^\*[ \t]+sysctl-profile \[ hardened \]$.*^[ \t]+unit added \{.*^\+[ \t]+sysctl-profile \[ hardened \]$.*^[ \t]+unit removed \{.*^-[ \t]+sysctl-profile \[ router \]$.*^[ \t]+unit unchanged \{.*^[ \t]+sysctl-profile \[ router \]$.*^[ \t]+dummy alpha \{

@@ -47,9 +47,33 @@ func (p *SetParser) setFlexValue(tree *Tree, flex *FlexNode, name string, tokens
 		return p.walkAndSet(ensureFlexListEntry(tree, name, key), flex, tokens[1:], lineNum)
 	}
 
-	// Otherwise treat as a simple value.
-	tree.Set(name, textbuf.Join(tokens, " "))
+	// File replay keeps each value line, unlike the editor's scalar Set.
+	appendSetFlexValue(tree, name, textbuf.Join(tokens, " "))
 	return nil
+}
+
+// appendSetFlexValue preserves repeated Flex lines in file order, duplicates
+// included. A lone value stays scalar so the editor can replace it through Set;
+// the second line promotes both values to the store the Flex printers enumerate.
+func appendSetFlexValue(tree *Tree, name, value string) {
+	tree.mu.Lock()
+	defer tree.mu.Unlock()
+	if previous, ok := tree.values[name]; ok {
+		delete(tree.values, name)
+		for i, key := range tree.valuesOrder {
+			if key == name {
+				tree.valuesOrder = append(tree.valuesOrder[:i], tree.valuesOrder[i+1:]...)
+				break
+			}
+		}
+		tree.multiValues[name] = append(tree.multiValues[name], previous, value)
+		return
+	}
+	if len(tree.multiValues[name]) > 0 {
+		tree.multiValues[name] = append(tree.multiValues[name], value)
+		return
+	}
+	tree.storeValueLocked(name, value)
 }
 
 // isFlexListEntry reports whether the tokens after a Flex node's name address

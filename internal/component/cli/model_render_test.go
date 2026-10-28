@@ -56,6 +56,73 @@ line 4`
 	assert.Contains(t, lines[3], "line 4", "line 4 content preserved")
 }
 
+// TestValidationHintsPreserveConfigLines uses diagnostics that do not repeat the
+// config text, so a hint cannot stand in for the row it annotates.
+//
+// VALIDATES: Error and warning hints follow the intact configuration row.
+// PREVENTS: Resetting a shared text buffer while rendering a hint erases the row.
+func TestValidationHintsPreserveConfigLines(t *testing.T) {
+	profile := lipgloss.Writer.Profile
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = profile })
+
+	const content = "unchanged\npeer yankee {\n}"
+	const diagnostic = "duplicate remote IP"
+	for _, tc := range []struct {
+		name      string
+		errors    []ConfigValidationError
+		warnings  []ConfigValidationError
+		showHints bool
+	}{
+		{
+			name:      "error with hint",
+			errors:    []ConfigValidationError{{Line: 2, Message: diagnostic}},
+			showHints: true,
+		},
+		{
+			name:      "warning with hint",
+			warnings:  []ConfigValidationError{{Line: 2, Message: diagnostic}},
+			showHints: true,
+		},
+		{
+			name:   "error without hint",
+			errors: []ConfigValidationError{{Line: 2, Message: diagnostic}},
+		},
+		{
+			name:     "warning without hint",
+			warnings: []ConfigValidationError{{Line: 2, Message: diagnostic}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := highlightValidationIssues(content, tc.errors, tc.warnings, nil, tc.showHints)
+			lines := strings.Split(got, "\n")
+			if len(lines) != 3 {
+				t.Fatalf("rendered %d lines, want 3: %q", len(lines), got)
+			}
+			if lines[0] != "unchanged" {
+				t.Errorf("unmarked opening row changed: %q", lines[0])
+			}
+			if lines[2] != "}" {
+				t.Errorf("unmarked closing row changed: %q", lines[2])
+			}
+			if !strings.Contains(lines[1], "peer yankee {") {
+				t.Errorf("configuration row disappeared: %q", lines[1])
+			}
+			if !strings.Contains(lines[1], "\x1b[") {
+				t.Errorf("configuration row lost its highlighting: %q", lines[1])
+			}
+			if tc.showHints {
+				headerEnd := strings.Index(lines[1], "peer yankee {") + len("peer yankee {")
+				if hint := strings.Index(lines[1], "  ← "+diagnostic); hint < headerEnd {
+					t.Errorf("hint does not follow the configuration row: %q", lines[1])
+				}
+			} else if strings.Contains(lines[1], diagnostic) {
+				t.Errorf("hidden hint remains visible: %q", lines[1])
+			}
+		})
+	}
+}
+
 // TestHighlightValidationIssuesEmpty verifies no crash with empty errors.
 //
 // VALIDATES: Empty error list returns content unchanged.

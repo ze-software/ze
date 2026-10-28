@@ -1,23 +1,20 @@
 // Design: docs/architecture/config/syntax.md — inactive node pruning
 // Related: tree.go — Tree data structure
-// Related: serialize.go — serializeNode, the comparison of record for PruneUnchanged
+// Related: schema.go — ListNode.UserOrdered selects semantic entry order
 
 package config
 
 import (
-	"github.com/ze-software/ze/internal/core/textbuf"
+	"maps"
+	"slices"
+	"strings"
 )
 
-// PruneUnchanged removes from tree every node that serializes identically in
-// baseline, keeping only what differs plus the ancestors needed to locate it.
+// PruneUnchanged removes semantically unchanged nodes, keeping only differences
+// and the ancestors needed to locate them. Plain keyed-list order is display
+// state; only ListNode.UserOrdered makes entry order part of the comparison.
 // The tree is modified in place. Call on a clone if the original must be preserved.
-//
-// "Unchanged" means "serializes identically": a child is pruned when serializeNode
-// renders it the same for both trees. That is one rule for every node kind (leaf,
-// leaf-list, container, presence container, list, flex, freeform, inline list), and
-// it cannot drift from what the operator is shown, because it IS what the operator
-// is shown. Deactivation comes for free: the serializer emits the "inactive: "
-// prefix, so (de)activating a node changes its text and therefore keeps it.
+// Inactive state and intentionally present empty containers remain configuration.
 //
 // Prune BOTH directions to build a diff view -- the working tree against the
 // baseline for additions and modifications, the baseline against the working tree
@@ -26,89 +23,133 @@ import (
 //
 // A nil baseline prunes nothing: with nothing to compare against, every node is new.
 //
-// A comment describes a statement without changing it, so the comparison reads
-// copies of both trees with every comment removed: a node that differs from
-// the baseline only in its comments is unchanged and pruned. What tree keeps,
-// it keeps with its comments.
+// Comments do not change configuration. Comparison ignores them without copying
+// or sorting either input; retained nodes keep their original comments and order.
 func PruneUnchanged(tree, baseline *Tree, schema *Schema) {
-	if tree == nil || baseline == nil || schema == nil {
+	if tree == nil {
 		return
 	}
-	pruneUnchangedNode(tree, WithoutComments(tree), WithoutComments(baseline), schema.root)
+	if baseline == nil {
+		return
+	}
+	if schema == nil {
+		return
+	}
+	pruneUnchangedNode(tree, baseline, schema.root)
 }
 
-// WithoutComments answers a copy of tree with every comment removed. A
-// comparison of two configurations reads such copies, because a comment is
-// not configuration: PruneUnchanged and the editor's tree diff
-// (cli/diff_tree.go) both judge two trees that differ only in comments equal.
+// WithoutComments answers a copy of tree with every comment removed for visual
+// rendering. Semantic comparison uses SubtreesEqual and ignores comments without
+// copying; callers retaining nodes keep the operator's original comments.
 func WithoutComments(tree *Tree) *Tree {
 	bare := tree.Clone()
 	bare.dropCommentsDeep()
 	return bare
 }
 
-// pruneUnchangedNode removes children that render identically in baseline, then
-// recurses into the ones that differ so their unchanged descendants go too.
-// bare is tree's comment-free copy: the comparison reads it, and every removal
-// is made in both so the two stay the same apart from comments.
-func pruneUnchangedNode(tree, bare, baseline *Tree, node Node) {
+// pruneUnchangedNode walks the finite parsed tree with its schema. A container
+// emptied by this walk is context, not an intentional empty-container edit.
+func pruneUnchangedNode(tree, baseline *Tree, node Node) {
 	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
 	}
-
 	for _, name := range cp.Children() {
 		child := cp.Get(name)
-
-		if childText(bare, name, child) == childText(baseline, name, child) {
+		if pruneChildEqual(tree, baseline, name, child) {
 			removeChild(tree, name)
-			removeChild(bare, name)
 			continue
 		}
-
-		// Differs: recurse so unchanged descendants inside it are pruned too.
-		switch child.(type) {
-		case *ContainerNode, *FlexNode:
-			sub := tree.GetContainer(name)
-			base := baseline.GetContainer(name)
-			// A nil baseline container means the whole container is new:
-			// keep every descendant, there is nothing to compare against.
-			if sub != nil && base != nil {
-				pruneUnchangedNode(sub, bare.GetContainer(name), base, child)
+		sub, base := tree.GetContainer(name), baseline.GetContainer(name)
+		if sub != nil && base != nil {
+			hadChildren := !pruneTreeEmpty(sub)
+			pruneUnchangedNode(sub, base, child)
+			if hadChildren && pruneTreeEmpty(sub) && sub.IsInactive() == base.IsInactive() {
+				tree.RemoveContainer(name)
 			}
-
-		case *ListNode:
-			pruneUnchangedListEntries(tree, bare, baseline, name, child)
 		}
+		pruneUnchangedListEntries(tree, baseline, name, child)
 	}
-
 	pruneUnchangedExtraValues(tree, baseline, cp.Children())
 }
 
-// pruneUnchangedListEntries prunes list entries that render identically and recurses
-// into those that differ. An entry absent from the baseline is new and is kept whole.
-// bare is tree's comment-free copy, as in pruneUnchangedNode.
-func pruneUnchangedListEntries(tree, bare, baseline *Tree, name string, node Node) {
-	entries := tree.GetList(name)
-	bareEntries := bare.GetList(name)
-	baseEntries := baseline.GetList(name)
-
-	// Snapshot the keys first: the loop deletes from the same live map GetList
-	// returns. See listKeys.
-	for _, key := range listKeys(tree, name) {
-		entry := entries[key]
-		bareEntry := bareEntries[key]
-		baseEntry := baseEntries[key]
-		if entry == nil || baseEntry == nil {
-			continue
+// pruneUnchangedListEntries handles every keyed representation, including Flex
+// and InlineList. A changed relative order keeps the whole list as order context;
+// an insertion or deletion alone still prunes unchanged common entries.
+func pruneUnchangedListEntries(tree, baseline *Tree, name string, node Node) {
+	entries, baseEntries := tree.GetList(name), baseline.GetList(name)
+	if list, ok := node.(*ListNode); ok && list.UserOrdered {
+		if pruneListReordered(tree, baseline, name) {
+			return
 		}
-		if SerializeSubtree(bareEntry, node) == SerializeSubtree(baseEntry, node) {
-			tree.RemoveListEntry(name, key)
-			bare.RemoveListEntry(name, key)
-			continue
-		}
-		pruneUnchangedNode(entry, bareEntry, baseEntry, node)
 	}
+	for _, key := range listKeys(tree, name) {
+		entry, base := entries[key], baseEntries[key]
+		if entry == nil {
+			continue
+		}
+		if base == nil {
+			continue
+		}
+		if SubtreesEqual(entry, base, node) {
+			tree.RemoveListEntry(name, key)
+			continue
+		}
+		hadChildren := !pruneTreeEmpty(entry)
+		pruneUnchangedNode(entry, base, node)
+		if hadChildren && pruneTreeEmpty(entry) && entry.IsInactive() == base.IsInactive() {
+			tree.RemoveListEntry(name, key)
+		}
+	}
+}
+
+func pruneTreeEmpty(tree *Tree) bool {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	if len(tree.values) != 0 {
+		return false
+	}
+	if len(tree.multiValues) != 0 {
+		return false
+	}
+	if len(tree.containers) != 0 {
+		return false
+	}
+	for _, entries := range tree.lists {
+		if len(entries) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// pruneListReordered compares the common keys in linear time. Membership edits
+// alone do not change the relative order of surviving entries.
+func pruneListReordered(tree, baseline *Tree, name string) bool {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	baseline.mu.RLock()
+	defer baseline.mu.RUnlock()
+	before := ListEntryKeys(baseline.lists[name], baseline.listOrder[name])
+	after := ListEntryKeys(tree.lists[name], tree.listOrder[name])
+	next := 0
+	for _, key := range after {
+		if _, common := baseline.lists[name][key]; !common {
+			continue
+		}
+		for next < len(before) {
+			old := before[next]
+			next++
+			if _, common := tree.lists[name][old]; !common {
+				continue
+			}
+			if old != key {
+				return true
+			}
+			break
+		}
+	}
+	return false
 }
 
 // pruneUnchangedExtraValues prunes values absent from the schema's children list
@@ -132,29 +173,221 @@ func pruneUnchangedExtraValues(tree, baseline *Tree, children []string) {
 	}
 }
 
-// childText renders one named child exactly as the serializer would, for comparison.
-//
-// Holds tree.mu.RLock because serializeNode reads tree.values / tree.containers /
-// tree.lists directly -- the same contract serializeTree and serializeWithChildren
-// honor. Recursion crosses into child trees, which lock their own mutexes.
-func childText(tree *Tree, name string, node Node) string {
+// SubtreesEqual compares canonical configuration values without comments or
+// stored secret spellings. Only ListNode.UserOrdered makes keyed-entry order
+// significant. Scalar mirrors and equivalent parser storage are not changes.
+// It never mutates either tree. Recursion follows the finite parsed tree; locks
+// are acquired parent before child, as in Tree.Clone.
+func SubtreesEqual(tree, baseline *Tree, node Node) bool {
+	if pruneNodeEphemeral(node) {
+		return true
+	}
+	if tree == baseline {
+		return true
+	}
 	if tree == nil {
-		return ""
+		return false
+	}
+	if baseline == nil {
+		return false
 	}
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
-	var b textbuf.Buffer
-	serializeNode(&b, tree, name, node, 0)
-	return b.String()
+	baseline.mu.RLock()
+	defer baseline.mu.RUnlock()
+	if tree.inactive != baseline.inactive {
+		return false
+	}
+	cp, modeled := node.(ChildProvider)
+	if modeled {
+		for _, name := range cp.Children() {
+			if !pruneChildEqualLocked(tree, baseline, name, cp.Get(name)) {
+				return false
+			}
+		}
+	}
+	// Unknown fields are scalar values in the printer. Do not compare mirrors
+	// of modeled leaf-lists here: their member store is authoritative.
+	return pruneExtraValuesEqual(tree, baseline, node) &&
+		pruneExtraValuesEqual(baseline, tree, node)
+}
+
+// pruneExtraValuesEqual requires both read locks. Checking both directions
+// distinguishes an absent field from an intentionally empty scalar.
+func pruneExtraValuesEqual(tree, baseline *Tree, node Node) bool {
+	schema, modeled := node.(ChildProvider)
+	_, freeform := node.(*FreeformNode)
+	for name, value := range tree.values {
+		if modeled && schema.Get(name) != nil {
+			continue
+		}
+		base, present := baseline.values[name]
+		if !present {
+			return false
+		}
+		if freeform {
+			if !pruneFreeformEqual(value, base) {
+				return false
+			}
+		} else if value != base {
+			return false
+		}
+		if tree.inactiveValues[name] != baseline.inactiveValues[name] {
+			return false
+		}
+	}
+	return true
+}
+
+// pruneFreeformEqual compares the bracket wrapping serializeFreeform emits
+// without building that text. A true flag has no bracket body.
+func pruneFreeformEqual(value, base string) bool {
+	if value == base {
+		return true
+	}
+	if value == configTrue {
+		return false
+	}
+	if base == configTrue {
+		return false
+	}
+	bracketed := strings.HasPrefix(value, "[ ") && strings.HasSuffix(value, " ]")
+	baseBracketed := strings.HasPrefix(base, "[ ") && strings.HasSuffix(base, " ]")
+	if bracketed == baseBracketed {
+		return false
+	}
+	if bracketed {
+		return len(value) == len(base)+4 && value[2:len(value)-2] == base
+	}
+	return len(base) == len(value)+4 && base[2:len(base)-2] == value
+}
+
+func pruneNodeEphemeral(node Node) bool {
+	switch n := node.(type) {
+	case *LeafNode:
+		return n.Ephemeral
+	case *ContainerNode:
+		return n.Ephemeral
+	case *ListNode:
+		return n.Ephemeral
+	}
+	return false
+}
+
+func pruneChildEqual(tree, baseline *Tree, name string, node Node) bool {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	baseline.mu.RLock()
+	defer baseline.mu.RUnlock()
+	return pruneChildEqualLocked(tree, baseline, name, node)
+}
+
+func pruneChildEqualLocked(tree, baseline *Tree, name string, node Node) bool {
+	if pruneNodeEphemeral(node) {
+		return true
+	}
+	if !pruneScalarEqual(tree, baseline, name, node) {
+		return false
+	}
+	if tree.inactiveValues[name] != baseline.inactiveValues[name] {
+		return false
+	}
+	if !maps.Equal(tree.inactiveMembers[name], baseline.inactiveMembers[name]) {
+		return false
+	}
+	if !SubtreesEqual(tree.containers[name], baseline.containers[name], node) {
+		return false
+	}
+	return pruneListsEqual(tree, baseline, name, node)
+}
+
+// pruneScalarEqual projects each schema kind onto the value its printer reads.
+// Both parents are read-locked. It reuses normalizeBool and bracketBody rather
+// than serializing nodes, and never compares a derived leaf-list mirror.
+func pruneScalarEqual(tree, baseline *Tree, name string, node Node) bool {
+	value, present := tree.values[name]
+	base, basePresent := baseline.values[name]
+	switch n := node.(type) {
+	case *LeafNode:
+		if present != basePresent {
+			return false
+		}
+		if n.Type == TypeEmpty {
+			return true
+		}
+		return normalizeBool(value) == normalizeBool(base)
+	case *MultiLeafNode:
+		return present == basePresent && value == base
+	case *BracketLeafListNode:
+		members, baseMembers := tree.multiValues[name], baseline.multiValues[name]
+		if len(members) > 0 && len(baseMembers) > 0 {
+			return slices.Equal(members, baseMembers)
+		}
+		// Only legacy scalar-only bracket storage needs textual canonicalization.
+		value, present = bracketBody(tree, name)
+		base, basePresent = bracketBody(baseline, name)
+		return present == basePresent && value == base
+	case *ValueOrArrayNode:
+		return slices.Equal(tree.multiValues[name], baseline.multiValues[name])
+	case *FlexNode:
+		return pruneFlexValuesEqual(tree, baseline, name)
+	case *ContainerNode:
+		if n.Presence {
+			return pruneFlexValuesEqual(tree, baseline, name)
+		}
+		return true
+	case *ListNode, *InlineListNode, *FreeformNode:
+		// These kinds have no scalar representation on their parent.
+		return true
+	}
+	return present == basePresent && value == base
+}
+
+// pruneFlexValuesEqual follows the scalar-before-sequence precedence shared by
+// Flex and presence printers. A single replayed scalar is the same occurrence
+// as a one-member hierarchical sequence, including multi-word values.
+func pruneFlexValuesEqual(tree, baseline *Tree, name string) bool {
+	value, present := tree.values[name]
+	base, basePresent := baseline.values[name]
+	if present {
+		if basePresent {
+			return value == base
+		}
+		members := baseline.multiValues[name]
+		return len(members) == 1 && members[0] == value
+	}
+	if basePresent {
+		members := tree.multiValues[name]
+		return len(members) == 1 && members[0] == base
+	}
+	return slices.Equal(tree.multiValues[name], baseline.multiValues[name])
+}
+
+// pruneListsEqual requires both parents' read locks; entries lock themselves.
+func pruneListsEqual(tree, baseline *Tree, name string, node Node) bool {
+	entries, baseEntries := tree.lists[name], baseline.lists[name]
+	if len(entries) != len(baseEntries) {
+		return false
+	}
+	if list, ok := node.(*ListNode); ok && list.UserOrdered {
+		if !slices.Equal(ListEntryKeys(entries, tree.listOrder[name]),
+			ListEntryKeys(baseEntries, baseline.listOrder[name])) {
+			return false
+		}
+	}
+	for key, entry := range entries {
+		if !SubtreesEqual(entry, baseEntries[key], node) {
+			return false
+		}
+	}
+	return true
 }
 
 // removeChild deletes every representation of name from tree.
 //
 // Presence containers and flex nodes can hold a value AND a container under one
 // name, and a list shares the namespace too. The caller only reaches here when both
-// trees render name identically, so clearing every representation is correct
-// regardless of which one is in use -- and avoids a per-kind switch that would have
-// to stay in step with serializeNode's nine cases.
+// trees hold name identically, so clearing every representation is correct.
 func removeChild(tree *Tree, name string) {
 	tree.RemoveContainer(name)
 	for _, key := range listKeys(tree, name) {

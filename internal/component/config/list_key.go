@@ -212,7 +212,7 @@ func ListKeyFirstValue(keyLeaves []string, key string) string {
 
 // ListKeyTokens returns the address of a stored map key as path tokens:
 // the first value, then each pair's name and value. Each token is written
-// to text on its own, through quoteIfNeeded.
+// to text on its own, through QuoteIfNeeded.
 func ListKeyTokens(node *ListNode, key string) []string {
 	first, pairs := SplitListKey(node, key)
 	tokens := make([]string, 0, 1+2*len(pairs))
@@ -287,7 +287,7 @@ func writeListAddress(b *textbuf.Buffer, tokens []string) {
 		if i > 0 {
 			b.Byte(' ')
 		}
-		b.Str(quoteIfNeeded(token))
+		b.Str(QuoteIfNeeded(token))
 	}
 }
 
@@ -307,12 +307,12 @@ func canonicalParsedListKey(listName string, node *ListNode, first string, entry
 	return BuildListKey(listName, node, first, entry.Get)
 }
 
-// quoteIfNeeded writes s as ONE token that the config tokenizer reads back as
+// QuoteIfNeeded writes s as ONE token that the config tokenizer reads back as
 // s: an address reaches text through it a token at a time. s is written bare
 // only when bareWordReadsBack says the tokenizer returns it whole as one word;
 // every other value is quoted, its `"`, `\`, newline and tab escaped the way
 // readString and readQuotedToken decode them.
-func quoteIfNeeded(s string) string {
+func QuoteIfNeeded(s string) string {
 	if bareWordReadsBack(s) {
 		return s
 	}
@@ -340,11 +340,11 @@ func quoteIfNeeded(s string) string {
 	return b.String()
 }
 
-// splitQuotedTokens splits a line into the tokens quoteIfNeeded wrote: a
+// splitQuotedTokens splits a line into the tokens QuoteIfNeeded wrote: a
 // token is a run of non-space characters, or a `"`-quoted string whose
-// escapes (\", \\, \n, \t) quoteIfNeeded wrote, or a `'`-quoted string
+// escapes (\", \\, \n, \t) QuoteIfNeeded wrote, or a `'`-quoted string
 // with no escapes (a record written by hand or before keys were quoted). It
-// is the inverse of quoteIfNeeded: splitQuotedTokens(quoteIfNeeded(s)) is
+// is the inverse of QuoteIfNeeded: splitQuotedTokens(QuoteIfNeeded(s)) is
 // [s]. An unterminated quote is refused.
 func splitQuotedTokens(line string) ([]string, error) {
 	var tokens []string
@@ -379,7 +379,7 @@ func isTokenSpace(c byte) bool { return c == ' ' || c == '\t' }
 // trimTokenSpace removes the separators isTokenSpace names, and the carriage
 // return of a CRLF line, from both ends of a record line. It is not
 // strings.TrimSpace: that also strips a vertical tab, a form feed and Unicode
-// spaces, which a bare value quoteIfNeeded writes may end with, so a set line
+// spaces, which a bare value QuoteIfNeeded writes may end with, so a set line
 // would read back a shorter value than the one stored.
 func trimTokenSpace(line string) string { return strings.Trim(line, " \t\r") }
 

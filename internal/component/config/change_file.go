@@ -187,7 +187,7 @@ func (op StructuralOp) targetPath(schema *Schema, key string) string {
 	if len(op.ParentPath) != 0 {
 		b.Byte(' ')
 	}
-	b.Str(quoteIfNeeded(op.ListName))
+	b.Str(QuoteIfNeeded(op.ListName))
 	if op.Type == StructuralOpCreateEntry || op.Type == StructuralOpDeleteContainer ||
 		op.Type == StructuralOpDeleteList || op.isToggleOp() {
 		return b.String()
@@ -210,7 +210,7 @@ func (op StructuralOp) targetPath(schema *Schema, key string) string {
 			return b.String()
 		}
 	}
-	b.Str(quoteIfNeeded(key))
+	b.Str(QuoteIfNeeded(key))
 	return b.String()
 }
 
@@ -624,19 +624,19 @@ func formatKeyMoveLine(op StructuralOp) string {
 		b.Str(ChangeFileRenameToken)
 	}
 	b.Byte(' ')
-	// Each token goes through quoteIfNeeded, so parseKeyMoveLine splits the
+	// Each token goes through QuoteIfNeeded, so parseKeyMoveLine splits the
 	// record back exactly (splitQuotedTokens is its inverse).
 	for _, parent := range op.ParentPath {
-		b.Str(quoteIfNeeded(parent))
+		b.Str(QuoteIfNeeded(parent))
 		b.Byte(' ')
 	}
-	b.Str(quoteIfNeeded(op.ListName))
+	b.Str(QuoteIfNeeded(op.ListName))
 	b.Byte(' ')
-	b.Str(quoteIfNeeded(op.OldKey))
+	b.Str(QuoteIfNeeded(op.OldKey))
 	b.Byte(' ')
 	b.Str(ChangeFileToToken)
 	b.Byte(' ')
-	b.Str(quoteIfNeeded(op.NewKey))
+	b.Str(QuoteIfNeeded(op.NewKey))
 	return b.String()
 }
 
@@ -676,7 +676,7 @@ func formatToggleLine(op StructuralOp) string {
 		writeListAddress(&b, op.ParentPath)
 		b.Byte(' ')
 	}
-	b.Str(quoteIfNeeded(op.ListName))
+	b.Str(QuoteIfNeeded(op.ListName))
 	return b.String()
 }
 
@@ -831,12 +831,12 @@ func formatInsertMemberLine(op StructuralOp) string {
 	}
 	b.Str(op.ListName)
 	b.Byte(' ')
-	b.Str(quoteIfNeeded(op.NewKey))
+	b.Str(QuoteIfNeeded(op.NewKey))
 	b.Byte(' ')
 	b.Str(op.Position)
 	if op.OldKey != "" {
 		b.Byte(' ')
-		b.Str(quoteIfNeeded(op.OldKey))
+		b.Str(QuoteIfNeeded(op.OldKey))
 	}
 	return b.String()
 }
@@ -856,7 +856,7 @@ func formatMemberToggleLine(op StructuralOp) string {
 	}
 	b.Str(op.ListName)
 	b.Byte(' ')
-	b.Str(quoteIfNeeded(op.NewKey))
+	b.Str(QuoteIfNeeded(op.NewKey))
 	return b.String()
 }
 
@@ -921,7 +921,7 @@ func formatDeleteEntryLine(op StructuralOp) string {
 	}
 	b.Str(op.ListName)
 	b.Byte(' ')
-	b.Str(quoteIfNeeded(op.OldKey))
+	b.Str(QuoteIfNeeded(op.OldKey))
 	return b.String()
 }
 

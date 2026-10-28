@@ -404,7 +404,7 @@ func TestChangeFileLeafDeleteSurvivesRewrite(t *testing.T) {
 // back through extractMeta and parseKeyMoveLine, and compare; then load old
 // raw records written before keys were quoted.
 //
-// VALIDATES: splitQuotedTokens is the inverse of quoteIfNeeded; `to` is read
+// VALIDATES: splitQuotedTokens is the inverse of QuoteIfNeeded; `to` is read
 // at its fixed place; a ParentPath token starting with `"` round-trips; an
 // old raw record loads as it did; an unterminated `'` is refused naming the
 // line.
@@ -420,7 +420,7 @@ func TestKeyMoveRecordRoundTripsQuotedKeys(t *testing.T) {
 		"to",
 	}
 	for _, key := range keys {
-		assert.Equal(t, []string{key}, mustSplit(t, quoteIfNeeded(key)), "splitQuotedTokens(quoteIfNeeded(%q))", key)
+		assert.Equal(t, []string{key}, mustSplit(t, QuoteIfNeeded(key)), "splitQuotedTokens(QuoteIfNeeded(%q))", key)
 	}
 
 	for _, opType := range []StructuralOpType{StructuralOpRename, StructuralOpCopyEntry} {

@@ -26,7 +26,7 @@ type corpusCarrier struct {
 //
 // VALIDATES: AC-10. For every hierarchical body that parses, the formatted
 // text parses, its tree lowers to the same map and prints the same set form
-// (values, inactive flags, ordered order) as the source's, formatting it
+// (values, inactive flags, every list's entry order) as the source's, formatting it
 // again changes no byte, and its comment texts are the source's, as a
 // multiset (commentTextsOf).
 // PREVENTS: fmt writing a file that reads back with another meaning, or one a
@@ -66,11 +66,14 @@ func TestFormatCorpusRoundTrip(t *testing.T) {
 			t.Errorf("%s: formatted text lowers to another map\n%s", c.source, formatted)
 		}
 		// One set line is one statement, carrying its value, its inactive flag
-		// and an ordered leaf-list's whole sequence, so the same lines are the
-		// same meaning. Where a statement sits (schema order against the
-		// operator's) is the statement-order half of the spec, not phase 1.
-		if only := setLinesOnlyInOne(config.SerializeSet(source, schema), config.SerializeSet(reparsed, schema)); only != "" {
+		// and an ordered leaf-list's whole sequence. The multiset diagnoses
+		// changed statements; exact bytes also pin every list's entry order.
+		before, after := config.SerializeSet(source, schema), config.SerializeSet(reparsed, schema)
+		if only := setLinesOnlyInOne(before, after); only != "" {
 			t.Errorf("%s: formatted text prints another set form:%s", c.source, only)
+		}
+		if before != after {
+			t.Errorf("%s: formatted text changes set statement order:\n%s\nwant:\n%s", c.source, after, before)
 		}
 		// The set-line multiset above cannot see two entries of an
 		// `ordered-by user` list swapped, and their order is the value.
@@ -141,10 +144,10 @@ func commentTextsOf(text string) []string {
 
 // userOrderedListDiffs walks source and reparsed side by side under the schema
 // node cp, at every depth, and names each `ordered-by user` list whose entry
-// keys come back in another sequence. Lists the schema does not mark
-// `ordered-by user` are skipped: fmt prints them sorted, and their order is
-// not part of the value. checked counts the user-ordered lists of two entries
-// or more it compared. The recursion is bounded by the schema's depth.
+// keys come back in another sequence. The exact set comparison above checks
+// every list kind's display order; this walk additionally counts the corpus's
+// user-ordered lists, whose entry order is their meaning. checked counts those
+// with two entries or more. The recursion is bounded by the schema's depth.
 func userOrderedListDiffs(source, reparsed *config.Tree, cp config.ChildProvider, path string, checked *int) []string {
 	var diffs []string
 	for _, name := range source.ListNames() {

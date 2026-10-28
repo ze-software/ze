@@ -42,9 +42,13 @@ intent in the user's change file across draft saves and candidate staging; a
 bare tree node alone does not participate in session commit. Replay uses the
 same schema-aware entry addressing as the editor, including multi-key entries.
 Metadata entry paths and structural-operation parents use `EditTokens`, not
-space-joined strings. `MetaTree.SessionEntries` expands stored multi-leaf keys
-with the schema, while single string keys remain one token. Every structural
-wire record uses the configuration key quote codec in both directions;
+space-joined strings. `MetaTree.SessionEntriesOrdered` expands stored multi-leaf
+keys with the schema, while single string keys remain one token. It visits list
+entries in the companion tree's recorded order, retaining metadata-only
+deletions after the entries the tree holds. Draft and commit replay, copying
+pending edits and rebuilding a session view all use this ordered traversal.
+Read-only ownership queries can use `MetaTree.SessionEntries` without an order.
+Every structural wire record uses the configuration key quote codec in both directions;
 rendered pending paths use the same codec. Recorded creation paths canonicalize
 default key leaves and key-pair order.
 An entry's complete map key is one identity boundary, so a multi-key sibling
@@ -56,6 +60,11 @@ entry can therefore be saved repeatedly without recreating a move's source or
 losing a copy's source dependency. The complete ordered descendant program,
 including deletions and toggles, follows an ancestor rename or copy; replay
 does not resurrect a child created and then deleted before the move.
+The complete creation program runs at the copy or rename's position in the
+operation sequence, after any earlier deletion of its destination. List position
+is restored separately after replay, so an empty copied or renamed entry cannot
+be erased by a destination deletion that preceded the operator's command. A
+source deleted and recreated before a copy contributes only its latest program.
 Renames of pre-existing ancestors still need their committed source: an
 implicitly materialized parent never hides another session's deletion.
 Within a creation program, committed replay collapses an existing entry's
@@ -73,6 +82,15 @@ The shared tree is never rewound through a historical source: another session
 may have created a new entry there. Already materialized copies retain their
 earlier snapshot. This needs no saved replay cursor or new change-file syntax.
 <!-- source: internal/component/cli/editor_create_entry.go -- prepareDraftReplay, materializedEntrySource, entryHasIndependentOwner, copyBeforeRenames -->
+
+After draft or committed replay, copied and renamed destinations owned by the creation
+program take their positions from the candidate tree. Later renames rebase those
+destinations before positioning. The adjustment changes list order only: it
+neither copies payloads nor transfers metadata, and unrelated entries retain
+their relative order. This also preserves another user's entry at a historical
+source instead of moving that entry to repair the current session's ordering.
+<!-- source: internal/component/cli/editor_create_entry.go -- positionCreatedEntries -->
+<!-- source: internal/component/config/tree.go -- RepositionListEntries -->
 
 Saving a previously materialized creation under a new name also prunes its
 superseded source. Only the creator's saved leaf metadata moves with that
@@ -101,7 +119,7 @@ tokens and only the multi-token entry boundaries needed by comparisons, not
 a duplicate identity-token array. Rebase resolves each operand once.
 <!-- source: internal/component/cli/editor_create_entry.go -- planCreations, structuralOpConflicts, rebaseCreatedMetadata, creationFootprint, pruneCreationMaterializations -->
 <!-- source: internal/component/config/edit_path.go -- EditTokens, CanonicalEditPath, EditPathHasPrefix, ResolveEditPath, RebaseEditPath, RebaseEditTokens, FormatEditPath, ParseEditPath -->
-<!-- source: internal/component/config/meta.go -- SessionEntries -->
+<!-- source: internal/component/config/meta.go -- SessionEntries, SessionEntriesOrdered -->
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate, applyStructuralOpsAroundEntries, applyStructuralOpsToMeta -->
 
 Because the ops run before the leaf edits, a copy reads the committed source,

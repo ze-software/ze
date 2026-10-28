@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Every printer of the operator's configuration (`show`, `ze config fmt`, the set form, the committed set-meta file, the web editor) follows the schema's child order, and the YANG-to-schema converter makes that order alphabetical, where the owner decided YANG definition order (D-1). It is a release fix, not post-release work, for two reasons. The shipped printer contradicts the decided printing rule and `docs/architecture/config/syntax.md`, which already states that a list's positional values follow YANG definition order while the code puts `uses` and augmented children in name order. And `plan/README.md` requires configuration syntax to stabilize before release: made after release, the change rewrites every operator's committed file and fires every archive and history digest once, on the upgrade. Made before release, it costs one reorder of files no release has shipped |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-config-list-entries-operator-order.md` (list entry order and the D-4 comparison rule land first, so the expectation refresh here happens once, over the final list order) |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-28 |
@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Implement owner decision D-1 (Thomas, 2026-10-28, the Junos model, recorded on Q-2
 of `plan/post-release/engineering/spec-ze-config-fmt.md` and split out of
-`plan/release/fixes/spec-config-list-entries-operator-order.md`): the leaves and
+the closed `spec-config-list-entries-operator-order`): the leaves and
 containers inside a block print in YANG DEFINITION order, not alphabetically.
 
 | Child's origin | Position it takes |
@@ -46,8 +46,8 @@ nobody wrote.
   → Constraint: the page states no child order today; it gains one sentence pointing at the D-1 rule in `syntax.md` (one declaration, `ai/rules/principles.md`)
 - [ ] `docs/architecture/web-components.md` - web editor fragments (`fragment.go` declares it)
   → Constraint: form field order follows `provider.Children()`; if the page states an order it is updated, otherwise unaffected
-- [ ] `plan/release/fixes/spec-config-list-entries-operator-order.md` - the dependency
-  → Decision: list entry order and the D-4 comparison rule are its work; this spec changes no list-entry order and no comparison
+- [ ] `docs/architecture/config/syntax.md`, "What a reader receives" - delivered prerequisite
+  → Decision: list entry order and the D-4 comparison rule are implemented; this spec changes no list-entry order and no comparison
 - [ ] `plan/post-release/engineering/spec-ze-config-fmt.md` - parent; being edited by another agent, read only
   → Constraint: its corpus gate (`TestFormatCorpusRoundTrip`) is the idempotence proof this spec reruns, not a second gate
 - [ ] `docs/contributing/ze-go-style.md` - precondition for the implementing agent's first Go edit

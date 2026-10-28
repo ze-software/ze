@@ -5,9 +5,9 @@
 | Status | ready |
 | Scope | cli |
 | Priority | P3 |
-| Release reason | An absent capability, not incorrect behavior: today an operator reorders list entries by delete and re-add, which works and loses nothing. `plan/README.md` puts an additional capability in `post-release/features/`. The list-order fix it builds on (`spec-config-list-entries-operator-order.md`) is the release obligation, because that is where shipped printers disagree |
+| Release reason | An absent capability, not incorrect behavior: today an operator reorders list entries by delete and re-add, which works and loses nothing. `plan/README.md` puts an additional capability in `post-release/features/`. The prerequisite printer fix is delivered; `docs/architecture/config/syntax.md` records the shared display and comparison rules |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-config-list-entries-operator-order.md` (every printer prints recorded entry order, and the D-4 comparison rule exists, before a command can move an entry and have the move show) |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-28 |
@@ -60,8 +60,8 @@ is a change.
   → Constraint: no ordering or editor-verb statement is expected there; Phase 1 greps it for `insert` and for list order and edits only if one is found
 - [ ] `docs/architecture/web-interface.md` - declared by the web files this spec changes (`cli_terminal.go`, `editor.go`)
   → Constraint: if it documents the web terminal's verbs or the keyless `insert`, it is updated with the D-7 outcome in Phase 3
-- [ ] `plan/release/fixes/spec-config-list-entries-operator-order.md` - the dependency
-  → Decision: recorded order prints everywhere and the D-4 comparison exists there; this spec only changes the recorded order
+- [ ] `docs/architecture/config/syntax.md`, "What a reader receives" - delivered prerequisite
+  → Decision: recorded order prints everywhere and the D-4 comparison rule is implemented; this spec only changes the recorded order
 - [ ] `docs/contributing/ze-go-style.md` - precondition for the implementing agent's first Go edit
 
 **Key insights:**

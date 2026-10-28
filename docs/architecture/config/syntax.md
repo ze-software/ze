@@ -91,12 +91,12 @@ line it opens on: no string runs to the end of the file (`readString`,
 
 Every printer (`ze config fmt`, `show`, the set writers the editor stores)
 writes a value bare only when the tokenizer reads that bare word back as the
-same value, and quotes it otherwise (`quoteIfNeeded`, `list_key.go`). The
+same value, and quotes it otherwise (`QuoteIfNeeded`, `list_key.go`). The
 decision asks the tokenizer itself (`bareWordReadsBack`), so the quoting rule
 cannot drift from what ends a word. `x]y(z`, `a[b`, a value holding a newline or
 a carriage return, and `(open` are therefore written quoted.
 <!-- source: internal/component/config/tokenizer.go -- bareWordReadsBack, endsWord, readString -->
-<!-- source: internal/component/config/list_key.go -- quoteIfNeeded -->
+<!-- source: internal/component/config/list_key.go -- QuoteIfNeeded -->
 
 ### Leaf-List (single or multiple values)
 
@@ -141,6 +141,44 @@ keyword {
     child2 value2;
 }
 ```
+
+A container with one leaf may print inline when that leaf has a one-line
+representation. Repeated Flex values keep the container's block, because each
+value needs its own statement. Value-or-array leaves retain all their members.
+Comments or deactivation markers inside the container also keep the block.
+<!-- source: internal/component/config/serialize.go -- CanInlineContainer, writeInlineLeaf -->
+
+### Flex values
+
+A Flex node accepts a value statement, a container or a named list entry.
+Repeated value statements in a file keep their written order and duplicates.
+Hierarchical parsing records each statement; plain set replay appends each
+value line rather than replacing the previous line. Metadata-bearing lines
+with the same author, source and session-start time retain that sequence too.
+Different identities describe competing assignments of the whole leaf, not
+simultaneous occurrences: the tree holds the last assignment and metadata keeps
+each owner's value. A metadata printer writes that contested set once, so
+reloading or adopting a session cannot multiply its records.
+
+Every printer quotes and escapes each occurrence as one value when needed.
+An empty value, a hash, a quote, an embedded newline or a multi-word value
+therefore reads back unchanged; quoting never removes duplicates or reorders
+the sequence.
+The comparison view uses the same token codec, so an escaped newline remains
+one displayed statement and validation highlights map to its working line.
+<!-- source: internal/component/cli/diff_tree.go -- diffFlexValueText, renderDiffLines -->
+
+An interactive editor `set` replaces the whole Flex value, removing every
+previous occurrence while preserving the whole-leaf inactive state and
+comments. It is an assignment, not file replay.
+
+<!-- source: internal/component/config/parser_freeform.go -- parseFlexValue -->
+<!-- source: internal/component/config/setparser_entries.go -- appendSetFlexValue -->
+<!-- source: internal/component/config/setparser_meta.go -- walkAndSetWithMeta -->
+<!-- source: internal/component/cli/editor_commands.go -- storeLeaf -->
+<!-- source: internal/component/config/serialize.go -- serializeNode -->
+<!-- source: internal/component/config/serialize_set.go -- serializeSetFlex, writeFlexLines -->
+<!-- source: internal/component/config/list_key.go -- QuoteIfNeeded -->
 
 ### List (keyed entries)
 
@@ -313,14 +351,47 @@ and refuses a list of two or more entries that arrives with none. Read an
 unordered list with `configvalue.ListEntries`. The obligation is stated in the
 configuration rule.
 
-The hierarchical printer (`ze config fmt`, `ze config migrate format
-hierarchical`) writes the entries of an `ordered-by user` list in the order
-the tree recorded, because that order is the list's meaning: a firewall
-chain's terms match first to last. Every other list it writes sorted by key
-(`listBlockKeys`, `serialize.go`). The schema carries the YANG statement as
-`ListNode.UserOrdered`.
+Every printer writes every list's entries in the order the tree recorded,
+including plain, positional multi-block, Flex and InlineList entries. This
+applies to hierarchical output (`ze config fmt`, `ze config migrate format
+hierarchical`, `show`), set and set-with-metadata files, annotated views and
+blame. Entries absent from the record print afterward, sorted by key; removed
+or repeated keys in the record do not print twice or lose another entry.
+`ListEntryKeys` is the shared ordering producer.
+<!-- source: internal/component/config/serialize.go -- ListEntryKeys -->
 
-<!-- source: internal/component/config/serialize.go -- listBlockKeys -->
+This display rule does not change how consumers read a list. The schema still
+carries `ordered-by user` as `ListNode.UserOrdered`, and the readers above keep
+their contracts.
+
+Order in a display is distinct from order in a comparison. Reordering a plain
+list is no configuration change, including when the list is nested or uses
+Flex or InlineList syntax. `PruneUnchanged` removes that order-only difference
+without leaving empty ancestor blocks. Reordering a list declared `ordered-by
+user` is a change: pruning retains the list as order context, and `show |
+compare` marks moved entries. Comments alone are not changes; inactive state
+and intentionally present empty containers still are.
+Scalar comparisons use the printer's canonical spelling, so replaying the same
+value from hierarchical, set or metadata-bearing set form does not invent a
+change. Ephemeral nodes remain omitted; hidden persisted nodes still count.
+<!-- source: internal/component/config/prune.go -- PruneUnchanged, SubtreesEqual -->
+
+The visual diff uses the same entry writers as the hierarchical printer,
+including grouped positional rows and inline leaf-list entries.
+<!-- source: internal/component/config/serialize.go -- ListUsesMultiBlock, WriteListEntry, WritePositionalListEntry, WriteFlexListEntry, WriteInlineListEntry -->
+
+`ze config diff` keeps its resolved BGP value comparison and also compares
+schema-declared user-ordered lists from the parsed configuration. It reports
+their entry-key sequence under the existing `@<list-name>` metadata convention,
+at the full configuration path (for example,
+`firewall/table/wan/chain/input/@term`). Both text and JSON carry the old and
+new sequences. A list's first appearance or disappearance is an addition or
+removal; a membership or order change in an existing list is a changed sequence.
+Firewall-only inputs need no BGP block. This order comparison does not add
+general value comparison for other non-BGP configuration.
+
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders -->
+
 <!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
 <!-- source: internal/core/configvalue/configvalue.go -- Bool, Int, LeafList, ListEntries -->
 <!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->
@@ -481,13 +552,13 @@ stacked (`SerializeStamped`).
 The editor's displays print the operator's comments where the tree carries
 them: `show` prints through `config.Serialize`, or `SerializeSubtree` below
 the root (the set display prints set lines, which carry none). The
-editor's change view
-compares comment-free trees, so a comment never marks a line changed, and it
-prints no comment line; its validation highlight still lands on the
-statement's line in the working text, below any comment above it.
+editor's change view ignores comments when it compares configuration, so a
+comment never marks a line changed. It prints no comment line; its validation
+highlight still lands on the statement's line in the working text, below any
+comment above it.
 <!-- source: internal/component/config/parser_comments.go -- commentScope -->
 <!-- source: internal/component/config/serialize_comments.go -- writeBlock, writeCommentsAbove -->
-<!-- source: internal/component/config/serialize.go -- canInlineContainer -->
+<!-- source: internal/component/config/serialize.go -- CanInlineContainer -->
 <!-- source: internal/component/config/flatten.go -- canFlattenContainer -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 <!-- source: internal/component/cli/editor.go -- Editor.stampedWorkingContent -->
