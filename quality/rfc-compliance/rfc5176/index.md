@@ -28,8 +28,9 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 30 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 30 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 30 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 30 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 8 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,6 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -101,6 +103,10 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 **Positive and negative tests (29):** [`RFC5176-3.5-1`](#rfc5176-3.5-1), [`RFC5176-3.3-1`](#rfc5176-3.3-1), [`RFC5176-3.5-4`](#rfc5176-3.5-4), [`RFC5176-2.3-1`](#rfc5176-2.3-1), [`RFC5176-2.3-2`](#rfc5176-2.3-2), [`RFC5176-2.3-3`](#rfc5176-2.3-3), [`RFC5176-2.3-4`](#rfc5176-2.3-4), [`RFC5176-2.3-5`](#rfc5176-2.3-5), [`RFC5176-2.3-6`](#rfc5176-2.3-6), [`RFC5176-2.3-7`](#rfc5176-2.3-7), [`RFC5176-3.1-1`](#rfc5176-3.1-1), [`RFC5176-3.2-1`](#rfc5176-3.2-1), [`RFC5176-3.3-2`](#rfc5176-3.3-2), [`RFC5176-3.4-1`](#rfc5176-3.4-1), [`RFC5176-3.4-2`](#rfc5176-3.4-2), [`RFC5176-3.4-3`](#rfc5176-3.4-3), [`RFC5176-3.5-5`](#rfc5176-3.5-5), [`RFC5176-3.6-1`](#rfc5176-3.6-1), [`RFC5176-6.1-1`](#rfc5176-6.1-1), [`RFC5176-6.3-1`](#rfc5176-6.3-1), [`RFC5176-2.2-1`](#rfc5176-2.2-1), [`RFC5176-3-1`](#rfc5176-3-1), [`RFC5176-3.3-3`](#rfc5176-3.3-3), [`RFC5176-3.5-6`](#rfc5176-3.5-6), [`RFC5176-3.5-7`](#rfc5176-3.5-7), [`RFC5176-3.5-8`](#rfc5176-3.5-8), [`RFC5176-3.5-9`](#rfc5176-3.5-9), [`RFC5176-3.6-2`](#rfc5176-3.6-2), [`RFC5176-6.3-2`](#rfc5176-6.3-2)
 
 **Annotated (including scoped evidence) (1):** [`RFC5176-3.5-3`](#rfc5176-3.5-3)
+
+## Attainable ceiling
+
+Mandatory ceiling: 30 of 30 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5176 30 of 30 (100.0%). Lowest optional ceiling: rfc5176 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -362,7 +368,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing. (§3.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired, internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault moved. (a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after the leaf rename to coa-require-message-authenticator (field CoARequireMessageAuthenticator); test bodies otherwise unchanged. Forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only with the leaf set. Negative now carries a mutant record (coa.go admitRequest drop condition forced false goes red).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

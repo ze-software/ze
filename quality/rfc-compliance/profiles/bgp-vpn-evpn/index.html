@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP VPN and EVPN RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); 9 RFCs, 2 not walked." />
+        <meta name="description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); ceiling mandatory 70 of 202 (34.7%), optional 54 of 54 (100.0%); mandatory excluded: feature-declined 2, not-applicable 130; 9 RFCs, 2 not walked." />
         <meta property="og:title" content="BGP VPN and EVPN RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); 9 RFCs, 2 not walked." />
+        <meta property="og:description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); ceiling mandatory 70 of 202 (34.7%), optional 54 of 54 (100.0%); mandatory excluded: feature-declined 2, not-applicable 130; 9 RFCs, 2 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="BGP VPN and EVPN RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); 9 RFCs, 2 not walked." />
+        <meta name="twitter:description" content="Technology aggregate bgp-vpn-evpn: mandatory 31 of 202 (15.3%), optional 1 of 54 (1.9%); ceiling mandatory 70 of 202 (34.7%), optional 54 of 54 (100.0%); mandatory excluded: feature-declined 2, not-applicable 130; 9 RFCs, 2 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>15.3%</strong><b>31 of 202 (15.3%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>1.9%</strong><b>1 of 54 (1.9%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>34.7%</strong><b>70 of 202 (34.7%); excluded: Optional feature not offered (classification can be revisited): 2 of 202 (1.0%); Not applicable (classification can be revisited): 130 of 202 (64.4%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>54 of 54 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>2</strong><b>of 9 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 70 of 202 (34.7%); excluded: Optional feature not offered (classification can be revisited): 2 of 202 (1.0%); Not applicable (classification can be revisited): 130 of 202 (64.4%). Optional ceiling: 54 of 54 (100.0%). Lowest mandatory ceiling: rfc4364 0 of 8 (0.0%). Lowest optional ceiling: rfc4364 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 7</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,18 +140,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4364/">RFC 4364</a> (cycle with rfc4659, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950)</td>
 <td>BGP/MPLS IP Virtual Private Networks (VPNs)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 0 of 8 (0.0%); excluded: Not applicable (classification can be revisited): 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc4659/">RFC 4659</a> (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950)</td>
 <td>BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 18 (22.2%)"><span style="width:22.2%"></span></div><span class="rfc-bar-note">4 of 18 (22.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 18 (22.2%)"><span style="width:22.2%"></span></div><span class="rfc-bar-note">4 of 18 (22.2%)</span><small class="rfc-ceiling">Ceiling: 9 of 18 (50.0%); excluded: Not applicable (classification can be revisited): 9 of 18 (50.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc8277/">RFC 8277</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950)</td>
 <td>Using BGP to Bind MPLS Labels to Address Prefixes</td>
-<td><div class="rfc-bar" role="img" aria-label="11 of 35 (31.4%)"><span style="width:31.4%"></span></div><span class="rfc-bar-note">11 of 35 (31.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 7 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">1 of 7 (14.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 35 (31.4%)"><span style="width:31.4%"></span></div><span class="rfc-bar-note">11 of 35 (31.4%)</span><small class="rfc-ceiling">Ceiling: 20 of 35 (57.1%); excluded: Not applicable (classification can be revisited): 15 of 35 (42.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 7 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">1 of 7 (14.3%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -158,13 +163,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4684/">RFC 4684</a></td>
 <td>Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs)</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 6 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">2 of 6 (33.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 6 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">2 of 6 (33.3%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc4761/">RFC 4761</a></td>
 <td>Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 18 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 18 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 18 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 18 (0.0%)</span><small class="rfc-ceiling">Ceiling: 0 of 18 (0.0%); excluded: Not applicable (classification can be revisited): 18 of 18 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc6514/">RFC 6514</a></td>
 <td>BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs</td>
@@ -181,8 +186,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7432/">RFC 7432</a></td>
 <td>BGP MPLS-Based Ethernet VPN</td>
-<td><div class="rfc-bar" role="img" aria-label="11 of 103 (10.7%)"><span style="width:10.7%"></span></div><span class="rfc-bar-note">11 of 103 (10.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 17 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 17 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 103 (10.7%)"><span style="width:10.7%"></span></div><span class="rfc-bar-note">11 of 103 (10.7%)</span><small class="rfc-ceiling">Ceiling: 26 of 103 (25.2%); excluded: Optional feature not offered (classification can be revisited): 2 of 103 (1.9%); Not applicable (classification can be revisited): 75 of 103 (72.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 17 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 17 (0.0%)</span><small class="rfc-ceiling">Ceiling: 17 of 17 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -194,8 +199,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc9136/">RFC 9136</a></td>
 <td>IP Prefix Advertisement in Ethernet VPN (EVPN)</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 14 (21.4%)"><span style="width:21.4%"></span></div><span class="rfc-bar-note">3 of 14 (21.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 14 (21.4%)"><span style="width:21.4%"></span></div><span class="rfc-bar-note">3 of 14 (21.4%)</span><small class="rfc-ceiling">Ceiling: 9 of 14 (64.3%); excluded: Not applicable (classification can be revisited): 5 of 14 (35.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -245,7 +250,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

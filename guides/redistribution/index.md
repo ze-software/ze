@@ -143,7 +143,9 @@ Chains are cumulative across config levels:
 Each configured direction requires its own `final`, even with no active filters.
 The most specific configured direction supplies the effective final decision.
 An absent direction inherits its parent's policy without creating a new policy.
-With no configured policy at any level, operator policy stays absent.
+With no configured policy at any level, operator policy stays absent: EBGP
+rejects at exhaustion under RFC 8212 Section 3, while IBGP accepts. Automatic
+and inactive references do not supply an operator policy.
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 

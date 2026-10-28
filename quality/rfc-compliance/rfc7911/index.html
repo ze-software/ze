@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -123,7 +124,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.3%</strong><b>38 of 61 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -133,8 +133,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -181,12 +182,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
 </tr>
+<tr><td>Linux cannot do this</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+</tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -305,6 +310,9 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a>, <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>, <a href="#rfc7911-3-1"><code>RFC7911-3-1</code></a>, <a href="#rfc7911-4-1"><code>RFC7911-4-1</code></a>, <a href="#rfc7911-5-1"><code>RFC7911-5-1</code></a>, <a href="#rfc7911-5-2"><code>RFC7911-5-2</code></a>, <a href="#rfc7911-5-3"><code>RFC7911-5-3</code></a>, <a href="#rfc7911-5-4"><code>RFC7911-5-4</code></a>, <a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></p>
+</section>
+<section><h2>Attainable ceiling</h2>
+<p>Mandatory ceiling: 9 of 9 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7911 9 of 9 (100.0%). Lowest optional ceiling: rfc7911 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -482,7 +490,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></h3>
 <p>However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: &#34;However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.&#34; Two cited producers moved. session_write.go writeUpdateBody now calls s.pathsLimit.filter (the extracted PATHS-LIMIT admission, formerly s.filterPathsLimit) and, after commit, adjOutWrite.owePathsLimitElections, which owes an election per contested prefix into the destination&#39;s owed table: neither mints, rebinds or releases a Path Identifier. session_ownership.go adjOutWrite.allow&#39;s adjOutRecovery withdraw branch now lets an item marked pathsLimitDemotion withdraw an ADD-PATH key whose owner is current; it still returns before any identifier bookkeeping, still honours recoverySpares, and withdraws the (Prefix, Path Identifier) the destination already holds, so the recipient never sees two paths under one identifier. The identifier producers (forward_path_id.go) and both tagged units are byte-identical, each with its verified revert record on generatePath. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_write.go::retireWrite, internal/component/bgp/reactor/session_write.go::writeUpdateBody moved. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: &#34;However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.&#34; Two cited producers moved. session_write.go writeUpdateBody now calls s.pathsLimit.filter (the extracted PATHS-LIMIT admission, formerly s.filterPathsLimit) and, after commit, adjOutWrite.owePathsLimitElections, which owes an election per contested prefix into the destination&#39;s owed table: neither mints, rebinds or releases a Path Identifier. session_ownership.go adjOutWrite.allow&#39;s adjOutRecovery withdraw branch now lets an item marked pathsLimitDemotion withdraw an ADD-PATH key whose owner is current; it still returns before any identifier bookkeeping, still honours recoverySpares, and withdraws the (Prefix, Path Identifier) the destination already holds, so the recipient never sees two paths under one identifier. The identifier producers (forward_path_id.go) and both tagged units are byte-identical, each with its verified revert record on generatePath. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -502,7 +510,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </div>
 <h3><a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a></h3>
 <p>A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: &#34;A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.&#34; The moved producers are session_write.go writeUpdateBody (calls the extracted s.pathsLimit.filter and owes PATHS-LIMIT elections after commit) and session_ownership.go adjOutWrite.allow (a pathsLimitDemotion recovery item may withdraw a current owner&#39;s ADD-PATH key). Neither generates an identifier: a survivor the election re-announces goes through the ordinary staged forward rail, whose identifier still comes only from forward_path_id.go, forward_body.go and forward_provenance.go, all byte-identical, as are all 19 tagged units. The positives still assert the re-advertised identifier differs from the received one and is stable per destination; the negatives still fail on a received-id passthrough, each with a verified revert or mutant record. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_write.go::retireWrite, internal/component/bgp/reactor/session_write.go::writeUpdateBody moved. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: &#34;A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.&#34; The moved producers are session_write.go writeUpdateBody (calls the extracted s.pathsLimit.filter and owes PATHS-LIMIT elections after commit) and session_ownership.go adjOutWrite.allow (a pathsLimitDemotion recovery item may withdraw a current owner&#39;s ADD-PATH key). Neither generates an identifier: a survivor the election re-announces goes through the ordinary staged forward rail, whose identifier still comes only from forward_path_id.go, forward_body.go and forward_provenance.go, all byte-identical, as are all 19 tagged units. The positives still assert the re-advertised identifier differs from the received one and is stable per destination; the negatives still fail on a received-id passthrough, each with a verified revert or mutant record. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1051,7 +1059,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
                 </div>
             </div>
         </footer>

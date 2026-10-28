@@ -102,9 +102,10 @@ system {
      challenge's State attribute unchanged (RFC 2865 §5.24). No round trip to
      the operator is needed, which is why EAP works over SSH password auth and
      the web login form alike. See [EAP](#eap) below.
-7. **Timeout / all servers unreachable** -- treated as an infrastructure error,
-   so the chain falls through to the next backend (local bcrypt). An
-   unreachable RADIUS server never locks the operator out.
+7. **No usable answer from any server** (timeout, unreachable, or every answer
+   discarded) -- treated as an infrastructure error, so the chain falls through
+   to the next backend (local bcrypt). The error names each server and why its
+   answer was not used. An unreachable RADIUS server never locks the operator out.
 
 The total time one login spends talking to RADIUS is bounded, so a slow or
 unreachable server falls through to local rather than hanging the login.
@@ -195,7 +196,7 @@ configurable. Each server row carries `require-message-authenticator`, default
 that server without a Message-Authenticator is silently discarded before any
 authenticator is checked (Section 4.6), counted on
 `ze_radius_unsigned_response_discards_total{server}`, and logged at most once a
-minute per server. When every retry ends that way, the error and
+minute per server with the `set` command that accepts that server. When every retry ends that way, the error and
 `ze doctor` (`doctor-radius-admin-unsigned-response`) name the server and the
 fix. A server that predates 2024 and cannot sign gets
 `set system authentication radius server <address> require-message-authenticator false`.

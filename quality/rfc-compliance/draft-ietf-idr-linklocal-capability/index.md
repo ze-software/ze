@@ -27,6 +27,7 @@ measures that are neither good news nor bad
 | Not applicable | 6.7% | 1 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
 ### Negative
 
@@ -37,7 +38,7 @@ what Ze owes
 | No test at all | 6.7% | 1 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Audit verdicts | 15 | of 15 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -53,6 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -111,6 +113,10 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 **Positive and negative tests (13):** [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1`](#draft-ietf-idr-linklocal-capability-3-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2`](#draft-ietf-idr-linklocal-capability-3-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`](#draft-ietf-idr-linklocal-capability-4-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2`](#draft-ietf-idr-linklocal-capability-4-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](#draft-ietf-idr-linklocal-capability-4-3), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4`](#draft-ietf-idr-linklocal-capability-4-4), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](#draft-ietf-idr-linklocal-capability-4-5), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6`](#draft-ietf-idr-linklocal-capability-4-6), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7`](#draft-ietf-idr-linklocal-capability-4-7), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8`](#draft-ietf-idr-linklocal-capability-4-8), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9`](#draft-ietf-idr-linklocal-capability-4-9), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1`](#draft-ietf-idr-linklocal-capability-5-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1`](#draft-ietf-idr-linklocal-capability-6-1)
 
 **Annotated (including scoped evidence) (2):** [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2`](#draft-ietf-idr-linklocal-capability-1-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`](#draft-ietf-idr-linklocal-capability-4-15)
+
+## Attainable ceiling
+
+Mandatory ceiling: 14 of 15 (93.3%); excluded: Not applicable (classification can be revisited): 1 of 15 (6.7%). Optional ceiling: 12 of 12 (100.0%). Lowest mandatory ceiling: draft-ietf-idr-linklocal-capability 14 of 15 (93.3%). Lowest optional ceiling: draft-ietf-idr-linklocal-capability 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 

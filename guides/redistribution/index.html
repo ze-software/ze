@@ -227,7 +227,9 @@ activate bgp peer special filter import filters no-self-as
 <p>Each configured direction requires its own <code>final</code>, even with no active filters.
 The most specific configured direction supplies the effective final decision.
 An absent direction inherits its parent's policy without creating a new policy.
-With no configured policy at any level, operator policy stays absent.</p>
+With no configured policy at any level, operator policy stays absent: EBGP
+rejects at exhaustion under RFC 8212 Section 3, while IBGP accepts. Automatic
+and inactive references do not supply an operator policy.</p>
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 <p>Use the <code>insert</code> command in the CLI editor to control position:</p>
@@ -612,7 +614,7 @@ unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

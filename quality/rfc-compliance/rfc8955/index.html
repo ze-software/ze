@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -131,14 +132,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>6.9%</strong><b>2 of 29 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 29 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>3.4%</strong><b>1 of 29 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>29</strong><b>of 29 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>29</strong><b>of 29 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 29 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 shares marked as a part above are the whole of the 29 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -184,6 +186,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Linux cannot do this</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -310,6 +316,9 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <p class="rfc-id-list"><strong>Positive and negative tests (20):</strong> <a href="#rfc8955-4-4"><code>RFC8955-4-4</code></a>, <a href="#rfc8955-4.2-1"><code>RFC8955-4.2-1</code></a>, <a href="#rfc8955-4.2-2"><code>RFC8955-4.2-2</code></a>, <a href="#rfc8955-4.2.1.1-2"><code>RFC8955-4.2.1.1-2</code></a>, <a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a>, <a href="#rfc8955-4.2.1.2-1"><code>RFC8955-4.2.1.2-1</code></a>, <a href="#rfc8955-4.2.2.12-2"><code>RFC8955-4.2.2.12-2</code></a>, <a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a>, <a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a>, <a href="#rfc8955-7.1-1"><code>RFC8955-7.1-1</code></a>, <a href="#rfc8955-7.1-2"><code>RFC8955-7.1-2</code></a>, <a href="#rfc8955-7.3-1"><code>RFC8955-7.3-1</code></a>, <a href="#rfc8955-7.5-1"><code>RFC8955-7.5-1</code></a>, <a href="#rfc8955-5.1-1"><code>RFC8955-5.1-1</code></a>, <a href="#rfc8955-5.1-2"><code>RFC8955-5.1-2</code></a>, <a href="#rfc8955-8-1"><code>RFC8955-8-1</code></a>, <a href="#rfc8955-8-2"><code>RFC8955-8-2</code></a>, <a href="#rfc8955-3-1"><code>RFC8955-3-1</code></a>, <a href="#rfc8955-6-5"><code>RFC8955-6-5</code></a>, <a href="#rfc8955-7.3-2"><code>RFC8955-7.3-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (9):</strong> <a href="#rfc8955-4-1"><code>RFC8955-4-1</code></a>, <a href="#rfc8955-4-2"><code>RFC8955-4-2</code></a>, <a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a>, <a href="#rfc8955-4.2.1.1-1"><code>RFC8955-4.2.1.1-1</code></a>, <a href="#rfc8955-4.2.2.9-1"><code>RFC8955-4.2.2.9-1</code></a>, <a href="#rfc8955-4.2.2.11-1"><code>RFC8955-4.2.2.11-1</code></a>, <a href="#rfc8955-4.2.2.12-1"><code>RFC8955-4.2.2.12-1</code></a>, <a href="#rfc8955-12-1"><code>RFC8955-12-1</code></a>, <a href="#rfc8955-12-2"><code>RFC8955-12-2</code></a></p>
 <p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a></p>
+</section>
+<section><h2>Attainable ceiling</h2>
+<p>Mandatory ceiling: 27 of 29 (93.1%); excluded: Not applicable (classification can be revisited): 2 of 29 (6.9%). Optional ceiling: 20 of 20 (100.0%). Lowest mandatory ceiling: rfc8955 27 of 29 (93.1%). Lowest optional ceiling: rfc8955 20 of 20 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -552,9 +561,9 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-5.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L11" title="internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L23" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L28" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L12" title="internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L24" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-8-1">RFC8955-8-1</code></td><td colspan="3"><span class="rfc-subject">The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2). (§8)</span></td></tr>
@@ -600,8 +609,8 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>MUST</td>
 <td>7.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L25" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L26" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L31" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-12-2">RFC8955-12-2</code></td><td colspan="3"><span class="rfc-subject">For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)</span></td></tr>
@@ -776,8 +785,8 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>SHOULD</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L31" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.6-1">RFC8955-7.6-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network. (§7.6)</span></td></tr>
@@ -1391,7 +1400,7 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 </div>
 <h3><a href="#rfc8955-5.1-2"><code>RFC8955-5.1-2</code></a></h3>
 <p>The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn&#39;t contain that component type. If the component types are the same, then a type- specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the compare unit moved verbatim to core and the flowspec-firewall kernel unit is unchanged. RFC 8955 Section 5.1: &#34;The relative order of two Flow Specifications is determined by comparing their respective components.&#34; TestFlowSpecPrecedenceFromWire pins, with forward and reverse signs and self equality, each of these: a lower type first, a present-versus-absent next component, a more-specific overlapping prefix first, a lower disjoint prefix first, equal-width memcmp, and received-width bytes over numeric value. TestSelectedFlowSpecKernelPacketSemantics adds Linux packet evidence that the more-specific terminal rule wins over a covering discard in either install order. That unit needs integration+linux privileges, and a skipped run is not runtime proof. The clause &#34;If the common prefix is equal, the longest string is considered to have higher precedence&#34; has no pair. It is unreachable for well-formed numeric or bitmask data: the end-of-list bit sits in the operator octet, so one valid component&#39;s data can never be a proper prefix of another&#39;s.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics, internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2 moved. Re-judged 2026-10-16: the compare unit moved verbatim to core and the flowspec-firewall kernel unit is unchanged. RFC 8955 Section 5.1: &#34;The relative order of two Flow Specifications is determined by comparing their respective components.&#34; TestFlowSpecPrecedenceFromWire pins, with forward and reverse signs and self equality, each of these: a lower type first, a present-versus-absent next component, a more-specific overlapping prefix first, a lower disjoint prefix first, equal-width memcmp, and received-width bytes over numeric value. TestSelectedFlowSpecKernelPacketSemantics adds Linux packet evidence that the more-specific terminal rule wins over a covering discard in either install order. That unit needs integration+linux privileges, and a skipped run is not runtime proof. The clause &#34;If the common prefix is equal, the longest string is considered to have higher precedence&#34; has no pair. It is unreachable for well-formed numeric or bitmask data: the end-of-list bit sits in the operator octet, so one valid component&#39;s data can never be a proper prefix of another&#39;s.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1402,7 +1411,7 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L24" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1412,7 +1421,7 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L23" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L28" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1511,18 +1520,18 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 </div>
 <h3><a href="#rfc8955-7.3-2"><code>RFC8955-7.3-2</code></a></h3>
 <p>The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8955 Section 7.3: &#34;The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied.&#34; The same paragraph leaves interfering-action selection implementation-defined. TestSelectedFlowSpecKernelPacketSemantics now observes a received packet with the first rule&#39;s DSCP 10 AND exactly one increment of the later rule&#39;s sample counter; switching only the narrow rule to T-clear leaves the sample counter unchanged. Earlier controls prove T-set reaches a covering discard and that marking does not change the original DSCP used by later matching. rule_chains.go ruleChains/beforeMarkActions/markingTerms separate deferred marking and continuing action execution. Omitting the first action, the later action, or continuation fails independently, closing the earlier mark-plus-discard ambiguity. Requires a real privileged integration+linux execution; skips are not proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics, internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2 moved. RFC 8955 Section 7.3: &#34;The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied.&#34; The same paragraph leaves interfering-action selection implementation-defined. TestSelectedFlowSpecKernelPacketSemantics now observes a received packet with the first rule&#39;s DSCP 10 AND exactly one increment of the later rule&#39;s sample counter; switching only the narrow rule to T-clear leaves the sample counter unchanged. Earlier controls prove T-set reaches a covering discard and that marking does not change the original DSCP used by later matching. rule_chains.go ruleChains/beforeMarkActions/markingTerms separate deferred marking and continuing action execution. Omitting the first action, the later action, or continuation fails independently, closing the earlier mark-plus-discard ambiguity. Requires a real privileged integration+linux execution; skips are not proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L26" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L31" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L25" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecKernelPacketSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1685,20 +1694,20 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
 </div>
 <h3><a href="#rfc8955-7.2-3"><code>RFC8955-7.2-3</code></a></h3>
 <p>A traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded. (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage. Re-judged 2026-10-13 after 2ce54b1f91: both discard-probe checks moved from err.(net.Error) to errors.AsType[net.Error](err); ReadFromUDP returns *net.OpError, which satisfies net.Error at the top of the chain, so each timeout assertion accepts and refuses exactly the errors it did before and the verdict is unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel, internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2 moved. Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage. Re-judged 2026-10-13 after 2ce54b1f91: both discard-probe checks moved from err.(net.Error) to errors.AsType[net.Error](err); ReadFromUDP returns *net.OpError, which satisfies net.Error at the top of the chain, so each timeout assertion accepts and refuses exactly the errors it did before and the verdict is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L31" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L30" title="internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go" target="_blank" rel="noopener"><code>TestSelectedFlowSpecZeroPacketRateKernel</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2164,7 +2173,7 @@ Preferred destination/source-port, ICMP-code and packet-length emission now have
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
                 </div>
             </div>
         </footer>

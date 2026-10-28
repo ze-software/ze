@@ -594,6 +594,14 @@ Each needs a reason (a bare annotation is rejected). The last three need the
 facts their gates check: the layer and the producer, the quoted sentence and
 the producer, or the target list
 (<code>docs/contributing/rfc-conformance-gates.md</code>).</p>
+<p><code>{linux-limit: LL-&lt;ID&gt;; why no Ze code substitutes}</code> names a verified blocking
+kernel entry in the <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md" target="_blank" rel="noopener">Linux limitations register</a>.
+The obligation still binds and remains unmet; the annotation earns no proof
+credit. Its evidence must qualify under
+<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/rfc-conformance-gates.md#the-linux-limit-annotation" target="_blank" rel="noopener">the Linux-limit gate</a>,
+and each new or reworded instance owes the owner's attestation before push.</p>
+<!-- source: internal/le/rfc/linux_limit.go -- linuxLimitEntryRefusal -->
+<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
 </li>
 <li>
 <p><strong>Demonstrate a <code>{gap}</code> rather than only describe it.</strong> A test that asserts
@@ -778,7 +786,7 @@ profiles that require the RFC, counted in their figures, and
 <code>| Optional use cases | lns |</code> those that list it as optional, never counted.
 No profile file lists a member and no citation adds one, so a forgotten row
 is a parse error rather than an RFC quietly not owed.</p>
-<p>Three related reds come from the same place. First, a public row that claims support
+<p>Four related reds come from the same place. First, a public row that claims support
 over a summary with zero gated requirements. The escape is evidence that zero is
 real: a <code>non-normative</code> disposition, or a <code>manual-walk</code>
 extraction sign-off whose <code>register-reason</code> says why. Second, a row that PROMISES
@@ -788,9 +796,11 @@ each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists
 is unproven. Prove one requirement, or write <code>| Support status | Partial |</code>, which is
 what the public page's own vocabulary calls "not proven". Third, a <code>Support remaining</code>
 cell that spells a gap count, including zero, immediately before MUST or SHALL
-must agree with the summary's <code>{gap}</code> plus <code>{partial}</code> row count.</p>
+must agree with the summary's unmet requirement count, including Linux-limit
+rows. Fourth, a Linux-limit row bars <code>Supported</code> even when <code>Support remaining</code>
+correctly discloses it: use <code>Partial</code> while the obligation remains unmet.</p>
 <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
-<!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
+<!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement, checkStatusAgreement -->
 </li>
 <li>
 <p><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
@@ -891,6 +901,14 @@ attestation, <code>./le commit create subject "&lt;subject&gt;" attest &lt;commi
 (<code>docs/architecture/testing/verify-freshness-scope.md</code>).</p>
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
+<p>Linux-limit instances use the same owner-attestation route, but not an RFC
+test-review approval. <code>./le commit create</code> automatically records
+<code>Linux-limit-owed: &lt;RID&gt;: &lt;LL-id&gt;</code> for each added or reworded annotation in its
+selected summary content. The commit may land; only the owner's attestation
+for that commit discharges its Linux-limit obligation before push. See
+<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/committing.md" target="_blank" rel="noopener">committing</a> for selected-content checks and the attestation
+command.</p>
+<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
 <p>A trailer commit that cannot be read is never counted as discharging the act:
 <code>./le commit create</code> refuses with <code>commit &lt;sha&gt;: cannot judge "&lt;subject&gt;", so it stays owed</code>, the read error, and <code>git show &lt;sha&gt;</code> to inspect it.</p>
 <!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
@@ -1091,7 +1109,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 01:27 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

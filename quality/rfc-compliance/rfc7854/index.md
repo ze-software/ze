@@ -29,8 +29,9 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 39 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 39 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 39 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 39 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 8 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,6 +47,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -105,6 +107,10 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 **Positive and negative tests (31):** [`RFC7854-x-1`](#rfc7854-x-1), [`RFC7854-x-2`](#rfc7854-x-2), [`RFC7854-x-3`](#rfc7854-x-3), [`RFC7854-x-5`](#rfc7854-x-5), [`RFC7854-x-8`](#rfc7854-x-8), [`RFC7854-4.9-1`](#rfc7854-4.9-1), [`RFC7854-4.5-2`](#rfc7854-4.5-2), [`RFC7854-x-18`](#rfc7854-x-18), [`RFC7854-3.2-1`](#rfc7854-3.2-1), [`RFC7854-3.2-2`](#rfc7854-3.2-2), [`RFC7854-3.3-1`](#rfc7854-3.3-1), [`RFC7854-4.1-1`](#rfc7854-4.1-1), [`RFC7854-4.2-1`](#rfc7854-4.2-1), [`RFC7854-4.3-2`](#rfc7854-4.3-2), [`RFC7854-4.4-1`](#rfc7854-4.4-1), [`RFC7854-4.4-2`](#rfc7854-4.4-2), [`RFC7854-4.4-3`](#rfc7854-4.4-3), [`RFC7854-4.5-1`](#rfc7854-4.5-1), [`RFC7854-4.5-3`](#rfc7854-4.5-3), [`RFC7854-4.5-4`](#rfc7854-4.5-4), [`RFC7854-4.7-1`](#rfc7854-4.7-1), [`RFC7854-4.7-2`](#rfc7854-4.7-2), [`RFC7854-4.7-3`](#rfc7854-4.7-3), [`RFC7854-4.8-1`](#rfc7854-4.8-1), [`RFC7854-4.8-2`](#rfc7854-4.8-2), [`RFC7854-4.8-3`](#rfc7854-4.8-3), [`RFC7854-4.10-1`](#rfc7854-4.10-1), [`RFC7854-5-1`](#rfc7854-5-1), [`RFC7854-5-2`](#rfc7854-5-2), [`RFC7854-5-4`](#rfc7854-5-4), [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 
 **Annotated (including scoped evidence) (8):** [`RFC7854-x-4`](#rfc7854-x-4), [`RFC7854-x-6`](#rfc7854-x-6), [`RFC7854-x-7`](#rfc7854-x-7), [`RFC7854-x-9`](#rfc7854-x-9), [`RFC7854-x-10`](#rfc7854-x-10), [`RFC7854-x-12`](#rfc7854-x-12), [`RFC7854-4.5-5`](#rfc7854-4.5-5), [`RFC7854-5-6`](#rfc7854-5-6)
+
+## Attainable ceiling
+
+Mandatory ceiling: 39 of 39 (100.0%). Optional ceiling: 9 of 9 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7854 39 of 39 (100.0%). Lowest optional ceiling: rfc7854 9 of 9 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 

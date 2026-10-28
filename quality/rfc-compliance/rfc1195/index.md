@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 69.0% | 58 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 71.4% | 60 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,8 +28,9 @@ measures that are neither good news nor bad
 | Not applicable | 17.1% | 7 of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 8 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,6 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -64,7 +66,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 84 |
 | Tagged units | 84 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 58 |
+| Discrimination records | 60 |
 | Summary | `rfc/short/rfc1195.md` |
 | Requirement shard | `rfc/requirements/rfc1195.md` |
 | RFC text | `rfc/full/rfc1195.txt` |
@@ -103,6 +105,10 @@ Experimental pending current integration, discrimination and deployment evidence
 **Positive and negative tests (29):** [`RFC1195-5.3.4-1`](#rfc1195-5.3.4-1), [`RFC1195-5.3.4-2`](#rfc1195-5.3.4-2), [`RFC1195-5.3.5-2`](#rfc1195-5.3.5-2), [`RFC1195-5.2-4`](#rfc1195-5.2-4), [`RFC1195-3.2-1`](#rfc1195-3.2-1), [`RFC1195-3.9-1`](#rfc1195-3.9-1), [`RFC1195-1.4-2`](#rfc1195-1.4-2), [`RFC1195-3.2-2`](#rfc1195-3.2-2), [`RFC1195-3.3-1`](#rfc1195-3.3-1), [`RFC1195-3.3-2`](#rfc1195-3.3-2), [`RFC1195-3.4-1`](#rfc1195-3.4-1), [`RFC1195-3.10-1`](#rfc1195-3.10-1), [`RFC1195-3.10-2`](#rfc1195-3.10-2), [`RFC1195-3.10-3`](#rfc1195-3.10-3), [`RFC1195-4.1-1`](#rfc1195-4.1-1), [`RFC1195-4.2-1`](#rfc1195-4.2-1), [`RFC1195-4.4-1`](#rfc1195-4.4-1), [`RFC1195-4.4-2`](#rfc1195-4.4-2), [`RFC1195-4.4-3`](#rfc1195-4.4-3), [`RFC1195-4.5-1`](#rfc1195-4.5-1), [`RFC1195-5.3.4-3`](#rfc1195-5.3.4-3), [`RFC1195-7-1`](#rfc1195-7-1), [`RFC1195-7-2`](#rfc1195-7-2), [`RFC1195-7-3`](#rfc1195-7-3), [`RFC1195-7-4`](#rfc1195-7-4), [`RFC1195-7-5`](#rfc1195-7-5), [`RFC1195-7-6`](#rfc1195-7-6), [`RFC1195-7-7`](#rfc1195-7-7), [`RFC1195-7-8`](#rfc1195-7-8)
 
 **Annotated (including scoped evidence) (12):** [`RFC1195-5.2-1`](#rfc1195-5.2-1), [`RFC1195-5.2-2`](#rfc1195-5.2-2), [`RFC1195-5.2-3`](#rfc1195-5.2-3), [`RFC1195-3.4-2`](#rfc1195-3.4-2), [`RFC1195-3.1-1`](#rfc1195-3.1-1), [`RFC1195-1.4-1`](#rfc1195-1.4-1), [`RFC1195-1.4-3`](#rfc1195-1.4-3), [`RFC1195-1.2-1`](#rfc1195-1.2-1), [`RFC1195-3.2-3`](#rfc1195-3.2-3), [`RFC1195-3.10.2-1`](#rfc1195-3.10.2-1), [`RFC1195-8-1`](#rfc1195-8-1), [`RFC1195-8-2`](#rfc1195-8-2)
+
+## Attainable ceiling
+
+Mandatory ceiling: 34 of 41 (82.9%); excluded: Not applicable (classification can be revisited): 7 of 41 (17.1%). Optional ceiling: 1 of 1 (100.0%). Lowest mandatory ceiling: rfc1195 34 of 41 (82.9%). Lowest optional ceiling: rfc1195 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -446,13 +452,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. The earlier gap (nothing showed IS-IS itself marks an off-subnet adjacency next hop on-link) is closed at the boundary Ze owns. Positive TestRFC1195OffSubnetNeighborIsOnLinkNextHop: adjacency on isis-on-a 192.0.2.1/24, neighbor 198.51.100.2 (setup asserts off-subnet) resolves to 198.51.100.2 via isis-on-a with OnLink. Negative TestRFC1195OffSubnetNeighborNotResolvedBySubnet: isis-on-b holds the covering 198.51.100.1/24 but no adjacency, and the next hop is never placed on isis-on-b by subnet match; a subnet or recursive resolver goes red. Producer spf_wiring.go ResolveNextHop returns the Up adjacency's circuit with OnLink=true; +/- recorded on it. The FIB side (kernel installs the OnLink gateway, flips when the mark is cleared) is carried by fib/kernel onlink_integration_linux_test.go, Linux CAP_NET_ADMIN only and without a discrimination record.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix, internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2 moved. Re-judged 2026-09-30. The earlier gap (nothing showed IS-IS itself marks an off-subnet adjacency next hop on-link) is closed at the boundary Ze owns. Positive TestRFC1195OffSubnetNeighborIsOnLinkNextHop: adjacency on isis-on-a 192.0.2.1/24, neighbor 198.51.100.2 (setup asserts off-subnet) resolves to 198.51.100.2 via isis-on-a with OnLink. Negative TestRFC1195OffSubnetNeighborNotResolvedBySubnet: isis-on-b holds the covering 198.51.100.1/24 but no adjacency, and the next hop is never placed on isis-on-b by subnet match; a subnet or recursive resolver goes red. Producer spf_wiring.go ResolveNextHop returns the Up adjacency's circuit with OnLink=true; +/- recorded on it. The FIB side (kernel installs the OnLink gateway, flips when the mark is cleared) is carried by fib/kernel onlink_integration_linux_test.go, Linux CAP_NET_ADMIN only and without a discrimination record.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L37) | unit/verify | revert, verified |
+| negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L37) | unit/verify | mutant, verified |
 | negative | [`TestRFC1195OffSubnetNeighborNotResolvedBySubnet`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L202) | unit/verify | revert, verified |
-| positive | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L36) | unit/verify | revert, verified |
+| positive | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L36) | unit/verify | mutant, verified |
 | positive | [`TestRFC1195OffSubnetNeighborIsOnLinkNextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L180) | unit/verify | revert, verified |
 
 ### [`RFC1195-4.4-2`](#rfc1195-4.4-2)
@@ -485,14 +491,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Enab
 
 There may be times when a dual router has to forward an IP packet to an OSI-only router, or forward an OSI packet to an IP-only router. In this case the packet must be discarded. (§4.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix, internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2 moved. IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L39) | unit/verify | unproven |
+| negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L39) | unit/verify | mutant, verified |
 | negative | [`TestRFC1195NeighborProtocolTransitions`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L56) | unit/verify | unproven |
 | negative | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L496) | unit/verify | unproven |
-| positive | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L38) | unit/verify | unproven |
+| positive | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L38) | unit/verify | mutant, verified |
 | positive | [`TestRFC1195OSINeighborIsTerminalIPv4NextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L39) | unit/verify | unproven |
 | positive | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495) | unit/verify | unproven |
 

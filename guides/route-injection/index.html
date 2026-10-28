@@ -502,6 +502,17 @@ needs a next hop, even when the raw block already includes it.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
+<p>The separate <code>send bgp &lt;selector&gt; raw &lt;hex|b64&gt; &lt;data&gt; [type &lt;type&gt;]</code> diagnostic
+command also obeys export-final admission. Both full-packet and UPDATE-body
+forms suppress announcements when an EBGP destination has no export policy;
+IBGP absence still accepts. Raw explicit withdrawals and EOR remain available
+under rejection, unlike the managed-command session prerequisite above, and a
+mixed UPDATE retains only its explicit withdrawals. Complete non-UPDATE control
+packets are unaffected. Opaque diagnostics, including uncertain framing or
+trailing packets, require an accepting export final; otherwise no bytes are sent.
+With acceptance, raw AS_SET testing and opaque flush-then-retire behavior remain
+unchanged. A successful raw command response does not prove policy admitted bytes.</p>
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, finishRawWrite, rawControlPacket -->
 <h2 id="commit-workflow">Commit Workflow</h2>
 <p>A named commit collects WITHDRAWALS and sends them together:</p>
 <pre><code class="language-bash">ze cli -c "request commit start my-batch"
@@ -573,7 +584,7 @@ ships a Python launcher or helper.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
                 </div>
             </div>
         </footer>

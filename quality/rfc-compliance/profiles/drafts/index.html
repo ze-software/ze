@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Drafts and non-RFC standards RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); 8 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); ceiling mandatory 117 of 121 (96.7%), optional 61 of 61 (100.0%); mandatory excluded: feature-declined 1, lower-layer 1, not-applicable 2; 8 RFCs, 0 not walked." />
         <meta property="og:title" content="Drafts and non-RFC standards RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); 8 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); ceiling mandatory 117 of 121 (96.7%), optional 61 of 61 (100.0%); mandatory excluded: feature-declined 1, lower-layer 1, not-applicable 2; 8 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Drafts and non-RFC standards RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); 8 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate drafts: mandatory 74 of 121 (61.2%), optional 6 of 61 (9.8%); ceiling mandatory 117 of 121 (96.7%), optional 61 of 61 (100.0%); mandatory excluded: feature-declined 1, lower-layer 1, not-applicable 2; 8 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>61.2%</strong><b>74 of 121 (61.2%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>9.8%</strong><b>6 of 61 (9.8%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>96.7%</strong><b>117 of 121 (96.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 121 (0.8%); Met by a lower layer: 1 of 121 (0.8%); Not applicable (classification can be revisited): 2 of 121 (1.7%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>61 of 61 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 8 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 117 of 121 (96.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 121 (0.8%); Met by a lower layer: 1 of 121 (0.8%); Not applicable (classification can be revisited): 2 of 121 (1.7%). Optional ceiling: 61 of 61 (100.0%). Lowest mandatory ceiling: sflow-v5 29 of 32 (90.6%). Lowest optional ceiling: draft-abraitis-bgp-version-capability 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../sflow-v5/">SFLOW-V5</a></td>
 <td>sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</td>
-<td><div class="rfc-bar" role="img" aria-label="22 of 32 (68.8%)"><span style="width:68.8%"></span></div><span class="rfc-bar-note">22 of 32 (68.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 11 (27.3%)"><span style="width:27.3%"></span></div><span class="rfc-bar-note">3 of 11 (27.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="22 of 32 (68.8%)"><span style="width:68.8%"></span></div><span class="rfc-bar-note">22 of 32 (68.8%)</span><small class="rfc-ceiling">Ceiling: 29 of 32 (90.6%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 1 of 32 (3.1%); Not applicable (classification can be revisited): 1 of 32 (3.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 11 (27.3%)"><span style="width:27.3%"></span></div><span class="rfc-bar-note">3 of 11 (27.3%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -148,8 +153,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-walton-bgp-hostname-capability/">DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY</a></td>
 <td>Hostname Capability for BGP</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -161,8 +166,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-abraitis-bgp-version-capability/">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</a></td>
 <td>Software Version Capability for BGP</td>
-<td><div class="rfc-bar" role="img" aria-label="11 of 11 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">11 of 11 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 11 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">11 of 11 (100.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -174,8 +179,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-abraitis-idr-addpath-paths-limit/">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT</a></td>
 <td>Scalability Considerations for ADD-PATH with PATHS-LIMIT</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 4 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">1 of 4 (25.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 3 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">3 of 3 (100.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 4 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">1 of 4 (25.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 3 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">3 of 3 (100.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -187,8 +192,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-bess-mup-safi/">DRAFT-IETF-BESS-MUP-SAFI</a></td>
 <td>BGP Extensions for the Mobile User Plane (MUP) SAFI</td>
-<td><div class="rfc-bar" role="img" aria-label="17 of 47 (36.2%)"><span style="width:36.2%"></span></div><span class="rfc-bar-note">17 of 47 (36.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 20 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 20 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="17 of 47 (36.2%)"><span style="width:36.2%"></span></div><span class="rfc-bar-note">17 of 47 (36.2%)</span><small class="rfc-ceiling">Ceiling: 47 of 47 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 20 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 20 (0.0%)</span><small class="rfc-ceiling">Ceiling: 20 of 20 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -200,13 +205,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-idr-linklocal-capability/">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</a></td>
 <td>Link-Local Next Hop Capability for BGP</td>
-<td><div class="rfc-bar" role="img" aria-label="13 of 15 (86.7%)"><span style="width:86.7%"></span></div><span class="rfc-bar-note">13 of 15 (86.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="13 of 15 (86.7%)"><span style="width:86.7%"></span></div><span class="rfc-bar-note">13 of 15 (86.7%)</span><small class="rfc-ceiling">Ceiling: 14 of 15 (93.3%); excluded: Not applicable (classification can be revisited): 1 of 15 (6.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../draft-ietf-sidrops-aspa-verification/">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</a></td>
 <td>BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 10 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 10 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 10 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 10 (0.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -218,8 +223,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-idr-bgp-bfd-strict-mode/">DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE</a></td>
 <td>BGP BFD Strict-Mode</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 </tr>
 </tbody>
 </table>
@@ -256,7 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

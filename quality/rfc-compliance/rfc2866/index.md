@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 60.4% | 29 of 48 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 52.1% | 25 of 48 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,8 +28,9 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,6 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -99,6 +101,10 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 | **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (15):** [`RFC2866-3-2`](#rfc2866-3-2), [`RFC2866-5.5-1`](#rfc2866-5.5-1), [`RFC2866-4.1-1`](#rfc2866-4.1-1), [`RFC2866-5-1`](#rfc2866-5-1), [`RFC2866-5.13-1`](#rfc2866-5.13-1), [`RFC2866-3-3`](#rfc2866-3-3), [`RFC2866-3-4`](#rfc2866-3-4), [`RFC2866-3-5`](#rfc2866-3-5), [`RFC2866-4.1-2`](#rfc2866-4.1-2), [`RFC2866-4.1-3`](#rfc2866-4.1-3), [`RFC2866-4.1-4`](#rfc2866-4.1-4), [`RFC2866-5-2`](#rfc2866-5-2), [`RFC2866-5-3`](#rfc2866-5-3), [`RFC2866-5.5-2`](#rfc2866-5.5-2), [`RFC2866-5.5-3`](#rfc2866-5.5-3)
+
+## Attainable ceiling
+
+Mandatory ceiling: 15 of 15 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2866 15 of 15 (100.0%). Lowest optional ceiling: rfc2866 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -169,7 +175,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | positive | [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingReportsTheAddressTheNASAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L39) | unit/verify | revert, verified |
-| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, verified |
 
 ### [`RFC2866-5-1`](#rfc2866-5-1)
 
@@ -201,14 +207,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier, internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier moved. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0->1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS: both tagged units changed only by the Exchange(ctx, pkt, Server{...}) signature. Accounting answers are not subject to the presence check (requireMessageAuthenticator is Access-Request only) and buildResponse keeps them header-only. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator asserts a new Identifier and Request Authenticator when Acct-Delay-Time moves, each authenticator the Section 3 MD5 of its datagram. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-3-4`](#rfc2866-3-4)
 
@@ -263,9 +269,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Trig
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866IdentifierCounterCoversTheWholeSpace`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234) | unit/verify | revert, verified |
-| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, verified |
-| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, verified |
+| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-5-2`](#rfc2866-5-2)
 

@@ -2070,7 +2070,12 @@ Both lab `clients.conf` files set `require_message_authenticator = yes`, so
 FreeRADIUS discards any Access-Request without a valid Message-Authenticator.
 Ze signs every Access-Request (draft-ietf-radext-deprecating-radius-10 Section
 4.2), so every scenario in this suite and in the subscriber suite also proves
-that FreeRADIUS verifies the signature ze computed.
+that FreeRADIUS verifies the signature ze computed. The red phase was run on
+2026-10-28: with the `insertMessageAuthenticatorFirst` call in `encodeRequest`
+skipped and the lab binary rebuilt, `radius-admin-pap-freeradius` failed at its
+first assertion because FreeRADIUS dropped the unsigned Access-Request before
+its request log recorded anything; with the call restored it passed.
+<!-- source: internal/component/radius/client.go -- encodeRequest, insertMessageAuthenticatorFirst -->
 
 The unsigned scenarios need an answer FreeRADIUS will not send. RFC 3579
 Section 3.1:
@@ -2106,6 +2111,13 @@ The scenario passed on 2026-10-23 and discriminates: with
 an unsigned EAP answer, as it did before the discard, and ze rebuilt, it fails
 with "assertion 6: ze completed an EAP login for radiusop through answers whose
 Message-Authenticator the relay removed".
+
+`radius-admin-pap-unsigned-freeradius` passed on 2026-10-28 and discriminates:
+with the presence check in `dispatchResponse` disabled (`if
+w.requireMessageAuthenticator {` made `if false && ...`) and ze rebuilt, it
+fails with "assertion 6: ze completed a PAP login for radiusop on an
+Access-Accept whose Message-Authenticator the relay removed", and passes again
+once the check is restored.
 
 The third scenario is the one that proves `docs/guide/radius.md` is telling the
 truth. RFC 2865 Section 2.2:

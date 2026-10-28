@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RADIUS and TACACS+ RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate radius-tacacs: mandatory 123 of 202 (60.9%), optional 3 of 105 (2.9%); 11 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate radius-tacacs: mandatory 120 of 202 (59.4%), optional 3 of 105 (2.9%); ceiling mandatory 194 of 202 (96.0%), optional 105 of 105 (100.0%); mandatory excluded: feature-declined 6, not-applicable 2; 11 RFCs, 0 not walked." />
         <meta property="og:title" content="RADIUS and TACACS+ RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate radius-tacacs: mandatory 123 of 202 (60.9%), optional 3 of 105 (2.9%); 11 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate radius-tacacs: mandatory 120 of 202 (59.4%), optional 3 of 105 (2.9%); ceiling mandatory 194 of 202 (96.0%), optional 105 of 105 (100.0%); mandatory excluded: feature-declined 6, not-applicable 2; 11 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RADIUS and TACACS+ RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate radius-tacacs: mandatory 123 of 202 (60.9%), optional 3 of 105 (2.9%); 11 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate radius-tacacs: mandatory 120 of 202 (59.4%), optional 3 of 105 (2.9%); ceiling mandatory 194 of 202 (96.0%), optional 105 of 105 (100.0%); mandatory excluded: feature-declined 6, not-applicable 2; 11 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>60.9%</strong><b>123 of 202 (60.9%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>59.4%</strong><b>120 of 202 (59.4%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>2.9%</strong><b>3 of 105 (2.9%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>96.0%</strong><b>194 of 202 (96.0%); excluded: Optional feature not offered (classification can be revisited): 6 of 202 (3.0%); Not applicable (classification can be revisited): 2 of 202 (1.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>105 of 105 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 11 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 194 of 202 (96.0%); excluded: Optional feature not offered (classification can be revisited): 6 of 202 (3.0%); Not applicable (classification can be revisited): 2 of 202 (1.0%). Optional ceiling: 105 of 105 (100.0%). Lowest mandatory ceiling: rfc8907 48 of 56 (85.7%). Lowest optional ceiling: rfc2865 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,13 +140,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2865/">RFC 2865</a> (cycle with rfc2866)</td>
 <td>Remote Authentication Dial In User Service (RADIUS)</td>
-<td><div class="rfc-bar" role="img" aria-label="27 of 31 (87.1%)"><span style="width:87.1%"></span></div><span class="rfc-bar-note">27 of 31 (87.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="24 of 31 (77.4%)"><span style="width:77.4%"></span></div><span class="rfc-bar-note">24 of 31 (77.4%)</span><small class="rfc-ceiling">Ceiling: 31 of 31 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc2866/">RFC 2866</a> (cycle with rfc2865)</td>
 <td>RADIUS Accounting</td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 15 (53.3%)"><span style="width:53.3%"></span></div><span class="rfc-bar-note">8 of 15 (53.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 15 (53.3%)"><span style="width:53.3%"></span></div><span class="rfc-bar-note">8 of 15 (53.3%)</span><small class="rfc-ceiling">Ceiling: 15 of 15 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -153,8 +158,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6911/">RFC 6911</a></td>
 <td>RADIUS Attributes for IPv6 Access Networks</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -166,8 +171,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4818/">RFC 4818</a></td>
 <td>RADIUS Delegated-IPv6-Prefix Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -179,18 +184,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2867/">RFC 2867</a> (cycle with rfc2868, rfc2869)</td>
 <td>RADIUS Accounting Modifications for Tunnel Protocol Support</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 16 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 16 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 16 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 16 (0.0%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc2868/">RFC 2868</a> (cycle with rfc2867, rfc2869)</td>
 <td>RADIUS Attributes for Tunnel Protocol Support</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 18 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 18 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 43 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 43 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 18 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 18 (0.0%)</span><small class="rfc-ceiling">Ceiling: 18 of 18 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 43 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 43 (0.0%)</span><small class="rfc-ceiling">Ceiling: 43 of 43 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc2869/">RFC 2869</a> (cycle with rfc2867, rfc2868)</td>
 <td>RADIUS Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 8 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">4 of 8 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 8 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">4 of 8 (50.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -202,8 +207,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3162/">RFC 3162</a></td>
 <td>RADIUS and IPv6</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -215,13 +220,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3579/">RFC 3579</a> (cycle with rfc5176)</td>
 <td>RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP)</td>
-<td><div class="rfc-bar" role="img" aria-label="17 of 31 (54.8%)"><span style="width:54.8%"></span></div><span class="rfc-bar-note">17 of 31 (54.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 19 (10.5%)"><span style="width:10.5%"></span></div><span class="rfc-bar-note">2 of 19 (10.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="17 of 31 (54.8%)"><span style="width:54.8%"></span></div><span class="rfc-bar-note">17 of 31 (54.8%)</span><small class="rfc-ceiling">Ceiling: 31 of 31 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 19 (10.5%)"><span style="width:10.5%"></span></div><span class="rfc-bar-note">2 of 19 (10.5%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5176/">RFC 5176</a> (cycle with rfc3579)</td>
 <td>Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS)</td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 30 (86.7%)"><span style="width:86.7%"></span></div><span class="rfc-bar-note">26 of 30 (86.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 1 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">1 of 1 (100.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 30 (86.7%)"><span style="width:86.7%"></span></div><span class="rfc-bar-note">26 of 30 (86.7%)</span><small class="rfc-ceiling">Ceiling: 30 of 30 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 1 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">1 of 1 (100.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -233,8 +238,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc8907/">RFC 8907</a></td>
 <td>The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="38 of 56 (67.9%)"><span style="width:67.9%"></span></div><span class="rfc-bar-note">38 of 56 (67.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="38 of 56 (67.9%)"><span style="width:67.9%"></span></div><span class="rfc-bar-note">38 of 56 (67.9%)</span><small class="rfc-ceiling">Ceiling: 48 of 56 (85.7%); excluded: Optional feature not offered (classification can be revisited): 6 of 56 (10.7%); Not applicable (classification can be revisited): 2 of 56 (3.6%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -271,7 +276,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>MPLS RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); 10 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); ceiling mandatory 292 of 319 (91.5%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 3, not-applicable 24; 10 RFCs, 0 not walked." />
         <meta property="og:title" content="MPLS RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); 10 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); ceiling mandatory 292 of 319 (91.5%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 3, not-applicable 24; 10 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="MPLS RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); 10 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate mpls: mandatory 120 of 319 (37.6%), optional 6 of 59 (10.2%); ceiling mandatory 292 of 319 (91.5%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 3, not-applicable 24; 10 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>37.6%</strong><b>120 of 319 (37.6%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>10.2%</strong><b>6 of 59 (10.2%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>91.5%</strong><b>292 of 319 (91.5%); excluded: Met by a lower layer: 3 of 319 (0.9%); Not applicable (classification can be revisited): 24 of 319 (7.5%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>59 of 59 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 10 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 292 of 319 (91.5%); excluded: Met by a lower layer: 3 of 319 (0.9%); Not applicable (classification can be revisited): 24 of 319 (7.5%). Optional ceiling: 59 of 59 (100.0%). Lowest mandatory ceiling: rfc3032 1 of 18 (5.6%). Lowest optional ceiling: rfc2205 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2205/">RFC 2205</a> (cycle with rfc2210, rfc2211, rfc2215)</td>
 <td>Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 75 (34.7%)"><span style="width:34.7%"></span></div><span class="rfc-bar-note">26 of 75 (34.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 75 (34.7%)"><span style="width:34.7%"></span></div><span class="rfc-bar-note">26 of 75 (34.7%)</span><small class="rfc-ceiling">Ceiling: 74 of 75 (98.7%); excluded: Met by a lower layer: 1 of 75 (1.3%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -148,8 +153,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5036/">RFC 5036</a></td>
 <td>LDP Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="29 of 91 (31.9%)"><span style="width:31.9%"></span></div><span class="rfc-bar-note">29 of 91 (31.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="29 of 91 (31.9%)"><span style="width:31.9%"></span></div><span class="rfc-bar-note">29 of 91 (31.9%)</span><small class="rfc-ceiling">Ceiling: 91 of 91 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -161,8 +166,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5561/">RFC 5561</a></td>
 <td>LDP Capabilities</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 17 (5.9%)"><span style="width:5.9%"></span></div><span class="rfc-bar-note">1 of 17 (5.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 17 (5.9%)"><span style="width:5.9%"></span></div><span class="rfc-bar-note">1 of 17 (5.9%)</span><small class="rfc-ceiling">Ceiling: 17 of 17 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -174,13 +179,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3031/">RFC 3031</a> (cycle with rfc3032)</td>
 <td>Multiprotocol Label Switching Architecture</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 10 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">2 of 10 (20.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 10 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">2 of 10 (20.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 10 (60.0%); excluded: Not applicable (classification can be revisited): 4 of 10 (40.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc3032/">RFC 3032</a> (cycle with rfc3031)</td>
 <td>MPLS Label Stack Encoding</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 18 (5.6%)"><span style="width:5.6%"></span></div><span class="rfc-bar-note">1 of 18 (5.6%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 18 (5.6%)"><span style="width:5.6%"></span></div><span class="rfc-bar-note">1 of 18 (5.6%)</span><small class="rfc-ceiling">Ceiling: 1 of 18 (5.6%); excluded: Not applicable (classification can be revisited): 17 of 18 (94.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -192,8 +197,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3209/">RFC 3209</a></td>
 <td>RSVP-TE: Extensions to RSVP for LSP Tunnels</td>
-<td><div class="rfc-bar" role="img" aria-label="23 of 59 (39.0%)"><span style="width:39.0%"></span></div><span class="rfc-bar-note">23 of 59 (39.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="23 of 59 (39.0%)"><span style="width:39.0%"></span></div><span class="rfc-bar-note">23 of 59 (39.0%)</span><small class="rfc-ceiling">Ceiling: 57 of 59 (96.6%); excluded: Met by a lower layer: 2 of 59 (3.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -205,13 +210,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4090/">RFC 4090</a></td>
 <td>Fast Reroute Extensions to RSVP-TE for LSP Tunnels</td>
-<td><div class="rfc-bar" role="img" aria-label="29 of 33 (87.9%)"><span style="width:87.9%"></span></div><span class="rfc-bar-note">29 of 33 (87.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="29 of 33 (87.9%)"><span style="width:87.9%"></span></div><span class="rfc-bar-note">29 of 33 (87.9%)</span><small class="rfc-ceiling">Ceiling: 33 of 33 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5443/">RFC 5443</a></td>
 <td>LDP IGP Synchronization</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span><small class="rfc-ceiling">Ceiling: 6 of 8 (75.0%); excluded: Not applicable (classification can be revisited): 2 of 8 (25.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -223,8 +228,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6138/">RFC 6138</a></td>
 <td>LDP IGP Synchronization for Broadcast Networks</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 </tr>
 </tbody>
 </table>
@@ -236,8 +241,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5286/">RFC 5286</a></td>
 <td>Basic Specification for IP Fast Reroute: Loop-Free Alternates</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 6 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">2 of 6 (33.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 24 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 24 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 6 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">2 of 6 (33.3%)</span><small class="rfc-ceiling">Ceiling: 5 of 6 (83.3%); excluded: Not applicable (classification can be revisited): 1 of 6 (16.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 24 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 24 (0.0%)</span><small class="rfc-ceiling">Ceiling: 24 of 24 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -274,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

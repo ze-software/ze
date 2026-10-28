@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,6 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All RFCs</a></p>
 <section><h2>Release profiles</h2>
@@ -126,43 +128,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
 <tbody>
 <tr><td><a href="fttx-edge/">FTTx edge: customers to the internet over L2TP, local DNS for the LAN</a></td>
-<td><div class="rfc-bar" role="img" aria-label="340 of 747 (45.5%)"><span style="width:45.5%"></span></div><span class="rfc-bar-note">340 of 747 (45.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 335 (2.1%)"><span style="width:2.1%"></span></div><span class="rfc-bar-note">7 of 335 (2.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="340 of 747 (45.5%)"><span style="width:45.5%"></span></div><span class="rfc-bar-note">340 of 747 (45.5%)</span><small class="rfc-ceiling">Ceiling: 529 of 747 (70.8%); excluded: Optional feature not offered (classification can be revisited): 18 of 747 (2.4%); Met by a lower layer: 119 of 747 (15.9%); Not applicable (classification can be revisited): 81 of 747 (10.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 335 (2.1%)"><span style="width:2.1%"></span></div><span class="rfc-bar-note">7 of 335 (2.1%)</span><small class="rfc-ceiling">Ceiling: 335 of 335 (100.0%)</small></td>
 <td><a href="../?profile=fttx-edge&amp;rfc=rfc1661%2Crfc1994%2Crfc2516%2Crfc4787%2Crfc1035%2Crfc1332%2Crfc2131%2Crfc2132%2Crfc4861%2Crfc1877%2Crfc2181%2Crfc3022%2Crfc4862%2Crfc5382%2Crfc5072%2Crfc9915%2Crfc2661%2Crfc7084#rfc-list">18</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="lns/">L2TP network server</a></td>
-<td><div class="rfc-bar" role="img" aria-label="256 of 458 (55.9%)"><span style="width:55.9%"></span></div><span class="rfc-bar-note">256 of 458 (55.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 161 (4.3%)"><span style="width:4.3%"></span></div><span class="rfc-bar-note">7 of 161 (4.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="253 of 458 (55.2%)"><span style="width:55.2%"></span></div><span class="rfc-bar-note">253 of 458 (55.2%)</span><small class="rfc-ceiling">Ceiling: 354 of 458 (77.3%); excluded: Met by a lower layer: 96 of 458 (21.0%); Not applicable (classification can be revisited): 8 of 458 (1.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 161 (4.3%)"><span style="width:4.3%"></span></div><span class="rfc-bar-note">7 of 161 (4.3%)</span><small class="rfc-ceiling">Ceiling: 161 of 161 (100.0%)</small></td>
 <td><a href="../?profile=lns&amp;rfc=rfc1661%2Crfc2865%2Crfc2866%2Crfc1994%2Crfc1332%2Crfc1334%2Crfc2759%2Crfc4861%2Crfc1877%2Crfc5072%2Crfc2661%2Crfc2869%2Crfc3162%2Crfc5176#rfc-list">14</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="looking-glass/">Looking glass</a></td>
-<td><div class="rfc-bar" role="img" aria-label="165 of 307 (53.7%)"><span style="width:53.7%"></span></div><span class="rfc-bar-note">165 of 307 (53.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 93 (5.4%)"><span style="width:5.4%"></span></div><span class="rfc-bar-note">5 of 93 (5.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="165 of 307 (53.7%)"><span style="width:53.7%"></span></div><span class="rfc-bar-note">165 of 307 (53.7%)</span><small class="rfc-ceiling">Ceiling: 298 of 307 (97.1%); excluded: Not applicable (classification can be revisited): 9 of 307 (2.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 93 (5.4%)"><span style="width:5.4%"></span></div><span class="rfc-bar-note">5 of 93 (5.4%)</span><small class="rfc-ceiling">Ceiling: 93 of 93 (100.0%)</small></td>
 <td><a href="../?profile=looking-glass&amp;rfc=rfc4271%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc8522%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7607%2Crfc8092%2Crfc9774#rfc-list">16</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="route-collector/">Route collector</a></td>
-<td><div class="rfc-bar" role="img" aria-label="202 of 360 (56.1%)"><span style="width:56.1%"></span></div><span class="rfc-bar-note">202 of 360 (56.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 99 (8.1%)"><span style="width:8.1%"></span></div><span class="rfc-bar-note">8 of 99 (8.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="202 of 360 (56.1%)"><span style="width:56.1%"></span></div><span class="rfc-bar-note">202 of 360 (56.1%)</span><small class="rfc-ceiling">Ceiling: 341 of 360 (94.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 360 (0.3%); Not applicable (classification can be revisited): 18 of 360 (5.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 99 (8.1%)"><span style="width:8.1%"></span></div><span class="rfc-bar-note">8 of 99 (8.1%)</span><small class="rfc-ceiling">Ceiling: 99 of 99 (100.0%)</small></td>
 <td><a href="../?profile=route-collector&amp;rfc=rfc4271%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc6286%2Crfc7606%2Crfc7607%2Crfc7854%2Crfc9774%2Crfc8671%2Crfc9069%2Crfc6396%2Crfc6397%2Crfc8050#rfc-list">18</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="route-server/">IXP route server</a></td>
-<td><div class="rfc-bar" role="img" aria-label="189 of 395 (47.8%)"><span style="width:47.8%"></span></div><span class="rfc-bar-note">189 of 395 (47.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="17 of 221 (7.7%)"><span style="width:7.7%"></span></div><span class="rfc-bar-note">17 of 221 (7.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="189 of 395 (47.8%)"><span style="width:47.8%"></span></div><span class="rfc-bar-note">189 of 395 (47.8%)</span><small class="rfc-ceiling">Ceiling: 358 of 395 (90.6%); excluded: Not applicable (classification can be revisited): 37 of 395 (9.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="17 of 221 (7.7%)"><span style="width:7.7%"></span></div><span class="rfc-bar-note">17 of 221 (7.7%)</span><small class="rfc-ceiling">Ceiling: 219 of 221 (99.1%); excluded: Not applicable (classification can be revisited): 2 of 221 (0.9%)</small></td>
 <td><a href="../?profile=route-server&amp;rfc=rfc4271%2Crfc9582%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc8212%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc7947%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7948%2Crfc7454%2Crfc7607%2Crfc7999%2Crfc8092%2Crfc8893%2Crfc9234%2Crfc9774%2Crfc8210#rfc-list">24</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="vpn-endpoint/">IPsec VPN endpoint</a></td>
-<td><div class="rfc-bar" role="img" aria-label="228 of 545 (41.8%)"><span style="width:41.8%"></span></div><span class="rfc-bar-note">228 of 545 (41.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 168 (4.2%)"><span style="width:4.2%"></span></div><span class="rfc-bar-note">7 of 168 (4.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="228 of 545 (41.8%)"><span style="width:41.8%"></span></div><span class="rfc-bar-note">228 of 545 (41.8%)</span><small class="rfc-ceiling">Ceiling: 457 of 545 (83.9%); excluded: Optional feature not offered (classification can be revisited): 1 of 545 (0.2%); Met by a lower layer: 60 of 545 (11.0%); Not applicable (classification can be revisited): 27 of 545 (5.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 168 (4.2%)"><span style="width:4.2%"></span></div><span class="rfc-bar-note">7 of 168 (4.2%)</span><small class="rfc-ceiling">Ceiling: 168 of 168 (100.0%)</small></td>
 <td><a href="../?profile=vpn-endpoint&amp;rfc=rfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc7427%2Crfc8221%2Crfc6071#rfc-list">11</a></td>
 <td>0</td>
 <td>not complete</td>
@@ -177,15 +179,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
 <tbody>
 <tr><td><a href="ddos-flowspec/">DDoS detection and mitigation by sending FlowSpec upstream</a></td>
-<td><div class="rfc-bar" role="img" aria-label="182 of 343 (53.1%)"><span style="width:53.1%"></span></div><span class="rfc-bar-note">182 of 343 (53.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="16 of 124 (12.9%)"><span style="width:12.9%"></span></div><span class="rfc-bar-note">16 of 124 (12.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="182 of 343 (53.1%)"><span style="width:53.1%"></span></div><span class="rfc-bar-note">182 of 343 (53.1%)</span><small class="rfc-ceiling">Ceiling: 290 of 343 (84.5%); excluded: Optional feature not offered (classification can be revisited): 11 of 343 (3.2%); Met by a lower layer: 1 of 343 (0.3%); Not applicable (classification can be revisited): 41 of 343 (12.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="16 of 124 (12.9%)"><span style="width:12.9%"></span></div><span class="rfc-bar-note">16 of 124 (12.9%)</span><small class="rfc-ceiling">Ceiling: 124 of 124 (100.0%)</small></td>
 <td><a href="../?profile=ddos-flowspec&amp;rfc=rfc3954%2Crfc5635%2Crfc4271%2Csflow-v5%2Crfc4360%2Crfc4760%2Crfc7011%2Crfc7012%2Crfc7606%2Crfc7999%2Crfc8955%2Crfc8956%2Crfc9117#rfc-list">13</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="vpn-concentrator/">IPsec VPN concentrator for remote-access clients</a></td>
-<td><div class="rfc-bar" role="img" aria-label="346 of 716 (48.3%)"><span style="width:48.3%"></span></div><span class="rfc-bar-note">346 of 716 (48.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="13 of 223 (5.8%)"><span style="width:5.8%"></span></div><span class="rfc-bar-note">13 of 223 (5.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="346 of 716 (48.3%)"><span style="width:48.3%"></span></div><span class="rfc-bar-note">346 of 716 (48.3%)</span><small class="rfc-ceiling">Ceiling: 623 of 716 (87.0%); excluded: Optional feature not offered (classification can be revisited): 6 of 716 (0.8%); Met by a lower layer: 62 of 716 (8.7%); Not applicable (classification can be revisited): 25 of 716 (3.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="13 of 223 (5.8%)"><span style="width:5.8%"></span></div><span class="rfc-bar-note">13 of 223 (5.8%)</span><small class="rfc-ceiling">Ceiling: 223 of 223 (100.0%)</small></td>
 <td><a href="../?profile=vpn-concentrator&amp;rfc=rfc3748%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc5216%2Crfc5998%2Crfc7427%2Crfc8221%2Crfc9190#rfc-list">15</a></td>
 <td>0</td>
 <td>not complete</td>
@@ -200,197 +202,197 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
 <tbody>
 <tr><td><a href="bfd/">BFD</a></td>
-<td><div class="rfc-bar" role="img" aria-label="88 of 143 (61.5%)"><span style="width:61.5%"></span></div><span class="rfc-bar-note">88 of 143 (61.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 69 (17.4%)"><span style="width:17.4%"></span></div><span class="rfc-bar-note">12 of 69 (17.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="88 of 143 (61.5%)"><span style="width:61.5%"></span></div><span class="rfc-bar-note">88 of 143 (61.5%)</span><small class="rfc-ceiling">Ceiling: 138 of 143 (96.5%); excluded: Not applicable (classification can be revisited): 5 of 143 (3.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="12 of 69 (17.4%)"><span style="width:17.4%"></span></div><span class="rfc-bar-note">12 of 69 (17.4%)</span><small class="rfc-ceiling">Ceiling: 69 of 69 (100.0%)</small></td>
 <td><a href="../?profile=bfd&amp;rfc=rfc5880%2Crfc5881%2Crfc5882%2Crfc5883%2Crfc9384#rfc-list">5</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-communities-policy/">BGP communities and policy</a></td>
-<td><div class="rfc-bar" role="img" aria-label="24 of 49 (49.0%)"><span style="width:49.0%"></span></div><span class="rfc-bar-note">24 of 49 (49.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 37 (10.8%)"><span style="width:10.8%"></span></div><span class="rfc-bar-note">4 of 37 (10.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="24 of 49 (49.0%)"><span style="width:49.0%"></span></div><span class="rfc-bar-note">24 of 49 (49.0%)</span><small class="rfc-ceiling">Ceiling: 41 of 49 (83.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 49 (2.0%); Not applicable (classification can be revisited): 7 of 49 (14.3%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 37 (10.8%)"><span style="width:10.8%"></span></div><span class="rfc-bar-note">4 of 37 (10.8%)</span><small class="rfc-ceiling">Ceiling: 37 of 37 (100.0%)</small></td>
 <td><a href="../?profile=bgp-communities-policy&amp;rfc=rfc3882%2Crfc5635%2Crfc1997%2Crfc3765%2Crfc4360%2Crfc5701%2Crfc7611%2Crfc7999%2Crfc8092%2Crfc9234%2Crfc8195#rfc-list">11</a></td>
 <td>1</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-core/">BGP core</a></td>
-<td><div class="rfc-bar" role="img" aria-label="196 of 347 (56.5%)"><span style="width:56.5%"></span></div><span class="rfc-bar-note">196 of 347 (56.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 114 (7.0%)"><span style="width:7.0%"></span></div><span class="rfc-bar-note">8 of 114 (7.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="196 of 347 (56.5%)"><span style="width:56.5%"></span></div><span class="rfc-bar-note">196 of 347 (56.5%)</span><small class="rfc-ceiling">Ceiling: 335 of 347 (96.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 347 (0.3%); Not applicable (classification can be revisited): 11 of 347 (3.2%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 114 (7.0%)"><span style="width:7.0%"></span></div><span class="rfc-bar-note">8 of 114 (7.0%)</span><small class="rfc-ceiling">Ceiling: 114 of 114 (100.0%)</small></td>
 <td><a href="../?profile=bgp-core&amp;rfc=rfc4271%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc8212%2Crfc9072%2Crfc9687%2Crfc4760%2Crfc2918%2Crfc4486%2Crfc6793%2Crfc7311%2Crfc7911%2Crfc6286%2Crfc7313%2Crfc7606%2Crfc8950%2Crfc5549%2Crfc7607%2Crfc8654%2Crfc9774#rfc-list">21</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-flowspec/">BGP FlowSpec</a></td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 49 (53.1%)"><span style="width:53.1%"></span></div><span class="rfc-bar-note">26 of 49 (53.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 32 (18.8%)"><span style="width:18.8%"></span></div><span class="rfc-bar-note">6 of 32 (18.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 49 (53.1%)"><span style="width:53.1%"></span></div><span class="rfc-bar-note">26 of 49 (53.1%)</span><small class="rfc-ceiling">Ceiling: 47 of 49 (95.9%); excluded: Not applicable (classification can be revisited): 2 of 49 (4.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 32 (18.8%)"><span style="width:18.8%"></span></div><span class="rfc-bar-note">6 of 32 (18.8%)</span><small class="rfc-ceiling">Ceiling: 32 of 32 (100.0%)</small></td>
 <td><a href="../?profile=bgp-flowspec&amp;rfc=rfc8955%2Crfc5575%2Crfc8956%2Crfc9117#rfc-list">4</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-ls/">BGP-LS</a></td>
-<td><div class="rfc-bar" role="img" aria-label="83 of 125 (66.4%)"><span style="width:66.4%"></span></div><span class="rfc-bar-note">83 of 125 (66.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 73 (5.5%)"><span style="width:5.5%"></span></div><span class="rfc-bar-note">4 of 73 (5.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="83 of 125 (66.4%)"><span style="width:66.4%"></span></div><span class="rfc-bar-note">83 of 125 (66.4%)</span><small class="rfc-ceiling">Ceiling: 109 of 125 (87.2%); excluded: Not applicable (classification can be revisited): 16 of 125 (12.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 73 (5.5%)"><span style="width:5.5%"></span></div><span class="rfc-bar-note">4 of 73 (5.5%)</span><small class="rfc-ceiling">Ceiling: 73 of 73 (100.0%)</small></td>
 <td><a href="../?profile=bgp-ls&amp;rfc=rfc9552%2Crfc7752%2Crfc8571%2Crfc9085%2Crfc9086%2Crfc9514#rfc-list">6</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-monitoring/">BGP monitoring</a></td>
-<td><div class="rfc-bar" role="img" aria-label="36 of 83 (43.4%)"><span style="width:43.4%"></span></div><span class="rfc-bar-note">36 of 83 (43.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 15 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">3 of 15 (20.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="36 of 83 (43.4%)"><span style="width:43.4%"></span></div><span class="rfc-bar-note">36 of 83 (43.4%)</span><small class="rfc-ceiling">Ceiling: 82 of 83 (98.8%); excluded: Optional feature not offered (classification can be revisited): 1 of 83 (1.2%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 15 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">3 of 15 (20.0%)</span><small class="rfc-ceiling">Ceiling: 15 of 15 (100.0%)</small></td>
 <td><a href="../?profile=bgp-monitoring&amp;rfc=rfc8522%2Crfc7854%2Crfc8671%2Crfc9069#rfc-list">4</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-session-ops/">BGP session operations</a></td>
-<td><div class="rfc-bar" role="img" aria-label="38 of 76 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">38 of 76 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 122 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">4 of 122 (3.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="38 of 76 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">38 of 76 (50.0%)</span><small class="rfc-ceiling">Ceiling: 73 of 76 (96.1%); excluded: Not applicable (classification can be revisited): 3 of 76 (3.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 122 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">4 of 122 (3.3%)</span><small class="rfc-ceiling">Ceiling: 122 of 122 (100.0%)</small></td>
 <td><a href="../?profile=bgp-session-ops&amp;rfc=rfc4456%2Crfc5065%2Crfc7705%2Crfc8326%2Crfc4724%2Crfc7947%2Crfc6996%2Crfc7948%2Crfc8203%2Crfc9003%2Crfc7454%2Crfc8538%2Crfc9494#rfc-list">13</a></td>
 <td>3</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-sr-tunnel/">BGP segment routing and tunnels</a></td>
-<td><div class="rfc-bar" role="img" aria-label="89 of 244 (36.5%)"><span style="width:36.5%"></span></div><span class="rfc-bar-note">89 of 244 (36.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 136 (2.2%)"><span style="width:2.2%"></span></div><span class="rfc-bar-note">3 of 136 (2.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="89 of 244 (36.5%)"><span style="width:36.5%"></span></div><span class="rfc-bar-note">89 of 244 (36.5%)</span><small class="rfc-ceiling">Ceiling: 210 of 244 (86.1%); excluded: Not applicable (classification can be revisited): 34 of 244 (13.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 136 (2.2%)"><span style="width:2.2%"></span></div><span class="rfc-bar-note">3 of 136 (2.2%)</span><small class="rfc-ceiling">Ceiling: 136 of 136 (100.0%)</small></td>
 <td><a href="../?profile=bgp-sr-tunnel&amp;rfc=rfc8669%2Crfc9012%2Crfc9252%2Crfc9256%2Crfc9830#rfc-list">5</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-transport-security/">BGP transport security</a></td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 12 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">12 of 12 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 7 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">1 of 7 (14.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="12 of 12 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">12 of 12 (100.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 7 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">1 of 7 (14.3%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
 <td><a href="../?profile=bgp-transport-security&amp;rfc=rfc2385%2Crfc5082%2Crfc5925#rfc-list">3</a></td>
 <td>1</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="bgp-vpn-evpn/">BGP VPN and EVPN</a></td>
-<td><div class="rfc-bar" role="img" aria-label="31 of 202 (15.3%)"><span style="width:15.3%"></span></div><span class="rfc-bar-note">31 of 202 (15.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 54 (1.9%)"><span style="width:1.9%"></span></div><span class="rfc-bar-note">1 of 54 (1.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="31 of 202 (15.3%)"><span style="width:15.3%"></span></div><span class="rfc-bar-note">31 of 202 (15.3%)</span><small class="rfc-ceiling">Ceiling: 70 of 202 (34.7%); excluded: Optional feature not offered (classification can be revisited): 2 of 202 (1.0%); Not applicable (classification can be revisited): 130 of 202 (64.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 54 (1.9%)"><span style="width:1.9%"></span></div><span class="rfc-bar-note">1 of 54 (1.9%)</span><small class="rfc-ceiling">Ceiling: 54 of 54 (100.0%)</small></td>
 <td><a href="../?profile=bgp-vpn-evpn&amp;rfc=rfc4364%2Crfc4659%2Crfc8277%2Crfc4684%2Crfc4761%2Crfc6514%2Crfc7432%2Crfc9136%2Crfc4762#rfc-list">9</a></td>
 <td>2</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="dhcp-provisioning/">DHCP and provisioning</a></td>
-<td><div class="rfc-bar" role="img" aria-label="161 of 473 (34.0%)"><span style="width:34.0%"></span></div><span class="rfc-bar-note">161 of 473 (34.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 220 (0.9%)"><span style="width:0.9%"></span></div><span class="rfc-bar-note">2 of 220 (0.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="161 of 473 (34.0%)"><span style="width:34.0%"></span></div><span class="rfc-bar-note">161 of 473 (34.0%)</span><small class="rfc-ceiling">Ceiling: 263 of 473 (55.6%); excluded: Optional feature not offered (classification can be revisited): 17 of 473 (3.6%); Met by a lower layer: 105 of 473 (22.2%); Not applicable (classification can be revisited): 88 of 473 (18.6%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 220 (0.9%)"><span style="width:0.9%"></span></div><span class="rfc-bar-note">2 of 220 (0.9%)</span><small class="rfc-ceiling">Ceiling: 220 of 220 (100.0%)</small></td>
 <td><a href="../?profile=dhcp-provisioning&amp;rfc=rfc1350%2Crfc2347%2Crfc2348%2Crfc2349%2Crfc2131%2Crfc2132%2Crfc4861%2Crfc7440%2Crfc4578%2Crfc4862%2Crfc8106%2Crfc9915%2Crfc7084#rfc-list">13</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="dns/">DNS</a></td>
-<td><div class="rfc-bar" role="img" aria-label="34 of 299 (11.4%)"><span style="width:11.4%"></span></div><span class="rfc-bar-note">34 of 299 (11.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 211 (0.5%)"><span style="width:0.5%"></span></div><span class="rfc-bar-note">1 of 211 (0.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="34 of 299 (11.4%)"><span style="width:11.4%"></span></div><span class="rfc-bar-note">34 of 299 (11.4%)</span><small class="rfc-ceiling">Ceiling: 149 of 299 (49.8%); excluded: Optional feature not offered (classification can be revisited): 1 of 299 (0.3%); Not applicable (classification can be revisited): 149 of 299 (49.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 211 (0.5%)"><span style="width:0.5%"></span></div><span class="rfc-bar-note">1 of 211 (0.5%)</span><small class="rfc-ceiling">Ceiling: 211 of 211 (100.0%)</small></td>
 <td><a href="../?profile=dns&amp;rfc=rfc1035%2Crfc2181%2Crfc2782%2Crfc4033%2Crfc4034%2Crfc4035%2Crfc8484%2Crfc7534%2Crfc7535%2Crfc7871%2Crfc7858#rfc-list">11</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="drafts/">Drafts and non-RFC standards</a></td>
-<td><div class="rfc-bar" role="img" aria-label="74 of 121 (61.2%)"><span style="width:61.2%"></span></div><span class="rfc-bar-note">74 of 121 (61.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 61 (9.8%)"><span style="width:9.8%"></span></div><span class="rfc-bar-note">6 of 61 (9.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="74 of 121 (61.2%)"><span style="width:61.2%"></span></div><span class="rfc-bar-note">74 of 121 (61.2%)</span><small class="rfc-ceiling">Ceiling: 117 of 121 (96.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 121 (0.8%); Met by a lower layer: 1 of 121 (0.8%); Not applicable (classification can be revisited): 2 of 121 (1.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 61 (9.8%)"><span style="width:9.8%"></span></div><span class="rfc-bar-note">6 of 61 (9.8%)</span><small class="rfc-ceiling">Ceiling: 61 of 61 (100.0%)</small></td>
 <td><a href="../?profile=drafts&amp;rfc=sflow-v5%2Cdraft-walton-bgp-hostname-capability%2Cdraft-abraitis-bgp-version-capability%2Cdraft-abraitis-idr-addpath-paths-limit%2Cdraft-ietf-bess-mup-safi%2Cdraft-ietf-idr-linklocal-capability%2Cdraft-ietf-sidrops-aspa-verification%2Cdraft-ietf-idr-bgp-bfd-strict-mode#rfc-list">8</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="eap/">EAP</a></td>
-<td><div class="rfc-bar" role="img" aria-label="119 of 172 (69.2%)"><span style="width:69.2%"></span></div><span class="rfc-bar-note">119 of 172 (69.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 59 (10.2%)"><span style="width:10.2%"></span></div><span class="rfc-bar-note">6 of 59 (10.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="119 of 172 (69.2%)"><span style="width:69.2%"></span></div><span class="rfc-bar-note">119 of 172 (69.2%)</span><small class="rfc-ceiling">Ceiling: 159 of 172 (92.4%); excluded: Optional feature not offered (classification can be revisited): 5 of 172 (2.9%); Met by a lower layer: 2 of 172 (1.2%); Not applicable (classification can be revisited): 6 of 172 (3.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 59 (10.2%)"><span style="width:10.2%"></span></div><span class="rfc-bar-note">6 of 59 (10.2%)</span><small class="rfc-ceiling">Ceiling: 59 of 59 (100.0%)</small></td>
 <td><a href="../?profile=eap&amp;rfc=rfc2759%2Crfc3748%2Crfc5216%2Crfc5998%2Crfc7627%2Crfc9190#rfc-list">6</a></td>
 <td>1</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="fhrp/">First-hop redundancy</a></td>
-<td><div class="rfc-bar" role="img" aria-label="112 of 166 (67.5%)"><span style="width:67.5%"></span></div><span class="rfc-bar-note">112 of 166 (67.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 65 (6.2%)"><span style="width:6.2%"></span></div><span class="rfc-bar-note">4 of 65 (6.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="112 of 166 (67.5%)"><span style="width:67.5%"></span></div><span class="rfc-bar-note">112 of 166 (67.5%)</span><small class="rfc-ceiling">Ceiling: 152 of 166 (91.6%); excluded: Optional feature not offered (classification can be revisited): 2 of 166 (1.2%); Met by a lower layer: 3 of 166 (1.8%); Not applicable (classification can be revisited): 9 of 166 (5.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 65 (6.2%)"><span style="width:6.2%"></span></div><span class="rfc-bar-note">4 of 65 (6.2%)</span><small class="rfc-ceiling">Ceiling: 64 of 65 (98.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 65 (1.5%)</small></td>
 <td><a href="../?profile=fhrp&amp;rfc=rfc9568%2Crfc3768%2Crfc5798#rfc-list">3</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="flow-telemetry/">Flow telemetry</a></td>
-<td><div class="rfc-bar" role="img" aria-label="17 of 70 (24.3%)"><span style="width:24.3%"></span></div><span class="rfc-bar-note">17 of 70 (24.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 19 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 19 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="17 of 70 (24.3%)"><span style="width:24.3%"></span></div><span class="rfc-bar-note">17 of 70 (24.3%)</span><small class="rfc-ceiling">Ceiling: 33 of 70 (47.1%); excluded: Optional feature not offered (classification can be revisited): 10 of 70 (14.3%); Not applicable (classification can be revisited): 27 of 70 (38.6%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 19 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 19 (0.0%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
 <td><a href="../?profile=flow-telemetry&amp;rfc=rfc3954%2Crfc7011%2Crfc7012#rfc-list">3</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="ikev2-ipsec/">IKEv2 and IPsec</a></td>
-<td><div class="rfc-bar" role="img" aria-label="241 of 703 (34.3%)"><span style="width:34.3%"></span></div><span class="rfc-bar-note">241 of 703 (34.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 265 (3.4%)"><span style="width:3.4%"></span></div><span class="rfc-bar-note">9 of 265 (3.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="241 of 703 (34.3%)"><span style="width:34.3%"></span></div><span class="rfc-bar-note">241 of 703 (34.3%)</span><small class="rfc-ceiling">Ceiling: 593 of 703 (84.4%); excluded: Optional feature not offered (classification can be revisited): 2 of 703 (0.3%); Met by a lower layer: 81 of 703 (11.5%); Not applicable (classification can be revisited): 27 of 703 (3.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="9 of 265 (3.4%)"><span style="width:3.4%"></span></div><span class="rfc-bar-note">9 of 265 (3.4%)</span><small class="rfc-ceiling">Ceiling: 265 of 265 (100.0%)</small></td>
 <td><a href="../?profile=ikev2-ipsec&amp;rfc=rfc4739%2Crfc5685%2Crfc4754%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4302%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc7383%2Crfc7427%2Crfc7634%2Crfc8031%2Crfc8221%2Crfc9329%2Crfc9370%2Crfc6071#rfc-list">21</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="isis/">IS-IS</a></td>
-<td><div class="rfc-bar" role="img" aria-label="59 of 125 (47.2%)"><span style="width:47.2%"></span></div><span class="rfc-bar-note">59 of 125 (47.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 36 (2.8%)"><span style="width:2.8%"></span></div><span class="rfc-bar-note">1 of 36 (2.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="60 of 125 (48.0%)"><span style="width:48.0%"></span></div><span class="rfc-bar-note">60 of 125 (48.0%)</span><small class="rfc-ceiling">Ceiling: 102 of 125 (81.6%); excluded: Not applicable (classification can be revisited): 23 of 125 (18.4%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 36 (2.8%)"><span style="width:2.8%"></span></div><span class="rfc-bar-note">1 of 36 (2.8%)</span><small class="rfc-ceiling">Ceiling: 36 of 36 (100.0%)</small></td>
 <td><a href="../?profile=isis&amp;rfc=rfc5301%2Crfc5304%2Crfc5305%2Crfc1195%2Crfc2966%2Crfc3786%2Crfc3787%2Crfc5303%2Crfc5308%2Crfc5310%2Crfc5120#rfc-list">11</a></td>
 <td>1</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="management/">Management</a></td>
-<td><div class="rfc-bar" role="img" aria-label="37 of 99 (37.4%)"><span style="width:37.4%"></span></div><span class="rfc-bar-note">37 of 99 (37.4%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="37 of 99 (37.4%)"><span style="width:37.4%"></span></div><span class="rfc-bar-note">37 of 99 (37.4%)</span><small class="rfc-ceiling">Ceiling: 94 of 99 (94.9%); excluded: Not applicable (classification can be revisited): 5 of 99 (5.1%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td><a href="../?profile=management&amp;rfc=rfc7950%2Crfc5905#rfc-list">2</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="mpls/">MPLS</a></td>
-<td><div class="rfc-bar" role="img" aria-label="120 of 319 (37.6%)"><span style="width:37.6%"></span></div><span class="rfc-bar-note">120 of 319 (37.6%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 59 (10.2%)"><span style="width:10.2%"></span></div><span class="rfc-bar-note">6 of 59 (10.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="120 of 319 (37.6%)"><span style="width:37.6%"></span></div><span class="rfc-bar-note">120 of 319 (37.6%)</span><small class="rfc-ceiling">Ceiling: 292 of 319 (91.5%); excluded: Met by a lower layer: 3 of 319 (0.9%); Not applicable (classification can be revisited): 24 of 319 (7.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 59 (10.2%)"><span style="width:10.2%"></span></div><span class="rfc-bar-note">6 of 59 (10.2%)</span><small class="rfc-ceiling">Ceiling: 59 of 59 (100.0%)</small></td>
 <td><a href="../?profile=mpls&amp;rfc=rfc2205%2Crfc5036%2Crfc5561%2Crfc3031%2Crfc3032%2Crfc3209%2Crfc4090%2Crfc5443%2Crfc6138%2Crfc5286#rfc-list">10</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="oauth-mgmt/">OAuth for management</a></td>
-<td><div class="rfc-bar" role="img" aria-label="18 of 59 (30.5%)"><span style="width:30.5%"></span></div><span class="rfc-bar-note">18 of 59 (30.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 13 (15.4%)"><span style="width:15.4%"></span></div><span class="rfc-bar-note">2 of 13 (15.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 59 (30.5%)"><span style="width:30.5%"></span></div><span class="rfc-bar-note">18 of 59 (30.5%)</span><small class="rfc-ceiling">Ceiling: 29 of 59 (49.2%); excluded: Optional feature not offered (classification can be revisited): 11 of 59 (18.6%); Not applicable (classification can be revisited): 19 of 59 (32.2%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 13 (15.4%)"><span style="width:15.4%"></span></div><span class="rfc-bar-note">2 of 13 (15.4%)</span><small class="rfc-ceiling">Ceiling: 10 of 13 (76.9%); excluded: Optional feature not offered (classification can be revisited): 1 of 13 (7.7%); Not applicable (classification can be revisited): 2 of 13 (15.4%)</small></td>
 <td><a href="../?profile=oauth-mgmt&amp;rfc=rfc8707%2Crfc8414%2Crfc9728#rfc-list">3</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="ospf/">OSPF</a></td>
-<td><div class="rfc-bar" role="img" aria-label="152 of 409 (37.2%)"><span style="width:37.2%"></span></div><span class="rfc-bar-note">152 of 409 (37.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="10 of 242 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">10 of 242 (4.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="152 of 409 (37.2%)"><span style="width:37.2%"></span></div><span class="rfc-bar-note">152 of 409 (37.2%)</span><small class="rfc-ceiling">Ceiling: 330 of 409 (80.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 409 (0.2%); Met by a lower layer: 6 of 409 (1.5%); Not applicable (classification can be revisited): 72 of 409 (17.6%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="10 of 242 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">10 of 242 (4.1%)</span><small class="rfc-ceiling">Ceiling: 224 of 242 (92.6%); excluded: Not applicable (classification can be revisited): 18 of 242 (7.4%)</small></td>
 <td><a href="../?profile=ospf&amp;rfc=rfc2328%2Crfc3101%2Crfc5250%2Crfc3623%2Crfc3630%2Crfc5709%2Crfc7474%2Crfc7684%2Crfc4576%2Crfc4577%2Crfc4552%2Crfc5340%2Crfc5187%2Crfc5392%2Crfc5838%2Crfc6549%2Crfc6987%2Crfc7166%2Crfc7770%2Crfc8362%2Crfc8665%2Crfc9129%2Crfc8666#rfc-list">23</a></td>
 <td>3</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="ppp-access/">PPP access</a></td>
-<td><div class="rfc-bar" role="img" aria-label="179 of 296 (60.5%)"><span style="width:60.5%"></span></div><span class="rfc-bar-note">179 of 296 (60.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 97 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">4 of 97 (4.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="179 of 296 (60.5%)"><span style="width:60.5%"></span></div><span class="rfc-bar-note">179 of 296 (60.5%)</span><small class="rfc-ceiling">Ceiling: 286 of 296 (96.6%); excluded: Met by a lower layer: 2 of 296 (0.7%); Not applicable (classification can be revisited): 8 of 296 (2.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 97 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">4 of 97 (4.1%)</span><small class="rfc-ceiling">Ceiling: 97 of 97 (100.0%)</small></td>
 <td><a href="../?profile=ppp-access&amp;rfc=rfc1661%2Crfc1570%2Crfc1994%2Crfc2516%2Crfc1332%2Crfc1334%2Crfc4638%2Crfc1877%2Crfc5072%2Crfc2661%2Crfc3145#rfc-list">11</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="primitives/">Network primitives</a></td>
-<td><div class="rfc-bar" role="img" aria-label="18 of 51 (35.3%)"><span style="width:35.3%"></span></div><span class="rfc-bar-note">18 of 51 (35.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 34 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 34 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 51 (35.3%)"><span style="width:35.3%"></span></div><span class="rfc-bar-note">18 of 51 (35.3%)</span><small class="rfc-ceiling">Ceiling: 36 of 51 (70.6%); excluded: Met by a lower layer: 12 of 51 (23.5%); Not applicable (classification can be revisited): 3 of 51 (5.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 34 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 34 (0.0%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
 <td><a href="../?profile=primitives&amp;rfc=rfc792%2Crfc905%2Crfc1071%2Crfc4787%2Crfc3022%2Crfc5382#rfc-list">6</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="radius-tacacs/">RADIUS and TACACS+</a></td>
-<td><div class="rfc-bar" role="img" aria-label="123 of 202 (60.9%)"><span style="width:60.9%"></span></div><span class="rfc-bar-note">123 of 202 (60.9%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 105 (2.9%)"><span style="width:2.9%"></span></div><span class="rfc-bar-note">3 of 105 (2.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="120 of 202 (59.4%)"><span style="width:59.4%"></span></div><span class="rfc-bar-note">120 of 202 (59.4%)</span><small class="rfc-ceiling">Ceiling: 194 of 202 (96.0%); excluded: Optional feature not offered (classification can be revisited): 6 of 202 (3.0%); Not applicable (classification can be revisited): 2 of 202 (1.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 105 (2.9%)"><span style="width:2.9%"></span></div><span class="rfc-bar-note">3 of 105 (2.9%)</span><small class="rfc-ceiling">Ceiling: 105 of 105 (100.0%)</small></td>
 <td><a href="../?profile=radius-tacacs&amp;rfc=rfc2865%2Crfc2866%2Crfc6911%2Crfc4818%2Crfc2867%2Crfc2868%2Crfc2869%2Crfc3162%2Crfc3579%2Crfc5176%2Crfc8907#rfc-list">11</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="route-archival/">Route archival</a></td>
-<td><div class="rfc-bar" role="img" aria-label="11 of 23 (47.8%)"><span style="width:47.8%"></span></div><span class="rfc-bar-note">11 of 23 (47.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 23 (47.8%)"><span style="width:47.8%"></span></div><span class="rfc-bar-note">11 of 23 (47.8%)</span><small class="rfc-ceiling">Ceiling: 14 of 23 (60.9%); excluded: Not applicable (classification can be revisited): 9 of 23 (39.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span><small class="rfc-ceiling">Ceiling: 13 of 13 (100.0%)</small></td>
 <td><a href="../?profile=route-archival&amp;rfc=rfc6396%2Crfc6397%2Crfc8050#rfc-list">3</a></td>
 <td>0</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="rpki/">RPKI</a></td>
-<td><div class="rfc-bar" role="img" aria-label="18 of 142 (12.7%)"><span style="width:12.7%"></span></div><span class="rfc-bar-note">18 of 142 (12.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 80 (7.5%)"><span style="width:7.5%"></span></div><span class="rfc-bar-note">6 of 80 (7.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 142 (12.7%)"><span style="width:12.7%"></span></div><span class="rfc-bar-note">18 of 142 (12.7%)</span><small class="rfc-ceiling">Ceiling: 71 of 142 (50.0%); excluded: Not applicable (classification can be revisited): 71 of 142 (50.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 80 (7.5%)"><span style="width:7.5%"></span></div><span class="rfc-bar-note">6 of 80 (7.5%)</span><small class="rfc-ceiling">Ceiling: 78 of 80 (97.5%); excluded: Not applicable (classification can be revisited): 2 of 80 (2.5%)</small></td>
 <td><a href="../?profile=rpki&amp;rfc=rfc9582%2Crfc6482%2Crfc6811%2Crfc6810%2Crfc8097%2Crfc8893%2Crfc9319%2Crfc8210%2Cdraft-ietf-sidrops-8210bis#rfc-list">9</a></td>
 <td>1</td>
 <td>not complete</td>
 </tr>
 <tr><td><a href="tunnels/">Tunnels</a></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 61 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">2 of 61 (3.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 64 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 64 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 61 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">2 of 61 (3.3%)</span><small class="rfc-ceiling">Ceiling: 2 of 61 (3.3%); excluded: Not applicable (classification can be revisited): 59 of 61 (96.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 64 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 64 (0.0%)</span><small class="rfc-ceiling">Ceiling: 64 of 64 (100.0%)</small></td>
 <td><a href="../?profile=tunnels&amp;rfc=rfc2003%2Crfc2784%2Crfc4213%2Crfc2473%2Crfc2890#rfc-list">5</a></td>
 <td>0</td>
 <td>not complete</td>
@@ -430,7 +432,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
                 </div>
             </div>
         </footer>

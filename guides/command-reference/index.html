@@ -3536,7 +3536,12 @@ answered a different peer on each call.</p>
 <p>The peer selector comes first (<code>peer &lt;sel&gt;</code>, matching <code>show bgp peer &lt;sel&gt; ...</code>), then the direction (<code>import</code>/<code>export</code>), then optional <code>filter &lt;NAME&gt;</code>, then <code>update &lt;HEX&gt;</code>.</p>
 <p><code>&lt;HEX&gt;</code> is a hex-encoded full BGP UPDATE message (including the 19-byte header). The <code>0x</code> prefix is optional.</p>
 <p>Optional: <code>source-asn4 false</code> to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.</p>
-<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (wire-level attribute ops such as <code>AS4_PATH suppressed</code> that the flat filter text cannot express). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
+<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify/undetermined), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (wire-level attribute ops such as <code>AS4_PATH suppressed</code> that the flat filter text cannot express). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
+<p>If the remote AS is unresolved, <code>action</code> is <code>undetermined</code> and <code>reason</code> tells you
+to wait for establishment and repeat <code>show policy test</code>. No filter executes,
+including a single-filter override. Trace and text are empty, with no wire
+changes. For a known EBGP session, an absent direction has a rejecting final.</p>
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <p><code>text-before</code> and <code>text-after</code> name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: <code>origin</code>, <code>med</code>, <code>local-preference</code>,
 <code>atomic-aggregate</code> and <code>cluster-list</code>. The renderer named a Go type no parser
@@ -3716,6 +3721,14 @@ send bgp &lt;sel&gt; update hex &lt;hex-data&gt;
 send bgp &lt;sel&gt; update b64 &lt;b64-data&gt;
 send bgp &lt;sel&gt; raw &lt;hex|b64&gt; &lt;data&gt; [type &lt;type&gt;]
 </code></pre>
+<p>Raw UPDATEs, whether supplied as a complete packet or with <code>type update</code>, obey
+the destination's export final. An absent EBGP export policy blocks announcements;
+an absent IBGP policy still accepts. A rejecting final preserves explicit
+withdrawals and EOR, and removes announcements from mixed UPDATEs. Opaque bytes
+that cannot be proved safe, including a control packet followed by an UPDATE,
+are suppressed when export rejects. A complete, recognized non-UPDATE control
+packet is unaffected. Raw AS_SET diagnostics remain available when export accepts.</p>
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, rawControlPacket -->
 <p>On-demand origination, tracked by tag so a later withdraw can name it:</p>
 <pre><code>send bgp &lt;sel&gt; unicast &lt;prefix&gt; [next-hop &lt;address&gt;] [community &lt;value&gt; ...] [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]
 send bgp &lt;sel&gt; blackhole &lt;prefix&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]
@@ -4803,7 +4816,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
                 </div>
             </div>
         </footer>

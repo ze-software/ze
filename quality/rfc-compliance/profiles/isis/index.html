@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>IS-IS RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate isis: mandatory 59 of 125 (47.2%), optional 1 of 36 (2.8%); 11 RFCs, 1 not walked." />
+        <meta name="description" content="Technology aggregate isis: mandatory 60 of 125 (48.0%), optional 1 of 36 (2.8%); ceiling mandatory 102 of 125 (81.6%), optional 36 of 36 (100.0%); mandatory excluded: not-applicable 23; 11 RFCs, 1 not walked." />
         <meta property="og:title" content="IS-IS RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate isis: mandatory 59 of 125 (47.2%), optional 1 of 36 (2.8%); 11 RFCs, 1 not walked." />
+        <meta property="og:description" content="Technology aggregate isis: mandatory 60 of 125 (48.0%), optional 1 of 36 (2.8%); ceiling mandatory 102 of 125 (81.6%), optional 36 of 36 (100.0%); mandatory excluded: not-applicable 23; 11 RFCs, 1 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="IS-IS RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate isis: mandatory 59 of 125 (47.2%), optional 1 of 36 (2.8%); 11 RFCs, 1 not walked." />
+        <meta name="twitter:description" content="Technology aggregate isis: mandatory 60 of 125 (48.0%), optional 1 of 36 (2.8%); ceiling mandatory 102 of 125 (81.6%), optional 36 of 36 (100.0%); mandatory excluded: not-applicable 23; 11 RFCs, 1 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>47.2%</strong><b>59 of 125 (47.2%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>48.0%</strong><b>60 of 125 (48.0%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>2.8%</strong><b>1 of 36 (2.8%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>81.6%</strong><b>102 of 125 (81.6%); excluded: Not applicable (classification can be revisited): 23 of 125 (18.4%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>36 of 36 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>1</strong><b>of 11 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 102 of 125 (81.6%); excluded: Not applicable (classification can be revisited): 23 of 125 (18.4%). Optional ceiling: 36 of 36 (100.0%). Lowest mandatory ceiling: rfc3786 2 of 9 (22.2%). Lowest optional ceiling: rfc1195 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,18 +140,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5301/">RFC 5301</a></td>
 <td>Dynamic Hostname Exchange Mechanism for IS-IS</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5304/">RFC 5304</a></td>
 <td>IS-IS Cryptographic Authentication</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 9 (88.9%); excluded: Not applicable (classification can be revisited): 1 of 9 (11.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5305/">RFC 5305</a></td>
 <td>IS-IS Extensions for Traffic Engineering</td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 14 (57.1%)"><span style="width:57.1%"></span></div><span class="rfc-bar-note">8 of 14 (57.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 14 (57.1%)"><span style="width:57.1%"></span></div><span class="rfc-bar-note">8 of 14 (57.1%)</span><small class="rfc-ceiling">Ceiling: 9 of 14 (64.3%); excluded: Not applicable (classification can be revisited): 5 of 14 (35.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -158,8 +163,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc1195/">RFC 1195</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Use of OSI IS-IS for Routing in TCP/IP and Dual Environments</td>
-<td><div class="rfc-bar" role="img" aria-label="24 of 41 (58.5%)"><span style="width:58.5%"></span></div><span class="rfc-bar-note">24 of 41 (58.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="25 of 41 (61.0%)"><span style="width:61.0%"></span></div><span class="rfc-bar-note">25 of 41 (61.0%)</span><small class="rfc-ceiling">Ceiling: 34 of 41 (82.9%); excluded: Not applicable (classification can be revisited): 7 of 41 (17.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -171,33 +176,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2966/">RFC 2966</a></td>
 <td>Domain-wide Prefix Distribution with Two-Level IS-IS</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc3786/">RFC 3786</a></td>
 <td>Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 9 (11.1%)"><span style="width:11.1%"></span></div><span class="rfc-bar-note">1 of 9 (11.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 9 (11.1%)"><span style="width:11.1%"></span></div><span class="rfc-bar-note">1 of 9 (11.1%)</span><small class="rfc-ceiling">Ceiling: 2 of 9 (22.2%); excluded: Not applicable (classification can be revisited): 7 of 9 (77.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc3787/">RFC 3787</a></td>
 <td>Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 5 (80.0%)"><span style="width:80.0%"></span></div><span class="rfc-bar-note">4 of 5 (80.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 5 (80.0%)"><span style="width:80.0%"></span></div><span class="rfc-bar-note">4 of 5 (80.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5303/">RFC 5303</a></td>
 <td>Three-Way Handshake for IS-IS Point-to-Point Adjacencies</td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 17 (41.2%)"><span style="width:41.2%"></span></div><span class="rfc-bar-note">7 of 17 (41.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 17 (41.2%)"><span style="width:41.2%"></span></div><span class="rfc-bar-note">7 of 17 (41.2%)</span><small class="rfc-ceiling">Ceiling: 15 of 17 (88.2%); excluded: Not applicable (classification can be revisited): 2 of 17 (11.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5308/">RFC 5308</a></td>
 <td>Routing IPv6 with IS-IS</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc5310/">RFC 5310</a></td>
 <td>IS-IS Generic Cryptographic Authentication</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 9 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">6 of 9 (66.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 9 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">6 of 9 (66.7%)</span><small class="rfc-ceiling">Ceiling: 8 of 9 (88.9%); excluded: Not applicable (classification can be revisited): 1 of 9 (11.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -247,7 +252,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
                 </div>
             </div>
         </footer>

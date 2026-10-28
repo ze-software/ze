@@ -537,6 +537,12 @@ has a trace entry with <code>action: "not-evaluated"</code> and empty <code>text
 filter-update RPC was made for it. Selecting such a check as a single-filter
 override is refused with instructions to test it on the peer session.</p>
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+<p>An unresolved remote AS returns <code>action: "undetermined"</code> with a <code>reason</code> telling
+the operator to wait for establishment and repeat <code>show policy test</code>. No filter
+executes, including a single-filter override. Trace, input and resulting text
+are empty, and no changed attributes or wire changes are returned. Known-session
+results omit <code>reason</code>. An absent EBGP direction uses the RFC 8212 rejecting final.</p>
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <table>
 <thead>
 <tr>
@@ -584,7 +590,7 @@ override is refused with instructions to test it on the peer session.</p>
 <tr>
 <td><code>ze-bgp:show-policy-test</code></td>
 <td><code>handleShowPolicyTest</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
-<td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain --></td>
+<td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. <code>reason</code> is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain --></td>
 </tr>
 <tr>
 <td><code>ze-bgp:show-bmp-sessions</code></td>
@@ -4148,7 +4154,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

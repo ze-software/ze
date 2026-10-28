@@ -72,6 +72,14 @@
 </ol></details></nav><div class="doc-body">
 <h2 id="minimal-peer">Minimal peer</h2>
 <p>A peer needs local and remote addresses, AS numbers, a router ID, and at least one address family:</p>
+<p>An EBGP session can establish without policy, but it cannot exchange routes.
+RFC 8212 requires an explicit import policy for received routes and an explicit
+export policy for advertised routes. IBGP keeps its existing behavior when
+policy is absent. Automatic filters do not supply operator policy.</p>
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, InternalPolicy -->
+<p>This example deliberately permits both directions with <code>final accept</code>. Use
+that choice only when unrestricted exchange is intended, or add the filters
+your routing agreement requires.</p>
 <pre><code class="language-text">bgp {
     router-id 192.0.2.10
 
@@ -88,9 +96,18 @@
                 }
             }
         }
+        filter {
+            import {
+                final accept
+            }
+            export {
+                final accept
+            }
+        }
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- bgp, peer-fields, filter-policy -->
 <p>Validate before starting or reloading:</p>
 <pre><code class="language-console">ze config validate ze.conf
 ze doctor
@@ -110,6 +127,14 @@ ze doctor
             }
         }
         timer { receive-hold-time 90 }
+        filter {
+            import {
+                final accept
+            }
+            export {
+                final accept
+            }
+        }
 
         peer transit-a {
             connection {
@@ -129,7 +154,14 @@ ze doctor
     }
 }
 </code></pre>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- group, peer-fields, filter-policy -->
 <p>Peer values override group values. Group values override the global BGP block. Inspect the resolved result with <code>show config dump</code> rather than reasoning about inheritance from the source file alone.</p>
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<p>The group explicitly permits import and export for both transit peers. A global
+<code>bgp filter</code> policy also counts as explicit policy for peers that inherit it.
+Filters accumulate from BGP to group to peer. The most-specific configured
+direction supplies the final decision, and an absent child inherits it.</p>
+<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
 <h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
 <p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
 <p>A member that connects while Ze is still starting its plugins is held: its session opens only once every plugin is running, the same as a configured peer, so its first UPDATE meets the filters its policy names.</p>
@@ -187,11 +219,11 @@ ze doctor
     }
 }
 </code></pre>
-<p>The <code>role { import rs }</code> leaf is what makes the two <code>filter</code> chains mandatory. A
-declared RFC 9234 role obliges the bound chains to name a filter that can refuse a
-path through a transit provider, and <code>rs</code> binds both. To run a session without the
-check, name the filter with the <code>inactive:</code> member prefix. The chain records the
-decision, and the filter never executes:</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
+<p>The <code>role { import rs }</code> leaf also requires both chains to name a filter that
+can refuse a path through a transit provider. This is separate from RFC 8212's
+explicit-policy requirement. To disable that filter check, name the filter with
+the <code>inactive:</code> member prefix. The member remains in the chain but never executes:</p>
 <pre><code>filter {
     import {
         filters [ inactive:NO-TRANSIT ];
@@ -205,7 +237,8 @@ decision, and the filter never executes:</p>
 </code></pre>
 <p>The prefix goes on the member, inside the brackets. Inside each direction block,
 <code>inactive: filters NO-TRANSIT;</code> deactivates an existing member. Keep the
-<code>final accept;</code> decision when the member is inactive. See
+<code>final accept;</code> decision when the member is inactive. That explicit final,
+not the inactive reference, supplies operator policy. See
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both forms, and
 <a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
@@ -503,7 +536,7 @@ ze cli -c "show bgp rib status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

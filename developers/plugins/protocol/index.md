@@ -501,7 +501,8 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-verify` | `OnConfigOperationVerify` | `ConfigOperationVerifyInput` | `ConfigOperationVerifyOutput` | Verify a config operation |
 | `ze-plugin-callback:config-operation-apply` | `OnConfigOperationApply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply a config operation |
 | `ze-plugin-callback:config-operation-rollback` | `OnConfigOperationRollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Roll back config operations |
-| `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit operation journals |
+| `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
+| `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
@@ -510,6 +511,19 @@ each wire method to its registered handler.
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
 | `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete, operation callback registration -->
+<!-- source: pkg/plugin/rpc/types.go -- ConfigCompleteInput, ConfigCompleteOutput -->
+
+An `OnConfigComplete` handler automatically declares `config-completion` in
+Stage 1. Its context carries the absolute `deadline-ms` work bound. Complete
+cleanup before returning: callback queue admission is not a receipt. Keep
+operation journals through `OnConfigOperationCommit`; discard only the matching
+transaction on accepted completion. Rejected completion follows original undo,
+after section-owned configuration and filters have been restored. A completion
+error after acceptance reports an active candidate, not a rollback.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
 
 A peer's AS is not always known when an event is written. A dynamic peer's AS
 comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in

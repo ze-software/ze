@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>IPsec VPN endpoint RFC coverage - Ze</title>
-        <meta name="description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); 11 RFCs, 0 not walked." />
+        <meta name="description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); ceiling mandatory 457 of 545 (83.9%), optional 168 of 168 (100.0%); mandatory excluded: feature-declined 1, lower-layer 60, not-applicable 27; 11 RFCs, 0 not walked." />
         <meta property="og:title" content="IPsec VPN endpoint RFC coverage - Ze" />
-        <meta property="og:description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); 11 RFCs, 0 not walked." />
+        <meta property="og:description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); ceiling mandatory 457 of 545 (83.9%), optional 168 of 168 (100.0%); mandatory excluded: feature-declined 1, lower-layer 60, not-applicable 27; 11 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="IPsec VPN endpoint RFC coverage - Ze" />
-        <meta name="twitter:description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); 11 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Release profile vpn-endpoint: mandatory 228 of 545 (41.8%), optional 7 of 168 (4.2%); ceiling mandatory 457 of 545 (83.9%), optional 168 of 168 (100.0%); mandatory excluded: feature-declined 1, lower-layer 60, not-applicable 27; 11 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>41.8%</strong><b>228 of 545 (41.8%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>4.2%</strong><b>7 of 168 (4.2%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>83.9%</strong><b>457 of 545 (83.9%); excluded: Optional feature not offered (classification can be revisited): 1 of 545 (0.2%); Met by a lower layer: 60 of 545 (11.0%); Not applicable (classification can be revisited): 27 of 545 (5.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>168 of 168 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 11 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 457 of 545 (83.9%); excluded: Optional feature not offered (classification can be revisited): 1 of 545 (0.2%); Met by a lower layer: 60 of 545 (11.0%); Not applicable (classification can be revisited): 27 of 545 (5.0%). Optional ceiling: 168 of 168 (100.0%). Lowest mandatory ceiling: rfc6071 0 of 8 (0.0%). Lowest optional ceiling: rfc3948 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5280/">RFC 5280</a></td>
 <td>Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile</td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 102 (25.5%)"><span style="width:25.5%"></span></div><span class="rfc-bar-note">26 of 102 (25.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 108 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 108 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 102 (25.5%)"><span style="width:25.5%"></span></div><span class="rfc-bar-note">26 of 102 (25.5%)</span><small class="rfc-ceiling">Ceiling: 49 of 102 (48.0%); excluded: Met by a lower layer: 53 of 102 (52.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 108 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 108 (0.0%)</span><small class="rfc-ceiling">Ceiling: 108 of 108 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc5280.md</td>
 </tr>
 </tbody>
@@ -149,44 +154,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3948/">RFC 3948</a> (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>UDP Encapsulation of IPsec ESP Packets</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 11 (45.5%)"><span style="width:45.5%"></span></div><span class="rfc-bar-note">5 of 11 (45.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 11 (45.5%)"><span style="width:45.5%"></span></div><span class="rfc-bar-note">5 of 11 (45.5%)</span><small class="rfc-ceiling">Ceiling: 10 of 11 (90.9%); excluded: Not applicable (classification can be revisited): 1 of 11 (9.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc3948.md</td>
 </tr>
 <tr><td><a href="../../rfc4106/">RFC 4106</a> (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP)</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span><small class="rfc-ceiling">Ceiling: 5 of 8 (62.5%); excluded: Met by a lower layer: 3 of 8 (37.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc4106.md</td>
 </tr>
 <tr><td><a href="../../rfc4301/">RFC 4301</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>Security Architecture for the Internet Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="50 of 100 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">50 of 100 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="50 of 100 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">50 of 100 (50.0%)</span><small class="rfc-ceiling">Ceiling: 92 of 100 (92.0%); excluded: Optional feature not offered (classification can be revisited): 1 of 100 (1.0%); Met by a lower layer: 4 of 100 (4.0%); Not applicable (classification can be revisited): 3 of 100 (3.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc4301.md</td>
 </tr>
 <tr><td><a href="../../rfc4303/">RFC 4303</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>IP Encapsulating Security Payload (ESP)</td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 23 (30.4%)"><span style="width:30.4%"></span></div><span class="rfc-bar-note">7 of 23 (30.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 23 (30.4%)"><span style="width:30.4%"></span></div><span class="rfc-bar-note">7 of 23 (30.4%)</span><small class="rfc-ceiling">Ceiling: 9 of 23 (39.1%); excluded: Not applicable (classification can be revisited): 14 of 23 (60.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc4303.md</td>
 </tr>
 <tr><td><a href="../../rfc5282/">RFC 5282</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247)</td>
 <td>Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="19 of 19 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">19 of 19 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="19 of 19 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">19 of 19 (100.0%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc5282.md</td>
 </tr>
 <tr><td><a href="../../rfc7296/">RFC 7296</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247)</td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="82 of 234 (35.0%)"><span style="width:35.0%"></span></div><span class="rfc-bar-note">82 of 234 (35.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 9 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">4 of 9 (44.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="82 of 234 (35.0%)"><span style="width:35.0%"></span></div><span class="rfc-bar-note">82 of 234 (35.0%)</span><small class="rfc-ceiling">Ceiling: 234 of 234 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 9 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">4 of 9 (44.4%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc7296.md</td>
 </tr>
 <tr><td><a href="../../rfc8247/">RFC 8247</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296)</td>
 <td>Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="16 of 20 (80.0%)"><span style="width:80.0%"></span></div><span class="rfc-bar-note">16 of 20 (80.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="16 of 20 (80.0%)"><span style="width:80.0%"></span></div><span class="rfc-bar-note">16 of 20 (80.0%)</span><small class="rfc-ceiling">Ceiling: 20 of 20 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc8247.md</td>
 </tr>
 </tbody>
@@ -199,14 +204,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7427/">RFC 7427</a></td>
 <td>Signature Authentication in the Internet Key Exchange Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 4 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">2 of 4 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 4 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">2 of 4 (50.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 4 (75.0%); excluded: Not applicable (classification can be revisited): 1 of 4 (25.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc7427.md</td>
 </tr>
 <tr><td><a href="../../rfc8221/">RFC 8221</a></td>
 <td>Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH)</td>
-<td><div class="rfc-bar" role="img" aria-label="16 of 16 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">16 of 16 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="16 of 16 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">16 of 16 (100.0%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc8221.md</td>
 </tr>
 </tbody>
@@ -219,8 +224,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6071/">RFC 6071</a></td>
 <td>IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 0 of 8 (0.0%); excluded: Not applicable (classification can be revisited): 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
 <td>vpn-endpoint: required by rfc/short/rfc6071.md</td>
 </tr>
 </tbody>
@@ -228,39 +233,40 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Optional (not counted)</h2>
-<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 1 of 54 (1.9%), optional 0 of 22 (0.0%); 5 RFCs, 0 not walked.</p>
+<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 1 of 54 (1.9%), optional 0 of 22 (0.0%); ceiling mandatory 53 of 54 (98.1%), optional 22 of 22 (100.0%); mandatory excluded: lower-layer 1; 5 RFCs, 0 not walked.</p>
+<p>Mandatory ceiling: 53 of 54 (98.1%); excluded: Met by a lower layer: 1 of 54 (1.9%). Optional ceiling: 22 of 22 (100.0%). Lowest mandatory ceiling: rfc7634 1 of 2 (50.0%). Lowest optional ceiling: rfc7383 15 of 15 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4754/">RFC 4754</a></td>
 <td>IKE and IKEv2 Authentication Using the Elliptic Curve Digital Signature Algorithm (ECDSA)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>vpn-endpoint: optional in rfc/short/rfc4754.md</td>
 </tr>
 <tr><td><a href="../../rfc7383/">RFC 7383</a></td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 25 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 25 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 15 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 15 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 25 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 25 (0.0%)</span><small class="rfc-ceiling">Ceiling: 25 of 25 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 15 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 15 (0.0%)</span><small class="rfc-ceiling">Ceiling: 15 of 15 (100.0%)</small></td>
 <td>vpn-endpoint: optional in rfc/short/rfc7383.md</td>
 </tr>
 <tr><td><a href="../../rfc7634/">RFC 7634</a></td>
 <td>ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 2 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">1 of 2 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 2 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">1 of 2 (50.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 2 (50.0%); excluded: Met by a lower layer: 1 of 2 (50.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 <td>vpn-endpoint: optional in rfc/short/rfc7634.md</td>
 </tr>
 <tr><td><a href="../../rfc8031/">RFC 8031</a></td>
 <td>Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>vpn-endpoint: optional in rfc/short/rfc8031.md</td>
 </tr>
 <tr><td><a href="../../rfc9370/">RFC 9370</a></td>
 <td>Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 23 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 23 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 23 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 23 (0.0%)</span><small class="rfc-ceiling">Ceiling: 23 of 23 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>vpn-endpoint: optional in rfc/short/rfc9370.md</td>
 </tr>
 </tbody>
@@ -298,7 +304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

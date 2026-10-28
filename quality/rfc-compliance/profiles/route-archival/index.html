@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Route archival RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); 3 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); ceiling mandatory 14 of 23 (60.9%), optional 13 of 13 (100.0%); mandatory excluded: not-applicable 9; 3 RFCs, 0 not walked." />
         <meta property="og:title" content="Route archival RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); 3 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); ceiling mandatory 14 of 23 (60.9%), optional 13 of 13 (100.0%); mandatory excluded: not-applicable 9; 3 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Route archival RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); 3 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate route-archival: mandatory 11 of 23 (47.8%), optional 0 of 13 (0.0%); ceiling mandatory 14 of 23 (60.9%), optional 13 of 13 (100.0%); mandatory excluded: not-applicable 9; 3 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>47.8%</strong><b>11 of 23 (47.8%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>0.0%</strong><b>0 of 13 (0.0%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>60.9%</strong><b>14 of 23 (60.9%); excluded: Not applicable (classification can be revisited): 9 of 23 (39.1%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>13 of 13 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 3 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 14 of 23 (60.9%); excluded: Not applicable (classification can be revisited): 9 of 23 (39.1%). Optional ceiling: 13 of 13 (100.0%). Lowest mandatory ceiling: rfc6397 0 of 4 (0.0%). Lowest optional ceiling: rfc6396 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 10</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6396/">RFC 6396</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 13 (46.2%)"><span style="width:46.2%"></span></div><span class="rfc-bar-note">6 of 13 (46.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 13 (46.2%)"><span style="width:46.2%"></span></div><span class="rfc-bar-note">6 of 13 (46.2%)</span><small class="rfc-ceiling">Ceiling: 8 of 13 (61.5%); excluded: Not applicable (classification can be revisited): 5 of 13 (38.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -148,13 +153,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6397/">RFC 6397</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 0 of 4 (0.0%); excluded: Not applicable (classification can be revisited): 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 <tr><td><a href="../../rfc8050/">RFC 8050</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 </tr>
 </tbody>
 </table>
@@ -191,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

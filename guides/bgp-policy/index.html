@@ -102,9 +102,11 @@ direction supplies its final decision; references inherited from less-specific
 levels are not replaced. Each configured direction must state its own final,
 even if it has no references. Use <code>insert</code> in the editor when order matters.</p>
 <p>For example, <code>filter { import { filters [ name ]; final accept; } export { final reject; } }</code> runs <code>name</code> on import and rejects every export that reaches
-the policy final. An absent direction keeps the existing automatic-filter
-behavior and accepts when those filters finish; it is not a configured empty
-policy.</p>
+the policy final. With no explicit policy at any level, EBGP rejects routes
+in that direction (RFC 8212 Section 3). IBGP keeps its accepting default,
+including sessions using the migration AS. Automatic and inactive references
+do not count as an explicit policy.</p>
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 <p>Named <code>loop-detection</code> instances remain visible in the effective import policy,
 including when the direction has no operator <code>final</code>. Plain <code>no-self-as</code>,
 <code>loop-detection:no-self-as</code>, and canonical <code>loop:no-self-as</code> references select
@@ -114,21 +116,31 @@ the policy RPC chain. Deactivating its import reference disables that check
 for the peer. Earlier named automatic references could incorrectly attempt an
 RPC to the instance name and fail with <code>unknown plugin</code>.
 An active named internal reference on export is refused: these instances
-configure ingress checks, not an export policy. Remove that export reference
-or deactivate it to record a deliberate no-check decision. Automatic import
-references never populate export.</p>
+configure ingress checks, not an export policy. The refusal names the location
+where the reference was written and prints the exact editor command to
+deactivate it. Use that original location and spelling, not the effective
+peer's canonical reference. For example, a reference written on <code>group customers</code>
+as <code>loop-detection:no-self-as</code> is corrected in the configuration editor with:</p>
+<pre><code class="language-text">top
+deactivate bgp group customers filter export filters loop-detection:no-self-as
+commit now
+</code></pre>
+<p>Deactivation keeps that member as a deliberate no-check decision; it does not
+remove other filters or change the final. Removing the reference at its original
+location is also an option. Automatic import references never populate export.</p>
 <p>A reload compares the whole effective policy. Changing only the export <code>final</code>
 therefore reconciles advertisements on the existing session without a source
-UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
-including removal of the direction, regenerates configured static, default and
-plugin routes and replays retained received routes through the configured replay
+UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance
+regenerates configured static, default and plugin routes and replays retained
+received routes through the configured replay
 owner. Ordinary received-route restoration requires the receive store and that
 owner's existing send permission. FlowSpec instead restores the selecting RIB's
 currently authorized paths through the same owner. A destination negotiating only
 FlowSpec does not require the optional receive store; negotiated ordinary families
 still require their retained source.
-An already accepting direction can be removed without replay or resetting the
-delivered static-route set; routes removed in the same reload are still withdrawn.
+Removing the last explicit export policy rejects on EBGP. On IBGP, removing an
+accepting direction needs no replay or static-route reset. Routes removed in the
+same reload are still withdrawn.
 If required restoration fails, reload returns the error and rolls back the policy
 instead of committing an accepting configuration with stale rejected state.</p>
 <p>One-shot API announcements have no retained desired source. They are withdrawn
@@ -468,8 +480,9 @@ violating the arity contract and that an attribute went out unchanged.</p>
 <code>filters</code> and <code>final</code>, including a configured direction with no filters.
 Peer detail reports the same policy under <code>import-policy</code> and <code>export-policy</code>.
 Automatic-only filters have no configured <code>final</code>; an entirely absent policy
-is omitted. Policy dry-run applies the same final as live execution.
-With <code>final reject</code>, a pure withdrawal remains <code>accept</code> with unchanged resulting
+is omitted. These status objects describe configured presence, not the default.
+Policy dry-run applies the live session-aware final: absence rejects on EBGP and
+accepts on IBGP. With a rejecting final, a pure withdrawal remains <code>accept</code> with unchanged resulting
 text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports <code>reject</code> without resulting text; neither is a successful withdrawal.</p>
@@ -480,7 +493,11 @@ invocation. The overall <code>action</code> describes the external-policy stage 
 final only, not whether that unevaluated guard would pass on a live session.
 A single-filter override selecting an in-process check is refused with an
 explanation; exercise it with an UPDATE on the peer session instead. Inactive
-references do not execute and have no trace entry.</p>
+references do not execute and have no trace entry.
+When the remote AS is unresolved, the overall action is <code>undetermined</code> and
+<code>reason</code> tells you to wait for establishment and repeat <code>show policy test</code>.
+No filter executes, including a single-filter override. Trace and text are empty.</p>
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <p>Use the same route at each boundary:</p>
 <pre><code class="language-console">ze cli -c "show bgp rib peer transit-a"
 ze cli -c "show bgp rib best"
@@ -548,7 +565,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -2796,7 +2796,13 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
 
-Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
+Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify/undetermined), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
+
+If the remote AS is unresolved, `action` is `undetermined` and `reason` tells you
+to wait for establishment and repeat `show policy test`. No filter executes,
+including a single-filter override. Trace and text are empty, with no wire
+changes. For a known EBGP session, an absent direction has a rejecting final.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,
@@ -2880,6 +2886,15 @@ send bgp <sel> update hex <hex-data>
 send bgp <sel> update b64 <b64-data>
 send bgp <sel> raw <hex|b64> <data> [type <type>]
 ```
+
+Raw UPDATEs, whether supplied as a complete packet or with `type update`, obey
+the destination's export final. An absent EBGP export policy blocks announcements;
+an absent IBGP policy still accepts. A rejecting final preserves explicit
+withdrawals and EOR, and removes announcements from mixed UPDATEs. Opaque bytes
+that cannot be proved safe, including a control packet followed by an UPDATE,
+are suppressed when export rejects. A complete, recognized non-UPDATE control
+packet is unaffected. Raw AS_SET diagnostics remain available when export accepts.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, rawControlPacket -->
 
 On-demand origination, tracked by tag so a later withdraw can name it:
 

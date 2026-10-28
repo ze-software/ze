@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Route collector RFC coverage - Ze</title>
-        <meta name="description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); 18 RFCs, 0 not walked." />
+        <meta name="description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); ceiling mandatory 341 of 360 (94.7%), optional 99 of 99 (100.0%); mandatory excluded: feature-declined 1, not-applicable 18; 18 RFCs, 0 not walked." />
         <meta property="og:title" content="Route collector RFC coverage - Ze" />
-        <meta property="og:description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); 18 RFCs, 0 not walked." />
+        <meta property="og:description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); ceiling mandatory 341 of 360 (94.7%), optional 99 of 99 (100.0%); mandatory excluded: feature-declined 1, not-applicable 18; 18 RFCs, 0 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Route collector RFC coverage - Ze" />
-        <meta name="twitter:description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); 18 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Release profile route-collector: mandatory 202 of 360 (56.1%), optional 8 of 99 (8.1%); ceiling mandatory 341 of 360 (94.7%), optional 99 of 99 (100.0%); mandatory excluded: feature-declined 1, not-applicable 18; 18 RFCs, 0 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>56.1%</strong><b>202 of 360 (56.1%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>8.1%</strong><b>8 of 99 (8.1%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>94.7%</strong><b>341 of 360 (94.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 360 (0.3%); Not applicable (classification can be revisited): 18 of 360 (5.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>99 of 99 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 18 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 341 of 360 (94.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 360 (0.3%); Not applicable (classification can be revisited): 18 of 360 (5.0%). Optional ceiling: 99 of 99 (100.0%). Lowest mandatory ceiling: rfc6397 0 of 4 (0.0%). Lowest optional ceiling: rfc2545 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4271/">RFC 4271</a></td>
 <td>A Border Gateway Protocol 4 (BGP-4)</td>
-<td><div class="rfc-bar" role="img" aria-label="83 of 133 (62.4%)"><span style="width:62.4%"></span></div><span class="rfc-bar-note">83 of 133 (62.4%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 34 (8.8%)"><span style="width:8.8%"></span></div><span class="rfc-bar-note">3 of 34 (8.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="83 of 133 (62.4%)"><span style="width:62.4%"></span></div><span class="rfc-bar-note">83 of 133 (62.4%)</span><small class="rfc-ceiling">Ceiling: 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 34 (8.8%)"><span style="width:8.8%"></span></div><span class="rfc-bar-note">3 of 34 (8.8%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc4271.md</td>
 </tr>
 </tbody>
@@ -149,26 +154,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2545/">RFC 2545</a></td>
 <td>Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 5 (60.0%)"><span style="width:60.0%"></span></div><span class="rfc-bar-note">3 of 5 (60.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 5 (60.0%)"><span style="width:60.0%"></span></div><span class="rfc-bar-note">3 of 5 (60.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc2545.md</td>
 </tr>
 <tr><td><a href="../../rfc5492/">RFC 5492</a></td>
 <td>Capabilities Advertisement with BGP-4</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 9 (22.2%)"><span style="width:22.2%"></span></div><span class="rfc-bar-note">2 of 9 (22.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 9 (22.2%)"><span style="width:22.2%"></span></div><span class="rfc-bar-note">2 of 9 (22.2%)</span><small class="rfc-ceiling">Ceiling: 8 of 9 (88.9%); excluded: Not applicable (classification can be revisited): 1 of 9 (11.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc5492.md</td>
 </tr>
 <tr><td><a href="../../rfc6608/">RFC 6608</a></td>
 <td>Subcodes for BGP Finite State Machine Error</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>route-collector: required by rfc/short/rfc6608.md</td>
 </tr>
 <tr><td><a href="../../rfc9687/">RFC 9687</a></td>
 <td>Border Gateway Protocol 4 (BGP-4) Send Hold Timer</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 13 (23.1%)"><span style="width:23.1%"></span></div><span class="rfc-bar-note">3 of 13 (23.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 13 (23.1%)"><span style="width:23.1%"></span></div><span class="rfc-bar-note">3 of 13 (23.1%)</span><small class="rfc-ceiling">Ceiling: 13 of 13 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc9687.md</td>
 </tr>
 </tbody>
@@ -181,8 +186,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4760/">RFC 4760</a></td>
 <td>Multiprotocol Extensions for BGP-4</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 11 (9.1%)"><span style="width:9.1%"></span></div><span class="rfc-bar-note">1 of 11 (9.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 11 (9.1%)"><span style="width:9.1%"></span></div><span class="rfc-bar-note">1 of 11 (9.1%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc4760.md</td>
 </tr>
 </tbody>
@@ -195,14 +200,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6793/">RFC 6793</a> (cycle with rfc5668)</td>
 <td>BGP Support for Four-Octet Autonomous System (AS) Number Space</td>
-<td><div class="rfc-bar" role="img" aria-label="20 of 30 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">20 of 30 (66.7%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="20 of 30 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">20 of 30 (66.7%)</span><small class="rfc-ceiling">Ceiling: 30 of 30 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc6793.md</td>
 </tr>
 <tr><td><a href="../../rfc7911/">RFC 7911</a></td>
 <td>Advertisement of Multiple Paths in BGP</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 9 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">9 of 9 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="9 of 9 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">9 of 9 (100.0%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc7911.md</td>
 </tr>
 </tbody>
@@ -215,14 +220,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6286/">RFC 6286</a></td>
 <td>Autonomous-System-Wide Unique BGP Identifier for BGP-4</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 1 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">1 of 1 (100.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 1 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">1 of 1 (100.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc6286.md</td>
 </tr>
 <tr><td><a href="../../rfc7606/">RFC 7606</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950)</td>
 <td>Revised Error Handling for BGP UPDATE Messages</td>
-<td><div class="rfc-bar" role="img" aria-label="28 of 53 (52.8%)"><span style="width:52.8%"></span></div><span class="rfc-bar-note">28 of 53 (52.8%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="28 of 53 (52.8%)"><span style="width:52.8%"></span></div><span class="rfc-bar-note">28 of 53 (52.8%)</span><small class="rfc-ceiling">Ceiling: 52 of 53 (98.1%); excluded: Not applicable (classification can be revisited): 1 of 53 (1.9%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc7606.md</td>
 </tr>
 </tbody>
@@ -235,20 +240,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7607/">RFC 7607</a></td>
 <td>Codification of AS 0 Processing</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>route-collector: required by rfc/short/rfc7607.md</td>
 </tr>
 <tr><td><a href="../../rfc7854/">RFC 7854</a></td>
 <td>BGP Monitoring Protocol (BMP)</td>
-<td><div class="rfc-bar" role="img" aria-label="25 of 39 (64.1%)"><span style="width:64.1%"></span></div><span class="rfc-bar-note">25 of 39 (64.1%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 9 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">3 of 9 (33.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="25 of 39 (64.1%)"><span style="width:64.1%"></span></div><span class="rfc-bar-note">25 of 39 (64.1%)</span><small class="rfc-ceiling">Ceiling: 39 of 39 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 9 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">3 of 9 (33.3%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc7854.md</td>
 </tr>
 <tr><td><a href="../../rfc9774/">RFC 9774</a></td>
 <td>Deprecation of AS_SET and AS_CONFED_SET in BGP</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>route-collector: required by rfc/short/rfc9774.md</td>
 </tr>
 </tbody>
@@ -261,14 +266,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc8671/">RFC 8671</a></td>
 <td>Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 10 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">2 of 10 (20.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 10 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">2 of 10 (20.0%)</span><small class="rfc-ceiling">Ceiling: 9 of 10 (90.0%); excluded: Optional feature not offered (classification can be revisited): 1 of 10 (10.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc8671.md</td>
 </tr>
 <tr><td><a href="../../rfc9069/">RFC 9069</a></td>
 <td>Support for Local RIB in the BGP Monitoring Protocol (BMP)</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 16 (56.2%)"><span style="width:56.2%"></span></div><span class="rfc-bar-note">9 of 16 (56.2%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="9 of 16 (56.2%)"><span style="width:56.2%"></span></div><span class="rfc-bar-note">9 of 16 (56.2%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>route-collector: required by rfc/short/rfc9069.md</td>
 </tr>
 </tbody>
@@ -281,8 +286,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6396/">RFC 6396</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 13 (46.2%)"><span style="width:46.2%"></span></div><span class="rfc-bar-note">6 of 13 (46.2%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 13 (46.2%)"><span style="width:46.2%"></span></div><span class="rfc-bar-note">6 of 13 (46.2%)</span><small class="rfc-ceiling">Ceiling: 8 of 13 (61.5%); excluded: Not applicable (classification can be revisited): 5 of 13 (38.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc6396.md</td>
 </tr>
 </tbody>
@@ -295,14 +300,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6397/">RFC 6397</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 0 of 4 (0.0%); excluded: Not applicable (classification can be revisited): 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 <td>route-collector: required by rfc/short/rfc6397.md</td>
 </tr>
 <tr><td><a href="../../rfc8050/">RFC 8050</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 6 (83.3%)"><span style="width:83.3%"></span></div><span class="rfc-bar-note">5 of 6 (83.3%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
 <td>route-collector: required by rfc/short/rfc8050.md</td>
 </tr>
 </tbody>
@@ -310,27 +315,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Optional (not counted)</h2>
-<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 17 of 27 (63.0%), optional 3 of 12 (25.0%); 3 RFCs, 0 not walked.</p>
+<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 17 of 27 (63.0%), optional 3 of 12 (25.0%); ceiling mandatory 25 of 27 (92.6%), optional 12 of 12 (100.0%); mandatory excluded: not-applicable 2; 3 RFCs, 0 not walked.</p>
+<p>Mandatory ceiling: 25 of 27 (92.6%); excluded: Not applicable (classification can be revisited): 2 of 27 (7.4%). Optional ceiling: 12 of 12 (100.0%). Lowest mandatory ceiling: rfc8654 10 of 12 (83.3%). Lowest optional ceiling: rfc2918 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc9072/">RFC 9072</a></td>
 <td>Extended Optional Parameters Length for BGP OPEN Message</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 9 (55.6%)"><span style="width:55.6%"></span></div><span class="rfc-bar-note">5 of 9 (55.6%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 9 (55.6%)"><span style="width:55.6%"></span></div><span class="rfc-bar-note">5 of 9 (55.6%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
 <td>route-collector: optional in rfc/short/rfc9072.md</td>
 </tr>
 <tr><td><a href="../../rfc2918/">RFC 2918</a></td>
 <td>Route Refresh Capability for BGP-4</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 5 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">1 of 5 (20.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 6 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">3 of 6 (50.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 5 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">1 of 5 (20.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
 <td>route-collector: optional in rfc/short/rfc2918.md</td>
 </tr>
 <tr><td><a href="../../rfc8654/">RFC 8654</a></td>
 <td>Extended Message Support for BGP</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 12 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">9 of 12 (75.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 4 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">1 of 4 (25.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="9 of 12 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">9 of 12 (75.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 12 (83.3%); excluded: Not applicable (classification can be revisited): 2 of 12 (16.7%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 4 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">1 of 4 (25.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>route-collector: optional in rfc/short/rfc8654.md</td>
 </tr>
 </tbody>
@@ -368,7 +374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

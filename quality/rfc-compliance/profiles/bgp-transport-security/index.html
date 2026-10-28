@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP transport security RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); 3 RFCs, 1 not walked." />
+        <meta name="description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); ceiling mandatory 12 of 12 (100.0%), optional 7 of 7 (100.0%); 3 RFCs, 1 not walked." />
         <meta property="og:title" content="BGP transport security RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); 3 RFCs, 1 not walked." />
+        <meta property="og:description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); ceiling mandatory 12 of 12 (100.0%), optional 7 of 7 (100.0%); 3 RFCs, 1 not walked." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="BGP transport security RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); 3 RFCs, 1 not walked." />
+        <meta name="twitter:description" content="Technology aggregate bgp-transport-security: mandatory 12 of 12 (100.0%), optional 1 of 7 (14.3%); ceiling mandatory 12 of 12 (100.0%), optional 7 of 7 (100.0%); 3 RFCs, 1 not walked." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -118,16 +119,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <div class="rfc-card-grid">
 <div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>100.0%</strong><b>12 of 12 (100.0%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
 <div class="rfc-card rfc-neutral"><span>Optional</span><strong>14.3%</strong><b>1 of 7 (14.3%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>100.0%</strong><b>12 of 12 (100.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>7 of 7 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
 <div class="rfc-card rfc-neutral"><span>Not walked</span><strong>1</strong><b>of 3 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
 <div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
 </div>
+<p>Mandatory ceiling: 12 of 12 (100.0%). Optional ceiling: 7 of 7 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2385 8 of 8 (100.0%). Lowest optional ceiling: rfc2385 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -135,8 +140,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2385/">RFC 2385</a></td>
 <td>Protection of BGP Sessions via the TCP MD5 Signature Option</td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 8 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">8 of 8 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 8 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">8 of 8 (100.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -148,8 +153,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5082/">RFC 5082</a></td>
 <td>The Generalized TTL Security Mechanism (GTSM)</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 6 (16.7%)"><span style="width:16.7%"></span></div><span class="rfc-bar-note">1 of 6 (16.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 6 (16.7%)"><span style="width:16.7%"></span></div><span class="rfc-bar-note">1 of 6 (16.7%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
 </tr>
 </tbody>
 </table>
@@ -199,7 +204,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 14:54 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
                 </div>
             </div>
         </footer>

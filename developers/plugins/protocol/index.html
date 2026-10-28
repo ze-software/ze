@@ -1007,7 +1007,14 @@ each wire method to its registered handler.</p>
 <td><code>OnConfigOperationCommit</code></td>
 <td><code>ConfigOperationCommitInput</code></td>
 <td><code>ConfigOperationCommitOutput</code></td>
-<td>Commit operation journals</td>
+<td>Commit reversible operation state; retain undo through whole-reload acceptance</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-complete</code></td>
+<td><code>OnConfigComplete</code></td>
+<td><code>ConfigCompleteInput</code></td>
+<td><code>ConfigCompleteOutput</code></td>
+<td>Acknowledge cleanup for the named original transaction after acceptance or completed abort</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:validate-open</code></td>
@@ -1067,6 +1074,18 @@ each wire method to its registered handler.</p>
 </tr>
 </tbody>
 </table>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete, operation callback registration -->
+<!-- source: pkg/plugin/rpc/types.go -- ConfigCompleteInput, ConfigCompleteOutput -->
+<p>An <code>OnConfigComplete</code> handler automatically declares <code>config-completion</code> in
+Stage 1. Its context carries the absolute <code>deadline-ms</code> work bound. Complete
+cleanup before returning: callback queue admission is not a receipt. Keep
+operation journals through <code>OnConfigOperationCommit</code>; discard only the matching
+transaction on accepted completion. Rejected completion follows original undo,
+after section-owned configuration and filters have been restored. A completion
+error after acceptance reports an active candidate, not a rollback.</p>
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
 <p>A peer's AS is not always known when an event is written. A dynamic peer's AS
 comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in
 OpenSent and the FSM changes before OpenConfirm carry none. The JSON peer
@@ -1368,7 +1387,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
                 </div>
             </div>
         </footer>

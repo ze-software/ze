@@ -98,6 +98,12 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 </ol></details></nav><div class="doc-body">
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
+<p>Interface operation journals survive the inner operation commit. A later owner
+failure or outer candidate-publication failure replays their original inverses;
+whole-reload acceptance releases them through the acknowledged <code>config-complete</code>
+callback. Config restoration also restores the active interface configuration
+and reconciles its DHCP, PPPoE and Router Advertisement workers.</p>
+<!-- source: internal/component/iface/register.go -- runEngine -->
 <h2 id="capability-table">Capability Table</h2>
 <table>
 <thead>
@@ -2633,7 +2639,7 @@ under exact-or-reject.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
                 </div>
             </div>
         </footer>

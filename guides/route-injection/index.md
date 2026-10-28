@@ -316,6 +316,18 @@ Routes are sent to peers matching the selector:
 
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 
+The separate `send bgp <selector> raw <hex|b64> <data> [type <type>]` diagnostic
+command also obeys export-final admission. Both full-packet and UPDATE-body
+forms suppress announcements when an EBGP destination has no export policy;
+IBGP absence still accepts. Raw explicit withdrawals and EOR remain available
+under rejection, unlike the managed-command session prerequisite above, and a
+mixed UPDATE retains only its explicit withdrawals. Complete non-UPDATE control
+packets are unaffected. Opaque diagnostics, including uncertain framing or
+trailing packets, require an accepting export final; otherwise no bytes are sent.
+With acceptance, raw AS_SET testing and opaque flush-then-retire behavior remain
+unchanged. A successful raw command response does not prove policy admitted bytes.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, finishRawWrite, rawControlPacket -->
+
 ## Commit Workflow
 
 A named commit collects WITHDRAWALS and sends them together:

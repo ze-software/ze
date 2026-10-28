@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 72.0% | 77 of 107 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 65.4% | 70 of 107 tagged units, 0 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,8 +28,9 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 31 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 31 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 31 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 31 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 8 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,6 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
@@ -102,6 +104,10 @@ Operator/admin login RADIUS is a separate backend under `system/authentication/r
 
 **Annotated (including scoped evidence) (5):** [`RFC2865-3-2`](#rfc2865-3-2), [`RFC2865-2.5-1`](#rfc2865-2.5-1), [`RFC2865-5.2-2`](#rfc2865-5.2-2), [`RFC2865-4.1-4`](#rfc2865-4.1-4), [`RFC2865-5-5`](#rfc2865-5-5)
 
+## Attainable ceiling
+
+Mandatory ceiling: 31 of 31 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2865 31 of 31 (100.0%). Lowest optional ceiling: rfc2865 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
@@ -109,7 +115,7 @@ Operator/admin login RADIUS is a separate backend under `system/authentication/r
 | `RFC2865-3-1` | The minimum length is 20 and maximum length is 4096. (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestPacketRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L141). **positive:** `unit/verify` [`TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L171). **negative:** `unit/verify` [`TestDecodeBadLength`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L193). **negative:** `unit/verify` [`TestDecodeTooLong`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L180). **negative:** `unit/verify` [`TestDecodeTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L171). **negative:** `unit/verify` [`TestRFC2865PacketOutsideTheLengthBoundsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L204) |
 | `RFC2865-3-2` | In Access-Request Packets, the Authenticator value is a 16 octet random number, called the Request Authenticator. The value SHOULD be unpredictable and unique over the lifetime of a secret (the password shared between the client and the RADIUS server), since repetition of a request value in conjunction with the same secret would permit an attacker to reply with a previously intercepted response. (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2865RequestAuthenticatorRandom`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40). **negative:** no negative test. **{single-polarity}:** the Request Authenticator is 16 octets from crypto/rand (internal/component/radius/packet.go:32) and there is no invalid-authenticator generation path to drive a negative |
 | `RFC2865-3-3` | The value of the Authenticator field in Access-Accept, Access- Reject, and Access-Challenge packets is called the Response Authenticator, and contains a one-way MD5 hash calculated over a stream of octets consisting of: the RADIUS packet, beginning with the Code field, including the Identifier, the Length, the Request Authenticator field from the Access-Request packet, and the response Attributes, followed by the shared secret. That is, ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) where + denotes concatenation. (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2865ResponseAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58). **positive:** `unit/verify` [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206). **positive:** `unit/verify` [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L240). **negative:** `unit/verify` [`TestRFC2865ResponseAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99). **negative:** `unit/verify` [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L214). **negative:** `unit/verify` [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246) |
-| `RFC2865-4.2-1` | Invalid packets are silently discarded. (§4.2) | MUST | 4.2 - Access-Accept | **positive:** `unit/verify` [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L389). **negative:** `unit/verify` [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L394) |
+| `RFC2865-4.2-1` | Invalid packets are silently discarded. (§4.2) | MUST | 4.2 - Access-Accept | **positive:** `unit/verify` [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L396). **negative:** `unit/verify` [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407) |
 | `RFC2865-2.5-1` | If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven't changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5) | MUST | 2.5 - Retransmission Hints | **positive:** `unit/verify` [`TestClientRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200). **positive:** `unit/verify` [`TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L111). **negative:** no negative test. **{single-polarity}:** a retransmission resends the identical pre-encoded request buffer (internal/component/radius/client.go:159), so the Identifier and Request Authenticator are unchanged by construction and there is no divergent-retransmit code path |
 | `RFC2865-5-1` | It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1) | MUST | 5 - Attributes | **positive:** `unit/verify` [`TestRFC2865AccessRequestUserName`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219). **positive:** `unit/verify` [`TestRFC2865SubscriberAccessRequestUserName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L31). **negative:** `unit/verify` [`TestRFC2865AccessRequestOmitsAnUnavailableUserName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L75) |
 | `RFC2865-5.2-1` | A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password (§5.2) | MUST | 5.2 - User-Password | **positive:** `unit/verify` [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35). **positive:** `unit/verify` [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97). **negative:** `unit/verify` [`TestRFC2865UserPasswordDependsOnSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156) |
@@ -191,23 +197,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Invalid packets are silently discarded. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify, internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2 moved. Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after 3fa8b278a9. rfc/full/rfc2865.txt Section 4.2: 'The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.' TestClientAuthenticatorVerify's first reply is now signed with the correct secret and only its Response Authenticator byte 4 is flipped; the Message-Authenticator HMAC runs with the Request Authenticator substituted (RFC 2869 5.14) so it still verifies, and the test fatals unless the mock's verifyResponseMessageAuthenticator verdict on that reply is Accepted. Only VerifyResponseAuth can therefore discard it: attempts >= 2 goes red if it is accepted (mutant: compare forced true, observed 'got 1 attempt', record 8bc5e1c3c3). Positive: the correctly signed retry is accepted (Code assertion; revert record). Isolation restored; the earlier weak finding (wrong-key reply also failed the HMAC) no longer applies.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L394) | unit/verify | revert, verified |
-| positive | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L389) | unit/verify | revert, verified |
+| negative | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407) | unit/verify | mutant, verified |
+| positive | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L396) | unit/verify | revert, verified |
 
 ### [`RFC2865-2.5-1`](#rfc2865-2.5-1)
 
 If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven't changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2865_client_test.go::TestClientRetransmit, internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort moved. TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestClientRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200) | unit/verify | revert, verified |
-| positive | [`TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L111) | unit/verify | revert, verified |
+| positive | [`TestClientRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L111) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2865-5-1`](#rfc2865-5-1)
 
@@ -321,9 +327,9 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L173) | unit/verify | unproven |
-| negative | [`TestExchangeRefusesAnEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179) | unit/verify | revert, verified |
+| negative | [`TestExchangeRefusesAnEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L168) | unit/verify | unproven |
-| positive | [`TestExchangeAcceptsANonEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L159) | unit/verify | revert, verified |
+| positive | [`TestExchangeAcceptsANonEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L159) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2865-4.1-1`](#rfc2865-4.1-1)
 
@@ -346,15 +352,15 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L141) | unit/verify | unproven |
-| negative | [`TestRetransmitToTheSameServerKeepsItsRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345) | unit/verify | revert, verified |
+| negative | [`TestRetransmitToTheSameServerKeepsItsRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L117) | unit/verify | unproven |
-| positive | [`TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308) | unit/verify | revert, verified |
+| positive | [`TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2865-4.1-2`](#rfc2865-4.1-2)
 
 It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress moved. Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS. TestRADIUSAuthNASIPAddress changed only to sign its mock Access-Accept (signAccessAnswer) so the reply survives the default Message-Authenticator presence check; its NAS-IP-Address assertions on the captured request are unchanged. TestAdminAccessRequestIdentifiesTheNAS (hasIP || hasID on the wire) and TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured (non-empty NAS-Identifier with nothing configured) still go red if a request names no NAS.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -461,7 +467,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRetransmitToTheSameServerKeepsItsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281) | unit/verify | revert, verified |
+| negative | [`TestRetransmitToTheSameServerKeepsItsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestSuccessiveRequestsUseDifferentIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L258) | unit/verify | revert, verified |
 
 ### [`RFC2865-5-5`](#rfc2865-5-5)

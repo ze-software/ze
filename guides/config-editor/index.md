@@ -209,8 +209,9 @@ the configuration: a moved entry is shown removed at its old position and added
 at its new position. Surviving entries follow working order;
 deleted entries appear after their original predecessor. Removed rows have no
 working line number, so they do not shift validation highlighting onto another
-entry.
-<!-- source: internal/component/cli/diff_tree.go -- diffList, renderDiffLines -->
+entry. Bracket leaf-list rows keep their leaf name and indentation in every
+change state, so a surviving bracket statement maps to its working line.
+<!-- source: internal/component/cli/diff_tree.go -- diffList, diffBracketLeaf, renderDiffLines -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 
 ### Secrets are masked on every display path

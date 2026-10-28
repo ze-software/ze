@@ -731,6 +731,23 @@ accounting goes to 1813, where that server is not listening. The two ports share
 the entry's address, shared key and failover position.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
+<p>Ze signs every Access-Request with a Message-Authenticator, and by default it
+discards any answer to one that carries no Message-Authenticator: this closes
+BlastRADIUS (CVE-2024-3596), where an attacker forges an Access-Accept from an
+Access-Reject. A server that predates 2024 and cannot sign its answers fails
+every subscriber login until it is upgraded or its entry sets
+<code>require-message-authenticator false</code>. Each discard steps
+<code>ze_radius_unsigned_response_discards_total{server}</code> and logs a rate-limited
+warning naming the server and the exact <code>set</code> command that accepts it, and
+<code>ze doctor</code> reports such a server as <code>doctor-radius-unsigned-response</code>. A
+<code>require-message-authenticator</code> value other than true or false is reported as
+<code>doctor-radius-invalid</code>, with the command that sets it, and that server is not
+probed. The leaf never applies to accounting.
+<code>docs/config-reference.md</code> ("RADIUS answer signing") has both RADIUS leaves.</p>
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
+<!-- source: internal/component/radius/client.go -- dispatchResponse, discardUnsignedResponse -->
+<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- checkRADIUSServers -->
+<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- udpServerReachable -->
 <p><code>nas-port-id-format</code> is the template for the NAS-Port-Id attribute (RFC 2869
 Section 5.17). An LNS has no physical port to number, so the operator composes
 one from <code>{nas-id}</code>, <code>{tunnel-id}</code> and <code>{session-id}</code>. Every other character is
@@ -1621,7 +1638,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 15:30 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
                 </div>
             </div>
         </footer>

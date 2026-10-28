@@ -5,19 +5,15 @@ Ze, an OpenNOS
 
 Plugin extensible Appliance option ExaBGP compatible
 
-Extend Ze with plugins for networking, automation and services of your own.
+Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.
 
-Ze speaks [**BGP**](https://ze-software.net/guides/bgp-peering/), [**ISIS**](https://ze-software.net/guides/isis/), [**OSPF**](https://ze-software.net/guides/ospf/), manages [**interfaces**](https://ze-software.net/features/interfaces/) and tunnels ([**IPsec VPN**](https://ze-software.net/guides/ipsec/), [**WireGuard**](https://ze-software.net/features/interfaces/#wireguard-configuration)), programs the [**FIB**](https://ze-software.net/reference/plugins/fib-kernel/), and exposes one [**YANG**](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, a [**web**](https://ze-software.net/features/web-interface/) interface, [**APIs**](https://ze-software.net/features/api-commands/) ([**REST**](https://ze-software.net/guides/api/#rest-endpoints), [**gRPC**](https://ze-software.net/guides/api/#grpc-services), [**gNMI**](https://ze-software.net/guides/gnmi/)), [**CLI**](https://ze-software.net/features/cli-commands/), and [**MCP**](https://ze-software.net/features/mcp-integration/).
-
-It is built on a configuration and protocol engine that runs as a [**daemon**](https://ze-software.net/architecture/) or [**immutable appliance**](https://ze-software.net/guides/appliance/).
-
- [Watch the demos](https://ze-software.net/demos/terminal/) [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) **Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
+ [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) [Watch the demos](https://ze-software.net/demos/terminal/) **Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
 
 Watch Ze at work: follow a real terminal lab, with its transcript alongside it.
 
  [Watch the other demos →](https://ze-software.net/demos/terminal/)
 
-A replayable Ze terminal lab.
+Enlarged preview from the recording. Play shows the full terminal. Use full screen for a closer look.
 
 **Ze / Looking glass**[Open full size ↗](https://ze-software.net/assets/product-routes.webp) [![Ze looking glass with prefix, AS path and community filters, a route graph and route table](https://ze-software.net/assets/product-routes.webp)](https://ze-software.net/assets/product-routes.webp) **Follow a route through the network.**
 
@@ -50,6 +46,10 @@ Inspect BGP sessions from Ze’s own CLI.
  [Explore CLI interaction →](https://ze-software.net/features/cli-commands/)
 
 A frame from the published terminal recording. Explore the recordings in the demo gallery.
+
+ Route and connect Speak [BGP](https://ze-software.net/guides/bgp-peering/), [ISIS](https://ze-software.net/guides/isis/) and [OSPF](https://ze-software.net/guides/ospf/). Manage [interfaces](https://ze-software.net/features/interfaces/) and tunnels with [IPsec VPN](https://ze-software.net/guides/ipsec/) and [WireGuard](https://ze-software.net/features/interfaces/#wireguard-configuration). Program the [FIB](https://ze-software.net/reference/plugins/fib-kernel/). Manage one configuration Ze exposes one [YANG](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/).
+
+Built on a configuration and protocol engine. Run it as a [daemon](https://ze-software.net/architecture/) or an [immutable appliance](https://ze-software.net/guides/appliance/).
 
  [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/features/web-interface/#browser-configuration-workflow) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
@@ -88,7 +88,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Across 167 RFCs
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,600+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,700+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.
