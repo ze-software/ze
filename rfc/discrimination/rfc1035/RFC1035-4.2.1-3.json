@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1035-4.2.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverForwardsToServerPort53",
+    "unit-sha": "e5f46de92b88502f",
+    "claim-sha": "9c930b18e6f773de",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "7fba297fec552410",
+    "break": "line 235: \"Port: defaultPort}\" -\u003e \"Port: defaultPort + 1}\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverForwardsToServerPort53",
+    "unit-sha": "e5f46de92b88502f",
+    "claim-sha": "9180a13a1bec8a9e",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+    "producer-sha": "7fba297fec552410",
+    "break": "line 247: \"u.Port = uint16(p)\" -\u003e \"u.Port = defaultPort\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverListensOnServerPort53",
+    "unit-sha": "04678fd46f43ceac",
+    "claim-sha": "7689d221c189f162",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/config.go::parseListener",
+    "producer-sha": "dac5ff9347292419",
+    "break": "line 169: \"uint16(defaultPort)\" -\u003e \"uint16(defaultPort + 1)\""
+  }
+]

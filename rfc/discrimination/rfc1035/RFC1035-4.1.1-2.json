@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverClearsAA",
+    "unit-sha": "7ed03437e51d8309",
+    "claim-sha": "5f95763f40f3ae65",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+    "producer-sha": "20319f40a6bf778e",
+    "break": "line 230: \"msg.Authoritative = false\" -\u003e \"msg.Authoritative = true\""
+  },
+  {
+    "rid": "RFC1035-4.1.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverClearsAA",
+    "unit-sha": "7ed03437e51d8309",
+    "claim-sha": "f9339b9466e144e9",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+    "producer-sha": "20319f40a6bf778e",
+    "break": "line 230: \"msg.Authoritative = false\" -\u003e \"msg.Authoritative, msg.RecursionDesired = false, false\""
+  }
+]

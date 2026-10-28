@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverHeaderZ",
+    "unit-sha": "00a85c48772bcfdd",
+    "claim-sha": "b90dc915e1455c74",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+    "producer-sha": "20319f40a6bf778e",
+    "break": "line 232: \"msg.Zero = false\" -\u003e \"msg.Zero = true\""
+  },
+  {
+    "rid": "RFC1035-4.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverHeaderZ",
+    "unit-sha": "00a85c48772bcfdd",
+    "claim-sha": "69513206c0b1f19f",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+    "producer-sha": "20319f40a6bf778e",
+    "break": "line 232: \"msg.Zero = false\" -\u003e \"msg.Zero = r.Zero\""
+  }
+]

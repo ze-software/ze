@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+    "unit-sha": "524e05eefb5cdf7f",
+    "claim-sha": "a0316f4344a67e7c",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::recursiveReplyLimit",
+    "producer-sha": "3d5270d897f5e800",
+    "break": "line 195: \"min(udpReplyLimit(r), RecursiveUDPSize)\" -\u003e \"RecursiveUDPSize\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+    "unit-sha": "524e05eefb5cdf7f",
+    "claim-sha": "3c5d5bb02f926030",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 134: \"isDatagram(w)\" -\u003e \"true\""
+  }
+]

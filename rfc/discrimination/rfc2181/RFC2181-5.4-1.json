@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-5.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverReplacesRRsetWhole",
+    "unit-sha": "519c174b3631d233",
+    "claim-sha": "3b9f78d428783b26",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::store",
+    "producer-sha": "d948cd69aa56908a",
+    "break": "line 187: \"c.removeLocked(old)\" -\u003e \"e.rrs = append(old.rrs[:len(old.rrs):len(old.rrs)], e.rrs...); c.removeLocked(old)\""
+  }
+]

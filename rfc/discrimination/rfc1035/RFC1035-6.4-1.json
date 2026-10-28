@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-6.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverInverseQueryNotImplemented",
+    "unit-sha": "7af32611a9f13657",
+    "claim-sha": "612bae30fadd1e92",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::Recursive",
+    "producer-sha": "7553b71952421adc",
+    "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode != dns.OpcodeQuery \u0026\u0026 r.Opcode != dns.OpcodeIQuery\""
+  },
+  {
+    "rid": "RFC1035-6.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverInverseQueryNotImplemented",
+    "unit-sha": "7af32611a9f13657",
+    "claim-sha": "cfa1e380eb954699",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/recursive.go::Recursive",
+    "producer-sha": "7553b71952421adc",
+    "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode != dns.OpcodeIQuery\""
+  }
+]

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release (the fttx-edge profile's LAN DNS resolver); existing supported behavior and its obligations remain required. |
@@ -14,28 +14,6 @@
 | Approved | Session f3ae7c00, 2026-10-27: Thomas chose to run this spec; the design is settled by the RFC 1034, 1035, 2181, 2308 and 5452 text and the Unbound behaviour quoted below |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
-
-## Blocker
-
-Found at `/ze-close` step 1 (deliverables review), 2026-10-28. Closure stopped
-before appending the closure template; no lesson file, no citer edit and no
-review artifact was written. Three deliverables this spec agreed are not in
-the tree. Each is implementation work (`/ze-implement`), not closure.
-
-| # | Owed by this spec | What the tree holds | What clears it |
-|---|-------------------|---------------------|----------------|
-| B-1 | Required Reading, `rfc/short/rfc1035.md` constraint: "each tagged test for those rows gains a resolver-side case with a discrimination record" (rows 2.3.3-1, 3.1-5, 4.1.1-1, 4.1.1-2, 4.1.4-5, 4.2.1-1/2, 4.2.1-3, 4.2.2-1, 6.4-1); Files to Modify: `rfc/short/rfc1035.md` resolver-side cases and Meta `Support coverage`; RFC Documentation: "every RFC 1035 and 2181 row that gains a resolver-side case has its record re-recorded" | `git grep -ln 'RFC requirement: RFC1035' -- internal` lists only `internal/core/dnsserver/rfc1035_handler_test.go`, `rfc1035_header_test.go`, and as112 and geodns test files; none names `Recursive` or `dnsresolver`. `rfc/short/rfc1035.md` `Support coverage` describes the authoritative shape only, and no commit since 07335960d8 touched that file. The behaviour is tested untagged (`TestRecursiveShape`, `TestRecursiveOpcode`, `TestRecursiveUDPSize` in `internal/core/dnsserver/recursive_test.go`; `TestCacheCaseFold` in `internal/plugins/dnsresolver/cache_test.go`) | tag a resolver-side unit per row (`RFC requirement: RFC1035-<id>`), take each record with `./le rfc record`, add the resolver to the summary's `Support coverage`, `./le rfc update` |
-| B-2 | Required Reading, `rfc/short/rfc2181.md` constraint: "5.4-1/5.4-2 (replace RRsets, never merge) and section 8 (TTL 0..2147483647) gain resolver cases" | `rfc/short/rfc2181.md` RFC2181-5.4-1 annotates only the stub cache (`internal/component/resolve/dns/cache.go`); 5.4-2 and 8-1 carry no resolver unit. The Phase 4 handoff records it: "Not done (outside brief): spec line 424 resolver cases on 5.4-1/5.4-2/section 8." Untagged proof exists: `TestCacheReplaceNotMerge`, `TestTTLHighBit` (`internal/plugins/dnsresolver/cache_test.go`) over `(*lru).put` and the TTL clamp in `cache.go` | tag resolver units for RFC2181-5.4-1, 5.4-2 and 8-1, record each with `./le rfc record`, rewrite the 5.4-1 annotation to name both producers |
-| B-3 | Documentation Update Checklist row 17 and Files to Modify: `docs/features/dns-resolver.md` points at the LAN resolver | the page said Ze answers queries "from two authoritative plugins", false since the resolver landed | fixed in the hand-back commit (the page now names `dnsresolver` and links `docs/guide/dns-resolver.md`) |
-
-Verified green at hand-back: `go test -count=1 -race` over
-`internal/plugins/dnsresolver`, `internal/core/dnsserver`,
-`internal/plugins/dhcpserver`, `internal/test/dnsquery`,
-`internal/test/mock/dns` (all `ok`, under `./le job run`); every test the TDD
-table names exists (`git grep 'func <name>('`, 66 of 66); `./le rfc check`
-reports 79 violations, none for RFC 1035, 2131, 2181, 4035, 6891 or 7858;
-both Owned journal rows read `fixed:`. The main thread sets the status back to
-`in-progress` once B-1 and B-2 are implemented, then reruns `/ze-close`.
 
 ## Owner decisions
 
@@ -408,6 +386,14 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `TestCacheReplaceNotMerge`, `TestCacheCaseFold`, `TestCacheTTLDecrement`, `TestTTLHighBit` | `internal/plugins/dnsresolver/cache_test.go` | AC-5, AC-6, AC-21, AC-27; RFC2181-5.4-1, RFC1035-3.1-5, RFC 2181 Section 8 | |
 | `TestNegativeCacheTTL` | `internal/plugins/dnsresolver/cache_test.go` | AC-7, R-10 | |
 | `TestTrustRanking` | `internal/plugins/dnsresolver/cache_test.go` | AC-20, RFC2181-5.4.1-3 | |
+| `TestRFC1035ResolverNameCase` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-2.3.3-1 and RFC1035-3.1-5, both polarities, on the resolver path: cache key and reply match fold case; a name differing in a letter stays a miss, a reply naming another name is not taken | |
+| `TestRFC1035ResolverHeaderZ`, `TestRFC1035ResolverClearsAA` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-4.1.1-1 and RFC1035-4.1.1-2, both polarities: reply Z clear whatever upstream and query carried; AA clear over an AA upstream, RD still copied | |
+| `TestRFC1035ResolverUnderstandsPointers` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-4.1.4-5 positive: a compressed upstream reply is understood | |
+| `TestRFC1035ResolverDatagramBound` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-4.2.1-1 and RFC1035-4.2.1-2, both polarities: no-OPT UDP reply at most 512 octets with TC, a fitting reply TC clear, the TCP reply whole | |
+| `TestRFC1035ResolverListensOnServerPort53`, `TestRFC1035ResolverForwardsToServerPort53` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-4.2.1-3: listener and forward server default to port 53; a configured forward port is kept | |
+| `TestRFC1035ResolverStreamFraming` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-4.2.2-1, both polarities: the TCP query upstream carries the two-byte length prefix, the UDP one does not | |
+| `TestRFC1035ResolverInverseQueryNotImplemented` | `internal/plugins/dnsresolver/rfc1035_resolver_test.go` | RFC1035-6.4-1, both polarities: IQUERY draws NOTIMP with no upstream query, a standard query is answered | |
+| `TestRFC2181ResolverReplacesRRsetWhole`, `TestRFC2181ResolverCacheIgnoresOrDiscards`, `TestRFC2181ResolverTTLBounds` | `internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` | RFC2181-5.4-1 (positive), RFC2181-5.4-2 and RFC2181-8-1 (both polarities) on the resolver cache | |
 | `TestSIGRRSetHandling` | `internal/plugins/dnsresolver/cache_test.go` | AC-9, RFC2181-5.3.1-2/3/4 | |
 | `TestUpstreamQueryShape` | `internal/plugins/dnsresolver/forward_test.go` | AC-8 (OPT 1232, DO clear), AC-10, RFC2181-5.4.1-9 (AA=0 on every resolver reply) | |
 | `TestReplyMatching`, `TestBailiwick` | `internal/plugins/dnsresolver/forward_test.go` | AC-18, AC-19, A-4 | |
@@ -672,6 +658,7 @@ same commit (`ai/rules/planning.md`).
 
 - RFC2131-4.1-12 and RFC2131-4.3.2-1 are proven here, because AC-32 is blocked on DHCP reply delivery: carriers `TestOfferReachesClientHardware` and `TestNakBroadcastWhenGiaddrZero` (`internal/plugins/dhcpserver/rfc2131_delivery_test.go`). Commit 3dcb766bbf changed the producer `replyDestination`, so `./le rfc check` re-judges their records, and a record that no longer verifies is re-taken with the same break.
 - RFC2181-5.4.1-4 is a SHOULD ("Clients should assume that other records may have come from the server's cache."), met by `rankOf` (`internal/plugins/dnsresolver/cache.go`) and exercised by `TestRFC2181AliasTargetNotAuthoritative`. It is not tagged: optional requirements are improved after mandatory coverage reaches 100%.
+- Resolver-side cases (former closure blockers B-1, B-2): RFC1035-2.3.3-1, 3.1-5, 4.1.1-1, 4.1.1-2, 4.1.4-5, 4.2.1-1, 4.2.1-2, 4.2.1-3, 4.2.2-1 and 6.4-1 are tagged in `internal/plugins/dnsresolver/rfc1035_resolver_test.go`, and RFC2181-5.4-1, 5.4-2 and 8-1 in `internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go`. Each has a `./le rfc record` record on the mutant route from a hand-written one-entry report (25 records; the reports and the recorder log are in the session scratch `rfc-resolver-b12/`), so each break goes to a `ze-test-judge`. RFC1035-4.1.4-5 has a positive resolver unit only: the pointer-loop refusal its negative names happens inside miekg/dns `Unpack`, where no in-tree break reaches. The RFC2181-5.4-1 annotation now names both producers, the stub cache and `lru.store`. Adding the resolver units staled the audit verdicts of RFC2181-5.4-2 and RFC2181-8-1, which an independent `ze-rfc-audit` judge re-makes (`./le rfc audit-stamp stem rfc2181 from <pending> mode rejudge`).
 
 ## Checklist
 

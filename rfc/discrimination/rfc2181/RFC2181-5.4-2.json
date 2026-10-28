@@ -31,5 +31,27 @@
     "producer": "internal/component/resolve/dns/cache.go::put",
     "producer-sha": "86bd12d0d5340a7e",
     "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2181-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards",
+    "unit-sha": "517033ae3b78707c",
+    "claim-sha": "7c6aaab7997636ae",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::store",
+    "producer-sha": "d948cd69aa56908a",
+    "break": "line 185: \"return old\" -\u003e \"old.rrs = append(old.rrs, e.rrs...); return old\""
+  },
+  {
+    "rid": "RFC2181-5.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards",
+    "unit-sha": "517033ae3b78707c",
+    "claim-sha": "22d6d8de2e25321d",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+    "producer-sha": "8d04b78d79dd473f",
+    "break": "line 40: \"qtype: qtype,\" -\u003e \"qtype: 0,\""
   }
 ]

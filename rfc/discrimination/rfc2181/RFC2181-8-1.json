@@ -2,6 +2,28 @@
   {
     "rid": "RFC2181-8-1",
     "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds",
+    "unit-sha": "757b196cf2fb589c",
+    "claim-sha": "83a20fb435728069",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::receivedTTL",
+    "producer-sha": "6bb38fd81139eeb4",
+    "break": "line 258: \"ttl\u0026ttlSignBit != 0\" -\u003e \"false \u0026\u0026 ttl\u0026ttlSignBit != 0\""
+  },
+  {
+    "rid": "RFC2181-8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds",
+    "unit-sha": "757b196cf2fb589c",
+    "claim-sha": "b29f8040cbfce805",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::receivedTTL",
+    "producer-sha": "6bb38fd81139eeb4",
+    "break": "line 258: \"ttl\u0026ttlSignBit != 0\" -\u003e \"ttl \u003e= ttlSignBit-1\""
+  },
+  {
+    "rid": "RFC2181-8-1",
+    "polarity": "positive",
     "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear",
     "unit-sha": "c29a1b1f9a1de80b",
     "claim-sha": "369b87e7dbb8edca",

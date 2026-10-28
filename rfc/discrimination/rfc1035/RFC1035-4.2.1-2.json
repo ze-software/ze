@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+    "unit-sha": "524e05eefb5cdf7f",
+    "claim-sha": "3b244c7a571956e0",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Truncated = false\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+    "unit-sha": "524e05eefb5cdf7f",
+    "claim-sha": "86d5a6ee7f987fc8",
+    "route": "mutant",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Truncated = true\""
+  }
+]

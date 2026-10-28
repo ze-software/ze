@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-4.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverStreamFraming",
+    "unit-sha": "85d2d96a9738204d",
+    "claim-sha": "87a6afec3a84fc51",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+    "producer-sha": "be20e1ad5539bf94",
+    "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(b); return e }()\""
+  },
+  {
+    "rid": "RFC1035-4.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverStreamFraming",
+    "unit-sha": "85d2d96a9738204d",
+    "claim-sha": "d3a9ab493d830e3e",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+    "producer-sha": "be20e1ad5539bf94",
+    "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { if network != networkUDP { return co.WriteMsg(query) }; b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(append([]byte{byte(len(b) \u003e\u003e 8), byte(len(b))}, b...)); return e }()\""
+  }
+]

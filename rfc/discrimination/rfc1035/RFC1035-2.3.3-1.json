@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-2.3.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+    "unit-sha": "031fcfce0ac02226",
+    "claim-sha": "229ccc6cd0735366",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+    "producer-sha": "8d04b78d79dd473f",
+    "break": "line 40: \"strings.ToLower(dns.Fqdn(name))\" -\u003e \"dns.Fqdn(name)\""
+  },
+  {
+    "rid": "RFC1035-2.3.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+    "unit-sha": "031fcfce0ac02226",
+    "claim-sha": "8ff467fcc8ac3893",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+    "producer-sha": "8d04b78d79dd473f",
+    "break": "line 40: \"strings.ToLower(dns.Fqdn(name))\" -\u003e \"strings.ToLower(dns.Fqdn(name))[:4]\""
+  }
+]

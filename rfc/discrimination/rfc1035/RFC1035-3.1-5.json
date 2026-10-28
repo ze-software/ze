@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1035-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+    "unit-sha": "031fcfce0ac02226",
+    "claim-sha": "08eee90e111a8e9d",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+    "producer-sha": "7be4bcb3a1b6190c",
+    "break": "line 71: \"strings.EqualFold(got.Name, want.Name)\" -\u003e \"strings.Compare(got.Name, want.Name) == 0\""
+  },
+  {
+    "rid": "RFC1035-3.1-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+    "unit-sha": "031fcfce0ac02226",
+    "claim-sha": "6aecba166c308a30",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+    "producer-sha": "7be4bcb3a1b6190c",
+    "break": "line 71: \"strings.EqualFold(got.Name, want.Name)\" -\u003e \"len(got.Name) == len(strings.ToLower(want.Name))\""
+  }
+]
