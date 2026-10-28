@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "31a5e844ce599efa",
     "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "31a5e844ce599efa",
-    "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes": "9a9d2c47607ef3ff",
-    "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting": "9a9d2c47607ef3ff"
+    "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes": "d2c2de6bb67efe69",
+    "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting": "d2c2de6bb67efe69"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "2d034aa93d45795f",

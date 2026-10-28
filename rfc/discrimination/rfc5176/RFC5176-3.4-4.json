@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5176-3.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired",
+    "unit-sha": "35e5e446e8d5ab52",
+    "claim-sha": "e9d2a55b489f18c3",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+    "producer-sha": "5cb45118c8d7ef1d",
+    "break": "line 199: \"\u0026\u0026 cl.cfg.CoARequireMessageAuthenticator\" -\u003e \"\u0026\u0026 false\""
+  }
+]

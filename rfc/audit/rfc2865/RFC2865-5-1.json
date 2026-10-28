@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "a196c38aadacaac3",
     "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "3e3eaab50ae82f2a",
-    "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "9e5b9d00bb0a5c97"
+    "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "885d4b4d3a5aa587"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "9124583de2883fdd",

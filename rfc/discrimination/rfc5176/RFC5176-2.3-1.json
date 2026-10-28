@@ -7,7 +7,7 @@
     "claim-sha": "fe940e9de9b4175e",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
-    "producer-sha": "bfe59bc5cd1ff754",
+    "producer-sha": "5cb45118c8d7ef1d",
     "break": "body of admitRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "0d249a9b2f8618db",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
-    "producer-sha": "bfe59bc5cd1ff754",
+    "producer-sha": "5cb45118c8d7ef1d",
     "break": "body of admitRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

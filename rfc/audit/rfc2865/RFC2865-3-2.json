@@ -2,8 +2,8 @@
   "note": "Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.",
   "requirement_sha": "e697e07b213ccf80",
   "tests": {
-    "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom": "9e5b9d00bb0a5c97",
-    "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom#2": "9e5b9d00bb0a5c97"
+    "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom": "885d4b4d3a5aa587",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom#2": "885d4b4d3a5aa587"
   },
   "units": {
     "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom": "31efc61332e45565",

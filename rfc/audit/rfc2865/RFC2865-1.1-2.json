@@ -12,8 +12,8 @@
     "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "ae06d1fa559aa47c",
     "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "ae06d1fa559aa47c",
     "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#4": "ae06d1fa559aa47c",
-    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "a3f1d9fa74292a7a",
-    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "a3f1d9fa74292a7a"
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "a27d914d3a804f8a",
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "a27d914d3a804f8a"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "61b075ba7ce4bffe",

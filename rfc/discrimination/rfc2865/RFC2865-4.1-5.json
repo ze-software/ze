@@ -3,12 +3,12 @@
     "rid": "RFC2865-4.1-5",
     "polarity": "negative",
     "unit": "internal/component/radius/rfc2865_walk_test.go::TestRetransmitToTheSameServerKeepsItsIdentifier",
-    "unit-sha": "0da4e2515a436271",
+    "unit-sha": "8e5d62248b1c686a",
     "claim-sha": "781b32ec3a39e1f0",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "c7a365b14dccaa30",
-    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5e8643efe336479a",
+    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2865-4.1-5",

@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "b4e757fe4cae524f",
     "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f",
-    "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "948192fd6c9f1cf4",
-    "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "948192fd6c9f1cf4"
+    "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "1c0e9beadd76f803",
+    "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "1c0e9beadd76f803"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "e723a29e122314af",

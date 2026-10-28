@@ -7,8 +7,8 @@
     "claim-sha": "3f2a5e86261349e3",
     "route": "revert",
     "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-    "producer-sha": "127159291cffa17d",
-    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4a2e054bc280a757",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2865-5.24-1",
@@ -18,7 +18,7 @@
     "claim-sha": "aa61e8275c3e5089",
     "route": "revert",
     "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-    "producer-sha": "127159291cffa17d",
-    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4a2e054bc280a757",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -371,7 +371,7 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 // RFC requirement: RFC5176-3.4-4 negative -- an operator who sets
 // coa-require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves
 // optional: a CoA-Request carrying no Message-Authenticator is discarded with no
-// reply (coa.go coaListener.handlePacket).
+// reply (coa.go coaListener.admitRequest).
 //
 // The same packet is accepted with the leaf at its default, which is
 // TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault. The pair is what

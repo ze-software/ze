@@ -6,8 +6,8 @@
     "internal/component/radius/packet_test.go::TestDecodeTooLong": "d7805a7dbe0458f7",
     "internal/component/radius/packet_test.go::TestDecodeTooShort": "d7805a7dbe0458f7",
     "internal/component/radius/packet_test.go::TestPacketRoundTrip": "d7805a7dbe0458f7",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "4d524a15dfa67b83",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "4d524a15dfa67b83"
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "2303f11cca7174af",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "2303f11cca7174af"
   },
   "units": {
     "internal/component/radius/packet_test.go::TestDecodeBadLength": "9fcdb8433915aec3",

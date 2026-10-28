@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered": "00bd20939f2ff10d",
     "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded": "00bd20939f2ff10d",
-    "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "e371dc7e94d0922d",
-    "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "e371dc7e94d0922d"
+    "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "7e725e8c35bcd48e",
+    "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "7e725e8c35bcd48e"
   },
   "units": {
     "internal/component/radius/rfc2869_message_authenticator_codes_test.go::TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered": "5a6a5316a308dcfc",

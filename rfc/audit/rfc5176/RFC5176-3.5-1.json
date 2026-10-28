@@ -2,8 +2,8 @@
   "note": "Judge 2026-09-29, re-judged after the RFC5176-3.5-2 tags were dropped from the doc comments; the test bodies are unchanged. (a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).",
   "requirement_sha": "5241f933500338b9",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth": "abaf30a8356b8748",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerUnknownSession": "abaf30a8356b8748"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth": "a2c1dcc341814d4b",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerUnknownSession": "a2c1dcc341814d4b"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth": "cbc56e58717de930",

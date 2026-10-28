@@ -2,10 +2,10 @@
   "note": "Negative drives Access-Accept, Access-Reject and Access-Challenge each with Length 1 and with a Length 5 past the packet end, re-signed so the Response Authenticator verifies (asserted) and only the length is wrong; Client.Exchange returns an error with no packet (silent discard). Positive delivers Reject and Challenge with valid lengths and their Reply-Message. All three codes and both invalid-length shapes covered.",
   "requirement_sha": "84ef9a95c6061d53",
   "tests": {
-    "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "a3f1d9fa74292a7a",
-    "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "a3f1d9fa74292a7a",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RejectAndChallengeWithValidAttributeLengthsAreDelivered": "4d524a15dfa67b83",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded": "4d524a15dfa67b83"
+    "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "a27d914d3a804f8a",
+    "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "a27d914d3a804f8a",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RejectAndChallengeWithValidAttributeLengthsAreDelivered": "2303f11cca7174af",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded": "2303f11cca7174af"
   },
   "units": {
     "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "28cfe003c702b6b7",

@@ -3,23 +3,23 @@
     "rid": "RFC3579-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes",
-    "unit-sha": "da6a94bc32cd0428",
+    "unit-sha": "7f72d7f2ecbe914f",
     "claim-sha": "d3a8dca0f8ba1d4b",
     "route": "revert",
     "producer": "internal/component/radius/client.go::oneCredentialType",
     "producer-sha": "0e2c023e8dcfbae0",
-    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes",
-    "unit-sha": "6dc07161ad99b549",
+    "unit-sha": "5f7b214fb43720ec",
     "claim-sha": "fcbe6124dcdf7cbc",
     "route": "revert",
     "producer": "internal/component/radius/client.go::oneCredentialType",
     "producer-sha": "0e2c023e8dcfbae0",
-    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-3.3-2",
@@ -29,8 +29,8 @@
     "claim-sha": "7bdd544e656580aa",
     "route": "revert",
     "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-    "producer-sha": "127159291cffa17d",
-    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4a2e054bc280a757",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-3.3-2",

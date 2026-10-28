@@ -2,8 +2,8 @@
   "note": "Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.",
   "requirement_sha": "fd0fe9c78fc97102",
   "tests": {
-    "internal/component/radius/rfc2865_walk_test.go::TestAnEmbeddedNullDoesNotEndTheAttributeWalk": "a3f1d9fa74292a7a",
-    "internal/component/radius/rfc2865_walk_test.go::TestAttributeValueWithAnEmbeddedNullRoundTrips": "a3f1d9fa74292a7a"
+    "internal/component/radius/rfc2865_walk_test.go::TestAnEmbeddedNullDoesNotEndTheAttributeWalk": "a27d914d3a804f8a",
+    "internal/component/radius/rfc2865_walk_test.go::TestAttributeValueWithAnEmbeddedNullRoundTrips": "a27d914d3a804f8a"
   },
   "units": {
     "internal/component/radius/rfc2865_walk_test.go::TestAnEmbeddedNullDoesNotEndTheAttributeWalk": "67482c3c619dbee0",

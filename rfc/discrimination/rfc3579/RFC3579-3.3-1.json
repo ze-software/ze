@@ -7,8 +7,8 @@
     "claim-sha": "267770b1dbcef26a",
     "route": "revert",
     "producer": "internal/component/radius/client.go::encodeRequest",
-    "producer-sha": "1683398c8195b350",
-    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ef93b700c6344b6a",
+    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-3.3-1",
@@ -18,7 +18,7 @@
     "claim-sha": "27cffed25588dced",
     "route": "revert",
     "producer": "internal/component/radius/client.go::encodeRequest",
-    "producer-sha": "1683398c8195b350",
-    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ef93b700c6344b6a",
+    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

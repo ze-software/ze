@@ -6,8 +6,8 @@
     "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted#2": "657481ec16afb1c3",
     "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted": "ae06d1fa559aa47c",
     "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted#2": "ae06d1fa559aa47c",
-    "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "a3f1d9fa74292a7a",
-    "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "a3f1d9fa74292a7a"
+    "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "a27d914d3a804f8a",
+    "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "a27d914d3a804f8a"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted": "61c96ed940b3fb09",

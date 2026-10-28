@@ -29,7 +29,7 @@
     "claim-sha": "87e7e30fc6dac362",
     "route": "revert",
     "producer": "internal/component/radius/client.go::encodeRequest",
-    "producer-sha": "1683398c8195b350",
-    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ef93b700c6344b6a",
+    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

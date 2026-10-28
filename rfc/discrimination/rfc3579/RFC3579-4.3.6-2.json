@@ -18,7 +18,7 @@
     "claim-sha": "bc8803889b6a48a9",
     "route": "revert",
     "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-    "producer-sha": "127159291cffa17d",
-    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4a2e054bc280a757",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

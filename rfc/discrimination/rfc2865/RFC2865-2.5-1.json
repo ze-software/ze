@@ -3,22 +3,22 @@
     "rid": "RFC2865-2.5-1",
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit",
-    "unit-sha": "c402521b2f865c3c",
+    "unit-sha": "985ee5fd2ec5f2ad",
     "claim-sha": "608208e6ea9ad0cf",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "c7a365b14dccaa30",
-    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5e8643efe336479a",
+    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2865-2.5-1",
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort",
-    "unit-sha": "1197e4efaf98337c",
+    "unit-sha": "24a327e62921e041",
     "claim-sha": "c6b5c8ecb6d698f8",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "c7a365b14dccaa30",
-    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5e8643efe336479a",
+    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

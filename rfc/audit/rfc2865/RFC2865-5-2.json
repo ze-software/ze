@@ -2,10 +2,10 @@
   "note": "Positive reads the Length octets EncodeTo writes on the wire (3, 8, 255 for 1/6/253-octet values, walking exactly to the packet end) and Decode reads Length 8 as \"netops\". Negative: a Filter-Id \"netops\" with Length octet 6 (value-only count) is refused; a decoder counting only the Value would accept it and go red. The old round-trip units stay floor assertions.",
   "requirement_sha": "ee5e3df093593c6b",
   "tests": {
-    "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "9e5b9d00bb0a5c97",
-    "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "9e5b9d00bb0a5c97",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetCountsTypeLengthAndValue": "4d524a15dfa67b83",
-    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused": "4d524a15dfa67b83"
+    "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "885d4b4d3a5aa587",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "885d4b4d3a5aa587",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetCountsTypeLengthAndValue": "2303f11cca7174af",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused": "2303f11cca7174af"
   },
   "units": {
     "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "49b95d65b9eaaf18",
