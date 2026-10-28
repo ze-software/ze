@@ -78,7 +78,7 @@ func (p *SetParser) Parse(input string) (*Tree, error) {
 
 	for scanner.Scan() {
 		lineNum++
-		line := strings.TrimSpace(scanner.Text())
+		line := trimTokenSpace(scanner.Text())
 
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -95,7 +95,10 @@ func (p *SetParser) Parse(input string) (*Tree, error) {
 
 // parseLine parses a single set/delete line.
 func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
-	tokens := p.tokenizeLine(line)
+	tokens, err := splitQuotedTokens(line)
+	if err != nil {
+		return fmt.Errorf("line %d: %w", lineNum, err)
+	}
 	if len(tokens) == 0 {
 		return nil
 	}
@@ -162,49 +165,6 @@ func isMemberLeafList(node Node) bool {
 		return true
 	}
 	return false
-}
-
-// tokenizeLine splits a line into tokens, respecting quotes.
-func (p *SetParser) tokenizeLine(line string) []string {
-	var tokens []string
-	var current textbuf.Buffer
-	inQuote := false
-	quoteChar := byte(0)
-
-	for i := range len(line) {
-		ch := line[i]
-
-		if inQuote {
-			if ch == quoteChar {
-				inQuote = false
-				tokens = append(tokens, current.String())
-			} else {
-				current.Byte(ch)
-			}
-			continue
-		}
-
-		if ch == '"' || ch == '\'' {
-			inQuote = true
-			quoteChar = ch
-			continue
-		}
-
-		if ch == ' ' || ch == '\t' {
-			if current.Len() > 0 {
-				tokens = append(tokens, current.String())
-			}
-			continue
-		}
-
-		current.Byte(ch)
-	}
-
-	if current.Len() > 0 {
-		tokens = append(tokens, current.String())
-	}
-
-	return tokens
 }
 
 // parseSet handles: set <path...> <value>.

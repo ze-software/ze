@@ -1,0 +1,71 @@
+# Test: ze config fmt -w keeps the meaning of a value that needs quoting.
+#
+# VALIDATES: AC-9 through the command an operator runs. A description holding
+#   `]`, `[` and `(`, one holding a newline, and one starting with `(` are
+#   written back quoted (`quoteIfNeeded`, internal/component/config/list_key.go,
+#   which asks the config tokenizer whether a bare word reads back), and
+#   `ze config fmt --check` on the written file exits 0: the file parses and
+#   formats to the same bytes.
+# PREVENTS: fmt writing `description x]y(z` bare. The next fmt then refused the
+#   file it had written: `expected ';' after description value, got RBRACKET`,
+#   exit 2. A newline value was written bare across two lines.
+#
+# Discrimination: with the pre-fix quoteIfNeeded, the three file assertions go
+#   red (the values are written bare) and seq=2 exits 2.
+
+tmpfs=meaning.conf:terminator=EOF_CONF
+bgp {
+	peer p1 {
+		description "x]y(z"
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+	peer p2 {
+		description "l1\nl2"
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+		}
+		session {
+			asn {
+				remote 65002
+			}
+		}
+	}
+	peer p3 {
+		description "(opens a[list"
+		connection {
+			remote {
+				ip 192.0.2.3
+			}
+		}
+		session {
+			asn {
+				remote 65003
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt -w meaning.conf:exit=0
+expect=stderr:contains=Formatted: meaning.conf
+
+cmd=foreground:seq=2:exec=ze config fmt --check meaning.conf:exit=0
+reject=stdout:contains=needs formatting
+
+# The parse suite asserts streams, not files. seq=2 proved the written file is
+# byte-identical to its own fmt output, so printing that output shows the file.
+cmd=foreground:seq=3:exec=ze config fmt meaning.conf:exit=0
+expect=stdout:contains=description "x]y(z"
+expect=stdout:contains=description "l1\nl2"
+expect=stdout:contains=description "(opens a[list"

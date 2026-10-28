@@ -83,11 +83,11 @@ func serializeFlattenedContainer(b *textbuf.Buffer, tree *Tree, name string, nod
 
 	for _, childName := range node.Children() {
 		listNode, ok := node.Get(childName).(*ListNode)
-		if !ok || listNode.Hidden || listNode.Ephemeral {
-			continue
+		if !ok || listNode.Ephemeral {
+			continue // A hidden list is file content: see serializeNode.
 		}
 		if entries := tree.lists[childName]; entries != nil {
-			serializeListBlocks(b, entries, childName, listNode, indent, name)
+			serializeListBlocks(b, entries, tree.listOrder[childName], childName, listNode, indent, name)
 		}
 	}
 }

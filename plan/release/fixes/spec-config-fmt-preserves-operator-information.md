@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Formatter writeback must not destroy operator comments or configuration meaning. |
 | Scope | cli, config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -193,7 +193,7 @@ built 2026-10-27 from that tree.
 | A-1 | `#` to end of line is the only comment form | `skipWhitespaceAndComments`; `tokenizer.md` token table | A block comment form is lost | `TestTokenizerCommentTrivia` covers every `#` position | confirmed by reading |
 | A-2 | No include statement exists, so one file is one tree | `parser.go`, `loader.go` carry no include keyword | An included file's comments need their own carrier | grep at Phase 2 start | confirmed by grep |
 | A-3 | Comments inside a bracket list can only follow `[` on its line: a newline inside the brackets after an item is refused by automatic semicolon insertion | Probe: `filters [ # c` newline `zz aa ]` parses, `[ zz` newline `aa ]` is refused | A comment between items needs a member-level anchor | `TestParserBracketComment` | confirmed by probe |
-| A-4 | The set parser's `tokenizeLine` reads a value `quoteIfNeeded` now quotes (`]`, newline) back as one value | `setparser.go` `tokenizeLine` | The meaning fix reddens the set round trip | `TestQuoteRoundTripSet` | unvalidated |
+| A-4 | The set parser's `tokenizeLine` reads a value `quoteIfNeeded` now quotes (`]`, newline) back as one value | `setparser.go` `tokenizeLine` | The meaning fix reddens the set round trip | `TestQuoteRoundTripSet` | broken (phase 1): `tokenizeLine` decoded no escape, so `"l1\nl2"` and `"a\"b"` read back changed, and `strings.TrimSpace` on each line cut a trailing `\v`, `\f` or Unicode space from a bare value. Fixed at the reader: `tokenizeLine` deleted, both set parsers call `splitQuotedTokens` (the inverse of `quoteIfNeeded`), lines trimmed by `trimTokenSpace`. An unterminated quote in a set line is now refused with its line number |
 | A-5 | Every `.conf` and `.ci` config body that parses today still parses after this change | No grammar change; comments were already accepted everywhere whitespace is | A carrier starts failing | `TestFormatCorpusRoundTrip` counts parses before and after | unvalidated |
 
 ### Risks
@@ -238,7 +238,7 @@ built 2026-10-27 from that tree.
 | AC-9 | Any value containing `[`, `]`, a newline, a carriage return, or starting with `(` or `)` | Printed quoted; parsing the output yields the same value; a second fmt exits 0 |
 | AC-10 | Every `.conf` under `test/` and every `.ci` `tmpfs=` and `stdin=config` body that parses | Parse of the formatted text equals the parse of the source (values, inactive flags, ordered order); formatting twice changes no byte; the multiset of comment texts is equal |
 | AC-11 | `ze config fmt -w` on the AC-1..AC-8 file, then `ze config fmt --check` on the result | `-w` exits 0 and prints `Formatted: <path>`; `--check` exits 0 |
-| AC-12 | `ze config fmt` on a set or set-meta file | Exit 2; the message names the set form and `ze config migrate --format hierarchical <file>` |
+| AC-12 | `ze config fmt` on a set or set-meta file | Exit 2; the message names the set form and `ze config migrate format hierarchical <file>` (`format` is a keyword, `parseOutputForm` in `cmd_migrate.go`; `--format` does not exist) |
 | AC-13 | A file with no comments | Output byte-identical to today's, except AC-9 values |
 | AC-14 | `prune` over a tree and a baseline differing only in comments | The list entry is pruned as unchanged |
 
@@ -266,13 +266,15 @@ built 2026-10-27 from that tree.
 | `TestSerializeKeepsStampFirst` | `internal/component/config/serialize_comments_test.go` | AC-5 | |
 | `TestSerializeCommentBlocksInline` | `internal/component/config/serialize_comments_test.go` | AC-8, both inline and `ze:flatten` | |
 | existing `serialize*_test.go`, `cli/main_test.go` fmt tests | `internal/component/config/` | AC-13: every existing expectation passes unedited; an edited one goes to an independent `ze-test-judge` agent | |
-| `TestQuoteIfNeededRoundTrip` | `internal/component/config/list_key_test.go` | AC-9 through the hierarchical tokenizer | |
-| `TestQuoteRoundTripSet` | `internal/component/config/serialize_set_test.go` | A-4: same values through `SerializeSet` and `SetParser` | |
+| `TestQuoteIfNeededRoundTrip` | `internal/component/config/list_key_test.go` | AC-9 through the hierarchical tokenizer | phase 1 |
+| `TestQuoteRoundTripHierarchical` | `internal/component/config/list_key_test.go` | AC-9, AC-10 meaning and idempotence: leaf value and string list key through `Serialize` and `Parser` | phase 1 |
+| `TestQuoteRoundTripSet` | `internal/component/config/list_key_test.go` (beside the shared value generator) | A-4: same values through `SerializeSet`, `SerializeSetWithMeta` and `SetParser` | phase 1 |
+| `TestConfigFmtWriteKeepsValueMeaning` | `internal/component/config/cli/cmd_fmt_test.go` | AC-9 through `cmdFmt` -w then --check | phase 1 |
 | `TestPruneIgnoresComments` | `internal/component/config/prune_test.go` | AC-14 | |
 | `TestFormatCorpusRoundTrip` | `internal/component/config/cli/fmt_corpus_test.go` | AC-10 over `test/**/*.conf` and `.ci` bodies via `tmpfs.Parse`; fails under a carrier floor | |
 | `FuzzFormatRoundTrip` | `internal/component/config/fuzz_test.go` | AC-10 properties for any input that parses, seeded from the corpus | |
 | `FuzzQuoteRoundTrip` | `internal/component/config/fuzz_test.go` | AC-9 for any value string | |
-| `TestConfigFmtSetInputRefused` | `internal/component/config/cli/main_test.go` | AC-12 through `cmdFmt` | |
+| `TestConfigFmtSetInputRefused` | `internal/component/config/cli/cmd_fmt_test.go` | AC-12 through `cmdFmt` | phase 1 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -445,6 +447,9 @@ and its own commit.
 | Only the hierarchical printer prints comments; the set printers do not, owned row in `spec-web-cli-config-one-off-defects` | Invent a set-meta comment spelling here | `#` already opens set-meta's user field; choosing a spelling is a storage-format design for the spec that owns the set writers. The `Tree` representation chosen here is what that fix prints |
 | `quoteIfNeeded` quotes every value the tokenizer would not read back as one equal token | Quote in fmt only | The defect is in the shared printer, so the set writers were changing meaning too (`ai/rules/simplicity.md`: fix at the root) |
 | `cmdFmt` calls `configFmtBytes` | Keep both | Two copies of one path; the tested one was not the one operators run |
+| An `ordered-by user` list prints in the order the tree recorded; every other list stays sorted by key (`ListNode.UserOrdered` from the YANG `ListAttr.OrderedByUser`, `listBlockKeys`) | Sort every list; keep operator order for every list | Phase 1 found `serializeListBlocks` sorting every list, which reorders a first-match list (firewall terms, prefix/aspath/community filter entries, policy-route rules, AAA and RPKI servers, RSVP-TE explicit routes). Order of the other lists is owner Q-2. IKE and ESP proposals are not user-ordered and their order carries no meaning: `ike/ipsec/config.go` sorts them by `number` after `GetListOrdered` |
+| fmt and migrate hash a `plaintext-password` through one helper (`hashPlaintextPasswords`) before printing | Refuse the file | The daemon's load path and a commit apply the same hash; unhashed, the hierarchical form deleted the credential and the set form printed it in clear |
+| OWNER DECISION (Thomas, 2026-10-28): fmt never prints a secret in clear (Junos model). A `ze:bcrypt` plaintext keeps its one-way hash; every other `ze:sensitive` leaf is written in `$9$` form through `secret.Encode` | Print the decoded plaintext (today) | Someone glancing at a screen must not read a secret, even though `$9$` is reversible. NOT IMPLEMENTED: `secret.Encode` draws a random salt and random filler characters (`randomAlphaChar`, `crypto/rand`), so a second fmt rewrites every secret and breaks idempotence (AC-10). Reported back for a decision on how to encode deterministically |
 
 ### Every writer of config text
 

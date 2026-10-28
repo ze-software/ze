@@ -29,7 +29,7 @@ func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 
 	for scanner.Scan() {
 		lineNum++
-		line := strings.TrimSpace(scanner.Text())
+		line := trimTokenSpace(scanner.Text())
 
 		if line == "" {
 			continue
@@ -84,7 +84,7 @@ func extractMeta(line string) (MetaEntry, string) {
 				remaining = ""
 			} else {
 				raw = remaining[1:end]
-				remaining = strings.TrimSpace(remaining[end+1:])
+				remaining = trimTokenSpace(remaining[end+1:])
 			}
 			if at := strings.IndexByte(raw, '@'); at > 0 && entry.Source == "" {
 				entry.User = capMetaField(raw[:at])
@@ -106,7 +106,7 @@ func extractMeta(line string) (MetaEntry, string) {
 				remaining = ""
 			} else {
 				val = remaining[1:end]
-				remaining = strings.TrimSpace(remaining[end+1:])
+				remaining = trimTokenSpace(remaining[end+1:])
 			}
 			if entry.Source == "" {
 				entry.Source = capMetaField(val)
@@ -132,7 +132,7 @@ func extractMeta(line string) (MetaEntry, string) {
 				remaining = ""
 			} else {
 				timeStr = remaining[1:end]
-				remaining = strings.TrimSpace(remaining[end+1:])
+				remaining = trimTokenSpace(remaining[end+1:])
 			}
 			if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
 				entry.Time = t
@@ -168,7 +168,7 @@ func extractMeta(line string) (MetaEntry, string) {
 				}
 				entry.Previous = capMetaField(prev.String())
 				if i < len(remaining) {
-					remaining = strings.TrimSpace(remaining[i+1:])
+					remaining = trimTokenSpace(remaining[i+1:])
 				} else {
 					remaining = ""
 				}
@@ -180,7 +180,7 @@ func extractMeta(line string) (MetaEntry, string) {
 					remaining = ""
 				} else {
 					entry.Previous = capMetaField(remaining[1:end])
-					remaining = strings.TrimSpace(remaining[end+1:])
+					remaining = trimTokenSpace(remaining[end+1:])
 				}
 			}
 			continue
@@ -195,7 +195,10 @@ func extractMeta(line string) (MetaEntry, string) {
 
 // parseLineWithMeta parses a set/delete command and records metadata.
 func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, entry MetaEntry, lineNum int) error {
-	tokens := p.tokenizeLine(line)
+	tokens, err := splitQuotedTokens(line)
+	if err != nil {
+		return fmt.Errorf("line %d: %w", lineNum, err)
+	}
 	if len(tokens) == 0 {
 		return nil
 	}

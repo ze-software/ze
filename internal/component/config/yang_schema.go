@@ -1109,6 +1109,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.cases = cases
 	l.Hidden = hasHiddenExtension(entry)
 	l.Ephemeral = hasEphemeralExtension(entry)
+	l.UserOrdered = entry.ListAttr != nil && entry.ListAttr.OrderedByUser
 	l.Listener = hasListenerExtension(entry)
 	l.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 	l.Description = entry.Description               // the long explanation

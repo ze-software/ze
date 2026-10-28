@@ -290,6 +290,23 @@ func (t *tokenizer) wordAddressEnd() (end int, closed bool) {
 	return 0, false
 }
 
+// bareWordReadsBack reports whether the tokenizer reads s, written unquoted,
+// back as one word token equal to s. It asks the tokenizer itself rather than
+// a list of characters, so the printer's quoting cannot drift from what ends
+// a word or opens another token: whitespace, braces, brackets outside a
+// `:[...]` address, `;`, quotes and `#` anywhere, and a leading `(` or `)`.
+// The empty string reads back as no token at all, so it is never bare.
+func bareWordReadsBack(s string) bool {
+	t := tokenizer{input: s, line: 1, col: 1}
+	tok := t.next()
+	if tok.kind != tokenWord {
+		return false
+	}
+	// A word token is a slice of the input, so equal text means the word
+	// started at offset 0 and ran to the end: nothing was left to re-read.
+	return tok.value == s
+}
+
 // endsWord reports whether ch ends an unquoted word.
 func endsWord(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||

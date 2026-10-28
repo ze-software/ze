@@ -151,7 +151,7 @@ type LeafNode struct {
 	Default     string
 	Sensitive   bool           // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
 	Bcrypt      bool           // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
-	Hidden      bool           // ze:hidden — excluded from config display output
+	Hidden      bool           // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
 	Ephemeral   bool           // ze:ephemeral — present in schema, not persisted to config file
 	Decorate    string         // ze:decorate — decorator name for display-time enrichment
 	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips/help
@@ -185,7 +185,7 @@ type ContainerNode struct {
 	children     map[string]Node
 	order        []string       // preserve definition order
 	AllowUnknown bool           // accept arbitrary key-value pairs (ze:allow-unknown-fields)
-	Hidden       bool           // ze:hidden — excluded from config display output
+	Hidden       bool           // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
 	Ephemeral    bool           // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool           // YANG presence container: accepts flag (;), value (word;), or block ({})
 	Flatten      bool           // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
@@ -223,8 +223,9 @@ type ListNode struct {
 	Unique      [][]string     // YANG unique constraints: each sub-slice is leaf paths for one constraint
 	Required    [][]string     // ze:required fields: must have value after config inheritance resolution
 	Suggest     [][]string     // ze:suggest fields: shown in creation dialog but not mandatory
-	Hidden      bool           // ze:hidden -- excluded from config display output
+	Hidden      bool           // ze:hidden -- kept out of completion, the web editor and the annotated views; the file form still prints it
 	Ephemeral   bool           // ze:ephemeral -- present in schema, not persisted to config file
+	UserOrdered bool           // YANG `ordered-by user` -- the entry order is part of the value, so the file form keeps it (listBlockKeys)
 	Listener    bool           // ze:listener -- marks list as a network listener for port conflict detection
 	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips
 	Description string         // Long explanation from the YANG description statement

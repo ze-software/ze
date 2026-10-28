@@ -336,6 +336,15 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 
 	warnings := findUnsupportedFeatures(result.Tree)
 
+	// The plaintext-password leaf is hashed into its canonical leaf first:
+	// unhashed, the hierarchical form skips the ephemeral leaf and loses the
+	// credential, and the set form prints the password in clear.
+	weaknesses, err := hashPlaintextPasswords(result.Tree, schema)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	printPasswordWeaknesses(weaknesses)
+
 	// Serialize in the requested output form (default: set).
 	var output string
 	if outputForm == formHierarchical {

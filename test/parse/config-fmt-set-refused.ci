@@ -1,0 +1,31 @@
+# Test: ze config fmt refuses a set-form file by name and gives the fix.
+#
+# VALIDATES: AC-12. `ze config fmt` on a set-form file, the form the editor
+#   stores, exits 2, says the file is in the set form, and prints the command
+#   that converts it: `ze config migrate format hierarchical <file>`
+#   (`setFormRefusal`, internal/component/config/cli/cmd_fmt.go). With -w the
+#   file is left as it was.
+# PREVENTS: the hierarchical parser's `unknown top-level keyword: set`, which
+#   names neither the form nor the fix.
+#
+# Discrimination: delete the DetectFormat refusal in configFmtBytes and both
+#   stderr expectations go red and the reject trips on the parser's text.
+
+tmpfs=stored.conf:terminator=EOF_CONF
+set bgp router-id 1.2.3.4
+set bgp peer p1 connection remote ip 192.0.2.1
+set bgp peer p1 session asn remote 65001
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt stored.conf:exit=2
+expect=stderr:contains=stored.conf is written in the set form
+expect=stderr:contains=ze config migrate format hierarchical stored.conf
+reject=stdout:contains=unknown top-level keyword
+
+cmd=foreground:seq=2:exec=ze config fmt -w stored.conf:exit=2
+expect=stderr:contains=ze config migrate format hierarchical stored.conf
+
+# The parse suite asserts streams, not files: the converting command reads the
+# file seq=2 refused and still finds the set lines it held.
+cmd=foreground:seq=3:exec=ze config migrate format hierarchical stored.conf:exit=0
+expect=stdout:contains=router-id 1.2.3.4

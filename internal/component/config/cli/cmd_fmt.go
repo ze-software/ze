@@ -13,14 +13,24 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ErrOldConfig is returned when fmt is called on an old config.
 var ErrOldConfig = errors.New("config needs migration")
 
-// configFmtBytes formats config bytes and returns formatted output and whether changes were made.
-// Exported for testing.
-func configFmtBytes(input []byte) (string, bool, error) {
+// configFmtBytes formats config bytes and returns formatted output and whether
+// changes were made. It is the whole of `ze config fmt` between reading the
+// input and acting on -w, --check or --diff, so the unit tests and the command
+// run one path. source names the input in a refusal: the path, or "-" for stdin.
+func configFmtBytes(source string, input []byte) (string, bool, error) {
+	// The set and set-meta forms are flat command lists, the form the editor
+	// stores. The hierarchical parser would refuse their first word as an
+	// unknown keyword, which names neither the form nor the conversion.
+	if form := config.DetectFormat(string(input)); form != config.FormatHierarchical {
+		return "", false, setFormRefusal(source, form)
+	}
+
 	schema, err := config.YANGSchema()
 	if err != nil {
 		return "", false, fmt.Errorf("YANG schema: %w", err)
@@ -31,10 +41,67 @@ func configFmtBytes(input []byte) (string, bool, error) {
 		return "", false, fmt.Errorf("parse error: %w", err)
 	}
 
-	formatted := config.Serialize(tree, schema)
+	formatted, weaknesses, err := fmtTree(tree, schema)
+	if err != nil {
+		return "", false, err
+	}
+	printPasswordWeaknesses(weaknesses)
 	hasChanges := string(input) != formatted
 
 	return formatted, hasChanges, nil
+}
+
+// fmtTree prints a parsed tree as fmt writes it, after the one transform
+// every writer that persists a tree owes: a ze:bcrypt plaintext sibling
+// (`plaintext-password`) is hashed into its canonical leaf. The plaintext leaf
+// is ze:ephemeral, so Serialize never prints it: printing the tree unhashed
+// would delete the operator's credential and lock the user out. The daemon's
+// load path applies the same hash, so the credential reads back the same. It
+// returns the advisory weakness of each password it hashed, which the caller
+// shows, because this is the last point the plaintext is in hand.
+func fmtTree(tree *config.Tree, schema *config.Schema) (string, []string, error) {
+	weaknesses, err := hashPlaintextPasswords(tree, schema)
+	if err != nil {
+		return "", nil, err
+	}
+	return config.Serialize(tree, schema), weaknesses, nil
+}
+
+// hashPlaintextPasswords is the transform every CLI writer that prints a whole
+// tree to a file owes before it prints (fmt, migrate): each ze:bcrypt plaintext
+// sibling (`plaintext-password`) is hashed into its canonical leaf. The
+// plaintext leaf is ze:ephemeral, so both printers skip it, and a tree printed
+// unhashed loses the credential. It returns the advisory weakness of each
+// password it hashed, for the caller to show.
+func hashPlaintextPasswords(tree *config.Tree, schema *config.Schema) ([]string, error) {
+	hashed, err := config.ApplyPasswordHashing(tree, schema)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+	return config.PasswordWeaknessWarnings(hashed), nil
+}
+
+// printPasswordWeaknesses shows on stderr each weakness hashPlaintextPasswords
+// returned, the last point the writer still holds the plaintext.
+func printPasswordWeaknesses(weaknesses []string) {
+	for _, weakness := range weaknesses {
+		var b textbuf.Buffer
+		b.Str("warning: ").Str(weakness).Byte('\n').StdErr() //nolint:errcheck // terminal output, advisory
+	}
+}
+
+// setFormRefusal names the flat form fmt met, why fmt cannot format it, and
+// the command that converts it to the hierarchical form fmt formats.
+func setFormRefusal(source string, form config.ConfigFormat) error {
+	formName := "set"
+	if form == config.FormatSetMeta {
+		formName = "set-meta"
+	}
+	var b textbuf.Buffer
+	return errors.New(b.Str(source).Str(" is written in the ").Str(formName).
+		Str(" form, and ze config fmt formats only the hierarchical form.\n").
+		Str("Convert it to the hierarchical form first:\n  ze config migrate ").
+		Str(formKeyword).Str(" ").Str(formHierarchical).Str(" ").Str(source).String())
 }
 
 func cmdFmt(args []string) int {
@@ -90,20 +157,12 @@ func cmdFmt(args []string) int {
 		return exitError
 	}
 
-	schema, err := config.YANGSchema()
+	formatted, hasChanges, err := configFmtBytes(configPath, input)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the command is failing
 		return exitError
 	}
-	p := config.NewParser(schema)
-	tree, err := p.Parse(string(input))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: parse error: %v\n", err)
-		return exitError
-	}
-
-	formatted := config.Serialize(tree, schema)
-	hasChanges := string(input) != formatted
 
 	if *check {
 		if hasChanges {

@@ -173,9 +173,15 @@ Flags:
 
 - `--list` shows available transformations.
 - `--dry-run` reports what would happen without applying changes.
-- `--format <fmt>` sets output format, `set` by default or `hierarchical`.
+- `format <form>`, typed before the file, sets the output form: `set` by
+  default, or `hierarchical`. It is a keyword, not a flag:
+  `ze config migrate format hierarchical config.conf`.
 - `-o <file>` writes to the specified file.
 - `-` reads from stdin and, for `migrate -o -`, writes the result to stdout.
+
+A `plaintext-password` in the input is written as its bcrypt hash in the
+`password` leaf, in both output forms, as `ze config fmt` and a commit do; a
+weak password is named on stderr.
 
 ### `ze config fmt`
 
@@ -201,6 +207,26 @@ Flags:
 - `-w` writes the result to the source file, or to stdout when the input is `-`.
 - `--check` exits 1 if formatting is needed.
 - `--diff` shows a unified diff.
+
+fmt reads the hierarchical form only. A file in the set or set-meta form, the
+form the editor stores, is refused with exit 2, and the message gives the
+command that converts it:
+
+```
+stored.conf is written in the set form, and ze config fmt formats only the hierarchical form.
+Convert it to the hierarchical form first:
+  ze config migrate format hierarchical stored.conf
+```
+
+fmt never changes a value. A value that would not read back as itself when
+written bare is written quoted: one holding whitespace, a quote, `#`, `;`, a
+brace or a bracket (other than a `:[address]` such as
+`redirect:[2001:db8::1]:100`), or starting with `(` or `)`. Inside the quotes, `"`, `\`, a
+newline and a tab are written `\"`, `\\`, `\n` and `\t`.
+
+The one value fmt rewrites is a `plaintext-password`: it is written as its
+bcrypt hash in the `password` leaf, the hash a commit would store, because the
+plaintext leaf is never written to a file. A weak password is named on stderr.
 
 ## Unsupported ExaBGP Features
 

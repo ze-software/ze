@@ -74,7 +74,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:filter` | Marks a list as a named filter type of the route policy framework | (none) |
 | `ze:flatten` | Serializes a container's children with the container name as a leading keyword | (none) |
 | `ze:help` | Declares the one-line SUMMARY of a command node, an rpc, a config node, or an enum value. The `description` statement beside it declares the long explanation | one sentence, one line |
-| `ze:hidden` | Hides a leaf from config display and from the web editor | `true` or `false` |
+| `ze:hidden` | Hides a node from the annotated and blame views and from the web editor. The file form (`Serialize`, written by `ze config fmt` and `ze config migrate`) and the set form still print a configured hidden node, so writing a config never deletes it | `true` or `false` |
 | `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
 | `ze:key-type` | Key type for inline-list nodes | type name |
 | `ze:listener` | Marks a list entry as a network listener endpoint, for port-conflict detection at parse time | (none) |

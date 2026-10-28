@@ -79,6 +79,22 @@ from schema nodes rather than a separate list of feature-specific hints.
 keyword value;
 ```
 
+A value is a bare word or a quoted string. A bare word ends at whitespace, a
+brace, a bracket, `;`, a quote or `#`, and a word that starts with `(` or `)`
+is read as that parenthesis instead (`endsWord`, `scan`, `tokenizer.go`). A `[`
+straight after a `:` stays in the word through its `]`, as in
+`redirect:[2001:db8::1]:100`. A double-quoted string decodes `\"`, `\\`, `\n`
+and `\t` (and `\'`); a single-quoted one decodes the same escapes.
+
+Every printer (`ze config fmt`, `show`, the set writers the editor stores)
+writes a value bare only when the tokenizer reads that bare word back as the
+same value, and quotes it otherwise (`quoteIfNeeded`, `list_key.go`). The
+decision asks the tokenizer itself (`bareWordReadsBack`), so the quoting rule
+cannot drift from what ends a word. `x]y(z`, `a[b`, a value holding a newline or
+a carriage return, and `(open` are therefore written quoted.
+<!-- source: internal/component/config/tokenizer.go -- bareWordReadsBack, endsWord, readString -->
+<!-- source: internal/component/config/list_key.go -- quoteIfNeeded -->
+
 ### Leaf-List (single or multiple values)
 
 A leaf-list accepts either a single value or a bracket list:
@@ -286,6 +302,14 @@ and refuses a list of two or more entries that arrives with none. Read an
 unordered list with `configvalue.ListEntries`. The obligation is stated in the
 configuration rule.
 
+The hierarchical printer (`ze config fmt`, `ze config migrate format
+hierarchical`) writes the entries of an `ordered-by user` list in the order
+the tree recorded, because that order is the list's meaning: a firewall
+chain's terms match first to last. Every other list it writes sorted by key
+(`listBlockKeys`, `serialize.go`). The schema carries the YANG statement as
+`ListNode.UserOrdered`.
+
+<!-- source: internal/component/config/serialize.go -- listBlockKeys -->
 <!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
 <!-- source: internal/core/configvalue/configvalue.go -- Bool, Int, LeafList, ListEntries -->
 <!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->

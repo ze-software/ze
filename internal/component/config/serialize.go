@@ -256,9 +256,13 @@ func serializeTree(b *textbuf.Buffer, tree *Tree, node *ContainerNode, indent in
 func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
+	// Serialize is the file form `ze config fmt` and `ze config migrate`
+	// write, so a ze:hidden node the tree holds is printed: hidden keeps a
+	// node out of completion and the web editor, and dropping it here would
+	// delete operator config on write. Only ze:ephemeral is never persisted.
 	switch n := node.(type) {
 	case *LeafNode:
-		if n.Hidden || n.Ephemeral {
+		if n.Ephemeral {
 			break
 		}
 		if v, ok := tree.values[name]; ok {
@@ -333,7 +337,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		}
 
 	case *ContainerNode:
-		if n.Hidden || n.Ephemeral {
+		if n.Ephemeral {
 			break
 		}
 		if n.Presence {
@@ -358,16 +362,16 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		}
 
 	case *ListNode:
-		if n.Hidden || n.Ephemeral {
+		if n.Ephemeral {
 			break
 		}
 		if entries := tree.lists[name]; entries != nil {
-			if usesMultiBlockForm(n) {
+			if usesMultiBlockForm(n) && entriesArePositional(entries, n) {
 				// Multi-entry block: name { key1 val1; key2; ... }
 				serializeListMultiBlock(b, name, entries, n, tree.listOrder[name], indent)
 			} else {
 				// Individual blocks: name key { ... }
-				serializeListBlocks(b, entries, name, n, indent, "")
+				serializeListBlocks(b, entries, tree.listOrder[name], name, n, indent, "")
 			}
 		}
 
@@ -502,6 +506,27 @@ func allChildrenAreLeaves(n *ListNode) bool {
 	return true
 }
 
+// entriesArePositional reports whether every entry can be written in the
+// positional multi-entry form. A value is read back by its position, so an
+// entry that sets a later child while an earlier one is absent would print
+// `key 1` for priority 1 and read back as link-local 1. Such a list is
+// written one block per entry instead, where every value carries its name.
+func entriesArePositional(entries map[string]*Tree, n *ListNode) bool {
+	for _, entry := range entries {
+		gap := false
+		for _, name := range n.Children() {
+			if _, ok := entry.Get(name); !ok {
+				gap = true
+				continue
+			}
+			if gap {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // serializeListMultiBlock serializes list entries as a grouped block with positional inline entries.
 // Output: name { key1; key2 val1; key3 val1 val2; }.
 func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]*Tree, node *ListNode, order []string, indent int) {
@@ -549,16 +574,12 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 // keyword is empty for a plain list, and holds the parent container's name for
 // a child of a ze:flatten container, which writes "attach process key { ... }"
 // (flatten.go).
-func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name string, node *ListNode, indent int, keyword string) {
+// order is the entry order the tree recorded for the list; listBlockKeys
+// decides whether it is printed.
+func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, order []string, name string, node *ListNode, indent int, keyword string) {
 	prefix := strings.Repeat("\t", indent)
 
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-
-	for _, key := range keys {
+	for _, key := range listBlockKeys(entries, node, order) {
 		entry := entries[key]
 		b.Str(prefix)
 		if entry.IsInactive() {
@@ -583,6 +604,42 @@ func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, name strin
 		b.Str(prefix)
 		b.Str("}\n")
 	}
+}
+
+// listBlockKeys returns the keys of a list's entries in the order the file form
+// prints them.
+//
+// YANG `ordered-by user` makes the entry order part of the value: a firewall
+// chain's terms, a prefix filter's entries and an AAA server list are tried
+// first to last, and their consumers read that order through
+// configorder.Entries or GetListOrdered. Such a list prints in the order the
+// tree recorded, so a rewrite (fmt, migrate) never changes which entry matches
+// first. An entry the record misses is printed after the recorded ones, sorted,
+// because dropping it would lose configuration.
+//
+// Every other list prints sorted by key, which is the canonical form: its
+// consumers do not read the order (the IKE and ESP proposals, for one, are
+// sorted by their number in ike/ipsec config.go).
+func listBlockKeys(entries map[string]*Tree, node *ListNode, order []string) []string {
+	keys := make([]string, 0, len(entries))
+	seen := make(map[string]bool, len(entries))
+	if node.UserOrdered {
+		for _, key := range order {
+			if _, ok := entries[key]; !ok || seen[key] {
+				continue
+			}
+			seen[key] = true
+			keys = append(keys, key)
+		}
+	}
+	rest := make([]string, 0, len(entries)-len(keys))
+	for key := range entries {
+		if !seen[key] {
+			rest = append(rest, key)
+		}
+	}
+	slices.Sort(rest)
+	return append(keys, rest...)
 }
 
 // inlineLeafListEntry reports whether a list entry renders as one line,

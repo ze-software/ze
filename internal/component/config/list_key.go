@@ -307,29 +307,22 @@ func canonicalParsedListKey(listName string, node *ListNode, first string, entry
 	return BuildListKey(listName, node, first, entry.Get)
 }
 
-// quoteIfNeeded quotes a string if it contains spaces or special characters.
-// It writes ONE token: an address reaches text through it a token at a time.
+// quoteIfNeeded writes s as ONE token that the config tokenizer reads back as
+// s: an address reaches text through it a token at a time. s is written bare
+// only when bareWordReadsBack says the tokenizer returns it whole as one word;
+// every other value is quoted, its `"`, `\`, newline and tab escaped the way
+// readString and readQuotedToken decode them.
 func quoteIfNeeded(s string) string {
-	if s == "" {
-		return `""`
-	}
-
-	needsQuote := false
-	for _, c := range s {
-		if c == ' ' || c == '\t' || c == '"' || c == '\'' || c == '{' || c == '}' || c == ';' || c == '#' {
-			needsQuote = true
-			break
-		}
-	}
-
-	if !needsQuote {
+	if bareWordReadsBack(s) {
 		return s
 	}
 
-	// Escape quotes and backslashes
+	// Byte by byte, never rune by rune: a range over runes turns each byte of
+	// invalid UTF-8 into U+FFFD, a different value than the one stored.
 	var b textbuf.Buffer
 	b.Byte('"')
-	for _, c := range s {
+	for i := range len(s) {
+		c := s[i]
 		switch c {
 		case '"':
 			b.Str(`\"`)
@@ -340,7 +333,7 @@ func quoteIfNeeded(s string) string {
 		case '\t':
 			b.Str(`\t`)
 		default:
-			b.WriteRune(c)
+			b.Byte(c)
 		}
 	}
 	b.Byte('"')
@@ -382,6 +375,13 @@ func splitQuotedTokens(line string) ([]string, error) {
 
 // isTokenSpace reports whether c separates two tokens of a record.
 func isTokenSpace(c byte) bool { return c == ' ' || c == '\t' }
+
+// trimTokenSpace removes the separators isTokenSpace names, and the carriage
+// return of a CRLF line, from both ends of a record line. It is not
+// strings.TrimSpace: that also strips a vertical tab, a form feed and Unicode
+// spaces, which a bare value quoteIfNeeded writes may end with, so a set line
+// would read back a shorter value than the one stored.
+func trimTokenSpace(line string) string { return strings.Trim(line, " \t\r") }
 
 // readQuotedToken reads the quoted token opening at line[start] and returns
 // it and the index after its closing quote.

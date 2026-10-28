@@ -10,6 +10,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestWritersKeepPlaintextPasswordAsHash runs `ze config fmt` (configFmtBytes)
+// and `ze config migrate` in both output forms (configMigrateWithWarnings) on a
+// file whose user carries a plaintext-password.
+//
+// VALIDATES: each writer prints the credential as a bcrypt hash in the
+// canonical password leaf and never prints the plaintext.
+// PREVENTS: the writer skipping the ze:ephemeral plaintext-password leaf with
+// nothing in its place, which deletes the operator's credential.
+func TestWritersKeepPlaintextPasswordAsHash(t *testing.T) {
+	const plaintext = "Correct-Horse-Battery-9"
+	input := "system {\n\tauthentication {\n\t\tuser alice {\n\t\t\tplaintext-password " + plaintext + "\n\t\t}\n\t}\n}\n"
+	configPath := filepath.Join(t.TempDir(), "user.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(input), 0o600))
+
+	formatted, _, err := configFmtBytes(configPath, []byte(input))
+	require.NoError(t, err)
+	outputs := map[string]string{"fmt": formatted}
+	for _, form := range []string{"set", "hierarchical"} {
+		output, _, _, err := configMigrateWithWarnings(configPath, "", form)
+		require.NoError(t, err, "migrate %s", form)
+		outputs["migrate "+form] = output
+	}
+
+	for writer, output := range outputs {
+		assert.Regexp(t, `\bpassword "?\$2a\$`, output, "%s must print the bcrypt hash in the password leaf:\n%s", writer, output)
+		assert.NotContains(t, output, plaintext, "%s must not print the plaintext:\n%s", writer, output)
+	}
+}
+
 // TestMigrateDefaultOutputSet verifies that ze config migrate on hierarchical input
 // produces set-format output by default (not hierarchical).
 //
