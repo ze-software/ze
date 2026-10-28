@@ -148,6 +148,7 @@ Wire to engine; engine to dataplane backend (XFRM or VPP); engine to EAP method.
 | `counter-counts-the-wrong-packets` | 2026-10-05 | `eap/peer.go::Process` |
 | `error-answered-with-another-errors-code` | 2026-10-09 | `applyChildRekeyResponse` |
 | `fixture-encodes-an-impossible-state` | 2026-10-20 | `real-nat-port-translated-transport-ze-responder` |
+| `fixture-encodes-an-impossible-state` | 2026-10-28 | `TestXFRMReadbackWildcardOwners`, overlapping transport selectors at one `if_id` |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-17 | `runEngine` error exit |
 | `inert-registration-offered-as-a-choice` | 2026-10-20 | `ike/dataplane/register.go` noop |
 | `invariant-enforced-by-an-absent-call-site` | 2026-09-26 | `newTLSMethod` |

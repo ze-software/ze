@@ -604,6 +604,12 @@ command that runs them is `./le test qemu run command "./le test qemu all"`.
 | Only MPLS and XFRM enrol | L2TP, PPPoE, nftables, policy routing, traffic shaping, eBPF/TCX and several interface kinds all need kernel features that can be absent, and all are module-gated or unprobed today. Each joins the enrolment later. The registry's shape must not assume two subsystems |
 | `mpls_iptunnel` is deliberately not gated | The kernel autoloads it on the first encap route (A-4). Gating it would be a false refusal on every modular kernel |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-10-28 | `gokrazy/kernel/kernel.config` lacks `CONFIG_NF_TABLES_NETDEV`, VLAN QoS lab tests |
+
 ## RFC Documentation (Scope: config)
 
 N-A. No RFC governs kernel capability detection.
