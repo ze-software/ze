@@ -186,7 +186,8 @@ func parseAllowFrom(r map[string]any) ([]netip.Prefix, error) {
 	for _, text := range configvalue.LeafList(r["allow-from"]) {
 		p, err := netip.ParsePrefix(text)
 		if err != nil {
-			return nil, fmt.Errorf("allow-from %q is not an IP prefix", text)
+			return nil, fmt.Errorf("allow-from %q is not an IP prefix; write an address and a length, "+
+				"for example `allow-from 192.0.2.0/24` or `allow-from 2001:db8::/32`", text)
 		}
 		out = append(out, p.Masked())
 	}
@@ -210,7 +211,8 @@ func parseForward(r map[string]any) ([]upstream, error) {
 		return nil, fmt.Errorf("forward: %w", err)
 	}
 	if len(entries) > forwardServersMax {
-		return nil, fmt.Errorf("forward has %d servers, at most %d", len(entries), forwardServersMax)
+		return nil, fmt.Errorf("forward has %d servers, at most %d; delete `forward server` entries until %d remain",
+			len(entries), forwardServersMax, forwardServersMax)
 	}
 	out := make([]upstream, 0, len(entries))
 	for _, entry := range entries {

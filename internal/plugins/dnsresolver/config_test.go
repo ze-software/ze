@@ -104,3 +104,63 @@ func TestParseListenerRefusesEveryWildcard(t *testing.T) {
 		}
 	}
 }
+
+// TestParseConfigRefusals proves every plugin-side refusal of parseConfig
+// names its fix. Method: a table of enabled configs in the delivered JSON
+// shape, each one leaf away from the valid base, is parsed; each must fail
+// with a message holding the words that name the problem and the fix. The
+// base itself must parse, so a refusal that widens to every config is red.
+// Covers AC-3 (every wildcard spelling), AC-4 (no allow-from), an empty
+// forward list, a malformed allow-from, listener port 0 and nine servers.
+func TestParseConfigRefusals(t *testing.T) {
+	const listener = `"listener":{"lan":{"ip":"127.0.0.1","port":"53"}}`
+	const allow = `"allow-from":["10.0.0.0/8"]`
+	const forward = `"forward":{"server":[{"ip":"192.0.2.1"}]}`
+	wrap := func(body string) string {
+		return `{"service":{"dns-resolver":{"enabled":"true",` + body + `}}}`
+	}
+	if _, err := parseConfig(wrap(listener + "," + allow + "," + forward)); err != nil {
+		t.Fatalf("valid base refused: %v", err)
+	}
+	nine := `"forward":{"server":[`
+	for i := 1; i <= 9; i++ {
+		if i > 1 {
+			nine += ","
+		}
+		nine += `{"ip":"192.0.2.` + string(rune('0'+i)) + `"}`
+	}
+	nine += `]}`
+	for _, tc := range []struct {
+		name string
+		body string
+		want []string
+	}{
+		{"AC-3 wildcard v4", `"listener":{"lan":{"ip":"0.0.0.0"}},` + allow + "," + forward,
+			[]string{`listener "lan"`, "wildcard", "WAN", "LAN or loopback"}},
+		{"AC-3 wildcard v6", `"listener":{"lan":{"ip":"::"}},` + allow + "," + forward,
+			[]string{`listener "lan"`, "wildcard", "LAN or loopback"}},
+		{"AC-3 wildcard v4-mapped", `"listener":{"lan":{"ip":"::ffff:0:0"}},` + allow + "," + forward,
+			[]string{`listener "lan"`, "wildcard", "LAN or loopback"}},
+		{"AC-4 no allow-from", listener + "," + forward,
+			[]string{"refuse every client", "allow-from <"}},
+		{"empty forward list", listener + "," + allow,
+			[]string{"nowhere to resolve", "forward server <"}},
+		{"allow-from not a prefix", listener + `,"allow-from":["10.0.0.0"],` + forward,
+			[]string{`allow-from "10.0.0.0"`, "not an IP prefix", "allow-from 192.0.2.0/24"}},
+		{"listener port 0", `"listener":{"lan":{"ip":"127.0.0.1","port":"0"}},` + allow + "," + forward,
+			[]string{`listener "lan"`, "port 0"}},
+		{"nine forward servers", listener + "," + allow + "," + nine,
+			[]string{"9 servers", "at most 8", "delete `forward server` entries"}},
+	} {
+		_, err := parseConfig(wrap(tc.body))
+		if err == nil {
+			t.Errorf("%s: accepted, want refused", tc.name)
+			continue
+		}
+		for _, w := range tc.want {
+			if !strings.Contains(err.Error(), w) {
+				t.Errorf("%s: %q does not contain %q", tc.name, err, w)
+			}
+		}
+	}
+}

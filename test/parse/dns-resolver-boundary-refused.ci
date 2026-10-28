@@ -1,0 +1,462 @@
+# Test: every numeric bound of `service dns-resolver` refuses the first value
+#       past it and accepts the last value inside it, through `ze config
+#       validate`, the operator's own pre-commit check.
+# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Boundary Tests
+# VALIDATES: the YANG ranges of yang/ze-dns-resolver-conf.yang (cache size,
+#            max-ttl, max-negative-ttl, timeout, limit outstanding,
+#            per-client-rate, forward server max-elements) and the plugin's
+#            own refusal of listener port 0 (parseListener, run by the
+#            in-process config verifier). Each refusal names its leaf.
+# PREVENTS: a widened or dropped range that lets a value the resolver cannot
+#           honor reach the running config.
+# DISCRIMINATION: the timeout range widened to 1..61 in the YANG goes red at
+# seq 7 (timeout 61 accepted, exit 0).
+# The accepted cases run last, so a refusal that widens into "every config
+# rejected" fails the test.
+
+stdin=port-0:terminator=EOF_port_0
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 0
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_port_0
+
+stdin=port-65536:terminator=EOF_port_65536
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 65536
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_port_65536
+
+stdin=size-above:terminator=EOF_size_above
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 10000001
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_size_above
+
+stdin=maxttl-above:terminator=EOF_maxttl_above
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 2147483648
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_maxttl_above
+
+stdin=maxneg-above:terminator=EOF_maxneg_above
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 2147483648
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_maxneg_above
+
+stdin=timeout-0:terminator=EOF_timeout_0
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 0
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_timeout_0
+
+stdin=timeout-61:terminator=EOF_timeout_61
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 61
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_timeout_61
+
+stdin=outstanding-0:terminator=EOF_outstanding_0
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 0
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_outstanding_0
+
+stdin=outstanding-65536:terminator=EOF_outstanding_65536
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 65536
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_outstanding_65536
+
+stdin=rate-above:terminator=EOF_rate_above
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 1000001
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_rate_above
+
+stdin=servers-9:terminator=EOF_servers_9
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 53
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 1000
+			max-ttl 300
+			max-negative-ttl 300
+		}
+		timeout 5
+		limit {
+			outstanding 1000
+			per-client-rate 100
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+			server 192.0.2.2 {
+				port 53
+			}
+			server 192.0.2.3 {
+				port 53
+			}
+			server 192.0.2.4 {
+				port 53
+			}
+			server 192.0.2.5 {
+				port 53
+			}
+			server 192.0.2.6 {
+				port 53
+			}
+			server 192.0.2.7 {
+				port 53
+			}
+			server 192.0.2.8 {
+				port 53
+			}
+			server 192.0.2.9 {
+				port 53
+			}
+		}
+	}
+}
+EOF_servers_9
+
+stdin=last-valid-high:terminator=EOF_last_valid_high
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 65535
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 10000000
+			max-ttl 2147483647
+			max-negative-ttl 2147483647
+		}
+		timeout 60
+		limit {
+			outstanding 65535
+			per-client-rate 1000000
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+			server 192.0.2.2 {
+				port 53
+			}
+			server 192.0.2.3 {
+				port 53
+			}
+			server 192.0.2.4 {
+				port 53
+			}
+			server 192.0.2.5 {
+				port 53
+			}
+			server 192.0.2.6 {
+				port 53
+			}
+			server 192.0.2.7 {
+				port 53
+			}
+			server 192.0.2.8 {
+				port 53
+			}
+		}
+	}
+}
+EOF_last_valid_high
+
+stdin=last-valid-low:terminator=EOF_last_valid_low
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port 1
+		}
+		allow-from 10.0.0.0/8
+		cache {
+			size 0
+			max-ttl 0
+			max-negative-ttl 0
+		}
+		timeout 1
+		limit {
+			outstanding 1
+			per-client-rate 0
+		}
+		forward {
+			server 192.0.2.1 {
+				port 53
+			}
+		}
+	}
+}
+EOF_last_valid_low
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=port-0
+expect=exit:code=1
+expect=stdout:contains=port
+cmd=foreground:seq=2:exec=ze config validate -:stdin=port-65536
+expect=exit:code=1
+expect=stdout:contains=port
+cmd=foreground:seq=3:exec=ze config validate -:stdin=size-above
+expect=exit:code=1
+expect=stdout:contains=size
+cmd=foreground:seq=4:exec=ze config validate -:stdin=maxttl-above
+expect=exit:code=1
+expect=stdout:contains=max-ttl
+cmd=foreground:seq=5:exec=ze config validate -:stdin=maxneg-above
+expect=exit:code=1
+expect=stdout:contains=max-negative-ttl
+cmd=foreground:seq=6:exec=ze config validate -:stdin=timeout-0
+expect=exit:code=1
+expect=stdout:contains=timeout
+cmd=foreground:seq=7:exec=ze config validate -:stdin=timeout-61
+expect=exit:code=1
+expect=stdout:contains=timeout
+cmd=foreground:seq=8:exec=ze config validate -:stdin=outstanding-0
+expect=exit:code=1
+expect=stdout:contains=outstanding
+cmd=foreground:seq=9:exec=ze config validate -:stdin=outstanding-65536
+expect=exit:code=1
+expect=stdout:contains=outstanding
+cmd=foreground:seq=10:exec=ze config validate -:stdin=rate-above
+expect=exit:code=1
+expect=stdout:contains=per-client-rate
+cmd=foreground:seq=11:exec=ze config validate -:stdin=servers-9
+expect=exit:code=1
+expect=stdout:contains=server
+cmd=foreground:seq=12:exec=ze config validate -:stdin=last-valid-high
+expect=exit:code=0
+cmd=foreground:seq=13:exec=ze config validate -:stdin=last-valid-low
+expect=exit:code=0
