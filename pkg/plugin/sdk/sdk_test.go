@@ -2930,3 +2930,155 @@ func TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod(t *testing.T) {
 		t.Fatal("plugin did not exit")
 	}
 }
+
+// Both callback transports propagate the absolute owner deadline, refuse an
+// already-expired request before mutation, and acknowledge only handler return.
+func TestConfigCompleteDeadlineAndReceipt(t *testing.T) {
+	for _, bridged := range []bool{false, true} {
+		t.Run(fmt.Sprintf("bridge=%t", bridged), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			var p *Plugin
+			var engine *engineSide
+			var bridge *rpc.DirectBridge
+			if bridged {
+				p, _, bridge = newBridgedTestPair(t)
+			} else {
+				p, engine = newTestPair(t)
+			}
+			entered := make(chan struct{}, 1)
+			released := make(chan struct{})
+			p.OnConfigComplete(func(ownerCtx context.Context, input ConfigCompleteInput) error {
+				deadline, ok := ownerCtx.Deadline()
+				if !ok || deadline.UnixMilli() != input.DeadlineMS {
+					return errors.New("owner did not receive the request deadline")
+				}
+				entered <- struct{}{}
+				<-ownerCtx.Done()
+				close(released)
+				return ownerCtx.Err()
+			})
+			done := make(chan error, 1)
+			if bridged {
+				go func() { done <- p.bridgeEventLoop(ctx) }()
+			} else {
+				go func() { done <- p.Run(ctx, &Registration{}) }()
+				completeStartup(t, ctx, engine)
+			}
+			call := func(input ConfigCompleteInput) rpc.ConfigCompleteOutput {
+				t.Helper()
+				var raw json.RawMessage
+				var err error
+				if bridged {
+					params, marshalErr := json.Marshal(input)
+					require.NoError(t, marshalErr)
+					raw, err = bridge.SendCallback(ctx, callbackConfigComplete, params)
+				} else {
+					raw, err = engine.mux.CallRPC(ctx, callbackConfigComplete, input)
+				}
+				require.NoError(t, err)
+				var out rpc.ConfigCompleteOutput
+				require.NoError(t, json.Unmarshal(raw, &out))
+				return out
+			}
+			input := ConfigCompleteInput{TransactionID: "original", Accepted: true, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
+			out := call(input)
+			require.Equal(t, input.TransactionID, out.TransactionID)
+			require.True(t, out.Accepted)
+			require.Equal(t, rpc.StatusError, out.Status)
+			require.Contains(t, out.Error, context.DeadlineExceeded.Error())
+			select {
+			case <-released:
+			default:
+				t.Fatal("receipt arrived before cleanup returned")
+			}
+			<-entered
+			input.TransactionID = "expired"
+			out = call(input)
+			require.Equal(t, "expired", out.TransactionID)
+			require.Equal(t, rpc.StatusError, out.Status)
+			select {
+			case <-entered:
+				t.Fatal("expired completion mutated owner state")
+			default:
+			}
+			cancel()
+			<-done
+		})
+	}
+}
+
+// A missing or null decision must never turn into rejected cleanup on either
+// transport; explicit false and true still reach the owner and get receipts.
+func TestConfigCompleteRequiresDecision(t *testing.T) {
+	for _, bridged := range []bool{false, true} {
+		t.Run(fmt.Sprintf("bridge=%t", bridged), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			var p *Plugin
+			var engine *engineSide
+			var bridge *rpc.DirectBridge
+			if bridged {
+				p, _, bridge = newBridgedTestPair(t)
+			} else {
+				p, engine = newTestPair(t)
+			}
+			calls := make(chan ConfigCompleteInput, 4)
+			p.OnConfigComplete(func(_ context.Context, input ConfigCompleteInput) error {
+				calls <- input
+				return nil
+			})
+			done := make(chan error, 1)
+			if bridged {
+				go func() { done <- p.bridgeEventLoop(ctx) }()
+			} else {
+				go func() { done <- p.Run(ctx, &Registration{}) }()
+				completeStartup(t, ctx, engine)
+			}
+			defer func() {
+				cancel()
+				<-done
+			}()
+			for _, decision := range []string{"missing", "null", "false", "true"} {
+				t.Run(decision, func(t *testing.T) {
+					deadline := time.Now().Add(time.Second).UnixMilli()
+					field := ""
+					if decision != "missing" {
+						field = `,"accepted":` + decision
+					}
+					params := json.RawMessage(fmt.Sprintf(`{"transaction-id":"original","deadline-ms":%d%s}`, deadline, field))
+					var raw json.RawMessage
+					var err error
+					if bridged {
+						raw, err = bridge.SendCallback(ctx, callbackConfigComplete, params)
+					} else {
+						raw, err = engine.mux.CallRPC(ctx, callbackConfigComplete, params)
+					}
+					if decision == "missing" || decision == "null" {
+						assert.Error(t, err, "malformed completion must be refused")
+						select {
+						case input := <-calls:
+							t.Errorf("malformed completion invoked cleanup: %+v", input)
+						default:
+						}
+						return
+					}
+					require.NoError(t, err)
+					var out rpc.ConfigCompleteOutput
+					require.NoError(t, json.Unmarshal(raw, &out))
+					require.Equal(t, "original", out.TransactionID)
+					require.Equal(t, decision == "true", out.Accepted)
+					require.Equal(t, rpc.StatusOK, out.Status)
+					select {
+					case input := <-calls:
+						require.Equal(t, "original", input.TransactionID)
+						require.Equal(t, decision == "true", input.Accepted)
+						require.Equal(t, deadline, input.DeadlineMS)
+					default:
+						t.Fatal("explicit decision did not invoke cleanup")
+					}
+				})
+			}
+		})
+	}
+}

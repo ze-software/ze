@@ -531,6 +531,62 @@ Key properties:
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce delivery channel setup, drain, and worker goroutine -->
 
+### Captured-session admission stops
+
+`Session.PauseAdmission(ctx, reserve)` returns an owned receipt only after no
+semantic admission is active. Its claim closes the gate before policy evaluation
+and publication in both readers, including coalesced flushes and standalone
+`ReadAndProcess`. The admission mutex is released before invoking callbacks;
+already-admitted asynchronous delivery and forwarding can drain independently.
+The receipt does **not** prove that those downstream consumers have applied their
+work: their coordinator still needs publication, application and writer receipts.
+
+An idle or partial socket read does not delay acknowledgement. Admission does not
+interrupt `ReadFull` or install a read deadline: partial header/body bytes remain
+in the existing reader and pool buffer. A complete packet waits before semantic
+processing, alongside at most the existing bounded coalesced batch. Release
+continues that same processing once, without copying to a new queue, discarding
+messages, closing TCP, or changing negotiated capabilities.
+
+The caller MUST supply a transaction deadline and a positive abort/resume
+reserve. `Deadline()` is the work deadline: the earlier of that deadline and the
+actual armed HoldTimer expiry, minus the reserve. `CompletionDeadline()` exposes
+the captured hard bound **before** that subtraction, for bounded compensation,
+finalization and resumption. Neither bound moves when ordinary traffic restarts
+the HoldTimer. `Check()` judges the work deadline and remaining reserve;
+`CheckCompletion()` permits cleanup to use the reserve, but still refuses
+session loss, a released receipt, an expired/unarmed timer, or the hard deadline.
+A disabled HoldTimer uses the transaction deadline, not an unlimited budget.
+
+Acquisition cancellation releases only its own claim. A successful receipt MUST
+be checked before mutation and explicitly released after compensation or
+finalization, including failed cleanup. Expiry reports failure; it never
+automatically resumes tentative policy. The HoldTimer still expires normally
+and outgoing KEEPALIVEs continue.
+
+`Pause`/`Resume` retain their idempotent public backpressure claim, without
+acknowledging in-flight processing. `Resume` cannot release an admission receipt;
+each receipt releases only its own claim on the captured `Session`, never a
+replacement found through a peer lookup. Real session loss wakes the gates and
+refuses subsequent receipt checks without manufacturing a DOWN/UP transition.
+Terminal completion wakes both running and standalone readers. `closeConn` wakes
+the gates after socket retirement and after releasing its session lock; the
+writer-retirement path does the same after closing the failed transport. The
+HoldTimer path wakes them after its NOTIFICATION attempt and terminal FSM event.
+Close-reason publication is not terminal completion: even if all pause owners
+release while a NOTIFICATION is pending, both reader gates wait for completion
+before returning the stored cause. Otherwise a reader could close the socket
+before the teardown producer sends its notification. Receipt checks may report
+the impending loss to the coordinator, but cannot turn that report into a
+premature reader exit.
+
+<!-- source: internal/component/bgp/reactor/session_flow.go -- PauseAdmission, AdmissionReceipt.Check, AdmissionReceipt.CheckCompletion, AdmissionReceipt.CompletionDeadline, AdmissionReceipt.Release, beginAdmission, endAdmission, stopAdmission -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
+<!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced -->
+<!-- source: internal/component/bgp/reactor/session.go -- NewSession, Run -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConn -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- retireWrite -->
+
 ## `cleanup()`
 
 Runs when the peer goroutine exits (context cancelled or run loop

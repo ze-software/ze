@@ -266,6 +266,20 @@ the bus from buggy or malicious producers.
 
 ### Query RPCs
 
+For `ze-bgp:show-policy-test`, `action` describes the external per-peer policy
+stage and its final, not the full protocol pipeline. A named in-process check
+has a trace entry with `action: "not-evaluated"` and empty `text-after`; no
+filter-update RPC was made for it. Selecting such a check as a single-filter
+override is refused with instructions to test it on the peer session.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+
+An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
+the operator to wait for establishment and repeat `show policy test`. No filter
+executes, including a single-filter override. Trace, input and resulting text
+are empty, and no changed attributes or wire changes are returned. Known-session
+results omit `reason`. An absent EBGP direction uses the RFC 8212 rejecting final.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+
 | WireMethod | Handler | Response shape |
 |------------|---------|----------------|
 | `ze-cmd:show-warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
@@ -275,7 +289,7 @@ the bus from buggy or malicious producers.
 | `ze-static:show-static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-policyroute:show-policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
 | `ze-bgp:show-policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}` — effective policies, with a final only for configured operator policy. An absent direction with no automatic filters is omitted. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --> |
-| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain --> |
+| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain --> |
 | `ze-bgp:show-bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |

@@ -31,7 +31,7 @@ func TestPolicyFilterChainFinalDisposition(t *testing.T) {
 					t.Fatal(err)
 				}
 				calls := 0
-				result := PolicyFilterChain(policy, directionExport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+				result := PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 					calls++
 					if raw && action == PolicyModify {
 						return PolicyResponse{Action: action, Raw: []byte{0, 0, 0, 0}}
@@ -63,8 +63,8 @@ func TestPolicyFinalWithoutActiveFilters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			result := PolicyFilterChain(policy, directionExport, "192.0.2.1", 65001, "origin igp", nil)
-			if (result.Action != PolicyReject) != policy.AcceptsAtEnd() || result.Failed {
+			result := PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", nil)
+			if (result.Action != PolicyReject) != policy.AcceptsAtEnd(true) || result.Failed {
 				t.Fatalf("final=%v result=%+v", final, result)
 			}
 		}
@@ -186,7 +186,7 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 		peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 	session := peer.currentSession()
 	session.adjOut = &peer.adjOut
-	session.egressFinalAccepts = func() bool { return peer.ExportPolicy().AcceptsAtEnd() }
+	session.egressFinalAccepts = func() bool { return peer.ExportPolicy().AcceptsAtEnd(peer.IsEBGP()) }
 	peer.sendInitialRoutes()
 	assertHeld := func(want bool) {
 		t.Helper()
@@ -266,7 +266,7 @@ func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 	r.clock = clock.RealClock{}
 	destination.sendingInitialRoutes.Store(0)
 	session := destination.currentSession()
-	session.egressFinalAccepts = func() bool { return destination.ExportPolicy().AcceptsAtEnd() }
+	session.egressFinalAccepts = func() bool { return destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP()) }
 	update, err := message.UnpackUpdate(syncOrderAnnounceBody)
 	if err != nil {
 		t.Fatal(err)
@@ -345,7 +345,7 @@ func TestPolicyFinalDoesNotReplaceTerminalFailure(t *testing.T) {
 		} {
 			policy := mustPolicy(t, []filterapi.FilterRef{{Name: "test:first"}, {Name: "test:unreachable"}}, final)
 			calls := 0
-			result := PolicyFilterChain(policy, directionImport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			result := PolicyFilterChain(policy, true, directionImport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				calls++
 				return terminal
 			})

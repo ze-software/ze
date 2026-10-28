@@ -95,6 +95,17 @@ add nothing to this contract.
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 
+**An admission stop retains existing reader ownership.** The session's owned
+receipt gates semantic processing, not socket reading. A partial `ReadFull`
+retains its stack and buffer; a completed packet waits in that same pool handle.
+The coalesced reader also retains its bounded batch until admission reopens.
+Neither buffer is returned, copied to a reload queue, or published while waiting.
+On release, ordinary callback ownership transfer/return runs once; on real
+session loss, the reader and coalesce cleanup return their remaining handles.
+<!-- source: internal/component/bgp/reactor/session_flow.go -- beginAdmission, endAdmission -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
+<!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced, resetCoalesce -->
+
 The peer metadata `notifyMessageReceiver` builds is copied by value and borrows nothing either; its AS is an `rpc.RemoteAS` value, two words with no pointer.
 
 **A forwarding dedup entry borrows an outgoing item, not a pool slot forever.**

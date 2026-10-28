@@ -109,16 +109,18 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 	return true, true, session
 }
 
-// hasActiveFilter reports whether a chain holds a ref that can execute.
-//
-// A chain of only deactivated refs applies no policy, so the policy-agnostic
-// fast path stays correct for that peer. Counting a deactivated ref would cost
-// the fast path to an operator who named a filter and switched it off, which is
-// the spelling Ze gives to "I considered this check and chose not to run it"
-// (bgpconfig.chainNamesFilterType).
-func hasActiveFilter(chain []filterapi.FilterRef) bool {
+// hasActiveFilter reports whether the per-peer chain must execute or refuse a
+// reference. In-process ownership is proved only for import; a manually built
+// export policy containing an active internal ref must not take a bypass.
+func hasActiveFilter(chain []filterapi.FilterRef, direction string) bool {
 	for _, ref := range chain {
-		if !ref.Inactive {
+		if ref.ActiveExternal() {
+			return true
+		}
+		if ref.Inactive {
+			continue
+		}
+		if direction != directionImport {
 			return true
 		}
 	}
@@ -255,11 +257,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if !pf.exportPolicy.AcceptsAtEnd() {
+		// RFC 8212 Section 3: cached forwarding applies the same destination final.
+		if !pf.exportPolicy.AcceptsAtEnd(pf.isEBGP) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if hasActiveFilter(pf.exportPolicy.Filters()) {
+		if hasActiveFilter(pf.exportPolicy.Filters(), directionExport) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -285,10 +288,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if !pf.rsRelaySend {
 			continue
 		}
-		if hasActiveFilter(pf.exportPolicy.Filters()) {
+		if hasActiveFilter(pf.exportPolicy.Filters(), directionExport) {
 			continue
 		}
-		if !pf.exportPolicy.AcceptsAtEnd() {
+		// RFC 8212 Section 3: retry uses the current coherent destination facts.
+		if !pf.exportPolicy.AcceptsAtEnd(pf.isEBGP) {
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)

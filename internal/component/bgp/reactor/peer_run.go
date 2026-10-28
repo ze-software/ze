@@ -242,9 +242,16 @@ func (p *Peer) runOnce() error {
 	session.aigpPeer = p
 	session.egressFinalAccepts = func() bool {
 		if facts := p.forwardFacts(); facts != nil {
-			return facts.exportPolicy.AcceptsAtEnd()
+			// RFC 8212 Section 3.
+			return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
 		}
-		return p.ExportPolicy().AcceptsAtEnd()
+		p.mu.RLock()
+		defer p.mu.RUnlock()
+		if p.settings.PeerAS == 0 {
+			return false
+		}
+		// RFC 8212 Section 3: no snapshot does not waive destination admission.
+		return p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
 	}
 	// Originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, run the peer's export filter chain at the session write

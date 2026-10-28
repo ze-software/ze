@@ -48,12 +48,13 @@ Communication provides graceful teardown with human-readable messages. Encode,
 decode, and round-trip paths share the same wire representation.
 <!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
-**ExaBGP migration path.** `ze config migrate` converts ExaBGP configuration files to
-ze-native format. `ze exabgp plugin` runs existing ExaBGP processes with Ze as the BGP
-engine. The migration is external tooling only -- the engine itself has zero ExaBGP
-format awareness.
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
-<!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin command -->
+**ExaBGP migration path.** `ze exabgp migrate` converts ExaBGP configuration files to
+ze-native format, stating import and export `final accept` on every migrated
+peer to preserve its exchange intent under RFC 8212, never on a group or the
+BGP root. `ze exabgp plugin` runs existing ExaBGP processes with Ze as the BGP
+engine. The engine itself has zero ExaBGP format awareness and no bridge policy
+exemption.
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp plugin command -->
 <!-- source: internal/exabgp/migration/migrate.go -- ExaBGP migration logic -->
 
 **Observable by default.** Structured logging via slog, JSON events for every BGP state
@@ -542,7 +543,8 @@ Three levels with deep-merge for containers:
 
 ### ExaBGP Migration
 
-`ze config migrate <file>` converts ExaBGP configuration to ze-native format.
+`ze exabgp migrate <file>` converts ExaBGP configuration to ze-native format,
+including explicit import/export accept policies on each migrated peer.
 `ze exabgp plugin <cmd>` runs ExaBGP processes with Ze as the engine, translating
 between ExaBGP's JSON format and Ze's protocol. The engine itself has zero awareness
 of ExaBGP formats -- all translation lives in external tooling.

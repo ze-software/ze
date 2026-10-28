@@ -20,14 +20,44 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
-// tracePolicyFilterChain records each filter decision and applies the effective
-// policy final at exhaustion or a terminal raw rewrite, just like PolicyFilterChain.
-func tracePolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyChainResult, []plugin.PolicyTraceEntry) {
+// tracePolicyFilterChain records external filter decisions and applies the policy
+// final. Named in-process checks are marked not-evaluated, never called by RPC.
+func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
+	if direction != directionImport {
+		if policy.RequiresIngress() {
+			// Only the refused dry-run scans for its diagnostic reference.
+			// No external filter has executed, regardless of reference order.
+			for _, ref := range policy.Filters() {
+				if ref.Inactive {
+					continue
+				}
+				if ref.InProcess() {
+					_, filterName, _ := strings.Cut(ref.Name, ":")
+					trace = append(trace, plugin.PolicyTraceEntry{
+						Filter:    filterName,
+						Canonical: ref.Name,
+						Action:    "not-evaluated",
+					})
+					break
+				}
+			}
+			return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
+		}
+	}
 	current := updateText
 
 	for _, ref := range policy.Filters() {
 		if ref.Inactive {
+			continue
+		}
+		if ref.InProcess() {
+			_, filterName, _ := strings.Cut(ref.Name, ":")
+			trace = append(trace, plugin.PolicyTraceEntry{
+				Filter:    filterName,
+				Canonical: ref.Name,
+				Action:    "not-evaluated",
+			})
 			continue
 		}
 		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
@@ -61,7 +91,8 @@ func tracePolicyFilterChain(policy filterapi.Policy, direction, peer string, pee
 			if len(result.Raw) > 0 {
 				entry.TextAfter = current
 				trace = append(trace, entry)
-				if !policy.AcceptsAtEnd() {
+				// RFC 8212 Section 3.
+				if !policy.AcceptsAtEnd(external) {
 					return PolicyChainResult{Action: PolicyReject}, trace
 				}
 				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}, trace
@@ -79,7 +110,8 @@ func tracePolicyFilterChain(policy filterapi.Policy, direction, peer string, pee
 		trace = append(trace, entry)
 	}
 
-	if !policy.AcceptsAtEnd() {
+	// RFC 8212 Section 3.
+	if !policy.AcceptsAtEnd(external) {
 		return PolicyChainResult{Action: PolicyReject}, trace
 	}
 	return PolicyChainResult{Action: PolicyAccept, Text: current}, trace
@@ -96,6 +128,7 @@ var (
 	errFilterNotFound    = errors.New("filter not found in peer chain")
 	errInvalidUpdateBody = errors.New("invalid UPDATE message body")
 	errInvalidDirection  = errors.New("direction must be import or export")
+	errInProcessDryRun   = errors.New("filter executes in an in-process protocol stage, outside policy dry-run; test it with an UPDATE on the peer session")
 )
 
 // PolicyDryRun implements plugin.PolicyDryRunner on reactorAPIAdapter.
@@ -112,8 +145,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		return nil, errPeerNotFound
 	}
 
-	// Policies are immutable snapshots read through the peer's guarded
-	// accessors, because dynamic establishment and reload can replace them.
+	// Read policy and session type from the same dynamic-resolution generation.
 	r := a.r
 	var policy filterapi.Policy
 	var peerAS, localAS uint32
@@ -121,23 +153,22 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	found := false
 	r.mu.RLock()
 	for _, p := range r.peers {
-		s := p.Settings()
-		if s.Address != addr {
+		p.mu.RLock()
+		if p.settings.Address != addr {
+			p.mu.RUnlock()
 			continue
 		}
 		found = true
-		// PeerAS and filter chains via the guarded accessors: this policy dry-run runs on
-		// an API goroutine that can race a dynamic peer's establishment write (caller holds
-		// r.mu.RLock).
-		peerAS = p.PeerAS()
-		localAS = s.LocalAS
-		internal = p.IsIBGP()
+		peerAS = p.settings.PeerAS
+		localAS = p.settings.LocalAS
+		internal = p.settings.IsIBGP()
 		switch direction {
 		case directionImport:
-			policy = p.ImportPolicy()
+			policy = p.settings.ImportPolicy
 		case directionExport:
-			policy = p.ExportPolicy()
+			policy = p.settings.ExportPolicy
 		}
+		p.mu.RUnlock()
 		break
 	}
 	r.mu.RUnlock()
@@ -145,12 +176,27 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	if !found {
 		return nil, errPeerNotFound
 	}
+	if peerAS == 0 {
+		return &plugin.PolicyDryRunResult{
+			Direction: direction,
+			Peer:      peerAddr,
+			Action:    "undetermined",
+			Reason:    "remote AS is unresolved; wait for the peer session to establish, then repeat show policy test",
+		}, nil
+	}
 
 	// If a single filter override is specified, find it in the chain.
 	if filterOverride != "" {
 		ref := resolveFilterOverride(filterOverride, policy.Filters())
 		if ref == "" {
 			return nil, errFilterNotFound
+		}
+		for _, configured := range policy.Filters() {
+			if configured.Name == ref {
+				if configured.InProcess() {
+					return nil, errInProcessDryRun
+				}
+			}
 		}
 		policy = policy.WithFilters([]filterapi.FilterRef{{Name: ref}})
 	}
@@ -187,11 +233,11 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	// Run the trace chain using the real filter function (calls plugins via IPC).
 	callFilter := r.policyFilterFunc(updateBody)
 	result, trace := tracePolicyFilterChain(
-		policy, direction, peerAddr, peerAS, textBefore, callFilter,
+		policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
 	)
 	// A policy rejection removes announcements, not explicit withdrawals.
 	// Execution failures and teardown still drop the entire UPDATE.
-	if result.Action == PolicyReject && !policy.AcceptsAtEnd() && !result.Failed && !result.Teardown {
+	if result.Action == PolicyReject && !policy.AcceptsAtEnd(!internal) && !result.Failed && !result.Teardown {
 		if withdrawals := policyWithdrawals(updateBody); withdrawals != nil {
 			withdrawalUpdate := wireu.NewWireUpdate(withdrawals, ctxID)
 			withdrawalAttrs, attrErr := withdrawalUpdate.Attrs()

@@ -687,6 +687,9 @@ func (s *Session) endTeardown(stopEvent fsm.Event) {
 // This ensures the remote side can read any pending data (e.g., NOTIFICATION)
 // before the connection is fully closed.
 func (s *Session) closeConn() {
+	// Run and standalone readers share this terminal-completion wake. Register
+	// before the mu unlock defer so no admission waiter wakes under s.mu.
+	defer s.stopAdmission()
 	// Stop Send Hold Timer before acquiring s.mu to avoid lock ordering issues.
 	s.stopSendHoldTimer()
 	// Do not clear DelayOpen here: the cancel goroutine can close a failed

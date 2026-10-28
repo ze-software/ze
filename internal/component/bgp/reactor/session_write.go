@@ -703,7 +703,11 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	}
 	// A pre-filtered forward can outlive the policy generation that admitted it.
 	// This core-only check never repeats a filter or an attribute modification.
-	if !raw && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+	// Raw diagnostics do not waive export admission.
+	// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated
+	// with an EBGP peer if no explicit Export Policy has been applied."
+	finalRejects := s.egressFinalAccepts != nil && !s.egressFinalAccepts()
+	if finalRejects {
 		body = policyWithdrawals(body)
 		if body == nil {
 			return false, nil
@@ -833,6 +837,11 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		// An opaque diagnostic write is not a fabricated local advertisement.
 		_, err := ownership.filter(nil, body)
 		opaque = err != nil
+		if opaque && finalRejects {
+			// The projection could not prove these are accountable withdrawals.
+			// Refuse before ownership or bytes escape, not after diagnostic flush.
+			return false, nil
+		}
 	}
 
 	written = true
@@ -965,6 +974,9 @@ func (s *Session) retireWrite(err error) {
 	if s.conn != nil {
 		closeConnQuietly(s.conn)
 	}
+	// closeConn is deliberately bypassed under writeMu. The socket retirement
+	// above is complete, so wake both Run and standalone admission readers.
+	s.stopAdmission()
 	select {
 	case s.errChan <- err:
 	default: // The session reader already owns the pending failure.
@@ -1367,7 +1379,10 @@ func (s *Session) sendRawUpdateBody(body []byte) error {
 // If msgType is 0, payload is a full BGP packet (user provides marker+header+body).
 // If msgType is non-zero, payload is message body only (we add the header).
 // Concurrent calls are serialized by writeMu in both modes. Raw UPDATEs are
-// locally originated and MUST satisfy the session's AIGP origination policy.
+// locally originated and MUST satisfy the session's export final and AIGP
+// origination policy. Opaque diagnostics also require an accepting export final.
+// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated
+// with an EBGP peer if no explicit Export Policy has been applied."
 func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1392,6 +1407,11 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 			}
 			return s.finishRawWrite(opaque)
 		}
+		opaque := len(payload) != 0 && !rawControlPacket(payload)
+		// RFC 8212 Section 3: uncertain framing can conceal UPDATEs.
+		if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+			return nil
+		}
 		written, err := s.bufWriter.Write(payload)
 		if err == nil && written != len(payload) {
 			err = io.ErrShortWrite
@@ -1403,7 +1423,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		if written != 0 {
 			s.writePending = true
 		}
-		return s.finishRawWrite(len(payload) != 0 && !rawControlPacket(payload))
+		return s.finishRawWrite(opaque)
 	}
 
 	s.writeMu.Lock()
@@ -1441,6 +1461,12 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	// Body
 	copy(buf[message.HeaderLen:], payload)
 
+	opaque := !rawControlPacket(buf[:totalLen])
+	// RFC 8212 Section 3: an unknown diagnostic type cannot waive admission.
+	if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+		return nil
+	}
+
 	written, err := s.bufWriter.Write(buf[:totalLen])
 	if err == nil && written != totalLen {
 		err = io.ErrShortWrite
@@ -1450,7 +1476,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		return err
 	}
 	s.writePending = true
-	return s.finishRawWrite(!rawControlPacket(buf[:totalLen]))
+	return s.finishRawWrite(opaque)
 }
 
 // finishRawWrite MUST follow a raw write under writeMu. Successful diagnostic
@@ -1469,7 +1495,7 @@ func (s *Session) finishRawWrite(opaque bool) error {
 }
 
 // rawControlPacket proves an unchanged full packet has no trailing UPDATE or
-// uncertain framing. Refusal here never prevents diagnostic emission.
+// uncertain framing. Opaque emission requires an accepting export final.
 // RFC 4271 Section 4.1 defines the Marker, Length and Type header fields.
 func rawControlPacket(packet []byte) bool {
 	header, err := message.ParseHeader(packet)

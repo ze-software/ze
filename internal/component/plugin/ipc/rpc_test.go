@@ -1389,3 +1389,68 @@ func TestValueAnswerCarriesAFailureOnItsTerminator(t *testing.T) {
 		})
 	}
 }
+
+// A success status from a different transaction or phase is not a receipt.
+func TestConfigCompleteRejectsForeignReceipt(t *testing.T) {
+	for _, fault := range []string{"transaction", "decision", "status", "success"} {
+		t.Run(fault, func(t *testing.T) {
+			engine, plugin := newTestPluginConn(t)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			input := &rpc.ConfigCompleteInput{TransactionID: "original", Accepted: true, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
+			result := make(chan error, 1)
+			go func() { result <- engine.SendConfigComplete(ctx, input) }()
+			req, err := plugin.ReadRequest(ctx)
+			require.NoError(t, err)
+			require.Equal(t, "ze-plugin-callback:config-complete", req.Method)
+			out := rpc.ConfigCompleteOutput{TransactionID: input.TransactionID, Accepted: true, Status: rpc.StatusOK}
+			switch fault {
+			case "transaction":
+				out.TransactionID = "newer"
+			case "decision":
+				out.Accepted = false
+			case "status":
+				out.Status = ""
+			case "success":
+			}
+			require.NoError(t, plugin.SendResult(ctx, req.ID, out))
+			err = <-result
+			if fault == "success" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+// A success receipt must explicitly echo its decision, including rejection.
+func TestConfigCompleteReceiptRequiresDecision(t *testing.T) {
+	for _, accepted := range []bool{false, true} {
+		for _, decision := range []string{"missing", "null", "false", "true"} {
+			t.Run(fmt.Sprintf("accepted=%t/%s", accepted, decision), func(t *testing.T) {
+				engine, plugin := newMuxEnginePluginConn(t)
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				input := &rpc.ConfigCompleteInput{TransactionID: "original", Accepted: accepted, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
+				result := make(chan error, 1)
+				go func() { result <- engine.SendConfigComplete(ctx, input) }()
+				req, err := plugin.ReadRequest(ctx)
+				require.NoError(t, err)
+				require.Equal(t, "ze-plugin-callback:config-complete", req.Method)
+				field := ""
+				if decision != "missing" {
+					field = `,"accepted":` + decision
+				}
+				out := json.RawMessage(`{"transaction-id":"original","status":"ok"` + field + `}`)
+				require.NoError(t, plugin.SendResult(ctx, req.ID, out))
+				err = <-result
+				if decision == fmt.Sprint(accepted) {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err, "missing, null or mismatched decisions must not acknowledge completion")
+				}
+			})
+		}
+	}
+}

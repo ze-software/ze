@@ -194,6 +194,22 @@ grants no reprieve to a CPU-congested daemon.
 
 <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 
+`Timers.HoldBudget` observes the actual arm's deadline using the same clock as
+the timer. It distinguishes **disabled**, **unarmed**, **armed** with a positive
+remaining duration, and **expired** (including a deadline reached before its
+callback acquires the timer lock). Reading it never resets, extends or stops the
+timer. A configuration duration change alone does not move the armed deadline;
+the existing message-driven restart does. Stopping clears the deadline, while
+expiry remains distinguishable until ordinary teardown stops the timer.
+
+Admission receipts use that remaining budget and reserve time for abort/resume;
+they do not borrow the full negotiated duration. A paused read does not exempt
+the session from Event 10. RFC 4271 Section 8.2.2, Established, says that on
+`HoldTimer_Expires` the system “drops the TCP connection”; admission control
+changes neither that action nor the existing message-driven restart rule.
+<!-- source: internal/component/bgp/fsm/timer.go -- HoldBudget, armHoldTimerLocked, fireHold, stopHoldTimerLocked -->
+<!-- source: internal/component/bgp/reactor/session_flow.go -- PauseAdmission -->
+
 ## Wire side effects
 
 - **On receive UPDATE:** RFC 7606 validation, AS-path reconciliation,

@@ -48,7 +48,7 @@ type ConfigOperationVerifyEvent struct {
 	DeadlineMS    int64           `json:"deadline-ms,omitempty"`
 }
 
-// ConfigOperationCommitEvent asks one plugin to finalize operation journals.
+// ConfigOperationCommitEvent asks one plugin to acknowledge reversible commit.
 type ConfigOperationCommitEvent struct {
 	TransactionID string `json:"transaction-id"`
 	DeadlineMS    int64  `json:"deadline-ms,omitempty"`

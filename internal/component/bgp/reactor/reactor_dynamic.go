@@ -702,7 +702,8 @@ func resolveFilterVars(filters []filterapi.FilterRef, localAS, remoteAS uint32, 
 		name := strings.ReplaceAll(f.Name, "$remote_as", ras)
 		name = strings.ReplaceAll(name, "$local_as", las)
 		name = strings.ReplaceAll(name, "$remote_ip", remoteIP)
-		resolved[i] = filterapi.FilterRef{Name: name, Inactive: f.Inactive}
+		resolved[i] = f
+		resolved[i].Name = name
 	}
 	return resolved
 }

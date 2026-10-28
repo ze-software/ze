@@ -214,7 +214,7 @@ func TestDynamicGroupInheritsTheFilterChain(t *testing.T) {
 	// LOOPS first: prependDefaultFilters puts loop detection at the head of every
 	// import chain (RFC 4271 Section 9). Then MEMBERS twice, once from the bgp
 	// level and once from the group, because the chains accumulate.
-	require.Equal(t, []string{"LOOPS", "bgp-filter-prefix:MEMBERS", "bgp-filter-prefix:MEMBERS"}, names)
+	require.Equal(t, []string{"loop:LOOPS", "bgp-filter-prefix:MEMBERS", "bgp-filter-prefix:MEMBERS"}, names)
 
 	// The loop-detection entry's own settings landed too, which is the layer that
 	// reads the chain it was just given.

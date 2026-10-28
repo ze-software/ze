@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -22,9 +24,12 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -787,5 +792,116 @@ func TestWaitLoopStopQueuedBehindStartupSIGHUP(t *testing.T) {
 	case <-loopDone:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the SIGTERM queued behind a startup SIGHUP did not end waitLoop")
+	}
+}
+
+// The runtime value is not encoded in the old config. Only the ORIGINAL
+// operation journal can restore it after durable candidate publication fails.
+func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
+	for _, publicationFails := range []bool{true, false} {
+		t.Run(fmt.Sprintf("publication-fails=%t", publicationFails), func(t *testing.T) {
+			resetAAABundleForTest(t)
+			snapshot := registry.Snapshot()
+			t.Cleanup(func() { registry.Restore(snapshot) })
+			const name = "hub-completion-owner"
+			const operation sdk.ConfigOperationType = "hub-runtime-change"
+			var value atomic.Int64
+			value.Store(73)
+			require.NoError(t, registry.Register(registry.Registration{
+				Name: name, Description: "hub transaction completion probe",
+				CLIHandler: func([]string) int { return 0 },
+				RunEngine: func(conn net.Conn) int {
+					p := sdk.NewWithConn(name, conn)
+					journals := make(map[string]*sdk.Journal)
+					p.OnConfigure(func([]sdk.ConfigSection) error { return nil })
+					p.OnConfigVerify(func([]sdk.ConfigSection) error { return nil })
+					p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
+						return errors.New("completion fixture requires declared operations")
+					})
+					p.OnConfigOperationDecompose(func(sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
+						return &sdk.ConfigOperationDecomposeOutput{Operations: []sdk.ConfigOperation{{
+							ID: "runtime", Root: name, Owner: name, Type: operation, Verb: sdk.VerbModify,
+							Target: sdk.ResourceRef{Kind: sdk.ResourceInterface, Name: "runtime"},
+						}}}, nil
+					})
+					p.OnConfigOperationVerify(func(sdk.ConfigOperationVerifyInput) error { return nil })
+					p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+						before := value.Load()
+						j := sdk.NewJournal()
+						if err := j.Record(func() error { value.Store(99); return nil }, func() error { value.Store(before); return nil }); err != nil {
+							return nil, err
+						}
+						journals[input.TransactionID] = j
+						return nil, nil
+					})
+					p.OnConfigOperationCommit(func(sdk.ConfigOperationCommitInput) error { return nil })
+					p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+						j := journals[input.TransactionID]
+						if j == nil {
+							return errors.New("lost original journal")
+						}
+						delete(journals, input.TransactionID)
+						return errors.Join(j.Rollback()...)
+					})
+					p.OnConfigComplete(func(_ context.Context, input sdk.ConfigCompleteInput) error {
+						if input.Accepted {
+							return errors.New("owner cleanup failed")
+						}
+						if journals[input.TransactionID] != nil {
+							return errors.New("original undo not restored")
+						}
+						return nil
+					})
+					defer p.Close()
+					if err := p.Run(t.Context(), &sdk.Registration{
+						WantsConfig:      []string{name},
+						ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{operation}}},
+					}); err != nil {
+						return 1
+					}
+					return 0
+				},
+			}))
+			old := map[string]any{name: map[string]any{"revision": "old"}}
+			candidate := map[string]any{name: map[string]any{"revision": "new"}}
+			provider := zeconfig.NewProvider()
+			applyLoadedTreeToProvider(provider, old)
+			reactor := &reloadTestReactor{tree: old}
+			server, err := pluginserver.NewServer(&pluginserver.ServerConfig{
+				Plugins: []plugin.PluginConfig{{Name: name, Internal: true}},
+			}, reactor)
+			require.NoError(t, err)
+			manager := pluginmgr.NewManager()
+			require.NoError(t, manager.StartAll(t.Context(), server, provider))
+			server.SetProcessSpawner(manager)
+			t.Cleanup(func() { server.Stop(); require.NoError(t, manager.StopAll(context.Background())) })
+			require.NoError(t, server.StartWithContext(t.Context()))
+			require.NoError(t, server.WaitForStartupComplete(t.Context()))
+			dir := t.TempDir()
+			path := filepath.Join(dir, "completion.conf")
+			base := newTestStore(t, dir)
+			stamp, err := storage.WriteCandidateVersion(base, path, []byte("candidate"), mustParseReloadStamp(t, "20260817-100000.000"))
+			require.NoError(t, err)
+			var store storage.Storage = base
+			if publicationFails {
+				store = failAcquireStorage{Storage: base}
+			}
+			load := func() (map[string]any, *zeconfig.Tree, error) { return candidate, nil, nil }
+			err = runReloadContext(t.Context(), reloadSourceCommit, server, nil, provider, store, path, load, nil)
+			require.Error(t, err)
+			if publicationFails {
+				require.ErrorContains(t, err, "promote candidate")
+				require.Equal(t, int64(73), value.Load())
+				require.Equal(t, old, reactor.tree)
+			} else {
+				require.ErrorContains(t, err, "candidate is active")
+				require.ErrorContains(t, err, "owner cleanup failed")
+				require.Equal(t, int64(99), value.Load())
+				require.Equal(t, candidate, reactor.tree)
+				active, ok := configPointer(t, base, path, zefs.KeyConfigActive)
+				require.True(t, ok)
+				require.Equal(t, stamp, active)
+			}
+		})
 	}
 }

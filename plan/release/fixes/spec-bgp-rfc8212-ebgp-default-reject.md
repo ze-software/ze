@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | The route-server release profile requires RFC 8212. Today an EBGP session with no import or export policy accepts every route into the Decision Process and advertises every route, which is the route-leak default RFC 8212 exists to remove |
 | RFC gaps | RFC8212-3-1, RFC8212-3-2 |
 | Depends | - |
-| Phase | - |
+| Phase | 3/7 |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -166,6 +166,8 @@ behaviour is local: nothing on the wire changes except which routes are sent.
 | A-4 | An explicit `filter import { final accept; }` at the bgp level is the operator's explicit Import Policy for every peer, so no separate RFC8212-3-3 switch is needed | RFC 8212 Section 1: "routes are neither imported nor exported unless specifically enabled by configuration" | An operator could ask for a knob FRR-style | Owner reads Key Design Decisions | unvalidated |
 | A-5 | ExaBGP's own behaviour is accept-all in both directions with no policy | ExaBGP has no import or export policy construct | Migrated configs would over-permit | Searched `~/Code/github.com/exa-networks/exabgp/main` 2026-10-28: no import/export policy, route-map or RFC 8212 handling | validated 2026-10-28 |
 | A-6 | Adding an explicit `final accept` to an RFC-tagged fixture's config does not change what its tag proves, so its discrimination record stays valid or is re-recorded mechanically | The edit restores today's behaviour for that fixture; no assertion changes | 46 tagged carriers each owe a fresh `./le rfc record` and a judge verdict, a phase of its own | Read how `./le rfc check` stales a record (`docs/contributing/rfc-conformance-gates.md`) before Phase 4; if a config edit stales it, Phase 4 re-records each carrier | unvalidated |
+| A-10 | Named automatic loop filters already reach their in-process executor without an external RPC | `applyLoopDetectionConfig` reads the named entry and `LoopIngress` runs in the protocol stage | The automatic-only positive control fails before reaching the policy final | Phase 1 native import fixture and config-to-dispatch producer trace | broken 2026-10-28; prerequisite repaired and verified below |
+| A-11 | Startup subscriptions retain every supplied peer selector | The SDK and RPC accept a peer list | The export fixture's accepted peer sends its receipt but the observer never sees it | Saved native wire capture and `registerSubscriptions` producer | broken 2026-10-28; prerequisite repaired and verified below |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -362,6 +364,8 @@ over the closing commits.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `zero-value-as-valid-answer.md` | 2026-10-26 | `Policy.AcceptsAtEnd` accepts an absent policy on EBGP |
+| `unwired-feature.md` | 2026-09-02 | Named automatic loop-filter references dispatch to a nonexistent external plugin |
+| `unwired-feature.md` | 2026-10-28 | Startup subscriptions discard every peer selector after the first |
 
 ## Key Design Decisions
 
@@ -933,3 +937,155 @@ not itself evidence that the page's described behavior changes.
 The owner selected **Save as ready** on 2026-10-28. Design and final save gates
 are approved. The spec is ready for implementation; no implementation,
 runtime verification or RFC conformance proof is claimed by this session.
+
+## Phase 1 current-tree audit, 2026-10-28
+
+This is source inspection, not runtime proof. The metadata remains
+`in-progress`, Phase `1/7`. The approved amendments remain valid; no finding
+requires a new product decision. `git log --oneline -30` includes the approved
+specification commit but no intervening RFC 8212 implementation. The named
+RFC 8212 reactor and functional proof files were absent before this phase.
+No feature behavior, public support claim, RFC tag or existing assertion changed.
+
+| AC | Current implementation | Producer and remaining requirement |
+|----|------------------------|------------------------------------|
+| 1 | Partial | `reactor/filter_ordered.go::runIngressPolicyChain` and `reactor/reactor_notify.go::notifyMessageReceiver` reject before eligible publication, but `filterapi/policy.go::AcceptsAtEnd` accepts absence |
+| 2 | Partial | `reactor/egress_inject_filter.go::exportFilterForBody` shares export filtering but accepts absent policy and a missing forwarding snapshot; ordered and fast-forward export also accept absence |
+| 3 | Implemented, unverified | `config/redistribution.go::concatPolicies` retains inherited explicit finals; existing `config/policy_test.go` covers configured policies. New real-path regression still owed |
+| 4 | Implemented, unverified | `Policy.AcceptsAtEnd` accepts absent IBGP today; session-aware cutover must preserve it |
+| 5 | Partial | `filterapi/policy.go::InternalPolicy` preserves absence, but exhaustion still accepts it on EBGP |
+| 6 | Partial | `reactor/peer_settings_apply.go::applyHotSwappableSettings` only reconciles export finals. Import refresh recovery and pre-publication refusal are missing; `peer_derived_bindings.go::requestRouteRefreshAll` logs rather than returns send failure |
+| 7 | Partial | Existing export rejection reconciliation is reached through effective-final comparison, but removing accept currently still accepts |
+| 8 | Partial | `reactor_api.go::policyInfo` omits absence; `plugins/cmd/policy/handler.go::toPolicyChain` projects only filters/final; `policy_dryrun.go::PolicyDryRun` has no policy context or unresolved-session result |
+| 9 | Missing | No RFC 8212 establishment warning is produced by the current absent-policy decision; warning proof remains owed |
+| 10 | Missing | `migration/migrate.go::MigrateFromExaBGP`, `migrateNeighbors`, `migrateSingleNeighbor` emit no explicit per-peer import/export policy |
+| 11 | Missing | `rfc/short/rfc8212.md` correctly retains both mandatory gaps; no conformance claim or record added |
+| 12 | Missing | `applyHotSwappableSettings` publishes import changes without source-state invalidation |
+| 13 | Missing | `bgp/plugin/register.go` operation-commit callback discards journals; `config/transaction/orchestrator.go::runOperationPath` can still roll back after a later commit failure |
+| 14 | Missing | `reactor/forward_pool.go::forwardSourceCurrent` fences generation, not import policy; `relay_recovery.go::adjOutOwnerCurrent` adds binding revocation but not the approved admission epoch |
+| 15 | Missing | `reactor/session_flow.go::Pause` has no admission receipt; `plugin/server/reload_tx.go::reloadAcceptance.finish` and hub `runReloadContext` cannot return acceptance-finalization failures |
+
+Counts: two implemented-but-unverified preservation requirements, six partial,
+seven missing. These classifications do not mark any AC demonstrated.
+Paths beginning `reactor/`, `config/` or `plugins/` above are under
+`internal/component/bgp/`; migration is `internal/exabgp/migration/`.
+
+### Assumption validation against the current tree
+
+This table supersedes earlier status cells, without rewriting the historical
+assumptions into claims that their proposed mechanisms already exist.
+
+| ID | Status | Cheap validation performed and remaining proof |
+|----|--------|-----------------------------------------------|
+| A-1 | Confirmed, limited | Live `AcceptsAtEnd`/`Configured` census matches the declared consumers, including both `forward_rs` passes. Parent supplied successful session-tagged gopls references. Signature migration is not epoch/bypass proof |
+| A-2 | Confirmed as amended; original withdrawal-conversion claim broken | Read `notifyMessageReceiver`, `runIngressPolicyChain`, `ingressPolicyWithdrawals`, `policyWithdrawals`: denial precedes cache/forward/delivery; only explicit withdrawals survive. No pre-policy-store emptiness requirement |
+| A-3 | Confirmed for publication; runtime proof owed | `reactor_dynamic.go::publishDynamicResolution` writes AS/import/export under one lock and validates template generation. Dry-run currently takes separate accessors and has no unknown-AS guard; coherent consumer snapshot remains implementation work |
+| A-4 | Confirmed as amended; original deviation interpretation broken | `concatPolicies` keeps explicit presence; RFC 8212 Section 3 makes the deviation switch MAY. Explicit accept is policy, not proof of an optional switch |
+| A-5 | Source premise supported; compatibility unverified | ExaBGP `rib/incoming.py::update_cache` stores received routes and `rib/outgoing.py::updates` yields generated updates with no import/export-policy condition in those producers. Controlled RIB search found no policy construct. Migrated configurations/scripts still require the planned compatibility run |
+| A-6 | Broken original freshness assumption, approved mitigation retained | `internal/le/rfc/tags.go::behaviorBytes`/`dropCarrierBlocks` retain stdin content but omit tmpfs bodies. Configuration edits cannot be assumed to preserve records or judgment |
+| A-7 | Unvalidated recovery hypothesis; source prerequisite confirmed | `requestRouteRefreshAll` gates on negotiation and loops over negotiated families. It is neither session-captured nor error-returning. Eventual route recovery cannot be validated by source inspection |
+| A-8 | Confirmed overlap boundary; joint runtime proof owed | RFC 7947 spec is still design; `notifyMessageReceiver` currently returns before retained-store delivery. Preserve future rejected-announcement population without making that separate feature a dependency |
+| A-9 | Unvalidated implementation hypothesis; existing primitives confirmed | `Session.Pause`/`Resume` and `adjOutOwnerCurrent` exist but provide neither pause-owner composition nor reversible source eligibility. Fault, deadline, reference-lifetime and outer-acceptance tests must establish extensibility |
+| A-10 | Broken premise; prerequisite repaired and verified | Registered ownership now binds the named entry to `LoopIngress`; the RPC chain skips that in-process reference. Scoped binding, inactive, dynamic, dry-run and export-refusal tests pass. The native import draft receives the accepted IPv4 and IPv6 frames before reporting the intended forbidden absent-policy announcement |
+| A-11 | Broken premise; prerequisite repaired and verified | `registerSubscriptions` now retains every selector. Focused delivery race tests pass; unchanged native export reaches accepted receipts for all five origins, and the observer's undeclared-event warning is gone |
+
+### Wrong assumptions already resolved by the approved design
+
+| Assumption | Current producer evidence | Approved correction |
+|------------|---------------------------|---------------------|
+| Denial generates withdrawals for old routes | `policyWithdrawals` retains only explicit withdrawal bytes | D2 reversible source invalidation, not a scalar-verdict-only change |
+| Explicit accept implements the optional deviation switch | `concatPolicies` preserves configured policy; RFC 8212 Section 3 conditions the mandatory rule on its absence | No switch and no optional-switch conformance claim |
+| Equivalent fixture setup preserves RFC evidence | `behaviorBytes` hashes stdin; tmpfs omission does not establish semantic equivalence | Renew each affected cover and obtain independent judgment |
+
+### Phase 1 artifact boundary
+
+Added untagged tests use existing compiled entry points:
+`TestMigrateWritesExplicitRFC8212Policies` drives the public parser/migrator,
+and `TestRFC8212PolicyDryRunWiring` drives `PolicyDryRunner.PolicyDryRun` and
+its serialized response. Native runs now exist for all nine functional drafts
+and the three unit probes. Dry-run, migration and the pre-snapshot probe reach
+missing product semantics. The status draft reaches the absent-final mismatch.
+The import draft now proves its accepted IPv4/IPv6 control before the intended
+absent-policy failure, and the IBGP control passes. Reload drafts reach missing
+default rejection, relaxation preflight or downstream invalidation. Their
+later rollback/owner-fault boundaries remain gated on that invalidation, not
+proven. Export now reaches all five accepted-origin receipts and its native
+negative check catches the forbidden static announcement. Nothing is promoted.
+
+Future conformance covers remain RFC8212-3-1 positive (explicit-policy eligible
+import) and negative (absent-policy EBGP exclusion), and RFC8212-3-2 positive
+(explicit-policy export) and negative (absent-policy suppression across origins).
+Dry-run and migration alone do not prove those wire/eligibility requirements.
+
+### Phase 1 mistake log: named automatic-filter prerequisite
+
+The assumption that a configured internal loop entry already works is broken,
+not the approved absence rule. The existing journal occurrence is owned above.
+Removing `AUTO` would lose the nonempty automatic-policy regression boundary.
+
+| Diagnosis | Evidence and decision |
+|-----------|-----------------------|
+| Symptom | The import draft's explicit-policy positive control receives no routes; the daemon reports `unknown plugin "AUTO"` |
+| Root cause | `config/peers.go::prependDefaultFilters` inserts a bare reference after canonicalization. `reactor/filter/register.go` registers `LoopIngress` in process, while `reactor/filter_chain.go::PolicyFilterChain` treats the reference as an external process |
+| Owning layer | Configured filter identity and reactor dispatch, not the fixture's route assertions or external-plugin registration |
+| `[workaround]` | Remove the named internal reference, add an explicit policy to the absent direction, or provide a fake plugin |
+| `[source]` | Preserve the automatic reference and absent final, resolve its registered execution ownership, and keep loop processing at its existing stage without an external RPC |
+| Why not the workaround | It hides the defect or removes the distinction AC-5 must prove. The prerequisite repair must preserve active/inactive configuration, loop settings, dynamic-peer parity and fail-closed external filters |
+
+This repair precedes the scalar-verdict phase. It adds no new protocol feature
+and changes no approved acceptance criterion. Its tests, documentation and
+native positive-control proof are required before the wiring gate can pass.
+
+### Named automatic-filter prerequisite proof
+
+The repair now has scoped race evidence in filterapi, config and reactor,
+including real registered-hook execution, inactive/dynamic preservation,
+whole-policy export refusal before terminal callbacks, and original-scope
+editor remediation. The actual raw-rewrite probe changed from one external
+call and acceptance to rejection with zero calls. Native config validation now
+prints the written `AUTO` reference and executable deactivation command.
+
+In `rfc8212-ebgp-no-import-policy`, the absent source received both accepted
+control frames before sending its subject: 51-byte IPv4 and 78-byte MP IPv6.
+The observer then reported forbidden `10.82.1.0/24` at the sink. This is the
+intended missing default-reject behavior, not the earlier unknown-plugin
+prerequisite failure. The IBGP preservation control also passed.
+
+The canonical per-spec state records commands, logs and independent reviews.
+The named automatic-filter journal occurrence is fixed. The subsequent
+subscription prerequisite and final wiring classification follow below.
+
+### Phase 1 mistake log: multiple subscription peers
+
+| Diagnosis | Evidence and decision |
+|-----------|-----------------------|
+| Symptom | The accepted export peer receives the exact static UPDATE and sends its receipt, but the observer's route set stays empty |
+| Root cause | `plugin/server/dispatch.go::registerSubscriptions` constructs a filter from `input.Peers[0]` and ignores the remaining selectors |
+| Owning layer | Shared startup/runtime subscription registration, not native-peer sequencing or policy verdicts |
+| `[workaround]` | Subscribe the fixture to every peer or omit the accepted receipt |
+| `[source]` | Register every supplied selector using the existing subscription representation and process deduplication, retaining configured grant intersection |
+| Why not the workaround | It hides a public API defect and leaves the exact multi-peer subscription contract broken |
+
+The saved native capture also shows the absent-policy destination receiving the
+forbidden static announcement. That is the intended export rejection failure;
+it does not explain why the independent accepted receipt was lost. This
+prerequisite changes no RFC 8212 acceptance criterion.
+
+### Wiring handoff to Phase 2
+
+Both prerequisites are repaired, independently reviewed and exercised through
+the native entry points. The subscription repair also passes focused race tests
+in plugin/server and BGP/server. In the unchanged export draft, the accepted
+peer receives and acknowledges static, forwarded, API, ExaBGP bridge and
+redistribution announcements; the observer reaches the quiescence request after
+those receipts. The absent-policy peer receives the forbidden static route and
+its native reject fires. Quiescence then fails; the final withdrawal fences and
+session assertions have not passed.
+
+The wiring gate has its intended failing baselines: import/export absence,
+pre-snapshot admission, status/dry-run, migration, relaxation preflight and
+downstream invalidation. The IBGP control passes. Rollback and owner-fault
+injections remain behind the missing invalidation, as the approved dependency
+order requires; no lifecycle success is claimed. Phase 2 now implements the
+session-aware scalar verdict. Later phases still owe every remaining AC,
+fixture migration and RFC proof.

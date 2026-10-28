@@ -1268,6 +1268,15 @@ runners; everything after it is shared.
 `ze exabgp migrate` writes the internal form, so a migrated ExaBGP config always
 reaches the runner that carries every process.
 
+Migration also writes explicit import and export `final accept` policies on
+each migrated peer, including IBGP and template-expanded neighbors, to preserve
+ExaBGP's exchange intent under RFC 8212. No global or group accept is added.
+The bridge itself has no policy exemption: a hand-written Ze configuration
+must supply explicit policy for intended EBGP exchange, just like a native
+plugin's configuration.
+<!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
+<!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
+
 The external runner carries no `encoder` and no `feed` either, for the same
 reason: a process-manager command line states neither. Its one script is written
 in JSON and is fed by every peer. Both are stated at the construction site

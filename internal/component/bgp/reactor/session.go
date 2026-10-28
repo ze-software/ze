@@ -215,9 +215,9 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 //  3. s.sendHoldMu — sendHoldTimer; acquired AFTER s.writeMu via resetSendHoldTimer,
 //     which Send* methods call from inside their writeMu critical section
 //
-// s.pauseMu is independent of the other three: it protects only the resumeCh
-// create/close pair (see session_flow.go) and is never nested with s.mu,
-// s.writeMu, or s.sendHoldMu.
+// s.pauseMu protects the public pause claim and admission counters/signals. It
+// is never held across callbacks, socket I/O, or acquisition of s.mu, s.writeMu,
+// or s.sendHoldMu (see session_flow.go).
 //
 // One lock OUTSIDE this Session is ordered against it: Peer.mu comes BEFORE s.mu.
 // Peer.resolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
@@ -387,9 +387,13 @@ type Session struct {
 	// When paused, TCP recv buffer fills → kernel shrinks window → sender throttles.
 	// Write path (KEEPALIVE) is independent and continues during pause.
 	// RFC 4271 §6.5: hold timer expires if paused long enough (safety valve).
-	paused   atomic.Bool   // Fast-path check — false in normal operation
-	pauseMu  sync.Mutex    // Protects resumeCh create/close
-	resumeCh chan struct{} // Closed by Resume() to unblock the read loop
+	paused          atomic.Bool // Fast-path check — false in normal operation.
+	pauseMu         sync.Mutex
+	publicPause     bool
+	admissionClaims int
+	admissionActive int
+	admissionClosed bool
+	resumeCh        chan struct{} // Lazy broadcast for admission and public pause changes.
 
 	// closeReason stores why the connection was closed (context cancel, hold timer,
 	// teardown, etc.). Set atomically before closeConn() so the read loop can
@@ -809,6 +813,9 @@ func NewSession(settings *PeerSettings) *Session {
 		// FSM.Event owns transition locking; callbacks may inspect s.Conn.
 		// MUST fire without s.mu held.
 		s.logFSMEvent(fsm.EventHoldTimerExpires)
+		// The NOTIFICATION attempt and terminal FSM event are complete. Wake
+		// standalone admission readers too; cause publication alone is too early.
+		s.stopAdmission()
 		select {
 		case s.errChan <- ErrHoldTimerExpired:
 		default: // errChan full -- cancel goroutine already has a signal
@@ -1284,7 +1291,6 @@ func (s *Session) Run(ctx context.Context) (runErr error) {
 		}
 		s.setCloseReason(reason)
 		s.closeConn()
-		s.Resume()      // Unblock pause gate if paused.
 		close(readStop) // Unblock a wait for a read buffer.
 	}()
 

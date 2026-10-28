@@ -220,6 +220,15 @@ events, not committed ownership proof. Receipt-fenced cold replay and recovery
 must not treat an old callback alone as authority on a replacement session.
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, adjOutPath, setOwner, releasePath, clearRoutes -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
+
+Raw UPDATE injection shares this final export admission: an absent EBGP export
+policy cannot create an advertisement, even with a raw send grant. Rejection
+projects only explicit withdrawals and EOR, never synthesizes withdrawals from
+denied raw announcements. The existing raw ownership preflight refuses an
+opaque projection before emission; it does not add a second parsing pass.
+Complete non-UPDATE control packets remain independent of export policy, but
+uncertain framing (including a trailing UPDATE) requires an accepting final.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, rawControlPacket -->
 <!-- source: internal/component/bgp/reactor/forward_provenance.go -- prepareFwdProvenance, writePath -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- beginAdjOut, bindSourcePath, filter, record, release -->
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- reserve, retain, release -->
@@ -648,9 +657,12 @@ rebuild or dispatch releases it. All sections use the same pending-item retain
 and dispatch path as an unsplit output.
 
 The route-server retry scans current peers once for source reflection facts and
-active-policy skips, then visits selected destinations directly. It accepts only
-current peer identities with live forwarding facts: selection costs
-O(current peers + selected destinations), without a membership map allocation.
+policy skips, then visits selected destinations directly. Both passes skip an
+absent EBGP export policy under RFC 8212 Section 3, using the policy and session
+type in the same forwarding snapshot. These destinations return to the cached
+path, which applies the same final. Selection accepts only current peer identities
+with live facts and costs O(current peers + selected destinations), without a
+membership map allocation.
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopWithheld -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->

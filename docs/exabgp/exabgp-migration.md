@@ -159,6 +159,34 @@ so the migrated peer stays held down as it was under ExaBGP, and `request peer
 administratively down").
 <!-- source: internal/exabgp/migration/migrate.go -- copySimpleFields; internal/exabgp/migration/migrate_serialize.go -->
 
+#### Explicit route-exchange policy
+
+Ze rejects EBGP route import and export when the effective direction has no
+explicit policy (RFC 8212). `ze exabgp migrate` preserves ExaBGP's route-exchange
+intent by writing both policies on **every migrated peer**, including IBGP
+neighbors and neighbors expanded from templates:
+
+```text
+filter {
+    import { final accept; }
+    export { final accept; }
+}
+```
+
+Each peer's migration warning names RFC 8212 and explains that preservation.
+The policies are never placed on the BGP root or a group, so a peer added later
+does not inherit acceptance merely because its group contains a migrated peer.
+This does not change ExaBGP 4.2, 5.0 or 6.0 command semantics or exempt the
+bridge from policy: hand-written Ze bridge configurations must state their own
+policies wherever route exchange is intended. Review the emitted per-peer
+accepts and replace them with narrower policies where appropriate.
+
+Validate the actual output with `ze config validate ze-bgp.conf`, then exercise
+the migrated configuration with its scripts against a peer. Successful
+serialization or validation alone does not prove that scripts exchange routes.
+<!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
+<!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
+
 #### Hold time and Graceful Restart time
 
 ExaBGP offers a hold time of 180 seconds when a neighbor states none, in 4.2,
@@ -267,4 +295,4 @@ See `internal/exabgp/` for the Go library implementation.
 
 ---
 
-**Updated:** 2026-10-22
+**Updated:** 2026-10-28

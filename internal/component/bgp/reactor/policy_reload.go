@@ -40,7 +40,11 @@ func (p *Peer) reconcileExportFinal() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	adapter := &reactorAPIAdapter{r: r}
-	if !p.ExportPolicy().AcceptsAtEnd() {
+	p.mu.RLock()
+	// RFC 8212 Section 3.
+	accepts := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	p.mu.RUnlock()
+	if !accepts {
 		if r.fwdPool != nil {
 			if err := r.fwdPool.barrierPeer(ctx, p.Settings().PeerKey()); err != nil {
 				return fmt.Errorf("export final withdrawal: %w", err)

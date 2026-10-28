@@ -59,6 +59,7 @@ type MigrateResult struct {
 //   - process { processes [...] } -> attach process NAME { ... } inside peer
 //   - capability { route-refresh; } -> capability { route-refresh enable; }
 //   - template { neighbor X { } } + inherit X -> expanded peer
+//   - Every migrated peer carries explicit import and export accept policies
 //   - If GR or route-refresh: inject RIB plugin
 func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	if tree == nil {
@@ -1389,6 +1390,19 @@ func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *M
 	if err := applyReceivePolicy(neighborTree, peer); err != nil {
 		return nil, err
 	}
+
+	// Preserve ExaBGP's exchange intent on this peer only. RFC 8212 requires
+	// explicit import/export policy for EBGP; IBGP is stated too so a later
+	// AS change does not silently change the migrated neighbor's intent.
+	filter := config.NewTree()
+	for _, direction := range []string{"import", "export"} {
+		policy := config.NewTree()
+		policy.Set("final", "accept")
+		filter.SetContainer(direction, policy)
+	}
+	peer.SetContainer("filter", filter)
+	result.Warnings = append(result.Warnings, fmt.Sprintf(
+		"peer %s: added explicit import and export final accept policies to preserve ExaBGP route-exchange intent under RFC 8212", peerName))
 
 	// Check for unsupported features.
 	checkUnsupported(neighborTree, result)

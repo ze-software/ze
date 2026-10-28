@@ -1298,9 +1298,29 @@ group's final when present.
 
 Filter accept continues and reject stops. On exhaustion, including an explicitly
 empty policy, the final decides. Full payload modifications end filter traversal
-but still receive the final decision. An absent policy retains prior behavior.
+but still receive the final decision. With no explicit policy at any inherited
+level, EBGP rejects at exhaustion and IBGP accepts. Automatic and inactive
+references do not establish explicit policy presence (RFC 8212 Section 3).
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 The old `import [ NAME ];` and `export [ NAME ];` forms are refused: write
 `import { filters [ NAME ]; final accept; }` or the corresponding export policy.
+
+The plain `MY-LOOP`, type-qualified `loop-detection:MY-LOOP`, and canonical
+`loop:MY-LOOP` forms identify the same configured instance. The effective chain
+retains the canonical reference, but its execution belongs to the registered
+in-process protocol stage, not to a plugin process named after the instance.
+The hook runs once at that stage; it is not called again by the per-peer RPC
+chain. This also applies to dynamic group templates.
+Active named internal references are supported only on import. Config refuses
+one on export rather than treating an unexecuted check as acceptance; an
+inactive reference remains an explicit no-execution decision.
+The refusal identifies the original bgp, group, or peer layer and prints a
+`deactivate ... filter export filters <reference>` command using the spelling
+written there, with identifiers quoted for the editor. Run the printed `top`,
+`deactivate`, and `commit now` commands in the configuration editor. An inherited
+reference must be deactivated where it was written, not at the affected peer.
+This keeps the inactive member, other references, and the direction's final.
+<!-- source: internal/component/bgp/config/peers.go -- validateExportPolicyReferences -->
 
 One filter is injected rather than written: `prependDefaultFilters`
 (`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry

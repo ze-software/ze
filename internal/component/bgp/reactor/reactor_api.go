@@ -281,7 +281,7 @@ func policyInfo(policy filterapi.Policy) *plugin.PolicyInfo {
 	}
 	info := &plugin.PolicyInfo{Filters: filterapi.FilterRefStrings(policy.Filters())}
 	if policy.Configured() {
-		if policy.AcceptsAtEnd() {
+		if policy.Final() == filterapi.FinalAccept {
 			info.Final = "accept"
 		} else {
 			info.Final = "reject"

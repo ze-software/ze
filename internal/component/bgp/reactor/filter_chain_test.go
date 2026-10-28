@@ -50,10 +50,8 @@ func TestPolicyFilterChainAccept(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("test:accept"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp as-path 65001 65002", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:accept"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp as-path 65001 65002", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Equal(t, "origin igp as-path 65001 65002", res.Text)
 	assert.Equal(t, 1, calls)
@@ -69,10 +67,8 @@ func TestPolicyFilterChainReject(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyReject}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("test:reject", "test:never"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:reject", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.Empty(t, res.Text)
 	assert.Equal(t, 1, calls) // second filter never called
@@ -86,10 +82,8 @@ func TestPolicyFilterChainModify(t *testing.T) {
 	fn := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("test:modify"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp local-preference 100", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:modify"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp local-preference 100", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Contains(t, res.Text, "local-preference 200")
 	assert.Contains(t, res.Text, "origin igp")
@@ -115,10 +109,8 @@ func TestPolicyFilterChainPipedTransform(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("a:set200", "b:set300", "c:accept"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp local-preference 100", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("a:set200", "b:set300", "c:accept"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp local-preference 100", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Contains(t, res.Text, "local-preference 300")
 }
@@ -136,22 +128,27 @@ func TestPolicyFilterChainShortCircuit(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("a:accept", "b:reject", "c:never"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:reject", "c:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.Equal(t, 2, calls) // c:never never called
 }
 
-// TestPolicyFilterChainEmpty verifies empty chain accepts.
+// TestPolicyFilterChainEmpty verifies the session-dependent absent-policy final.
 //
-// VALIDATES: Empty filter chain = default accept.
+// VALIDATES: Absent EBGP policy rejects; absent IBGP policy accepts.
 // PREVENTS: Crash on nil/empty filter list.
 func TestPolicyFilterChainEmpty(t *testing.T) {
-	res := PolicyFilterChain(filterapi.Policy{}, "import", "10.0.0.1", 65001, "origin igp", nil)
-	assert.Equal(t, PolicyAccept, res.Action)
-	assert.Equal(t, "origin igp", res.Text)
+	for _, external := range []bool{false, true} {
+		res := PolicyFilterChain(filterapi.Policy{}, external, "import", "10.0.0.1", 65001, "origin igp", nil)
+		if external {
+			assert.Equal(t, PolicyReject, res.Action)
+			assert.Empty(t, res.Text)
+		} else {
+			assert.Equal(t, PolicyAccept, res.Action)
+			assert.Equal(t, "origin igp", res.Text)
+		}
+	}
 }
 
 // TestPolicyFilterChainInactiveSkipped verifies inactive: entries are skipped.
@@ -164,7 +161,7 @@ func TestPolicyFilterChainInactiveSkipped(t *testing.T) {
 		called = append(called, plugin+":"+filter)
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain(mustPolicy(t, frefs("inactive:rpki:validate", "community:scrub"), filterapi.FinalAccept), "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(mustPolicy(t, frefs("inactive:rpki:validate", "community:scrub"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, []string{"community:scrub"}, called, "inactive filter should not be called")
 }
 
@@ -180,7 +177,7 @@ func TestPolicyFilterChainDispatch(t *testing.T) {
 		gotDir = dir
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain(mustPolicy(t, frefs("rpki:validate"), filterapi.FinalAccept), "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(mustPolicy(t, frefs("rpki:validate"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, "rpki", gotPlugin)
 	assert.Equal(t, "validate", gotFilter)
 	assert.Equal(t, "import", gotDir)
@@ -200,10 +197,8 @@ func TestPolicyFilterChainTeardown(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("fam:kill", "test:never"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("fam:kill", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.True(t, res.Teardown)
 	assert.Equal(t, uint8(6), res.NotifyCode)
@@ -225,10 +220,8 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(
-		mustPolicy(t, frefs("fam:strip", "test:never"), filterapi.FinalAccept), "import", "10.0.0.1", 65001,
-		"origin igp", fn,
-	)
+	res := PolicyFilterChain(mustPolicy(t, frefs("fam:strip", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+		"origin igp", fn)
 	assert.Equal(t, PolicyModify, res.Action)
 	assert.Equal(t, []byte{0, 0, 0, 0}, res.Raw)
 	assert.Equal(t, 1, calls) // raw rewrite is terminal: second filter never called
@@ -406,7 +399,7 @@ func TestPolicyFilterChainPropagatesFailed(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := PolicyFilterChain(mustPolicy(t, refs, filterapi.FinalAccept), "export", "10.0.0.2", 65002, "origin igp",
+			got := PolicyFilterChain(mustPolicy(t, refs, filterapi.FinalAccept), true, "export", "10.0.0.2", 65002, "origin igp",
 				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse { return tc.resp })
 			assert.Equal(t, PolicyReject, got.Action, "every case here rejects")
 			assert.Equal(t, tc.want, got.Failed, "Failed must survive the chain unchanged")

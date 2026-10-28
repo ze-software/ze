@@ -343,7 +343,10 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	session := p.session
 	bindingsBefore := p.settings.ProcessBindings
 	shutdownBefore := p.settings.AdminShutdown
-	restoreFinal := !p.settings.ExportPolicy.AcceptsAtEnd() && next.ExportPolicy.AcceptsAtEnd()
+	// RFC 8212 Section 3: a dynamic candidate can still carry an unresolved AS.
+	// The captured live session's classification governs this hot policy swap.
+	external := p.settings.IsEBGP()
+	restoreFinal := !p.settings.ExportPolicy.AcceptsAtEnd(external) && next.ExportPolicy.AcceptsAtEnd(external)
 	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
 	stateUp := p.State() == PeerStateEstablished
@@ -411,14 +414,15 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	successorUnannounced := currentPhase == sessionUpUnspecified || currentPhase == sessionUpClosing
 	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
-	acceptedBefore := p.settings.ExportPolicy.AcceptsAtEnd()
+	// RFC 8212 Section 3.
+	acceptedBefore := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
 	bfd := bfdOptInChange{before: p.settings.BFD, requestBefore: bfdRequestFor(p.settings)}
 	copy(p.settings, next)
 	if p.settings.IsDynamic {
 		p.writeDynamicTemplateLocked(next)
 	}
 	after := p.settings.StaticRoutes
-	finalChanged := acceptedBefore != p.settings.ExportPolicy.AcceptsAtEnd()
+	finalChanged := acceptedBefore != p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
 	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {

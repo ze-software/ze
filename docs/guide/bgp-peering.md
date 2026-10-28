@@ -6,6 +6,16 @@ Use this guide after the quick start when a peer needs groups, multiple address 
 
 A peer needs local and remote addresses, AS numbers, a router ID, and at least one address family:
 
+An EBGP session can establish without policy, but it cannot exchange routes.
+RFC 8212 requires an explicit import policy for received routes and an explicit
+export policy for advertised routes. IBGP keeps its existing behavior when
+policy is absent. Automatic filters do not supply operator policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, InternalPolicy -->
+
+This example deliberately permits both directions with `final accept`. Use
+that choice only when unrestricted exchange is intended, or add the filters
+your routing agreement requires.
+
 ```text
 bgp {
     router-id 192.0.2.10
@@ -23,9 +33,18 @@ bgp {
                 }
             }
         }
+        filter {
+            import {
+                final accept
+            }
+            export {
+                final accept
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- bgp, peer-fields, filter-policy -->
 
 Validate before starting or reloading:
 
@@ -53,6 +72,14 @@ bgp {
             }
         }
         timer { receive-hold-time 90 }
+        filter {
+            import {
+                final accept
+            }
+            export {
+                final accept
+            }
+        }
 
         peer transit-a {
             connection {
@@ -72,8 +99,16 @@ bgp {
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- group, peer-fields, filter-policy -->
 
 Peer values override group values. Group values override the global BGP block. Inspect the resolved result with `show config dump` rather than reasoning about inheritance from the source file alone.
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+
+The group explicitly permits import and export for both transit peers. A global
+`bgp filter` policy also counts as explicit policy for peers that inherit it.
+Filters accumulate from BGP to group to peer. The most-specific configured
+direction supplies the final decision, and an absent child inherits it.
+<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
 
 ## Dynamic peer groups
 
@@ -136,12 +171,12 @@ bgp {
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 
-The `role { import rs }` leaf is what makes the two `filter` chains mandatory. A
-declared RFC 9234 role obliges the bound chains to name a filter that can refuse a
-path through a transit provider, and `rs` binds both. To run a session without the
-check, name the filter with the `inactive:` member prefix. The chain records the
-decision, and the filter never executes:
+The `role { import rs }` leaf also requires both chains to name a filter that
+can refuse a path through a transit provider. This is separate from RFC 8212's
+explicit-policy requirement. To disable that filter check, name the filter with
+the `inactive:` member prefix. The member remains in the chain but never executes:
 
 ```
 filter {
@@ -158,7 +193,8 @@ filter {
 
 The prefix goes on the member, inside the brackets. Inside each direction block,
 `inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
-`final accept;` decision when the member is inactive. See
+`final accept;` decision when the member is inactive. That explicit final,
+not the inactive reference, supplies operator policy. See
 [config-deactivate.md](config-deactivate.md) for both forms, and
 [bgp-role.md](bgp-role.md) for the roles that bind.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->

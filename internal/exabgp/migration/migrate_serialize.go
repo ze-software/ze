@@ -255,6 +255,25 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
+	// Policy is peer-local: never grant future peers a group/global accept.
+	if filter := tree.GetContainer("filter"); filter != nil {
+		buf.WriteString(indent)
+		buf.WriteString("filter {\n")
+		for _, direction := range []string{"import", "export"} {
+			if policy := filter.GetContainer(direction); policy != nil {
+				buf.WriteString(indent)
+				buf.WriteString("\t")
+				buf.WriteString(direction)
+				buf.WriteString(" {\n")
+				serializeTreeIndent(policy, buf, indent+"\t\t", false)
+				buf.WriteString(indent)
+				buf.WriteString("\t}\n")
+			}
+		}
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
 	// Write behavior container (behavior > group-updates, manual-eor).
 	if behavior := tree.GetContainer("behavior"); behavior != nil {
 		buf.WriteString(indent)

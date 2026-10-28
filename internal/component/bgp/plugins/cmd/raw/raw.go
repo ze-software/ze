@@ -45,7 +45,7 @@ func init() {
 	)
 }
 
-// handleRaw sends operator-supplied bytes to one peer, with no validation.
+// handleRaw passes operator-supplied bytes to the session's diagnostic writer.
 //
 // The grammar is the model's, not this comment's. yang/ze-raw-cmd.yang declares
 // the encoding, the data and the optional message type. The dispatcher then
@@ -91,10 +91,9 @@ func handleRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs
 	if bgpErr != nil {
 		return errResp2, bgpErr
 	}
-	// ctx.Sender is the authority. A process must be attached to this peer, which
-	// is the whole permission raw asks for: the payload is a message of the
-	// caller's choosing, so the `send` list has no word for it
-	// (bgp/reactor/send_permission.go, rawOrigin). An operator is not gated.
+	// ctx.Sender is the authority. A process needs an attached send [ raw ]
+	// grant; an operator does not. Neither authority waives the session's
+	// export-final admission or its diagnostic ownership checks.
 	if err := r.SendRawMessage(peerAddr, msgType, payload, ctx.Sender); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

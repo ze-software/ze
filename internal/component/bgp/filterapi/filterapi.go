@@ -26,6 +26,7 @@ import (
 	"maps"
 	"net/netip"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -88,14 +89,57 @@ type PeerFilterInfo struct {
 }
 
 // FilterRef is one entry in a peer's import/export filter chain: the canonical
-// filter name plus whether the operator deactivated it. Deactivated refs stay
-// in the chain (so loop detection can still suppress the default ingress via
-// LoopDisabled) but are never executed. It replaces the former in-band
-// "inactive:" name prefix, so deactivation is a structural bool rather than a
-// string convention any consumer must parse.
+// name, deactivation state and execution ownership resolved at config time.
+// Deactivated refs stay in the chain so loop detection can suppress its default
+// via LoopDisabled. A literal or zero ref is unbound: only BindInProcess grants
+// stage ownership; all other active refs retain fail-closed external dispatch.
 type FilterRef struct {
 	Name     string
 	Inactive bool
+	// inProcess binds a configured instance to an already registered ingress
+	// stage. Zero leaves the reference on the external, fail-closed path.
+	inProcess bool
+}
+
+// InProcess reports ownership by the registered ingress stage. Named internal
+// refs are not supported on export, even when the owner has an egress hook.
+func (r FilterRef) InProcess() bool { return r.inProcess }
+
+// ActiveExternal reports whether the per-peer RPC chain must execute this ref.
+func (r FilterRef) ActiveExternal() bool { return !r.Inactive && !r.InProcess() }
+
+// BindInProcess resolves a configured policy instance through the existing
+// stage registry. The caller MUST obtain policyType from that instance's config
+// definition, not from the reference prefix. Unknown owners remain external.
+// Called during config resolution, never on the UPDATE path.
+func BindInProcess(ref FilterRef, policyType string) FilterRef {
+	prefix, instance, qualified := strings.Cut(ref.Name, ":")
+	if !qualified {
+		instance = ref.Name
+		prefix = ""
+	}
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, f := range filters {
+		if f.PolicyType == "" {
+			continue
+		}
+		if f.PolicyType != policyType {
+			continue
+		}
+		if qualified {
+			if prefix != f.Name && prefix != f.PolicyType {
+				continue
+			}
+		}
+		if prefix != f.Name {
+			var name textbuf.Buffer
+			ref.Name = name.Str(f.Name).Byte(':').Str(instance).String()
+		}
+		ref.inProcess = true
+		return ref
+	}
+	return ref
 }
 
 // FilterRefStrings renders a filter chain to the canonical string form used at
@@ -628,6 +672,10 @@ type Filter struct {
 	Priority int               // Fine ordering within a stage; equal priority sorted by name
 	Ingress  IngressFilterFunc // nil = no ingress filtering
 	Egress   EgressFilterFunc  // nil = no egress filtering
+	// PolicyType is the optional YANG policy list whose named instances
+	// configure this ingress stage. It requires Ingress; named export execution
+	// is not supported across all origin rails. Empty owns no named instances.
+	PolicyType string
 	// Readvertise opts an egress filter into the RIB stale-readvertise announce
 	// rail (AnnounceNLRIBatch) in addition to the ForwardUpdate rail. It exists
 	// for the LLGR egress filter (RFC 9494): when a peer's GR window expires its
@@ -728,6 +776,16 @@ func Register(f Filter) error {
 	defer mu.Unlock()
 	if _, exists := filters[f.Name]; exists {
 		return fmt.Errorf("%w: %q", ErrDuplicateFilterName, f.Name)
+	}
+	if f.PolicyType != "" {
+		if f.Ingress == nil {
+			return fmt.Errorf("%w: policy type %q needs an ingress hook", ErrNoFilterFunc, f.PolicyType)
+		}
+		for _, registered := range filters {
+			if registered.PolicyType == f.PolicyType {
+				return fmt.Errorf("%w: policy type %q", ErrDuplicateFilterName, f.PolicyType)
+			}
+		}
 	}
 	filters[f.Name] = f
 	return nil

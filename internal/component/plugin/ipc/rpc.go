@@ -551,6 +551,28 @@ func (pc *PluginConn) SendConfigCommitted(ctx context.Context, txID string) erro
 	return err
 }
 
+// SendConfigComplete waits for a matching whole-reload completion receipt.
+func (pc *PluginConn) SendConfigComplete(ctx context.Context, input *rpc.ConfigCompleteInput) error {
+	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:config-complete", input)
+	if err != nil {
+		return err
+	}
+	var out rpc.ConfigCompleteOutput
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return fmt.Errorf("decode config completion: %w", err)
+	}
+	if out.TransactionID != input.TransactionID {
+		return fmt.Errorf("config completion receipt does not match transaction %s", input.TransactionID)
+	}
+	if out.Accepted != input.Accepted {
+		return fmt.Errorf("config completion receipt has the wrong decision for transaction %s", input.TransactionID)
+	}
+	if out.Status != rpc.StatusOK {
+		return fmt.Errorf("config completion %s: %s", out.Status, out.Error)
+	}
+	return ctx.Err()
+}
+
 // SendConfigOperationDecompose sends one operation decomposition request.
 func (pc *PluginConn) SendConfigOperationDecompose(ctx context.Context, input *rpc.ConfigOperationDecomposeInput) (*rpc.ConfigOperationDecomposeOutput, error) {
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-decompose", input)
@@ -603,7 +625,7 @@ func (pc *PluginConn) SendConfigOperationRollback(ctx context.Context, input *rp
 	return &out, nil
 }
 
-// SendConfigOperationCommit finalizes operation journals for a transaction.
+// SendConfigOperationCommit acknowledges reversible operation commit.
 func (pc *PluginConn) SendConfigOperationCommit(ctx context.Context, input *rpc.ConfigOperationCommitInput) (*rpc.ConfigOperationCommitOutput, error) {
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-commit", input)
 	if err != nil {

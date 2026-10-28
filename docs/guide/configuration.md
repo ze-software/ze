@@ -57,31 +57,80 @@ cannot resolve is redacted in full after `set`.
 # Global BGP settings
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+        asn {
+            local 65000;
+        }
+    }
 
     # Peer group with shared defaults
     group upstream {
         timer {
             receive-hold-time 180;
         }
-        remote { connect false; }   # passive: don't initiate outbound
-
-        capability {
-            asn4 enable;
-            route-refresh enable;
+        connection {
+            local {
+                ip auto;
+            }
+            remote {
+                connect false;   # passive: do not initiate outbound
+            }
         }
-
-        family {
-            ipv4/unicast;
-            ipv6/unicast;
+        session {
+            capability {
+                asn4 enable;
+                route-refresh enable;
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000;
+                    }
+                }
+                ipv6/unicast {
+                    prefix {
+                        maximum 250000;
+                    }
+                }
+            }
+        }
+        filter {
+            import {
+                final accept;
+            }
+            export {
+                final accept;
+            }
+        }
+        attach process bgp-rib {
+            receive [ update-received state refresh ];
+            send [ update ];
         }
 
         peer transit-a {
-            remote { ip 10.0.0.1; as 65001; }
+            connection {
+                remote {
+                    ip 10.0.0.1;
+                }
+            }
+            session {
+                asn {
+                    remote 65001;
+                }
+            }
         }
 
         peer transit-b {
-            remote { ip 10.0.0.2; as 65002; }
+            connection {
+                remote {
+                    ip 10.0.0.2;
+                }
+            }
+            session {
+                asn {
+                    remote 65002;
+                }
+            }
             timer {
                 receive-hold-time 90;    # overrides group value
             }
@@ -90,20 +139,42 @@ bgp {
 
     # Standalone peer (no group)
     peer internal {
-        remote { ip 192.168.1.1; as 65000; }
-        local { ip 192.168.1.2; as 65000; }
-        router-id 192.168.1.2
-
-        family {
-            ipv4/unicast
+        connection {
+            remote {
+                ip 192.168.1.1;
+            }
+            local {
+                ip 192.168.1.2;
+            }
+        }
+        session {
+            asn {
+                remote 65000;
+            }
+            router-id 192.168.1.2;
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000;
+                    }
+                }
+            }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- bgp, peer-fields, filter-policy -->
+
+The upstream group deliberately permits route exchange in both directions.
+Its peers inherit those explicit policies. Without an import or export policy
+at any level, EBGP rejects routes in that direction, but the session can still
+establish. The internal peer needs no policy to preserve its existing behavior.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
 
 The global `router-id` is the BGP Identifier every peer sends by default. A peer
-or group may override it with its own `router-id` (`session router-id` in the YANG
-model), and that peer's OPEN then carries the override. This departs from RFC 6286
+or group can override it with `session { router-id ... }`, and that peer's OPEN
+then carries the override. This departs from RFC 6286
 Section 2.1, which says the identifier "is the same for every local interface and
 every BGP peer". Ze keeps the override on purpose, as an owner decision, and does
 not count that sentence as met. The override must still be non-zero.
@@ -484,23 +555,25 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 
 | Setting | Description | Required |
 |---------|-------------|----------|
-| `remote { ip; as; }` | Peer IP and AS number | Yes |
-| `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
-| `router-id` | BGP router ID | Yes (or inherited) |
+| `connection { remote { ip; } }` | Peer IP address | Yes |
+| `connection { local { ip; } }` | Local bind address (`auto` selects the source address) | No (default: `auto`) |
+| `session { asn { local; remote; } }` | Local and peer AS numbers | Yes (`local` can be inherited) |
+| `session { router-id; }` | Peer or group override of the global `bgp router-id` | Yes (or inherited) |
 | `description` | Human-readable description | No |
 | `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120), `delay-open` (seconds, 0..240, default 0/off) | No |
-| `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
-| `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
-| `remote { port }` | Port Ze dials to reach the peer | No (default: 179) |
-| `local { port }` | Port Ze listens on for this peer, on a listener of its own. Ze binds no source port on an outbound connection, so the value applies to the listener alone | No (default: 179) |
-| `md5-password` | TCP MD5 authentication | No |
-| `ttl-security` | Minimum TTL for incoming packets | No |
-| `outgoing-ttl` | TTL for outgoing packets | No |
+| `connection { remote { connect; } }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
+| `connection { local { accept; } }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
+| `connection { remote { port; } }` | Port Ze dials to reach the peer | No (default: 179) |
+| `connection { local { port; } }` | Port Ze listens on for this peer, on a listener of its own. Ze binds no source port on an outbound connection, so the value applies to the listener alone | No (default: 179) |
+| `connection { md5 { password; } }` | TCP MD5 authentication | No |
+| `connection { ttl { min; } }` | Minimum TTL for incoming packets | No |
+| `connection { ttl { set; } }` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; `bgp-rs` relays to it instead, so both peers must name that plugin in an `attach process` block. The fast path forwards only from a source that grants `bgp-rs` `receive [ update-received ]` and only to a destination that grants it `send [ update ]` ([Route Reflection, Plugin Bindings](route-reflection.md#plugin-bindings)) | No (default: disable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. Destinations with active export filters or an effective export reject, including absent EBGP export policy, return on the skipped list. `bgp-rs` then applies policy on the cached path, not a bypass. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](route-reflection.md#plugin-bindings)) | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
-<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree, parsePeerSettings; internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, container timer -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
 
 For example, `timer { delay-open 5; }` holds the local OPEN for up to five
@@ -661,19 +734,32 @@ configured ASN.
 ```
 bgp {
     session {
-        asn { local 65000; }        // the router's own AS
+        asn { local 65000; }        # the router's own AS
     }
     peer legacy-customer {
         session {
             asn {
-                local 65010          // the AS this customer still peers with
+                local 65010          # the AS this customer still peers with
                 remote 65001
                 local-options [ replace-as ]
+            }
+        }
+        filter {
+            import {
+                final accept
+            }
+            export {
+                final accept
             }
         }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
+
+The explicit policies permit both directions for this external customer.
+Use these finals only when that exchange is intended.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 With no `local-options`, this customer receives `AS_PATH 65010 65000 ...`: the
 globally configured ASN first, then the legacy AS, so the legacy AS is the one
@@ -777,9 +863,10 @@ separate condition from RFC 7999 Section 3.3.
 | `communities` | The communities this session agreed to honor. `blackhole` and `65535:666` are the same well-known value; any `ASN:VAL` works. Unset means the well-known value when `prefixes` is set, and nothing otherwise |
 | `prefixes` | The prefixes this peer is authorized to advertise. A received blackhole is honored only when one of them covers it and is equal or shorter, which is RFC 7999 Section 3.3's first condition. An empty list authorizes nothing |
 
-Standard RTBH takes one line. Writing the prefixes a neighbour may blackhole
-within IS the explicit configuration directive RFC 7999 Section 4 asks for, so
-`communities` defaults to the well-known value:
+The following examples deliberately accept imports from the peer. The blackhole
+agreement does not replace RFC 8212 import policy. Naming the prefixes a peer
+can blackhole satisfies RFC 7999's separate agreement requirement:
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 ```
 bgp {
@@ -793,9 +880,15 @@ bgp {
         blackhole {
             prefixes [ 192.0.2.0/24 198.51.100.0/24 ];
         }
+        filter {
+            import {
+                final accept
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 Most operators run RTBH on their own community rather than on the well-known
 one. Name it, and name both when a peer sends either:
@@ -813,9 +906,15 @@ bgp {
             communities [ blackhole 65001:666 ];
             prefixes    [ 192.0.2.0/24 198.51.100.0/24 ];
         }
+        filter {
+            import {
+                final accept
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 A stated list is taken exactly: the well-known value is NOT added to it. An
 operator who names `65001:666` alone honors that community and not 65535:666.
@@ -863,14 +962,29 @@ bgp {
             remote {
                 ip    dynamic;
                 range 192.0.2.0/24;
+                connect false;
             }
         }
         blackhole {
             prefixes 192.0.2.0/24;
         }
+        filter {
+            import {
+                final accept;
+            }
+            export {
+                final accept;
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
+<!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
+
+The route-server group explicitly permits both directions. Its blackhole
+agreement and policy are inherited by each member.
+<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
 
 ### Announcing a blackhole to a peer
 
@@ -878,6 +992,10 @@ The same `communities` list decides which peers Ze may ADVERTISE the well-known
 BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
 on use of the community before it is advertised, and naming it on the peer is
 Ze's half of that agreement.
+
+An EBGP destination also needs an explicit export policy. The community
+agreement does not bypass that policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 `send bgp <sel> blackhole <prefix>` reaches only the sessions whose resolved list holds
 65535:666, under either spelling, which includes a session configured with
@@ -957,9 +1075,15 @@ bgp {
             communities blackhole;
             prefixes    192.0.2.0/24;
         }
+        filter {
+            import {
+                final accept;
+            }
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The exemption is narrow. It keeps the route only when a covering VRP names the
 route's own origin AS and disagrees on nothing but prefix length. A wrong origin
@@ -998,7 +1122,8 @@ migrates to this container.
 
 ## Capabilities
 
-Configured under `capability { }` at any inheritance level.
+Configure capabilities under `session { capability { } }` on a peer or group.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, session capability -->
 
 | Capability | Config | Values |
 |------------|--------|--------|
@@ -1040,7 +1165,9 @@ ExaBGP config has no software-version capability gets none.
 
 ## Address Families
 
-Configured under `family { }`. Each family requires a `prefix { maximum N; }` block.
+Configure families under `session { family { } }` on a peer or group.
+Each family requires a `prefix { maximum N; }` block.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, session family -->
 
 ```
 family {
@@ -1077,12 +1204,31 @@ so it must name IPv4 unicast too when the peer carries it:
 
 ```
 peer transit-a {
-    family {
-        ipv4/unicast { prefix { maximum 1000000; } }
-        ipv6/unicast { prefix { maximum 200000; } }
+    session {
+        family {
+            ipv4/unicast {
+                prefix {
+                    maximum 1000000;
+                }
+            }
+            ipv6/unicast {
+                prefix {
+                    maximum 200000;
+                }
+            }
+        }
+    }
+    filter {
+        import {
+            final accept;
+        }
+        export {
+            final accept;
+        }
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
 <!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
@@ -1473,7 +1619,16 @@ bgp {
             import { filters [ community:scrub ]; final accept; }
         }
         peer customer-a {
-            remote { ip 10.0.0.1; as 65001; }
+            connection {
+                remote {
+                    ip 10.0.0.1;
+                }
+            }
+            session {
+                asn {
+                    remote 65001;
+                }
+            }
             filter {
                 export { filters [ aspath:prepend ]; final accept; }
             }
@@ -1487,12 +1642,24 @@ present direction supplies the effective final; an absent child inherits.
 Every explicitly configured layer needs its own final, even if a child sets
 one or the layer has no peers. Old list-only direction syntax is refused.
 
-A filter's accept continues the chain; reject stops it. A route that passes all
-filters receives the final decision. An empty policy such as
-`export { final reject; }` rejects without calling a filter. No configured policy
-keeps the existing behavior, including automatic loop-detection filters.
-Loop-detection entries are prepended unless the chain already names them;
-`inactive: filters NAME;` retains the reference but disables its execution.
+A filter's accept continues the chain, and reject stops it. A route that passes
+all filters receives the final decision. An empty policy such as
+`export { final reject; }` rejects without calling a filter.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+
+Without a configured policy at any level, EBGP rejects announcements in that
+direction under RFC 8212. The session can still establish. IBGP keeps its
+existing behavior when policy is absent. Automatic loop-detection filters and
+inactive references do not establish operator policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, InternalPolicy -->
+
+An inherited global or group policy supplies explicit operator intent.
+Configure `final accept` only where route exchange is intended, with any filters
+that the routing agreement requires. Loop-detection entries are prepended unless
+the chain already names them. `inactive: filters NAME;` retains a reference but
+disables its execution without changing an explicitly configured final.
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
 
 See [Route Filters](redistribution.md) for details.
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies, canonicalizeFilterRefs -->
@@ -1571,7 +1738,16 @@ bgp {
     }
 
     peer customer-a {
-        connection { remote { ip 10.0.0.1; as 65001; } }
+        connection {
+            remote {
+                ip 10.0.0.1;
+            }
+        }
+        session {
+            asn {
+                remote 65001;
+            }
+        }
         filter {
             import { filters [ CUSTOMERS ]; final accept; }
         }
@@ -2007,7 +2183,11 @@ Routes can be configured directly per peer:
 
 ```
 peer transit-a {
-    ...
+    filter {
+        export {
+            final accept
+        }
+    }
     update {
         attribute {
             origin igp
@@ -2022,6 +2202,12 @@ peer transit-a {
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block, filter-policy -->
+
+This excerpt deliberately permits export of the configured routes. An EBGP
+peer without explicit export policy receives no announcements, including locally
+configured routes. Import remains a separate decision.
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
 
 A configured route is sent only when the session negotiated its address
 family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`

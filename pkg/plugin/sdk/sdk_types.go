@@ -156,6 +156,9 @@ type ConfigOperationCommitInput = rpc.ConfigOperationCommitInput
 // ConfigOperationCommitOutput is the output for config-operation-commit.
 type ConfigOperationCommitOutput = rpc.ConfigOperationCommitOutput
 
+// ConfigCompleteInput identifies the whole-reload completion and its deadline.
+type ConfigCompleteInput = rpc.ConfigCompleteInput
+
 // ValidateOpenInput is the input for validate-open (OPEN validation).
 type ValidateOpenInput = rpc.ValidateOpenInput
 

@@ -229,7 +229,7 @@ func TestPolicyFinalPausedWriterCannotEscapeReject(t *testing.T) {
 	var unblock sync.Once
 	defer unblock.Do(func() { close(release) })
 	session.egressFinalAccepts = func() bool {
-		accept := destination.ExportPolicy().AcceptsAtEnd()
+		accept := destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP())
 		once.Do(func() {
 			close(entered)
 			<-release
@@ -326,7 +326,7 @@ func TestPolicyFinalRestoreFailureRollsBack(t *testing.T) {
 	if !strings.Contains(err.Error(), pluginserver.ErrPluginProcessNotRunning.Error()) {
 		t.Fatalf("reload lost reconciliation failure: %v", err)
 	}
-	if destination.ExportPolicy().AcceptsAtEnd() {
+	if destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP()) {
 		t.Fatal("failed apply left accepting policy installed instead of rolling back")
 	}
 }
@@ -703,7 +703,7 @@ func TestPolicyFinalDynamicRestoreFailureRollsBack(t *testing.T) {
 	if !strings.Contains(err.Error(), pluginserver.ErrPluginProcessNotRunning.Error()) {
 		t.Fatalf("dynamic reload lost reconciliation failure: %v", err)
 	}
-	if destination.ExportPolicy().AcceptsAtEnd() {
+	if destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP()) {
 		t.Fatal("failed dynamic apply left accepting policy installed")
 	}
 	if len(r.dynamicGroups) != 1 || r.dynamicGroups[0] != group {

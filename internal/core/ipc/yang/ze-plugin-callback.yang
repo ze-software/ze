@@ -14,6 +14,60 @@ module ze-plugin-callback {
         description "Initial revision";
     }
 
+    rpc config-complete {
+        ze:method "ze-plugin-callback:config-complete";
+        ze:help "Complete retained config undo after whole-reload acceptance or abort";
+        description "An acknowledged completion for the captured plugin lifetime. Accepted follows irreversible publication; rejection follows original operation undo and old configuration restoration. A receipt means cleanup finished, not queued.";
+        input {
+            leaf transaction-id {
+                type string { length "1..256"; }
+                mandatory true;
+                ze:help "Original transaction identity";
+                description "Must match retained work; never selects a newer transaction.";
+            }
+            leaf accepted {
+                type boolean;
+                mandatory true;
+                ze:help "Whether publication is irreversible";
+                description "True releases undo without rollback; false completes a restored transaction.";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute completion deadline in Unix milliseconds";
+                description "The handler must finish cleanup within this deadline.";
+            }
+        }
+        output {
+            leaf transaction-id {
+                type string { length "1..256"; }
+                mandatory true;
+                ze:help "Completed transaction identity";
+                description "Echoes the request identity; mismatched receipts are refused.";
+            }
+            leaf accepted {
+                type boolean;
+                mandatory true;
+                ze:help "Completed decision";
+                description "Echoes the request decision.";
+            }
+            leaf status {
+                type enumeration {
+                    enum ok { ze:help "Cleanup completed"; }
+                    enum error { ze:help "Cleanup failed"; }
+                }
+                mandatory true;
+                ze:help "Actual completion outcome";
+                description "Only ok acknowledges completed cleanup.";
+            }
+            leaf error {
+                type string { length "0..4096"; }
+                ze:help "Cleanup failure";
+                description "Names the failed owner operation without claiming rollback after acceptance.";
+            }
+        }
+    }
+
     // Stage 2: Engine delivers configuration.
 
     rpc configure {

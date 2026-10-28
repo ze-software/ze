@@ -293,6 +293,13 @@ the caller chose, so no other send type describes it and `send [ update ]` does
 not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a
 raw-capable binding invisible to the barrier that holds a peer's End-of-RIB
 behind the routes its processes push.
+
+The send grant does not bypass export policy. Both raw UPDATE forms meet the
+session's final admission before ownership or socket writes. With a rejecting
+final, only accountable explicit withdrawals and EOR survive; opaque diagnostic
+frames are suppressed because they can conceal announcements. Recognized,
+complete non-UPDATE control packets retain their diagnostic contract.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, rawControlPacket -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate -->
@@ -885,6 +892,19 @@ forward/route-server/replay writes bypass this ordinary callback; their existing
 forwarding normalization is separate.
 <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody, normalizeOrdinaryNextHop, normalizeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeUpdatePreFiltered -->
+
+RFC 8212 Section 3 applies at this gate before any EBGP announcement can enter
+Adj-RIB-Out, including before forwarding facts are published. Policy and session
+type come from one coherent snapshot. An absent IBGP direction still accepts.
+Pure withdrawals and EOR survive a rejecting final. Mixed UPDATEs retain only
+their explicit withdrawals. Automatic references do not establish operator policy.
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- policyWithdrawals -->
+
+The final writer applies the same scalar decision to raw injection, without
+rerunning the external filter chain. Raw's AS_SET exception is independent of
+this admission check and remains available only when export permits the route.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
 Named-commit announcement and withdrawal results count the final writer's accepted
 UPDATEs and route directions, not the offered input families. Export policy can

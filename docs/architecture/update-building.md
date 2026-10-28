@@ -735,9 +735,17 @@ sends, an identical repeat suppresses, and a forwarded replacement clears the
 local signature. Forwarded entries retain no attribute block.
 
 Explicit diagnostic raw injection uses the same writer and ownership inventory,
-but does not duplicate-suppress a requested UPDATE. Its existing AIGP policy,
-PATHS-LIMIT admission and Label-Index normalization remain in force. Accountable
-final bytes establish local ownership, so a remote source cannot withdraw them.
+but does not duplicate-suppress an admitted UPDATE. Both raw API forms obey the
+session's export final: absent EBGP policy rejects, while absent IBGP policy
+accepts. Rejection preserves accountable explicit withdrawals and EOR, projects
+mixed UPDATEs to their explicit withdrawals, and suppresses opaque output before
+it can reach the socket. The existing raw ownership preflight supplies that last
+proof without a second walk. A complete recognized non-UPDATE control packet is
+unaffected; uncertain framing or trailing bytes require an accepting final.
+Raw's AS_SET diagnostic exception does not waive this export admission.
+Its existing AIGP policy, PATHS-LIMIT admission and Label-Index normalization
+remain in force. Accountable final bytes establish local ownership, so a remote
+source cannot withdraw them.
 Opaque bytes accepted by those policies are emitted and flushed before Ze seals
 and closes that exact Session with a diagnostic safety reason. They produce no
 invented sent-route or AIGP receipt. This is a local sender policy, not an RFC

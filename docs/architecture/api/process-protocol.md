@@ -320,8 +320,9 @@ Config references filters as `<plugin>:<filter>` in nested direction policies:
 `filter { import { filters [ name ]; final accept; } export { final reject; } }`.
 Each configured direction requires `final accept` or `final reject`. References
 accumulate global, group, then peer; the most-specific direction supplies the
-final. An absent direction retains automatic-filter behavior, not an implicit
-configured policy.
+final. An absent direction keeps automatic filters but has no operator policy.
+It rejects on EBGP under RFC 8212 Section 3 and preserves acceptance on IBGP.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 The runtime uses the declaration to choose raw payload delivery, validate modify
 deltas against declared attributes, and pick fail-open or fail-closed behavior
@@ -353,6 +354,12 @@ With `final reject`, dry-run preserves explicit withdrawals: a pure withdrawal
 reports `accept`, while a mixed UPDATE reports `modify` and renders only the
 surviving withdrawal sections. Execution failures and teardown remain `reject`
 with no resulting text.
+An unresolved remote AS instead produces `action: "undetermined"` and a `reason`
+to wait for establishment and repeat `show policy test`. It executes no filters,
+even with an override, and returns no trace, input text or resulting route.
+Known-session results omit `reason`. Status policy objects still describe
+configured presence, not the session-derived absence default.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 <!-- source: internal/component/plugin/types_bgp.go -- PolicyInfo, PeerInfo -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo -->
@@ -883,6 +890,7 @@ site.
 | `config-operation-apply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply one config operation |
 | `config-operation-rollback` | `ConfigOperationRollbackInput` | `ConfigOperationRollbackOutput` | Undo applied config operations |
 | `config-operation-commit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit a config operation transaction |
+| `config-complete` | `ConfigCompleteInput` (`transaction-id`, `accepted`, `deadline-ms`) | `ConfigCompleteOutput` echoes identity and decision with explicit `status` | Acknowledged whole-reload cleanup for Stage-1 `config-completion` owners; operation commit does not release their undo |
 | `post-startup` | None | `ok` | Report that all plugin startup phases are complete |
 | `validate-open` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `encode-nlri` | `EncodeNLRIInput` | `{"hex":"..."}` | Encode NLRI |
@@ -895,6 +903,26 @@ site.
 | `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
 
+
+`config-complete` runs on the same serialized callback path as config operations
+over either transport. The Go SDK's `OnConfigComplete` declares support and
+passes the handler a context bounded by the absolute request deadline. An
+already-expired request does not invoke the handler. The handler MUST finish
+cleanup before returning and MUST honour cancellation; a queue admission or an
+unjoined asynchronous cleanup is not success. The engine bounds its RPC wait
+independently and checks the echoed transaction and accepted decision.
+
+Accepted completion follows durable publication. A failure is returned with the
+candidate still active, not described as rollback. Rejected completion follows
+restoration of old section/filter configuration and original operation undo.
+The server captures the applying process and connection and refuses a successor
+lifetime. Duplicate outer completions return their recorded result without
+repeating callbacks. Operation verify/apply/rollback/commit requests also carry
+`deadline-ms`, including a fresh rollback deadline independent of apply expiry.
+<!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, completeBatches -->
+<!-- source: internal/component/plugin/server/config_tx_bridge.go -- lookupProcess, subscribeOperationRollback -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- SendConfigComplete -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 All methods are prefixed with `ze-plugin-callback:`.
 
 **Event delivery receipts:**
@@ -1223,9 +1251,21 @@ this via `SetStartupSubscriptionsIn(namespace, events, peers, format)`;
 `SetStartupSubscriptions` (namespace `""`) is unchanged.
 <!-- source: internal/component/plugin/server/dispatch.go -- registerSubscriptions, resolveSubscriptionNamespace -->
 
-A `"*"` event in a startup subscription expands at registration time into one
-subscription per registered event type of the namespace (no wildcard branch on
-the per-event match path).
+A `"*"` event expands at registration time into the namespace's registered event
+types, for each peer selector (no wildcard branch on the per-event match path).
+Startup and runtime subscriptions register every entry in `peers` as an
+independent alternative: an IP address or peer name selects that peer, `"*"`
+selects all peers, and an empty list also selects all peers. A `"!value"` selector
+matches peers whose address and name both differ from `value`. Alternatives are
+unioned, so an exclusion is not a veto on another selector's match.
+
+Overlapping selectors deliver an event once per process, not once per matching
+subscription. Peer-scoped delivery still requires the configured receive grant
+for that process, event type and direction; selecting more peers does not grant
+permission to receive their events.
+<!-- source: internal/component/plugin/server/dispatch.go -- registerSubscriptions -->
+<!-- source: internal/component/plugin/server/subscribe.go -- (*PeerFilter).Matches, (*SubscriptionManager).getMatching -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->
 
 ### Enveloped Delivery
 

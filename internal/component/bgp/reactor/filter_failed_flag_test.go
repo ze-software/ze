@@ -142,10 +142,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			out:     &rpc.FilterUpdateOutput{Action: rpc.FilterAction(255)},
 		}}
 
-		got := PolicyFilterChain(
-			mustPolicy(t, []filterapi.FilterRef{{Name: plug + ":" + filter}}, filterapi.FinalAccept),
-			directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil),
-		)
+		got := PolicyFilterChain(mustPolicy(t, []filterapi.FilterRef{{Name: plug + ":" + filter}}, filterapi.FinalAccept), true, directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil))
 
 		assert.Equal(t, PolicyReject, got.Action, "unknown plugin actions are rejected even under on-error accept")
 		assert.True(t, got.Failed, "an invalid action is not a policy decision")

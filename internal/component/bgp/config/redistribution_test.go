@@ -211,7 +211,10 @@ bgp {
     policy {
         loop-detection my-filter {
         }
-        loop-detection another-filter {
+        prefix-list another-filter {
+            entry 0.0.0.0/0 {
+                action accept;
+            }
         }
     }
     filter {

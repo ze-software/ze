@@ -130,6 +130,8 @@ func memberStatesToFilterRefs(states []config.MemberState) []filterapi.FilterRef
 //
 // Deactivation state (FilterRef.Inactive) is carried structurally and preserved
 // across the rewrite; the name itself is always clean (no `inactive:` prefix).
+// A configured in-process instance also receives its registered stage ownership;
+// a matching prefix alone never grants it. Other refs retain RPC dispatch.
 //
 // Refs that cannot be resolved (plain name not in registry; unknown prefix)
 // are left untouched so existing validation paths can still report a clean
@@ -141,7 +143,15 @@ func canonicalizeFilterRefs(chain []filterapi.FilterRef, reg *FilterRegistry) []
 	out := make([]filterapi.FilterRef, len(chain))
 	typesMap := registry.FilterTypesMap()
 	for i, ref := range chain {
-		out[i] = filterapi.FilterRef{Name: canonicalizeOne(ref.Name, reg, typesMap), Inactive: ref.Inactive}
+		out[i] = ref
+		if reg != nil {
+			if entry, ok := reg.Lookup(filterInstanceName(ref.Name)); ok {
+				out[i] = filterapi.BindInProcess(ref, entry.Type)
+			}
+		}
+		if !out[i].InProcess() {
+			out[i].Name = canonicalizeOne(ref.Name, reg, typesMap)
+		}
 	}
 	return out
 }

@@ -142,6 +142,12 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		s.prefixMetrics.wireBytesRecv.With(s.addrLabel).Add(float64(hdr.Length))
 	}
 
+	// A pending pause owns no reader bytes: this stack retains the complete
+	// packet until admission reopens. Partial ReadFull state is never interrupted.
+	if err := s.beginAdmission(); err != nil {
+		return err
+	}
+	defer s.endAdmission()
 	// Process message - callback returns kept=true if it took buffer ownership
 	var processErr error
 	processErr, kept = s.processMessage(&hdr, buf.Buf[message.HeaderLen:hdr.Length], buf)

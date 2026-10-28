@@ -467,6 +467,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if p.onDrain != nil {
 		reg.DrainHandler = true
 	}
+	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
 	// The resolver caches come from the handler registration too, so a
 	// declared cache always has a handler that answers its clear.
 	if len(p.resolverCaches) > 0 {

@@ -202,36 +202,36 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 		proc.SetEnvelope(true)
 	}
 
-	var peerFilter *PeerFilter
-	if len(input.Peers) > 0 {
-		peerFilter = &PeerFilter{Selector: input.Peers[0]}
-	}
-
-	for _, event := range input.Events {
-		// Gap C: a "*" event expands at REGISTRATION time into one concrete
-		// subscription per registered event type of the namespace (the
-		// event_monitor precedent), instead of adding a wildcard branch to
-		// Subscription.Matches on the per-event hot path. Without this "*"
-		// resolves to EventTypeUnknown (0) and can never match an event whose
-		// ID starts at 1.
-		if event == "*" {
-			for _, et := range events.AllEventTypes()[namespace] {
-				s.subscriptions.Add(proc, &Subscription{
-					Namespace:  nsID,
-					EventType:  events.LookupEventTypeID(et),
-					Direction:  events.DirBoth,
-					PeerFilter: peerFilter,
-				})
-			}
-			continue
+	// Each selector is an independent subscription alternative. Matching
+	// already returns each process once, even when its selectors overlap.
+	// One nil filter preserves the empty-list default of all peers.
+	for peerIndex := range max(1, len(input.Peers)) {
+		var peerFilter *PeerFilter
+		if len(input.Peers) > 0 {
+			peerFilter = &PeerFilter{Selector: input.Peers[peerIndex]}
 		}
-		eventType, direction := parseEventString(event)
-		s.subscriptions.Add(proc, &Subscription{
-			Namespace:  nsID,
-			EventType:  eventType,
-			Direction:  direction,
-			PeerFilter: peerFilter,
-		})
+
+		for _, event := range input.Events {
+			// Expand "*" at registration, not on the per-event match path.
+			if event == "*" {
+				for _, et := range events.AllEventTypes()[namespace] {
+					s.subscriptions.Add(proc, &Subscription{
+						Namespace:  nsID,
+						EventType:  events.LookupEventTypeID(et),
+						Direction:  events.DirBoth,
+						PeerFilter: peerFilter,
+					})
+				}
+				continue
+			}
+			eventType, direction := parseEventString(event)
+			s.subscriptions.Add(proc, &Subscription{
+				Namespace:  nsID,
+				EventType:  eventType,
+				Direction:  direction,
+				PeerFilter: peerFilter,
+			})
+		}
 	}
 
 	// Both halves of every edge this process sits on are now known, which is

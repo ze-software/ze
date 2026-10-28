@@ -6,6 +6,7 @@ package transaction
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -19,10 +20,13 @@ type SectionDiffs func(name string) ([]DiffSection, bool)
 
 // OperationExecutor applies sorted operations through config operation events.
 type OperationExecutor struct {
-	gateway      EventGateway
-	txID         string
-	deadlineMS   int64
-	sectionDiffs SectionDiffs
+	gateway        EventGateway
+	txID           string
+	deadlineMS     int64
+	rollbackBudget time.Duration
+	sectionDiffs   SectionDiffs
+	// The coordinator restores section-owned filters before operation undo.
+	beforeRollback func(context.Context, error) (error, bool)
 }
 
 // NewOperationExecutor creates an executor for one transaction.
@@ -32,6 +36,9 @@ func NewOperationExecutor(gateway EventGateway, txID string) *OperationExecutor 
 
 // SetDeadlineMS sets the Unix-millis deadline propagated to per-operation events.
 func (e *OperationExecutor) SetDeadlineMS(ms int64) { e.deadlineMS = ms }
+
+// SetRollbackBudget reserves a fresh interval for undo, independent of apply.
+func (e *OperationExecutor) SetRollbackBudget(budget time.Duration) { e.rollbackBudget = budget }
 
 // SetSectionDiffs installs the source of a coarse node's diff sections. A
 // sorted list carrying a coarse node MUST have one installed: without it the
@@ -188,7 +195,8 @@ func (e *OperationExecutor) Execute(ctx context.Context, ops []ConfigOperation) 
 	return nil
 }
 
-// Commit asks each operation owner to finalize its operation journal.
+// Commit acknowledges each owner's reversible operation commit. Owners MUST
+// retain undo until the whole-reload completion callback accepts the transaction.
 func (e *OperationExecutor) Commit(ctx context.Context, ops []ConfigOperation) error {
 	if e == nil || e.gateway == nil {
 		return fmt.Errorf("operation executor requires a gateway")
@@ -230,6 +238,30 @@ func (e *OperationExecutor) Commit(ctx context.Context, ops []ConfigOperation) e
 	return nil
 }
 
+// Rollback undoes the supplied applied operations in reverse order. Callers MUST
+// preserve the original order, transaction identity and owner lifetimes.
+func (e *OperationExecutor) Rollback(ctx context.Context, ops []ConfigOperation, cause error) error {
+	okCh := make(chan ConfigOperationRollbackAck, len(ops))
+	failedCh := make(chan ConfigOperationRollbackAck, len(ops))
+	filter := &ackFilter{}
+	unsubs := []func(){
+		e.gateway.SubscribeConfigEvent(EventOperationRollbackOK, func(payload []byte) {
+			var ack ConfigOperationRollbackAck
+			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && filter.match(ack.OperationID) {
+				trySendOpRollbackAck(okCh, ack)
+			}
+		}),
+		e.gateway.SubscribeConfigEvent(EventOperationRollbackFailed, func(payload []byte) {
+			var ack ConfigOperationRollbackAck
+			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && filter.match(ack.OperationID) {
+				trySendOpRollbackAck(failedCh, ack)
+			}
+		}),
+	}
+	defer unsubscribeAll(unsubs)
+	return e.rollbackApplied(ctx, ops, okCh, failedCh, filter, cause)
+}
+
 // applySection applies one coarse node through the section apply event, the
 // same event and payload the orchestrator's own apply phase publishes. The
 // participant answers it with the `config-apply` callback every plugin
@@ -257,6 +289,23 @@ func (e *OperationExecutor) applySection(ctx context.Context, op *ConfigOperatio
 }
 
 func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []ConfigOperation, okCh, failedCh <-chan ConfigOperationRollbackAck, filter *ackFilter, cause error) error {
+	if canceledByShutdown(ctx) {
+		return cause
+	}
+	budget := e.rollbackBudget
+	if budget <= 0 {
+		budget = 90 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
+	defer cancel()
+	deadline, _ := ctx.Deadline()
+	if e.beforeRollback != nil {
+		var restored bool
+		cause, restored = e.beforeRollback(ctx, cause)
+		if !restored {
+			return cause
+		}
+	}
 	for i := len(executed) - 1; i >= 0; i-- {
 		op := &executed[i]
 		// The inverse of a section apply is the section rollback, and that one
@@ -271,15 +320,17 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 		if filter != nil {
 			filter.set(op.ID)
 		}
-		payload, err := json.Marshal(ConfigOperationRollbackEvent{TransactionID: e.txID, Operations: []ConfigOperation{*op}, DeadlineMS: e.deadlineMS})
+		payload, err := json.Marshal(ConfigOperationRollbackEvent{TransactionID: e.txID, Operations: []ConfigOperation{*op}, DeadlineMS: deadline.UnixMilli()})
 		if err != nil {
-			return fmt.Errorf("%w; marshal operation rollback %s: %w", cause, op.ID, err)
+			cause = errors.Join(cause, fmt.Errorf("marshal operation rollback %s: %w", op.ID, err))
+			continue
 		}
 		if _, err := e.gateway.EmitConfigEvent(EventOperationRollbackFor(op.Owner), payload); err != nil {
-			return fmt.Errorf("%w; emit operation rollback %s: %w", cause, op.ID, err)
+			cause = errors.Join(cause, fmt.Errorf("emit operation rollback %s: %w", op.ID, err))
+			continue
 		}
 		if err := waitRollbackAck(ctx, op.ID, okCh, failedCh); err != nil {
-			return fmt.Errorf("%w; rollback %s failed: %w", cause, op.ID, err)
+			cause = errors.Join(cause, fmt.Errorf("rollback %s failed: %w", op.ID, err))
 		}
 		if filter != nil {
 			filter.clear()
@@ -604,7 +655,7 @@ func waitCommitAck(ctx context.Context, owner string, okCh, failedCh <-chan Conf
 	}
 }
 
-// owners returns the plugins that must finalize an operation journal, in first
+// owners returns the plugins that must acknowledge operation commit, in first
 // appearance order. A coarse node's owner is not one of them: it journals
 // through the section apply, and the broadcast `committed` event the
 // orchestrator publishes is what tells it to discard that journal.

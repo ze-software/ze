@@ -442,7 +442,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 				old := spawner.pm.GetProcess(producer)
 				dependency := spawner.pm.GetProcess(backend)
 				reloadCtx, finish := s.DeferReloadAcceptance(t.Context())
-				defer finish(false)
+				defer finish(false) //nolint:errcheck // Cleanup; the completion outcome is asserted below.
 				err := s.ReloadConfig(reloadCtx, candidate)
 				if scenario.outerRejected {
 					require.NoError(t, err)
@@ -472,7 +472,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 					}
 				}
 				// No further reload is issued to trigger recovery.
-				finish(false)
+				require.NoError(t, finish(false))
 				require.Equal(t, committed, reactor.GetConfigTree())
 				if scenario.participant {
 					require.Equal(t, int64(42), appliedCounter.Load(), "outer rejection must compensate participants without another reload")

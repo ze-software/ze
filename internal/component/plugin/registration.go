@@ -81,8 +81,9 @@ type PluginRegistration struct {
 	// transaction.Participant.WantsConfig).
 	ConfigReads      []string
 	ConfigOperations []rpc.ConfigOperationDecl
-	VerifyBudget     int // Estimated verify time in seconds (0 = trivial)
-	ApplyBudget      int // Estimated apply time in seconds (0 = trivial)
+	ConfigCompletion bool // Retains undo until acknowledged whole-reload completion.
+	VerifyBudget     int  // Estimated verify time in seconds (0 = trivial)
+	ApplyBudget      int  // Estimated apply time in seconds (0 = trivial)
 	// DrainBudget is the longest the plugin's stop drain handler may take,
 	// declared at Stage 1 and checked there against rpc.DrainCeilingSeconds.
 	// Zero means the plugin takes no part in the stop drain, so the server

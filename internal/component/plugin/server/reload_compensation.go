@@ -4,12 +4,14 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -17,18 +19,20 @@ import (
 // Keep the first tree and last applied tree of a whole reload. The hub may
 // already have reversed its candidate before it rejects the outer scope.
 type reloadCompensation struct {
-	before map[string]any
+	before             map[string]any
+	beforeTransactions map[string]string
 	// created is the reactor's created peers when before was recorded. A
 	// reload whose tree declares one takes it over, and restoring before does
 	// not mark it again, nor rebuild one it renamed (RestoreCreatedPeers,
 	// plugin.ReactorConfigurator).
-	created         map[netip.Addr]string
-	after           map[string]any
-	affected        map[string]affectedPlugin
-	attempted       bool
-	err             error
-	restored        *reloadAcceptance
-	reactorRestored bool
+	created            map[netip.Addr]string
+	after              map[string]any
+	affected           map[string]affectedPlugin
+	attempted          bool
+	err                error
+	restored           *reloadAcceptance
+	operationsRestored bool
+	reactorRestored    bool
 }
 
 // claimReloadOwnership runs under transaction exclusion. A no-diff reload also
@@ -56,9 +60,10 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 	defer pending.mu.Unlock()
 	if pending.compensation == nil {
 		pending.compensation = &reloadCompensation{
-			before:   before,
-			created:  created,
-			affected: make(map[string]affectedPlugin),
+			before:             before,
+			beforeTransactions: maps.Clone(pending.server.txLock.configTransactions),
+			created:            created,
+			affected:           make(map[string]affectedPlugin),
 		}
 	}
 	undo := pending.compensation
@@ -67,6 +72,7 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 	undo.err = nil
 	undo.restored = nil
 	undo.reactorRestored = false
+	undo.operationsRestored = false
 	for _, participant := range affected {
 		undo.affected[participant.proc.Name()] = participant
 	}
@@ -84,7 +90,11 @@ func (s *Server) compensateReload(ctx context.Context) error {
 		pending.mu.Lock()
 		undo, previous := pending.compensation, pending.previous
 		finished := pending.finished
+		accepted := finished && pending.accepted
 		pending.mu.Unlock()
+		if accepted {
+			return errors.New("candidate is active; accepted reload cannot be aborted")
+		}
 		if undo != nil {
 			if !undo.attempted {
 				undo.attempted = true
@@ -145,21 +155,38 @@ func (s *Server) reloadScopePendingBehind(scope *reloadAcceptance) bool {
 func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensation) error {
 	diff := config.DiffMaps(undo.after, undo.before)
 	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
-		return s.reactor.RestoreCreatedPeers(undo.before, undo.created)
+		if err := s.reactor.RestoreCreatedPeers(undo.before, undo.created); err != nil {
+			return err
+		}
+		s.txLock.configTransactions = maps.Clone(undo.beforeTransactions)
+		return errors.Join(pending.rollbackOperations(pending.lifetime), pending.completeBatchesBounded(false))
 	}
 	if undo.restored == nil {
-		restoreCtx, accept := s.DeferReloadAcceptance(s.Context())
+		restoreCtx, _ := s.DeferReloadAcceptance(pending.lifetime)
+		restoring, _ := restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 		s.seedReloadTransactions(restoreCtx)
+		for name := range pending.operationOwners() {
+			delete(restoring.transactions, name)
+			if txID, ok := undo.beforeTransactions[name]; ok {
+				if restoring.transactions == nil {
+					restoring.transactions = make(map[string]string)
+				}
+				restoring.transactions[name] = txID
+			}
+		}
 		if len(diff.Added) != 0 {
 			recoveryCtx := context.WithValue(restoreCtx, removalRecoveryContextKey{}, true)
 			if _, err := s.autoLoadForNewConfigPaths(recoveryCtx, undo.before, slices.Sorted(maps.Keys(diff.Added))); err != nil {
-				accept(false)
-				return err
+				return errors.Join(err, restoring.finishWithLock(false, false))
 			}
 		}
 		var affected []affectedPlugin
 		pm := s.procManager.Load()
+		operationOwners := pending.operationOwners()
 		for _, participant := range undo.affected {
+			if operationOwners[participant.proc.Name()] {
+				continue
+			}
 			current := participant.proc
 			if pm != nil {
 				if replacement := pm.GetProcess(current.Name()); replacement != nil {
@@ -172,17 +199,21 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 			participant.proc = current
 			sections, err := reloadConfigSections(undo.before, diff, current.Registration())
 			if err != nil {
-				accept(false)
-				return err
+				return errors.Join(err, restoring.finishWithLock(false, false))
 			}
 			participant.sections = sections
 			affected = append(affected, participant)
 		}
 		if err := s.runTxCoordinator(restoreCtx, affected, diff, undo.after, undo.before); err != nil {
-			accept(false)
-			return err
+			return errors.Join(err, restoring.finishWithLock(false, false))
 		}
 		undo.restored, _ = restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	}
+	if !undo.operationsRestored {
+		if err := pending.rollbackOperations(pending.lifetime); err != nil {
+			return err
+		}
+		undo.operationsRestored = true
 	}
 	if !undo.reactorRestored {
 		// Before the reconcile, which removes a running peer the file lacks
@@ -215,8 +246,76 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 	undo.after = undo.before
 	pending.transactions = s.txLock.configTransactions
 	pending.mu.Unlock()
-	undo.restored.finish(true)
-	return nil
+	return errors.Join(undo.restored.finishWithLock(true, false), pending.completeBatchesBounded(false))
+}
+
+func (a *reloadAcceptance) operationOwners() map[string]bool {
+	owners := make(map[string]bool)
+	for _, batch := range a.operationBatches() {
+		for i := range batch.operations {
+			op := &batch.operations[i]
+			participant := batch.participants[op.Owner]
+			if a.removedParticipant(participant) {
+				continue
+			}
+			if participant.proc != nil && participant.proc.Registration().ConfigCompletion && !transaction.IsSectionApply(op) {
+				owners[op.Owner] = true
+			}
+		}
+	}
+	return owners
+}
+
+func (a *reloadAcceptance) rollbackOperations(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, reloadCompletionBudget)
+	defer cancel()
+	if err := a.acquireCompletion(ctx); err != nil {
+		return err
+	}
+	defer func() { <-a.completionGate }()
+	var result error
+	batches := a.operationBatches()
+	for i := len(batches) - 1; i >= 0; i-- {
+		batch := batches[i]
+		if batch.undoDone {
+			result = errors.Join(result, batch.undoErr)
+			continue
+		}
+		var ops []transaction.ConfigOperation
+		for i := range batch.operations {
+			op := &batch.operations[i]
+			participant := batch.participants[op.Owner]
+			if a.removedParticipant(participant) {
+				continue
+			}
+			if participant.proc != nil && participant.proc.Registration().ConfigCompletion && !transaction.IsSectionApply(op) {
+				ops = append(ops, *op)
+			}
+		}
+		if len(ops) == 0 {
+			continue
+		}
+		gateway := newConfigEventGateway(a.server)
+		bridge := newConfigTxBridge(a.server, gateway, slices.Sorted(maps.Keys(batch.participants)), nil)
+		bridge.participants = batch.participants
+		if err := bridge.Subscribe(ctx); err != nil {
+			result = errors.Join(result, err)
+			continue
+		}
+		executor := transaction.NewOperationExecutor(gateway, batch.txID)
+		executor.SetRollbackBudget(reloadCompletionBudget)
+		batch.undoErr = executor.Rollback(ctx, ops, nil)
+		batch.undoDone = true
+		result = errors.Join(result, batch.undoErr)
+		bridge.Close()
+	}
+	return result
+}
+
+func (a *reloadAcceptance) completeBatchesBounded(accepted bool) error {
+	ctx, cancel := context.WithTimeout(a.lifetime, reloadCompletionBudget)
+	defer cancel()
+	return a.completeBatches(ctx, accepted)
 }
 
 // reloadConfigSections answers the sections a reload delivers to one plugin.

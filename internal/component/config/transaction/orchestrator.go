@@ -101,6 +101,9 @@ type TxResult struct {
 	State string // Final state (StateCommitted, StateAborted, StateRolledBack).
 	Err   error  // Non-nil only for real errors (not file write warnings).
 	Saved bool   // True if config file was written successfully.
+	// Operations retains actual applied order until the outer reload settles.
+	// The caller MUST undo these in reverse order on outer rejection.
+	Operations []ConfigOperation
 }
 
 // ConfigWriter writes the config file after successful apply.
@@ -596,6 +599,8 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	deadline := o.applyDeadline
 	o.mu.Unlock()
 	executor.SetDeadlineMS(time.Now().Add(deadline).UnixMilli())
+	executor.SetRollbackBudget(o.computeRollbackDeadline())
+	executor.beforeRollback = o.restoreSectionsBeforeOperationUndo
 	if err := executor.Verify(ctx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation verify", err)
@@ -607,18 +612,18 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation apply", err)
 		}
-		return o.rollBack(ctx, err)
+		return &TxResult{State: StateRolledBack, Err: err}
 	}
 	if err := executor.Commit(ctx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation commit", err)
 		}
-		return o.rollBack(ctx, err)
+		return &TxResult{State: StateRolledBack, Err: executor.Rollback(ctx, sorted, err)}
 	}
 	o.publishCommitted()
 	saved := o.writeConfigFile()
 	o.publishApplied(saved)
-	return &TxResult{State: StateCommitted, Saved: saved}
+	return &TxResult{State: StateCommitted, Saved: saved, Operations: sorted}
 }
 
 // filterDiffs returns only the diffs relevant to a participant.
@@ -834,6 +839,34 @@ func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
 	o.publishRollback(err.Error())
 	o.collectRollbackAcks(ctx)
 	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
+}
+
+// Operation undo may republish source state. It MUST follow acknowledged
+// restoration of section-owned filters, including a successful owner restart.
+func (o *TxCoordinator) restoreSectionsBeforeOperationUndo(ctx context.Context, cause error) (error, bool) {
+	result := o.rollBack(ctx, cause)
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for _, participant := range o.participants {
+		ack, answered := o.rollbackAcks[participant.Name]
+		if !answered {
+			return result.Err, false
+		}
+		if ack.Code == CodeOK {
+			continue
+		}
+		if ack.Code != CodeBroken {
+			return result.Err, false
+		}
+		restartErr, restarted := o.rollbackRestarts[participant.Name]
+		if !restarted {
+			return result.Err, false
+		}
+		if restartErr != nil {
+			return result.Err, false
+		}
+	}
+	return result.Err, true
 }
 
 // rollbackOutcome says, in the participants' order, what the rollback did

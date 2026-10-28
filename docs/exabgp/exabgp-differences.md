@@ -363,6 +363,24 @@ connection dropped without a NOTIFICATION that way.
 
 <!-- source: internal/exabgp/bridge/bridge_event_state.go -- exabgpDownReasons -->
 
+## Explicit route-exchange policy
+
+ExaBGP 4.2, 5.0 and 6.0 configurations express route-exchange intent without
+Ze's import/export policy blocks. Ze's native EBGP default rejects each
+direction without an explicit effective policy, as RFC 8212 Section 3 requires.
+The bridge is subject to that same default; using an ExaBGP script is not an
+exemption.
+
+`ze exabgp migrate` preserves the original intent by adding `filter import {
+final accept; }` and `filter export { final accept; }` to every migrated peer,
+including IBGP and inherited neighbors. It explains the addition in a warning
+for each peer. It adds no global or group accept, so new peers do not inherit
+this migration decision. Hand-written Ze bridge configs must configure their
+own policies. See [the migration guide](exabgp-migration.md#explicit-route-exchange-policy).
+
+<!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
+<!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
+
 ## Default hold time and Graceful Restart time
 
 ExaBGP offers a hold time of 180 seconds when a neighbor states none

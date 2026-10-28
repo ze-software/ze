@@ -123,7 +123,8 @@ type Timers struct {
 	// generation can detect that the timer was stopped or re-armed after it
 	// fired and decline to touch shared state (the ABA seed described in the
 	// fixit-bgp-session-fsm-lifecycle spec, A-2).
-	holdGen uint64
+	holdGen     uint64
+	holdExpires time.Time // Deadline of the actual arm, never the negotiated duration.
 }
 
 // NewTimers creates a new timer manager with default values.
@@ -163,6 +164,48 @@ func (t *Timers) HoldTime() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.holdTime
+}
+
+// HoldBudgetState distinguishes no timer by agreement from an unusable timer.
+type HoldBudgetState uint8
+
+const (
+	HoldBudgetUnspecified HoldBudgetState = iota
+	HoldBudgetDisabled
+	HoldBudgetUnarmed
+	HoldBudgetArmed
+	HoldBudgetExpired
+)
+
+// HoldBudget is a snapshot; only Armed has positive Remaining and a live Expires.
+type HoldBudget struct {
+	State     HoldBudgetState
+	Remaining time.Duration
+	Expires   time.Time
+}
+
+// HoldBudget measures the currently armed timer without restarting or stopping it.
+// RFC 4271 Section 8.2.2, Established: "If the HoldTimer_Expires event occurs
+// (Event 10)" the system "drops the TCP connection". Observing a reload budget
+// cannot grant a reprieve from that existing expiry.
+func (t *Timers) HoldBudget() HoldBudget {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.holdExpires.IsZero() {
+		remaining := t.holdExpires.Sub(t.clock.Now())
+		if !t.holdRunning {
+			return HoldBudget{State: HoldBudgetExpired, Expires: t.holdExpires}
+		}
+		if remaining <= 0 {
+			return HoldBudget{State: HoldBudgetExpired, Expires: t.holdExpires}
+		}
+		return HoldBudget{State: HoldBudgetArmed, Remaining: remaining, Expires: t.holdExpires}
+	}
+	if t.holdTime == 0 {
+		return HoldBudget{State: HoldBudgetDisabled}
+	}
+	return HoldBudget{State: HoldBudgetUnarmed}
 }
 
 // SetKeepaliveTime sets an explicit keepalive interval.
@@ -249,6 +292,7 @@ func (t *Timers) armHoldTimerLocked(d time.Duration) {
 	t.stopHoldTimerLocked() // bumps holdGen if a timer was live
 	t.holdGen++
 	gen := t.holdGen
+	t.holdExpires = t.clock.Now().Add(d)
 	t.holdTimer = t.clock.AfterFunc(d, func() { t.fireHold(gen) })
 	t.holdRunning = true
 }
@@ -316,6 +360,7 @@ func (t *Timers) stopHoldTimerLocked() {
 		t.holdGen++
 	}
 	t.holdRunning = false
+	t.holdExpires = time.Time{}
 }
 
 // IsHoldTimerRunning returns true if the hold timer is running.

@@ -228,11 +228,14 @@ type PolicyChainResult struct {
 // Returns the filter's decision.
 type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse
 
-// PolicyFilterChain runs a chain of named filters on an update.
+// PolicyFilterChain runs the external portion of a peer's policy on an update.
+// The caller MUST run registered in-process hooks at their declared stages;
+// stage-owned references here are not second invocations of those hooks.
 // Filters are piped: each sees the previous filter's output.
 // Reject short-circuits. Surviving filters receive the policy's final disposition.
 //
 // policy carries the immutable ordered filter references and effective final.
+// external MUST be the session classification captured with that policy.
 // callFilter is the function to invoke each filter.
 // updateText is the initial text representation of the update.
 //
@@ -244,10 +247,20 @@ type PolicyFilterFunc func(pluginName, filterName, direction, peer string, peerA
 // raw rewrite cannot be composed with downstream text deltas (the text was
 // derived from the original payload). A teardown request also short-circuits and
 // drops the route.
-func PolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
+func PolicyFilterChain(policy filterapi.Policy, external bool, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) PolicyChainResult {
+	// Validate the whole policy before a terminal response can hide a later
+	// ingress-only reference. The immutable policy derives this once.
+	if direction != directionImport {
+		if policy.RequiresIngress() {
+			return PolicyChainResult{Action: PolicyReject, Failed: true}
+		}
+	}
 	current := updateText
 	for _, ref := range policy.Filters() {
 		if ref.Inactive {
+			continue
+		}
+		if ref.InProcess() {
 			continue
 		}
 		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
@@ -270,7 +283,8 @@ func PolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS u
 		case PolicyModify:
 			// A raw full-payload rewrite is terminal (see doc comment).
 			if len(result.Raw) > 0 {
-				if !policy.AcceptsAtEnd() {
+				// RFC 8212 Section 3.
+				if !policy.AcceptsAtEnd(external) {
 					return PolicyChainResult{Action: PolicyReject}
 				}
 				return PolicyChainResult{Action: PolicyModify, Text: current, Raw: result.Raw}
@@ -283,7 +297,8 @@ func PolicyFilterChain(policy filterapi.Policy, direction, peer string, peerAS u
 		}
 	}
 
-	if !policy.AcceptsAtEnd() {
+	// RFC 8212 Section 3.
+	if !policy.AcceptsAtEnd(external) {
 		return PolicyChainResult{Action: PolicyReject}
 	}
 	return PolicyChainResult{Action: PolicyAccept, Text: current}

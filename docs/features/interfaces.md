@@ -6,6 +6,13 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
 
+Interface operation journals survive the inner operation commit. A later owner
+failure or outer candidate-publication failure replays their original inverses;
+whole-reload acceptance releases them through the acknowledged `config-complete`
+callback. Config restoration also restores the active interface configuration
+and reconciles its DHCP, PPPoE and Router Advertisement workers.
+<!-- source: internal/component/iface/register.go -- runEngine -->
+
 ## Capability Table
 
 | Category | Feature | Status | Priority |

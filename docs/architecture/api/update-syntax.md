@@ -221,7 +221,11 @@ The attribute blob still passes the session writer's checks. An `attr set` whose
 AS_PATH or AS4_PATH holds an AS_SET (type 1) or AS_CONFED_SET (type 4) segment is
 written as the withdrawal of the UPDATE's routes, logged as a warning naming RFC 9774
 Section 3 and counted on `ze_bgp_as_set_withdrawn_total`: RFC 9774 Section 3 forbids
-advertising a set. Only `send bgp <peer> raw` writes such bytes as given.
+advertising a set. Only `send bgp <peer> raw` can retain those sets, and only when
+the destination's export final accepts. Neither raw syntax form bypasses absent
+EBGP policy rejection. Raw explicit withdrawals and EOR still pass a rejecting
+final; mixed UPDATEs retain only their withdrawals. Opaque diagnostic input is
+suppressed on rejection rather than sent with unknown announcement effects.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
 

@@ -144,11 +144,11 @@ func TestPolicyFinalOnlyPeer(t *testing.T) {
 			if direction == "export" {
 				policy, absent = absent, policy
 			}
-			if !policy.Configured() || len(policy.Filters()) != 0 || policy.AcceptsAtEnd() != (final == "accept") {
+			if !policy.Configured() || len(policy.Filters()) != 0 || policy.AcceptsAtEnd(peers[0].IsEBGP()) != (final == "accept") {
 				t.Fatalf("%s final %s lost: %+v", direction, final, policy)
 			}
-			if absent.Configured() || !absent.AcceptsAtEnd() {
-				t.Fatalf("absent direction changed behavior: %+v", absent)
+			if absent.Configured() || absent.AcceptsAtEnd(peers[0].IsEBGP()) {
+				t.Fatalf("absent EBGP direction accepted: %+v", absent)
 			}
 		}
 	}
@@ -175,10 +175,10 @@ func TestPolicyDynamicTemplateFinal(t *testing.T) {
 			t.Fatalf("dynamic groups = %d, want 1", len(groups))
 		}
 		policy := groups[0].Settings.ImportPolicy
-		if !policy.Configured() || policy.AcceptsAtEnd() != (final == "accept") {
+		if !policy.Configured() || policy.AcceptsAtEnd(false) != (final == "accept") || policy.AcceptsAtEnd(true) != (final == "accept") {
 			t.Fatalf("dynamic final %s lost: %+v", final, policy)
 		}
-		want := []filterapi.FilterRef{{Name: "LOOPS"}, {Name: "bgp-filter-prefix:MEMBERS"}, {Name: "bgp-filter-prefix:MEMBERS"}}
+		want := []filterapi.FilterRef{filterapi.BindInProcess(filterapi.FilterRef{Name: "LOOPS"}, "loop-detection"), {Name: "bgp-filter-prefix:MEMBERS"}, {Name: "bgp-filter-prefix:MEMBERS"}}
 		if !slices.Equal(policy.Filters(), want) {
 			t.Fatalf("dynamic filters = %+v, want %+v", policy.Filters(), want)
 		}

@@ -397,7 +397,7 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 	assert.True(t, filterChainContains(ps.ImportPolicy.Filters(), "my-loop"), "loop-detection should auto-populate in import chain")
 	assert.Equal(t, uint8(3), ps.LoopAllowOwnAS, "auto-populated filter settings should be applied")
 	assert.False(t, ps.ImportPolicy.Configured(), "automatic filters must not invent an operator policy")
-	assert.True(t, ps.ImportPolicy.AcceptsAtEnd(), "automatic filters preserve absent-policy acceptance")
+	assert.False(t, ps.ImportPolicy.AcceptsAtEnd(ps.IsEBGP()), "automatic filters must not bypass absent EBGP rejection")
 }
 
 // TestLoopDetectionInactiveDisables verifies a deactivated loop-detection filter

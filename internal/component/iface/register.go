@@ -4,6 +4,7 @@
 package iface
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -734,6 +735,20 @@ func runEngine(conn net.Conn) int {
 				if errs := applyAndPublish(rollbackCfg, cfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface rollback", errs)
 				}
+				activeCfg.Store(rollbackCfg)
+				nonBlockingNotify(unnumberedCh)
+				pppoeMu.Lock()
+				reconcilePPPoEClients(rollbackCfg, activePPPoE, b, log)
+				pppoeMu.Unlock()
+				if eb := GetEventBus(); eb != nil {
+					dhcpMu.Lock()
+					reconcileDHCP(rollbackCfg, eb, activeDHCP, log)
+					suppressRAForConfig(rollbackCfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
+					dhcpMu.Unlock()
+				}
+				raMu.Lock()
+				reconcileRA(rollbackCfg, activeRA, log)
+				raMu.Unlock()
 				// Emit rollback event so downstream plugins react.
 				eb := GetEventBus()
 				if eb != nil {
@@ -847,6 +862,7 @@ func runEngine(conn net.Conn) int {
 	p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
 		operationMu.Lock()
 		defer operationMu.Unlock()
+		var result error
 		for i := range input.Operations {
 			op := &input.Operations[i]
 			key := operationJournalKey(input.TransactionID, op.ID)
@@ -856,21 +872,13 @@ func runEngine(conn net.Conn) int {
 				continue
 			}
 			if errs := j.Rollback(); len(errs) > 0 {
-				return fmt.Errorf("interface operation rollback %s: %d errors", op.ID, len(errs))
+				result = errors.Join(result, fmt.Errorf("interface operation rollback %s: %w", op.ID, errors.Join(errs...)))
 			}
 		}
-		return nil
+		return result
 	})
 
 	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
-		operationMu.Lock()
-		for key, j := range operationJournals {
-			if strings.HasPrefix(key, input.TransactionID+"\x00") {
-				j.Discard()
-				delete(operationJournals, key)
-			}
-		}
-		operationMu.Unlock()
 		if pendingCfg != nil {
 			activeCfg.Store(pendingCfg)
 			pendingCfg = nil
@@ -878,6 +886,21 @@ func runEngine(conn net.Conn) int {
 		}
 		log.Info("interface config operation journal committed")
 		return nil
+	})
+
+	p.OnConfigComplete(func(ctx context.Context, input sdk.ConfigCompleteInput) error {
+		operationMu.Lock()
+		defer operationMu.Unlock()
+		for key, j := range operationJournals {
+			if strings.HasPrefix(key, input.TransactionID+"\x00") {
+				if !input.Accepted {
+					return fmt.Errorf("interface transaction %s still has unapplied undo", input.TransactionID)
+				}
+				j.Discard()
+				delete(operationJournals, key)
+			}
+		}
+		return ctx.Err()
 	})
 
 	tracker := newRateTracker()

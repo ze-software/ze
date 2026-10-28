@@ -58,17 +58,45 @@ import (
 func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte) {
 	facts := peer.forwardFacts()
 	if facts == nil {
-		// No established forwarding snapshot: retain the existing admission.
-		return false, nil
+		var pending peerForwardFacts
+		// Before publication, capture only the facts this gate consumes. Policy
+		// and dynamic AS resolution share this lock. No callback runs under it.
+		peer.mu.RLock()
+		pending.exportPolicy = peer.settings.ExportPolicy
+		pending.peerAS = peer.settings.PeerAS
+		pending.localAS = peer.settings.LocalAS
+		pending.isEBGP = peer.settings.IsEBGP()
+		pending.addr = peer.settings.Address
+		pending.addrStr = peer.addrString
+		pending.sendCtxID = peer.sendCtxID
+		pending.localAddr = peer.settings.LocalAddress.Unmap()
+		pending.connectedLocal = connectedLocalAddress(peer.session)
+		if peer.session != nil {
+			pending.localScope = &peer.session.nextHopScope
+		}
+		peer.mu.RUnlock()
+		pending.sendASN4 = true
+		if ctx := peer.sendCtx.Load(); ctx != nil {
+			pending.sendASN4 = ctx.ASN4()
+		}
+		facts = &pending
+		if facts.exportPolicy.RequiresIngress() {
+			return true, nil
+		}
+		if facts.peerAS == 0 {
+			withdrawals := policyWithdrawals(body)
+			return withdrawals == nil, withdrawals
+		}
 	}
 	// Final-only decisions run without transport or text formatting. Withdrawals
 	// survive rejection so an already advertised route can leave the peer.
-	if hasActiveFilter(facts.exportPolicy.Filters()) {
+	if hasActiveFilter(facts.exportPolicy.Filters(), directionExport) {
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
 		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, &update, facts.sendASN4)
 		if !res.accept {
-			if !res.failed && !facts.exportPolicy.AcceptsAtEnd() {
+			// RFC 8212 Section 3.
+			if !res.failed && !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) {
 				withdrawals := policyWithdrawals(body)
 				if withdrawals != nil {
 					return false, withdrawals
@@ -80,7 +108,7 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 			override = res.wireOverride.Payload()
 			body = override
 		}
-	} else if !facts.exportPolicy.AcceptsAtEnd() {
+	} else if !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) { // RFC 8212 Section 3.
 		withdrawals := policyWithdrawals(body)
 		return withdrawals == nil, withdrawals
 	}

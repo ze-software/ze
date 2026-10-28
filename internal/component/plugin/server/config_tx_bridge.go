@@ -60,6 +60,7 @@ type configTxBridge struct {
 	// treats the slice as opaque but preserves ordering when fanning out
 	// rollback.
 	participantNames []string
+	participants     map[string]reloadParticipant
 
 	// verifySections maps plugin name -> full post-change config sections
 	// for the roots that plugin declared interest in. The bridge hands
@@ -85,11 +86,17 @@ type configTxBridge struct {
 // data comes from the orchestrator's ApplyEvent payload (which is already
 // filtered per participant), so the bridge does not need a separate apply map.
 func newConfigTxBridge(s *Server, gw *ConfigEventGateway, participantNames []string, verifySections map[string][]rpc.ConfigSection) *configTxBridge {
+	captured := make(map[string]reloadParticipant, len(participantNames))
+	if pm := s.procManager.Load(); pm != nil {
+		for _, name := range participantNames {
+			if proc := pm.GetProcess(name); proc != nil {
+				captured[name] = reloadParticipant{proc: proc, conn: proc.Conn()}
+			}
+		}
+	}
 	return &configTxBridge{
-		server:           s,
-		gateway:          gw,
-		participantNames: participantNames,
-		verifySections:   verifySections,
+		server: s, gateway: gw, participantNames: participantNames,
+		verifySections: verifySections, participants: captured,
 	}
 }
 
@@ -302,7 +309,7 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 			ph.emitFailed(b, env.TransactionID, name, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			ph.emitFailed(b, env.TransactionID, name, "plugin connection closed (crashed?)")
 			return
@@ -381,7 +388,7 @@ func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, 
 			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, "plugin connection closed (crashed?)")
 			return
@@ -450,7 +457,7 @@ func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, nam
 			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin connection closed (crashed?)")
 			return
@@ -459,7 +466,7 @@ func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, nam
 		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
 		defer cancel()
 
-		out, err := conn.SendConfigOperationVerify(rpcCtx, &rpc.ConfigOperationVerifyInput{TransactionID: ev.TransactionID, Operation: ev.Operation})
+		out, err := conn.SendConfigOperationVerify(rpcCtx, &rpc.ConfigOperationVerifyInput{TransactionID: ev.TransactionID, Operation: ev.Operation, DeadlineMS: callbackDeadlineMS(rpcCtx)})
 		if err != nil {
 			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, err.Error())
 			return
@@ -507,7 +514,7 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin connection closed (crashed?)")
 			return
@@ -519,6 +526,7 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 		out, err := conn.SendConfigOperationApply(rpcCtx, &rpc.ConfigOperationApplyInput{
 			TransactionID: ev.TransactionID,
 			Operation:     ev.Operation,
+			DeadlineMS:    callbackDeadlineMS(rpcCtx),
 		})
 		if err != nil {
 			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, err.Error())
@@ -571,18 +579,19 @@ func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, n
 			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, "plugin connection closed (crashed?)")
 			return
 		}
 
-		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		rpcCtx, cancel := deadlineCtx(context.WithoutCancel(parentCtx), ev.DeadlineMS)
 		defer cancel()
 
 		out, err := conn.SendConfigOperationRollback(rpcCtx, &rpc.ConfigOperationRollbackInput{
 			TransactionID: ev.TransactionID,
 			Operations:    ev.Operations,
+			DeadlineMS:    callbackDeadlineMS(rpcCtx),
 		})
 		if err != nil {
 			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, err.Error())
@@ -629,7 +638,7 @@ func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, nam
 			b.emitOperationCommitFailed(ev.TransactionID, name, "plugin process not found (crashed?)")
 			return
 		}
-		conn := proc.Conn()
+		conn := b.participants[name].conn
 		if conn == nil {
 			b.emitOperationCommitFailed(ev.TransactionID, name, "plugin connection closed (crashed?)")
 			return
@@ -638,7 +647,7 @@ func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, nam
 		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
 		defer cancel()
 
-		out, err := conn.SendConfigOperationCommit(rpcCtx, &rpc.ConfigOperationCommitInput{TransactionID: ev.TransactionID})
+		out, err := conn.SendConfigOperationCommit(rpcCtx, &rpc.ConfigOperationCommitInput{TransactionID: ev.TransactionID, DeadlineMS: callbackDeadlineMS(rpcCtx)})
 		if err != nil {
 			b.emitOperationCommitFailed(ev.TransactionID, name, err.Error())
 			return
@@ -677,6 +686,14 @@ func deadlineCtx(parent context.Context, deadlineMS int64) (context.Context, con
 	return context.WithDeadline(parent, time.UnixMilli(deadlineMS))
 }
 
+func callbackDeadlineMS(ctx context.Context) int64 {
+	deadline, bounded := ctx.Deadline()
+	if bounded {
+		return deadline.UnixMilli()
+	}
+	return 0 // No advertised deadline exists on an unbounded test callback.
+}
+
 // subscribeRollback wires a single handler for the broadcast rollback event.
 // When the orchestrator rolls back, the bridge fans out config-rollback RPCs
 // to every participant and emits rollback-ok acks. RPC errors translate to a
@@ -695,10 +712,12 @@ func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
 			return
 		}
 		// Fan out to every participant. Each plugin dispatches in the
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 90*time.Second)
+		defer cancel()
 		// calling goroutine; the orchestrator waits for rollback-ok acks
 		// with its own deadline so a slow plugin only delays its own tier.
 		for _, name := range b.participantNames {
-			b.dispatchRollback(parentCtx, ev.TransactionID, name)
+			b.dispatchRollback(rollbackCtx, ev.TransactionID, name)
 		}
 	})
 	b.addUnsub(unsub)
@@ -747,7 +766,7 @@ func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name strin
 	if proc == nil {
 		return
 	}
-	conn := proc.Conn()
+	conn := b.participants[name].conn
 	if conn == nil {
 		return
 	}
@@ -768,7 +787,7 @@ func (b *configTxBridge) dispatchRollback(ctx context.Context, txID, name string
 		b.emitRollbackAck(txID, name, transaction.CodeBroken, "plugin process not found")
 		return
 	}
-	conn := proc.Conn()
+	conn := b.participants[name].conn
 	if conn == nil {
 		b.emitRollbackAck(txID, name, transaction.CodeBroken, "plugin connection closed")
 		return
@@ -780,15 +799,16 @@ func (b *configTxBridge) dispatchRollback(ctx context.Context, txID, name string
 	b.emitRollbackAck(txID, name, transaction.CodeOK, "")
 }
 
-// lookupProcess returns the plugin process by name via the current process
-// manager snapshot, or nil if the manager is not wired or the plugin has
-// exited. The bridge never retains the pointer beyond the current call.
+// lookupProcess refuses a replacement lifetime, including a replaced connection.
 func (b *configTxBridge) lookupProcess(name string) *process.Process {
-	pm := b.server.procManager.Load()
-	if pm == nil {
+	participant, ok := b.participants[name]
+	if !ok {
 		return nil
 	}
-	return pm.GetProcess(name)
+	if !participant.current(b.server) {
+		return nil
+	}
+	return participant.proc
 }
 
 // emitVerifyOK publishes a verify-ok ack. Budgets come straight from the

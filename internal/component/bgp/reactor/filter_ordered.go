@@ -137,26 +137,32 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 	return steps
 }
 
-// runIngressPolicyChain runs the peer's configured import policy chain (the
-// external text/RPC filters) as one ordered ingress step. It is the former
-// System 2 block, unchanged in semantics: it serializes the current payload to
-// text only when the peer has an ACTIVE import filter and the API server is
-// present (the hot-path gate), runs PolicyFilterChain, and maps the aggregate result to the
-// common ingressStepResult (teardown / reject / raw override / text-delta modify).
+// runIngressPolicyChain runs the external policy step before eligible publication.
+// It renders text only for active external filters, then applies the final using
+// the same resolved peer generation. Rejection retains explicit withdrawals.
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
 func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS uint32, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
-	// A settings generation carries its references and final together.
-	policy := peer.ImportPolicy()
-	if !hasActiveFilter(policy.Filters()) {
-		if policy.AcceptsAtEnd() {
+	// Dynamic resolution publishes policy and session classification together.
+	peer.mu.RLock()
+	policy := peer.settings.ImportPolicy
+	peerAS = peer.settings.PeerAS
+	external := peer.settings.IsEBGP()
+	localAS := peer.settings.LocalAS
+	peer.mu.RUnlock()
+	if peerAS == 0 {
+		return ingressPolicyWithdrawals(payload)
+	}
+	if !hasActiveFilter(policy.Filters(), directionImport) {
+		// RFC 8212 Section 3.
+		if policy.AcceptsAtEnd(external) {
 			return ingressStepResult{accept: true}
 		}
 		return ingressPolicyWithdrawals(payload)
 	}
-	// An ACTIVE import filter but the API server (the filter engine that
+	// An ACTIVE external import filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An import filter is
 	// a guard whose purpose is to reject (it can be security/ACL policy), so
 	// silently accepting unfiltered inbound routes is the fail-open. Deny AND
@@ -172,7 +178,8 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	var scratchArr [65536]byte
 	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	res := PolicyFilterChain(policy, "import", peerAddr.String(), peerAS,
+	// RFC 8212 Section 3.
+	res := PolicyFilterChain(policy, external, "import", peerAddr.String(), peerAS,
 		updateText, r.policyFilterFunc(payload),
 	)
 
@@ -182,7 +189,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		return ingressStepResult{teardown: true, notifyCode: res.NotifyCode, notifySubcode: res.NotifySubcode}
 	}
 	if res.Action == PolicyReject {
-		if !res.Failed && !policy.AcceptsAtEnd() {
+		if !res.Failed && !policy.AcceptsAtEnd(external) {
 			return ingressPolicyWithdrawals(payload)
 		}
 		return ingressStepResult{} // accept == false: drop the route
@@ -223,7 +230,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		srcASN4 := srcCtx != nil && srcCtx.ASN4()
 		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, srcASN4, peerAS, &importMods)
-		ExtractASPathPrependOps(values, &modAttrs, attrsWire, srcASN4, peer.settings.LocalAS, &importMods)
+		ExtractASPathPrependOps(values, &modAttrs, attrsWire, srcASN4, localAS, &importMods)
 		// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
 		// converts the directive. The rewritten payload below replaces the
 		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
@@ -273,8 +280,9 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
 func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
-	if !hasActiveFilter(exportPolicy.Filters()) {
-		return egressStepResult{accept: exportPolicy.AcceptsAtEnd()}
+	if !hasActiveFilter(exportPolicy.Filters(), directionExport) {
+		// RFC 8212 Section 3: classify the destination, not the source encoding.
+		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
 	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
@@ -305,8 +313,9 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 // callers take from the peer's forwarding facts (!isEBGP). It decides whether
 // the AS_PATH edits of the filter's answer apply (RFC 4271 Section 5.1.2).
 func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
-	if !hasActiveFilter(exportPolicy.Filters()) {
-		return egressStepResult{accept: exportPolicy.AcceptsAtEnd()}
+	if !hasActiveFilter(exportPolicy.Filters(), directionExport) {
+		// RFC 8212 Section 3.
+		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
 	// An ACTIVE export filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An export chain is a
@@ -326,7 +335,8 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 	var scratchArr [65536]byte
 	scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-	res := PolicyFilterChain(exportPolicy, "export", destAddrStr, destPeerAS,
+	// RFC 8212 Section 3.
+	res := PolicyFilterChain(exportPolicy, !destInternal, "export", destAddrStr, destPeerAS,
 		updateText, r.policyFilterFunc(wireUpdate.Payload()),
 	)
 	if res.Action == PolicyReject {

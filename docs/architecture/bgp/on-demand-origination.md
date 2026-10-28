@@ -23,6 +23,12 @@ destination peer's export chain at the session write gate for every originated
 route. An announce that reached no peer comes back as zero routes added with no
 error; `InjectRoute` logs that at Warn under `bgp.redistribute`, naming the
 prefix and `ze show bgp peer`, because the route is then not announced.
+An absent EBGP export policy rejects originated routes under RFC 8212 Section 3,
+including before the forwarding snapshot exists. IBGP retains its accepting
+default. A conditional default's named filter uses the destination's policy
+final, and emission still passes through the full export gate.
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts -->
 
 **Every form names its destination, and every form states
 `RequiresSelector`.** `send bgp <selector> unicast <prefix>` reaches the peers

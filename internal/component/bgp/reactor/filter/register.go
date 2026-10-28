@@ -12,9 +12,10 @@ import (
 func init() {
 	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
 	if err := filterapi.Register(filterapi.Filter{
-		Name:    "loop",
-		Stage:   filterapi.FilterStageProtocol,
-		Ingress: LoopIngress,
+		Name:       "loop",
+		Stage:      filterapi.FilterStageProtocol,
+		Ingress:    LoopIngress,
+		PolicyType: "loop-detection",
 		// Loop detection runs as an always-on protocol filter, not as a run
 		// plugin, so its counters arrive through filterapi.SetMetricsRegistry.
 		ConfigureMetrics: SetMetricsRegistry,

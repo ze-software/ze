@@ -117,23 +117,67 @@ func TestSessionFlow_WaitForResume_CloseReason(t *testing.T) {
 	s := newFlowSession()
 	s.Pause()
 
-	// Store a close reason before resume — simulates shutdown path
+	// Cause publication precedes terminal completion and cannot end the reader.
 	shutdownErr := errors.New("session shutdown")
 	s.closeReason.Store(&shutdownErr)
 
 	var wg sync.WaitGroup
 	var waitErr error
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+		s.stopAdmission()
+		wg.Wait()
+	})
 
 	entered := make(chan struct{})
+	returned := make(chan struct{})
 	wg.Go(func() {
+		defer close(returned)
 		close(entered)
-		waitErr = s.waitForResume(context.Background())
+		waitErr = s.waitForResume(ctx)
 	})
 
 	// Wait for the goroutine to be scheduled before resuming
 	<-entered
 	require.Eventually(t, func() bool { return s.IsPaused() }, 2*time.Second, time.Millisecond)
+	var waiting chan struct{}
+	require.Eventually(t, func() bool {
+		s.pauseMu.Lock()
+		waiting = s.resumeCh
+		s.pauseMu.Unlock()
+		select {
+		case <-returned:
+			return true
+		default:
+			return waiting != nil
+		}
+	}, 2*time.Second, time.Millisecond, "waiter must reach the gate")
+	select {
+	case <-returned:
+		t.Fatal("cause publication ended the reader before terminal completion")
+	default:
+	}
 	s.Resume()
+	// A fresh wait channel proves the reader consumed Resume and reparked;
+	// a nonblocking result check alone could miss an unscheduled early return.
+	require.Eventually(t, func() bool {
+		s.pauseMu.Lock()
+		reparked := s.resumeCh != nil && s.resumeCh != waiting
+		s.pauseMu.Unlock()
+		select {
+		case <-returned:
+			return true
+		default:
+			return reparked
+		}
+	}, 2*time.Second, time.Millisecond, "waiter must observe Resume")
+	select {
+	case <-returned:
+		t.Fatal("Resume ended the reader before terminal completion")
+	default:
+	}
+	s.stopAdmission()
 	wg.Wait()
 
 	require.Error(t, waitErr)

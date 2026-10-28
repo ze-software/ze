@@ -315,6 +315,7 @@ type DeclareRegistrationInput struct {
 	Dependencies           []string              `json:"dependencies,omitempty"`
 	WantsConfig            []string              `json:"wants-config,omitempty"`
 	ConfigOperations       []ConfigOperationDecl `json:"config-operations,omitempty"`
+	ConfigCompletion       bool                  `json:"config-completion,omitempty"`
 	VerifyBudget           int                   `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
 	ApplyBudget            int                   `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
 	Schema                 *SchemaDecl           `json:"schema,omitempty"`
@@ -1358,6 +1359,7 @@ type ConfigOperationDecomposeOutput struct {
 type ConfigOperationVerifyInput struct {
 	TransactionID string          `json:"transaction-id"`
 	Operation     ConfigOperation `json:"operation"`
+	DeadlineMS    int64           `json:"deadline-ms,omitempty"`
 }
 
 // ConfigOperationVerifyOutput is the output for config-operation-verify.
@@ -1370,6 +1372,7 @@ type ConfigOperationVerifyOutput struct {
 type ConfigOperationApplyInput struct {
 	TransactionID string          `json:"transaction-id"`
 	Operation     ConfigOperation `json:"operation"`
+	DeadlineMS    int64           `json:"deadline-ms,omitempty"`
 }
 
 // ConfigOperationReadiness reports side-effect readiness produced by an operation.
@@ -1390,6 +1393,7 @@ type ConfigOperationApplyOutput struct {
 type ConfigOperationRollbackInput struct {
 	TransactionID string            `json:"transaction-id"`
 	Operations    []ConfigOperation `json:"operations,omitempty"`
+	DeadlineMS    int64             `json:"deadline-ms,omitempty"`
 }
 
 // ConfigOperationRollbackOutput is the output for config-operation-rollback.
@@ -1401,12 +1405,29 @@ type ConfigOperationRollbackOutput struct {
 // ConfigOperationCommitInput is the input for config-operation-commit.
 type ConfigOperationCommitInput struct {
 	TransactionID string `json:"transaction-id"`
+	DeadlineMS    int64  `json:"deadline-ms,omitempty"`
 }
 
 // ConfigOperationCommitOutput is the output for config-operation-commit.
 type ConfigOperationCommitOutput struct {
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
+}
+
+// ConfigCompleteInput settles retained undo only at the whole-reload boundary.
+// Accepted is irreversible; false is sent only after restoring configuration.
+type ConfigCompleteInput struct {
+	TransactionID string `json:"transaction-id"`
+	Accepted      bool   `json:"accepted"`
+	DeadlineMS    int64  `json:"deadline-ms"`
+}
+
+// ConfigCompleteOutput acknowledges actual cleanup, not admission to a queue.
+type ConfigCompleteOutput struct {
+	TransactionID string `json:"transaction-id"`
+	Accepted      bool   `json:"accepted"`
+	Status        string `json:"status"`
+	Error         string `json:"error,omitempty"`
 }
 
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).

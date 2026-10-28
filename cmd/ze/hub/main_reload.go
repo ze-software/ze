@@ -422,13 +422,18 @@ func runReload(s *pluginserver.Server, cp *zeconfig.Provider, load func() (map[s
 //
 // Production callers go through doReloadContext, which wraps this to record
 // the reload fence.
-func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) (result error) {
 	reloadCtx, reloadCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer reloadCancel()
 	// The plugin transaction commits before listener migration and publication.
 	// Only this whole-reload boundary may release irreversible plugin cleanup.
 	reloadCtx, acceptReload := s.DeferReloadAcceptance(reloadCtx)
-	defer acceptReload(false)
+	acceptedDecision := false
+	defer func() {
+		if !acceptedDecision {
+			result = errors.Join(result, acceptReload(false))
+		}
+	}()
 	candidateSet := false
 	if store != nil && configPath != "" && configPath != "-" {
 		_, _, ok, err := storage.ReadCandidateConfig(store, configPath)
@@ -814,8 +819,8 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	bundleInstalled = installed
 	closeRetiredAAABundle(retired, slogutil.Logger("hub.aaa"))
 	reloadApplied = true
-	acceptReload(true)
-	return nil
+	acceptedDecision = true
+	return acceptReload(true)
 }
 
 // aaaAuthenticationChanged reports whether the reloaded configuration changes
@@ -939,6 +944,8 @@ func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Eng
 	if prior == nil {
 		return nil
 	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+	defer cancel()
 	var rollbackErrs []error
 	// Reinstall the prior store FIRST: the plugin and subsystem rollbacks below
 	// re-apply the old config, and a consumer resolving a certificate reference
@@ -948,7 +955,7 @@ func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Eng
 		rollbackErrs = append(rollbackErrs, err)
 	}
 	if s != nil {
-		if err := s.ReloadConfig(ctx, snapshotToLoadedTree(prior)); err != nil {
+		if err := s.AbortReload(ctx); err != nil {
 			rollbackErrs = append(rollbackErrs, fmt.Errorf("plugin rollback: %w", err))
 		}
 	}

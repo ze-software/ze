@@ -291,9 +291,9 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	require.NoError(t, server.ReloadConfig(ctx, running))
 	retryFirst, retryRemaining := up(t, 5), up(t, 6)
 	pendingCtx, finishPending := server.DeferReloadAcceptance(ctx)
-	defer finishPending(false)
+	defer finishPending(false) //nolint:errcheck // Cleanup; the completion outcome is asserted below.
 	require.NoError(t, server.ReloadConfig(pendingCtx, removed))
-	finishPending(false)
+	require.NoError(t, finishPending(false))
 	_, err = server.Emit(l2tpevents.Namespace, l2tpevents.SessionDownEvent, &l2tpevents.SessionDownPayload{
 		TunnelID: 81, SessionID: 5, Cause: l2tpevents.TerminateCauseUserRequest,
 	})
@@ -310,9 +310,9 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 		require.NoError(t, server.ReloadConfig(ctx, running))
 		start := up(t, 7)
 		abandonedCtx, abandon := server.DeferReloadAcceptance(ctx)
-		defer abandon(false)
+		defer abandon(false) //nolint:errcheck // Cleanup; the completion outcome is asserted below.
 		require.NoError(t, server.ReloadConfig(abandonedCtx, removed))
-		abandon(false)
+		require.NoError(t, abandon(false))
 
 		// Retry the removal alongside an unrelated root change. Rejection
 		// restored RADIUS, so this accepted tree must retire its live records.
@@ -328,7 +328,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 		require.NoError(t, server.ReloadConfig(ctx, running))
 		start := up(t, 8)
 		olderCtx, finishOlder := server.DeferReloadAcceptance(ctx)
-		defer finishOlder(false)
+		defer finishOlder(false) //nolint:errcheck // Cleanup; acceptance is asserted below.
 		require.NoError(t, server.ReloadConfig(olderCtx, removed))
 
 		gate := &radiusReloadProbeGate{entered: make(chan struct{}), release: make(chan struct{})}
@@ -360,7 +360,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 
 		// The probe applies after RADIUS. Accepting A must preserve B's
 		// tentative client: a new subscriber can still start accounting.
-		finishOlder(true)
+		require.NoError(t, finishOlder(true))
 		tentative := up(t, 9)
 		radiusReloadProbeFailure.Store(nil)
 		release()

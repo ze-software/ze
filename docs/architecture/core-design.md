@@ -1275,9 +1275,12 @@ code position:
 2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
    resolved via `filter { import { filters [ name ]; final accept; } }`), which
    the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
-   (300), after every in-process filter, including OTC. Active references need
-   the API server and text serialization; an empty or inactive-only policy
-   applies its final without either. `Reject` drops the route; `Teardown`
+   (300), after every in-process filter, including OTC. Active external
+   references need the API server and text serialization; an empty,
+   inactive-only or in-process-only policy applies its final without either.
+   Named in-process references are bound through `filterapi.Filter.PolicyType`
+   during configuration. They remain in `Policy.Filters` but execute only at
+   their registered stage, never again as an RPC. `Reject` drops the route; `Teardown`
    closes the session (import only). A raw override stops later filters but
    still receives the final decision. An accepted raw override or `Modify`
    text delta rebuilds the cached `WireUpdate` through the same progressive
@@ -1286,6 +1289,18 @@ code position:
    UPDATE; execution failure and teardown still reject the whole operation.
    A pure withdrawal stays on the unchanged-payload path: it is delivered without
    allocating another `WireUpdate` or rebuilding its attributes.
+   Named internal binding requires an ingress hook and does not grant named
+   export execution, even if that registration also owns an egress hook:
+   originated routes do not run every ordered egress stage. Config refuses
+   active internal export refs. Runtime policy gates also refuse manually
+   constructed unsupported policies **before any external filter executes**,
+   even when an earlier raw rewrite would stop traversal. `Policy` caches
+   whether any active reference requires ingress when constructed or replaced
+   with `WithFilters`; borrowed references MUST remain immutable. Live gates
+   read that flag without scanning or allocating per UPDATE. A refused dry-run
+   locates the offending reference only to report `not-evaluated`, never an
+   executed filter. Inactive internal refs do not set the flag, and replacement
+   recomputes it without changing the policy final.
 
 Because the external chain is a declared terminal stage (not a second back-to-back
 code block), the cross-system order is inspectable and a future filter registered
@@ -1438,23 +1453,28 @@ Three categories of filters:
 Filter references are cumulative (bgp > group > peer); the most-specific
 configured direction supplies the final decision. `filterapi.Policy` carries
 both together through `PeerSettings`, dynamic resolution, forwarding snapshots
-and reload. Its absent state preserves automatic-filter behavior and acceptance
-at exhaustion, distinct from a configured empty policy.
+and reload. An absent operator policy rejects at exhaustion on EBGP (RFC 8212
+Section 3), but preserves acceptance on IBGP, including migration-AS sessions.
+Automatic and inactive references do not establish operator policy presence.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 
 Filters respond accept/reject/modify with delta-only output. Accept continues;
 reject, fail-closed error and teardown short-circuit. Exhaustion, including
 empty or inactive-only chains, applies the effective final. A raw rewrite stops
 later filters and also receives that final. Dirty tracking ensures only
-modified attributes are re-encoded. Dry-run follows the same decisions.
+modified attributes are re-encoded. Dry-run follows the external chain's
+decisions and marks named in-process checks `not-evaluated`; it does not
+simulate the protocol stages or claim that their guards accepted.
 
 Reload compares and replaces whole policies. An export-final change publishes
 the new forwarding snapshot before reconciling advertisements on the existing
 session. Rejection drains queued forwards and withdraws the session's recorded
 advertisements through the normal serialized writer; its last admission check
-also rejects announcements evaluated before the swap. Returning to acceptance,
-including removal of the direction, regenerates configured static, default and
-plugin routes and replays retained received routes under the configured replay
-owner's send permission. Dynamic variable resolution retains the final.
+also rejects announcements evaluated before the swap. Returning to acceptance
+regenerates configured static, default and plugin routes and replays retained
+received routes under the configured replay owner's send permission. Removing
+the last explicit export policy rejects on EBGP, but accepts on IBGP.
+Dynamic variable resolution retains the final.
 
 This does not add desired-state storage for one-shot API announcements. Those
 announcements are withdrawn on rejection, but their producer must reannounce
@@ -1532,6 +1552,20 @@ Ze applies three optimizations to all production BGP TCP connections in `connect
 | `TCP_NODELAY` | enabled | BGP messages are application-framed and flushed explicitly via `bufio.Writer`. Nagle's algorithm only adds latency (up to 40ms) with no benefit since messages are never partial writes. |
 | `IP_TOS` (IPv4) | `0xC0` (DSCP CS6) | RFC 4271 S5.1 recommends IP precedence for BGP. CS6 (Internet Control) causes network devices with QoS policies to prioritize BGP keepalives and updates over regular data traffic, reducing hold timer expiry risk under congestion. |
 | `IPV6_TCLASS` (IPv6) | `0xC0` (DSCP CS6) | Same as above, for IPv6 peers. |
+
+### Receive admission and backpressure
+
+The public `Session.Pause`/`Resume` pair owns one idempotent read-backpressure
+claim. Transactional changes use `PauseAdmission` on the captured session:
+its receipt excludes semantic processing before policy evaluation and
+publication, composes with public backpressure and other receipts, and does not
+interrupt partial reads or discard the bounded coalesced batch. It is not a
+receipt for asynchronous downstream application. The caller reserves abort time
+from the live HoldTimer budget and MUST explicitly release after compensation or
+finalization; no timer is suspended and no replacement session is resumed.
+See [peer lifecycle](behavior/peer-lifecycle.md#captured-session-admission-stops)
+for the ownership and deadline contract.
+<!-- source: internal/component/bgp/reactor/session_flow.go -- Pause, Resume, PauseAdmission, AdmissionReceipt.Release -->
 
 ### Graceful TCP Close (Half-Close)
 
@@ -2462,14 +2496,26 @@ via bus events.
 |-------|-----------------|-----------------|------------|
 | Verify | `config/verify/<plugin>` (filtered diffs) | `config/ack/verify/ok` or `failed` | Abort (no apply) |
 | Apply | `config/apply/<plugin>` (diffs + deadline) | `config/ack/apply/ok` or `failed` | Rollback all |
-| Commit | `config/committed` | Discard journal | N/A |
+| Commit | `config/committed` | Close section rollback gates; keep operation undo | A later operation-commit failure reverses applied operations |
 | Rollback | `config/rollback` | `config/ack/rollback/ok` | Restart if broken |
+| Whole-reload acceptance | `config-complete` callback to declared owners, then `config/accepted` notification | Acknowledge cleanup of the captured transaction | Candidate remains active; return the finalization error |
 
 Transaction exclusion: one transaction at a time. CLI/API rejected during active
 transaction. SIGHUP queued and replayed after completion.
 
-Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply,
-`Rollback()` replays undos in reverse, `Discard()` on commit.
+Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
+and `Rollback()` to replay undos in reverse. BGP and interface operation owners
+retain journals through operation commit and outer publication. On outer
+rejection, section/filter configuration is restored first, then the original
+operation tokens are undone in reverse applied order under a fresh budget.
+`OnConfigComplete` acknowledges undo release after the irreversible accepted
+decision. Captured process and connection identities prevent a successor from
+receiving an old completion; completed duplicate calls return the recorded
+outcome, and concurrent receipt waits are bounded. The existing accepted event
+is a notification, not that receipt.
+<!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, completeBatches -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 
 Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config-tx-consumers`.
 

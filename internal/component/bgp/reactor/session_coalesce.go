@@ -59,6 +59,10 @@ func coalesceEnabled() bool {
 func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader) error {
 	buf := s.getReadBuffer()
 	if buf.Buf == nil {
+		if err := s.beginAdmission(); err != nil {
+			return err
+		}
+		defer s.endAdmission()
 		if err := s.flushCoalesce(); err != nil {
 			return err
 		}
@@ -131,6 +135,13 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	if s.prefixMetrics != nil {
 		s.prefixMetrics.wireBytesRecv.With(s.settings.Address.String()).Add(float64(hdr.Length))
 	}
+
+	// Preserve this packet and the existing bounded batch while admission is
+	// stopped. The gate precedes every semantic path, including batch flush.
+	if err := s.beginAdmission(); err != nil {
+		return err
+	}
+	defer s.endAdmission()
 
 	body := buf.Buf[message.HeaderLen:hdr.Length]
 

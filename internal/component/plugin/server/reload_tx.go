@@ -13,30 +13,61 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type reloadAcceptanceKey struct{}
 
+// A completion targets the process AND connection that applied the transaction.
+type reloadParticipant struct {
+	proc *process.Process
+	conn *ipc.PluginConn
+}
+
+func (p reloadParticipant) current(s *Server) bool {
+	pm := s.procManager.Load()
+	return p.proc != nil && p.conn != nil && pm != nil &&
+		pm.GetProcess(p.proc.Name()) == p.proc && p.proc.Conn() == p.conn
+}
+
+type reloadOperationBatch struct {
+	txID         string
+	operations   []transaction.ConfigOperation
+	participants map[string]reloadParticipant
+	completed    bool
+	err          error
+	undoDone     bool
+	undoErr      error
+}
+
+const reloadCompletionBudget = 90 * time.Second
+
 // reloadAcceptance belongs to one whole reload, including its compensation.
 // Ownership is per participant: a transaction changing another root must still
 // accept the unchanged participants' pending configuration.
 type reloadAcceptance struct {
-	mu           sync.Mutex
-	server       *Server
-	transactions map[string]string
-	finished     bool
-	done         chan struct{}
-	compensation *reloadCompensation
-	previous     *reloadAcceptance
-	claimed      bool
-	accepted     bool
-	completeOnce sync.Once
+	mu             sync.Mutex
+	completionGate chan struct{}
+	server         *Server
+	lifetime       context.Context
+	transactions   map[string]string
+	finished       bool
+	done           chan struct{}
+	compensation   *reloadCompensation
+	previous       *reloadAcceptance
+	claimed        bool
+	accepted       bool
+	completeOnce   sync.Once
+	batches        []*reloadOperationBatch
+	finishDone     chan struct{}
+	finishErr      error
 }
 
 // DeferReloadAcceptance keeps irreversible plugin cleanup pending across the
@@ -44,11 +75,19 @@ type reloadAcceptance struct {
 // invoke the returned function with true only after every fallible step succeeds,
 // and MUST defer a false invocation to discard an abandoned reload. Nested calls
 // share the outer scope and cannot accept it.
-func (s *Server) DeferReloadAcceptance(ctx context.Context) (context.Context, func(bool)) {
+func (s *Server) DeferReloadAcceptance(ctx context.Context) (context.Context, func(bool) error) {
 	if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil && pending.server == s {
-		return ctx, func(bool) {}
+		return ctx, func(bool) error { return nil }
 	}
-	pending := &reloadAcceptance{server: s, done: make(chan struct{})}
+	lifetime := s.Context()
+	if lifetime == nil {
+		// A server used without Start has no processes; its caller owns lifetime.
+		lifetime = context.WithoutCancel(ctx)
+	}
+	pending := &reloadAcceptance{
+		server: s, lifetime: lifetime, done: make(chan struct{}),
+		completionGate: make(chan struct{}, 1),
+	}
 	return context.WithValue(ctx, reloadAcceptanceKey{}, pending), pending.finish
 }
 
@@ -59,56 +98,80 @@ func (a *reloadAcceptance) complete(accepted bool) {
 	})
 }
 
-func (a *reloadAcceptance) finish(accepted bool) {
+func (a *reloadAcceptance) finish(accepted bool) error {
+	return a.finishWithLock(accepted, true)
+}
+
+// Restoration already owns transaction exclusion.
+func (a *reloadAcceptance) finishWithLock(accepted, acquire bool) (result error) {
+	ctx, cancel := context.WithTimeout(a.lifetime, reloadCompletionBudget)
+	defer cancel()
 	a.mu.Lock()
 	if a.finished {
+		done := a.finishDone
+		published := a.accepted
 		a.mu.Unlock()
-		return
+		select {
+		case <-done:
+			return a.finishErr
+		default:
+		}
+		select {
+		case <-done:
+			return a.finishErr
+		case <-ctx.Done():
+			if published {
+				return fmt.Errorf("candidate is active; waiting for config finalization receipt: %w", ctx.Err())
+			}
+			return fmt.Errorf("waiting for reload abort receipt: %w", ctx.Err())
+		}
 	}
 	a.finished = true
+	a.finishDone = make(chan struct{})
 	a.accepted = accepted
 	transactions := a.transactions
 	claimed, previous := a.claimed, a.previous
-	if accepted {
-		a.previous = nil
-		a.compensation = nil
-		a.transactions = nil
-	}
 	a.mu.Unlock()
-	if !accepted {
-		pendingBehind := false
-		if claimed {
-			ctx := context.WithValue(a.server.Context(), reloadAcceptanceKey{}, a)
-			if err := a.server.txLock.acquire(ctx); err != nil {
-				logger().Error("acquire rejected reload compensation", "error", err)
-			} else {
-				if err := a.server.compensateReload(ctx); err != nil {
-					logger().Error("compensate rejected reload", "error", err)
-				}
-				pendingBehind = a.server.reloadScopePendingBehind(a)
-				a.server.txLock.release()
-			}
+	defer func() {
+		if accepted && result != nil {
+			result = fmt.Errorf("candidate is active but config finalization failed: %w; inspect ze show errors and restart the daemon after repairing the named owner", result)
 		}
-		if !pendingBehind {
+		a.mu.Lock()
+		a.finishErr = result
+		close(a.finishDone)
+		a.mu.Unlock()
+	}()
+	ctx = context.WithValue(ctx, reloadAcceptanceKey{}, a)
+	if acquire && !accepted {
+		if err := a.server.txLock.acquire(ctx); err != nil {
+			return err
+		}
+		defer a.server.txLock.release()
+	}
+	if !accepted {
+		if claimed {
+			result = a.server.compensateReload(ctx)
+		}
+		if result == nil && !a.server.reloadScopePendingBehind(a) {
 			a.complete(false)
 		}
-		return
+		return result
 	}
-	a.complete(true)
-	// Acceptance of this whole tree settles older rejected scopes without
-	// undoing the configuration this caller just accepted.
-	for previous != nil {
-		previous.mu.Lock()
-		rejected := previous.finished && !previous.accepted
-		next := previous.previous
-		previous.mu.Unlock()
+	// Publication is irreversible. Even a failed receipt cannot select abort.
+	result = a.completeBatches(ctx, true)
+	for prior := previous; prior != nil; {
+		prior.mu.Lock()
+		next := prior.previous
+		rejected := prior.finished && !prior.accepted
+		prior.mu.Unlock()
+		result = errors.Join(result, prior.completeBatches(ctx, true))
 		if rejected {
-			previous.complete(false)
+			prior.complete(false)
 		}
-		previous = next
+		prior = next
 	}
-	// One transaction can own several participants. Publish it once, bounded
-	// by the running process set captured by seedReloadTransactions.
+	// Preserve the accepted notification for existing accounting consumers.
+	// It is not the receipt: declared completion owners answered above.
 	published := make(map[string]bool, len(transactions))
 	for _, txID := range transactions {
 		if published[txID] {
@@ -116,14 +179,107 @@ func (a *reloadAcceptance) finish(accepted bool) {
 		}
 		published[txID] = true
 		payload, err := json.Marshal(transaction.CommittedEvent{TransactionID: txID})
-		if err != nil {
-			logger().Error("marshal accepted config event", "error", err)
-			continue
+		if err == nil {
+			_, err = a.server.EmitEngineEvent(txevents.Namespace, txevents.EventAccepted, string(payload))
 		}
-		if _, err := a.server.EmitEngineEvent(txevents.Namespace, txevents.EventAccepted, string(payload)); err != nil {
-			logger().Error("emit accepted config event", "error", err)
-		}
+		result = errors.Join(result, err)
 	}
+	a.mu.Lock()
+	a.previous, a.compensation, a.transactions = nil, nil, nil
+	a.batches = nil
+	a.mu.Unlock()
+	a.complete(true)
+	return result
+}
+
+// completeBatches serializes receipts for this scope, not the transaction lock:
+// accepting an older scope MUST remain possible during a newer tentative apply.
+func (a *reloadAcceptance) completeBatches(ctx context.Context, accepted bool) error {
+	if err := a.acquireCompletion(ctx); err != nil {
+		return err
+	}
+	defer func() { <-a.completionGate }()
+	var result error
+	for _, batch := range a.operationBatches() {
+		if !batch.completed {
+			deadline, _ := ctx.Deadline()
+			for _, name := range slices.Sorted(maps.Keys(batch.participants)) {
+				participant := batch.participants[name]
+				reg := participant.proc.Registration()
+				if reg == nil {
+					continue
+				}
+				if !reg.ConfigCompletion {
+					continue
+				}
+				if a.removedParticipant(participant) {
+					continue // Normal removal already released this lifetime's resources.
+				}
+				var err error
+				if !participant.current(a.server) {
+					err = fmt.Errorf("captured process lifetime ended")
+				} else {
+					err = participant.conn.SendConfigComplete(ctx, &rpc.ConfigCompleteInput{
+						TransactionID: batch.txID, Accepted: accepted, DeadlineMS: deadline.UnixMilli(),
+					})
+				}
+				if err != nil {
+					batch.err = errors.Join(batch.err, fmt.Errorf("owner %s transaction %s: %w", name, batch.txID, err))
+				}
+			}
+			batch.completed = true
+		}
+		result = errors.Join(result, batch.err)
+	}
+	return result
+}
+
+func (a *reloadAcceptance) operationBatches() []*reloadOperationBatch {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.batches
+}
+
+func (a *reloadAcceptance) acquireCompletion(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case a.completionGate <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// A planned, acknowledged removal uses normal process teardown and restoration,
+// not a journal callback into a successor. Unexpected owner loss is still fatal.
+func (a *reloadAcceptance) removedParticipant(participant reloadParticipant) bool {
+	a.server.removalMu.Lock()
+	defer a.server.removalMu.Unlock()
+	attempt := a.server.removals[participant.proc]
+	return attempt != nil && attempt.scope == a && attempt.stopped
+}
+
+// AbortReload restores the original transaction while the outer caller still
+// owns the scope. The caller MUST restore external prerequisites (such as PKI)
+// first. It MUST NOT reconstruct the old tree as a new operation transaction.
+func (s *Server) AbortReload(ctx context.Context) error {
+	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	if pending == nil {
+		return fmt.Errorf("reload abort requires its original acceptance scope")
+	}
+	if pending.server != s {
+		return fmt.Errorf("reload abort belongs to another server")
+	}
+	rollbackCtx, cancel := context.WithTimeout(pending.lifetime, reloadCompletionBudget)
+	defer cancel()
+	rollbackCtx = context.WithValue(rollbackCtx, reloadAcceptanceKey{}, pending)
+	if err := s.txLock.acquire(rollbackCtx); err != nil {
+		return err
+	}
+	defer s.txLock.release()
+	return s.compensateReload(rollbackCtx)
 }
 
 // The transaction lock MUST be held while seeding a scope. Clone the ownership
@@ -205,6 +361,11 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 
 	gateway := newConfigEventGateway(s)
 	bridge := newConfigTxBridge(s, gateway, participantNames(participants), verifySections)
+	for _, participant := range affected {
+		bridge.participants[participant.proc.Name()] = reloadParticipant{
+			proc: participant.proc, conn: participant.proc.Conn(),
+		}
+	}
 	if err := bridge.Subscribe(ctx); err != nil {
 		return fmt.Errorf("config tx bridge subscribe: %w", err)
 	}
@@ -219,6 +380,13 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	result := coordinator.Execute(ctx, diffs)
 	if result.State == transaction.StateCommitted {
 		recordReloadTransaction(ctx, coordinator.TransactionID(), affected)
+		if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil {
+			pending.mu.Lock()
+			pending.batches = append(pending.batches, &reloadOperationBatch{
+				txID: coordinator.TransactionID(), operations: result.Operations, participants: bridge.participants,
+			})
+			pending.mu.Unlock()
+		}
 	}
 	return txResultToError(result)
 }

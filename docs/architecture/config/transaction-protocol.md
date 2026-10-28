@@ -277,8 +277,8 @@ finalization events:
 
 | Outcome | Action | Event |
 |---------|--------|-------|
-| All plugins applied | Engine emits `(config, committed)` to discard transaction journals. The bridge turns it into one `config-committed` RPC per participant, which closes each SDK's rollback gate. The hub promotes the staged candidate after the full subsystem reload succeeds, then emits `(config, accepted)`. | Acceptance permits irreversible retirement. |
-| Runtime applied, pointer promotion fails | The hub attempts to restore the previous runtime and returns the publication error. | A durable explicit-file intent preserves unfinished publication for recovery. |
+| All plugins applied | Engine emits `(config, committed)`; `config-committed` closes the SDK's section-apply rollback gate. Operation owners retain their undo. The hub promotes the staged candidate, then waits for declared `config-complete` callbacks before reporting acceptance. | `(config, accepted)` remains the notification for existing retirement consumers, not a completion receipt. |
+| Runtime applied, pointer promotion fails | The hub restores section-owned configuration and filters, then replays the original operation journals in reverse applied order. It returns publication and compensation errors together. | A durable explicit-file intent preserves unfinished publication for recovery. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
 Plugin apply completes the coordinator's transaction. The production hub still
@@ -288,21 +288,48 @@ CLI, web, API, SIGHUP, and managed pushes write an immutable version and set
 after the full runtime reload succeeds. If publication fails, the hub attempts
 to restore the previous runtime and returns the error.
 
-The server scopes `(config, accepted)` to the whole reload through
-`DeferReloadAcceptance`. `runReloadContext` accepts only after listener migration
-and candidate publication succeed. An error discards that acceptance, including
-the inner transaction used by `rollbackReload` to restore the previous tree.
-A standalone `Server.ReloadConfig` or `ReloadFromDisk` accepts at its successful
-return. The server records the latest applied transaction for each participant.
-An unrelated root change therefore still accepts unchanged participants' pending
-configuration. A successful retry without a diff does the same. Ownership maps
-are snapshots of the running process set; departed participants are removed when
-the next reload starts.
+The server scopes acceptance to the whole reload through `DeferReloadAcceptance`,
+which returns `func(bool) error`. The caller MUST call it with `true` only after
+listener migration and durable candidate publication succeed, and MUST collect
+the error from rejection on earlier exits. A standalone `Server.ReloadConfig`
+or `ReloadFromDisk` accepts at return and returns completion failures too.
 
-Acceptance emits one event per distinct committed transaction ID in that
-snapshot. Consumers MUST avoid retiring newer tentative state when an older
-completion arrives. If the newer apply rolls back, they MUST honour any
-acceptance already received for the state that rollback restores.
+`OnConfigComplete` declares `config-completion` at Stage 1. For each committed
+transaction, the server captures its participant processes, callback connections
+and actual applied operation order. Completion never looks up a replacement
+process and sends it the old transaction. Its request carries `transaction-id`,
+`accepted` and an absolute `deadline-ms`; its receipt must echo the transaction
+and decision and say `status: ok`. Both DirectBridge and the external RPC path
+wait for the handler to return. Queue admission is not a receipt.
+
+Operation commit is reversible. BGP and interface owners keep their journals
+through later owners' commit callbacks and outer publication. `AbortReload`
+restores section-owned configuration first, then uses the original operation
+tokens rather than decomposing an inverse BGP/interface transaction. Operation
+undo runs in reverse actual apply order and attempts earlier inverses even after
+one fails. Its budget is fresh (three times the transaction apply budget, or
+90 seconds without one), not the expired apply deadline. Whole-reload
+compensation and completion use bounded 90-second intervals tied to the captured
+server lifetime. A session-bound source transaction MUST cap the whole reload,
+including later participants and publication, by its reserved work deadline,
+and compensation/completion by its hard deadline. A fresh generic budget is not
+permission to extend either source bound.
+
+After the accepted decision, failed cleanup is returned as **candidate is active
+but config finalization failed**, naming the owner. Neither a deferred rejection
+nor duplicate completion can turn that decision into rollback. Repeated scope
+completion returns the recorded result once available; a concurrent wait is
+bounded too. Accepting an older scope does not wait for a newer tentative
+transaction to release the transaction lock. An unexpected owner/connection loss is
+an error; an explicitly removed, acknowledged process uses normal teardown and
+configuration restoration, never an old callback into its successor.
+
+The server also retains the latest section-changing transaction per participant.
+An unrelated root change or successful no-diff retry accepts pending unchanged
+participants. Acceptance emits one notification per distinct transaction ID in
+that snapshot. Consumers MUST avoid retiring newer tentative state when an older
+completion arrives, and honor earlier acceptance if newer tentative work rolls
+back. These notifications remain independent of declared completion receipts.
 
 RADIUS accounting uses this boundary because detaching its sessions cannot be
 undone by replaying configuration. `(config, committed)` releases its rollback
@@ -311,6 +338,9 @@ Its plugin shutdown separately retires that lifetime and joins cleanup before
 restart. `MarkReloadProcessed` remains an observation fence and emits no event.
 <!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, recordReloadTransaction -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload, rollbackOperations -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- SendConfigComplete -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 
 `(config, applied)` and `(config, rolled-back)` are informational events for
 observers (monitoring, web UI refresh, logging). `applied` includes a `saved`
@@ -442,10 +472,12 @@ leaf-list. Both views retain the complete token.
 | `apply-failed` | Plugin -> engine | Apply failed, triggers rollback. |
 | `rollback` | Engine -> plugins | Undo applied changes. |
 | `rollback-ok` | Plugin -> engine | Rollback complete with status code. |
-| `committed` | Engine -> plugins | Transaction finalized, discard journals. The bridge delivers it to each participant as the `config-committed` callback. |
-| `accepted` | Engine -> plugins | Whole reload accepted. Carries the committed transaction ID and permits irreversible cleanup. |
+| `committed` | Engine -> plugins | Close section-apply rollback gates through `config-committed`; operation owners retain undo until whole-reload acceptance. |
+| `accepted` | Engine -> plugins | Whole-reload notification carrying the committed transaction ID. Declared completion owners have already returned their cleanup receipts. |
 | `applied` | Engine -> observers | Transaction committed (emitted after `committed`). Includes `saved` flag. |
 | `rolled-back` | Engine -> observers | Transaction rolled back. |
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
+<!-- source: internal/component/plugin/server/config_tx_bridge.go -- subscribeCommitted -->
 
 The per-plugin event types `verify-<name>` and `apply-<name>` are registered in
 the engine's event registry when each plugin starts. The orchestrator subscribes
@@ -695,6 +727,15 @@ at all: only for an apply it accepted that `config-committed` has not closed
 (Phase 3). The journal kept from a committed apply is therefore never replayed,
 and the next accepted apply replaces it, or drops it when that apply changes
 nothing.
+
+This section gate does not govern operation journals. A declared completion
+owner MUST retain those journals after `config-operation-commit`, undo only the
+original transaction on `config-operation-rollback`, and discard retained undo
+on matching accepted `config-complete`. BGP and interface operation callbacks
+implement that lifetime. Rejected completion follows successful original undo;
+it is not permission to discard an unplayed journal.
+<!-- source: internal/component/bgp/plugin/register.go -- runBGPEngine -->
+<!-- source: internal/component/iface/register.go -- runEngine -->
 <!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
 
 ### SDK Interface
@@ -726,24 +767,26 @@ and the error propagates -- the plugin emits `(config, apply-failed)`.
 
 ## 8. Transaction Finalization
 
-After all plugins ack (apply-ok or rollback-ok), the engine emits a finalization
-event. This is the signal for plugins to discard their journals.
+After all plugins ack, the engine emits the inner-transaction finalization event.
+Section journals use this signal; retained operation journals wait for whole-reload completion.
 
 | Outcome | Event | Journal action |
 |---------|-------|----------------|
-| All applied | `(config, committed)` | Discard journal -- changes are permanent |
+| All applied | `(config, committed)` | Close section rollback gates; retain operation undo until `config-complete` |
 | Rollback completed | `(config, rolled-back)` | Journal already replayed during rollback |
 
 `committed` is distinct from `applied`. The difference:
 
 | Event | Audience | Purpose |
 |-------|----------|---------|
-| `(config, committed)` | Transaction participants (plugins) | Finalize journals, release transaction resources |
+| `(config, committed)` | Transaction participants (plugins) | Close section rollback gates; retain operation journals |
 | `(config, applied)` | Observers (web UI, monitoring) | Informational notification |
 
-The engine emits `committed` first (participants finalize), then `applied`
-(observers notified). A plugin must not discard its journal until it receives
-`committed` -- without it, a late rollback could arrive with no journal to replay.
+The engine emits `committed` first, then `applied` to observers. Neither proves
+whole-reload acceptance. An operation owner retains its journal until its
+matching accepted `config-complete` callback, after durable publication.
+<!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches -->
 
 ---
 
@@ -801,9 +844,11 @@ Systems that produce side-effect events during apply are listed with their outpu
 | `(config, apply-failed)` | Plugin | Engine | Apply failed |
 | `(config, rollback)` | Engine | All plugins that received apply | Undo changes |
 | `(config, rollback-ok)` | Plugin | Engine | Rollback complete |
-| `(config, committed)` | Engine | All plugins | Finalize: discard journals |
+| `(config, committed)` | Engine | All plugins | Close section rollback gates; keep operation undo |
 | `(config, applied)` | Engine | Observers (web UI, monitoring, logging) | Transaction committed |
 | `(config, rolled-back)` | Engine | Observers | Transaction rolled back |
+<!-- source: internal/component/config/transaction/topics.go -- transaction event constants -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->
 
 ### Side-Effect Events (produced during apply)
 
@@ -850,15 +895,22 @@ Engine ----(config, apply-dhcp)-------> [dhcp]
   |   <---(config, apply-ok)---- [rib]
   |
   |
-Engine ----(config, committed)--> [iface] [bgp] [rib] [dhcp]   (discard journals)
-  |
-  | promote candidate pointer (after subsystem reload succeeds)
+Engine ----(config, committed)--> [iface] [bgp] [rib] [dhcp]   (section gates close)
   |
 Engine ----(config, applied)----> [web-ui] [monitoring] [logging]
   |
+  | promote candidate pointer (after subsystem reload succeeds)
+  |
+Engine <--- config-complete ----> declared completion owners (cleanup receipt)
+  |
+Engine ----(config, accepted)---> existing retirement consumers
+  |
   v
-Caller: commit succeeded after active pointer promotion
+Caller: commit succeeded after active pointer promotion and cleanup receipts
 ```
+<!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->
 
 ---
 
@@ -1369,8 +1421,8 @@ transaction events. They are defined in
 
 ### Plugin SDK callbacks
 
-The SDK exposes five operation callbacks alongside the existing three
-transaction callbacks:
+The SDK exposes operation callbacks and an acknowledged whole-reload completion
+callback alongside the existing section transaction callbacks:
 
 | SDK method | RPC name | Phase | Required |
 |------------|----------|-------|----------|
@@ -1379,10 +1431,14 @@ transaction callbacks:
 | `OnConfigOperationApply` | `config-operation-apply` | Per-operation apply | Only for operation owners |
 | `OnConfigOperationRollback` | `config-operation-rollback` | Per-operation rollback | Only for operation owners |
 | `OnConfigOperationCommit` | `config-operation-commit` | Per-operation commit | Only for operation owners |
+| `OnConfigComplete` | `config-complete` | Whole-reload acceptance or completed original abort | Owners retaining operation undo through publication |
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- operation callbacks, OnConfigComplete -->
 
 Plugins declare operation support in Stage 1 of the 5-stage startup protocol
 via `ConfigOperations` in their registration, which lists the config roots
 and operation types they handle.
+`OnConfigComplete` automatically declares Stage-1 `config-completion` support.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 
 ### Integration with existing phases
 
@@ -1397,10 +1453,14 @@ say what each phase does with and without one:
 | Operation verify | Skipped | Per-operation verify in sorted order, decomposed operations only |
 | Apply (Phase 2) | Full-diff broadcast to all plugins | Per-operation apply in sorted order with settlement; a coarse node takes the participant's section apply |
 | Commit | `(config, committed)` broadcast | Per-owner `operation-commit` for decomposed owners, then `(config, committed)` broadcast |
-| Rollback (Phase 3) | `(config, rollback)` broadcast | Per-operation reverse rollback for decomposed operations, then `(config, rollback)` broadcast, which is what undoes a coarse node |
-| Finalize | `(config, applied)` or `(config, rolled-back)` | Identical -- unchanged |
+| Rollback (Phase 3) | `(config, rollback)` broadcast | Restore section/filter configuration first, then undo decomposed operations in reverse applied order under a fresh rollback budget |
+| Inner result | `(config, applied)` or `(config, rolled-back)` | Same result notifications; successful operation journals remain reversible |
+| Whole-reload acceptance | Existing retirement notifications | Acknowledged `config-complete` for declared owners, then existing retirement notifications |
+<!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches -->
 
-Transaction exclusion (section 6), apply journals (section 7), persistence
-pointers (section 2), failure codes (section 12), and recovery (section 13) all
-apply unchanged. The operation path is internal to the apply phase; the
-transaction boundary and external-facing events remain the same.
+Transaction exclusion (section 6), section journals (section 7), persistence
+pointers (section 2), failure codes (section 12), and recovery (section 13) still
+apply. Whole-reload acceptance (section 2) owns operation-journal finalization;
+an operation commit alone is not irreversible.
+<!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->

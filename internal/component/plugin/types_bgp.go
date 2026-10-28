@@ -409,7 +409,8 @@ type ReactorIntrospector interface {
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
-// PolicyTraceEntry holds the result of one filter invocation during a dry-run.
+// PolicyTraceEntry records an external filter result, or marks a named in-process
+// check with Action "not-evaluated" and empty TextAfter. The latter is not an invocation.
 type PolicyTraceEntry struct {
 	Filter    string `json:"filter"`
 	Canonical string `json:"canonical"`
@@ -418,12 +419,15 @@ type PolicyTraceEntry struct {
 	TextAfter string `json:"text-after"`
 }
 
-// PolicyDryRunResult holds the complete output of a policy dry-run.
+// PolicyDryRunResult holds the external-policy stage's dry-run output.
+// Action does not include in-process checks marked not-evaluated in Trace.
 type PolicyDryRunResult struct {
 	DataMarker
-	Direction    string             `json:"direction"`
-	Peer         string             `json:"peer"`
-	Action       string             `json:"action"`
+	Direction string `json:"direction"`
+	Peer      string `json:"peer"`
+	Action    string `json:"action"`
+	// Reason explains an undetermined action when the remote AS is unresolved.
+	Reason       string             `json:"reason,omitempty"`
 	Trace        []PolicyTraceEntry `json:"trace"`
 	TextBefore   string             `json:"text-before"`
 	TextAfter    string             `json:"text-after"`

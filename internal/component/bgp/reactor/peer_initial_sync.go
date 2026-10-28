@@ -1132,17 +1132,30 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	if defaultOriginateRejectsRawFilter(p.reactor.api, filterName, p.settings.Address.String()) {
 		return false
 	}
+	// The named condition borrows the destination's final, not a fabricated
+	// internal session. The emitted default still runs the full export policy.
+	p.mu.RLock()
+	policy := p.settings.ExportPolicy
+	peerAS := p.settings.PeerAS
+	external := p.settings.IsEBGP()
+	p.mu.RUnlock()
+	if peerAS == 0 {
+		return false
+	}
+	if policy.RequiresIngress() {
+		return false
+	}
 	var scratchArr [256]byte
 	scratch := appendDefaultOriginateFilterText(scratchArr[:0], fam, prefix, nextHop)
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 
+	// RFC 8212 Section 3.
 	res := PolicyFilterChain(
-		filterapi.InternalPolicy([]filterapi.FilterRef{{Name: filterName}}),
+		policy.WithFilters([]filterapi.FilterRef{{Name: filterName}}),
+		external,
 		"export",
 		p.settings.Address.String(),
-		// Guarded PeerAS: sendInitialRoutes runs on its own goroutine and can outlive a
-		// teardown, so a stale run may read PeerAS while a new establishment writes it.
-		p.PeerAS(),
+		peerAS,
 		updateText,
 		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
 	)

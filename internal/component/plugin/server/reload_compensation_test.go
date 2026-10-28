@@ -9,13 +9,19 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -28,11 +34,11 @@ func TestRejectedReloadScopePreservesNewerAcceptedTree(t *testing.T) {
 			reactor := &removalRecoveryReactor{tree: map[string]any{"revision": 1}}
 			s.reactor = reactor
 			ctx, finish := s.DeferReloadAcceptance(t.Context())
-			defer finish(false)
+			defer finish(false) //nolint:errcheck // Cleanup; the completion outcome is asserted below.
 			require.NoError(t, s.ReloadConfig(ctx, map[string]any{"revision": 2}))
 			accepted := map[string]any{"revision": next}
 			require.NoError(t, s.ReloadConfig(t.Context(), accepted))
-			finish(false)
+			require.NoError(t, finish(false))
 			require.Equal(t, accepted, reactor.GetConfigTree())
 			require.Equal(t, accepted, reactor.applyTree)
 		})
@@ -49,19 +55,19 @@ func TestRejectedReloadScopesRestorePredecessorOwnership(t *testing.T) {
 			reactor := &removalRecoveryReactor{tree: initial}
 			s.reactor = reactor
 			parent, rejectParent := s.DeferReloadAcceptance(t.Context())
-			defer rejectParent(false)
+			defer rejectParent(false) //nolint:errcheck // Cleanup; completion outcomes are asserted below.
 			require.NoError(t, s.ReloadConfig(parent, parentTree))
 			child, rejectChild := s.DeferReloadAcceptance(t.Context())
-			defer rejectChild(false)
+			defer rejectChild(false) //nolint:errcheck // Cleanup; completion outcomes are asserted below.
 			require.NoError(t, s.ReloadConfig(child, childTree))
 			if parentFirst {
-				rejectParent(false)
+				require.NoError(t, rejectParent(false))
 				require.Equal(t, childTree, reactor.GetConfigTree())
-				rejectChild(false)
+				require.NoError(t, rejectChild(false))
 			} else {
-				rejectChild(false)
+				require.NoError(t, rejectChild(false))
 				require.Equal(t, parentTree, reactor.GetConfigTree())
-				rejectParent(false)
+				require.NoError(t, rejectParent(false))
 			}
 			require.Equal(t, initial, reactor.GetConfigTree())
 			require.Equal(t, initial, reactor.applyTree)
@@ -161,11 +167,11 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 			s.reactor = reactor
 			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{{Name: name, Internal: true, Encoder: plugin.EncodingJSON}}))
 			ctx, finish := s.DeferReloadAcceptance(t.Context())
-			defer finish(false)
+			defer finish(false) //nolint:errcheck // Replays the deliberately failed completion outcome asserted below.
 			require.NoError(t, s.ReloadConfig(ctx, candidate))
 			require.Equal(t, int64(99), active.Load())
 			refuse.Store(true)
-			finish(false)
+			require.Error(t, finish(false))
 			require.Equal(t, candidate, reactor.GetConfigTree(), "failed compensation must not claim to publish the prior tree")
 			wantActive := int64(99)
 			if reactorFailure {
@@ -233,11 +239,11 @@ func TestRejectedReloadMarksTheCreatedPeersAgain(t *testing.T) {
 	s.reactor = reactor
 
 	ctx, finish := s.DeferReloadAcceptance(t.Context())
-	defer finish(false)
+	defer finish(false) //nolint:errcheck // Cleanup; the completion outcome is asserted below.
 	require.NoError(t, s.ReloadConfig(ctx, map[string]any{"revision": 2}))
 	require.Empty(t, reactor.CreatedPeers(), "the applied tree took the created peer over")
 
-	finish(false)
+	require.NoError(t, finish(false))
 	require.Equal(t, map[string]any{"revision": 1}, reactor.GetConfigTree())
 	require.Equal(t, created, reactor.CreatedPeers(), "the rejected reload marks the created peer again")
 	reactor.mu.Lock()
@@ -287,10 +293,327 @@ func TestReloadCompensationReadsCreatedPeersOutsideTheScopeLock(t *testing.T) {
 	s.reactor = reactor
 
 	ctx, finish := s.DeferReloadAcceptance(t.Context())
-	defer finish(false)
+	defer func() { require.NoError(t, finish(false)) }()
 	pending, ok := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 	require.True(t, ok, "the deferred acceptance carries its reload scope")
 	reactor.pending = pending
 	require.NoError(t, s.ReloadConfig(ctx, map[string]any{"revision": 2}))
 	require.NotZero(t, reactor.calls.Load(), "the compensation read the created peers")
+}
+
+// completionOwner exercises real SDK callbacks over both negotiated transports.
+// Its journal includes a runtime value deliberately absent from configuration:
+// reconstructing the old tree cannot restore that value.
+type completionOwner struct {
+	value        atomic.Int64
+	commits      atomic.Int64
+	completions  atomic.Int64
+	failCommit   atomic.Bool
+	failComplete atomic.Bool
+}
+
+func startCompletionOwner(t *testing.T, s *Server, name string, wire bool) *completionOwner {
+	t.Helper()
+	owner := &completionOwner{}
+	owner.value.Store(73)
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: name, Description: "retained operation journal owner",
+		CLIHandler: func([]string) int { return 0 },
+		RunEngine: func(conn net.Conn) int {
+			if wire {
+				conn = struct{ net.Conn }{conn} // Hide Bridger, exercising the external RPC path.
+			}
+			p := sdk.NewWithConn(name, conn)
+			journals := make(map[string]*sdk.Journal)
+			p.OnConfigure(func([]sdk.ConfigSection) error { return nil })
+			p.OnConfigVerify(func([]sdk.ConfigSection) error { return nil })
+			p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
+				return errors.New("completion fixture requires declared operations")
+			})
+			p.OnConfigOperationDecompose(func(input sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
+				return &sdk.ConfigOperationDecomposeOutput{Operations: []sdk.ConfigOperation{{
+					ID: name + "-change", Root: name, Owner: name, Type: testOpSetProperty,
+					Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: name},
+				}}}, nil
+			})
+			p.OnConfigOperationVerify(func(sdk.ConfigOperationVerifyInput) error { return nil })
+			p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+				before := owner.value.Load()
+				j := sdk.NewJournal()
+				if err := j.Record(func() error { owner.value.Store(99); return nil }, func() error {
+					owner.value.Store(before)
+					return nil
+				}); err != nil {
+					return nil, err
+				}
+				journals[input.TransactionID] = j
+				return nil, nil
+			})
+			p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+				if input.DeadlineMS <= time.Now().UnixMilli() {
+					return errors.New("undo received expired apply deadline")
+				}
+				j := journals[input.TransactionID]
+				if j == nil {
+					return errors.New("original journal is missing")
+				}
+				delete(journals, input.TransactionID)
+				return errors.Join(j.Rollback()...)
+			})
+			p.OnConfigOperationCommit(func(sdk.ConfigOperationCommitInput) error {
+				owner.commits.Add(1)
+				if owner.failCommit.Load() {
+					return errors.New("injected later commit failure")
+				}
+				return nil
+			})
+			p.OnConfigComplete(func(ctx context.Context, input sdk.ConfigCompleteInput) error {
+				owner.completions.Add(1)
+				if !input.Accepted && journals[input.TransactionID] != nil {
+					return errors.New("abort completion preceded original undo")
+				}
+				if owner.failComplete.Load() {
+					return errors.New("injected cleanup failure")
+				}
+				if j := journals[input.TransactionID]; j != nil {
+					j.Discard()
+					delete(journals, input.TransactionID)
+				}
+				return ctx.Err()
+			})
+			defer p.Close()
+			if err := p.Run(s.Context(), &sdk.Registration{
+				WantsConfig:      []string{name},
+				ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{testOpSetProperty}}},
+			}); err != nil {
+				return 1
+			}
+			return 0
+		},
+	}))
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{{Name: name, Internal: true, Encoder: plugin.EncodingJSON}}))
+	return owner
+}
+
+func TestReloadOriginalJournalAcrossAcceptance(t *testing.T) {
+	for _, wire := range []bool{false, true} {
+		for _, fault := range []string{"commit", "publication", "finalization", "duplicate", "replacement"} {
+			t.Run(fmt.Sprintf("wire=%t/%s", wire, fault), func(t *testing.T) {
+				snapshot := registry.Snapshot()
+				registry.Reset()
+				t.Cleanup(func() { registry.Restore(snapshot) })
+				const first, second = "completion-first", "completion-second"
+				oldTree := map[string]any{first: map[string]any{"value": "old"}, second: map[string]any{"value": "old"}}
+				candidate := map[string]any{first: map[string]any{"value": "new"}, second: map[string]any{"value": "new"}}
+				s, spawner := newLifecycleStartupServer(t)
+				r := &removalRecoveryReactor{tree: oldTree}
+				s.reactor = r
+				a := startCompletionOwner(t, s, first, wire)
+				b := startCompletionOwner(t, s, second, wire)
+				a.failComplete.Store(fault == "finalization")
+				b.failCommit.Store(fault == "commit")
+				ctx, finish := s.DeferReloadAcceptance(t.Context())
+				err := s.ReloadConfig(ctx, candidate)
+				if fault == "commit" {
+					require.ErrorContains(t, err, "injected later commit failure")
+					require.Equal(t, int64(73), a.value.Load(), "earlier committed owner lost its runtime undo")
+					require.Equal(t, int64(73), b.value.Load())
+					require.NoError(t, finish(false))
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, int64(99), a.value.Load())
+				require.Zero(t, a.completions.Load(), "inner commit must not release undo")
+				switch fault {
+				case "publication":
+					require.NoError(t, s.AbortReload(ctx))
+					require.NoError(t, finish(false))
+					require.Equal(t, int64(73), a.value.Load())
+					require.Equal(t, int64(73), b.value.Load())
+					require.Equal(t, oldTree, r.GetConfigTree())
+				case "finalization":
+					err := finish(true)
+					require.ErrorContains(t, err, "candidate is active")
+					require.ErrorContains(t, err, first)
+					require.ErrorContains(t, err, "injected cleanup failure")
+					require.Equal(t, candidate, r.GetConfigTree())
+					require.Equal(t, int64(99), a.value.Load())
+					require.Equal(t, err, finish(false), "irreversible completion cannot turn into abort")
+					require.ErrorContains(t, s.AbortReload(ctx), "candidate is active")
+					require.Equal(t, candidate, r.GetConfigTree())
+					require.Equal(t, int64(1), a.completions.Load())
+				case "duplicate":
+					require.NoError(t, finish(true))
+					nextCtx, nextFinish := s.DeferReloadAcceptance(t.Context())
+					next := map[string]any{first: map[string]any{"value": "third"}, second: map[string]any{"value": "third"}}
+					require.NoError(t, s.ReloadConfig(nextCtx, next))
+					require.NoError(t, finish(true))
+					require.NoError(t, finish(false))
+					require.Equal(t, int64(1), a.completions.Load(), "stale scope finalized newer journal")
+					require.NoError(t, s.AbortReload(ctx), "stale abort must not touch the newer owner")
+					require.Equal(t, next, r.GetConfigTree())
+					require.NoError(t, nextFinish(false))
+					require.Equal(t, candidate, r.GetConfigTree())
+					require.Equal(t, int64(99), a.value.Load())
+				case "replacement":
+					original := spawner.pm.GetProcess(first)
+					replacement := process.NewProcess(plugin.PluginConfig{Name: first})
+					spawner.pm.AddProcess(first, replacement)
+					err := finish(true)
+					require.ErrorContains(t, err, "captured process lifetime ended")
+					require.Zero(t, a.completions.Load())
+					require.Equal(t, candidate, r.GetConfigTree())
+					spawner.pm.AddProcess(first, original)
+				}
+			})
+		}
+	}
+}
+
+var retainedCompletionDecomposerOnce sync.Once
+
+// A real registered decomposer must not reconstruct an owner whose original
+// journal is retained, even when another participant needs coarse restoration.
+func TestReloadOriginalJournalWithCoarseRestoration(t *testing.T) {
+	const ownerName, serviceName = "completion-retained", "completion-dependent"
+	retainedCompletionDecomposerOnce.Do(func() {
+		require.NoError(t, transaction.RegisterOperationDecomposer(ownerName, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+			return []transaction.ConfigOperation{{
+				ID: ownerName + "-change", Root: ownerName, Owner: ownerName, Type: testOpSetProperty,
+				Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: ownerName},
+			}}, nil
+		}))
+	})
+	for _, wire := range []bool{false, true} {
+		t.Run(fmt.Sprintf("wire=%t", wire), func(t *testing.T) {
+			snapshot := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snapshot) })
+			oldTree := map[string]any{ownerName: map[string]any{"value": "old"}, serviceName: map[string]any{"value": int64(42)}}
+			candidate := map[string]any{ownerName: map[string]any{"value": "new"}, serviceName: map[string]any{"value": int64(99)}}
+			s, _ := newLifecycleStartupServer(t)
+			r := &removalRecoveryReactor{tree: oldTree}
+			s.reactor = r
+			owner := startCompletionOwner(t, s, ownerName, wire)
+			var serviceValue atomic.Int64
+			require.NoError(t, registry.Register(registry.Registration{
+				Name: serviceName, Description: "coarse participant depending on original runtime",
+				CLIHandler: func([]string) int { return 0 },
+				RunEngine: func(conn net.Conn) int {
+					if wire {
+						conn = struct{ net.Conn }{conn}
+					}
+					p := sdk.NewWithConn(serviceName, conn)
+					var staged int64
+					stage := func(sections []sdk.ConfigSection) error {
+						for _, section := range sections {
+							var decoded map[string]struct{ Value int64 }
+							if err := json.Unmarshal([]byte(section.Data), &decoded); err != nil {
+								return err
+							}
+							staged = decoded[serviceName].Value
+						}
+						return nil
+					}
+					p.OnConfigure(func(sections []sdk.ConfigSection) error {
+						if err := stage(sections); err != nil {
+							return err
+						}
+						serviceValue.Store(staged)
+						return nil
+					})
+					p.OnConfigVerify(stage)
+					p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
+						if staged == 42 && owner.value.Load() != 73 {
+							return errors.New("dependent service restored before original infrastructure")
+						}
+						serviceValue.Store(staged)
+						return nil
+					})
+					defer p.Close()
+					if err := p.Run(s.Context(), &sdk.Registration{WantsConfig: []string{serviceName}}); err != nil {
+						return 1
+					}
+					return 0
+				},
+			}))
+			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{{Name: serviceName, Internal: true, Encoder: plugin.EncodingJSON}}))
+			ctx, finish := s.DeferReloadAcceptance(t.Context())
+			require.NoError(t, s.ReloadConfig(ctx, candidate))
+			require.Equal(t, int64(99), owner.value.Load())
+			require.Equal(t, int64(99), serviceValue.Load())
+			require.Zero(t, owner.completions.Load())
+			require.NoError(t, finish(false))
+			require.Equal(t, int64(73), owner.value.Load(), "the original journal restores runtime, not candidate-derived reconstruction")
+			require.Equal(t, int64(42), serviceValue.Load(), "coarse service restoration still receives the full inverse diff")
+			require.Equal(t, int64(1), owner.commits.Load(), "retained owner must not run a fresh inverse transaction")
+			require.Equal(t, int64(1), owner.completions.Load())
+			require.Equal(t, oldTree, r.GetConfigTree())
+		})
+	}
+}
+
+// Replacement happens after the callback was sent but before its successful
+// receipt. The old callback must not certify the replacement's lifetime.
+func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
+	for _, replaceProcess := range []bool{false, true} {
+		t.Run(fmt.Sprintf("process=%t", replaceProcess), func(t *testing.T) {
+			s, spawner := newLifecycleStartupServer(t)
+			const name, txID = "inflight-completion", "captured-transaction"
+			original := process.NewProcess(plugin.PluginConfig{Name: name})
+			original.SetRegistration(&plugin.PluginRegistration{ConfigCompletion: true})
+			bridge := rpc.NewDirectBridge()
+			t.Cleanup(bridge.CloseCallbacks)
+			conn := &ipc.PluginConn{}
+			conn.SetBridge(bridge)
+			original.SetConn(conn)
+			spawner.pm.AddProcess(name, original)
+			successorBridge := rpc.NewDirectBridge()
+			t.Cleanup(successorBridge.CloseCallbacks)
+			successorConn := &ipc.PluginConn{}
+			successorConn.SetBridge(successorBridge)
+			ctx, finish := s.DeferReloadAcceptance(t.Context())
+			pending := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+			pending.batches = []*reloadOperationBatch{{
+				txID: txID, participants: map[string]reloadParticipant{name: {proc: original, conn: conn}},
+			}}
+			done := make(chan error, 1)
+			go func() { done <- finish(true) }()
+			t.Cleanup(func() {
+				bridge.CloseCallbacks()
+				original.SetConn(nil)
+			})
+			var callback rpc.BridgeCallback
+			select {
+			case callback = <-bridge.CallbackCh():
+			case <-time.After(5 * time.Second):
+				t.Fatal("completion callback did not reach captured connection")
+			}
+			require.Equal(t, "ze-plugin-callback:config-complete", callback.Method)
+			if replaceProcess {
+				successor := process.NewProcess(plugin.PluginConfig{Name: name})
+				successor.SetConn(successorConn)
+				spawner.pm.AddProcess(name, successor)
+				t.Cleanup(func() { successor.SetConn(nil) })
+			} else {
+				original.SetConn(successorConn)
+			}
+			receipt, err := json.Marshal(rpc.ConfigCompleteOutput{TransactionID: txID, Accepted: true, Status: rpc.StatusOK})
+			require.NoError(t, err)
+			callback.Result <- rpc.BridgeCallbackResult{Data: receipt}
+			select {
+			case err := <-done:
+				require.ErrorContains(t, err, "captured process lifetime ended")
+				require.ErrorContains(t, err, "candidate is active")
+				require.Equal(t, err, finish(false), "accepted decision is irreversible despite lifetime loss")
+			case <-time.After(5 * time.Second):
+				t.Fatal("completion did not return after captured receipt")
+			}
+			select {
+			case <-successorBridge.CallbackCh():
+				t.Fatal("completion was redirected to a successor")
+			default:
+			}
+		})
+	}
 }

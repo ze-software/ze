@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -84,7 +85,7 @@ type ConfigOperationApplyHandler func(ConfigOperationApplyInput) (*ConfigOperati
 // ConfigOperationRollbackHandler handles rolling back config operations.
 type ConfigOperationRollbackHandler func(ConfigOperationRollbackInput) error
 
-// ConfigOperationCommitHandler handles committing operation journals.
+// ConfigOperationCommitHandler acknowledges reversible operation commit.
 type ConfigOperationCommitHandler func(ConfigOperationCommitInput) error
 
 // ValidateOpenHandler handles OPEN validation requests. Returns accept/reject decision.
@@ -636,6 +637,45 @@ func (p *Plugin) OnConfigCommitted(fn ConfigCommittedHandler) {
 	}
 }
 
+// OnConfigComplete registers acknowledged whole-reload cleanup. The handler
+// MUST retain transaction-owned undo through operation commit, and MUST finish
+// or release its resources before ctx expires. The engine MUST call it only for
+// the captured process lifetime, after publication (accepted) or restoration.
+// Handlers MUST match TransactionID and never act on a newer transaction.
+func (p *Plugin) OnConfigComplete(fn func(context.Context, rpc.ConfigCompleteInput) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackConfigComplete] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigCompleteInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal config-complete: %w", err)
+		}
+		if input.TransactionID == "" {
+			return nil, fmt.Errorf("config-complete requires a transaction")
+		}
+		if len(input.TransactionID) > 256 {
+			return nil, fmt.Errorf("config-complete transaction exceeds 256 bytes")
+		}
+		if input.DeadlineMS <= 0 {
+			return nil, fmt.Errorf("config-complete requires an absolute deadline")
+		}
+		ctx, cancel := context.WithDeadline(context.Background(), time.UnixMilli(input.DeadlineMS))
+		defer cancel()
+		out := rpc.ConfigCompleteOutput{TransactionID: input.TransactionID, Accepted: input.Accepted, Status: rpc.StatusOK}
+		err := ctx.Err()
+		if err == nil {
+			err = fn(ctx, input)
+			if err == nil {
+				err = ctx.Err()
+			}
+		}
+		if err != nil {
+			out.Status, out.Error = rpc.StatusError, err.Error()
+		}
+		return json.Marshal(out)
+	}
+}
+
 // OnConfigRollback sets the handler for config rollback requests (transaction protocol).
 // The handler receives the transaction ID and should undo changes applied during this
 // transaction (typically by calling journal.Rollback()). If no handler is registered,
@@ -743,7 +783,8 @@ func (p *Plugin) OnConfigOperationRollback(fn ConfigOperationRollbackHandler) {
 	}
 }
 
-// OnConfigOperationCommit sets the handler for committing operation journals.
+// OnConfigOperationCommit registers reversible commit. The owner MUST retain
+// operation undo until OnConfigComplete receives the matching accepted decision.
 func (p *Plugin) OnConfigOperationCommit(fn ConfigOperationCommitHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

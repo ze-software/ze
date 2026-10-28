@@ -349,10 +349,7 @@ func runBGPEngine(conn net.Conn) int {
 		j := sdk.NewJournal()
 		out, err := applyBGPOperation(&input.Operation, bgpReactor, j)
 		if err != nil {
-			if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
-				log.Error("bgp operation apply: rollback errors", "count", len(rollbackErrs))
-			}
-			return nil, err
+			return nil, errors.Join(err, errors.Join(j.Rollback()...))
 		}
 		operationMu.Lock()
 		operationJournals[operationJournalKey(input.TransactionID, input.Operation.ID)] = j
@@ -364,6 +361,7 @@ func runBGPEngine(conn net.Conn) int {
 		captureBGPConfigEvent(bgpReactor, capture.OpRollback, input.TransactionID, input.Operations)
 		operationMu.Lock()
 		defer operationMu.Unlock()
+		var result error
 		for i := range input.Operations {
 			op := &input.Operations[i]
 			key := operationJournalKey(input.TransactionID, op.ID)
@@ -373,25 +371,32 @@ func runBGPEngine(conn net.Conn) int {
 				continue
 			}
 			if errs := j.Rollback(); len(errs) > 0 {
-				return fmt.Errorf("bgp operation rollback %s: %d errors", op.ID, len(errs))
+				result = errors.Join(result, fmt.Errorf("bgp operation rollback %s: %w", op.ID, errors.Join(errs...)))
 			}
 		}
-		return nil
+		return result
 	})
 
 	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
 		captureBGPConfigEvent(bgpReactor, capture.OpCommit, input.TransactionID, nil)
+		pendingTree = nil
+		log.Info("bgp config operation journal committed")
+		return nil
+	})
+
+	p.OnConfigComplete(func(ctx context.Context, input sdk.ConfigCompleteInput) error {
 		operationMu.Lock()
+		defer operationMu.Unlock()
 		for key, j := range operationJournals {
 			if strings.HasPrefix(key, input.TransactionID+"\x00") {
+				if !input.Accepted {
+					return fmt.Errorf("bgp transaction %s still has unapplied undo", input.TransactionID)
+				}
 				j.Discard()
 				delete(operationJournals, key)
 			}
 		}
-		operationMu.Unlock()
-		pendingTree = nil
-		log.Info("bgp config operation journal committed")
-		return nil
+		return ctx.Err()
 	})
 
 	ctx, cancel := sdk.SignalContext()

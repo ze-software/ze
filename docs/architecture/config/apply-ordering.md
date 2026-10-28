@@ -453,10 +453,22 @@ failure the requirement exists to prevent.
 <!-- source: internal/component/bgp/plugin/operation.go -- BGP-owned decomposition -->
 <!-- source: internal/component/bgp/reactor/operation.go -- peer add, remove and modify primitives -->
 
-**`verify -> execute -> commit` with rollback, not best-effort apply.** Rollback
-replays the inverse operations in reverse order and excludes the operation that
-failed. A coarse node's inverse is the transaction-wide section rollback the
-orchestrator broadcasts, so the executor emits no per-operation rollback for it.
+**`verify -> execute -> commit` with rollback, not best-effort apply.** A later
+operation-commit failure still reverses every successfully applied operation.
+The coordinator first restores coarse section-owned configuration, including
+filter definitions, then replays operation journals in reverse actual apply
+order. Each inverse keeps the original transaction ID and captured owner
+lifetime. Undo attempts continue after an error, preserving all errors, under
+a fresh rollback budget rather than the expired apply deadline.
+
+BGP and interface journals remain reversible through the outer hub reload:
+operation commit does not discard them. Whole-reload rejection restores the
+sections and then invokes the original inverses; acceptance uses acknowledged
+`config-complete` callbacks after durable publication. A cleanup failure there
+reports that the candidate is active, never that it rolled back.
+<!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
+<!-- source: internal/component/config/transaction/executor.go -- rollbackApplied -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->
 
 **A remove-peer's inverse restores the peer the reactor was running.** The
 settings come from that peer, not from the config subtree the operation carries.

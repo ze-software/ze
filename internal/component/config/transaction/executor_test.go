@@ -3,6 +3,8 @@ package transaction
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -439,4 +441,199 @@ func TestOperationPathCarriesUnknownLabel(t *testing.T) {
 
 	assert.Equal(t, []ConfigOperationType{provisionVIP}, verified, "the owner verifies its own label, unchanged")
 	assert.Equal(t, []ConfigOperationType{provisionVIP}, applied, "the owner applies its own label, unchanged")
+}
+
+// Undo keeps the actual execution order (including interleaved owners), has a
+// fresh budget after apply expiry, and attempts earlier inverses after failure.
+func TestOperationRollbackOrderBudgetAndErrors(t *testing.T) {
+	gateway := newTestGateway()
+	executor := NewOperationExecutor(gateway, "original")
+	executor.SetDeadlineMS(time.Now().Add(-time.Second).UnixMilli())
+	executor.SetRollbackBudget(time.Second)
+	ops := []ConfigOperation{{ID: "a-first", Owner: "a"}, {ID: "b-middle", Owner: "b"}, {ID: "a-last", Owner: "a"}}
+	var restored []string
+	for _, owner := range []string{"a", "b"} {
+		gateway.SubscribeConfigEvent(EventOperationRollbackFor(owner), func(payload []byte) {
+			var event ConfigOperationRollbackEvent
+			require.NoError(t, json.Unmarshal(payload, &event))
+			require.Greater(t, event.DeadlineMS, time.Now().UnixMilli())
+			require.Equal(t, "original", event.TransactionID)
+			require.Len(t, event.Operations, 1)
+			id := event.Operations[0].ID
+			restored = append(restored, id)
+			ack := ConfigOperationRollbackAck{TransactionID: event.TransactionID, Plugin: owner, OperationID: id, Status: CodeOK}
+			topic := EventOperationRollbackOK
+			if id == "a-last" {
+				ack.Status, ack.Error = CodeError, "injected undo failure"
+				topic = EventOperationRollbackFailed
+			}
+			raw, err := json.Marshal(ack)
+			require.NoError(t, err)
+			gateway.mustEmit(topic, raw)
+		})
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := executor.Rollback(ctx, ops, context.DeadlineExceeded)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorContains(t, err, "injected undo failure")
+	require.Equal(t, []string{"a-last", "b-middle", "a-first"}, restored)
+}
+
+func TestOperationRollbackRequiresRestoredSections(t *testing.T) {
+	for _, restored := range []bool{false, true} {
+		t.Run(fmt.Sprintf("restored=%t", restored), func(t *testing.T) {
+			gateway := newTestGateway()
+			executor := NewOperationExecutor(gateway, "original")
+			executor.SetRollbackBudget(time.Second)
+			prerequisiteCalled := false
+			sectionErr := errors.New("section restore failed")
+			executor.beforeRollback = func(ctx context.Context, cause error) (error, bool) {
+				require.NoError(t, ctx.Err())
+				prerequisiteCalled = true
+				if !restored {
+					return errors.Join(cause, sectionErr), false
+				}
+				return cause, true
+			}
+			undone := false
+			gateway.SubscribeConfigEvent(EventOperationRollbackFor("source"), func(payload []byte) {
+				require.True(t, prerequisiteCalled)
+				undone = true
+				var event ConfigOperationRollbackEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				raw, err := json.Marshal(ConfigOperationRollbackAck{
+					TransactionID: event.TransactionID, Plugin: "source", OperationID: "source-change", Status: CodeOK,
+				})
+				require.NoError(t, err)
+				gateway.mustEmit(EventOperationRollbackOK, raw)
+			})
+			err := executor.Rollback(t.Context(), []ConfigOperation{{ID: "source-change", Owner: "source"}}, context.DeadlineExceeded)
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			require.Equal(t, restored, undone)
+			if !restored {
+				require.ErrorIs(t, err, sectionErr)
+			}
+		})
+	}
+}
+
+// VALIDATES: Infrastructure journal undo precedes dependent service restoration.
+// PREVENTS: A coarse rollback installer binding before its old device exists.
+func TestOperationRollbackRestoresInfrastructureBeforeService(t *testing.T) {
+	for _, failure := range []string{"apply", "commit"} {
+		t.Run(failure, func(t *testing.T) {
+			gateway := newTestGateway()
+			participants := []testParticipant{
+				{name: "infrastructure", configRoots: []string{"infrastructure"}},
+				{name: "service", configRoots: []string{"service"}},
+			}
+			coordinator := newTestOrchestrator(t, gateway, participants)
+			coordinator.SetApplyDeadlineOverride(time.Second)
+			ops := []ConfigOperation{
+				{ID: "remove-old-device", Root: "infrastructure", Owner: "infrastructure", Type: "remove-device", Verb: VerbDestroy,
+					Target: ResourceRef{Kind: ResourceInterface, Name: "old-device"}},
+				{ID: "start-dependent-session", Root: "infrastructure", Owner: "infrastructure", Type: testOpAddPeer, Verb: VerbCreate,
+					Target: ResourceRef{Kind: ResourcePeer, Peer: "dependent"}},
+			}
+			coordinator.SetOperationPlanner(func(context.Context, OperationPlanRequest) ([]ConfigOperation, error) {
+				return ops, nil
+			})
+			emit := func(topic string, event any) {
+				raw, err := json.Marshal(event)
+				require.NoError(t, err)
+				gateway.mustEmit(topic, raw)
+			}
+			for _, participant := range participants {
+				gateway.SubscribeConfigEvent(EventVerifyFor(participant.name), func([]byte) {
+					participant.respondVerify(gateway, coordinator.TransactionID())
+				})
+			}
+			oldDevice, oldService, candidateService, session := true, true, false, false
+			var undone []string
+			var serviceRestores int
+			gateway.SubscribeConfigEvent(EventOperationVerifyFor("infrastructure"), func(payload []byte) {
+				var event ConfigOperationVerifyEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				emit(EventOperationVerifyOK, ConfigOperationVerifyAck{
+					TransactionID: event.TransactionID, Plugin: "infrastructure", OperationID: event.Operation.ID, Status: CodeOK,
+				})
+			})
+			gateway.SubscribeConfigEvent(EventOperationApplyFor("infrastructure"), func(payload []byte) {
+				var event ConfigOperationApplyEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				ack := ConfigOperationApplyAck{TransactionID: event.TransactionID, Plugin: "infrastructure", OperationID: event.Operation.ID, Status: CodeOK}
+				topic := EventOperationApplyOK
+				if event.Operation.ID == "remove-old-device" {
+					oldDevice = false
+				} else {
+					require.True(t, candidateService, "later failure must follow coarse service installation")
+					if failure == "apply" {
+						ack.Status, ack.Error = CodeError, "injected later apply failure"
+						topic = EventOperationApplyFailed
+					} else {
+						session = true
+					}
+				}
+				emit(topic, ack)
+			})
+			gateway.SubscribeConfigEvent(EventApplyFor("service"), func(payload []byte) {
+				var event ApplyEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				require.False(t, oldDevice, "original infrastructure removal must have applied")
+				oldService, candidateService = false, true
+				emit(EventApplyOK, ApplyAck{TransactionID: event.TransactionID, Plugin: "service", Status: CodeOK})
+			})
+			gateway.SubscribeConfigEvent(EventOperationCommitFor("infrastructure"), func(payload []byte) {
+				var event ConfigOperationCommitEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				emit(EventOperationCommitFailed, ConfigOperationCommitAck{
+					TransactionID: event.TransactionID, Plugin: "infrastructure", Status: CodeError, Error: "injected later commit failure",
+				})
+			})
+			gateway.SubscribeConfigEvent(EventOperationRollbackFor("infrastructure"), func(payload []byte) {
+				var event ConfigOperationRollbackEvent
+				require.NoError(t, json.Unmarshal(payload, &event))
+				require.Equal(t, coordinator.TransactionID(), event.TransactionID)
+				require.Len(t, event.Operations, 1)
+				op := event.Operations[0]
+				undone = append(undone, op.ID)
+				if op.ID == "remove-old-device" {
+					require.Equal(t, ops[0], op, "replay the original removal token")
+					oldDevice = true
+				} else {
+					require.Equal(t, ops[1], op)
+					session = false
+				}
+				emit(EventOperationRollbackOK, ConfigOperationRollbackAck{
+					TransactionID: event.TransactionID, Plugin: "infrastructure", OperationID: op.ID, Status: CodeOK,
+				})
+			})
+			gateway.SubscribeConfigEvent(EventRollback, func([]byte) {
+				serviceRestores++
+				assert.True(t, oldDevice, "old service installer requires its original device")
+				candidateService = false
+				oldService = oldDevice
+				for _, participant := range participants {
+					participant.respondRollback(gateway, coordinator.TransactionID())
+				}
+			})
+			result := coordinator.Execute(t.Context(), map[string][]DiffSection{
+				"infrastructure": {{Root: "infrastructure", Removed: `{"old-device":{}}`}},
+				"service":        {{Root: "service", Changed: `{"binding":{"old":"old-device","new":"any"}}`}},
+			})
+			require.Equal(t, StateRolledBack, result.State)
+			require.ErrorContains(t, result.Err, "injected later "+failure+" failure")
+			assert.Equal(t, 1, serviceRestores)
+			assert.True(t, oldDevice)
+			assert.True(t, oldService, "rollback must reinstall the old running service")
+			assert.False(t, candidateService)
+			assert.False(t, session)
+			wantUndo := []string{"remove-old-device"}
+			if failure == "commit" {
+				wantUndo = []string{"start-dependent-session", "remove-old-device"}
+			}
+			assert.Equal(t, wantUndo, undone)
+		})
+	}
 }

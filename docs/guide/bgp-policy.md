@@ -44,22 +44,50 @@ even if it has no references. Use `insert` in the editor when order matters.
 
 For example, `filter { import { filters [ name ]; final accept; } export {
 final reject; } }` runs `name` on import and rejects every export that reaches
-the policy final. An absent direction keeps the existing automatic-filter
-behavior and accepts when those filters finish; it is not a configured empty
-policy.
+the policy final. With no explicit policy at any level, EBGP rejects routes
+in that direction (RFC 8212 Section 3). IBGP keeps its accepting default,
+including sessions using the migration AS. Automatic and inactive references
+do not count as an explicit policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+
+Named `loop-detection` instances remain visible in the effective import policy,
+including when the direction has no operator `final`. Plain `no-self-as`,
+`loop-detection:no-self-as`, and canonical `loop:no-self-as` references select
+the same instance. Its settings control the existing protocol-stage loop check;
+the instance is not an external plugin and is not executed a second time in
+the policy RPC chain. Deactivating its import reference disables that check
+for the peer. Earlier named automatic references could incorrectly attempt an
+RPC to the instance name and fail with `unknown plugin`.
+An active named internal reference on export is refused: these instances
+configure ingress checks, not an export policy. The refusal names the location
+where the reference was written and prints the exact editor command to
+deactivate it. Use that original location and spelling, not the effective
+peer's canonical reference. For example, a reference written on `group customers`
+as `loop-detection:no-self-as` is corrected in the configuration editor with:
+
+```text
+top
+deactivate bgp group customers filter export filters loop-detection:no-self-as
+commit now
+```
+
+Deactivation keeps that member as a deliberate no-check decision; it does not
+remove other filters or change the final. Removing the reference at its original
+location is also an option. Automatic import references never populate export.
 
 A reload compares the whole effective policy. Changing only the export `final`
 therefore reconciles advertisements on the existing session without a source
-UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
-including removal of the direction, regenerates configured static, default and
-plugin routes and replays retained received routes through the configured replay
+UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance
+regenerates configured static, default and plugin routes and replays retained
+received routes through the configured replay
 owner. Ordinary received-route restoration requires the receive store and that
 owner's existing send permission. FlowSpec instead restores the selecting RIB's
 currently authorized paths through the same owner. A destination negotiating only
 FlowSpec does not require the optional receive store; negotiated ordinary families
 still require their retained source.
-An already accepting direction can be removed without replay or resetting the
-delivered static-route set; routes removed in the same reload are still withdrawn.
+Removing the last explicit export policy rejects on EBGP. On IBGP, removing an
+accepting direction needs no replay or static-route reset. Routes removed in the
+same reload are still withdrawn.
 If required restoration fails, reload returns the error and rolls back the policy
 instead of committing an accepting configuration with stale rejected state.
 
@@ -386,11 +414,25 @@ See [Route filters and redistribution](redistribution.md) for the current chain 
 `filters` and `final`, including a configured direction with no filters.
 Peer detail reports the same policy under `import-policy` and `export-policy`.
 Automatic-only filters have no configured `final`; an entirely absent policy
-is omitted. Policy dry-run applies the same final as live execution.
-With `final reject`, a pure withdrawal remains `accept` with unchanged resulting
+is omitted. These status objects describe configured presence, not the default.
+Policy dry-run applies the live session-aware final: absence rejects on EBGP and
+accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
+
+The dry-run covers the per-peer external-policy stage, not the full ingress
+protocol pipeline. An active named in-process check appears in `trace` with
+`action: not-evaluated` and empty `text-after`; it is not an accepting filter
+invocation. The overall `action` describes the external-policy stage and its
+final only, not whether that unevaluated guard would pass on a live session.
+A single-filter override selecting an in-process check is refused with an
+explanation; exercise it with an UPDATE on the peer session instead. Inactive
+references do not execute and have no trace entry.
+When the remote AS is unresolved, the overall action is `undetermined` and
+`reason` tells you to wait for establishment and repeat `show policy test`.
+No filter executes, including a single-filter override. Trace and text are empty.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 Use the same route at each boundary:
 

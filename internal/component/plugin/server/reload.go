@@ -267,7 +267,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		}
 		cancelTx(nil)
 		s.txLock.release()
-		acceptReload(result == nil)
+		result = errors.Join(result, acceptReload(result == nil))
 	}()
 
 	if s.reactor == nil {

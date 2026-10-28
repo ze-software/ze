@@ -108,6 +108,12 @@ module ze-plugin-engine {
         description "Called during Stage 1 of the 5-stage startup protocol.";
         ze:help "Plugin declares families, commands, config wants, and YANG schema.";
         input {
+            leaf config-completion {
+                type boolean;
+                default false;
+                ze:help "Acknowledge whole-reload undo release";
+                description "Declares config-complete support. Operation journals remain reversible until the engine completes the captured transaction.";
+            }
             list family {
                 key "name";
                 description

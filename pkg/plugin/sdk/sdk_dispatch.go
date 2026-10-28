@@ -30,6 +30,7 @@ const (
 	callbackConfigApply      = "ze-plugin-callback:config-apply"
 	callbackConfigRollback   = "ze-plugin-callback:config-rollback"
 	callbackConfigCommitted  = "ze-plugin-callback:config-committed"
+	callbackConfigComplete   = "ze-plugin-callback:config-complete"
 	callbackOpDecompose      = "ze-plugin-callback:config-operation-decompose"
 	callbackOpVerify         = "ze-plugin-callback:config-operation-verify"
 	callbackOpApply          = "ze-plugin-callback:config-operation-apply"

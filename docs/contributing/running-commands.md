@@ -466,11 +466,13 @@ carries the test-only tag set, and the suite runs with `LE_TEST_NO_BUILD=1`,
 and `ZE_BIN` pointing at that set, as `<set>/le test <suite>`
 (`BinarySet.Environment`).
 
-Running `le test` directly skips all of that. The runner can then
-rebuild a daemon without the test-only surface, so a fixture times out for a
-build-population reason and the failure looks like the code under test. The
-`--server` and `--client` hints the runner prints on failure inherit the same
-gap: they re-run the same non-equivalent launch.
+Running `le test` directly uses the current runner and rebuilds only the daemon.
+That daemon includes the test-only plugins through `Runner.Build` and
+`TestBuildTags`. A stale runner can still lack newly registered fixture helpers,
+even when the daemon is current. For a scoped plugin case, use
+`./le --name session test bgp plugin --pattern <test-name>` to rebuild the runner
+from the working tree too.
+<!-- source: internal/test/runner/runner.go -- TestBuildTags, Runner.Build, NewRunner, setupBinShims -->
 
 | Want | Use |
 |------|-----|
