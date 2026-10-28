@@ -365,7 +365,7 @@ AC ids are stable: AC-34 and AC-35 (recursion) moved with their ids to
 | `TestIntersectPrefixes` | `internal/plugins/dnsresolver/resolve_test.go` | the allow-from intersection the reload serves under | |
 | `TestRefusedReloadKeepsRunningPolicy` | `internal/plugins/dnsresolver/config_tx_test.go` | a strict-bind failure restores the running policy, never the candidate's | |
 | `TestParseListenerRefusesEveryWildcard` | `internal/plugins/dnsresolver/config_test.go` | AC-3: `0.0.0.0`, `::` and `::ffff:0:0` each refused | |
-| `TestListenerStateByPort` | `internal/plugins/dnsresolver/listener_state_test.go` | AC-31: listener state per protocol and address with port; a dropped listener reads down, an unbound one unknown | |
+| `TestListenerStateByPort` | `internal/plugins/dnsresolver/listener_state_test.go` | AC-31: listener state per protocol and address with port; a dropped listener reads down, an unbound one reads unknown (pruned) | |
 | `TestListenBeforeAddressIsUp` | `internal/plugins/dnsresolver/freebind_linux_test.go` | A-3 bind half: the listener binds an address the host does not hold (red without Freebind) | |
 | `TestManager_TCPConnMaxRefusesPastTheCap`, `TestManager_TCPConnMaxZeroIsUncapped` | `internal/core/dnsserver/connlimit_test.go` | the per-listener TCP cap closes the excess at accept and counts it in `ze_dns_tcp_connection_refused_total`; zero stays uncapped | |
 | `TestProbeListenerFreebindStillReportsBusyPort`, `TestCollectSchemaListenersMarksFreebindServices` | `internal/component/doctor/checks_listener_freebind_test.go` | doctor still reports a busy port for a freebind service; the freebind services reach the probe marked | |

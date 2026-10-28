@@ -30,8 +30,8 @@ type ListenerEndpoint struct {
 	IP       net.IP // Parsed IP address; nil or unspecified means wildcard
 	Port     uint16 // Listening port number
 	// Freebind is set when the service binds with IP_FREEBIND
-	// (RegisterListenerFreebind), so its address may be absent from the host
-	// and still bind.
+	// (RegisterListenerFreebind), so on Linux its address may be absent from
+	// the host and still bind.
 	Freebind bool
 }
 
@@ -276,8 +276,8 @@ var (
 )
 
 // RegisterListenerFreebind records that a named ze:listener service binds its
-// endpoints with IP_FREEBIND. `ze doctor` then does not report an endpoint
-// whose address is not on the host yet: the service binds it anyway (a PPP
+// endpoints with IP_FREEBIND (Linux). `ze doctor` then does not report an
+// endpoint whose address is not on the host yet: the service binds it anyway (a PPP
 // pool gateway that exists only once the first subscriber is up, an anycast
 // address another daemon adds later), so the finding would be false. A port
 // another process holds is still reported.

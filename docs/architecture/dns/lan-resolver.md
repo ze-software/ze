@@ -60,7 +60,6 @@ filter (`server-harness.md`).
 <!-- source: internal/plugins/dnsresolver/metrics.go -- rcodeName -->
 <!-- test: internal/plugins/dnsresolver/accept_test.go -- TestMalformedQueryShapedAndCounted, TestRcodeNameBadVers -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestACLRefused, TestRDZeroRefused, TestQDCount, TestRateLimit -->
-<!-- test: internal/plugins/dnsresolver/accept_test.go -- TestMalformedQueryShapedAndCounted -->
 
 ## Coalescing and the outstanding bound
 

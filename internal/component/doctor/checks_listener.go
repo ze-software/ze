@@ -53,8 +53,10 @@ type serviceListener struct {
 	code     string
 	severity diagnostic.Severity
 	// freebind is set for a service that binds with IP_FREEBIND
-	// (config.RegisterListenerFreebind): its address may be absent from the
-	// host and still bind, so probeListener binds it with IP_FREEBIND too.
+	// (config.RegisterListenerFreebind): on Linux its address may be absent
+	// from the host and still bind, so probeListener binds it with
+	// IP_FREEBIND too. Off Linux neither sets the option, and the probe
+	// reports an absent address as the service's bind would fail on it.
 	freebind bool
 }
 
