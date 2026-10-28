@@ -5,8 +5,8 @@
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "82cd74bc7cef234b",
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b",
     "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "9a969f166b226f1c",
-    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards": "88ff6c909f86f8d4",
-    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards#2": "88ff6c909f86f8d4"
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards": "6b5c89b922c8d180",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards#2": "6b5c89b922c8d180"
   },
   "units": {
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "c10f1be8b1784b6d",

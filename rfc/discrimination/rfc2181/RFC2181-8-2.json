@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2181-8-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds",
+    "unit-sha": "757b196cf2fb589c",
+    "claim-sha": "b517416b152089e1",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/cache.go::receivedTTL",
+    "producer-sha": "6bb38fd81139eeb4",
+    "break": "line 258: \"ttl\u0026ttlSignBit != 0\" -\u003e \"false \u0026\u0026 ttl\u0026ttlSignBit != 0\""
+  }
+]

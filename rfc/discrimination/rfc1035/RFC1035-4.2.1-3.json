@@ -26,7 +26,7 @@
     "polarity": "positive",
     "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverListensOnServerPort53",
     "unit-sha": "04678fd46f43ceac",
-    "claim-sha": "7689d221c189f162",
+    "claim-sha": "acc960744d4a6309",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/config.go::parseListener",
     "producer-sha": "dac5ff9347292419",

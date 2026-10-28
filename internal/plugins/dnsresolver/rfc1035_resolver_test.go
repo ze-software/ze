@@ -88,25 +88,29 @@ func TestRFC1035ResolverHeaderZ(t *testing.T) {
 	r := newTestResolver(t, testConfig(up), newTestClock())
 
 	plain := ask(r, query("z.test", dns.TypeA), "127.0.0.1", false)
-	// RFC requirement: RFC1035-4.1.1-1 positive -- "Z               Reserved for
-	// future use.  Must be zero in all queries and responses." The reply to a
-	// query with Z clear, answered from an upstream reply with Z set, has Z
-	// clear and carries the answer.
-	if plain == nil || len(plain.Answer) != 1 {
-		t.Fatalf("reply %v, want one A record", plain)
-	}
-	if plain.Zero {
-		t.Fatal("reply has Z set, want Z clear")
-	}
-
 	q := query("z2.test", dns.TypeA)
 	q.Zero = true
 	echoed := ask(r, q, "127.0.0.1", false)
-	// RFC requirement: RFC1035-4.1.1-1 negative -- "Must be zero in all queries
-	// and responses" binds the response independently of the query: a query
-	// that arrives with Z set is answered with Z clear rather than echoed.
+	// RFC requirement: RFC1035-4.1.1-1 positive -- "Z               Reserved for
+	// future use.  Must be zero in all queries and responses." The reply to a
+	// query with Z clear and the reply to a query with Z set, each answered
+	// from an upstream reply with Z set, have Z clear.
+	if plain == nil || plain.Zero {
+		t.Fatalf("reply %v to a query with Z clear, want Z clear", plain)
+	}
 	if echoed == nil || echoed.Zero {
 		t.Fatalf("reply %v to a query with Z set, want Z clear", echoed)
+	}
+
+	// RFC requirement: RFC1035-4.1.1-1 negative -- the rule clears the
+	// response's Z bit and does nothing more: the query that arrived with Z set
+	// is not refused for it, and is answered NOERROR with its one A record and
+	// RD copied from the query, as the query with Z clear is.
+	if plain.Rcode != dns.RcodeSuccess || len(plain.Answer) != 1 || !plain.RecursionDesired {
+		t.Fatalf("reply %v to a query with Z clear, want NOERROR with one A record and RD set", plain)
+	}
+	if echoed.Rcode != dns.RcodeSuccess || len(echoed.Answer) != 1 || !echoed.RecursionDesired {
+		t.Fatalf("reply %v to a query with Z set, want NOERROR with one A record and RD set", echoed)
 	}
 }
 
@@ -309,8 +313,8 @@ func resolverConfigJSON(listener, server string) string {
 }
 
 // TestRFC1035ResolverListensOnServerPort53 proves RFC 1035 Section 4.2.1 on
-// the resolver's listener: a listener the operator gave no port receives
-// client datagrams on server port 53. Method: parse the delivered config of a
+// the resolver's listener config: a listener the operator gave no port is
+// configured with server port 53. Method: parse the delivered config of a
 // listener written with an address alone.
 func TestRFC1035ResolverListensOnServerPort53(t *testing.T) {
 	cfg, err := parseConfig(resolverConfigJSON(`{"ip":"127.0.0.1"}`, `{"ip":"192.0.2.1"}`))
@@ -322,7 +326,7 @@ func TestRFC1035ResolverListensOnServerPort53(t *testing.T) {
 	}
 	// RFC requirement: RFC1035-4.2.1-3 positive -- "Messages sent using UDP user
 	// server port 53 (decimal)." A resolver listener configured with an address
-	// and no port listens on port 53.
+	// and no port is parsed with port 53.
 	if got := cfg.Listeners[0].Port; got != 53 {
 		t.Fatalf("listener port %d, want 53", got)
 	}

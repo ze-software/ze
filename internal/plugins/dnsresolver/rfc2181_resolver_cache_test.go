@@ -104,8 +104,8 @@ func TestRFC2181ResolverCacheIgnoresOrDiscards(t *testing.T) {
 }
 
 // TestRFC2181ResolverTTLBounds proves RFC 2181 Section 8 on the resolver
-// path: a received TTL with the most significant bit set is treated as zero,
-// and the largest TTL Section 8 allows is kept. Method: cache max-ttl raised
+// path: under its SHOULD a TTL received with the high bit set is treated as
+// zero, and under its bound 2147483647 is kept. Method: cache max-ttl raised
 // to 2147483647, so the configured cap does not decide; one upstream record
 // with TTL 0x80000001 and one with TTL 2147483647, each asked twice.
 func TestRFC2181ResolverTTLBounds(t *testing.T) {
@@ -124,11 +124,11 @@ func TestRFC2181ResolverTTLBounds(t *testing.T) {
 
 	high := ask(r, query("high.test", dns.TypeA), "127.0.0.1", false)
 	ask(r, query("high.test", dns.TypeA), "127.0.0.1", false)
-	// RFC requirement: RFC2181-8-1 positive -- "It is hereby specified that a
-	// TTL value is an unsigned number, with a minimum value of 0, and a maximum
-	// value of 2147483647." A record received with TTL 0x80000001 is answered
-	// with TTL 0 and is not cached: the second query for it reaches the
-	// upstream again.
+	// RFC requirement: RFC2181-8-2 positive -- "Implementations should treat
+	// TTL values received with the most significant bit set as if the entire
+	// value received was zero." A record received with TTL 0x80000001 is
+	// answered with TTL 0 and is not cached: the second query for it reaches
+	// the upstream again.
 	if high == nil || len(high.Answer) != 1 || high.Answer[0].Header().Ttl != 0 {
 		t.Fatalf("reply %v, want the record with TTL 0", high)
 	}
