@@ -1659,10 +1659,13 @@ the exit code or the `interop: N passed, M failed` summary. The clean run must
 print `interop: [i/n] <scenario>: pass (`, and the run under the break must
 print `interop: [i/n] <scenario>: FAIL (`, and the cited number is read where
 the checker writes it, the anchor `scenario <scenario> assertion <citation>:`
-(`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`). A checker
-failure wrapped by
-another one, `scenario S assertion 0: scenario S assertion 6: <cause>`, is read
-at its innermost link, each link starting where the previous one's colon ends.
+(`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`).
+`checkerFailure` answers a cause that is already its own report unchanged, so a
+special checker's failure is no longer wrapped a second time under
+`assertion 0`. A failure that still carries two links, as logs written before
+that change do, `scenario S assertion 0: scenario S assertion 6: <cause>`, is
+read at its innermost link, each link starting where the previous one's colon
+ends.
 A cause text that quotes another assertion's number is therefore never read as
 the citation. A run that executed
 no scenario is refused as unobserved, and a FAIL that names another assertion is

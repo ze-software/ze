@@ -81,7 +81,23 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 	}
 	return nil
 }
+
+// scenarioFailure is the report checkerFailure answers: the scenario, the
+// assertion, the cause and the peer logs. Its type marks the cause as already
+// reported, so a caller that wraps a checker (specialChecker) does not name
+// the scenario a second time or read the peer logs again.
+type scenarioFailure struct{ err error }
+
+func (f *scenarioFailure) Error() string { return f.err.Error() }
+func (f *scenarioFailure) Unwrap() error { return f.err }
+
+// checkerFailure reports cause as the failure of assertion in scenario name,
+// with the tail of every peer's log. A cause that is already such a report is
+// answered unchanged.
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
+	if _, reported := errors.AsType[*scenarioFailure](cause); reported {
+		return cause
+	}
 	var diagnostics textbuf.Buffer
 	for _, peer := range []string{"ze", peerFRR, peerFRRSink, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT, peerDnsmasq, peerDnsmasqB, peerKea, peerKnot, peerUnbound, peerDNSClient} {
 		logs, err := lab.Logs(ctx, peer, 80)
@@ -106,16 +122,16 @@ func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string,
 		if peer == "ze" {
 			for line := range strings.SplitSeq(logs.Text, "\n") {
 				if strings.Contains(line, "ZE-OBSERVER-FAIL") {
-					return fmt.Errorf("scenario %s assertion %d: %w; process plugin failed: %s", name, assertion, cause, strings.TrimSpace(line))
+					return &scenarioFailure{err: fmt.Errorf("scenario %s assertion %d: %w; process plugin failed: %s", name, assertion, cause, strings.TrimSpace(line))}
 				}
 			}
 		}
 		fmt.Fprintf(&diagnostics, "\n--- %s logs ---\n%s", peer, strings.TrimSpace(logs.Text))
 	}
 	if diagnostics.Len() != 0 {
-		return fmt.Errorf("scenario %s assertion %d: %w%s", name, assertion, cause, diagnostics.String())
+		return &scenarioFailure{err: fmt.Errorf("scenario %s assertion %d: %w%s", name, assertion, cause, diagnostics.String())}
 	}
-	return fmt.Errorf("scenario %s assertion %d: %w", name, assertion, cause)
+	return &scenarioFailure{err: fmt.Errorf("scenario %s assertion %d: %w", name, assertion, cause)}
 }
 
 func runOperation(ctx context.Context, network interoplab.Network, lab interoplab.CheckerLab, current *operation) error {

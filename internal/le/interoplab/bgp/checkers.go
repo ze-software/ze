@@ -27,16 +27,21 @@ func checkers() map[string]interoplab.Checker {
 		}
 	}
 	for name, checker := range specialCheckers {
-		scenarioName := name
-		scenarioChecker := checker
-		checkers[name] = func(ctx context.Context, check *interoplab.CheckContext) error {
-			if err := scenarioChecker(ctx, check); err != nil {
-				return checkerFailure(ctx, check.Lab, scenarioName, 0, err)
-			}
-			return nil
-		}
+		checkers[name] = specialChecker(name, checker)
 	}
 	return checkers
+}
+
+// specialChecker runs a scenario-specific checker and attaches the peer logs
+// to a bare error it returns, under assertion 0 because the checker named no
+// assertion.
+func specialChecker(name string, checker interoplab.Checker) interoplab.Checker {
+	return func(ctx context.Context, check *interoplab.CheckContext) error {
+		if err := checker(ctx, check); err != nil {
+			return checkerFailure(ctx, check.Lab, name, 0, err)
+		}
+		return nil
+	}
 }
 
 var scenarioOperations = map[string][]operation{
