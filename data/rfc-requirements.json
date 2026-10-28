@@ -7163,7 +7163,7 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
-      "public-coverage": "DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (`Authoritative` in `internal/core/dnsserver/handler.go`). A reply on a datagram transport is bounded and carries TC when it is shortened (`send` and `udpReplyLimit`, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (`Authoritative`, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. Obligations extracted 2026-07-30 and bound per line in `rfc/short/rfc1035.md`. The walk of all 73 sections is recorded in `rfc/extraction/rfc1035.json`.",
+      "public-coverage": "DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (`Authoritative` in `internal/core/dnsserver/handler.go`). A reply on a datagram transport is bounded and carries TC when it is shortened (`send` and `udpReplyLimit`, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (`Authoritative`, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. The LAN recursive resolver (`internal/plugins/dnsresolver`) answers through the second wrapper, `Recursive` in `internal/core/dnsserver/recursive.go`: its reply has AA, Z and AD clear and RA set whatever the upstream reply carried (`shapeRecursive`), an opcode other than a standard query (an inverse query included) draws Not Implemented before any upstream is asked, and a datagram reply is held to 512 octets, or the size the client's OPT offers up to 1232, with TC set when shortened, while a stream reply goes whole. Its cache key folds the name's case (`keyOf` in `internal/plugins/dnsresolver/cache.go`) and an upstream reply is matched to its query by name without regard to case (`replyMatches` in `forward.go`); an upstream reply that uses compression pointers is understood, a TCP query upstream carries the two-byte length prefix and a UDP one does not (`exchange`), and a listener or forward server given no port uses port 53 (`parseListener`, `parseUpstream` in `config.go`). Obligations extracted 2026-07-30 and bound per line in `rfc/short/rfc1035.md`. The walk of all 73 sections is recorded in `rfc/extraction/rfc1035.json`.",
       "public-remaining": "Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercase indicative prose. The extraction read that prose as normative, and the surviving obligation with no code path is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. A response TTL is deliberately not raised to the zone SOA MINIMUM. RFC 2308 Section 4 withdrew that rule (\"the minimum TTL value of all RRs in a zone, has never in practice been used and is hereby deprecated\"), `hdr` in `internal/plugins/geodns/server.go` applies no floor, and `TestRFC2308_NoZoneWideTTLFloor` holds the decision. The DNS wire codec is `github.com/miekg/dns`, so several encoding obligations admit no negative test through Ze at all. Declared `backlog` while an owner ruling is outstanding.",
       "summary-path": "rfc/short/rfc1035.md",
       "shard-path": "rfc/requirements/rfc1035.md",
@@ -7186,10 +7186,10 @@
         "met-below": 0,
         "optional-not-offered": 0,
         "derived-from-other-rows": 0,
-        "tags": 64,
-        "units": 64,
+        "tags": 85,
+        "units": 85,
         "audited": 0,
-        "discrimination-records": 5,
+        "discrimination-records": 26,
         "escapes": 0,
         "stale-records": 0
       },
@@ -7200,11 +7200,28 @@
           "section": "2.3.3",
           "text": "For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)",
           "gated": true,
-          "positive-test": "`internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
-          "negative-test": "`internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
+          "positive-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverNameCase` (unit/verify), `internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
+          "negative-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverNameCase` (unit/verify), `internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 58,
+              "carrier": "unit/verify",
+              "claim": "-- case-insensitive comparison makes two spellings of one name equal, not two names: web-2.example.test, which differs from the cached web-1.example.test in a letter, is a cache miss that reaches the upstream, and its answer is owned by web-2.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+                "break": "line 40: \"strings.ToLower(dns.Fqdn(name))\" -\u003e \"strings.ToLower(dns.Fqdn(name))[:4]\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly",
@@ -7213,6 +7230,23 @@
               "carrier": "unit/verify",
               "claim": "-- case-insensitive comparison makes two spellings of ONE name equal. It does not make two names equal: a query differing in a letter, rather than in that letter's case, is a miss and draws the zone SOA instead of an address.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 45,
+              "carrier": "unit/verify",
+              "claim": "-- \"all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner\". WEB-1.Example.TEST, asked after web-1.example.test, is answered with one A record from the cache: the upstream saw one query for the two spellings.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+                "break": "line 40: \"strings.ToLower(dns.Fqdn(name))\" -\u003e \"dns.Fqdn(name)\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -7492,11 +7526,28 @@
           "section": "3.1",
           "text": "Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1)",
           "gated": true,
-          "positive-test": "`internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
-          "negative-test": "`internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
+          "positive-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverNameCase` (unit/verify), `internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
+          "negative-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverNameCase` (unit/verify), `internal/plugins/geodns/rfc1035_name_case_test.go` `TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 70,
+              "carrier": "unit/verify",
+              "claim": "-- \"A=a\" is the whole of the equivalence: an upstream reply whose question names WEB-8 is not the reply to a query for web-9, so the client gets SERVFAIL with no answer.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+                "break": "line 71: \"strings.EqualFold(got.Name, want.Name)\" -\u003e \"len(got.Name) == len(strings.ToLower(want.Name))\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_name_case_test.go::TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly",
@@ -7505,6 +7556,23 @@
               "carrier": "unit/verify",
               "claim": "-- the same, at the label comparison: \"A=a\" is the whole of the equivalence, and a miss stays a miss.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverNameCase",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 35,
+              "carrier": "unit/verify",
+              "claim": "-- \"Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a)\". An upstream reply whose question spells web-1.example.test in upper case is taken as the reply to the lower-case query: the client gets NOERROR and the one A record.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::replyMatches",
+                "break": "line 71: \"strings.EqualFold(got.Name, want.Name)\" -\u003e \"strings.Compare(got.Name, want.Name) == 0\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -7565,8 +7633,8 @@
           "section": "4.1.1",
           "text": "Must be zero in all queries and responses. (§4.1.1)",
           "gated": true,
-          "positive-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_ReservedZFieldIsZero` (unit/verify)",
-          "negative-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_ReservedZFieldIsZero` (unit/verify)",
+          "positive-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_ReservedZFieldIsZero` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverHeaderZ` (unit/verify)",
+          "negative-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_ReservedZFieldIsZero` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverHeaderZ` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -7580,6 +7648,23 @@
               "tags": 1
             },
             {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverHeaderZ",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 105,
+              "carrier": "unit/verify",
+              "claim": "-- the rule clears the response's Z bit and does nothing more: the query that arrived with Z set is not refused for it, and is answered NOERROR with its one A record and RD copied from the query, as the query with Z clear is.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::Recursive",
+                "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode != dns.OpcodeQuery || r.Zero\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
               "polarity": "positive",
               "unit": "internal/core/dnsserver/rfc1035_header_test.go::TestRFC1035_ReservedZFieldIsZero",
               "file": "internal/core/dnsserver/rfc1035_header_test.go",
@@ -7587,6 +7672,23 @@
               "carrier": "unit/verify",
               "claim": "-- \"Z Reserved for future use. Must be zero in all queries and responses.\" RFC 1035 carries no capitalised RFC 2119 keyword anywhere, so this quoted sentence is the whole anchor: a grep for MUST finds nothing in the document.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverHeaderZ",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 94,
+              "carrier": "unit/verify",
+              "claim": "-- \"Z Reserved for future use. Must be zero in all queries and responses.\" The reply to a query with Z clear and the reply to a query with Z set, each answered from an upstream reply with Z set, have Z clear.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+                "break": "line 232: \"msg.Zero = false\" -\u003e \"msg.Zero = true\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -7596,8 +7698,8 @@
           "section": "4.1.1",
           "text": "AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)",
           "gated": true,
-          "positive-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_AuthoritativeAnswerBitOnEveryReply` (unit/verify)",
-          "negative-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_AuthoritativeAnswerBitOnEveryReply` (unit/verify), `internal/plugins/as112/zones_test.go` `TestZoneAnswer_ResponseCodeByNamePosition` (unit/verify), `internal/plugins/geodns/rfc1035_negative_test.go` `TestRFC1035_ResponseCodeByNameAndClient` (unit/verify)",
+          "positive-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_AuthoritativeAnswerBitOnEveryReply` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverClearsAA` (unit/verify)",
+          "negative-test": "`internal/core/dnsserver/rfc1035_header_test.go` `TestRFC1035_AuthoritativeAnswerBitOnEveryReply` (unit/verify), `internal/plugins/as112/zones_test.go` `TestZoneAnswer_ResponseCodeByNamePosition` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverClearsAA` (unit/verify), `internal/plugins/geodns/rfc1035_negative_test.go` `TestRFC1035_ResponseCodeByNameAndClient` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -7621,6 +7723,23 @@
             },
             {
               "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverClearsAA",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 137,
+              "carrier": "unit/verify",
+              "claim": "-- \"this bit is valid in responses\" scopes the rule to the AA position alone: the same reply still has RD set, copied from the query.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+                "break": "line 230: \"msg.Authoritative = false\" -\u003e \"msg.Authoritative, msg.RecursionDesired = false, false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_negative_test.go::TestRFC1035_ResponseCodeByNameAndClient",
               "file": "internal/plugins/geodns/rfc1035_negative_test.go",
               "line": 117,
@@ -7636,6 +7755,23 @@
               "carrier": "unit/verify",
               "claim": "-- \"AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section.\"",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverClearsAA",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 130,
+              "carrier": "unit/verify",
+              "claim": "-- \"AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section.\" The resolver's reply, built from an upstream reply with AA set, has AA clear.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::shapeRecursive",
+                "break": "line 230: \"msg.Authoritative = false\" -\u003e \"msg.Authoritative = true\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -7930,11 +8066,28 @@
           "section": "4.1.4",
           "text": "However all programs are required to understand arriving messages that contain pointers. (§4.1.4)",
           "gated": true,
-          "positive-test": "`internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_InboundCompressionPointerUnderstood` (unit/verify)",
-          "negative-test": "`internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_InboundCompressionPointerUnderstood` (unit/verify)",
+          "positive-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverUnderstandsPointers` (unit/verify), `internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_InboundCompressionPointerUnderstood` (unit/verify)",
+          "negative-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverDiscardsPointerLoop` (unit/verify), `internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_InboundCompressionPointerUnderstood` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDiscardsPointerLoop",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 213,
+              "carrier": "unit/verify",
+              "claim": "-- a compression pointer that points at itself is no name to understand: the upstream datagram whose answer owner is such a pointer does not parse and is not taken as the reply, so the client is answered NOERROR with the one A record, 192.0.2.7, of the well-formed reply that follows it.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+                "break": "line 126: \"continue\" -\u003e \"if replyMatches(query, r) { return r, nil }; continue\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_InboundCompressionPointerUnderstood",
@@ -7943,6 +8096,23 @@
               "carrier": "unit/verify",
               "claim": "-- understanding an arriving pointer is following a legal one, not obeying any two octets whose top bits are set. A pointer at offset 12 naming offset 12 is a loop: it draws no answer, and the listener keeps serving.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverUnderstandsPointers",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 158,
+              "carrier": "unit/verify",
+              "claim": "-- \"However all programs are required to understand arriving messages that contain pointers.\" An upstream reply whose answer owner is a compression pointer is answered to the client as NOERROR with that A record, owned by pointer.test.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+                "break": "line 113: \"co.ReadMsg()\" -\u003e \"func() (*dns.Msg, error) { b, e := co.ReadMsgHeader(nil); if e != nil { return nil, e }; for i := 12; i+1 \u003c len(b); i++ { if b[i] == 0xC0 \u0026\u0026 b[i+1] == 0x0C { return nil, errReplyMismatch } }; m := new(dns.Msg); return m, m.Unpack(b) }()\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -7972,8 +8142,8 @@
           "section": "4.2.1",
           "text": "Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)",
           "gated": true,
-          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
-          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize` (unit/verify)",
+          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverDatagramBound` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
+          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverDatagramBound` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -7987,6 +8157,23 @@
               "tags": 1
             },
             {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 297,
+              "carrier": "unit/verify",
+              "claim": "-- the 512-octet restriction is on messages carried by UDP: the TCP reply for the same 50-record RRset carries all 50 records, packs to more than 512 octets and has TC clear.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/handler.go::send",
+                "break": "line 134: \"isDatagram(w)\" -\u003e \"true\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
               "polarity": "positive",
               "unit": "internal/core/dnsserver/rfc1035_handler_test.go::TestRFC1035_UDPReplyBoundedAndTruncated",
               "file": "internal/core/dnsserver/rfc1035_handler_test.go",
@@ -7994,6 +8181,23 @@
               "carrier": "unit/verify",
               "claim": "-- \"Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers).\"",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 264,
+              "carrier": "unit/verify",
+              "claim": "-- \"Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers).\" The UDP reply to a query carrying no OPT, for a 50-record RRset, packs to at most 512 octets.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::recursiveReplyLimit",
+                "break": "line 195: \"min(udpReplyLimit(r), RecursiveUDPSize)\" -\u003e \"RecursiveUDPSize\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -8012,8 +8216,8 @@
           "section": "4.2.1",
           "text": "Longer messages are truncated and the TC bit is set in the header (§4.2.1)",
           "gated": true,
-          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
-          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_StreamTransportNotTruncated` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
+          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverDatagramBound` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
+          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UDPReplyBoundedAndTruncated` (unit/verify), `internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_StreamTransportNotTruncated` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverDatagramBound` (unit/verify), `internal/plugins/geodns/rfc1035_server_transport_test.go` `TestRFC1035_UDPTruncatedTCPWholeOverRealSockets` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -8037,6 +8241,23 @@
             },
             {
               "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 282,
+              "carrier": "unit/verify",
+              "claim": "-- only a longer message is truncated: the UDP reply for a one-record RRset, which fits in 512 octets, carries that record with TC clear.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/handler.go::send",
+                "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Truncated = true\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_server_transport_test.go::TestRFC1035_UDPTruncatedTCPWholeOverRealSockets",
               "file": "internal/plugins/geodns/rfc1035_server_transport_test.go",
               "line": 106,
@@ -8055,6 +8276,23 @@
             },
             {
               "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDatagramBound",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 271,
+              "carrier": "unit/verify",
+              "claim": "-- \"Longer messages are truncated and the TC bit is set in the header\". The same UDP reply, which carries fewer than the 50 records, has TC set.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/handler.go::send",
+                "break": "line 136: \"msg.Truncate(datagramLimit)\" -\u003e \"msg.Truncate(datagramLimit); msg.Truncated = false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
               "unit": "internal/plugins/geodns/rfc1035_server_transport_test.go::TestRFC1035_UDPTruncatedTCPWholeOverRealSockets",
               "file": "internal/plugins/geodns/rfc1035_server_transport_test.go",
               "line": 92,
@@ -8070,8 +8308,8 @@
           "section": "4.2.1",
           "text": "Messages sent using UDP user server port 53 (decimal) (§4.2.1) \u003c!-- \"user\" is verbatim: RFC 1035 rfc/full/rfc1035.txt:1754 has a typo for \"use\", and the id contract pins the quoted text, so it is reproduced rather than silently corrected. Compare :1783, which reads \"use server port 53\" for TCP. --\u003e",
           "gated": true,
-          "positive-test": "`internal/plugins/as112/rfc1035_port_test.go` `TestRFC1035_DNSTransportsUseServerPort53` (unit/verify)",
-          "negative-test": "`internal/plugins/as112/rfc1035_port_test.go` `TestRFC1035_DNSTransportsUseServerPort53` (unit/verify)",
+          "positive-test": "`internal/plugins/as112/rfc1035_port_test.go` `TestRFC1035_DNSTransportsUseServerPort53` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverListensOnServerPort53` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverForwardsToServerPort53` (unit/verify)",
+          "negative-test": "`internal/plugins/as112/rfc1035_port_test.go` `TestRFC1035_DNSTransportsUseServerPort53` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverForwardsToServerPort53` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -8085,6 +8323,23 @@
               "tags": 1
             },
             {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverForwardsToServerPort53",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 359,
+              "carrier": "unit/verify",
+              "claim": "-- port 53 is the server port a forward server takes when the operator names none, not a constant: a forward server configured with port 5300 is the upstream address with port 5300.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+                "break": "line 247: \"u.Port = uint16(p)\" -\u003e \"u.Port = defaultPort\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
               "polarity": "positive",
               "unit": "internal/plugins/as112/rfc1035_port_test.go::TestRFC1035_DNSTransportsUseServerPort53",
               "file": "internal/plugins/as112/rfc1035_port_test.go",
@@ -8092,6 +8347,40 @@
               "carrier": "unit/verify",
               "claim": "-- \"Messages sent using UDP user server port 53 (decimal).\" The word \"user\" is verbatim: RFC 1035 has a typo there for \"use\", and section 4.2.2 reads \"use server port 53\" for TCP. RFC 1035 carries no capitalised RFC 2119 keyword anywhere, so this quoted sentence is the whole anchor.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverForwardsToServerPort53",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 348,
+              "carrier": "unit/verify",
+              "claim": "-- \"Messages sent using UDP user server port 53 (decimal).\" A forward server configured with an address and no port is the upstream address with port 53.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/config.go::parseUpstream",
+                "break": "line 235: \"Port: defaultPort}\" -\u003e \"Port: defaultPort + 1}\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverListensOnServerPort53",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 327,
+              "carrier": "unit/verify",
+              "claim": "-- \"Messages sent using UDP user server port 53 (decimal).\" A resolver listener configured with an address and no port is parsed with port 53.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/config.go::parseListener",
+                "break": "line 169: \"uint16(defaultPort)\" -\u003e \"uint16(defaultPort + 1)\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -8101,11 +8390,28 @@
           "section": "4.2.2",
           "text": "Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)",
           "gated": true,
-          "positive-test": "`internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (unit/verify)",
-          "negative-test": "`internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (unit/verify)",
+          "positive-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverStreamFraming` (unit/verify), `internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (unit/verify)",
+          "negative-test": "`internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverStreamFraming` (unit/verify), `internal/plugins/geodns/rfc1035_compression_test.go` `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverStreamFraming",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 390,
+              "carrier": "unit/verify",
+              "claim": "-- the two byte length field is the stream framing of section 4.2.2. A datagram carries its own boundary, so the resolver's UDP query is not prefixed: an upstream that unpacks the datagram from its first octet reads it and answers it over UDP, so the client gets the one record and the upstream sees one query, none over TCP.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+                "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { if network != networkUDP { return co.WriteMsg(query) }; b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(append([]byte{byte(len(b) \u003e\u003e 8), byte(len(b))}, b...)); return e }()\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix",
@@ -8114,6 +8420,23 @@
               "carrier": "unit/verify",
               "claim": "-- the two byte length field is the STREAM framing of section 4.2.2. A datagram carries its own boundary, so it is not prefixed: its first two octets are the message ID.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverStreamFraming",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 404,
+              "carrier": "unit/verify",
+              "claim": "-- \"The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field.\" The resolver's TCP query, after a truncated UDP reply, is read by an upstream that takes the first two octets as the length of the message that follows: the upstream sees one TCP query and the client gets both records.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+                "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(b); return e }()\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -8132,8 +8455,8 @@
           "section": "6.4",
           "text": "While inverse query support is optional, all name servers must be at least able to return the error response (§6.4)",
           "gated": true,
-          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UnsupportedOpcodeReturnsNotImplemented` (unit/verify)",
-          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_QueryOpcodeAnsweredNormally` (unit/verify)",
+          "positive-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_UnsupportedOpcodeReturnsNotImplemented` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverInverseQueryNotImplemented` (unit/verify)",
+          "negative-test": "`internal/core/dnsserver/rfc1035_handler_test.go` `TestRFC1035_QueryOpcodeAnsweredNormally` (unit/verify), `internal/plugins/dnsresolver/rfc1035_resolver_test.go` `TestRFC1035ResolverInverseQueryNotImplemented` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -8147,6 +8470,23 @@
               "tags": 1
             },
             {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverInverseQueryNotImplemented",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 428,
+              "carrier": "unit/verify",
+              "claim": "-- the Not Implemented reply is owed for the inverse query only: a standard query is forwarded once and answered NOERROR with the upstream's A record.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::Recursive",
+                "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode \u003e= dns.OpcodeQuery\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
               "polarity": "positive",
               "unit": "internal/core/dnsserver/rfc1035_handler_test.go::TestRFC1035_UnsupportedOpcodeReturnsNotImplemented",
               "file": "internal/core/dnsserver/rfc1035_handler_test.go",
@@ -8154,6 +8494,23 @@
               "carrier": "unit/verify",
               "claim": "-- \"If a name server receives an inverse query that it does not support, it returns an error response with the \"Not Implemented\" error set in the header. While inverse query support is optional, all name servers must be at least able to return the error response.\"",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverInverseQueryNotImplemented",
+              "file": "internal/plugins/dnsresolver/rfc1035_resolver_test.go",
+              "line": 441,
+              "carrier": "unit/verify",
+              "claim": "-- \"While inverse query support is optional, all name servers must be at least able to return the error response\". An IQUERY to the resolver is answered NOTIMP with no answer, and the upstream sees no further query.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/dnsserver/recursive.go::Recursive",
+                "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode != dns.OpcodeQuery \u0026\u0026 r.Opcode != dns.OpcodeIQuery\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -26803,7 +27160,7 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
-      "public-coverage": "Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (internal/plugins/geodns/config.go), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated (internal/core/dnsserver/handler.go send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply's AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives (internal/core/dnsserver/handler.go shapeAuthoritative); tests bound per requirement in rfc/short/rfc2181.md.",
+      "public-coverage": "Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (internal/plugins/geodns/config.go), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. The LAN resolver cache (internal/plugins/dnsresolver/cache.go lru.store) also never merges: a response RRset either replaces the cached one whole or, when a live cached RRset outranks it, is ignored, and data of another type at the same name leaves the cached RRset alone; a received TTL with the most significant bit set is cached as zero, and 2147483647 is kept (receivedTTL). Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated (internal/core/dnsserver/handler.go send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply's AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives (internal/core/dnsserver/handler.go shapeAuthoritative); tests bound per requirement in rfc/short/rfc2181.md.",
       "public-remaining": "No MUST gap is recorded. The status stays Partial: the rows tagged in this change rest on hand-written breaks that still owe an independent ze-test-judge reading and carry no /ze-rfc-audit verdict yet, and the single-polarity rows are proven in one polarity only (4.1-1, 4.2-1, 4.2-2, 5.2-1, 5.4-1, 10.3-1, 10.3-2, 11-2, 11-3). One feature is absent by decision, and it is not a conformance gap: ze offers no DNSSEC validation, optional-only for fttx-edge, post-release (rfc/short/rfc4034.md), so RFC2181-5.4.1-8, which binds only \"When DNS security [RFC2065] is in use\", is feature-declined; the AXFR and CNAME/PTR-authoring MUSTs are not-applicable (ze serves no zone transfer and authors no CNAME or PTR record).",
       "summary-path": "rfc/short/rfc2181.md",
       "shard-path": "rfc/requirements/rfc2181.md",
@@ -26826,10 +27183,10 @@
         "met-below": 0,
         "optional-not-offered": 1,
         "derived-from-other-rows": 0,
-        "tags": 33,
-        "units": 33,
+        "tags": 38,
+        "units": 38,
         "audited": 8,
-        "discrimination-records": 26,
+        "discrimination-records": 31,
         "escapes": 0,
         "stale-records": 0
       },
@@ -27179,14 +27536,14 @@
           "section": "5.4",
           "text": "Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4)",
           "gated": true,
-          "positive-test": "`internal/component/resolve/dns/rfc2181_cache_test.go` `TestRFC2181_CacheReplacesRRSetNoMerge` (unit/verify)",
+          "positive-test": "`internal/component/resolve/dns/rfc2181_cache_test.go` `TestRFC2181_CacheReplacesRRSetNoMerge` (unit/verify), `internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` `TestRFC2181ResolverReplacesRRsetWhole` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones",
+          "note": "{single-polarity} both caches that store response RRs replace the whole RRSet for a name+type: the stub-resolver cache at internal/component/resolve/dns/cache.go:145 and the LAN resolver cache at internal/plugins/dnsresolver/cache.go:187 (lru.store) each remove the existing entry before storing the new records, so response RRs are never merged with cached ones",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
             "polarity": "positive",
-            "reason": "the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones"
+            "reason": "both caches that store response RRs replace the whole RRSet for a name+type: the stub-resolver cache at internal/component/resolve/dns/cache.go:145 and the LAN resolver cache at internal/plugins/dnsresolver/cache.go:187 (lru.store) each remove the existing entry before storing the new records, so response RRs are never merged with cached ones"
           },
           "covers": [
             {
@@ -27197,6 +27554,23 @@
               "carrier": "unit/verify",
               "claim": "-- the replacement RRSet is exactly the new answer; the old records are absent, so response RRs were never merged with cached RRs.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverReplacesRRsetWhole",
+              "file": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go",
+              "line": 34,
+              "carrier": "unit/verify",
+              "claim": "-- \"Servers must never merge RRs from a response with RRs in their cache to form an RRSet.\" After the alias.test reply carried a.test A {192.0.2.3} while {192.0.2.1, 192.0.2.2} was cached, a.test is answered from the cache with 192.0.2.3 alone.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::store",
+                "break": "line 187: \"c.removeLocked(old)\" -\u003e \"e.rrs = append(old.rrs[:len(old.rrs):len(old.rrs)], e.rrs...); c.removeLocked(old)\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -27206,8 +27580,8 @@
           "section": "5.4",
           "text": "If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)",
           "gated": true,
-          "positive-test": "`internal/component/resolve/dns/rfc2181_cache_rrset_test.go` `TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet` (unit/verify), `internal/component/resolve/dns/rfc2181_cache_test.go` `TestRFC2181_CacheReplacesRRSetNoMerge` (unit/verify)",
-          "negative-test": "`internal/component/resolve/dns/rfc2181_cache_rrset_test.go` `TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet` (unit/verify)",
+          "positive-test": "`internal/component/resolve/dns/rfc2181_cache_rrset_test.go` `TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet` (unit/verify), `internal/component/resolve/dns/rfc2181_cache_test.go` `TestRFC2181_CacheReplacesRRSetNoMerge` (unit/verify), `internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` `TestRFC2181ResolverCacheIgnoresOrDiscards` (unit/verify)",
+          "negative-test": "`internal/component/resolve/dns/rfc2181_cache_rrset_test.go` `TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet` (unit/verify), `internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` `TestRFC2181ResolverCacheIgnoresOrDiscards` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
@@ -27224,6 +27598,23 @@
                 "state": "verified",
                 "producer": "internal/component/resolve/dns/cache.go::put",
                 "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards",
+              "file": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go",
+              "line": 95,
+              "carrier": "unit/verify",
+              "claim": "-- only data that would form an RRSet with cached data discards it: an AAAA RRset put for r.test leaves the cached A RRset 192.0.2.7 in place.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::keyOf",
+                "break": "line 40: \"qtype: qtype,\" -\u003e \"qtype: 0,\"",
                 "verified": true,
                 "proves": true
               }
@@ -27261,12 +27652,29 @@
                 "verified": true,
                 "proves": true
               }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards",
+              "file": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go",
+              "line": 68,
+              "carrier": "unit/verify",
+              "claim": "-- \"If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate.\" A lower-ranked A RRset {192.0.2.9} put over a live authoritative {192.0.2.1, 192.0.2.2} is ignored: the cache holds {192.0.2.1, 192.0.2.2} exactly. An authoritative {192.0.2.7} put after it discards that RRset: the cache holds 192.0.2.7 alone.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::store",
+                "break": "line 185: \"return old\" -\u003e \"old.rrs = append(old.rrs, e.rrs...); return old\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
+            "note": "Re-judged 2026-10-28 (independent auditor) after c532819895 added the resolver unit; the stub-cache units are byte-identical to the 2026-09-30 judgement and stand. Stub cache: an overlapping {B} replaces cached {A,B,C} with exactly {B} (no union, no remainder); AAAA of the same name and A of another name form no RRSet and stay whole. Resolver (lru.store, the path storeRRset uses): both arms of 'either ignore ... or discard the entire RRSet' are pinned by exact contents. A lower-ranked {192.0.2.9} over a live authoritative {.1,.2} leaves exactly {.1,.2} (ignore: catches merge and blind replace); an authoritative {.7} then leaves .7 alone (discard: catches merge and blind ignore). Negative: an AAAA put leaves the A RRset .7 in place. 'As appropriate' is decided by rank (RFC 2181 Section 5.4.1); equal or higher rank replaces. Records: stub put revert; resolver store merge mutant (positive) and keyOf qtype mutant (negative), all observed red.",
             "freshness": "fresh"
           }
         },
@@ -27419,10 +27827,27 @@
           "text": "It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)",
           "gated": true,
           "positive-test": "`internal/plugins/geodns/rfc2181_clarifications_test.go` `TestRFC2181TTLTransmittedWithSignBitClear` (unit/verify), `internal/plugins/geodns/rfc2181_config_test.go` `TestRFC2181_TTLSignBitBound` (unit/verify)",
-          "negative-test": "`internal/plugins/geodns/rfc2181_config_test.go` `TestRFC2181_TTLSignBitBound` (unit/verify)",
+          "negative-test": "`internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` `TestRFC2181ResolverTTLBounds` (unit/verify), `internal/plugins/geodns/rfc2181_config_test.go` `TestRFC2181_TTLSignBitBound` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds",
+              "file": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go",
+              "line": 141,
+              "carrier": "unit/verify",
+              "claim": "-- 2147483647 is the maximum TTL, not past it: a record received with TTL 2147483647 is answered with that TTL and cached, so the second query for it is answered from the cache with TTL 2147483647.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::receivedTTL",
+                "break": "line 258: \"ttl\u0026ttlSignBit != 0\" -\u003e \"ttl \u003e= ttlSignBit-1\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound",
@@ -27478,7 +27903,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value \u003c= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.",
+            "note": "Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: \"It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647.\" and \"When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero.\" geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl \u003e= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row's violating-input negative is the geodns 2147483648 refusal. The resolver's transmit clause is held by receivedTTL's sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record's break (false \u0026\u0026 sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.",
             "freshness": "fresh"
           }
         },
@@ -28012,10 +28437,29 @@
           "section": "8",
           "text": "Implementations should treat TTL values received with the most significant bit set as if the entire value received was zero. (§8)",
           "gated": false,
-          "positive-test": "--",
+          "positive-test": "`internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go` `TestRFC2181ResolverTTLBounds` (unit/verify)",
           "negative-test": "--",
           "note": "",
-          "nightly-only": false
+          "nightly-only": false,
+          "covers": [
+            {
+              "polarity": "positive",
+              "unit": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds",
+              "file": "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go",
+              "line": 127,
+              "carrier": "unit/verify",
+              "claim": "-- \"Implementations should treat TTL values received with the most significant bit set as if the entire value received was zero.\" A record received with TTL 0x80000001 is answered with TTL 0 and is not cached: the second query for it reaches the upstream again.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/dnsresolver/cache.go::receivedTTL",
+                "break": "line 258: \"ttl\u0026ttlSignBit != 0\" -\u003e \"false \u0026\u0026 ttl\u0026ttlSignBit != 0\"",
+                "verified": true,
+                "proves": true
+              }
+            }
+          ]
         },
         {
           "rid": "RFC2181-9-1",
@@ -323166,7 +323610,7 @@
         ],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 2,
+        "mandatory-proven": 12,
         "mandatory-total": 27,
         "optional-proven": 0,
         "optional-total": 6,
@@ -323433,9 +323877,9 @@
         ],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 11,
+        "mandatory-proven": 12,
         "mandatory-total": 23,
-        "optional-proven": 0,
+        "optional-proven": 1,
         "optional-total": 47,
         "profiles": [
           "fttx-edge"
@@ -337074,11 +337518,11 @@
         "rfcs": 18,
         "not-walked": 0,
         "mandatory": {
-          "proven": 329,
+          "proven": 340,
           "total": 747
         },
         "optional": {
-          "proven": 6,
+          "proven": 7,
           "total": 335
         },
         "mandatory-complete": false
@@ -337207,7 +337651,7 @@
           ],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 2,
+          "mandatory-proven": 12,
           "mandatory-total": 27,
           "optional-proven": 0,
           "optional-total": 6,
@@ -337429,9 +337873,9 @@
           ],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 11,
+          "mandatory-proven": 12,
           "mandatory-total": 23,
-          "optional-proven": 0,
+          "optional-proven": 1,
           "optional-total": 47,
           "profiles": [
             "fttx-edge"
@@ -345600,11 +346044,11 @@
         "rfcs": 11,
         "not-walked": 0,
         "mandatory": {
-          "proven": 23,
+          "proven": 34,
           "total": 299
         },
         "optional": {
-          "proven": 0,
+          "proven": 1,
           "total": 211
         },
         "mandatory-complete": false
@@ -345645,7 +346089,7 @@
           ],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 2,
+          "mandatory-proven": 12,
           "mandatory-total": 27,
           "optional-proven": 0,
           "optional-total": 6,
@@ -345673,9 +346117,9 @@
           ],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 11,
+          "mandatory-proven": 12,
           "mandatory-total": 23,
-          "optional-proven": 0,
+          "optional-proven": 1,
           "optional-total": 47,
           "profiles": [
             "fttx-edge"

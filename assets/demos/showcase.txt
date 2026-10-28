@@ -167,7 +167,7 @@ ze# show | compare
 ze# show | changes
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 ze# show system host
 ze# exit

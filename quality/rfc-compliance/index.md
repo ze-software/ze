@@ -25,7 +25,7 @@ what Ze has
 | Tested both ways | 52.8% | 2,405 of 4,556 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 10.6% | 483 of 4,556 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,556 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 67.6% | 6,179 of 9,135 tagged units in enrolled RFCs, 4 escaped and 66 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 67.7% | 6,184 of 9,140 tagged units in enrolled RFCs, 4 escaped and 66 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -74,7 +74,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gate issues | 79 |
 | Gated MUST-level requirements | 4,715 |
 | Enrolled RFCs | 195 |
-| Resolved test tags | 9,435 |
+| Resolved test tags | 9,461 |
 | Declared gaps | 724 |
 | RFCs with declared gaps | 82 |
 | Fresh semantic audit verdicts | 2,261 |
@@ -205,7 +205,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 57 
 | Reproduce it | `./le rfc check` | 1 of 57 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,715 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 195 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 9,435 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 9,461 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 82 RFCs with gaps, 2 Supported with Remaining |
 | Semantic audits | `rfc/audit/*/*.json` | 2,261 fresh, 0 shifted, 12 stale, 2,442 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 57 full-mode stages |

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>78.8%</strong><b>26 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.6%</strong><b>31 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>33</td>
+<td>38</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>33</td>
+<td>38</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>26</td>
+<td>31</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2181.md</code></td>
@@ -257,7 +257,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go" target="_blank" rel="noopener"><code>internal/plugins/geodns/config.go</code></a>), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated (<a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a> send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply&#39;s AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives (<a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a> shapeAuthoritative)</li>
+<li>Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go" target="_blank" rel="noopener"><code>internal/plugins/geodns/config.go</code></a>), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. The LAN resolver cache (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/cache.go" target="_blank" rel="noopener"><code>internal/plugins/dnsresolver/cache.go</code></a> lru.store) also never merges: a response RRset either replaces the cached one whole or, when a live cached RRset outranks it, is ignored, and data of another type at the same name leaves the cached RRset alone</li>
+<li>a received TTL with the most significant bit set is cached as zero, and 2147483647 is kept (receivedTTL). Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated (<a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a> send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply&#39;s AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives (<a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a> shapeAuthoritative)</li>
 <li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2181.md" target="_blank" rel="noopener"><code>rfc/short/rfc2181.md</code></a>.</li>
 </ul>
 </details>
@@ -389,9 +390,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L34" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverReplacesRRsetWhole</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> both caches that store response RRs replace the whole RRSet for a name+type: the stub-resolver cache at internal/component/resolve/dns/cache.go:145 and the LAN resolver cache at internal/plugins/dnsresolver/cache.go:187 (lru.store) each remove the existing entry before storing the new records, so response RRs are never merged with cached ones</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-2">RFC2181-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If a response contains data that would form an RRSet with data in a server&#39;s cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)</span></td></tr>
 <tr><td></td>
@@ -399,8 +401,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L68" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverCacheIgnoresOrDiscards</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L242" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L95" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverCacheIgnoresOrDiscards</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-3">RFC2181-5.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1)</span></td></tr>
@@ -447,6 +451,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L173" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181TTLTransmittedWithSignBitClear</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L226" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L141" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverTTLBounds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
 </div></td>
 </tr>
@@ -745,7 +750,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L127" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverTTLBounds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -1139,12 +1144,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L34" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverReplacesRRsetWhole</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a></h3>
 <p>If a response contains data that would form an RRSet with data in a server&#39;s cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition&#39;s false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 (independent auditor) after c532819895 added the resolver unit; the stub-cache units are byte-identical to the 2026-09-30 judgement and stand. Stub cache: an overlapping {B} replaces cached {A,B,C} with exactly {B} (no union, no remainder); AAAA of the same name and A of another name form no RRSet and stay whole. Resolver (lru.store, the path storeRRset uses): both arms of &#39;either ignore ... or discard the entire RRSet&#39; are pinned by exact contents. A lower-ranked {192.0.2.9} over a live authoritative {.1,.2} leaves exactly {.1,.2} (ignore: catches merge and blind replace); an authoritative {.7} then leaves .7 alone (discard: catches merge and blind ignore). Negative: an AAAA put leaves the A RRset .7 in place. &#39;As appropriate&#39; is decided by rank (RFC 2181 Section 5.4.1); equal or higher rank replaces. Records: stub put revert; resolver store merge mutant (positive) and keyOf qtype mutant (negative), all observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1153,6 +1163,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L95" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverCacheIgnoresOrDiscards</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></td>
@@ -1163,6 +1178,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L242" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L68" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverCacheIgnoresOrDiscards</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1222,11 +1242,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2181-5.5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></h3>
 <p>It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: parseTTL(&#39;0&#39;) is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value &lt;= 2^31-1, closing the earlier &#39;when transmitted&#39; gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: &#34;It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647.&#34; and &#34;When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero.&#34; geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl &gt;= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row&#39;s violating-input negative is the geodns 2147483648 refusal. The resolver&#39;s transmit clause is held by receivedTTL&#39;s sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record&#39;s break (false &amp;&amp; sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L141" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverTTLBounds</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
 <td>unit/verify</td>
@@ -1343,6 +1368,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-8-2"><code>RFC2181-8-2</code></a></h3>
+<p>Implementations should treat TTL values received with the most significant bit set as if the entire value received was zero. (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L127" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverTTLBounds</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1672,7 +1712,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
                 </div>
             </div>
         </footer>

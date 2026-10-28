@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>7.8%</strong><b>5 of 64 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>30.6%</strong><b>26 of 85 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>64</td>
+<td>85</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>64</td>
+<td>85</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>5</td>
+<td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1035.md</code></td>
@@ -260,7 +260,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (<code>Authoritative</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a>). A reply on a datagram transport is bounded and carries TC when it is shortened (<code>send</code> and <code>udpReplyLimit</code>, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (<code>Authoritative</code>, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. Obligations extracted 2026-07-30 and bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1035.md" target="_blank" rel="noopener"><code>rfc/short/rfc1035.md</code></a>. The walk of all 73 sections is recorded in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc1035.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc1035.json</code></a>.
+<ul class="rfc-prose">
+<li>DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (<code>Authoritative</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a>). A reply on a datagram transport is bounded and carries TC when it is shortened (<code>send</code> and <code>udpReplyLimit</code>, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (<code>Authoritative</code>, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. The LAN recursive resolver (<code>internal/plugins/dnsresolver</code>) answers through the second wrapper, <code>Recursive</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/recursive.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/recursive.go</code></a>: its reply has AA, Z and AD clear and RA set whatever the upstream reply carried (<code>shapeRecursive</code>), an opcode other than a standard query (an inverse query included) draws Not Implemented before any upstream is asked, and a datagram reply is held to 512 octets, or the size the client&#39;s OPT offers up to 1232, with TC set when shortened, while a stream reply goes whole. Its cache key folds the name&#39;s case (<code>keyOf</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/cache.go" target="_blank" rel="noopener"><code>internal/plugins/dnsresolver/cache.go</code></a>) and an upstream reply is matched to its query by name without regard to case (<code>replyMatches</code> in <code>forward.go</code>)</li>
+<li>an upstream reply that uses compression pointers is understood, a TCP query upstream carries the two-byte length prefix and a UDP one does not (<code>exchange</code>), and a listener or forward server given no port uses port 53 (<code>parseListener</code>, <code>parseUpstream</code> in <code>config.go</code>). Obligations extracted 2026-07-30 and bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1035.md" target="_blank" rel="noopener"><code>rfc/short/rfc1035.md</code></a>. The walk of all 73 sections is recorded in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc1035.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc1035.json</code></a>.</li>
+</ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercase indicative prose. The extraction read that prose as normative, and the surviving obligation with no code path is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. A response TTL is deliberately not raised to the zone SOA MINIMUM. RFC 2308 Section 4 withdrew that rule (&#34;the minimum TTL value of all RRs in a zone, has never in practice been used and is hereby deprecated&#34;), <code>hdr</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server.go" target="_blank" rel="noopener"><code>internal/plugins/geodns/server.go</code></a> applies no floor, and <code>TestRFC2308_NoZoneWideTTLFloor</code> holds the decision. The DNS wire codec is <code>github.com/miekg/dns</code>, so several encoding obligations admit no negative test through Ze at all. Declared <code>backlog</code> while an owner ruling is outstanding.
@@ -316,7 +319,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>2.3.3 - Character Case</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L45" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L58" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
 </div></td>
 </tr>
@@ -392,7 +397,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>3.1 - Name space definitions: the wire form of a domain name</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L35" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L70" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
 </div></td>
 </tr>
@@ -419,7 +426,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.1.1 - Header section format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L94" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L105" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></span></div>
 </div></td>
 </tr>
@@ -428,7 +437,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.1.1 - Header section format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L130" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L137" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
@@ -506,7 +517,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>REQUIRED</td>
 <td>4.1.4 - Message compression</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L158" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverUnderstandsPointers</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L352" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L213" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDiscardsPointerLoop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L372" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></span></div>
 </div></td>
 </tr>
@@ -524,8 +537,10 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.2.1 - UDP usage</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L264" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L83" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L297" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize</code></a></span></div>
 </div></td>
 </tr>
@@ -534,8 +549,10 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.2.1 - UDP usage</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L271" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L92" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L282" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_StreamTransportNotTruncated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L106" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
@@ -546,7 +563,10 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.2.1 - UDP usage</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L348" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L327" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverListensOnServerPort53</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L359" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></span></div>
 </div></td>
 </tr>
@@ -555,7 +575,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>4.2.2 - TCP usage</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L404" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L428" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L390" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L452" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></span></div>
 </div></td>
 </tr>
@@ -564,7 +586,9 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>MUST</td>
 <td>6.4 - Inverse queries (Optional)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L441" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UnsupportedOpcodeReturnsNotImplemented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L428" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryOpcodeAnsweredNormally</code></a></span></div>
 </div></td>
 </tr>
@@ -653,9 +677,19 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L58" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L45" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
@@ -833,9 +867,19 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L70" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L35" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
@@ -881,10 +925,20 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L105" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L94" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -907,6 +961,11 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L137" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -915,6 +974,11 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L130" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1087,9 +1151,19 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L213" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDiscardsPointerLoop</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L372" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L158" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverUnderstandsPointers</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L352" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
@@ -1115,10 +1189,20 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L297" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L264" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L83" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
@@ -1146,6 +1230,11 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L282" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L106" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -1154,6 +1243,11 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L271" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L92" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
@@ -1175,10 +1269,25 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L359" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L348" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L327" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverListensOnServerPort53</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1191,9 +1300,19 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L390" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L452" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L404" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L428" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
@@ -1215,10 +1334,20 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L428" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UnsupportedOpcodeReturnsNotImplemented</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L441" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1845,7 +1974,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
                 </div>
             </div>
         </footer>

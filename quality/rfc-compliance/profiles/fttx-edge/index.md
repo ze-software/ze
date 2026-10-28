@@ -4,8 +4,8 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 44.0% (329 of 747 (44.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 1.8% (6 of 335 (1.8%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 45.5% (340 of 747 (45.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 2.1% (7 of 335 (2.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 18 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -31,7 +31,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | 2 of 27 (7.4%) | 0 of 6 (0.0%) | fttx-edge: required by rfc/short/rfc1035.md |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | 12 of 27 (44.4%) | 0 of 6 (0.0%) | fttx-edge: required by rfc/short/rfc1035.md |
 | [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 6 of 8 (75.0%) | 0 of 6 (0.0%) | fttx-edge: required by rfc/short/rfc1332.md |
 | [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | 20 of 71 (28.2%) | 2 of 38 (5.3%) | fttx-edge: required by rfc/short/rfc2131.md |
 | [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | 1 of 34 (2.9%) | 0 of 34 (0.0%) | fttx-edge: required by rfc/short/rfc2132.md |
@@ -42,7 +42,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
 | [RFC 1877](../../rfc1877/) | PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | no rows | no rows | fttx-edge: required by rfc/short/rfc1877.md |
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 11 of 23 (47.8%) | 0 of 47 (0.0%) | fttx-edge: required by rfc/short/rfc2181.md |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 12 of 23 (52.2%) | 1 of 47 (2.1%) | fttx-edge: required by rfc/short/rfc2181.md |
 | [RFC 3022](../../rfc3022/) | Traditional IP Network Address Translator (Traditional NAT) | no rows | no rows | fttx-edge: required by rfc/short/rfc3022.md |
 | [RFC 4862](../../rfc4862/) | IPv6 Stateless Address Autoconfiguration | 0 of 16 (0.0%) | 0 of 14 (0.0%) | fttx-edge: required by rfc/short/rfc4862.md |
 | [RFC 5382](../../rfc5382/) | NAT Behavioral Requirements for TCP | 0 of 11 (0.0%) | 0 of 11 (0.0%) | fttx-edge: required by rfc/short/rfc5382.md |

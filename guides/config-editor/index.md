@@ -594,8 +594,8 @@ The demonstration uses the running daemon's SSH editor, not file mode. It
 load-merges a trial hostname and uses `commit confirmed 8`. After the
 unaccepted window expires, it checks the restored `edge-original` hostname
 and an empty `show | compare`, followed by `show | changes` reporting no
-pending changes. A second change uses `commit accept` and stays
-`edge-confirmed` beyond the same deadline. After leaving the editor, it runs
+pending changes. A second change, committed with `commit confirmed 15`,
+uses `commit accept` and stays `edge-confirmed` beyond its deadline. After leaving the editor, it runs
 `ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"`
 to read the running lab's stored revisions. History is a local read and
 resolves the supplied file's folder: a bare `ze.conf` selects the shell's

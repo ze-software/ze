@@ -62,11 +62,15 @@ Uses <code>github.com/miekg/dns</code> (the library CoreDNS is built on).</p>
 <li><a href="#reload-behavior">Reload behavior</a></li>
 </ol></details></nav><div class="doc-body">
 <p>This is the client side: Ze asking somebody else. Ze also answers queries, from
-two authoritative plugins that share one server harness
-(<code>internal/core/dnsserver</code>): <code>as112</code> (see
+three plugins that share one server harness (<code>internal/core/dnsserver</code>): two
+authoritative ones, <code>as112</code> (see
 <a href="../../guides/as112/#answer-policy">AS112 guide</a> for the answer policy the harness
-enforces) and <code>geodns</code> (per-source-IP answers, <code>service { geodns { ... } }</code>).
-The two sides share no configuration and no cache.</p>
+enforces) and <code>geodns</code> (per-source-IP answers, <code>service { geodns { ... } }</code>),
+and the LAN resolver <code>dnsresolver</code> (<code>service { dns-resolver { ... } }</code>), a
+caching forwarder that answers recursive queries from customer LANs
+(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">LAN DNS resolver guide</a>).</p>
+<!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
+<p>The client side shares no configuration and no cache with any of them.</p>
 <table>
 <thead>
 <tr>
@@ -284,7 +288,7 @@ the DHCP leases.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
                 </div>
             </div>
         </footer>

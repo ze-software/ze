@@ -6,8 +6,8 @@ Technology aggregate. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs
 
 Use case: [AS112 anycast DNS inside a network](../../../../use-cases/as112/)
 
-- **Mandatory**: 7.7% (23 of 299 (7.7%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 0.0% (0 of 211 (0.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 11.4% (34 of 299 (11.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 0.5% (1 of 211 (0.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -19,13 +19,13 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | 2 of 27 (7.4%) | 0 of 6 (0.0%) |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | 12 of 27 (44.4%) | 0 of 6 (0.0%) |
 
 ### Level 3
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 11 of 23 (47.8%) | 0 of 47 (0.0%) |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 12 of 23 (52.2%) | 1 of 47 (2.1%) |
 
 ### Level 4
 

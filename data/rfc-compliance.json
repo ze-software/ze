@@ -4,7 +4,7 @@
     "error-count": 79,
     "gated-must": 4715,
     "enrolled-rfcs": 195,
-    "test-tags": 9435,
+    "test-tags": 9461,
     "message": "rfc-requirements: 79 violation(s)",
     "violations": [
       "internal/component/bgp/plugins/rpki/rfc8210_rtr_cache_restart_test.go: test file name: it is named for rfc8210 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc move from internal/component/bgp/plugins/rpki/rfc8210_rtr_cache_restart_test.go to internal/component/bgp/plugins/rpki/rtr_cache_restart_test.go",

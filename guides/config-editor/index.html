@@ -770,8 +770,8 @@ writes the file and names <code>ze init</code>; <code>commit now</code> still wo
 load-merges a trial hostname and uses <code>commit confirmed 8</code>. After the
 unaccepted window expires, it checks the restored <code>edge-original</code> hostname
 and an empty <code>show | compare</code>, followed by <code>show | changes</code> reporting no
-pending changes. A second change uses <code>commit accept</code> and stays
-<code>edge-confirmed</code> beyond the same deadline. After leaving the editor, it runs
+pending changes. A second change, committed with <code>commit confirmed 15</code>,
+uses <code>commit accept</code> and stays <code>edge-confirmed</code> beyond its deadline. After leaving the editor, it runs
 <code>ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"</code>
 to read the running lab's stored revisions. History is a local read and
 resolves the supplied file's folder: a bare <code>ze.conf</code> selects the shell's
@@ -950,7 +950,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
                 </div>
             </div>
         </footer>
