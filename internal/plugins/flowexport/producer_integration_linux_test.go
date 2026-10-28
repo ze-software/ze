@@ -24,6 +24,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 var exportDaemonPath = flag.String("flowexport-ze-path", "", "Ze daemon executable with ze_core and ze_flowexport for isolated Linux counter production")
@@ -33,8 +35,11 @@ var exportDaemonPath = flag.String("flowexport-ze-path", "", "Ze daemon executab
 // Stopping the daemon across index reuse prevents an intervening empty snapshot
 // from concealing a missing generation. The replacement has larger counters.
 func TestFlowExportDaemonCounterGeneration(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if *exportDaemonPath == "" {
-		t.Skip("requires explicit -flowexport-ze-path and CAP_SYS_ADMIN/CAP_NET_ADMIN/CAP_NET_RAW")
+		t.Skip("requires explicit -flowexport-ze-path built with ze_core and ze_flowexport")
 	}
 	binaryPath, err := filepath.Abs(*exportDaemonPath)
 	if err != nil {

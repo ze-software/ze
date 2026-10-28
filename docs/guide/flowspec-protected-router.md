@@ -209,20 +209,31 @@ packet logging. Rules without an action use normal forwarding.
 A selected traffic-rate-packets community (`0x800c`) with value zero requests
 discard of every matching packet, not an absent limiter or normal forwarding.
 This is distinct from the zero byte-rate community (`0x8006`). The Linux
-integration scenario `TestSelectedFlowSpecZeroPacketRateKernel` enters at the
-selected-route callback and uses the real nft backend in an isolated network
-namespace. It asserts four target UDP drops, an installed-rule counter of four
+test `TestSelectedFlowSpecZeroPacketRateKernel` enters at the selected-route
+callback and uses the real nft backend in its own user and network namespaces.
+It asserts four target UDP drops, an installed-rule counter of four
 packets and 116 bytes, delivery to an unaffected destination, and restored
 target delivery after positive-rate replacement. It then reinstalls zero,
 observes target discard with unaffected-destination delivery again, withdraws
 that active zero-rate rule, and requires target delivery. It does not prove
 the preceding RIB authorization decision.
 
-That scenario requires namespace privileges and nftables kernel support. Its
-presence, a build, or a capability skip is not packet-enforcement evidence;
-acceptance still requires an observed non-skipped run on the runtime kernel.
+That test needs unprivileged user namespaces and nftables kernel support, not
+host root. Its presence, a build, or a capability skip is not packet-enforcement
+evidence; acceptance requires an observed non-skipped run on the runtime kernel.
 
 <!-- source: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go -- TestSelectedFlowSpecZeroPacketRateKernel -->
+
+The separate `TestSelectedFlowSpecKernelPacketSemantics` retains its privileged
+network-namespace setup and `integration` tag. Its DSCP marking uses nftables
+payload writes. Linux 7.2.9's
+[`nft_payload_set_init`](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/net/netfilter/nft_payload.c?h=v7.2.9)
+rejects those writes with `EPERM` unless the network namespace belongs to the
+initial user namespace. Capabilities inside a new user namespace cannot satisfy
+that check; the zero-rate test does not perform a payload write.
+
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- setDSCPv4, setDSCPv6 -->
 
 Rules are ordered by their NLRI components, not by receipt time or peer name.
 Each matching rule is sampled and rate-limited once even when both its source-

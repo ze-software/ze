@@ -325,7 +325,7 @@ privilege skip.
 | 79 | `internal/plugins/flowexport/conntrack/reader_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 80 | `internal/plugins/flowexport/producer_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `integration && linux`: converted; explicit Ze executable prerequisite retained (D-5), custom flag now forwarded |
 | 81 | `internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go` | A | P6 dataplane | 2 | `integration && linux` | `linux` |
-| 82 | `internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go` | A | P6 dataplane | 4 | `integration && linux` | `linux` |
+| 82 | `internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go` | A | P6 dataplane | 4 | `integration && linux` | `integration && linux`: whole privileged path retained; nftables payload writes require an initial-userns-owned netns |
 | 83 | `internal/plugins/iface/dhcp/dhcp_lease_owner_integration_linux_test.go` | A | P5 iface-plugins | 0 | `integration && linux` | `linux` |
 | 84 | `internal/plugins/iface/dhcp/dhcp_shortframe_integration_linux_test.go` | A | P5 iface-plugins | 0 | `integration && linux` | `linux` |
 | 85 | `internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go` | A | P5 iface-plugins | 3 | `integration && linux` | `linux` |
@@ -410,6 +410,7 @@ original inventory.
 | `internal/component/ike/transport/udp_df_integration_linux_test.go` | `TestDFSendThenPlainCopyOnTheWire`, `TestPlainSendNeverLeavesUnderTheProbeOption` | B | privileged integration | Both failed at `SO_RCVBUFFORCE` with EPERM under Enter. Linux checks initial-user-namespace `CAP_NET_ADMIN` for this socket option. Original privileged entry restored after independent judgment; 8 MiB capture buffer and all packet counts/assertions unchanged. |
 | `internal/plugins/trafficusage/attach_integration_linux_test.go` | `TestAttachTCX_CountsTraffic`, `TestMetricsScrape` | A | privileged integration | Enter-only overlay stopped at the existing `requireBPF` memlock prerequisite, EPERM; neither test reached TCX attachment/accounting. Original code retained wholly. Enter supplies no delegated BPF token or initial-user-namespace BPF authority. |
 | `internal/plugins/flowexport/producer_integration_linux_test.go` | `TestFlowExportDaemonCounterGeneration` | A | converted; integration tag retained | Needs an explicitly supplied Ze executable. Parent built that executable and observed the real daemon's counter-generation workflow PASS through Enter with the custom flag. |
+| `internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go` | `TestSelectedFlowSpecKernelPacketSemantics` | A | privileged integration | Linux 7.2.9 `nft_payload_set_init` returns EPERM when `ctx->net->user_ns != &init_user_ns`; Ze's `setDSCPv4` emits PayloadWrite. Diagnostic `job-userns-flowspec-diagnostic-03ec1f4f.log` exposes the refused marking table before the delivery timeout. Independent judge approved restoration of the whole original privileged path; all four RFC claims and packet assertions are unchanged. The separate zero-rate test remains converted and has both native discrimination records. |
 
 Current FIB evidence: session 644a4e78 scratch
 `job-userns-batch-smoke-9d2dbdbc.log` records PASS for ECMP labels, PathMTU,

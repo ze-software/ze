@@ -2,7 +2,7 @@
 // Related: backend_linux.go -- addChainRules places the counter, GetCounters reads it back
 // Related: integration_linux_test.go -- withNftNetNS and the backend helper
 
-//go:build integration && linux
+//go:build linux
 
 package firewallnft
 
@@ -14,6 +14,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // counterProbeTable is the table this file applies. The ze_ prefix is what
@@ -46,6 +47,9 @@ const (
 // verdict ends the evaluation of the chain, so a term placed after the
 // accepting one would count zero whatever the counter's position.
 func TestNftIntegrationCounterCountsOnlyTheTermsOwnPackets(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		loopbackUp(t)
 		addDummyLink(t, counterProbeDummy)
@@ -144,10 +148,10 @@ func loopbackUp(t *testing.T) {
 
 	lo, err := netlink.LinkByName("lo")
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: cannot read lo: %v", err)
+		t.Fatalf("read lo in the test namespace: %v", err)
 	}
 	if err := netlink.LinkSetUp(lo); err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: cannot bring lo up: %v", err)
+		t.Fatalf("bring lo up in the test namespace: %v", err)
 	}
 
 	addrs, err := netlink.AddrList(lo, netlink.FAMILY_V4)
@@ -172,7 +176,7 @@ func addDummyLink(t *testing.T, name string) {
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = name
 	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs}); err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: cannot create dummy %q: %v", name, err)
+		t.Fatalf("create dummy %q in the test namespace: %v", name, err)
 	}
 	link, err := netlink.LinkByName(name)
 	if err != nil {

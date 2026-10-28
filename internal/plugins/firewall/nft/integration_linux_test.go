@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package firewallnft
 
@@ -12,6 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func withNftNetNS(t *testing.T, fn func()) {
@@ -29,7 +30,7 @@ func withNftNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 
 	nsName := nftNetNSName(t.Name())
@@ -37,7 +38,7 @@ func withNftNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create the test network namespace: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -102,14 +103,14 @@ func addNftIntegrationTableInFamily(t *testing.T, tableName, chainName string, f
 }
 
 // requireLegacySweepPending fails with the reason rather than the symptom when
-// an earlier test in this process has already driven firewall.ApplyAll. The
+// setup has already driven firewall.ApplyAll in this test's child process. The
 // one-time removal is gated on that flag, so a test that seeds a legacy table
 // after it has been cleared would report "the table survived" and say nothing
 // about why (internal/component/firewall/legacy_tables.go).
 func requireLegacySweepPending(t *testing.T) {
 	t.Helper()
 	if !firewall.LegacySweepPending() {
-		t.Fatal("the one-time removal has already run in this process: a test before this one drove firewall.ApplyAll, and the removal is gated on that")
+		t.Fatal("the one-time removal has already run in this test process: setup drove firewall.ApplyAll, and the removal is gated on that")
 	}
 }
 
@@ -183,6 +184,9 @@ func requireNftChainAbsent(t *testing.T, tableName, chainName string) {
 // VALIDATES: P0-8 -- nft apply deletes same-process owned tables only.
 // PREVENTS: dropping an unknown ze_* table when reconciling a changed config.
 func TestNftIntegration_ApplyDeletesOnlySameInstanceOwnedTables(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		addNftIntegrationTable(t, "ze_fw_foreign")
 
@@ -205,6 +209,9 @@ func TestNftIntegration_ApplyDeletesOnlySameInstanceOwnedTables(t *testing.T) {
 // VALIDATES: P0-8 -- restart reapply replaces desired tables without prefix sweeping.
 // PREVENTS: crash recovery deleting unknown ze_* tables or leaving stale rules in desired tables.
 func TestNftIntegration_RestartReapplyPreservesUnknownZeTables(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		addNftIntegrationTableWithChain(t, "ze_fw_live", "stale_rule_chain")
 		addNftIntegrationTable(t, "ze_fw_foreign")
@@ -228,6 +235,9 @@ func TestNftIntegration_RestartReapplyPreservesUnknownZeTables(t *testing.T) {
 // deleted, and one announced route left two identical drop rules after a second
 // reconcile.
 func TestApplySweepsEveryOwnersTable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		b := newNftIntegrationBackend(t)
 
@@ -280,6 +290,9 @@ func TestApplySweepsEveryOwnersTable(t *testing.T) {
 // renamed producer asks for ze_flowspec, and nothing else reaches the table the
 // previous build installed.
 func TestApplyRemovesTheLegacyUnprefixedTableOnce(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		requireLegacySweepPending(t)
 		// What an older build left behind: the name, the inet family, and a
@@ -312,6 +325,9 @@ func TestApplyRemovesTheLegacyUnprefixedTableOnce(t *testing.T) {
 // deleting its table is a worse failure than the stale rule the removal exists
 // to clear. Name and family alone would delete it.
 func TestApplyLeavesAnotherToolsTableAlone(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		requireLegacySweepPending(t)
 		// Same name, same family, a chain ze never wrote.
@@ -338,6 +354,9 @@ func TestApplyLeavesAnotherToolsTableAlone(t *testing.T) {
 // needs it most -- one with no firewall {} section and no owner registering
 // anything, where the only reconcile that will ever run carries nothing.
 func TestApplyWithNoDesiredTablesStillRemovesTheLegacyTable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		requireLegacySweepPending(t)
 		addNftIntegrationTableWithChain(t, "flowspec", "flowspec-fwd")
@@ -360,6 +379,9 @@ func TestApplyWithNoDesiredTablesStillRemovesTheLegacyTable(t *testing.T) {
 // inet, ddos-local wrote ip and ip6, and the anomaly-shape responder wrote one
 // name in each.
 func TestApplyRemovesEveryLegacyTableInItsOwnFamily(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		requireLegacySweepPending(t)
 
@@ -391,10 +413,13 @@ func TestApplyRemovesEveryLegacyTableInItsOwnFamily(t *testing.T) {
 // in every release from here on.
 //
 // It drives firewall.ApplyAll rather than backend.Apply, because ApplyAll is
-// what clears the pending flag. It therefore leaves the flag cleared for the
-// rest of this process: keep it last among the legacy tests, and note that
-// requireLegacySweepPending is what makes a wrong order say so.
+// what clears the pending flag. Enter gives each test its own process, so this
+// test's second reconcile proves the one-time behavior without changing another
+// test's initial flag.
 func TestTheLegacyRemovalRunsOnceInTheProcess(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		requireLegacySweepPending(t)
 
@@ -456,6 +481,9 @@ func nftIntegrationRuleCount(t *testing.T, tableName, chainName string) int {
 // to start. The method: one Apply of a base chain that jumps forward, then a
 // read of both chains and of the verdict the first chain's rule carries.
 func TestApplyAcceptsAJumpToAChainListedLater(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		b := newNftIntegrationBackend(t)
 
@@ -504,16 +532,18 @@ func TestApplyAcceptsAJumpToAChainListedLater(t *testing.T) {
 // VALIDATES: a table whose forward chain offloads to a flowtable of the same
 // table applies, and the rule reads back naming that flowtable.
 // PREVENTS: a flow-offload config the operator can commit but the kernel
-// refuses. On 2026-10-27 it was red in Ze's 7.2.9 guest with ENOENT, with the
-// flowtables added either after or before the rules: Ze's kernel config
-// leaves CONFIG_NF_FLOW_TABLE unset (journal row in
-// kernel-refuses-what-the-installer-sends.md). Once the kernel carries
-// flowtables, it is also the probe for whether applyTable must add them
-// before the rules that name them, which no run has yet shown.
+// refuses. The 2026-10-27 guest failure was fixed by enabling the flowtable
+// kernel symbols and adding flowtables before their rules; the journal records
+// the guest proof (kernel-refuses-what-the-installer-sends.md). A host booted
+// without that kernel support still fails with ENOENT, including under Enter:
+// a user namespace supplies privilege, not an absent kernel implementation.
 // The method: one Apply of a flowtable on lo and a forward base chain whose
 // rule offloads to it, then a read of the flowtable and of the offload
 // expression the rule carries.
 func TestApplyAcceptsAFlowOffloadToATableFlowtable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNftNetNS(t, func() {
 		b := newNftIntegrationBackend(t)
 

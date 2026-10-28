@@ -167,11 +167,12 @@ ifIndex, with larger counters, must restart it without resetting the datagram
 sequence. The daemon is stopped across each link change, so an intervening
 empty poll cannot substitute for generation delivery.
 
-This carrier requires `-tags integration`,
-`-flowexport-ze-path=<absolute executable path>`, and Linux namespace, link
-management and raw-socket privileges (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`,
-`CAP_NET_RAW`). Build the executable with at least `ze_core ze_flowexport`.
-No supplied path means a prerequisite skip; a supplied path with missing
-privileges or an unusable daemon fails. The child is terminated and reaped
-before the namespace is released.
+This carrier retains `-tags integration` because it needs an explicitly supplied
+Ze executable, built with at least `ze_core ze_flowexport`. Pass it as
+`-flowexport-ze-path=<absolute executable path>`. `userns.Enter` forwards that
+flag and runs the test in private user, network and mount namespaces, where
+link management and raw sockets need no host privilege. Namespace startup or
+privilege errors fail. No supplied path means a prerequisite skip; an unusable
+supplied daemon fails. The child is terminated and reaped before the namespace
+is released.
 <!-- source: internal/plugins/flowexport/producer_integration_linux_test.go -- TestFlowExportDaemonCounterGeneration -->

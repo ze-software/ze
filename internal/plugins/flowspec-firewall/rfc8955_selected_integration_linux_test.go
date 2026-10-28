@@ -1,5 +1,10 @@
 //go:build integration && linux
 
+// Design: docs/guide/flowspec-protected-router.md -- selected packet-action semantics.
+// Linux 7.2.9 nft_payload_set_init refuses PayloadWrite when the network
+// namespace is owned by a non-initial user namespace. DSCP marking needs that
+// write, so this whole test retains its privileged network-namespace setup
+// instead of entering userns.Enter. The zero-rate-only test needs no such write.
 package flowspecfirewall
 
 import (

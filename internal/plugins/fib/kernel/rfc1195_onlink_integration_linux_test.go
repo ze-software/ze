@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/rib/unified-locrib.md -- the selected forwarding target
 // Related: ../../../component/sysrib/sysrib.go -- direct adjacency and ECMP resolution
@@ -13,7 +13,6 @@ package fibkernel
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/netip"
 	"testing"
@@ -30,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // real interface-name resolver
+	"github.com/ze-software/ze/internal/test/userns"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -38,6 +38,9 @@ import (
 // RFC requirement: RFC1195-4.5-1 positive -- the selected unsupported-prefix route produces kernel EHOSTUNREACH even with a usable default route.
 // RFC requirement: RFC1195-4.5-1 negative -- removing the terminal rejection restores forwarding via the same usable default rather than leaving a stale discard.
 func TestFIBOnLinkAdjacencyAndUnsupportedPrefix(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -46,9 +49,6 @@ func TestFIBOnLinkAdjacencyAndUnsupportedPrefix(t *testing.T) {
 		const device = "ze-onlink"
 		link := &netlink.Dummy{Name: device}
 		err = h.LinkAdd(link)
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("requires CAP_NET_ADMIN in the test network namespace to create %s: %v", device, err)
-		}
 		require.NoError(t, err)
 		addLoopback(t, h)
 		require.NoError(t, h.LinkSetUp(link))

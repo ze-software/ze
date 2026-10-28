@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/policyroute/policy-routing.md -- the ip rule and the auto route proven here
 // Overview: rules_linux.go -- applyIPRules and applyAutoRoutes, the two producers under test
@@ -33,6 +33,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The addresses the proofs use. All three are documentation ranges (RFC 5737),
@@ -57,6 +58,9 @@ const operatorTable = 100
 // finds no route at all. Without the second half the first would also pass with
 // the route installed in the main table, where every lookup would find it.
 func TestApplyIPRulesSendsAMarkedLookupToTheSelectedTable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	linkIndex := buildDummyLink(t)
 
@@ -89,6 +93,9 @@ func TestApplyIPRulesSendsAMarkedLookupToTheSelectedTable(t *testing.T) {
 // control is the same lookup without the mark, which reaches the main table and
 // its connected route only.
 func TestApplyAutoRoutesResolvesTheNextHopInsideItsAutoTable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	buildDummyLink(t)
 
@@ -138,7 +145,7 @@ func installPolicy(t *testing.T, action PolicyAction) uint32 {
 
 	manager, err := newRuleManager()
 	if err != nil {
-		t.Skipf("needs a netlink route handle: %v", err)
+		t.Fatalf("open a netlink route handle: %v", err)
 	}
 	t.Cleanup(manager.close)
 
@@ -196,7 +203,7 @@ func buildDummyLink(t *testing.T) int {
 
 	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zepr0"}} //nolint:modernize // netlink.Dummy embeds LinkAttrs, and naming it is how the field is set
 	if err := netlink.LinkAdd(link); err != nil {
-		t.Skipf("needs CAP_NET_ADMIN to create a dummy interface: %v", err)
+		t.Fatalf("create a dummy interface: %v", err)
 	}
 	created, err := netlink.LinkByName("zepr0")
 	if err != nil {
@@ -216,9 +223,7 @@ func buildDummyLink(t *testing.T) int {
 // when it ends. A namespace belongs to a THREAD, so the thread is locked for
 // the whole test: a goroutine that migrated would program the host.
 //
-// It SKIPS rather than fails when the namespace is refused. This file runs
-// unprivileged in some environments and privileged in the QEMU and container
-// runs, and a missing capability is not a broken product.
+// Callers MUST enter userns.Enter first; namespace setup errors then fail.
 func enterNamespace(t *testing.T) {
 	t.Helper()
 
@@ -226,12 +231,12 @@ func enterNamespace(t *testing.T) {
 	origin, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("needs a network namespace of its own: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
 		origin.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
-		t.Skipf("needs CAP_NET_ADMIN to unshare a network namespace: %v", err)
+		t.Fatalf("unshare a network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := netns.Set(origin); err != nil {

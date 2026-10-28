@@ -1,25 +1,25 @@
 [
   {
     "rid": "RFC1195-4.4-1",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
-    "unit-sha": "3e899cc3c83f0b81",
-    "claim-sha": "53ac4a1a8c941d82",
-    "route": "revert",
-    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
-    "producer-sha": "1ba199aaa6a897bd",
-    "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit-sha": "e290b4339b28f5a0",
+    "claim-sha": "e1d1fe0869902884",
+    "route": "mutant",
+    "producer": "internal/component/sysrib/sysrib.go::resolveMember",
+    "producer-sha": "f952d0dbe8cf8f63",
+    "break": "line 1190: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
   },
   {
     "rid": "RFC1195-4.4-1",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
-    "unit-sha": "3e899cc3c83f0b81",
-    "claim-sha": "e1d1fe0869902884",
-    "route": "revert",
-    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
-    "producer-sha": "1ba199aaa6a897bd",
-    "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit-sha": "e290b4339b28f5a0",
+    "claim-sha": "53ac4a1a8c941d82",
+    "route": "mutant",
+    "producer": "internal/component/sysrib/sysrib.go::resolveMember",
+    "producer-sha": "f952d0dbe8cf8f63",
+    "break": "line 1190: \"if path.OnLink {\" -\u003e \"if false \u0026\u0026 path.OnLink {\""
   },
   {
     "rid": "RFC1195-4.4-1",

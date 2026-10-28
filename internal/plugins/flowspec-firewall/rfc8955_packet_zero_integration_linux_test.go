@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/guide/flowspec-protected-router.md -- selected packet-rate zero enforcement.
 package flowspecfirewall
@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	_ "github.com/ze-software/ze/internal/plugins/firewall/nft"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestSelectedFlowSpecZeroPacketRateKernel enters at the selected-route bridge,
@@ -29,11 +30,14 @@ import (
 // RFC requirement: RFC8955-7.2-3 positive -- selected subtype 0x800c rate zero installs an nft rule that discards four target UDP packets and counts exactly four packets and 116 bytes.
 // RFC requirement: RFC8955-7.2-3 negative -- zero packet-rate does not drop another destination, and positive-rate replacement and withdrawal restore target delivery.
 func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	runtime.LockOSThread()
 	original, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("network namespace unavailable: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	namespace, err := netns.New()
 	if err != nil {
@@ -41,7 +45,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 			t.Errorf("close namespace handle: %v", closeErr)
 		}
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_SYS_ADMIN and CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create the test network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := firewall.RegisterTables("flowspec", nil); err != nil {

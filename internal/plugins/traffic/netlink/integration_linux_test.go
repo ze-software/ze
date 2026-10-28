@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package trafficnetlink
 
@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func withTrafficNetNS(t *testing.T, fn func()) {
@@ -30,7 +31,7 @@ func withTrafficNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 
 	nsName := trafficNetNSName(t.Name())
@@ -38,7 +39,7 @@ func withTrafficNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create the test network namespace: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -112,7 +113,7 @@ func movePeerToNetNS(t *testing.T, peer string, addr *netlink.Addr) {
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		testNS.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: cannot create peer namespace: %v", err)
+		t.Fatalf("create the peer network namespace: %v", err)
 	}
 	// NewNamed switches us into the new namespace; go back before touching the
 	// peer link, which is still in the original one.
@@ -194,6 +195,9 @@ func rootQdiscTypeInKernel(t *testing.T, ifaceName string) string {
 // VALIDATES: P1 traffic-control -- real kernel qdisc snapshot survives backend restart.
 // PREVENTS: removing traffic-control restoring synthetic fq_codel instead of the original qdisc.
 func TestNetlinkIntegration_RestoreOriginalQdiscAfterRestart(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTrafficNetNS(t, func() {
 		const ifaceName = "ze_tc0"
 		link := addTrafficVeth(t, ifaceName, "ze_tc1")
@@ -307,6 +311,9 @@ func ingressFilterPresent(t *testing.T, ifaceName string, priority uint16) bool 
 // PREVENTS: a return to the state where upload-rate was stored, reported by
 // `show l2tp shaper`, and enforced by nothing.
 func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTrafficNetNS(t, func() {
 		const ifaceName = "ze_tc4"
 		link := addTrafficVeth(t, ifaceName, "ze_tc5")
@@ -379,6 +386,9 @@ func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
 // Method: install a matchall filter at priority 1 by hand, standing in for the
 // mirror, then apply and tear down the policer around it.
 func TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTrafficNetNS(t, func() {
 		const ifaceName = "ze_tc6"
 		link := addTrafficVeth(t, ifaceName, "ze_tc7")

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-4.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+    "unit-sha": "e290b4339b28f5a0",
+    "claim-sha": "02a0bb4d3bdadc36",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/kernel/nexthop_linux.go::routeTypeToLinux",
+    "producer-sha": "3007a1441419e1ba",
+    "break": "line 214: \"return unix.RTN_UNREACHABLE\" -\u003e \"return unix.RTN_THROW\""
+  },
+  {
+    "rid": "RFC1195-4.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+    "unit-sha": "e290b4339b28f5a0",
+    "claim-sha": "f40a48a08a6435e5",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::delChange",
+    "producer-sha": "106616f02d30195a",
+    "break": "line 291: \"func (f *fibKernel) delChange(c *incomingChange, pfx string, rb richRouteBackend) error {\" -\u003e \"func (f *fibKernel) delChange(c *incomingChange, pfx string, rb richRouteBackend) error {\\n\\tif f.forwarding[pfx].RouteType.Discards() { return nil }\""
+  }
+]

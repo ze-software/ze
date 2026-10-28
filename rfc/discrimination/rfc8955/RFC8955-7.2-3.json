@@ -3,22 +3,22 @@
     "rid": "RFC8955-7.2-3",
     "polarity": "positive",
     "unit": "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel",
-    "unit-sha": "9dbbda6d1cf78464",
+    "unit-sha": "0642aecdf1782b8b",
     "claim-sha": "864d9dbcc9d26bb3",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/plugins/flowspec-firewall/translate.go::parseExtendedCommunities",
     "producer-sha": "5ad9bff9b6cbcaf4",
-    "break": "body of parseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 302: \"if rate == 0 {\" -\u003e \"if rate == 0 \u0026\u0026 !packets {\""
   },
   {
     "rid": "RFC8955-7.2-3",
     "polarity": "negative",
     "unit": "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel",
-    "unit-sha": "9dbbda6d1cf78464",
+    "unit-sha": "0642aecdf1782b8b",
     "claim-sha": "37295d73e8005f9b",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/plugins/flowspec-firewall/translate.go::parseExtendedCommunities",
     "producer-sha": "5ad9bff9b6cbcaf4",
-    "break": "body of parseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 302: \"if rate == 0 {\" -\u003e \"if rate == 0 || packets {\""
   }
 ]

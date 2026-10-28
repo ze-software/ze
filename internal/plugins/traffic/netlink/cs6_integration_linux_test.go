@@ -1,6 +1,6 @@
 // Design: docs/architecture/traffic/cp-survival-3-egress-cs6-sched.md -- CS6 classification integration test
 
-//go:build integration && linux
+//go:build linux
 
 package trafficnetlink
 
@@ -14,6 +14,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func setTOS(fd uintptr, tos int) error {
@@ -24,6 +25,9 @@ func setTOS(fd uintptr, tos int) error {
 // class counter (classification works after the translateFilter fix).
 // PREVENTS: regression to the broken state where U32 had no Sel and matched nothing.
 func TestCS6ClassifyNetns(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTrafficNetNS(t, func() {
 		const ifaceName = "ze_cs0"
 		link := addTrafficVeth(t, ifaceName, "ze_cs1")

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/traffic/cp-survival-2-copp-port179.md -- the control-plane policing this file proves
 // Overview: translate.go -- translatePolicy, the producer whose table is under test
@@ -54,6 +54,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/test/userns"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 
 	// The nft backend registers itself, which is what lets firewall.ApplyAll
@@ -100,6 +101,9 @@ var (
 // reachable) on Ze's kernel, through parseCoppSections and translatePolicy.
 // PREVENTS: an ACL that admits every source, and one that drops a neighbor.
 func TestCoppUnknownSourceDroppedLinux(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	applySections(t, fmt.Sprintf(`{"control-plane-protection":{"bgp":{"protected-port":["%d"]}}}`, protectedPort))
 
@@ -146,6 +150,9 @@ const payload = 100
 // is named by no term, so its full count is what proves the shortfall on the
 // protected port belongs to the limiter.
 func TestCoPPOverLimitDropPolicesTheProtectedPortAndNothingElse(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	applyPolicy(t, overPolicyDrop, "")
 
@@ -164,6 +171,9 @@ func TestCoPPOverLimitDropPolicesTheProtectedPortAndNothingElse(t *testing.T) {
 // It is also the lock-out guard, measured rather than read: the default policy
 // counts the over-limit connections and MUST let every one of them through.
 func TestCoPPOverLimitAcceptKeepsTheProtectedPortReachable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	applyPolicy(t, overPolicyAccept, "")
 
@@ -176,6 +186,9 @@ func TestCoPPOverLimitAcceptKeepsTheProtectedPortReachable(t *testing.T) {
 // first and empties the bucket, so the trusted flood that follows can only be
 // accepted whole by a rule that never reaches the limiter.
 func TestCoPPTrustedSourceBypassesTheLimiter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	applyPolicy(t, overPolicyDrop, netip.PrefixFrom(trustedSource, 32).String())
 
@@ -195,6 +208,9 @@ func TestCoPPTrustedSourceBypassesTheLimiter(t *testing.T) {
 // MUTATION: remove the established term AND the ConnStateNew match from the
 // rate-limit term in translatePolicy; the session then delivers 0 of 100 bytes.
 func TestCoPPOverLimitDropKeepsAnEstablishedSessionAlive(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	enterNamespace(t)
 	applyPolicy(t, overPolicyDrop, "")
 
@@ -259,6 +275,12 @@ func applySections(t *testing.T, config string) {
 		t.Fatalf("register the copp table: %v", err)
 	}
 	if err := firewall.ApplyAll(); err != nil {
+		if errors.Is(err, unix.EPERM) {
+			t.Fatalf("apply copp table in the test namespace: %v", err)
+		}
+		if errors.Is(err, unix.EACCES) {
+			t.Fatalf("apply copp table in the test namespace: %v", err)
+		}
 		t.Skipf("needs a kernel that accepts the copp table (nftables and conntrack): %v", err)
 	}
 	t.Cleanup(func() {
@@ -511,9 +533,7 @@ func closeFD(t *testing.T, fd int) {
 // thread is locked for the whole test: a goroutine that migrated would program
 // the host's firewall.
 //
-// It SKIPS rather than fails when the namespace is refused. This file runs
-// unprivileged in some environments and privileged in the QEMU and container
-// runs, and a missing capability is not a broken product.
+// Callers MUST enter userns.Enter first; namespace setup errors then fail.
 func enterNamespace(t *testing.T) {
 	t.Helper()
 
@@ -521,12 +541,12 @@ func enterNamespace(t *testing.T) {
 	origin, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("needs a network namespace of its own: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
 		origin.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
-		t.Skipf("needs CAP_NET_ADMIN to unshare a network namespace: %v", err)
+		t.Fatalf("unshare a network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := netns.Set(origin); err != nil {

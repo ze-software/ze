@@ -3875,6 +3875,11 @@ details on how to write QEMU integration tests and add new packages.
 The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/` carry
 `//go:build integration && linux`. `./le test qemu all` runs them inside the
 guest with the registered integration population.
+The attachment and metrics cases retain that privileged path: an experiment
+under `userns.Enter` stopped at their existing memlock prerequisite with
+`EPERM`, before TCX attachment or accounting ran. Enter creates no delegated
+BPF token, and its namespace capabilities do not grant initial-user-namespace
+BPF authority. The original prerequisite checks and accounting assertions remain.
 <!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
 <!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
 

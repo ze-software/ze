@@ -1,11 +1,10 @@
 // VALIDATES: the live conntrack netlink paths — NewReader/Dump/Close and
 // NewDestroyListener/Close — construct against the real kernel and return
-// well-typed results without panicking. Auto-enrolled in the native QEMU
-// integration run through the derived `integration && linux` package list.
+// well-typed results without panicking in their own user/network namespaces.
 // PREVENTS: a regression in the netlink handle lifecycle or the destroy-listener
 // socket setup going unnoticed until a live appliance scrapes conntrack.
 
-//go:build integration && linux
+//go:build linux
 
 package conntrack
 
@@ -13,11 +12,19 @@ import (
 	"errors"
 	"os"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestReaderDumpSmoke(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	r, err := NewReader()
 	if err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			t.Fatalf("NewReader in the test namespace: %v", err)
+		}
 		t.Skipf("NewReader unavailable in this environment: %v", err)
 	}
 	defer func() {
@@ -28,8 +35,10 @@ func TestReaderDumpSmoke(t *testing.T) {
 
 	entries, err := r.Dump()
 	if err != nil {
-		// No conntrack module / insufficient privileges: nothing to assert, but
-		// the constructor path and error handling have been exercised.
+		if errors.Is(err, os.ErrPermission) {
+			t.Fatalf("conntrack table dump in the test namespace: %v", err)
+		}
+		// A kernel without conntrack support cannot supply a table.
 		t.Skipf("conntrack table dump unavailable: %v", err)
 	}
 	// A dump may legitimately return zero flows; assert only that each converted
@@ -42,8 +51,14 @@ func TestReaderDumpSmoke(t *testing.T) {
 }
 
 func TestReaderClosedDump(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	r, err := NewReader()
 	if err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			t.Fatalf("NewReader in the test namespace: %v", err)
+		}
 		t.Skipf("NewReader unavailable: %v", err)
 	}
 	if err := r.Close(); err != nil {
@@ -55,10 +70,13 @@ func TestReaderClosedDump(t *testing.T) {
 }
 
 func TestDestroyListenerSmoke(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	l, err := NewDestroyListener()
 	if err != nil {
 		if errors.Is(err, os.ErrPermission) {
-			t.Skipf("destroy listener needs CAP_NET_ADMIN: %v", err)
+			t.Fatalf("destroy listener in the test namespace: %v", err)
 		}
 		t.Skipf("destroy listener unavailable: %v", err)
 	}
