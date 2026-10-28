@@ -108,7 +108,7 @@
       "Bash(mkdir:*)",
       "Bash(sed:*)",
       "Bash(gofmt:*)",
-      "Bash(./le worktree update:*)",
+      "Bash(./le worktree rebase:*)",
       "Bash(gh issue:*)",
       "Bash(zellij setup:*)",
       "Bash(mkdir -p tmp/session)"
