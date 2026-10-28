@@ -1,15 +1,19 @@
 {
-  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
+  "note": "Re-judged 2026-10-28 (independent auditor) after c532819895 added the resolver unit; the stub-cache units are byte-identical to the 2026-09-30 judgement and stand. Stub cache: an overlapping {B} replaces cached {A,B,C} with exactly {B} (no union, no remainder); AAAA of the same name and A of another name form no RRSet and stay whole. Resolver (lru.store, the path storeRRset uses): both arms of 'either ignore ... or discard the entire RRSet' are pinned by exact contents. A lower-ranked {192.0.2.9} over a live authoritative {.1,.2} leaves exactly {.1,.2} (ignore: catches merge and blind replace); an authoritative {.7} then leaves .7 alone (discard: catches merge and blind ignore). Negative: an AAAA put leaves the A RRset .7 in place. 'As appropriate' is decided by rank (RFC 2181 Section 5.4.1); equal or higher rank replaces. Records: stub put revert; resolver store merge mutant (positive) and keyOf qtype mutant (negative), all observed red.",
   "requirement_sha": "c4c14a1cf07a1756",
   "tests": {
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "82cd74bc7cef234b",
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b",
-    "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "9a969f166b226f1c"
+    "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "9a969f166b226f1c",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards": "88ff6c909f86f8d4",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards#2": "88ff6c909f86f8d4"
   },
   "units": {
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "c10f1be8b1784b6d",
     "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "c10f1be8b1784b6d",
-    "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c"
+    "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards": "a1fa363d6d519c54",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverCacheIgnoresOrDiscards#2": "a1fa363d6d519c54"
   },
   "verdict": "enforced"
 }

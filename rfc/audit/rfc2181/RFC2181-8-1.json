@@ -1,12 +1,16 @@
 {
-  "note": "Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value <= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.",
+  "note": "Re-judged 2026-10-28 (independent auditor) after c532819895 added the resolver unit; the geodns units are byte-identical to the 2026-09-30 judgement and stand (TTL 0 and 2147483647 transmitted with the sign bit clear; 2147483648 refused at config). Resolver: every TTL it transmits passes receivedTTL (answers via trustedTTL/withTTL, cache hits via remaining, negative SOA via storeNegative), and cache max-ttl is YANG-bounded 0..2147483647. The test raises max-ttl to 2147483647 so the cap cannot decide: a received 0x80000001 is answered with TTL 0 and not cached (no sign-bit TTL relayed; asserting 0 follows the Section 8 SHOULD, stricter than but consistent with this SHALL), and the boundary 2147483647 is answered and re-served from cache unchanged (catches an off-by-one that treats the maximum as out of range). Polarity reads as the rule's true arm and false arm, not conforming/violating inputs. Records: sign-bit check disabled (positive) and >= 2^31-1 mutant (negative), both observed red.",
   "requirement_sha": "0ede5207edff953a",
   "tests": {
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds": "88ff6c909f86f8d4",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds#2": "88ff6c909f86f8d4",
     "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "92cb2a16576e33d3",
     "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "2f3459a10a84a68a",
     "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "2f3459a10a84a68a"
   },
   "units": {
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds": "21ce2ceb401392d8",
+    "internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go::TestRFC2181ResolverTTLBounds#2": "21ce2ceb401392d8",
     "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "896360c00e8310a0",
     "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
     "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8"
