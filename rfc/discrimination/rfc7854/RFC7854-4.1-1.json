@@ -7,8 +7,8 @@
     "claim-sha": "4579e72a669d0c23",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/bmp/bmp.go::handleSession",
-    "producer-sha": "d5de5825df90f568",
-    "break": "body of handleSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e008b2244c939371",
+    "break": "body of handleSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7854-4.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "6462baa11209c723",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/bmp/bmp.go::handleSession",
-    "producer-sha": "d5de5825df90f568",
-    "break": "body of handleSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e008b2244c939371",
+    "break": "body of handleSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
