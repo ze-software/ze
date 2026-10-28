@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>71.4%</strong><b>60 of 84 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.2%</strong><b>59 of 84 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1253,7 +1253,7 @@ Experimental pending current integration, discrimination and deployment evidence
 </div>
 <h3><a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a></h3>
 <p>All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) under OWNER RULING 2 (receive row: the negative is Ze&#39;s handling of a missing ISH). RFC 1195 section 4.4: &#39;For point-to-point links, IS-IS requires exchange of ISO 9542 ISHs, as the first step in establishing the link between routers.&#39; Positive: root TestRFC1195ISHTransmitReceive requires an ISH to AllESs, with NET and 0xCC, before the first IIH, and a received ISH through the production dispatcher to initialize the peer; transport TestRFC1195ISHVethTransport sends and receives it over AF_PACKET on a veth pair. Negative, NEW root TestRFC1195NeighborWithoutISHStillFormsAdjacency: a P2P neighbor that never sends an ISH is not refused; its IIH three-way Down makes an Initializing adjacency and its IIH three-way Initializing naming Ze brings it Up. The ISH is the classification step, the IIH exchange makes the adjacency, so waiting forever on an ISH the peer may not send is the failure this pins (author&#39;s overlay making applyHello refuse an ISH-less Down adjacency went red, state down). Held negatives (corrupt ISH and wrong circuit, wrong or missing ISH password) prove neighbouring rules and stay supplementary. Records: - revert applyHello (new unit); this judge recorded + revert sendISH (TestRFC1195ISHTransmitReceive), - revert receiveISH (corruption/wrong circuit), + revert signISHPDU and - revert verifyISHFrame (password units), all observed red. NOT YET RECORDED: TestRFC1195ISHVethTransport (+ revert transport.go SendISH), a guest proof; the guest le build failed on another session&#39;s uncommitted internal/component/l2tp/session_fsm.go handleSLI signature change, so that one record is owed when the tree builds. The ISO 10589 immediate-IIH-on-ISH reply is journaled (plan/journal/queued-request-waits-for-an-unrelated-trigger.md), not this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport moved. Re-judged 2026-09-30 (independent judge) under OWNER RULING 2 (receive row: the negative is Ze&#39;s handling of a missing ISH). RFC 1195 section 4.4: &#39;For point-to-point links, IS-IS requires exchange of ISO 9542 ISHs, as the first step in establishing the link between routers.&#39; Positive: root TestRFC1195ISHTransmitReceive requires an ISH to AllESs, with NET and 0xCC, before the first IIH, and a received ISH through the production dispatcher to initialize the peer; transport TestRFC1195ISHVethTransport sends and receives it over AF_PACKET on a veth pair. Negative, NEW root TestRFC1195NeighborWithoutISHStillFormsAdjacency: a P2P neighbor that never sends an ISH is not refused; its IIH three-way Down makes an Initializing adjacency and its IIH three-way Initializing naming Ze brings it Up. The ISH is the classification step, the IIH exchange makes the adjacency, so waiting forever on an ISH the peer may not send is the failure this pins (author&#39;s overlay making applyHello refuse an ISH-less Down adjacency went red, state down). Held negatives (corrupt ISH and wrong circuit, wrong or missing ISH password) prove neighbouring rules and stay supplementary. Records: - revert applyHello (new unit); this judge recorded + revert sendISH (TestRFC1195ISHTransmitReceive), - revert receiveISH (corruption/wrong circuit), + revert signISHPDU and - revert verifyISHFrame (password units), all observed red. NOT YET RECORDED: TestRFC1195ISHVethTransport (+ revert transport.go SendISH), a guest proof; the guest le build failed on another session&#39;s uncommitted internal/component/l2tp/session_fsm.go handleSLI signature change, so that one record is owed when the tree builds. The ISO 10589 immediate-IIH-on-ISH reply is journaled (plan/journal/queued-request-waits-for-an-unrelated-trigger.md), not this row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1286,7 +1286,7 @@ Experimental pending current integration, discrimination and deployment evidence
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go#L19" title="internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHVethTransport</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -2353,7 +2353,7 @@ Experimental pending current integration, discrimination and deployment evidence
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

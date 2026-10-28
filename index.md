@@ -7,6 +7,10 @@ Plugin extensible Appliance option ExaBGP compatible
 
 Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.
 
+ Route and connect Speak [BGP](https://ze-software.net/guides/bgp-peering/), [ISIS](https://ze-software.net/guides/isis/) and [OSPF](https://ze-software.net/guides/ospf/). Manage [interfaces](https://ze-software.net/features/interfaces/) and tunnels with [IPsec VPN](https://ze-software.net/guides/ipsec/) and [WireGuard](https://ze-software.net/features/interfaces/#wireguard-configuration). Program the [FIB](https://ze-software.net/reference/plugins/fib-kernel/). Manage one configuration Ze exposes one [YANG](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/).
+
+Built on a configuration and protocol engine. Run it as a [daemon](https://ze-software.net/architecture/) or an [immutable appliance](https://ze-software.net/guides/appliance/).
+
  [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) [Watch the demos](https://ze-software.net/demos/terminal/) **Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
 
 Watch Ze at work: follow a real terminal lab, with its transcript alongside it.
@@ -47,10 +51,6 @@ Inspect BGP sessions from Ze’s own CLI.
 
 A frame from the published terminal recording. Explore the recordings in the demo gallery.
 
- Route and connect Speak [BGP](https://ze-software.net/guides/bgp-peering/), [ISIS](https://ze-software.net/guides/isis/) and [OSPF](https://ze-software.net/guides/ospf/). Manage [interfaces](https://ze-software.net/features/interfaces/) and tunnels with [IPsec VPN](https://ze-software.net/guides/ipsec/) and [WireGuard](https://ze-software.net/features/interfaces/#wireguard-configuration). Program the [FIB](https://ze-software.net/reference/plugins/fib-kernel/). Manage one configuration Ze exposes one [YANG](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/).
-
-Built on a configuration and protocol engine. Run it as a [daemon](https://ze-software.net/architecture/) or an [immutable appliance](https://ze-software.net/guides/appliance/).
-
  [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/features/web-interface/#browser-configuration-workflow) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
 Expected initial release: Q4 2026.
@@ -88,7 +88,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Across 167 RFCs
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,700+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,800+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.

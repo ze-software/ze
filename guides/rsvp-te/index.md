@@ -229,9 +229,13 @@ includes RSVP-TE, OSPF, SSH, the interface component and `fib-kernel`:
   -rsvp-producer-daemon /root/ze
 ```
 
-The guest needs iproute2, network namespaces, raw-packet privileges and an
-MPLS-capable kernel. No independent RSVP implementation participates in this
-carrier; the next section covers that separate boundary.
+The Linux host or guest needs iproute2, network namespaces and an MPLS-capable
+kernel. The test re-executes in private user, mount and network namespaces;
+`userns.Enter` supplies namespace-local privileges and forwards the explicit
+`-rsvp-producer-daemon` flag. Both executables must remain accessible there.
+The test retains the `integration` build tag because the matching Ze daemon is
+an explicit external prerequisite. No independent RSVP implementation
+participates in this carrier; the next section covers that separate boundary.
 
 ## Independent-peer Linux carrier
 

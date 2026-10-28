@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.0%</strong><b>6 of 75 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 75 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 75 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.8%</strong><b>78 of 85 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>90.6%</strong><b>77 of 85 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -379,7 +379,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3.11.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L385" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L14" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L400" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier</code></a></span></div>
 </div></td>
@@ -964,8 +964,8 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-37">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L482" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L395" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L476" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L386" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear</p></td>
 </tr>
@@ -983,7 +983,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-39">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L483" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L477" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the integration test shows a nonlocal PATH diverted to the RSVP receiver. The &#34;without being forwarded&#34; half is Linux behavior: a packet delivered to an IP_ROUTER_ALERT raw socket (internal/plugins/rsvpte/transport_linux.go openSockets) is consumed by the kernel router-alert chain before ip_forward, and no value at Ze&#39;s boundary decides it, so a negative case at that boundary would assert the kernel, not Ze</p></td>
 </tr>
@@ -992,7 +992,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-40">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L396" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L387" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message</p></td>
 </tr>
@@ -1001,7 +1001,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-41">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L397" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L388" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route</p></td>
 </tr>
@@ -1010,7 +1010,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2205-3-42">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L398" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L389" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a capability obligation (&#34;must be able to&#34;): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the requested source and Send_TTL in the captured IPv4 header</p></td>
 </tr>
@@ -1390,7 +1390,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-x-1"><code>RFC2205-x-1</code></a></h3>
 <p>RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1406,9 +1406,9 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L394" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L385" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -2032,18 +2032,18 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <p>No test carries RFC2205-3-36, so no unit is bound to it.</p>
 <h3><a href="#rfc2205-3-37"><code>RFC2205-3-37</code></a></h3>
 <p>To forward Path and PathTear messages, an RSVP process must be able to query the routing process(s) for routes. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC, internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame&#39;s L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC, internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame&#39;s L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L482" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L476" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L395" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L386" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2062,7 +2062,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L483" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L477" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathAvoidsDataFEC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2071,13 +2071,13 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-3-40"><code>RFC2205-3-40</code></a></h3>
 <p>On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L396" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L387" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2086,13 +2086,13 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 </div>
 <h3><a href="#rfc2205-3-41"><code>RFC2205-3-41</code></a></h3>
 <p>RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame&#39;s L2 destination is link 0&#39;s peer while the endpoint&#39;s ordinary route uses link 1, as the Send control on link 1 shows.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage moved. Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame&#39;s L2 destination is link 0&#39;s peer while the endpoint&#39;s ordinary route uses link 1, as the Send control on link 1 shows.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L397" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L388" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2107,7 +2107,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L398" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L389" title="internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationRSVPPathCarriage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2578,7 +2578,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -6,7 +6,7 @@ Use-case profile. The RFCs this use case requires, each declared by the Use case
 
 Use case: [FlowSpec Injection](../../../../use-cases/flowspec-injection/)
 
-- **Mandatory**: 53.1% (182 of 343 (53.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 52.2% (179 of 343 (52.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 12.9% (16 of 124 (12.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 84.5% (290 of 343 (84.5%); excluded: Optional feature not offered (classification can be revisited): 11 of 343 (3.2%); Met by a lower layer: 1 of 343 (0.3%); Not applicable (classification can be revisited): 41 of 343 (12.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (124 of 124 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -35,7 +35,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | 22 of 32 (68.8%); ceiling 29 of 32 (90.6%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 1 of 32 (3.1%); Not applicable (classification can be revisited): 1 of 32 (3.1%) | 3 of 11 (27.3%); ceiling 11 of 11 (100.0%) | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 5

@@ -307,7 +307,7 @@ Use `.journey-hero` for the shared navy page opening. Two-choice dispatch pages,
 
 A navy hero introduces the page with a clear title and useful context. Interior-page hero backgrounds reach the viewport edges while their content follows the shared page width. The homepage hero and proof panels stay within that width, with inner padding and rounded edges. Leave a gap before Latest news and distribute the product links equally across their row, using fewer columns on smaller screens.
 
-The homepage hero uses the shared `--hero-panel-surface` navy gradient in both themes.
+The homepage hero uses the shared `--hero-panel-surface` navy gradient in both themes. Only the outer hero paints that gradient; the inner panel and showcase chrome stay transparent, without an inner shadow or seams at either edge. Keep capability details in the left column and vertically center the copy and preview in their shared desktop row. The action and release-notice row follows directly below.
 
 The homepage's four starting actions fill the space beside the release callout in equal columns. Center each title and its supporting text within its column. Align the actions and release notice at the top, with the notice text at the mascot's top edge. At widths of 850px or less, use two equal columns and keep the text centered.
 

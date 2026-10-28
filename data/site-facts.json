@@ -26,7 +26,7 @@
     "core_experimental": 52
   },
   "generated_at": "2026-10-28",
-  "github_stars": 57,
+  "github_stars": 58,
   "interop": {
     "scenario_dirs_raw": 218,
     "scenarios": 218,
@@ -34,7 +34,7 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-28T22:12:42Z",
+  "published_at": "2026-10-28T22:53:04Z",
   "repo": {
     "design_comments": 7434,
     "design_comments_display": "7,400+",
@@ -71,7 +71,7 @@
     "editor_display": "180+",
     "fuzz": 95,
     "fuzz_display": "95",
-    "unit": 39776,
-    "unit_display": "39,700+"
+    "unit": 39835,
+    "unit_display": "39,800+"
   }
 }

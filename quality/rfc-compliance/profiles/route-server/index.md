@@ -6,7 +6,7 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 Use case: [Route Server at an IXP](../../../../use-cases/route-server/)
 
-- **Mandatory**: 47.8% (189 of 395 (47.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 47.1% (186 of 395 (47.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 7.7% (17 of 221 (7.7%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 90.6% (358 of 395 (90.6%); excluded: Not applicable (classification can be revisited): 37 of 395 (9.4%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 99.1% (219 of 221 (99.1%); excluded: Not applicable (classification can be revisited): 2 of 221 (0.9%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -23,7 +23,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | route-server: required by rfc/short/rfc4271.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | 0 of 16 (0.0%); ceiling 16 of 16 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4

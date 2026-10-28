@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 60.0% | 3 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 97.0% | 96 of 99 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 94.9% | 94 of 99 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -192,7 +192,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | positive | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L164) | unit/verify | revert, verified |
 | positive | [`TestStaticOriginateIPv6NextHopAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L23) | unit/verify | revert, verified |
 | positive | [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L8) | functional/verify | revert, verified |
-| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24) | functional/verify | revert, verified |
+| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2545-3-2`](#rfc2545-3-2)
 
@@ -226,7 +226,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Incr
 | positive | [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L140) | unit/verify | revert, verified |
 | positive | [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L517) | interop/nightly | revert, verified |
 | positive | [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L14) | functional/verify | revert, verified |
-| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28) | functional/verify | revert, verified |
+| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2545-3-3`](#rfc2545-3-3)
 

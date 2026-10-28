@@ -1017,6 +1017,13 @@ each wire method to its registered handler.</p>
 <td>Acknowledge cleanup for the named original transaction after acceptance or completed abort</td>
 </tr>
 <tr>
+<td><code>ze-plugin-callback:source-policy</code></td>
+<td><code>OnSourcePolicy</code></td>
+<td><code>rpc.SourcePolicyInput</code></td>
+<td><code>rpc.SourcePolicyOutput</code></td>
+<td>Settle prepare/apply/abort/finalize for a captured retained source</td>
+</tr>
+<tr>
 <td><code>ze-plugin-callback:validate-open</code></td>
 <td><code>OnValidateOpen</code></td>
 <td><code>ValidateOpenInput</code></td>
@@ -1082,10 +1089,39 @@ cleanup before returning: callback queue admission is not a receipt. Keep
 operation journals through <code>OnConfigOperationCommit</code>; discard only the matching
 transaction on accepted completion. Rejected completion follows original undo,
 after section-owned configuration and filters have been restored. A completion
-error after acceptance reports an active candidate, not a rollback.</p>
+error after acceptance reports an active candidate, not a rollback.
+Requests and receipts MUST carry an explicit JSON boolean <code>accepted</code>, including
+<code>false</code> for rejection. Missing or <code>null</code> decisions never invoke SDK cleanup and
+never acknowledge completion to the engine; they are malformed messages.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
+<p>Plugins retaining source state MUST declare <code>source-policy-owner</code> in Stage 1,
+even if they do not implement the lifecycle yet. That unsupported declaration
+refuses policy changes before publication; pure observers are not owners.
+<code>OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)</code> automatically
+declares both ownership and <code>source-policy</code> handler support. All four operations
+use one registered callback on both transports, not the shutdown <code>OnDrain</code> path.</p>
+<p>Requests carry a transaction, operation, captured source identity, target epoch
+and absolute deadline. The source identity comprises peer, peer incarnation,
+session generation, original policy epoch, receive frontier and template
+generation. Every field MUST be present and non-null; the last two may be zero.
+Prepare/finalize require explicit target zero. Apply/abort require a fresh target
+newer than the captured epoch; the coordinator enforces monotonicity between calls.
+The SDK rejects malformed, unknown and expired requests before calling the owner.</p>
+<p>The engine strictly drains event application before prepare, but the handler
+MUST additionally fence its own workers and downstream writes. It MUST honor the
+context deadline and return only after the requested work settles. Keep prepare
+pins through apply; abort restores them, while finalize releases accepted pins.
+The SDK returns an exact identity/target receipt only after the handler returns.
+The engine checks the captured process and connection again after acknowledgement.
+Neither this callback transport nor copied epoch fields alone invalidate routes.</p>
+<p>Retained/replayed received routes MUST preserve their original
+<code>StoredRoute.SourcePolicyEpoch</code> (<code>source-policy-epoch</code>), never stamp the current
+epoch onto old work. Zero is unrecorded, independently of session generation.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnSourcePolicy -->
+<!-- source: pkg/plugin/rpc/source_policy.go -- SourcePolicyInput.Validate, UnmarshalJSON -->
+<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
 <p>A peer's AS is not always known when an event is written. A dynamic peer's AS
 comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in
 OpenSent and the FSM changes before OpenConfirm carry none. The JSON peer
@@ -1387,7 +1423,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

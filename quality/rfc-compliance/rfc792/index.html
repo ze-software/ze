@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>54.5%</strong><b>12 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>18.2%</strong><b>4 of 22 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -315,7 +315,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Echo</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Echo-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L392" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L402" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L198" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792EchoRequestType</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L199" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792EchoRequestType</code></a></span></div>
 </div></td>
@@ -325,7 +325,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Echo</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Echo-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L393" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L403" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L226" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792EchoRequestCode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits Code 0 and never varies it, so there is no non-zero-code echo it produces to assert against</p></td>
@@ -335,9 +335,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Echo</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Echo-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L394" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L404" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L233" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792ChecksumValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L395" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L405" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-4">RFC792-Echo-4</code></td><td colspan="3"><span class="rfc-subject">If the total length is odd, the received data is padded with one octet of zeros for computing the checksum. (§Echo)</span></td></tr>
@@ -354,8 +354,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Echo</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Echo-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L396" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L470" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L406" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L483" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-6">RFC792-Echo-6</code></td><td colspan="3"><span class="rfc-subject">To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)</span></td></tr>
@@ -363,8 +363,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Echo</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Echo-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L397" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L471" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L407" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L484" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-format-1">RFC792-Format-1</code></td><td colspan="3"><span class="rfc-subject">Any field labeled &#34;unused&#34; is reserved for later extensions and must be zero when sent (§Format)</span></td></tr>
@@ -372,9 +372,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Format-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L368" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L344" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L321" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L375" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L348" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Linux builds every ICMP error the gateway emits and ze writes no octet of it, so no input to ze yields an error with a nonzero unused field; the positive tags already contrast the zero unused octets with the nonzero assigned fields (pointer, next-hop MTU, RFC 4884 length)</p></td>
 </tr>
@@ -383,8 +383,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Unreachable</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-Unreachable-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L318" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-timeexceeded-1">RFC792-TimeExceeded-1</code></td><td colspan="3"><span class="rfc-subject">If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded)</span></td></tr>
@@ -392,8 +392,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>TimeExceeded</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-TimeExceeded-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L342" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L343" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L346" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L347" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-paramproblem-1">RFC792-ParamProblem-1</code></td><td colspan="3"><span class="rfc-subject">If the gateway or host processing a datagram finds a problem with the header parameters such that it cannot complete processing the datagram it must discard the datagram (§ParamProblem)</span></td></tr>
@@ -401,8 +401,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>ParamProblem</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC792-ParamProblem-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L366" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L367" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L373" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L374" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc792-echo-7">RFC792-Echo-7</code></td><td colspan="3"><span class="rfc-subject">For computing the checksum , the checksum field should be zero. (§Echo)</span></td></tr>
@@ -452,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc792-echo-1"><code>RFC792-Echo-1</code></a></h3>
 <p>Type 8 for echo message; 0 for echo reply message. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze&#39;s netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply moved. Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze&#39;s netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -468,16 +468,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L392" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L402" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc792-echo-2"><code>RFC792-Echo-2</code></a></h3>
 <p>Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply moved. Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -488,24 +488,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L393" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L403" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc792-echo-3"><code>RFC792-Echo-3</code></a></h3>
 <p>The checksum is the 16-bit ones&#39;s complement of the one&#39;s complement sum of the ICMP message starting with the ICMP Type. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze&#39;s own request checksum folds to 0xffff) and the stack reply&#39;s checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one&#39;s complement sum is never answered, beside the valid control. The rejecting branch is Linux&#39;s on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2 moved. Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze&#39;s own request checksum folds to 0xffff) and the stack reply&#39;s checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one&#39;s complement sum is never answered, beside the valid control. The rejecting branch is Linux&#39;s on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L395" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L405" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L233" title="internal/core/probe/icmp_test.go" target="_blank" rel="noopener"><code>TestRFC792ChecksumValid</code></a></td>
@@ -513,9 +513,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L394" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L404" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -537,40 +537,40 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-echo-5"><code>RFC792-Echo-5</code></a></h3>
 <p>The data received in the echo message must be returned in the echo reply message. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze&#39;s AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress moved. Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze&#39;s AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L470" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L483" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L396" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L406" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc792-echo-6"><code>RFC792-Echo-6</code></a></h3>
 <p>To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request&#39;s source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress moved. Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request&#39;s source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L471" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L484" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReplyToTheQueriedAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L397" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L407" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPEchoReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -583,17 +583,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L321" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L368" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L375" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L344" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L348" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -602,18 +602,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-unreachable-1"><code>RFC792-Unreachable-1</code></a></h3>
 <p>Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the &#39;may return&#39; clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule&#39;s own boundary).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2 moved. Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the &#39;may return&#39; clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule&#39;s own boundary).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L318" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -622,18 +622,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-timeexceeded-1"><code>RFC792-TimeExceeded-1</code></a></h3>
 <p>If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2 moved. First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L343" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L347" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L342" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L346" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -648,12 +648,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L367" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L374" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L366" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L373" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -771,7 +771,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.7%</strong><b>2 of 35 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>83.8%</strong><b>57 of 68 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>79.4%</strong><b>54 of 68 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -138,7 +138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.7%</strong><b>9 of 35 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 35 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -1077,7 +1077,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a></h3>
 <p>Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 8277 Section 2.4: &#34;Upon reception, the value of the Compatibility field MUST be ignored.&#34; rs server_handlers.go sendBatchedWithdrawals now carries the departed session generation in withdrawalGroup and passes it to recoverRouteSel, and rs handleStateDown stamps it on each entry and hands the map to a coalescing departure worker (merge: later entry wins per withdrawalKey). Neither touches how a VPN or labeled withdrawal key or its retained native hex is formed: withdrawalKey and entry.wire are built exactly as before, so a withdrawal still matches its announcement whatever Compatibility value it carried. rr handleStateDown gained the generation argument; the rr unit TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes changed only to pass 7, with every input (0x800000-Compatibility withdrawal, both families, with and without ADD-PATH) and every exact-hex assertion unchanged (independent judge approval recorded in 394bd1e802). The revert records on rr handleStateDown and rs sendBatchedWithdrawals were re-taken in 394bd1e802 with reds observed and verify under ./le rfc check. All other tagged units and cited producers (text_json.go, familyrib.go, mpwire.go) are byte-identical; rs and rr TestVPN*/TestLabeled* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes moved. Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 8277 Section 2.4: &#34;Upon reception, the value of the Compatibility field MUST be ignored.&#34; rs server_handlers.go sendBatchedWithdrawals now carries the departed session generation in withdrawalGroup and passes it to recoverRouteSel, and rs handleStateDown stamps it on each entry and hands the map to a coalescing departure worker (merge: later entry wins per withdrawalKey). Neither touches how a VPN or labeled withdrawal key or its retained native hex is formed: withdrawalKey and entry.wire are built exactly as before, so a withdrawal still matches its announcement whatever Compatibility value it carried. rr handleStateDown gained the generation argument; the rr unit TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes changed only to pass 7, with every input (0x800000-Compatibility withdrawal, both families, with and without ADD-PATH) and every exact-hex assertion unchanged (independent judge approval recorded in 394bd1e802). The revert records on rr handleStateDown and rs sendBatchedWithdrawals were re-taken in 394bd1e802 with reds observed and verify under ./le rfc check. All other tagged units and cited producers (text_json.go, familyrib.go, mpwire.go) are byte-identical; rs and rr TestVPN*/TestLabeled* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1115,7 +1115,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactReflectorInventory</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
@@ -1185,12 +1185,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L36" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactReflectorInventory</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L61" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
@@ -1643,7 +1643,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

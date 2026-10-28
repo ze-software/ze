@@ -161,7 +161,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>52.8%</strong><b>2,405 of 4,556 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.6%</strong><b>483 of 4,556 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,556 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>67.5%</strong><b>6,166 of 9,140 tagged units in enrolled RFCs, 4 escaped and 88 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.8%</strong><b>6,018 of 9,140 tagged units in enrolled RFCs, 4 escaped and 236 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -170,14 +170,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>4.7%</strong><b>215 of 4,556 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.2%</strong><b>53 of 4,556 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 4,556 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,248</strong><b>12 shifted, 13 stale, 2,442 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,202</strong><b>3 shifted, 68 stale, 2,442 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.3%</strong><b>14 of 4,556 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.9%</strong><b>724 of 4,556 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>90 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>151 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 4,556 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -252,8 +252,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>90 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Contributors reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 90 violation(s)</code>.</p>
+<p>151 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Contributors reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 151 violation(s)</code>.</p>
 </div>
 <section><h2>Coverage by profile</h2>
 <p class="rfc-lead">A profile groups the RFCs one kind of deployment needs. If you are evaluating Ze for one role, its profile page gives the figures for that role alone.</p>
@@ -569,7 +569,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,248 fresh, 12 shifted, 13 stale, 2,442 missing</td>
+<td>2,202 fresh, 3 shifted, 68 stale, 2,442 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -590,8 +590,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li class="rfc-ok"><strong>Test evidence:</strong> Passed. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers.</li>
 <li class="rfc-ok"><strong>Requirement annotations:</strong> Passed. Every annotation that excuses a requirement from Ze&#39;s own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.</li>
 <li class="rfc-ok"><strong>Published support status:</strong> Passed. The support status each RFC publishes agrees with its requirements and its declared gaps, and a status that promises support is backed by a review of the RFC text.</li>
-<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 26 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
-<li class="rfc-bad"><strong>Recorded breaks:</strong> Failed, 64 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test&#39;s proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.</li>
+<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 73 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
+<li class="rfc-bad"><strong>Recorded breaks:</strong> Failed, 78 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test&#39;s proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.</li>
 <li class="rfc-ok"><strong>Reviews of RFC text:</strong> Passed. Each sign-off of a sentence-by-sentence review of an RFC&#39;s text is valid and current.</li>
 </ul>
 <details class="rfc-contributor"><summary>For contributors: the raw findings and the commands that fix them</summary>
@@ -608,37 +608,115 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
+<td>rfc/short/rfc1195.md:431: RFC1195-4.4-2 has a STALE audit verdict -- what it judged changed: internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1195 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
 <td>rfc/short/rfc1195.md:433: RFC1195-4.5-1 has a STALE audit verdict -- what it judged changed: internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix (func-scoped), internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1195 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2205.md:189: RFC2205-x-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2205</td>
+<td>rfc/short/rfc2131.md:485: RFC2131-2-3 has a STALE audit verdict -- what it judged changed: internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero (func-scoped), internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero (func-scoped), internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2131 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2205.md:252: RFC2205-3-37 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC, internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2205</td>
+<td>rfc/short/rfc2205.md:189: RFC2205-x-1 has a STALE audit verdict -- what it judged changed: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2205 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2205.md:255: RFC2205-3-40 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2205</td>
+<td>rfc/short/rfc2205.md:252: RFC2205-3-37 has a STALE audit verdict -- what it judged changed: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC (func-scoped), internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2205 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2205.md:256: RFC2205-3-41 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2205</td>
+<td>rfc/short/rfc2205.md:255: RFC2205-3-40 has a STALE audit verdict -- what it judged changed: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2205 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2328.md:876: RFC2328-4.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive, internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2328</td>
+<td>rfc/short/rfc2205.md:256: RFC2205-3-41 has a STALE audit verdict -- what it judged changed: internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2205 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc2328.md:876: RFC2328-4.4-1 has a STALE audit verdict -- what it judged changed: internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive (func-scoped), internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2328 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc2328.md:879: RFC2328-8.1-1 has a STALE audit verdict -- what it judged changed: internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go::TestOSPFRefusesDeviceWithoutRouterAddress (func-scoped), internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go::TestOSPFUnnumberedSourcesFromDonorAddress (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2328 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:196: RFC3768-6.4.2-2 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:203: RFC3768-6.4.3-1 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:204: RFC3768-6.4.3-2 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:215: RFC3768-7.1-4 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface (func-scoped), internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:221: RFC3768-7.2-2 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:222: RFC3768-7.2-3 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:223: RFC3768-7.2-4 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:224: RFC3768-8.1-1 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC (func-scoped), internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:225: RFC3768-8.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly (func-scoped), internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2 (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc3768.md:226: RFC3768-8.2-4 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly (func-scoped), internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2 (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (func-scoped), internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc3768 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -671,88 +749,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/short/rfc4301.md:542: RFC4301-5.1-7 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/child.go::installChildSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc4302.md:277: RFC4302-3.3.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender, internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4302</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc4302.md:280: RFC4302-3.4.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow, internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4302</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc5798.md:198: RFC5798-5.1.2.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5798</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc5798.md:234: RFC5798-7.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/backend_linux.go::openV6 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5798 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc6286.md:113: RFC6286-2.1-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/config.go::parsePeerSettings (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6286 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc7705.md:262: RFC7705-3.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup, internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc7705</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc7911.md:274: RFC7911-2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_write.go::retireWrite (func-scoped), internal/component/bgp/reactor/session_write.go::writeUpdateBody (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc7911.md:275: RFC7911-2-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_write.go::retireWrite (func-scoped), internal/component/bgp/reactor/session_write.go::writeUpdateBody (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc8654.md:281: RFC8654-5-4 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced (func-scoped), internal/component/bgp/reactor/session_read.go::readAndProcessMessage (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc8654 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc8955.md:576: RFC8955-5.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics, internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc8955</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc8955.md:581: RFC8955-7.3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics, internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc8955</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc8955.md:599: RFC8955-7.2-3 has a STALE audit verdict -- what it judged changed: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel (func-scoped), internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc8955 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc9568.md:215: RFC9568-5.1.2.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc9568</td>
-<td>-</td>
-</tr>
 </tbody>
 </table>
 </div>
-<p>65 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>126 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </details>
 </section>
 <section id="rfc-list"><h2>Enrolled RFCs</h2>
@@ -929,9 +929,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc2131" data-walked="1" data-mp="20" data-mt="71" data-op="2" data-ot="38" data-ma="47" data-oa="38" data-me="{&#34;not-applicable&#34;:24}" data-oe="{}"><td><a href="rfc2131/"><code>RFC 2131</code></a> Dynamic Host Configuration Protocol</td>
+<tr data-rfc="rfc2131" data-walked="1" data-mp="18" data-mt="71" data-op="2" data-ot="38" data-ma="47" data-oa="38" data-me="{&#34;not-applicable&#34;:24}" data-oe="{}"><td><a href="rfc2131/"><code>RFC 2131</code></a> Dynamic Host Configuration Protocol</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="20 of 71 (28.2%)"><span style="width:28.2%"></span></div><span class="rfc-bar-note">20 of 71 (28.2%)</span><small class="rfc-ceiling">Ceiling: 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 71 (25.4%)"><span style="width:25.4%"></span></div><span class="rfc-bar-note">18 of 71 (25.4%)</span><small class="rfc-ceiling">Ceiling: 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="2 of 38 (5.3%)"><span style="width:5.3%"></span></div><span class="rfc-bar-note">2 of 38 (5.3%)</span><small class="rfc-ceiling">Ceiling: 38 of 38 (100.0%)</small></td>
 <td>71</td>
 <td>14</td>
@@ -965,9 +965,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc2328" data-walked="1" data-mp="58" data-mt="67" data-op="2" data-ot="15" data-ma="67" data-oa="15" data-me="{}" data-oe="{}"><td><a href="rfc2328/"><code>RFC 2328</code></a> OSPF Version 2</td>
+<tr data-rfc="rfc2328" data-walked="1" data-mp="57" data-mt="67" data-op="2" data-ot="15" data-ma="67" data-oa="15" data-me="{}" data-oe="{}"><td><a href="rfc2328/"><code>RFC 2328</code></a> OSPF Version 2</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="58 of 67 (86.6%)"><span style="width:86.6%"></span></div><span class="rfc-bar-note">58 of 67 (86.6%)</span><small class="rfc-ceiling">Ceiling: 67 of 67 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="57 of 67 (85.1%)"><span style="width:85.1%"></span></div><span class="rfc-bar-note">57 of 67 (85.1%)</span><small class="rfc-ceiling">Ceiling: 67 of 67 (100.0%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="2 of 15 (13.3%)"><span style="width:13.3%"></span></div><span class="rfc-bar-note">2 of 15 (13.3%)</span><small class="rfc-ceiling">Ceiling: 15 of 15 (100.0%)</small></td>
 <td>67</td>
 <td>0</td>
@@ -1181,9 +1181,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc3768" data-walked="1" data-mp="30" data-mt="41" data-op="0" data-ot="11" data-ma="38" data-oa="11" data-me="{&#34;not-applicable&#34;:3}" data-oe="{}"><td><a href="rfc3768/"><code>RFC 3768</code></a> Virtual Router Redundancy Protocol (VRRP)</td>
+<tr data-rfc="rfc3768" data-walked="1" data-mp="26" data-mt="41" data-op="0" data-ot="11" data-ma="38" data-oa="11" data-me="{&#34;not-applicable&#34;:3}" data-oe="{}"><td><a href="rfc3768/"><code>RFC 3768</code></a> Virtual Router Redundancy Protocol (VRRP)</td>
 <td>Experimental</td>
-<td><div class="rfc-bar" role="img" aria-label="30 of 41 (73.2%)"><span style="width:73.2%"></span></div><span class="rfc-bar-note">30 of 41 (73.2%)</span><small class="rfc-ceiling">Ceiling: 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 41 (63.4%)"><span style="width:63.4%"></span></div><span class="rfc-bar-note">26 of 41 (63.4%)</span><small class="rfc-ceiling">Ceiling: 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
 <td>41</td>
 <td>0</td>
@@ -1262,9 +1262,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc4271" data-walked="1" data-mp="83" data-mt="133" data-op="3" data-ot="34" data-ma="126" data-oa="34" data-me="{&#34;not-applicable&#34;:7}" data-oe="{}"><td><a href="rfc4271/"><code>RFC 4271</code></a> A Border Gateway Protocol 4 (BGP-4)</td>
+<tr data-rfc="rfc4271" data-walked="1" data-mp="80" data-mt="133" data-op="3" data-ot="34" data-ma="126" data-oa="34" data-me="{&#34;not-applicable&#34;:7}" data-oe="{}"><td><a href="rfc4271/"><code>RFC 4271</code></a> A Border Gateway Protocol 4 (BGP-4)</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="83 of 133 (62.4%)"><span style="width:62.4%"></span></div><span class="rfc-bar-note">83 of 133 (62.4%)</span><small class="rfc-ceiling">Ceiling: 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="80 of 133 (60.2%)"><span style="width:60.2%"></span></div><span class="rfc-bar-note">80 of 133 (60.2%)</span><small class="rfc-ceiling">Ceiling: 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="3 of 34 (8.8%)"><span style="width:8.8%"></span></div><span class="rfc-bar-note">3 of 34 (8.8%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
 <td>133</td>
 <td>12</td>
@@ -1280,9 +1280,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc4302" data-walked="1" data-mp="9" data-mt="32" data-op="0" data-ot="10" data-ma="11" data-oa="10" data-me="{&#34;feature-declined&#34;:1,&#34;lower-layer&#34;:20}" data-oe="{}"><td><a href="rfc4302/"><code>RFC 4302</code></a> IP Authentication Header</td>
+<tr data-rfc="rfc4302" data-walked="1" data-mp="8" data-mt="32" data-op="0" data-ot="10" data-ma="11" data-oa="10" data-me="{&#34;feature-declined&#34;:1,&#34;lower-layer&#34;:20}" data-oe="{}"><td><a href="rfc4302/"><code>RFC 4302</code></a> IP Authentication Header</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 32 (28.1%)"><span style="width:28.1%"></span></div><span class="rfc-bar-note">9 of 32 (28.1%)</span><small class="rfc-ceiling">Ceiling: 11 of 32 (34.4%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 20 of 32 (62.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 32 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">8 of 32 (25.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 32 (34.4%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 20 of 32 (62.5%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="0 of 10 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 10 (0.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
 <td>32</td>
 <td>2</td>
@@ -1694,10 +1694,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc5798" data-walked="1" data-mp="48" data-mt="59" data-op="1" data-ot="26" data-ma="54" data-oa="25" data-me="{&#34;feature-declined&#34;:2,&#34;lower-layer&#34;:3}" data-oe="{&#34;feature-declined&#34;:1}"><td><a href="rfc5798/"><code>RFC 5798</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
+<tr data-rfc="rfc5798" data-walked="1" data-mp="43" data-mt="59" data-op="0" data-ot="26" data-ma="54" data-oa="25" data-me="{&#34;feature-declined&#34;:2,&#34;lower-layer&#34;:3}" data-oe="{&#34;feature-declined&#34;:1}"><td><a href="rfc5798/"><code>RFC 5798</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="48 of 59 (81.4%)"><span style="width:81.4%"></span></div><span class="rfc-bar-note">48 of 59 (81.4%)</span><small class="rfc-ceiling">Ceiling: 54 of 59 (91.5%); excluded: Optional feature not offered (classification can be revisited): 2 of 59 (3.4%); Met by a lower layer: 3 of 59 (5.1%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 26 (3.8%)"><span style="width:3.8%"></span></div><span class="rfc-bar-note">1 of 26 (3.8%)</span><small class="rfc-ceiling">Ceiling: 25 of 26 (96.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 26 (3.8%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="43 of 59 (72.9%)"><span style="width:72.9%"></span></div><span class="rfc-bar-note">43 of 59 (72.9%)</span><small class="rfc-ceiling">Ceiling: 54 of 59 (91.5%); excluded: Optional feature not offered (classification can be revisited): 2 of 59 (3.4%); Met by a lower layer: 3 of 59 (5.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 26 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 26 (0.0%)</span><small class="rfc-ceiling">Ceiling: 25 of 26 (96.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 26 (3.8%)</small></td>
 <td>59</td>
 <td>4</td>
 <td>0</td>
@@ -2081,9 +2081,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc792" data-walked="1" data-mp="5" data-mt="10" data-op="0" data-ot="4" data-ma="10" data-oa="4" data-me="{}" data-oe="{}"><td><a href="rfc792/"><code>RFC 792</code></a> Internet Control Message Protocol</td>
+<tr data-rfc="rfc792" data-walked="1" data-mp="3" data-mt="10" data-op="0" data-ot="4" data-ma="10" data-oa="4" data-me="{}" data-oe="{}"><td><a href="rfc792/"><code>RFC 792</code></a> Internet Control Message Protocol</td>
 <td>No public row declared</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 10 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">5 of 10 (50.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 10 (30.0%)"><span style="width:30.0%"></span></div><span class="rfc-bar-note">3 of 10 (30.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
 <td>10</td>
 <td>0</td>
@@ -2468,19 +2468,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc9552" data-walked="1" data-mp="44" data-mt="59" data-op="1" data-ot="30" data-ma="54" data-oa="30" data-me="{&#34;not-applicable&#34;:5}" data-oe="{}"><td><a href="rfc9552/"><code>RFC 9552</code></a> Distribution of Link-State and Traffic Engineering Information Using BGP</td>
+<tr data-rfc="rfc9552" data-walked="1" data-mp="43" data-mt="59" data-op="1" data-ot="30" data-ma="54" data-oa="30" data-me="{&#34;not-applicable&#34;:5}" data-oe="{}"><td><a href="rfc9552/"><code>RFC 9552</code></a> Distribution of Link-State and Traffic Engineering Information Using BGP</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="44 of 59 (74.6%)"><span style="width:74.6%"></span></div><span class="rfc-bar-note">44 of 59 (74.6%)</span><small class="rfc-ceiling">Ceiling: 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="43 of 59 (72.9%)"><span style="width:72.9%"></span></div><span class="rfc-bar-note">43 of 59 (72.9%)</span><small class="rfc-ceiling">Ceiling: 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%)</small></td>
 <td><div class="rfc-bar" role="img" aria-label="1 of 30 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">1 of 30 (3.3%)</span><small class="rfc-ceiling">Ceiling: 30 of 30 (100.0%)</small></td>
 <td>59</td>
 <td>3</td>
 <td>0</td>
 <td>0</td>
 </tr>
-<tr data-rfc="rfc9568" data-walked="1" data-mp="34" data-mt="66" data-op="3" data-ot="28" data-ma="60" data-oa="28" data-me="{&#34;not-applicable&#34;:6}" data-oe="{}"><td><a href="rfc9568/"><code>RFC 9568</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
+<tr data-rfc="rfc9568" data-walked="1" data-mp="27" data-mt="66" data-op="1" data-ot="28" data-ma="60" data-oa="28" data-me="{&#34;not-applicable&#34;:6}" data-oe="{}"><td><a href="rfc9568/"><code>RFC 9568</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
 <td>Partial</td>
-<td><div class="rfc-bar" role="img" aria-label="34 of 66 (51.5%)"><span style="width:51.5%"></span></div><span class="rfc-bar-note">34 of 66 (51.5%)</span><small class="rfc-ceiling">Ceiling: 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 28 (10.7%)"><span style="width:10.7%"></span></div><span class="rfc-bar-note">3 of 28 (10.7%)</span><small class="rfc-ceiling">Ceiling: 28 of 28 (100.0%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="27 of 66 (40.9%)"><span style="width:40.9%"></span></div><span class="rfc-bar-note">27 of 66 (40.9%)</span><small class="rfc-ceiling">Ceiling: 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%)</small></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 28 (3.6%)"><span style="width:3.6%"></span></div><span class="rfc-bar-note">1 of 28 (3.6%)</span><small class="rfc-ceiling">Ceiling: 28 of 28 (100.0%)</small></td>
 <td>66</td>
 <td>4</td>
 <td>0</td>
@@ -3017,7 +3017,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

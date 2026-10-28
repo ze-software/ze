@@ -271,9 +271,13 @@ includes RSVP-TE, OSPF, SSH, the interface component and <code>fib-kernel</code>
   -test.run '^TestRSVPNativeProducer$' -test.v -test.timeout 4m \
   -rsvp-producer-daemon /root/ze
 </code></pre>
-<p>The guest needs iproute2, network namespaces, raw-packet privileges and an
-MPLS-capable kernel. No independent RSVP implementation participates in this
-carrier; the next section covers that separate boundary.</p>
+<p>The Linux host or guest needs iproute2, network namespaces and an MPLS-capable
+kernel. The test re-executes in private user, mount and network namespaces;
+<code>userns.Enter</code> supplies namespace-local privileges and forwards the explicit
+<code>-rsvp-producer-daemon</code> flag. Both executables must remain accessible there.
+The test retains the <code>integration</code> build tag because the matching Ze daemon is
+an explicit external prerequisite. No independent RSVP implementation
+participates in this carrier; the next section covers that separate boundary.</p>
 <h2 id="independent-peer-linux-carrier">Independent-peer Linux carrier</h2>
 <p><code>TestRSVPFreeRouterInterop</code> runs a supplied Ze daemon against freeRouter in one
 private Linux network namespace. The upstream TAP helper connects Linux Ethernet
@@ -397,7 +401,7 @@ path handles these messages and programs the kernel label through <code>fib-kern
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -4,7 +4,7 @@ Technology aggregate. Network primitives other protocols build on. The RFCs whos
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 35.3% (18 of 51 (35.3%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 31.4% (16 of 51 (31.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 0.0% (0 of 34 (0.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 70.6% (36 of 51 (70.6%); excluded: Met by a lower layer: 12 of 51 (23.5%); Not applicable (classification can be revisited): 3 of 51 (5.9%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (34 of 34 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 792](../../rfc792/) (cycle with rfc791) | Internet Control Message Protocol | 5 of 10 (50.0%); ceiling 10 of 10 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
+| [RFC 792](../../rfc792/) (cycle with rfc791) | Internet Control Message Protocol | 3 of 10 (30.0%); ceiling 10 of 10 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
 | [RFC 905](../../rfc905/) | ISO Transport Protocol Specification (ISO DP 8073) | 8 of 11 (72.7%); ceiling 8 of 11 (72.7%); excluded: Not applicable (classification can be revisited): 3 of 11 (27.3%) | no rows; ceiling no rows |
 | [RFC 1071](../../rfc1071/) | Computing the Internet Checksum | 5 of 6 (83.3%); ceiling 6 of 6 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
 

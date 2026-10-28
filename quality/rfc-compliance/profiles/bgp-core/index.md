@@ -8,7 +8,7 @@ Use case: [BGP performance testing with Ze](../../../../use-cases/bgp-performanc
 
 Use case: [ExaBGP Migration](../../../../use-cases/exabgp-migration/)
 
-- **Mandatory**: 56.5% (196 of 347 (56.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 55.6% (193 of 347 (55.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 7.0% (8 of 114 (7.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 96.5% (335 of 347 (96.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 347 (0.3%); Not applicable (classification can be revisited): 11 of 347 (3.2%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (114 of 114 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -25,7 +25,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) |
 
 ### Level 4
 

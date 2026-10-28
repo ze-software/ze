@@ -4,7 +4,7 @@ Technology aggregate. BGP Link-State distribution. The RFCs whose summary names 
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 66.4% (83 of 125 (66.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 65.6% (82 of 125 (65.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 5.5% (4 of 73 (5.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 87.2% (109 of 125 (87.2%); excluded: Not applicable (classification can be revisited): 16 of 125 (12.8%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (73 of 73 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | 44 of 59 (74.6%); ceiling 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) |
+| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | 43 of 59 (72.9%); ceiling 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) |
 
 ### Level 13
 

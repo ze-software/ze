@@ -59,6 +59,35 @@
                                     <span>ExaBGP compatible</span>
                                 </p>
                                 <p class="hero-intro">Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.</p>
+                                <div class="hero-capabilities" aria-label="Networking and management capabilities">
+                                    <dl>
+                                        <div>
+                                            <dt>Route and connect</dt>
+                                            <dd>
+                                                Speak <a href="guides/bgp-peering/">BGP</a>,
+                                                <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
+                                                Manage <a href="features/interfaces/">interfaces</a> and tunnels with
+                                                <a href="guides/ipsec/">IPsec VPN</a> and
+                                                <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
+                                                Program the <a href="reference/plugins/fib-kernel/">FIB</a>.
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt>Manage one configuration</dt>
+                                            <dd>
+                                                Ze exposes one <a href="features/bgp-configuration/">YANG</a>-modeled configuration
+                                                through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
+                                                <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
+                                                and <a href="features/api-commands/">APIs</a>:
+                                                <a href="guides/api/#rest-endpoints">REST</a>,
+                                                <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                    <p>Built on a configuration and protocol engine. Run it as a
+                                        <a href="architecture/">daemon</a> or an
+                                        <a href="guides/appliance/">immutable appliance</a>.</p>
+                                </div>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                     <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
@@ -138,35 +167,6 @@
                                 </figure>
                                 </div>
                             </div>
-                        </div>
-                        <div class="hero-capabilities" aria-label="Networking and management capabilities">
-                            <dl>
-                                <div>
-                                    <dt>Route and connect</dt>
-                                    <dd>
-                                        Speak <a href="guides/bgp-peering/">BGP</a>,
-                                        <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
-                                        Manage <a href="features/interfaces/">interfaces</a> and tunnels with
-                                        <a href="guides/ipsec/">IPsec VPN</a> and
-                                        <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
-                                        Program the <a href="reference/plugins/fib-kernel/">FIB</a>.
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt>Manage one configuration</dt>
-                                    <dd>
-                                        Ze exposes one <a href="features/bgp-configuration/">YANG</a>-modeled configuration
-                                        through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
-                                        <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
-                                        and <a href="features/api-commands/">APIs</a>:
-                                        <a href="guides/api/#rest-endpoints">REST</a>,
-                                        <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
-                                    </dd>
-                                </div>
-                            </dl>
-                            <p>Built on a configuration and protocol engine. Run it as a
-                                <a href="architecture/">daemon</a> or an
-                                <a href="guides/appliance/">immutable appliance</a>.</p>
                         </div>
                         <div class="hero-action-row">
                             <nav class="hero-primary-actions" aria-label="Start with Ze">
@@ -285,7 +285,7 @@
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">39,700+</span> <span class="label">Go tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">39,800+</span> <span class="label">Go tests</span></strong
                         >
                         <ul>
                             <li>Check encoded bytes and parsed values.</li>
@@ -882,7 +882,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:49 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
                 </div>
             </div>
         </footer>

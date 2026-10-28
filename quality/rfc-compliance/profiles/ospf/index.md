@@ -4,7 +4,7 @@ Technology aggregate. OSPFv2 and OSPFv3. The RFCs whose summary names the ospf a
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 37.2% (152 of 409 (37.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 36.9% (151 of 409 (36.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 4.1% (10 of 242 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 80.7% (330 of 409 (80.7%); excluded: Optional feature not offered (classification can be revisited): 1 of 409 (0.2%); Met by a lower layer: 6 of 409 (1.5%); Not applicable (classification can be revisited): 72 of 409 (17.6%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 92.6% (224 of 242 (92.6%); excluded: Not applicable (classification can be revisited): 18 of 242 (7.4%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2328](../../rfc2328/) (cycle with rfc3101, rfc5250) | OSPF Version 2 | 58 of 67 (86.6%); ceiling 67 of 67 (100.0%) | 2 of 15 (13.3%); ceiling 15 of 15 (100.0%) |
+| [RFC 2328](../../rfc2328/) (cycle with rfc3101, rfc5250) | OSPF Version 2 | 57 of 67 (85.1%); ceiling 67 of 67 (100.0%) | 2 of 15 (13.3%); ceiling 15 of 15 (100.0%) |
 | [RFC 3101](../../rfc3101/) (cycle with rfc2328, rfc5250) | The OSPF Not-So-Stubby Area (NSSA) Option | 15 of 28 (53.6%); ceiling 27 of 28 (96.4%); excluded: Optional feature not offered (classification can be revisited): 1 of 28 (3.6%) | 2 of 7 (28.6%); ceiling 7 of 7 (100.0%) |
 | [RFC 5250](../../rfc5250/) (cycle with rfc2328, rfc3101) | The OSPF Opaque LSA Option | 10 of 15 (66.7%); ceiling 15 of 15 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) |
 
