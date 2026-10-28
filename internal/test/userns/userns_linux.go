@@ -40,11 +40,11 @@ const hostNetnsDeviceEnv = "ZE_TEST_USERNS_HOST_NETNS_DEV"
 // Enter runs the calling test again in a new user, network and mount namespace
 // and returns true only in that child, where the test body runs as root over
 // its own namespaces, with loopback up and a private tmpfs on /run/netns.
-// The parent returns false once the child has finished: the test has then failed
-// when the child failed or ran no test of that name, and skipped when the kernel
-// refused the namespace or the child skipped the test itself. The child receives
-// every flag the parent was given except those childFlagsWithheld names, so a
-// test's own flags reach the body. The caller returns at once on false.
+// The parent returns false once the child has finished. A startup error, including
+// namespace denial, fails the test, as does a failed child or a missing result.
+// Only a successful child process reporting that the selected test skipped can
+// skip the parent. The child receives every flag except those childFlagsWithheld
+// names, so a test's own flags reach the body. The caller returns at once on false.
 //
 // Enter MUST be the first statement of a top-level test: the child is selected by
 // the test's name, and a subtest name would select its parent as well.
@@ -57,12 +57,8 @@ func Enter(t *testing.T) bool {
 		return true
 	}
 	out, err := childCommand(t, t.Name()).CombinedOutput()
-	var exitErr *exec.ExitError
-	if err != nil && !errors.As(err, &exitErr) {
-		t.Skip(refusal(err))
-	}
 	if err != nil {
-		t.Fatalf("test in its own namespace failed: %v\n%s", err, out)
+		t.Fatalf("%s\n%s", childFailure(err), out)
 	}
 	switch childResult(t.Name(), out) {
 	case childPassed:
@@ -85,8 +81,8 @@ func Enter(t *testing.T) bool {
 
 // childCommand answers the command that re-executes the test binary in a new
 // user, network and mount namespace, selecting the one top-level test called
-// name. Run, an error that is not an *exec.ExitError means the child never
-// started, which on Linux is the kernel refusing the namespaces.
+// name. Go reports clone and exec errors through the same channel, so an errno
+// cannot establish that the kernel refused namespace creation. Every error fails.
 func childCommand(t *testing.T, name string) *exec.Cmd {
 	t.Helper()
 	hostDevice, err := netnsDevice("/")
@@ -185,13 +181,11 @@ func childResult(name string, out []byte) childOutcome {
 	panic("BUG: the result-line pattern admits only PASS, SKIP and FAIL")
 }
 
-// refusal is the skip text for a kernel that would not create the namespaces.
-// It names the setup step that lifts the restriction, because the usual cause
-// on a developer host is a sysctl or AppArmor policy that `./le setup install`
-// changes.
-func refusal(err error) string {
-	return "the kernel refused a user, network and mount namespace for the test: " + err.Error() +
-		"; run `./le setup install` and see its `userns-unrestricted` check"
+// childFailure reports the error without guessing which startup stage failed.
+// Namespace policy is one possible cause, so its setup guidance is conditional.
+func childFailure(err error) string {
+	return "test in its own namespace failed: " + err.Error() +
+		"\nIf namespace creation was denied, run `./le setup install` and see its `userns-unrestricted` check."
 }
 
 // childSetup prepares the child before the test body runs: a mount tree whose

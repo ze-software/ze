@@ -76,7 +76,7 @@ are group C's.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/test/userns/userns_linux.go` - `Enter` clones `CLONE_NEWUSER|CLONE_NEWNET`, maps uid/gid 0 to the caller, re-runs the named test with `ZE_TEST_USERNS_CHILD=1`, brings `lo` up in the child; the parent fails when the child fails, skips when the clone is refused or the child skipped. The package has no test of its own and no non-Linux file.
+- [ ] `internal/test/userns/userns_linux.go` - before the startup repair, `Enter` clones user, network and mount namespaces, maps uid/gid 0 to the caller, prepares private `/run/netns` and loopback, and checks the selected child's result. It incorrectly skips every startup error other than `*exec.ExitError`. D-9 replaces that classification with failure for every process error.
 - [ ] `github.com/vishvananda/netns@v0.0.5` `NewNamed` - creates `/run/netns` when absent, unshares a new netns on the calling thread, creates `/run/netns/<name>` and bind-mounts `/proc/<pid>/task/<tid>/ns/net` onto it. In a user namespace without a private `/run/netns` the create fails with permission denied.
 - [ ] `internal/plugins/dhcpserver/neighbor_integration_linux_test.go` at 88e01f1f6c - the conversion pattern.
 - [ ] `internal/le/setup/system.go` (`kvmState`, `inKvmGroup`, `deviceOpenable`, `applyKvm`, `usernsSteps`, `privilegedStep`) and `internal/le/setup/setup.go` (`visitKvm`, `visitUserns`, the visit list at ~line 174) - the setup pattern P2 copies.
@@ -86,13 +86,13 @@ are group C's.
 - Every assertion of every converted test. A conversion adds the `Enter` guard and turns a privilege skip into a failure; it removes or loosens no assertion.
 - Feature-absence skips that name a kernel feature or a module (for example `loadMPLSModules` in `fib/kernel`, "build a kernel with CONFIG_MPLS_ROUTING") stay skips: they say the kernel lacks the feature, not that the process lacks a privilege.
 - Tests that must run WITHOUT privilege (for example `TestReplaceIPv6RPFUnprivileged` in `plugins/iface/netlink/rpf_linux_test.go`, skipped as root) get no `Enter`.
-- `Enter`'s existing contract for the BFD and dhcpserver users: loopback up, coverage directory passed on, skip only when the kernel refuses the namespace.
+- `Enter`'s isolation, loopback setup, flag and coverage forwarding, and explicit selected-child skips for BFD and dhcpserver users. Startup refusal no longer skips: D-9 changes that contract.
 - QEMU and the nightly `sudo` integration job keep running every converted file (a `linux` file is still compiled under `integration && linux`).
 
 **Behavior to change:**
 - `Enter` also gives the child a private mount namespace with a private `/run/netns`.
 - `Enter` gains a non-Linux variant that runs the test in place.
-- The skip when the kernel refuses the namespace names the fix (`./le setup install`, check `userns-unrestricted`).
+- Every child-process error, including kernel namespace denial, fails the parent. The diagnostic preserves the error and conditionally names `./le setup install` and `userns-unrestricted` for namespace-policy failures (D-9).
 - `./le setup` gains a `ppp-access` check and its install steps.
 - Each inventory file: `Enter` in each top-level test that reaches a privilege skip, privilege skips become failures, build tag per the table.
 
@@ -106,7 +106,7 @@ are group C's.
 1. The parent's top-level test calls `userns.Enter`; outside the child it re-executes the test binary with `-test.run ^<name>$` in new user, network and mount namespaces.
 2. In the child, `Enter` makes the mount tree recursively private, mounts a tmpfs on `/run/netns` (or, where the host has no `/run/netns`, on `/run`, then creates `/run/netns`), brings `lo` up, and returns true.
 3. The test body runs as uid 0 over its own namespaces: named netns, links, sockets and XFRM state exist only there.
-4. The child exits; the parent reports PASS, FAIL with the child's output, or SKIP when the child skipped.
+4. Any child-process error fails the parent with the error and captured output. On successful exit, the parent requires the selected test's result and reports PASS, FAIL, or its explicit SKIP.
 5. For D tests, the open of `/dev/ppp` succeeds because the host node is `root:dip 0660` (P2) and `dip` survives the user namespace; the ioctls succeed because the child holds `CAP_NET_ADMIN` over its own netns.
 
 ### Boundaries Crossed
@@ -178,7 +178,7 @@ are group C's.
 | AC-2 | The same child stats `/run/netns` | it is a tmpfs (statfs magic `TMPFS_MAGIC`) and its device differs from the device the parent saw for the host's `/run/netns`, passed to the child by the parent |
 | AC-3 | A child runs `ip netns add <name>` and `ip netns exec <name> ip link add <dummy> type dummy` | both exit 0 |
 | AC-4 | A child of a host that has no `/run/netns` | `/run/netns` exists in the child and AC-1 holds; proved by a test that points the helper's mount target at a missing directory under a temporary root |
-| AC-5 | The kernel refuses the namespace | the skip text names `./le setup install` and the `userns-unrestricted` check |
+| AC-5 | The kernel refuses the namespace, or any other startup error occurs | the parent fails, never skips, preserves the error, and names `./le setup install` and the `userns-unrestricted` check for a namespace-policy refusal. A selected child-test SKIP propagates only after a successful child process (D-9) |
 | AC-6 | A mount step in the child fails | the test fails (not skips) naming the step and the errno |
 | AC-7 | `GOOS=darwin` build of `internal/test/userns` and of `internal/component/traceroute/cmd` tests | both compile; on non-Linux `Enter` returns true at once and runs the test in place |
 | AC-8 | Every group A, B and D file in the inventory, run once on this host as uid 1000 with `go test -v -run '<its tests>'` through `./le job run` (with `-tags integration` for a file that keeps the tag) | every top-level test that reached a privilege skip prints `--- PASS`; none prints `--- SKIP` except a feature-absence skip named in its batch's evidence |
@@ -203,7 +203,8 @@ are group C's.
 | `TestEnterMountFailureNamesTheStep` | `internal/test/userns/userns_linux_test.go` | AC-6, through `mountNetnsDir` over a regular file: the error names `mount tmpfs on <target>` and wraps ENOTDIR; `childSetup` fails the test with it | P1: added; red under the overlay (nil error), green after |
 | `TestEnterRunsTheTestAsRootWithLoopbackUp` | `internal/test/userns/userns_linux_test.go` | the existing contract (euid 0, lo up) the BFD and dhcpserver users rely on | P1: added; green before and after |
 | `TestEnterRunsInPlaceOffLinux` | `internal/test/userns/userns_other_test.go` | AC-7 (compiled on darwin; run on Thomas's Mac) | P1: written; `GOOS=darwin go vet` of `internal/test/userns` and `internal/component/traceroute/cmd` exit 0; not run (owed on the Mac) |
-| `TestEnterRefusalNamesTheFix` | `internal/test/userns/userns_linux_test.go` | AC-5, through the function that builds the skip text | P1: written; red under the overlay (the old text), green after |
+| `TestEnterRefusalNamesTheFix` | `internal/test/userns/userns_linux_test.go` | AC-5 failure diagnostic preserves the error and names the conditional namespace-policy fix | PASS under `-race`; current session scratch `job-userns-smoke-b033df33.log` |
+| `TestEnterRejectsAnInvalidExecutableName` | `internal/test/userns/userns_linux_test.go` | AC-5: a real re-exec gives Enter a NUL-containing executable name, rejected before clone, and requires FAIL rather than SKIP | Old classifier: FAIL because nested test skipped (`job-userns-startup-red-acee4c41.log`); repaired classifier: PASS under `-race` (`job-userns-startup-green-876efc0c.log`), both in session 644a4e78's scratch |
 | `TestPPPAccessTellsApartItsStates` | `internal/le/setup/setup_test.go` | AC-12, with injected device and group probes like `TestKvmTellsApartTheThreeWaysItIsNotUsable` | |
 | `TestPPPAccessInstallSteps` | `internal/le/setup/setup_test.go` | AC-13, AC-14, AC-15, over a recording shell | |
 | every inventory test | the inventory files | AC-8: PASS in its namespace | |
@@ -394,7 +395,7 @@ Counts: A 67 files (25 tagged), B 61 (6 tagged), D 2, C 4.
 |------|------|------|----|--------|
 
 ## Files to Modify
-- `internal/test/userns/userns_linux.go` - mount namespace, private `/run/netns`, the refusal text naming the fix
+- `internal/test/userns/userns_linux.go` - mount namespace, private `/run/netns`, every process error fails, conditional namespace-policy fix guidance
 - `internal/le/setup/system.go`, `internal/le/setup/setup.go` - `ppp-access` state, visit and install steps
 - every group A, B and D file in the inventory - `Enter`, privilege skip to failure, build tag
 - `docs/architecture/testing/qemu-integration.md`, `docs/contributing/testing.md`, `docs/guide/developer-setup.md`, `docs/architecture/testing/ci-workflows.md` - P10
@@ -456,6 +457,7 @@ Every batch (P3..P9) owes, in order:
 
 1. **Phase P1: `Enter` mount namespace (wiring first)** - write `TestEnterGivesAPrivateNetnsDirectory`, `TestEnterServesIPNetns`, `TestEnterCreatesAMissingNetnsDirectory`, `TestEnterRefusalNamesTheFix`; show them red; then extend `Enter` (`CLONE_NEWNS`; in the child: recursive private propagation on `/`, tmpfs on `/run/netns`, or tmpfs on `/run` plus `/run/netns` when absent; `lo` up); add the non-Linux `Enter` and its test.
    - Tests: the four above, `TestEnterRunsInPlaceOffLinux` compiled for darwin, and the existing BFD and dhcpserver `Enter` users rerun.
+   - Startup repair (D-9): `TestEnterRejectsAnInvalidExecutableName` must fail under the old startup classifier and pass after removing it. Keep the selected-child SKIP and missing-result guards.
    - Files: `internal/test/userns/*`
    - Verify: red, then green; the BFD and dhcpserver users still PASS. If A-1 breaks, record why in Design Insights and switch group B to unnamed `netns.New()` per file (D-1 fallback).
 2. **Phase P2: `ppp-access` setup check** - state, visit, install steps, manual-fix notes, tests.
@@ -480,7 +482,7 @@ Every batch (P3..P9) owes, in order:
 | Correctness | No test that must run unprivileged (root-skip tests) gained `Enter` |
 | Data flow | Nothing the child mounts or creates is visible on the host (AC-2) |
 | Rule: testing.md | every tagged unit changed has its judge row before the edit and a fresh record after |
-| Rule: user-facing-errors.md | the refusal skip and the `ppp-access` details name the exact fix command |
+| Rule: user-facing-errors.md | the startup failure diagnostic preserves the error and conditionally names the namespace-policy fix; `ppp-access` details name its exact fix command |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -526,6 +528,7 @@ Every batch (P3..P9) owes, in order:
 | D-6: `/dev/ppp` goes to group `dip` | a dedicated `ze` group | `dip` is Debian's group for dial-up IP, which owns `/etc/ppp/peers` and `/etc/chatscripts` here, and the user already holds it, so the grant needs no new group and no new membership on this host. Setup creates `dip` with `groupadd --system` only where a distribution lacks it |
 | D-7: one judge pass per batch | one per unit | the edit is the same mechanical change in every unit, so one brief carries every unit's before and after |
 | D-8: D files keep `integration && linux` | drop to `linux` | the hosted CI runner and a fresh host lack the `/dev/ppp` grant, so a `linux` tag would fail them on host setup rather than on Ze |
+| D-9: every child-process error fails, including namespace denial | skip permission errnos; add a stage-reporting launcher | Thomas selected “Fail all startup errors” on 2026-10-28, relayed by the parent session. This one-off approval changes AC-5 and the startup-skip contract. Go's `syscall.forkExec` returns clone and exec failures through the same errno channel, so an allowlist can hide executable failures. Keep the existing isolated re-exec, conditional setup guidance, and explicit selected-child skips. No launcher or host fallback is added. |
 
 ## Known Limitations
 - Group C stays privileged: a one-uid map cannot chown to another uid, and the freeRtr and FRR interop tests drive external daemons that QEMU and the interop labs run.

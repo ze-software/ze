@@ -815,12 +815,16 @@ keyword; a host observation rejects that keyword. See
 For tests needing only their own network, a fixed port or an address on `lo`,
 `userns.Enter` (`internal/test/userns`) re-executes the test in a new user,
 network and mount namespace, where the test is root over namespaces of its
-own, and skips only when the kernel refuses them; the skip names
-`./le setup install` and its `userns-unrestricted` check. `Enter` is the first
+own, and fails on every startup error, including namespace denial. Go reports
+clone and exec errors through the same channel, so `Enter` cannot safely
+classify an errno as a namespace refusal. The diagnostic retains the error
+and names `./le setup install` and its `userns-unrestricted` check as the fix
+when namespace policy caused it. `Enter` is the first
 statement of a top-level test, and such a test never calls `t.Parallel`,
 because the child re-runs that one named test in a fresh process. A well-known
 port bound there never collides with a ze running on the host or with a
 parallel run of the same package.
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childFailure -->
 
 The child runs with `-test.run '^<Name>$' -test.v -test.count=1`, and the
 parent reads the child's own top-level result line, `--- PASS: <Name> (` or
@@ -829,6 +833,9 @@ line ran no test (a name the binary does not hold selects nothing and still
 exits 0), and the parent then fails rather than pass on nothing. A subtest's
 result line is indented and does not count: a skipped subtest neither skips nor
 passes the test it belongs to.
+A skip reaches the parent only when the child exits successfully and reports
+that the selected top-level test skipped.
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childResult -->
 
 Every flag the parent was given reaches the child with its value, read from
 `flag.CommandLine` through `flag.Visit`, so a test's own flag
@@ -847,7 +854,7 @@ BFD wire tests (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
 `Enter` brings up the literal kernel-created `lo` inside that new namespace.
 This is fixture topology, not an operator-selected logical interface, so the
 direct lookup in `loopbackUp` is an explicit interface-resolution gate exemption.
-<!-- source: internal/test/userns/userns_linux.go -- Enter, refusal, loopbackUp -->
+<!-- source: internal/test/userns/userns_linux.go -- Enter, loopbackUp -->
 
 Before the test body runs, the child makes its mount tree recursively private
 and mounts a tmpfs on `/run/netns`, so a named network namespace

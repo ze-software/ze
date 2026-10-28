@@ -319,13 +319,45 @@ func TestEnterRefusesAChildThatRanNoTest(t *testing.T) {
 	}
 }
 
-// TestEnterRefusalNamesTheFix proves the skip a refused namespace produces names
-// the cause and the setup step that lifts the restriction.
+// TestEnterRejectsAnInvalidExecutableName proves that a startup error fails
+// rather than skips the calling test. The subprocess gives Enter a binary name
+// containing NUL, which Go rejects before clone, even on a host denying userns.
+// Only the subprocess changes os.Args, so other tests keep their executable.
+func TestEnterRejectsAnInvalidExecutableName(t *testing.T) {
+	const probeEnv = "ZE_TEST_USERNS_INVALID_EXECUTABLE"
+	if os.Getenv(probeEnv) == "1" {
+		os.Args[0] += "\x00"
+		if Enter(t) {
+			t.Fatal("Enter ran the test body with an invalid executable name")
+		}
+		t.Fatal("Enter returned without failing an invalid executable name")
+	}
+
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
+	cmd.Env = append(os.Environ(), childEnv+"=", probeEnv+"=1")
+	out, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("Enter with an invalid executable name exited %v, want a failed test:\n%s", err, out)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Fatalf("Enter with an invalid executable name exited %d, want 1:\n%s", exitErr.ExitCode(), out)
+	}
+	if got := childResult(t.Name(), out); got != childFailed {
+		t.Fatalf("Enter with an invalid executable name reported %d, want childFailed:\n%s", got, out)
+	}
+	if !strings.Contains(string(out), syscall.EINVAL.Error()) {
+		t.Fatalf("Enter lost the invalid executable error %q:\n%s", syscall.EINVAL, out)
+	}
+}
+
+// TestEnterRefusalNamesTheFix proves the failure diagnostic retains the kernel
+// error and names the setup step to use when namespace policy caused it.
 func TestEnterRefusalNamesTheFix(t *testing.T) {
-	text := refusal(syscall.EPERM)
+	text := childFailure(syscall.EPERM)
 	for _, want := range []string{syscall.EPERM.Error(), "./le setup install", "userns-unrestricted"} {
 		if !strings.Contains(text, want) {
-			t.Errorf("refusal text %q does not contain %q", text, want)
+			t.Errorf("failure text %q does not contain %q", text, want)
 		}
 	}
 }

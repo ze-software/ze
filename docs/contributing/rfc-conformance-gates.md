@@ -1575,7 +1575,7 @@ shared checkout (`guestScript`). The checkout reaches the guest over 9p with
 the checkout root is commonly closed to other users. A unit that re-executes
 itself in a new user namespace, as the SAD-selector probes do, holds no
 capability over an inode whose owner that namespace does not map, so its exec
-of a checkout path is refused with `EACCES` and the unit skips, observing
+of a checkout path is refused with `EACCES` and the unit fails, observing
 nothing. The guest-local copy is owned by the guest's root, which the child
 namespace maps. A coverage run also names a guest-local counter directory with
 `-test.gocoverdir=`, as `go test -coverprofile` does on the host: the binary
@@ -1584,6 +1584,7 @@ re-executes itself passes the flag on, so a producer only the child reaches
 still appears as executed. Without it the binary picks a private directory the
 child never learns, and the recorder refuses the unit as never reaching its
 producer.
+<!-- source: internal/test/userns/userns_linux.go -- Enter fails on re-exec errors -->
 <!-- source: internal/le/rfc/discriminate_guest.go -- guestScript, guestLocalDir --> Attribution is unchanged: the red must
 name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
 takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it, and
